@@ -457,18 +457,15 @@ export default function HomePage() {
           </p>
 
           <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-8">
-            <div className="mb-6">
-              <a href="mailto:hello@maintainability.ai" className="text-2xl font-semibold text-brand hover:text-indigo-400">
-                hello@maintainability.ai
-              </a>
-            </div>
-
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-6 py-3 rounded-xl border border-slate-700 hover:border-brand hover:bg-slate-900 transition font-semibold">
+              <a href="https://chiefarcheologist.com/contact" className="px-8 py-4 rounded-xl bg-brand text-slate-900 hover:bg-indigo-400 transition font-bold text-lg">
+                Contact Chief Archeologist
+              </a>
+              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-8 py-4 rounded-xl border-2 border-slate-700 hover:border-brand hover:bg-slate-900 transition font-semibold text-lg">
                 Explore on GitHub
               </a>
-              <Link to="/agenda" className="px-6 py-3 rounded-xl bg-brand text-slate-900 hover:bg-indigo-400 transition font-semibold">
-                View Workshop Agenda
+              <Link to="/docs/workshop" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 transition font-semibold text-lg">
+                Start Workshop
               </Link>
             </div>
           </div>
