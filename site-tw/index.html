@@ -3,61 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MaintainabilityAI</title>
-  <link rel="stylesheet" href="/src/styles.css"/>
+  <meta name="description" content="Security-first AI-assisted engineering. From prompt to production. Workshops, OWASP prompt packs, and secure SDLC implementation."/>
+  <title>Maintainability.ai — Security-First AI Engineering</title>
 </head>
-<body class="bg-slate-950 text-slate-100">
-  <header class="border-b border-slate-800">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-      <a href="/" class="font-extrabold text-2xl tracking-tight">
-        <span class="text-brand">Maintainability</span>.ai
-      </a>
-      <nav class="space-x-6 text-slate-300">
-        <a class="hover:text-white" href="/agenda.html">Workshop</a>
-        <a class="hover:text-white" href="/docs/index.html">Docs</a>
-        <a class="hover:text-white" href="https://github.com/AliceNN-ucdenver/MaintainabilityAI">GitHub</a>
-      </nav>
-    </div>
-  </header>
-
-  <main>
-    <section class="relative overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-br from-indigo-700/20 via-fuchsia-600/10 to-cyan-500/10 blur-3xl"></div>
-      <div class="max-w-6xl mx-auto px-6 py-24 relative">
-        <h1 class="text-5xl md:text-6xl font-black leading-tight">
-          Security‑first <span class="text-brand">AI‑Assisted</span> Engineering
-        </h1>
-        <p class="mt-6 text-lg text-slate-300 max-w-2xl">
-          A bold, practical starter kit: OWASP prompt packs, vulnerable code samples, CI security gates,
-          and a workshop that makes it all <em>pop, pop, pop</em>.
-        </p>
-        <div class="mt-8 flex gap-4">
-          <a href="/docs/index.html" class="px-6 py-3 rounded-xl bg-brand text-slate-900 font-semibold">Read the Docs</a>
-          <a href="/agenda.html" class="px-6 py-3 rounded-xl border border-slate-700 hover:bg-slate-900">View Workshop</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-3 gap-6">
-      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/30">
-        <h3 class="font-bold text-xl">OWASP Prompt Packs</h3>
-        <p class="text-slate-300 mt-2">A01–A10 prompts tuned for Claude, Copilot, and ChatGPT.</p>
-      </div>
-      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/30">
-        <h3 class="font-bold text-xl">Insecure TS Samples</h3>
-        <p class="text-slate-300 mt-2">Realistic anti-patterns you’ll remediate with tests.</p>
-      </div>
-      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/30">
-        <h3 class="font-bold text-xl">CI Security Gates</h3>
-        <p class="text-slate-300 mt-2">CodeQL + Snyk + ESLint/Jest wired for PRs.</p>
-      </div>
-    </section>
-  </main>
-
-  <footer class="border-t border-slate-800">
-    <div class="max-w-6xl mx-auto px-6 py-10 text-slate-400">
-      © 2025 Maintainability.ai — Built with Tailwind + Vite. Docs live at <a class="underline" href="/docs/index.html">/docs</a>.
-    </div>
-  </footer>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

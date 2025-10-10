@@ -1,0 +1,99 @@
+name: Snyk Security Scan
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  snyk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk dependency scan
+        id: snyk-test
+        continue-on-error: true
+        run: |
+          npx snyk test --all-projects --severity-threshold=medium --json > snyk-test-results.json || true
+          echo "Snyk dependency scan completed"
+
+      - name: Run Snyk code scan (SAST)
+        id: snyk-code
+        continue-on-error: true
+        run: |
+          npx snyk code test --severity-threshold=medium --json > snyk-code-results.json || true
+          echo "Snyk code scan completed"
+
+      - name: Display Snyk test summary
+        if: always()
+        run: |
+          echo "=== Snyk Dependency Scan ==="
+          if [ -f snyk-test-results.json ]; then
+            cat snyk-test-results.json | jq -r '.vulnerabilities[]? | "[\(.severity | ascii_upcase)] \(.title) in \(.packageName)"' || echo "No vulnerabilities found or error parsing results"
+          else
+            echo "No results file generated"
+          fi
+          echo ""
+          echo "=== Snyk Code Scan ==="
+          if [ -f snyk-code-results.json ]; then
+            cat snyk-code-results.json | jq -r '.runs[]?.results[]? | "[\(.level | ascii_upcase)] \(.message.text) at \(.locations[0].physicalLocation.artifactLocation.uri)"' || echo "No code issues found or error parsing results"
+          else
+            echo "No results file generated"
+          fi
+
+      - name: Upload Snyk test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-test-results
+          path: snyk-test-results.json
+          if-no-files-found: ignore
+
+      - name: Upload Snyk code results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-code-results
+          path: snyk-code-results.json
+          if-no-files-found: ignore
+
+      - name: Check for high severity vulnerabilities
+        if: always()
+        run: |
+          echo "Checking for high/critical severity issues..."
+
+          HIGH_VULN=0
+          if [ -f snyk-test-results.json ]; then
+            HIGH_VULN=$(cat snyk-test-results.json | jq '[.vulnerabilities[]? | select(.severity == "high" or .severity == "critical")] | length' || echo "0")
+          fi
+
+          HIGH_CODE=0
+          if [ -f snyk-code-results.json ]; then
+            HIGH_CODE=$(cat snyk-code-results.json | jq '[.runs[]?.results[]? | select(.level == "error")] | length' || echo "0")
+          fi
+
+          echo "High/Critical vulnerabilities found: $HIGH_VULN"
+          echo "High severity code issues found: $HIGH_CODE"
+
+          if [ "$HIGH_VULN" -gt 0 ] || [ "$HIGH_CODE" -gt 0 ]; then
+            echo "⚠️  Warning: High/critical severity issues detected. Review artifacts for details."
+            echo "This workflow does not block PRs, but issues should be addressed."
+          else
+            echo "✅ No high/critical severity issues detected."
+          fi
