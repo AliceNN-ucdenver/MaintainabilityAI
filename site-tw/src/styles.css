@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.prose pre { background: #0b1220; }
+.prose code { color: #a5b4fc; }

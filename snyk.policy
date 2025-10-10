@@ -1,0 +1,10 @@
+version: v1.0.0
+failOn: high
+language-settings:
+  javascript:
+    enableLinters: true
+rules:
+  - id: ai-hardcoded-secret
+    description: Detect hardcoded secrets
+    severity: high
+    pattern: '(?i)(api|secret|token|password)\s*[:=]\s*"[^"]{8,}"'

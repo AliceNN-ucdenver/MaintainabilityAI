@@ -1,8 +1,24 @@
 {
   "name": "maintainabilityai",
   "private": true,
+  "version": "0.1.0",
   "scripts": {
-    "build": "echo 'build ok'",
-    "test": "echo 'tests ok'"
+    "dev": "vite --config site-tw/vite.config.js",
+    "build": "npm run build:site && npm run docs",
+    "build:site": "cd site-tw && npm ci || npm install && npm run build",
+    "docs": "node scripts/build-docs.mjs",
+    "test": "jest --colors",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "markdown-it": "^13.0.2",
+    "shiki": "^1.6.0"
   }
 }
