@@ -1,8 +1,32 @@
 # Part 4: Fitness Functions — Automated Architectural Governance
 
-> **Duration**: 90 minutes
-> **Prerequisites**: Parts 1-3, TypeScript basics, Jest testing framework
-> **Tools Required**: Node 18+, ts-morph, autocannon, nyc, Jest
+<div style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(168, 85, 247, 0.4); border: 1px solid rgba(192, 132, 252, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 16px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 40px;">4</div>
+    <div>
+      <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Part 4: Fitness Functions</h2>
+      <div style="font-size: 15px; color: #e9d5ff; margin-top: 8px;">Automated Architectural Governance</div>
+    </div>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
+    <div style="color: #e9d5ff; font-size: 15px; line-height: 1.7;">
+      <strong style="color: #f1f5f9;">Duration:</strong> 75 minutes<br/>
+      <strong style="color: #f1f5f9;">Prerequisites:</strong> Parts 1-3, TypeScript basics, Jest testing framework<br/>
+      <strong style="color: #f1f5f9;">Learning Objective:</strong> Implement automated quality gates that enforce architectural standards: complexity limits, dependency hygiene, test coverage, and performance.
+    </div>
+  </div>
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.1); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <div style="font-weight: 700; color: #c084fc; margin-bottom: 12px; font-size: 15px;">🛠️ Tools Required</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
+    ✓ Node.js 18+<br/>
+    ✓ ts-morph (complexity analysis)<br/>
+    ✓ autocannon (performance testing)<br/>
+    ✓ nyc or Jest (coverage)<br/>
+    ✓ npm outdated (dependency checks)
+  </div>
+</div>
 
 ---
 
@@ -1094,3 +1118,32 @@ Time:        14.125s
 ```
 
 ✅ **All fitness functions passing — architecture is healthy!**
+
+---
+
+## Next Steps
+
+<div style="display: flex; gap: 20px; margin: 48px 0; flex-wrap: wrap;">
+  <a href="./part3-live-remediation" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); color: #f87171; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 600; text-align: center;">
+    ← Part 3: Live Remediation
+  </a>
+  <a href="./index" style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #f1f5f9; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; text-align: center; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);">
+    Back to Workshop Overview
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; padding: 24px; margin: 32px 0; text-align: center;">
+  <div style="font-size: 40px; margin-bottom: 12px;">🎓</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">Workshop Complete!</h3>
+  <p style="color: #d1fae5; font-size: 15px; line-height: 1.7; margin: 0;">
+    You've mastered the fundamentals of security-first AI-assisted development. Continue your journey by exploring the SDLC framework and building your own prompt library.
+  </p>
+</div>
+
+---
+
+**Further Resources:**
+- [SDLC Framework](../sdlc/) - Complete 6-phase development lifecycle
+- [Golden Rules](../governance/vibe-golden-rules) - Governance framework
+- [OWASP Prompt Packs](../prompts/owasp/) - All 10 security categories
+- [Maintainability Patterns](../prompts/maintainability/) - Architecture prompts

@@ -1,8 +1,20 @@
 # Part 2: Security-First Prompting
 
-## Overview
-
-This module teaches you how to craft prompts that guide AI to generate secure, production-ready code. You'll learn the anatomy of a security prompt and apply these patterns to real OWASP vulnerabilities.
+<div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4); border: 1px solid rgba(251, 191, 36, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 16px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 40px;">2</div>
+    <div>
+      <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Part 2: Security-First Prompting</h2>
+      <div style="font-size: 15px; color: #fef3c7; margin-top: 8px;">The 5-Part Prompt Pattern</div>
+    </div>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
+    <div style="color: #fef3c7; font-size: 15px; line-height: 1.7;">
+      <strong style="color: #f1f5f9;">Duration:</strong> 60 minutes<br/>
+      <strong style="color: #f1f5f9;">Learning Objective:</strong> Master the art of crafting prompts that guide AI to generate secure, production-ready code using the Role → Context → Requirements → Task → Checklist pattern.
+    </div>
+  </div>
+</div>
 
 ---
 
@@ -913,13 +925,23 @@ Security Checklist:
 
 ## Next Steps
 
-- **Part 3**: Apply these prompting techniques in a live remediation exercise (A03 Injection)
-- **Practice**: Try writing security-first prompts for A01-A10 categories
-- **Team Exercise**: Build a shared prompt library for your organization's tech stack
+<div style="display: flex; gap: 20px; margin: 48px 0; flex-wrap: wrap;">
+  <a href="./part1-spectrum" style="flex: 1; min-width: 200px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); color: #60a5fa; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 600; text-align: center;">
+    ← Part 1: The Spectrum
+  </a>
+  <a href="./part3-live-remediation" style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #f1f5f9; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; text-align: center; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);">
+    Part 3: Live Remediation →
+  </a>
+</div>
+
+<div style="text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px;">
+  Apply these prompting techniques to fix real vulnerabilities
+</div>
 
 ---
 
 **References:**
-- [/prompts/owasp/A03_injection.md](../../prompts/owasp/A03_injection.md) - Complete A03 prompt pack
+- [/prompts/owasp/A03_injection.md](../../prompts/owasp/A03_injection) - Complete A03 prompt pack
 - [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/) - Security controls reference
 - [This repo's examples/](../../examples/owasp/) - Insecure code samples to practice with
+- [Back to Workshop Overview](./index)

@@ -1,8 +1,20 @@
 # Part 1: The Spectrum of AI-Assisted Development
 
-## Overview
-
-This module explores the three distinct modes of AI-assisted software development and how to choose the right approach for your project's security and maintainability requirements.
+<div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4); border: 1px solid rgba(96, 165, 250, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 16px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 40px;">1</div>
+    <div>
+      <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Part 1: The Spectrum</h2>
+      <div style="font-size: 15px; color: #dbeafe; margin-top: 8px;">Vibe → AI-Assisted → Agentic Development</div>
+    </div>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
+    <div style="color: #dbeafe; font-size: 15px; line-height: 1.7;">
+      <strong style="color: #f1f5f9;">Duration:</strong> 45 minutes<br/>
+      <strong style="color: #f1f5f9;">Learning Objective:</strong> Understand the three distinct modes of AI-assisted software development and learn how to choose the right approach for your project's security and maintainability requirements.
+    </div>
+  </div>
+</div>
 
 ---
 
@@ -418,12 +430,18 @@ PostgreSQL for primary storage, MongoDB for audit logs..."
 
 ## Next Steps
 
-- **Part 2**: Learn how to craft security-first prompts that guide AI to generate secure code
-- **Part 3**: Hands-on remediation exercise fixing a real vulnerability (A03 Injection)
+<div style="text-align: center; margin: 48px 0;">
+  <a href="./part2-security-prompting" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 16px 48px; border-radius: 12px; text-decoration: none; font-size: 18px; font-weight: 700; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);">
+    Continue to Part 2: Security-First Prompting →
+  </a>
+  <div style="color: #94a3b8; font-size: 14px; margin-top: 16px;">
+    Learn to craft prompts that guide AI to generate secure code
+  </div>
+</div>
 
 ---
 
 **References**:
 - [Iasa - Engineering in the Agentic Age](https://github.com/AliceNN-ucdenver/Iasa/blob/main/workshop_intro.md)
 - [OWASP Top 10 (2021)](https://owasp.org/Top10/)
-- [This repo's README: Security Pipeline](../README.md#security-pipeline)
+- [Back to Workshop Overview](./index)

@@ -1,16 +1,30 @@
 # Part 3: Live Remediation Exercise
 
-## Overview
+<div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4); border: 1px solid rgba(248, 113, 113, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 16px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 40px;">3</div>
+    <div>
+      <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Part 3: Live Remediation</h2>
+      <div style="font-size: 15px; color: #fecaca; margin-top: 8px;">Hands-On SQL Injection Fix</div>
+    </div>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
+    <div style="color: #fecaca; font-size: 15px; line-height: 1.7;">
+      <strong style="color: #f1f5f9;">Duration:</strong> 90 minutes<br/>
+      <strong style="color: #f1f5f9;">Learning Objective:</strong> Walk through remediating a real SQL injection vulnerability (OWASP A03) using Claude Code and security-first prompting techniques.
+    </div>
+  </div>
+</div>
 
-This hands-on module walks you through remediating a real SQL injection vulnerability (OWASP A03) using Claude Code and the security-first prompting techniques from Part 2.
-
-**Duration:** 30-45 minutes
-
-**Tools Required:**
-- VS Code with Claude Code extension installed
-- Node.js 18+ and npm
-- Git
-- This repository cloned locally
+<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <div style="font-weight: 700; color: #fca5a5; margin-bottom: 12px; font-size: 15px;">🛠️ Tools Required</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
+    ✓ VS Code with Claude Code extension installed<br/>
+    ✓ Node.js 18+ and npm<br/>
+    ✓ Git<br/>
+    ✓ This repository cloned locally
+  </div>
+</div>
 
 ---
 
@@ -1028,32 +1042,28 @@ Each has:
 
 ---
 
+## Next Steps
+
+<div style="display: flex; gap: 20px; margin: 48px 0; flex-wrap: wrap;">
+  <a href="./part2-security-prompting" style="flex: 1; min-width: 200px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); color: #fbbf24; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 600; text-align: center;">
+    ← Part 2: Security Prompting
+  </a>
+  <a href="./part4-fitness-functions" style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: #f1f5f9; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; text-align: center; box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);">
+    Part 4: Fitness Functions →
+  </a>
+</div>
+
+<div style="text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px;">
+  Learn automated architectural governance
+</div>
+
+---
+
 ## Resources
 
 - **OWASP A03 Documentation**: https://owasp.org/Top10/A03_2021-Injection/
 - **PostgreSQL Prepared Statements**: https://node-postgres.com/features/queries#parameterized-query
 - **Zod Documentation**: https://zod.dev/
-- **This Repo's Prompt Packs**: `/prompts/owasp/`
-- **Golden Rules**: `/docs/governance/vibe-golden-rules.md`
-
----
-
-## Certificate of Completion
-
-**Congratulations!** You've completed the MaintainabilityAI Live Remediation Workshop.
-
-You can now:
-- Craft security-first prompts for AI code generation
-- Critically review AI-generated security code
-- Apply defense-in-depth principles
-- Use OWASP categories to structure security work
-- Properly label and document AI-assisted contributions
-
-Share your completion on LinkedIn:
-```
-I completed the MaintainabilityAI security workshop, learning how to use AI assistants like Claude Code to remediate OWASP Top 10 vulnerabilities while maintaining security-first practices. Check it out: https://maintainability.ai
-```
-
----
-
-**Questions or Issues?** Open an issue on GitHub or join the discussion.
+- **This Repo's Prompt Packs**: [/prompts/owasp/](../../prompts/owasp/)
+- **Golden Rules**: [/docs/governance/vibe-golden-rules](../governance/vibe-golden-rules)
+- **Back to Workshop Overview**: [Workshop Index](./index)
