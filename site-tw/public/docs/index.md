@@ -360,9 +360,14 @@ git pull origin main
   <div style="font-size: 40px; margin-bottom: 16px;">🚀</div>
   <h2 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Ready to Get Started?</h2>
   <p style="color: #d1fae5; font-size: 16px; margin: 0 0 24px 0; max-width: 600px; margin-left: auto; margin-right: auto;">
-    Begin your journey to security-first AI development with our hands-on workshop series
+    Get hands-on with the workshop or contact us to bring this training to your team
   </p>
-  <a href="./workshop/part1-spectrum" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 48px; border-radius: 12px; text-decoration: none; font-size: 18px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
-    Begin Workshop Part 1 →
-  </a>
+  <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+    <a href="./workshop/part1-spectrum" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
+      Begin Workshop →
+    </a>
+    <a href="https://chiefarcheologist.com/contact" style="display: inline-block; background: rgba(255, 255, 255, 0.95); color: #059669; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700;">
+      Contact Chief Archeologist
+    </a>
+  </div>
 </div>

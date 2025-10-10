@@ -132,11 +132,11 @@ export default function WorkshopPage() {
             Available for on-site or remote delivery. Customizable to your tech stack and team size.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="mailto:hello@maintainability.ai?subject=Workshop%20Inquiry" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
-              Schedule a Workshop
+            <a href="https://chiefarcheologist.com/contact" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
+              Contact Chief Archeologist
             </a>
-            <Link to="/" className="px-8 py-4 rounded-xl border-2 border-slate-700 hover:bg-slate-900 font-semibold text-lg transition">
-              Learn More
+            <Link to="/docs/workshop" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 font-semibold text-lg transition">
+              Start Workshop
             </Link>
           </div>
         </section>
