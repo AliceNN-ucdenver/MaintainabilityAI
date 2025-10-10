@@ -3,12 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "vite --config site-tw/vite.config.js",
-    "build": "npm run build:site && npm run docs",
-    "build:site": "cd site-tw && npm ci || npm install && npm run build",
-    "docs": "node scripts/build-docs.mjs",
-    "test": "jest --colors",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings=0"
+  "dev": "vite --config site-tw/vite.config.js",
+  "build": "npm run build:site",
+  "build:site": "cd site-tw && npm ci || npm install && npm run build",
+  "test": "jest --colors",
+  "lint": "eslint . --ext .ts,.tsx --max-warnings=0"
   },
   "devDependencies": {
     "typescript": "^5.4.5",
