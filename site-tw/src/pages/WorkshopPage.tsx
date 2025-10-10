@@ -34,14 +34,23 @@ export default function WorkshopPage() {
         </div>
       </div>
 
+      {/* Call to Action for Workshop Overview */}
+      <div className="rounded-2xl border-2 border-brand bg-gradient-to-br from-indigo-950/50 to-slate-900 p-8 mb-12">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Start the Workshop</h2>
+            <p className="text-slate-300">
+              Get hands-on with our 4-part workshop series. Learn security-first AI development with real code examples.
+            </p>
+          </div>
+          <Link to="/docs/workshop" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition whitespace-nowrap">
+            Begin Workshop →
+          </Link>
+        </div>
+      </div>
+
       {/* Full agenda content - render as markdown for now */}
       <div className="text-slate-300">
-        <p className="text-lg mb-8">
-          For the complete detailed agenda with all 8 parts, exercises, and learning objectives, visit the{' '}
-          <Link to="/docs/workshop/part1-spectrum" className="text-brand hover:text-indigo-400 underline">
-            workshop documentation
-          </Link>.
-        </p>
 
         <div className="rounded-2xl border-2 border-brand bg-gradient-to-br from-indigo-950/50 to-slate-900 p-8 mb-12">
           <h2 className="text-3xl font-bold mb-6">Workshop Overview</h2>

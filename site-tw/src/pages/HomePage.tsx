@@ -16,8 +16,11 @@ export default function HomePage() {
               From prompt to production. We help engineering orgs ship faster <strong className="text-white">without</strong> sacrificing security or maintainability.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <Link to="/agenda" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
+              <Link to="/docs/workshop" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
                 View Workshop
+              </Link>
+              <Link to="/agenda" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 font-semibold text-lg transition">
+                Workshop Agenda
               </Link>
               <Link to="/docs/" className="px-8 py-4 rounded-xl border-2 border-slate-700 hover:bg-slate-900 font-semibold text-lg transition">
                 Read the Docs
