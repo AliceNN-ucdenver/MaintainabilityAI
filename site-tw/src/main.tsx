@@ -1,15 +1,31 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import './styles.css';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import WorkshopPage from './pages/WorkshopPage';
 import MarkdownPage from './components/MarkdownPage';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+// Component to handle GitHub Pages SPA redirect
+function RedirectHandler() {
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const redirectPath = sessionStorage.getItem('redirectPath');
+    if (redirectPath) {
+      sessionStorage.removeItem('redirectPath');
+      navigate(redirectPath, { replace: true });
+    }
+  }, [navigate]);
+
+  return null;
+}
+
+function App() {
+  return (
     <BrowserRouter>
+      <RedirectHandler />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
@@ -26,5 +42,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </Route>
       </Routes>
     </BrowserRouter>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
   </React.StrictMode>
 );

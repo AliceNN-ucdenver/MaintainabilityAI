@@ -141,14 +141,18 @@ flowchart LR
 
 ## 🏆 The Golden Rules of Vibe Coding (Governance)
 
-1. **Be specific** about intent and constraints.
-2. **Trust but verify** — never merge code you don't understand.
-3. Treat AI like a **keen junior dev** — guide and review.
-4. **Isolate AI changes** in separate commits/PRs; label them.
-5. **Document rationale** (what/why), not just the code.
-6. **Share winning prompts** — build a team prompt library.
+> **Source**: Synthesized from the work of Addy Osmani and collective experience of early adopters, as documented in Mani, A. (2025). *Beyond Vibe Coding: From Coder to AI-Era Developer*. O'Reilly Media.
 
-> 📖 **Deep Dive**: See [maintainability.ai/docs](https://maintainability.ai/docs) for detailed examples, patterns, and the complete workshop series.
+1. **Be Specific and Clear About What You Want** — The quality of AI's output reflects the quality of your prompt
+2. **Always Validate AI Output Against Your Intent** — Test, review, and measure against requirements
+3. **Treat AI as a Junior Developer (With Supervision)** — They're fast but lack context and judgment
+4. **Don't Merge Code You Don't Understand** — You own every line, regardless of origin
+5. **Isolate AI Changes in Git** — Commit AI-generated code separately with clear labels
+6. **Ensure All Code Undergoes Human Review** — Same quality standards as human-written code
+7. **Prioritize Documentation and Rationale** — Document the "why" behind decisions
+8. **Share and Reuse Effective Prompts** — Build a team library of proven patterns
+
+> 📖 **Deep Dive**: See [Golden Rules Documentation](https://maintainability.ai/docs/governance/vibe-golden-rules) for detailed examples, checklists, and the complete governance framework.
 
 ---
 
@@ -426,34 +430,63 @@ Inspired by the workshop intro: [Iasa - Engineering in the Agentic Age](https://
 
 ## 📦 Using Prompts & Agents Locally
 
-All prompt packs and agent configurations are available in this repository for local use:
+All prompt packs and agent configurations are available in this repository for local use. **Recommended approach**: Clone the repository once and reference prompts by local file path for the best UX.
 
-**Clone Repository:**
+### Clone Repository
+
 ```bash
 git clone https://github.com/AliceNN-ucdenver/MaintainabilityAI.git
 cd MaintainabilityAI
 ```
 
-**Use Prompt Packs:**
+### Reference Prompts by File Path
+
+**Claude Code** (recommended - can access local files):
 ```bash
-# OWASP prompt packs
-cat prompts/owasp/A03_injection.md | pbcopy  # Copy to clipboard (macOS)
+# Reference prompt directly in your request
+"Use /path/to/MaintainabilityAI/prompts/owasp/A03_injection.md to refactor the searchUsers function"
+```
 
-# Maintainability prompts
-cat prompts/maintainability/fitness-functions.md
+**GitHub Copilot** (supports #file: references):
+```bash
+# In Copilot Chat
+#file:prompts/owasp/A03_injection.md
+"Refactor this function following the OWASP A03 guidance"
+```
 
-# View all prompts
+**ChatGPT** (web-based - needs copy/paste):
+```bash
+# Copy to clipboard (macOS)
+cat prompts/owasp/A03_injection.md | pbcopy
+
+# Or view in terminal
+cat prompts/owasp/A03_injection.md
+```
+
+### Browse Available Prompts
+
+```bash
+# OWASP prompt packs (A01-A10)
 ls prompts/owasp/
+
+# Maintainability patterns
 ls prompts/maintainability/
+
+# Agent guides
+ls site-tw/public/docs/agents/
 ```
 
-**Use AI Agents:**
+### Keep Prompts Updated
+
 ```bash
-# SDLC phase agents
-cat agents/sdlc/phase2-implementation.md
-
-# View all agents
-ls agents/sdlc/
+# Pull latest updates from repository
+git pull origin main
 ```
 
-These files are designed to be copy-pasted into Claude Code, GitHub Copilot Chat, or ChatGPT for AI-assisted development.
+**Why this approach?**
+- ✅ No manual copy/paste every time
+- ✅ Always use the latest version
+- ✅ Faster workflow with Claude Code and Copilot
+- ✅ Consistent across your team
+
+> 📖 **Learn More**: See [Using Prompts Guide](https://maintainability.ai/docs) for detailed examples with each AI tool.

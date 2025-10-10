@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting...</title>
+  <script>
+    // GitHub Pages SPA redirect hack
+    // When a user navigates directly to a route (e.g., /docs/workshop/part1-spectrum),
+    // GitHub Pages serves this 404.html. We redirect to index.html with the path
+    // stored in sessionStorage, which the React app will read and navigate to.
+
+    sessionStorage.setItem('redirectPath', location.pathname + location.search + location.hash);
+    location.replace(location.origin);
+  </script>
+</head>
+<body>
+  Redirecting...
+</body>
+</html>
