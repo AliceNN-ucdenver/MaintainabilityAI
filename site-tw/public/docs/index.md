@@ -1,15 +1,42 @@
 # MaintainabilityAI Documentation
 
-Welcome to **MaintainabilityAI** - a comprehensive framework for security-first, maintainable AI-assisted software development.
-
----
+<div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(79, 70, 229, 0.4); border: 1px solid rgba(124, 58, 237, 0.3);">
+  <div style="text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+    <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Complete Framework Documentation</h2>
+    <div style="font-size: 16px; color: #e9d5ff; margin-top: 12px; max-width: 800px; margin-left: auto; margin-right: auto;">
+      Security-first, maintainable AI-assisted software development. From OWASP prompt packs to evolutionary architecture patterns.
+    </div>
+  </div>
+</div>
 
 ## 🚀 Quick Start
 
-- **New to the framework?** Start with [Workshop Part 1: The Spectrum](./workshop/part1-spectrum)
-- **Need security prompts?** Download [OWASP Prompt Packs](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp) from GitHub
-- **Need maintainability prompts?** Download [Maintainability Prompt Packs](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability) from GitHub
-- **Using AI agents?** Read [AI Agent Guides](./agents/) to choose the right tool (Claude, Copilot, ChatGPT)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+  <a href="./workshop/part1-spectrum" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block; transition: transform 0.2s;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🎓</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">New to the Framework?</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Start with Workshop Part 1: The Spectrum to understand AI development modes</p>
+  </a>
+
+  <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Need Security Prompts?</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Download OWASP Top 10 prompt packs from GitHub (A01-A10)</p>
+  </a>
+
+  <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+    <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Need Maintainability Prompts?</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Download evolutionary architecture patterns and fitness functions</p>
+  </a>
+
+  <a href="./agents/" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Using AI Agents?</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Read AI Agent Guides to choose the right tool (Claude, Copilot, ChatGPT)</p>
+  </a>
+</div>
 
 ---
 
@@ -71,14 +98,55 @@ Fitness functions and patterns for building long-lived, maintainable systems:
 
 ## 🎓 Workshop
 
-Hands-on training for teams learning security-first AI development (90 minutes each, designed for junior → senior developers):
+<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <div style="color: #a5b4fc; font-size: 14px; margin-bottom: 12px;">
+    Hands-on training for teams learning security-first AI development. 4-part series designed for junior → senior developers.
+  </div>
+</div>
 
-- **[Part 1: The Spectrum](./workshop/part1-spectrum)** - Understanding AI development modes (Vibe → AI-Assisted → Agentic)
-- **[Part 2: Security-First Prompting](./workshop/part2-security-prompting)** - OWASP integration, prompt engineering techniques
-- **[Part 3: Live Remediation Exercise](./workshop/part3-live-remediation)** - Hands-on: Fix A03 SQL Injection vulnerability
-- **[Part 4: Fitness Functions Curriculum](./workshop/part4-fitness-functions)** - Implementing automated quality gates in CI/CD
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 32px 0;">
+  <a href="./workshop/part1-spectrum" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6; display: block;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+      <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #f1f5f9;">1</div>
+      <h4 style="margin: 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">The Spectrum</h4>
+    </div>
+    <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.6;">Understanding AI development modes: Vibe → AI-Assisted → Agentic</p>
+    <div style="color: #60a5fa; font-size: 12px; margin-top: 8px;">45 minutes</div>
+  </a>
 
-💡 **Tip**: Start with Part 1 to understand the framework's approach to AI-assisted development.
+  <a href="./workshop/part2-security-prompting" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #f59e0b; display: block;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+      <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #f1f5f9;">2</div>
+      <h4 style="margin: 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Security-First Prompting</h4>
+    </div>
+    <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.6;">OWASP integration and prompt engineering techniques</p>
+    <div style="color: #fbbf24; font-size: 12px; margin-top: 8px;">60 minutes</div>
+  </a>
+
+  <a href="./workshop/part3-live-remediation" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #ef4444; display: block;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #f1f5f9;">3</div>
+      <h4 style="margin: 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Live Remediation</h4>
+    </div>
+    <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.6;">Hands-on: Fix A03 SQL Injection vulnerability step-by-step</p>
+    <div style="color: #f87171; font-size: 12px; margin-top: 8px;">90 minutes</div>
+  </a>
+
+  <a href="./workshop/part4-fitness-functions" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #a855f7; display: block;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+      <div style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #f1f5f9;">4</div>
+      <h4 style="margin: 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Fitness Functions</h4>
+    </div>
+    <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.6;">Implementing automated quality gates in CI/CD</p>
+    <div style="color: #c084fc; font-size: 12px; margin-top: 8px;">75 minutes</div>
+  </a>
+</div>
+
+<div style="text-align: center; margin: 32px 0;">
+  <a href="./workshop/" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #f1f5f9; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);">
+    View Complete Workshop Overview →
+  </a>
+</div>
 
 ---
 
@@ -178,36 +246,123 @@ git pull origin main
 
 ## 🎯 Success Metrics
 
-Track these metrics to measure framework effectiveness:
+<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <div style="color: #a5b4fc; font-size: 14px;">
+    Track these metrics to measure framework effectiveness and demonstrate ROI
+  </div>
+</div>
 
-### Security Metrics
-- **Vulnerability Rate**: 0 high/critical vulnerabilities in production
-- **Scan Pass Rate**: 100% CodeQL and Snyk scans passing before merge
-- **OWASP Compliance**: All 10 categories addressed in production code
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 36px; margin-bottom: 16px;">🔒</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Security Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Vulnerability Rate</div>
+        <div style="color: #94a3b8; font-size: 13px;">0 high/critical in production</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Scan Pass Rate</div>
+        <div style="color: #94a3b8; font-size: 13px;">100% CodeQL + Snyk passing</div>
+      </div>
+      <div>
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">OWASP Compliance</div>
+        <div style="color: #94a3b8; font-size: 13px;">All 10 categories addressed</div>
+      </div>
+    </div>
+  </div>
 
-### Maintainability Metrics
-- **Cyclomatic Complexity**: All functions ≤10 complexity
-- **Dependency Freshness**: All dependencies ≤90 days old
-- **Test Coverage**: ≥80% coverage with attack vectors included
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 36px; margin-bottom: 16px;">📐</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Maintainability Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Cyclomatic Complexity</div>
+        <div style="color: #94a3b8; font-size: 13px;">All functions ≤10</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Dependency Freshness</div>
+        <div style="color: #94a3b8; font-size: 13px;">All deps ≤90 days old</div>
+      </div>
+      <div>
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Test Coverage</div>
+        <div style="color: #94a3b8; font-size: 13px;">≥80% with attack vectors</div>
+      </div>
+    </div>
+  </div>
 
-### Velocity Metrics
-- **Delivery Speed**: 2x faster feature delivery with AI (while maintaining quality)
-- **Remediation Time**: Security fixes completed in <24 hours
-- **Technical Debt**: P0 issues resolved within 7 days
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 36px; margin-bottom: 16px;">⚡</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Velocity Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Delivery Speed</div>
+        <div style="color: #94a3b8; font-size: 13px;">2x faster with AI</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Remediation Time</div>
+        <div style="color: #94a3b8; font-size: 13px;">Security fixes <24 hours</div>
+      </div>
+      <div>
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Technical Debt</div>
+        <div style="color: #94a3b8; font-size: 13px;">P0 issues ≤7 days</div>
+      </div>
+    </div>
+  </div>
 
-### Governance Metrics
-- **AI Disclosure**: 100% AI-generated code labeled with `🤖` in commits
-- **Human Review**: 100% AI code reviewed before merge
-- **Prompt Reuse**: Team sharing successful prompts in `/prompts/team/`
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 36px; margin-bottom: 16px;">🏛️</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Governance Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">AI Disclosure</div>
+        <div style="color: #94a3b8; font-size: 13px;">100% labeled with 🤖</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Human Review</div>
+        <div style="color: #94a3b8; font-size: 13px;">100% reviewed before merge</div>
+      </div>
+      <div>
+        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Prompt Reuse</div>
+        <div style="color: #94a3b8; font-size: 13px;">Team library growing</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 ---
 
 ## ❓ Getting Help
 
-- **Email**: [hello@maintainability.ai](mailto:hello@maintainability.ai)
-- **GitHub Issues**: [Report bugs or request features](https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues)
-- **Documentation**: You're reading it! Explore the sections above.
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 28px; margin-bottom: 8px;">📧</div>
+    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Email Support</h4>
+    <a href="mailto:hello@maintainability.ai" style="color: #818cf8; text-decoration: none; font-size: 14px;">hello@maintainability.ai</a>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 28px; margin-bottom: 8px;">💬</div>
+    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">GitHub Issues</h4>
+    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues" style="color: #818cf8; text-decoration: none; font-size: 14px;">Report bugs or request features</a>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 28px; margin-bottom: 8px;">📖</div>
+    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Documentation</h4>
+    <div style="color: #94a3b8; font-size: 14px;">You're reading it! Explore above.</div>
+  </div>
+</div>
 
 ---
 
-**Ready to start?** → [Begin with Workshop Part 1](./workshop/part1-spectrum)
+<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; padding: 32px; margin: 32px 0; text-align: center; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);">
+  <div style="font-size: 40px; margin-bottom: 16px;">🚀</div>
+  <h2 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Ready to Get Started?</h2>
+  <p style="color: #d1fae5; font-size: 16px; margin: 0 0 24px 0; max-width: 600px; margin-left: auto; margin-right: auto;">
+    Begin your journey to security-first AI development with our hands-on workshop series
+  </p>
+  <a href="./workshop/part1-spectrum" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 48px; border-radius: 12px; text-decoration: none; font-size: 18px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
+    Begin Workshop Part 1 →
+  </a>
+</div>
