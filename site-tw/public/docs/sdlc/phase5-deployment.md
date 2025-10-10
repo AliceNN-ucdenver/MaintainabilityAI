@@ -1,8 +1,26 @@
 # Phase 5: Deployment
 
-> **Purpose**: Automated CI/CD pipeline deploys approved code to production with monitoring and rollback capabilities.
-
----
+<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4); border: 1px solid rgba(52, 211, 153, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="font-size: 56px;">5️⃣</div>
+    <div>
+      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Deployment</h2>
+      <div style="font-size: 16px; color: #d1fae5; margin-top: 8px;">Automated CI/CD Pipeline</div>
+    </div>
+  </div>
+  <div style="color: #d1fae5; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Automated CI/CD pipeline deploys approved code to production with monitoring and rollback capabilities.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+      <div style="text-align: center; color: #d1fae5; font-size: 13px; font-weight: 600;">Build</div>
+      <div style="text-align: center; color: #d1fae5; font-size: 13px; font-weight: 600;">Security Scan</div>
+      <div style="text-align: center; color: #d1fae5; font-size: 13px; font-weight: 600;">Staging</div>
+      <div style="text-align: center; color: #d1fae5; font-size: 13px; font-weight: 600;">Smoke Tests</div>
+      <div style="text-align: center; color: #d1fae5; font-size: 13px; font-weight: 600;">Production</div>
+    </div>
+  </div>
+</div>
 
 ## CI/CD Pipeline
 
@@ -195,4 +213,4 @@ npm run rollback -- --to-version=v1.2.3
 
 ---
 
-**[Proceed to Phase 6: Evolution →](phase6-evolution.md)**
+**[Proceed to Phase 6: Evolution →](phase6-evolution)**

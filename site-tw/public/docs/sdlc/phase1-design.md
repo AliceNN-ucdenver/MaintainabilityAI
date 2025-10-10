@@ -1,10 +1,22 @@
 # Phase 1: Design Intent
 
-> **Purpose**: Define requirements, identify threats, design secure architecture, and establish fitness functions before writing code.
-
-This phase transforms user stories into security-aware technical specifications using threat modeling, OWASP mapping, and evolutionary architecture principles.
-
----
+<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(30, 64, 175, 0.4); border: 1px solid rgba(59, 130, 246, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="font-size: 56px;">1️⃣</div>
+    <div>
+      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Design Intent</h2>
+      <div style="font-size: 16px; color: #bfdbfe; margin-top: 8px;">Requirements Gathering & Threat Modeling</div>
+    </div>
+  </div>
+  <div style="color: #dbeafe; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Define requirements, identify threats, design secure architecture, and establish fitness functions before writing code.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+    <div style="color: #dbeafe; font-size: 14px; line-height: 1.8;">
+      This phase transforms user stories into security-aware technical specifications using threat modeling, OWASP mapping, and evolutionary architecture principles.
+    </div>
+  </div>
+</div>
 
 ## Phase Overview
 
@@ -20,16 +32,29 @@ flowchart LR
     G -->|Rejected| B
 ```
 
-**Duration**: 1-4 hours (depending on feature complexity)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Duration</div>
+    <div style="font-size: 24px; color: #f1f5f9; font-weight: 700;">1-4 hours</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Feature-dependent</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Primary Agents</div>
+    <div style="font-size: 18px; color: #f1f5f9; font-weight: 700;">ChatGPT, Claude</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Threat modeling & architecture</div>
+  </div>
+</div>
 
-**Primary Agents**: ChatGPT (threat modeling), Claude (architecture)
-
-**Outputs**:
-- Requirements document
-- Threat model (STRIDE analysis)
-- OWASP category mapping
-- Architecture design with security controls
-- Fitness function definitions
+<div style="background: rgba(30, 64, 175, 0.1); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+  <div style="font-weight: 700; color: #93c5fd; margin-bottom: 12px; font-size: 15px;">📋 Phase Outputs</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
+    ✓ Requirements document<br/>
+    ✓ Threat model (STRIDE analysis)<br/>
+    ✓ OWASP category mapping<br/>
+    ✓ Architecture design with security controls<br/>
+    ✓ Fitness function definitions
+  </div>
+</div>
 
 ---
 
@@ -112,6 +137,33 @@ Feature: User document sharing
 ---
 
 ## Step 2: Threat Modeling
+
+<div style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); border-radius: 12px; padding: 28px; margin: 24px 0; box-shadow: 0 6px 24px rgba(124, 58, 237, 0.3); border: 1px solid rgba(167, 139, 250, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">🛡️</div>
+    <h3 style="margin: 0; font-size: 24px; color: #f1f5f9; font-weight: 700;">STRIDE Methodology</h3>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Spoofing</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Tampering</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Repudiation</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Info Disclosure</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">DoS</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Privilege Escalation</div>
+    </div>
+  </div>
+</div>
 
 ### STRIDE Methodology
 
@@ -574,7 +626,7 @@ Define architectural fitness functions that will be enforced in Phase 3:
 **Enforcement**: CI fails if regression > 20%
 ```
 
-See [/docs/maintainability/fitness-functions.md](../maintainability/fitness-functions.md) for implementation details.
+See [/docs/maintainability/fitness-functions](../maintainability/fitness-functions) for implementation details.
 
 ---
 
@@ -752,13 +804,13 @@ Output architecture that addresses all threats.
 
 ## Next Steps
 
-**[Proceed to Phase 2: Implementation →](phase2-implementation.md)**
+**[Proceed to Phase 2: Implementation →](phase2-implementation)**
 
 With design complete, use OWASP prompt packs to generate secure code that implements the architecture and mitigates all identified threats.
 
 ---
 
 **Further Reading**:
-- [Evolutionary Architecture](../maintainability/evolutionary-architecture.md)
-- [Fitness Functions](../maintainability/fitness-functions.md)
+- [Evolutionary Architecture](../maintainability/evolutionary-architecture)
+- [Fitness Functions](../maintainability/fitness-functions)
 - [OWASP Insecure Design](https://owasp.org/Top10/A04_2021-Insecure_Design/)

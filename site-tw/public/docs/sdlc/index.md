@@ -6,9 +6,181 @@ This framework integrates **OWASP Top 10**, **Evolutionary Architecture** fitnes
 
 ---
 
-## SDLC Overview
+## 🔄 SDLC Overview
 
-The MaintainabilityAI SDLC consists of six phases, each with specific security gates, AI integration points, and fitness function validations:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="text-align: center; margin-bottom: 32px;">
+    <div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
+    <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">6-Phase Continuous Development Cycle</div>
+    <div style="font-size: 16px; color: #cbd5e1;">Security gates, AI integration, and fitness functions at every phase</div>
+  </div>
+</div>
+
+## 📊 SDLC Phases
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; margin: 32px 0;">
+
+<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">1️⃣</div>
+    <div>
+      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 1: Design Intent</h3>
+      <div style="font-size: 13px; color: #bfdbfe; margin-top: 4px;">Requirements & Threat Modeling</div>
+    </div>
+  </div>
+  <div style="color: #dbeafe; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Requirements gathering, STRIDE threat modeling, architecture design, OWASP category mapping
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #bfdbfe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">ChatGPT, Claude</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #bfdbfe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Threat coverage >95%</div>
+    </div>
+  </div>
+  <a href="./phase1-design" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+    View Phase 1 Details →
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: 0 4px 12px rgba(146, 64, 14, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">2️⃣</div>
+    <div>
+      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 2: Implementation</h3>
+      <div style="font-size: 13px; color: #fde68a; margin-top: 4px;">Secure Code Generation with AI</div>
+    </div>
+  </div>
+  <div style="color: #fef3c7; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> OWASP prompt pack usage, secure code generation, unit test creation, local validation
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #fde68a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Copilot, Claude</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #fde68a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">ESLint, Jest pass</div>
+    </div>
+  </div>
+  <a href="./phase2-implementation" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+    View Phase 2 Details →
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: 0 4px 12px rgba(153, 27, 27, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">3️⃣</div>
+    <div>
+      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 3: Verification</h3>
+      <div style="font-size: 13px; color: #fecaca; margin-top: 4px;">Security Scanning & Testing</div>
+    </div>
+  </div>
+  <div style="color: #fef2f2; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> CodeQL/Snyk scans, fitness function validation, attack vector testing, coverage enforcement
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #fecaca; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">CodeQL, Snyk, Claude</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #fecaca; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">No high-severity findings</div>
+    </div>
+  </div>
+  <a href="./phase3-verification" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+    View Phase 3 Details →
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(168, 85, 247, 0.3); box-shadow: 0 4px 12px rgba(88, 28, 135, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">4️⃣</div>
+    <div>
+      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 4: Governance</h3>
+      <div style="font-size: 13px; color: #e9d5ff; margin-top: 4px;">Human Review & Approval</div>
+    </div>
+  </div>
+  <div style="color: #f3e8ff; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> PR review process, Golden Rules validation, OWASP checklist verification, merge approval
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #e9d5ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Human + ChatGPT</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #e9d5ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Golden Rules compliance</div>
+    </div>
+  </div>
+  <a href="./phase4-governance" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+    View Phase 4 Details →
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(16, 185, 129, 0.3); box-shadow: 0 4px 12px rgba(6, 95, 70, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">5️⃣</div>
+    <div>
+      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 5: Deployment</h3>
+      <div style="font-size: 13px; color: #a7f3d0; margin-top: 4px;">CI/CD & Production Release</div>
+    </div>
+  </div>
+  <div style="color: #d1fae5; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Automated CI/CD pipeline, production deployment, smoke tests, monitoring setup
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">GitHub Actions</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Zero critical CVEs</div>
+    </div>
+  </div>
+  <a href="./phase5-deployment" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+    View Phase 5 Details →
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(236, 72, 153, 0.3); box-shadow: 0 4px 12px rgba(131, 24, 67, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div style="font-size: 40px;">6️⃣</div>
+    <div>
+      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 6: Evolution</h3>
+      <div style="font-size: 13px; color: #fbcfe8; margin-top: 4px;">Metrics & Continuous Improvement</div>
+    </div>
+  </div>
+  <div style="color: #fce7f3; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Metrics analysis, technical debt management, prompt refinement, fitness function updates
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #fbcfe8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Claude, ChatGPT</div>
+    </div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
+      <div style="font-size: 11px; color: #fbcfe8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
+      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Metrics trending up</div>
+    </div>
+  </div>
+  <a href="./phase6-evolution" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+    View Phase 6 Details →
+  </a>
+</div>
+
+</div>
+
+---
+
+## 🔁 Complete SDLC Flow
 
 ```mermaid
 flowchart TD
@@ -31,538 +203,310 @@ flowchart TD
     style F fill:#831843,stroke:#ec4899,color:#f1f5f9
 ```
 
-### Phase Descriptions
+---
 
-| Phase | Purpose | Primary Agents | Key Outputs | Security Gates |
-|-------|---------|----------------|-------------|----------------|
-| **[Phase 1: Design](phase1-design.md)** | Requirements, threat modeling, architecture | ChatGPT, Claude | Threat model, architecture docs, OWASP mapping | Threat coverage >95% |
-| **[Phase 2: Implementation](phase2-implementation.md)** | Secure code generation with AI assistance | Copilot, Claude, ChatGPT | Implementation code, unit tests | ESLint, Jest pass |
-| **[Phase 3: Verification](phase3-verification.md)** | Security scanning, testing, fitness functions | CodeQL, Snyk, Claude | Test results, scan reports | No high-severity findings |
-| **[Phase 4: Governance](phase4-governance.md)** | Human review, PR approval, compliance check | Human + ChatGPT | Approval decision, audit trail | Golden Rules compliance |
-| **[Phase 5: Deployment](phase5-deployment.md)** | CI/CD pipeline, production release, monitoring | GitHub Actions | Production deployment | Zero critical CVEs |
-| **[Phase 6: Evolution](phase6-evolution.md)** | Metrics, iteration, technical debt, prompt refinement | Claude, ChatGPT | Metrics dashboard, improved prompts | Fitness functions trending up |
+## 🔒 Security Gates Summary
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+
+<div style="display: grid; gap: 20px;">
+
+<div style="background: rgba(30, 64, 175, 0.2); border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px;">
+  <div style="font-weight: 700; color: #93c5fd; margin-bottom: 8px; font-size: 14px;">Phase 1: Design Gates</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ☐ Threat model covers all STRIDE categories<br/>
+    ☐ OWASP categories identified for feature<br/>
+    ☐ Architecture includes security controls<br/>
+    ☐ Fitness functions defined
+  </div>
+</div>
+
+<div style="background: rgba(146, 64, 14, 0.2); border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px;">
+  <div style="font-weight: 700; color: #fcd34d; margin-bottom: 8px; font-size: 14px;">Phase 2: Implementation Gates</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ☐ OWASP prompt packs used<br/>
+    ☐ Local tests pass (ESLint, Jest)<br/>
+    ☐ Code follows security patterns<br/>
+    ☐ AI-assistance documented in commits
+  </div>
+</div>
+
+<div style="background: rgba(153, 27, 27, 0.2); border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px;">
+  <div style="font-weight: 700; color: #fca5a5; margin-bottom: 8px; font-size: 14px;">Phase 3: Verification Gates</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ☐ CodeQL: No high/critical findings<br/>
+    ☐ Snyk: No high/critical vulnerabilities<br/>
+    ☐ Test coverage ≥80%<br/>
+    ☐ Fitness functions pass<br/>
+    ☐ Attack vector tests included
+  </div>
+</div>
+
+<div style="background: rgba(88, 28, 135, 0.2); border-left: 4px solid #a855f7; padding: 16px; border-radius: 8px;">
+  <div style="font-weight: 700; color: #d8b4fe; margin-bottom: 8px; font-size: 14px;">Phase 4: Governance Gates</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ☐ Human code review completed<br/>
+    ☐ Golden Rules checklist passed<br/>
+    ☐ OWASP requirements validated<br/>
+    ☐ AI disclosure in PR<br/>
+    ☐ Security rationale documented
+  </div>
+</div>
+
+<div style="background: rgba(6, 95, 70, 0.2); border-left: 4px solid #10b981; padding: 16px; border-radius: 8px;">
+  <div style="font-weight: 700; color: #6ee7b7; margin-bottom: 8px; font-size: 14px;">Phase 5: Deployment Gates</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ☐ All Phase 3 scans re-run and pass<br/>
+    ☐ Production smoke tests pass<br/>
+    ☐ Monitoring configured<br/>
+    ☐ Rollback plan documented
+  </div>
+</div>
+
+<div style="background: rgba(131, 24, 67, 0.2); border-left: 4px solid #ec4899; padding: 16px; border-radius: 8px;">
+  <div style="font-weight: 700; color: #f9a8d4; margin-bottom: 8px; font-size: 14px;">Phase 6: Evolution Gates</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ☐ Metrics collected and analyzed<br/>
+    ☐ Technical debt prioritized<br/>
+    ☐ Prompts updated with learnings<br/>
+    ☐ Fitness functions trending positively
+  </div>
+</div>
+
+</div>
+
+</div>
 
 ---
 
-## Complete SDLC Flow
-
-```mermaid
-flowchart TD
-    Start[User Story] --> Phase1
-
-    subgraph Phase1[Phase 1: Design]
-        A1[Threat Model] --> A2[Architecture]
-        A2 --> A3[OWASP Mapping]
-    end
-
-    subgraph Phase2[Phase 2: Implementation]
-        B1[Use Prompt Pack] --> B2[Generate Code]
-        B2 --> B3[Local Tests]
-    end
-
-    subgraph Phase3[Phase 3: Verification]
-        C1[ESLint/Jest] --> C2[CodeQL Scan]
-        C2 --> C3[Snyk Scan]
-        C3 --> C4[Fitness Functions]
-    end
-
-    subgraph Phase4[Phase 4: Governance]
-        D1[PR Review] --> D2[Golden Rules Check]
-        D2 --> D3[Security Checklist]
-        D3 --> D4[Approval]
-    end
-
-    subgraph Phase5[Phase 5: Deployment]
-        E1[CI/CD Pipeline] --> E2[Production Deploy]
-        E2 --> E3[Smoke Tests]
-        E3 --> E4[Monitoring]
-    end
-
-    subgraph Phase6[Phase 6: Evolution]
-        F1[Collect Metrics] --> F2[Analyze Tech Debt]
-        F2 --> F3[Refine Prompts]
-        F3 --> F4[Update Baselines]
-    end
-
-    Phase1 --> Phase2
-    Phase2 --> Phase3
-    Phase3 --> Phase4
-    Phase4 --> Phase5
-    Phase5 --> Phase6
-    Phase6 --> Start
-
-    Phase3 --Fail--> Phase2
-    Phase4 --Reject--> Phase2
-
-    style Phase1 fill:#1e40af,stroke:#3b82f6,color:#f1f5f9
-    style Phase2 fill:#92400e,stroke:#f59e0b,color:#f1f5f9
-    style Phase3 fill:#991b1b,stroke:#ef4444,color:#f1f5f9
-    style Phase4 fill:#581c87,stroke:#a855f7,color:#f1f5f9
-    style Phase5 fill:#065f46,stroke:#10b981,color:#f1f5f9
-    style Phase6 fill:#831843,stroke:#ec4899,color:#f1f5f9
-```
-
----
-
-## How Prompts, Security, and Governance Fit In
-
-### OWASP Integration Points
-
-The OWASP Top 10 (2021) is integrated at every phase:
-
-```mermaid
-flowchart TD
-    A[OWASP Top 10 Categories] --> B[Phase 1: Design]
-    A --> C[Phase 2: Implementation]
-    A --> D[Phase 3: Verification]
-    A --> E[Phase 4: Governance]
-
-    B --> B1[Threat modeling maps to OWASP]
-    C --> C1[Prompt packs per OWASP category]
-    D --> D1[Security scans detect OWASP violations]
-    E --> E1[Review checklist covers OWASP]
-
-    style A fill:#991b1b,stroke:#ef4444,color:#f1f5f9
-    style B fill:#1e40af,stroke:#3b82f6,color:#f1f5f9
-    style C fill:#92400e,stroke:#f59e0b,color:#f1f5f9
-    style D fill:#991b1b,stroke:#ef4444,color:#f1f5f9
-    style E fill:#581c87,stroke:#a855f7,color:#f1f5f9
-```
-
-**Phase 1 (Design)**: Threat model identifies which OWASP categories apply
-- Example: Auth feature → A07 (Authentication), A01 (Access Control)
-
-**Phase 2 (Implementation)**: OWASP prompt packs guide secure code generation
-- Use `/prompts/owasp/A07_authn_failures.md` for authentication
-- Use `/prompts/owasp/A01_broken_access_control.md` for authorization
-
-**Phase 3 (Verification)**: Security scans validate OWASP compliance
-- CodeQL detects injection, XSS, access control issues
-- Snyk identifies vulnerable dependencies (A06)
-
-**Phase 4 (Governance)**: Human review verifies OWASP requirements met
-- Checklist ensures all identified categories addressed
-- Golden Rules enforce security-first thinking
-
-### Fitness Functions Integration
-
-Evolutionary Architecture fitness functions run continuously:
-
-```mermaid
-flowchart LR
-    A[Code Commit] --> B{Fitness Functions}
-    B --> C[Complexity Check]
-    B --> D[Dependency Freshness]
-    B --> E[Test Coverage]
-    B --> F[Security Compliance]
-
-    C --Pass--> G[Continue]
-    C --Fail--> H[Block Merge]
-    D --Pass--> G
-    D --Fail--> H
-    E --Pass--> G
-    E --Fail--> H
-    F --Pass--> G
-    F --Fail--> H
-
-    G --> I[Phase 4: Governance]
-```
-
-**Fitness Functions Applied**:
-
-1. **Complexity Fitness Function** (Phase 3)
-   - Cyclomatic complexity ≤10 per function
-   - File size ≤300 lines
-   - Function length ≤50 lines
-
-2. **Dependency Freshness** (Phase 6)
-   - All dependencies <3 months old
-   - Zero critical CVEs
-   - Security patches applied within 7 days
-
-3. **Security Compliance** (Phase 3)
-   - CodeQL: No high/critical findings
-   - Snyk: No high/critical vulnerabilities
-   - ESLint security rules pass
-
-4. **Test Coverage** (Phase 3)
-   - Overall coverage ≥80%
-   - Security-critical paths: 100%
-   - All OWASP attack vectors tested
-
-See [/docs/maintainability/fitness-functions.md](../maintainability/fitness-functions.md) for implementation details.
-
----
-
-## AI Agent Usage by Phase
+## 🤖 AI Agent Usage by Phase
 
 **Use the AI tools available to you** — this framework works with Claude Code, GitHub Copilot, ChatGPT, or any AI assistant.
 
-**Key principle**: Security-first prompts matter more than which AI tool you use. Any major AI assistant can generate secure code when given proper OWASP prompt packs.
+**Key principle**: Security-first prompts matter more than which AI tool you use.
 
-### When Each Tool Excels (If You Have Multiple)
-
-| Phase | Your Task | Best Tool | Why |
-|-------|-----------|-----------|-----|
-| **1: Design** | Threat modeling (STRIDE) | ChatGPT or Claude | Structured analysis and documentation |
-| **2: Implementation** | Real-time coding | GitHub Copilot | Autocomplete as you type in IDE |
-| **2: Implementation** | Large refactoring | Claude Code | Handles complex multi-file edits |
-| **3: Verification** | Test generation | Claude Code or ChatGPT | Comprehensive test coverage |
-| **4: Governance** | Code review checklist | ChatGPT or Claude | Structured validation |
-| **5: Deployment** | CI/CD automation | GitHub Actions | Automated, auditable pipeline |
-| **6: Evolution** | Refactoring tech debt | Claude Code | Large-scale codebase analysis |
-
-**Remember**: The prompt pack you use (e.g., [A03_injection.md](/prompts/owasp/A03_injection.md)) is more important than the AI tool. A security-first prompt produces secure code in any AI assistant.
-
----
-
-## Security Gates at Each Phase
-
-Every phase has specific security gates that must pass:
-
-### Phase 1: Design Gates
-- [ ] Threat model covers all STRIDE categories
-- [ ] OWASP categories identified for feature
-- [ ] Architecture includes security controls
-- [ ] Fitness functions defined
-
-### Phase 2: Implementation Gates
-- [ ] OWASP prompt packs used
-- [ ] Local tests pass (ESLint, Jest)
-- [ ] Code follows security patterns
-- [ ] AI-assistance documented in commits
-
-### Phase 3: Verification Gates
-- [ ] CodeQL: No high/critical findings
-- [ ] Snyk: No high/critical vulnerabilities
-- [ ] Test coverage ≥80%
-- [ ] Fitness functions pass
-- [ ] Attack vector tests included
-
-### Phase 4: Governance Gates
-- [ ] Human code review completed
-- [ ] Golden Rules checklist passed
-- [ ] OWASP requirements validated
-- [ ] AI disclosure in PR
-- [ ] Security rationale documented
-
-### Phase 5: Deployment Gates
-- [ ] All Phase 3 scans re-run and pass
-- [ ] Production smoke tests pass
-- [ ] Monitoring configured
-- [ ] Rollback plan documented
-
-### Phase 6: Evolution Gates
-- [ ] Metrics collected and analyzed
-- [ ] Technical debt prioritized
-- [ ] Prompts updated with learnings
-- [ ] Fitness functions trending positively
-
----
-
-## Workflow Examples
-
-### Example 1: New Feature (User Authentication)
-
-**Phase 1: Design** (2 hours)
-- ChatGPT threat models authentication flow → 8 threats identified
-- Maps to OWASP A07 (Authentication), A02 (Crypto), A09 (Logging)
-- Claude designs architecture with security controls
-
-**Phase 2: Implementation** (3 hours)
-- Copilot implements login function using `/prompts/owasp/A07_authn_failures.md`
-- Adds bcrypt hashing, rate limiting, secure sessions
-- Local Jest tests pass
-
-**Phase 3: Verification** (1 hour)
-- CodeQL scan: Clean
-- Snyk scan: Clean
-- Fitness functions: All pass
-- Claude generates comprehensive security tests
-
-**Phase 4: Governance** (30 min)
-- Human reviews code against Golden Rules
-- ChatGPT validates OWASP A07 checklist
-- PR approved with AI disclosure label
-
-**Phase 5: Deployment** (15 min)
-- CI/CD pipeline runs all gates
-- Deploys to production
-- Monitoring confirms healthy
-
-**Phase 6: Evolution** (Ongoing)
-- Collect auth metrics (login success rate, failed attempts)
-- Refine A07 prompt pack based on learnings
-- Add "MFA requirement" to fitness functions
-
-**Total: 6 hours 45 minutes** (vs. estimated 16 hours manual)
-
-### Example 2: Security Remediation (A03 Injection)
-
-**Phase 1: Design** (30 min)
-- Identify vulnerable functions: searchUsers, updateProfile, deleteAccount
-- Map to OWASP A03 (Injection)
-- Threat model specific injection vectors
-
-**Phase 2: Implementation** (2 hours)
-- Copilot refactors using `/prompts/owasp/A03_injection.md`
-- Adds parameterized queries, Zod validation, length limits
-- Parallel: 3 functions updated simultaneously
-
-**Phase 3: Verification** (45 min)
-- CodeQL detects no remaining injection vectors
-- Claude generates attack vector tests (SQL injection payloads)
-- All tests pass
-
-**Phase 4: Governance** (20 min)
-- Human spot-checks one function in detail
-- ChatGPT validates all three against A03 checklist
-- Approved
-
-**Phase 5: Deployment** (10 min)
-- Deploy with feature flag (gradual rollout)
-- Monitor for errors
-- Full rollout after 24 hours
-
-**Phase 6: Evolution** (Ongoing)
-- Update A03 prompt with edge cases discovered
-- Add "injection prevention" fitness function to CI
-- Share successful remediation pattern with team
-
-**Total: 3 hours 45 minutes** for 3 functions
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="background: rgba(71, 85, 105, 0.3);">
+        <th style="padding: 12px; text-align: left; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Phase</th>
+        <th style="padding: 12px; text-align: left; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Your Task</th>
+        <th style="padding: 12px; text-align: left; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Best Tool</th>
+        <th style="padding: 12px; text-align: left; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Why</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #93c5fd; font-weight: 600;">1: Design</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Threat modeling (STRIDE)</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">ChatGPT or Claude</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Structured analysis and documentation</td>
+      </tr>
+      <tr style="background: rgba(71, 85, 105, 0.2);">
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #fcd34d; font-weight: 600;">2: Implement</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Real-time coding</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">GitHub Copilot</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Autocomplete as you type in IDE</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #fcd34d; font-weight: 600;">2: Implement</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Large refactoring</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Claude Code</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Handles complex multi-file edits</td>
+      </tr>
+      <tr style="background: rgba(71, 85, 105, 0.2);">
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #fca5a5; font-weight: 600;">3: Verify</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Test generation</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Claude Code or ChatGPT</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Comprehensive test coverage</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #d8b4fe; font-weight: 600;">4: Govern</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Code review checklist</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">ChatGPT or Claude</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Structured validation</td>
+      </tr>
+      <tr style="background: rgba(71, 85, 105, 0.2);">
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #6ee7b7; font-weight: 600;">5: Deploy</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">CI/CD automation</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">GitHub Actions</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Automated, auditable pipeline</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="color: #f9a8d4; font-weight: 600;">6: Evolve</span></td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Refactoring tech debt</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Claude Code</td>
+        <td style="padding: 12px; border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8;">Large-scale codebase analysis</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 ---
 
-## Integration with Iasa Workshop Concepts
+## 📈 Success Metrics
 
-The MaintainabilityAI SDLC aligns with the [Iasa workshop](../workshop/part1-spectrum.md) spectrum:
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
 
-### Vibe → Assisted → Agentic Mapping
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 24px;">
+  <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">Velocity Metrics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <strong style="color: #818cf8;">Time to Delivery:</strong> &lt;5 days<br/>
+    <strong style="color: #818cf8;">Cycle Time:</strong> &lt;24 hours<br/>
+    <strong style="color: #818cf8;">Deploy Frequency:</strong> &gt;10/week
+  </div>
+</div>
 
-```mermaid
-flowchart LR
-    A[Vibe Coding] -.->|Not Recommended| B[Quick Prototypes Only]
-    C[AI-Assisted Engineering] -->|Recommended| D[Phases 1-4]
-    E[Agentic Coding] -->|Selective Use| F[Phase 6 Refactoring]
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 24px;">
+  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">Quality Metrics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <strong style="color: #a78bfa;">Scan Pass Rate:</strong> &gt;90%<br/>
+    <strong style="color: #a78bfa;">Test Coverage:</strong> &gt;80%<br/>
+    <strong style="color: #a78bfa;">Defect Rate:</strong> &lt;5/1000 LOC
+  </div>
+</div>
 
-    D --> D1[Human-in-the-loop at every phase]
-    D --> D2[Security gates enforced]
-    D --> D3[Prompts guide AI]
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 24px;">
+  <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">Security Metrics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <strong style="color: #22d3ee;">OWASP Coverage:</strong> 100%<br/>
+    <strong style="color: #22d3ee;">Remediation Time:</strong> &lt;7 days<br/>
+    <strong style="color: #22d3ee;">False Positives:</strong> &lt;10%
+  </div>
+</div>
 
-    F --> F1[Autonomous refactoring]
-    F --> F2[Dependency upgrades]
-    F --> F3[Tech debt reduction]
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 24px;">
+  <div style="font-size: 32px; margin-bottom: 12px;">📊</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">Process Metrics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <strong style="color: #5eead4;">Prompt Reuse:</strong> &gt;70%<br/>
+    <strong style="color: #5eead4;">Agent Effectiveness:</strong> &gt;85%<br/>
+    <strong style="color: #5eead4;">Review Time:</strong> &lt;30 min
+  </div>
+</div>
 
-    style C fill:#4CAF50
-    style D fill:#81C784
-```
-
-**Vibe Coding**: Only for throwaway prototypes (not in production SDLC)
-
-**AI-Assisted Engineering**: Primary mode for Phases 1-5
-- Human defines architecture and constraints
-- AI generates implementation within guardrails
-- Human reviews and approves
-- Example: Phase 2 implementation with Copilot
-
-**Agentic Coding**: Limited use in Phase 6
-- Well-defined refactoring tasks
-- "Upgrade All The Things" kata
-- Technical debt reduction
-- Example: Claude autonomously migrates 50 files to new pattern
-
----
-
-## Continuous Improvement Loop
-
-The SDLC is circular, with Phase 6 feeding back to Phase 1:
-
-```mermaid
-flowchart LR
-    A[Phase 6: Evolution] --> B[Metrics Analysis]
-    B --> C{Insights}
-    C --> D[Update Prompt Packs]
-    C --> E[Refine Fitness Functions]
-    C --> F[Improve Security Gates]
-    C --> G[Enhance Agent Workflows]
-
-    D --> H[Phase 1: Next Feature]
-    E --> H
-    F --> H
-    G --> H
-
-    H --> I[Better, Faster, Safer]
-```
-
-**Metrics → Insights → Improvements**:
-
-1. **Prompt Pack Iteration**
-   - Track which prompts produce secure code on first try
-   - Update prompts with edge cases discovered in production
-   - Share successful patterns across team
-
-2. **Fitness Function Refinement**
-   - Add new checks based on vulnerabilities found
-   - Adjust thresholds based on team performance
-   - Remove checks that provide no value
-
-3. **Security Gate Enhancement**
-   - Add CodeQL custom queries for domain-specific risks
-   - Update Snyk policies with acceptable exceptions
-   - Improve ESLint security rules
-
-4. **Agent Workflow Optimization**
-   - Measure time-to-delivery per agent
-   - Identify best agent for each task type
-   - Refine handoff patterns between agents
+</div>
 
 ---
 
-## Quick Start Guide
+## 🚀 Quick Start Guide
 
-### For Your First Feature
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
-1. **Read Phase Documentation**: Start with [Phase 1: Design](phase1-design.md)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
 
-2. **Select OWASP Categories**: Which apply to your feature?
-   - Authentication? → A07
-   - Database queries? → A03
-   - User uploads? → A08
-   - Access control? → A01
+<div style="text-align: center; padding: 20px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">📖</div>
+  <div style="font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">1. Read Phase Docs</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Start with Phase 1: Design</div>
+</div>
 
-3. **Choose Your Agents**:
-   - Design: ChatGPT for threat modeling
-   - Implementation: Copilot in VS Code
-   - Verification: Claude for test generation
-   - Governance: Human + ChatGPT review
+<div style="text-align: center; padding: 20px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">🔒</div>
+  <div style="font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">2. Select OWASP</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Which categories apply?</div>
+</div>
 
-4. **Use Prompt Packs**: Copy from `/prompts/owasp/[category].md`
+<div style="text-align: center; padding: 20px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">🤖</div>
+  <div style="font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">3. Choose Agents</div>
+  <div style="font-size: 13px; color: #cbd5e1;">ChatGPT, Copilot, Claude</div>
+</div>
 
-5. **Follow Gates**: Don't skip security checks
+<div style="text-align: center; padding: 20px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">📦</div>
+  <div style="font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">4. Use Prompts</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Reference from /prompts/</div>
+</div>
 
-6. **Document**: Label commits with `🤖 AI-assisted` and OWASP category
+<div style="text-align: center; padding: 20px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">✅</div>
+  <div style="font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">5. Follow Gates</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Don't skip security checks</div>
+</div>
 
-7. **Iterate**: Refine prompts based on what worked
+<div style="text-align: center; padding: 20px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">🔄</div>
+  <div style="font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">6. Iterate</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Refine prompts based on results</div>
+</div>
 
----
+</div>
 
-## Phase-Specific Documentation
-
-Detailed guides for each phase:
-
-1. **[Phase 1: Design Intent](phase1-design.md)**
-   - Requirements gathering
-   - Threat modeling with STRIDE
-   - Architecture design
-   - OWASP category mapping
-
-2. **[Phase 2: Implementation](phase2-implementation.md)**
-   - Agent selection guide
-   - Using OWASP prompt packs
-   - Code generation with security constraints
-   - Incremental development patterns
-
-3. **[Phase 3: Verification](phase3-verification.md)**
-   - Local testing (Jest, ESLint)
-   - Security scanning (CodeQL, Snyk)
-   - Fitness function validation
-   - Attack vector testing
-
-4. **[Phase 4: Governance](phase4-governance.md)**
-   - PR review process
-   - Golden Rules checklist
-   - Human-in-the-loop validation
-   - Merge criteria
-
-5. **[Phase 5: Deployment](phase5-deployment.md)**
-   - CI/CD pipeline configuration
-   - Production deployment process
-   - Monitoring and alerting
-   - Rollback procedures
-
-6. **[Phase 6: Evolution](phase6-evolution.md)**
-   - Metrics collection and analysis
-   - Prompt library iteration
-   - Technical debt management
-   - "Upgrade All The Things" kata
+</div>
 
 ---
 
-## Supporting Resources
+## 📚 Phase-Specific Documentation
 
-### Framework Integration
-- **[Master Framework Document](../framework.md)**: Complete integration of all concepts
-- **[Maintainability Index](../maintainability/)**: Fitness functions and evolutionary architecture
-- **[OWASP Prompt Packs](/prompts/owasp/)**: Security-first prompts for each category
+<div style="display: grid; gap: 16px; margin: 32px 0;">
 
-### Agent Guides
-- **[COPILOT.md](/COPILOT.md)**: GitHub Copilot integration patterns
-- **[CHATGPT.md](/CHATGPT.md)**: ChatGPT usage guidelines
-- **[AGENTS.md](/AGENTS.md)**: Multi-agent orchestration
+<a href="./phase1-design" style="display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 20px; text-decoration: none; transition: all 0.2s;">
+  <div style="font-size: 32px;">📋</div>
+  <div style="flex: 1;">
+    <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 4px;">Phase 1: Design Intent</div>
+    <div style="font-size: 13px; color: #cbd5e1;">Requirements gathering, threat modeling with STRIDE, architecture design, OWASP mapping</div>
+  </div>
+  <div style="color: #818cf8;">→</div>
+</a>
 
-### Governance
-- **[Golden Rules](../governance/vibe-golden-rules.md)**: Core principles for AI-assisted development
-- **[Security Workflow](../security-workflow.md)**: Defense-in-depth strategy
+<a href="./phase2-implementation" style="display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 20px; text-decoration: none; transition: all 0.2s;">
+  <div style="font-size: 32px;">💻</div>
+  <div style="flex: 1;">
+    <div style="font-size: 16px; font-weight: 700; color: #fcd34d; margin-bottom: 4px;">Phase 2: Implementation</div>
+    <div style="font-size: 13px; color: #cbd5e1;">Agent selection guide, OWASP prompt packs, secure code generation, incremental development</div>
+  </div>
+  <div style="color: #f59e0b;">→</div>
+</a>
 
----
+<a href="./phase3-verification" style="display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 20px; text-decoration: none; transition: all 0.2s;">
+  <div style="font-size: 32px;">🔍</div>
+  <div style="flex: 1;">
+    <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 4px;">Phase 3: Verification</div>
+    <div style="font-size: 13px; color: #cbd5e1;">Local testing (Jest, ESLint), security scanning (CodeQL, Snyk), fitness functions, attack vectors</div>
+  </div>
+  <div style="color: #ef4444;">→</div>
+</a>
 
-## Success Metrics
+<a href="./phase4-governance" style="display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 20px; text-decoration: none; transition: all 0.2s;">
+  <div style="font-size: 32px;">👥</div>
+  <div style="flex: 1;">
+    <div style="font-size: 16px; font-weight: 700; color: #d8b4fe; margin-bottom: 4px;">Phase 4: Governance</div>
+    <div style="font-size: 13px; color: #cbd5e1;">PR review process, Golden Rules checklist, human-in-the-loop validation, merge criteria</div>
+  </div>
+  <div style="color: #a855f7;">→</div>
+</a>
 
-Track these metrics to measure SDLC effectiveness:
+<a href="./phase5-deployment" style="display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 20px; text-decoration: none; transition: all 0.2s;">
+  <div style="font-size: 32px;">🚀</div>
+  <div style="flex: 1;">
+    <div style="font-size: 16px; font-weight: 700; color: #6ee7b7; margin-bottom: 4px;">Phase 5: Deployment</div>
+    <div style="font-size: 13px; color: #cbd5e1;">CI/CD pipeline configuration, production deployment, monitoring and alerting, rollback procedures</div>
+  </div>
+  <div style="color: #10b981;">→</div>
+</a>
 
-### Velocity Metrics
-- **Time to Delivery**: Feature start to production (target: <5 days)
-- **Cycle Time**: Implementation to merge (target: <24 hours)
-- **Deployment Frequency**: Deploys per week (target: >10)
+<a href="./phase6-evolution" style="display: flex; align-items: center; gap: 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 8px; padding: 20px; text-decoration: none; transition: all 0.2s;">
+  <div style="font-size: 32px;">📈</div>
+  <div style="flex: 1;">
+    <div style="font-size: 16px; font-weight: 700; color: #f9a8d4; margin-bottom: 4px;">Phase 6: Evolution</div>
+    <div style="font-size: 13px; color: #cbd5e1;">Metrics collection and analysis, prompt library iteration, technical debt management</div>
+  </div>
+  <div style="color: #ec4899;">→</div>
+</a>
 
-### Quality Metrics
-- **Security Scan Pass Rate**: First-time pass on CodeQL/Snyk (target: >90%)
-- **Test Coverage**: Overall coverage (target: >80%)
-- **Defect Rate**: Production bugs per 1000 LOC (target: <5)
-
-### Security Metrics
-- **OWASP Coverage**: % of applicable categories addressed (target: 100%)
-- **Vulnerability Remediation Time**: Discovery to fix (target: <7 days)
-- **False Positive Rate**: Invalid security findings (target: <10%)
-
-### Process Metrics
-- **Prompt Reuse Rate**: % of work using prompt library (target: >70%)
-- **Agent Effectiveness**: AI code acceptance rate (target: >85%)
-- **Review Time**: Human review duration (target: <30 min)
-
----
-
-## Getting Started
-
-1. **Install Tools**
-   - GitHub Copilot (VS Code extension)
-   - Claude Code (VS Code extension)
-   - ChatGPT Plus (for Projects feature)
-   - CodeQL and Snyk (GitHub Actions)
-
-2. **Set Up Repository**
-   - Copy OWASP prompt packs to `/prompts/owasp/`
-   - Configure ESLint with security rules
-   - Set up Jest with coverage thresholds
-   - Add CodeQL and Snyk workflows
-
-3. **Team Training**
-   - Review [Golden Rules](../governance/vibe-golden-rules.md)
-   - Complete [Workshop modules](../workshop/)
-   - Practice with [OWASP examples](/examples/owasp/)
-
-4. **Start with Phase 1**
-   - Pick a feature to implement
-   - Follow [Phase 1: Design](phase1-design.md)
-   - Use threat modeling template
-   - Progress through all 6 phases
-
-5. **Iterate and Improve**
-   - Collect metrics
-   - Refine prompts
-   - Update fitness functions
-   - Share learnings with team
+</div>
 
 ---
 
-**Ready to start? Begin with [Phase 1: Design Intent →](phase1-design.md)**
+<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 40px; text-align: center; color: #f1f5f9; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="font-size: 56px; margin-bottom: 16px;">🎯</div>
+  <div style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">Ready to Start?</div>
+  <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Begin your secure AI-assisted development journey with Phase 1. Follow the six phases systematically for maximum velocity and security.</div>
+  <a href="./phase1-design" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+    Begin with Phase 1: Design Intent →
+  </a>
+</div>

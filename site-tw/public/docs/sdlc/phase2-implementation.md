@@ -1,10 +1,22 @@
 # Phase 2: Implementation
 
-> **Purpose**: Generate secure code using AI agents guided by OWASP prompt packs and architectural constraints from Phase 1.
-
-This phase transforms architecture designs into production-ready code while maintaining security controls and fitness function compliance.
-
----
+<div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4); border: 1px solid rgba(251, 191, 36, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="font-size: 56px;">2️⃣</div>
+    <div>
+      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Implementation</h2>
+      <div style="font-size: 16px; color: #fef3c7; margin-top: 8px;">AI-Guided Secure Code Generation</div>
+    </div>
+  </div>
+  <div style="color: #fef3c7; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Generate secure code using AI agents guided by OWASP prompt packs and architectural constraints from Phase 1.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+    <div style="color: #fef3c7; font-size: 14px; line-height: 1.8;">
+      This phase transforms architecture designs into production-ready code while maintaining security controls and fitness function compliance.
+    </div>
+  </div>
+</div>
 
 ## Phase Overview
 
@@ -20,15 +32,28 @@ flowchart LR
     F -->|Changes| D
 ```
 
-**Duration**: 2-6 hours (feature-dependent)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Duration</div>
+    <div style="font-size: 24px; color: #f1f5f9; font-weight: 700;">2-6 hours</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Feature-dependent</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Primary Agents</div>
+    <div style="font-size: 16px; color: #f1f5f9; font-weight: 700;">Copilot, Claude, ChatGPT</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Code generation & refactoring</div>
+  </div>
+</div>
 
-**Primary Agents**: Copilot (in-editor generation), Claude (complex refactoring), ChatGPT (structured implementation)
-
-**Outputs**:
-- Implementation code (TypeScript/JavaScript)
-- Unit tests (Jest)
-- Security controls (per threat model)
-- Documentation (inline comments, ADRs)
+<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
+  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 12px; font-size: 15px;">💻 Phase Outputs</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
+    ✓ Implementation code (TypeScript/JavaScript)<br/>
+    ✓ Unit tests (Jest)<br/>
+    ✓ Security controls (per threat model)<br/>
+    ✓ Documentation (inline comments, ADRs)
+  </div>
+</div>
 
 ---
 
@@ -65,7 +90,7 @@ flowchart TD
 | **Claude** | Multi-file features, large refactorings, comprehensive testing | "Refactor entire auth module to use bcrypt and add tests" |
 | **ChatGPT** | Incremental development, learning new patterns, structured iteration | "Build document sharing step-by-step with security review after each step" |
 
-See [COPILOT.md](/COPILOT.md), [CLAUDE.md](/CLAUDE.md), [CHATGPT.md](/CHATGPT.md) for detailed guides.
+See [Copilot Guide](../agents/copilot), [Claude Guide](../agents/claude), [ChatGPT Guide](../agents/chatgpt) for detailed guides.
 
 ---
 
@@ -750,14 +775,14 @@ Next: Run CodeQL and Snyk scans in CI (Phase 3)
 
 ## Next Steps
 
-**[Proceed to Phase 3: Verification →](phase3-verification.md)**
+**[Proceed to Phase 3: Verification →](phase3-verification)**
 
 With implementation complete and local tests passing, move to comprehensive security scanning and fitness function validation.
 
 ---
 
 **Further Reading**:
-- [COPILOT.md](/COPILOT.md) - GitHub Copilot integration
-- [CHATGPT.md](/CHATGPT.md) - ChatGPT structured development
-- [CLAUDE.md](/CLAUDE.md) - Claude Code for refactoring
-- [Golden Rules](../governance/vibe-golden-rules.md) - AI development governance
+- [Copilot Guide](../agents/copilot) - GitHub Copilot integration
+- [ChatGPT Guide](../agents/chatgpt) - ChatGPT structured development
+- [Claude Guide](../agents/claude) - Claude Code for refactoring
+- [Golden Rules](../governance/vibe-golden-rules) - AI development governance

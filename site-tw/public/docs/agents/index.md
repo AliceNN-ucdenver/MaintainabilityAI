@@ -134,7 +134,7 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 ### 1. Always Reference OWASP Prompt Packs
 
 ```markdown
-[Paste /prompts/owasp/A01_broken_access_control.md]
+[Reference /prompts/owasp/A01_broken_access_control.md]
 
 Apply this to my code:
 [your specific context]

@@ -20,7 +20,7 @@ ChatGPT excels when given comprehensive, structured prompts. The OWASP prompt pa
 
 **Example**:
 ```markdown
-[Paste content from /prompts/owasp/A03_injection.md]
+[Reference /prompts/owasp/A03_injection.md]
 
 Now apply this to my code:
 
@@ -101,7 +101,7 @@ Acknowledge these constraints before we proceed.
 ```markdown
 I need to implement secure user authentication following OWASP A07:2021 - Authentication Failures.
 
-[Paste content from /prompts/owasp/A07_authn_failures.md]
+[Reference /prompts/owasp/A07_authn_failures.md]
 
 Generate the implementation.
 ```
@@ -226,9 +226,9 @@ OWASP Categories Involved:
 - A09: Logging/Monitoring (security events)
 
 Prompt Packs to Use:
-[Paste /prompts/owasp/A01_broken_access_control.md]
-[Paste /prompts/owasp/A03_injection.md]
-[Paste /prompts/owasp/A09_logging_monitoring.md]
+[Reference /prompts/owasp/A01_broken_access_control.md]
+[Reference /prompts/owasp/A03_injection.md]
+[Reference /prompts/owasp/A09_logging_monitoring.md]
 
 Tech Stack: Node 18 + TypeScript + Express + PostgreSQL
 
@@ -267,8 +267,8 @@ Maintainability Requirements:
 - Performance: p95 latency <200ms
 
 Prompt Packs:
-[Paste /prompts/owasp/A01_broken_access_control.md]
-[Paste /prompts/maintainability/fitness-functions.md]
+[Reference /prompts/owasp/A01_broken_access_control.md]
+[Reference /prompts/maintainability/fitness-functions.md]
 
 Generate code that satisfies BOTH security AND maintainability constraints.
 ```
@@ -277,10 +277,10 @@ Generate code that satisfies BOTH security AND maintainability constraints.
 
 | Pattern | Use Case | ChatGPT Prompt Pattern |
 |---------|----------|------------------------|
-| **Fitness Functions** | Enforce quality gates (complexity, coverage, performance) | Paste `/prompts/maintainability/fitness-functions.md` + "Create ts-morph test that fails if complexity >10" |
-| **Dependency Hygiene** | 3-month freshness rule, automated updates | Paste `/prompts/maintainability/dependency-hygiene.md` + "Generate Renovate config with weekly updates" |
-| **Strangler Fig** | Incremental legacy migration | Paste `/prompts/maintainability/strangler-fig.md` + "Create proxy layer for users service migration" |
-| **Technical Debt** | Structured debt tracking | Paste `/prompts/maintainability/technical-debt.md` + "Generate TECHNICAL-DEBT.yml with automated detection script" |
+| **Fitness Functions** | Enforce quality gates (complexity, coverage, performance) | Reference `/prompts/maintainability/fitness-functions.md` + "Create ts-morph test that fails if complexity >10" |
+| **Dependency Hygiene** | 3-month freshness rule, automated updates | Reference `/prompts/maintainability/dependency-hygiene.md` + "Generate Renovate config with weekly updates" |
+| **Strangler Fig** | Incremental legacy migration | Reference `/prompts/maintainability/strangler-fig.md` + "Create proxy layer for users service migration" |
+| **Technical Debt** | Structured debt tracking | Reference `/prompts/maintainability/technical-debt.md` + "Generate TECHNICAL-DEBT.yml with automated detection script" |
 
 ### Multi-Turn Security + Maintainability Refinement
 

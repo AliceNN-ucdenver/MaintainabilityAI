@@ -1,8 +1,26 @@
 # Phase 3: Verification
 
-> **Purpose**: Validate implementation through automated security scanning, comprehensive testing, and fitness function enforcement.
-
----
+<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4); border: 1px solid rgba(248, 113, 113, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="font-size: 56px;">3️⃣</div>
+    <div>
+      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Verification</h2>
+      <div style="font-size: 16px; color: #fecaca; margin-top: 8px;">Automated Security Scanning & Testing</div>
+    </div>
+  </div>
+  <div style="color: #fecaca; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Validate implementation through automated security scanning, comprehensive testing, and fitness function enforcement.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+      <div style="text-align: center; color: #fecaca; font-size: 13px; font-weight: 600;">ESLint</div>
+      <div style="text-align: center; color: #fecaca; font-size: 13px; font-weight: 600;">Jest</div>
+      <div style="text-align: center; color: #fecaca; font-size: 13px; font-weight: 600;">CodeQL</div>
+      <div style="text-align: center; color: #fecaca; font-size: 13px; font-weight: 600;">Snyk</div>
+      <div style="text-align: center; color: #fecaca; font-size: 13px; font-weight: 600;">Fitness Functions</div>
+    </div>
+  </div>
+</div>
 
 ## Phase Overview
 
@@ -17,9 +35,18 @@ flowchart LR
     G --> B
 ```
 
-**Duration**: 30-60 minutes (automated)
-
-**Tools**: ESLint, Jest, CodeQL, Snyk, custom fitness function scripts
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Duration</div>
+    <div style="font-size: 24px; color: #f1f5f9; font-weight: 700;">30-60 min</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Automated testing</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Tools</div>
+    <div style="font-size: 16px; color: #f1f5f9; font-weight: 700;">ESLint, Jest, CodeQL, Snyk</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">+ Custom fitness functions</div>
+  </div>
+</div>
 
 ---
 
@@ -587,4 +614,4 @@ Next: Human code review with Golden Rules checklist (Phase 4)
 
 ---
 
-**[Proceed to Phase 4: Governance →](phase4-governance.md)**
+**[Proceed to Phase 4: Governance →](phase4-governance)**

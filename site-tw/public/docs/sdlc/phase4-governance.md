@@ -1,8 +1,25 @@
 # Phase 4: Governance
 
-> **Purpose**: Human-in-the-loop review applying Golden Rules, security checklists, and OWASP validation before merge.
-
----
+<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(168, 85, 247, 0.4); border: 1px solid rgba(192, 132, 252, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="font-size: 56px;">4️⃣</div>
+    <div>
+      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Governance</h2>
+      <div style="font-size: 16px; color: #e9d5ff; margin-top: 8px;">Human Code Review & Golden Rules</div>
+    </div>
+  </div>
+  <div style="color: #e9d5ff; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Human-in-the-loop review applying Golden Rules, security checklists, and OWASP validation before merge.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+      <div style="text-align: center; color: #e9d5ff; font-size: 13px; font-weight: 600;">Golden Rules</div>
+      <div style="text-align: center; color: #e9d5ff; font-size: 13px; font-weight: 600;">OWASP Review</div>
+      <div style="text-align: center; color: #e9d5ff; font-size: 13px; font-weight: 600;">Threat Coverage</div>
+      <div style="text-align: center; color: #e9d5ff; font-size: 13px; font-weight: 600;">Manual Testing</div>
+    </div>
+  </div>
+</div>
 
 ## Phase Overview
 
@@ -18,9 +35,18 @@ flowchart LR
     H --> I[Phase 2: Implementation]
 ```
 
-**Duration**: 15-45 minutes (human review time)
-
-**Participants**: Engineer (PR author), Human Reviewer, ChatGPT (checklist validation)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Duration</div>
+    <div style="font-size: 24px; color: #f1f5f9; font-weight: 700;">15-45 min</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Human review time</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Participants</div>
+    <div style="font-size: 16px; color: #f1f5f9; font-weight: 700;">Engineer, Reviewer, ChatGPT</div>
+    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Checklist validation</div>
+  </div>
+</div>
 
 ---
 
@@ -509,4 +535,4 @@ After PR approval:
 
 ---
 
-**[Proceed to Phase 5: Deployment →](phase5-deployment.md)**
+**[Proceed to Phase 5: Deployment →](phase5-deployment)**

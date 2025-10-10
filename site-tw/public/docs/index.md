@@ -101,25 +101,43 @@ Platform-specific guidance for security-first development with different AI tool
 
 All prompt packs follow the proven **Role + Context + Requirements + Task + Checklist** pattern.
 
+### Setup: Clone the Repository
+
+**Recommended for best UX** (works with Claude Code and Copilot):
+```bash
+git clone https://github.com/AliceNN-ucdenver/MaintainabilityAI.git
+cd MaintainabilityAI
+```
+
+Now you can reference prompts by local file path instead of copy/paste:
+- Claude Code: "Use `/path/to/MaintainabilityAI/prompts/owasp/A03_injection.md` to refactor..."
+- Copilot: `#file:/prompts/owasp/A03_injection.md` + your request
+
+**Alternative** (for ChatGPT web users): Copy prompts from [GitHub](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts) and paste.
+
 ### OWASP Security Prompts
-**GitHub**: [/prompts/owasp/](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp)
+**Location**: `/prompts/owasp/` | **GitHub**: [View Online](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp)
 
 - 10 comprehensive prompt packs (A01-A10)
-- Tool-specific variations for Claude, Copilot, and ChatGPT
 - Before/after code examples
 - Testing checklists with attack vectors
-
-**How to use**: Copy the prompt pack for your OWASP category, paste into your AI agent with your specific context, and follow the security checklist.
+- Tool-specific guidance for Claude, Copilot, ChatGPT
 
 ### Maintainability Prompts
-**GitHub**: [/prompts/maintainability/](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability)
+**Location**: `/prompts/maintainability/` | **GitHub**: [View Online](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability)
 
-- Fitness Functions - Automated quality gates
-- Dependency Hygiene - 3-month freshness rule
-- Strangler Fig - Incremental legacy migration
-- Technical Debt - Structured tracking system
+- [Fitness Functions](./prompts/maintainability/fitness-functions) - Automated quality gates
+- [Dependency Hygiene](./prompts/maintainability/dependency-hygiene) - 3-month freshness rule
+- [Strangler Fig](./prompts/maintainability/strangler-fig) - Incremental legacy migration
+- [Technical Debt](./prompts/maintainability/technical-debt) - Structured tracking system
 
-**How to use**: Combine with OWASP security prompts for production-grade, maintainable code.
+### Keeping Prompts Updated
+
+```bash
+# Pull latest prompt improvements
+cd MaintainabilityAI
+git pull origin main
+```
 
 ---
 

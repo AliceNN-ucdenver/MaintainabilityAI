@@ -1,14 +1,16 @@
 # The Golden Rules of Vibe Coding
 
+> **Source**: Synthesized from the work of Addy Osmani and collective experience of early adopters, as documented in Mani, A. (2025). *Beyond Vibe Coding: From Coder to AI-Era Developer*. O'Reilly Media.
+
 > **Core Principle**: AI accelerates development, but human judgment ensures security and quality.
 
-These six rules form the governance framework for security-first AI-assisted engineering. They balance velocity with rigor, ensuring AI becomes a force multiplier rather than a security liability.
+These eight rules form the governance framework for ensuring that speed and creativity are balanced with discipline, quality, and accountability in AI-assisted engineering. They are not meant to stifle innovation but to create a sustainable and professional practice around it.
 
 ---
 
-## Rule 1: Be Specific About Intent and Constraints
+## Rule 1: Be Specific and Clear About What You Want
 
-**Principle**: Vague prompts produce vague code. Security requires precision.
+**Principle**: All effective human-AI collaboration begins with a clear expression of intent. The quality of the AI's output is a direct reflection of the quality of the prompt. Vague instructions lead to ambiguous and often incorrect code.
 
 ### ❌ Bad Prompt
 ```
@@ -47,9 +49,9 @@ Task:
 
 ---
 
-## Rule 2: Trust But Verify — Never Merge Code You Don't Understand
+## Rule 2: Always Validate AI Output Against Your Intent
 
-**Principle**: AI can write code faster than you can understand it. Slow down for security.
+**Principle**: The core principle of "Trust, but verify" must be rigorously applied. Never assume AI-generated code is correct. It must be tested, reviewed, and measured against the original requirements to ensure it solves the right problem in the right way.
 
 ### Before Merging AI-Generated Code
 
@@ -107,9 +109,9 @@ Task:
 
 ---
 
-## Rule 3: Treat AI Like a Keen Junior Dev — Guide and Review
+## Rule 3: Treat AI as a Junior Developer (With Supervision)
 
-**Principle**: AI is brilliant but inexperienced. It needs mentorship and oversight.
+**Principle**: This is the most effective mental model for working with current AI assistants. They are knowledgeable, fast, and eager, but they lack context, experience, and critical judgment. They require clear direction, constant oversight, and a senior hand to guide them away from pitfalls.
 
 ### Interaction Pattern
 
@@ -154,9 +156,43 @@ flowchart LR
 
 ---
 
-## Rule 4: Isolate AI Changes in Separate Commits/PRs; Label Them
+## Rule 4: Don't Merge Code You Don't Understand
 
-**Principle**: Traceability is security. Always know which code is AI-generated.
+**Principle**: This is the ultimate rule of ownership. A developer is responsible for every line of code in their pull request, regardless of its origin. Merging code without fully comprehending its logic, implications, and potential edge cases is a dereliction of professional duty and a direct path to technical debt and production failures.
+
+### Understanding Checklist
+
+Before merging AI-generated code, ask yourself:
+
+```markdown
+□ Can I explain what every line does?
+□ Do I understand why this approach was chosen?
+□ Can I identify the edge cases this code handles?
+□ Do I know what could go wrong with this code?
+□ Can I debug this code if it fails in production?
+□ Do I understand the security implications?
+□ Would I be comfortable explaining this in a code review?
+```
+
+### Anti-Patterns to Avoid
+
+❌ **"The AI wrote it, so it must be correct"**
+- AI can generate plausible-looking but subtly broken code
+- You own the bugs, not the AI
+
+❌ **"I don't have time to understand it all"**
+- Time pressure is not an excuse for poor quality
+- Technical debt compounds quickly
+
+❌ **"It passed the tests, so it's fine"**
+- Tests may not cover all edge cases
+- Security issues often hide in untested paths
+
+---
+
+## Rule 5: Isolate AI Changes in Git
+
+**Principle**: When using AI to generate significant chunks of code, commit those changes separately. This practice makes code reviews more manageable, simplifies rollbacks if an issue is discovered, and improves the overall traceability of the codebase.
 
 ### Commit Message Pattern
 
@@ -199,9 +235,36 @@ Refs: #123"
 
 ---
 
-## Rule 5: Document Rationale (What/Why), Not Just the Code
+## Rule 6: Ensure All Code Undergoes Human Review
 
-**Principle**: Future developers (including AI) need context, not just syntax.
+**Principle**: AI-generated code should be held to the same quality standards as human-written code. It must go through the same rigorous peer review process. This ensures a consistent quality bar and provides a critical check against the AI's potential blind spots.
+
+### Code Review Checklist for AI-Generated Code
+
+```markdown
+□ Code follows team patterns and style guide
+□ Security controls match requirements
+□ Error handling is comprehensive
+□ Tests cover positive and negative cases
+□ Documentation explains the "why"
+□ No hardcoded secrets or credentials
+□ Performance is acceptable
+□ Code is maintainable and readable
+```
+
+### Reviewer Responsibilities
+
+- Treat AI code the same as junior developer code
+- Don't rubber-stamp because "AI generated it"
+- Ask questions if anything is unclear
+- Request changes if quality bar not met
+- Verify security controls are correct
+
+---
+
+## Rule 7: Prioritize Documentation and Rationale
+
+**Principle**: AI can generate code, but it cannot explain the why behind a business decision or architectural trade-off. It is the developer's responsibility to document this crucial context. For agentic workflows, this might involve prompting the agent to maintain a decision log, which the developer then reviews and augments.
 
 ### ❌ Bad Documentation
 ```typescript
@@ -263,9 +326,9 @@ const hash = await bcrypt.hash(password, 12);
 
 ---
 
-## Rule 6: Share Winning Prompts — Build a Team Prompt Library
+## Rule 8: Share and Reuse Effective Prompts
 
-**Principle**: Successful prompts are organizational assets. Capture and reuse them.
+**Principle**: Well-crafted prompts are valuable intellectual assets. Teams should create a shared repository of effective prompt patterns and templates for common tasks. This practice ensures consistency, codifies best practices, and accelerates the entire team's ability to work effectively with AI.
 
 ### Building Your Prompt Library
 
@@ -369,12 +432,14 @@ Track these metrics to ensure Golden Rules are working:
 ### During Review
 - **Automated**: CodeQL, Snyk, ESLint catch technical issues
 - **Human**: Reviewer validates Golden Rules compliance:
-  1. "Is the prompt specific enough?" (Rule 1)
-  2. "Do I understand this code?" (Rule 2)
-  3. "Does this look like junior dev output?" (Rule 3)
-  4. "Is AI usage clearly labeled?" (Rule 4)
-  5. "Is the 'why' documented?" (Rule 5)
-  6. "Should this prompt be shared?" (Rule 6)
+  1. "Is the prompt specific and clear?" (Rule 1)
+  2. "Was AI output validated against intent?" (Rule 2)
+  3. "Was AI treated as junior dev with proper oversight?" (Rule 3)
+  4. "Do I fully understand this code?" (Rule 4)
+  5. "Is AI usage clearly labeled?" (Rule 5)
+  6. "Did the code undergo proper human review?" (Rule 6)
+  7. "Is the 'why' documented?" (Rule 7)
+  8. "Should this prompt be shared?" (Rule 8)
 
 ---
 
@@ -447,8 +512,28 @@ git commit -m "fix(A03): Add SQL injection prevention to searchUsers
 
 ---
 
+## The Evolution of the Developer Role
+
+> "The culmination of these practices points to a profound evolution in the role of the software developer. The value is shifting away from the mechanical act of typing code and toward the strategic orchestration of intelligent systems."
+
+Adherence to these Golden Rules fosters a culture of **responsible innovation**. It allows teams to embrace the transformative power of AI while mitigating its risks, ensuring that the software they build is not only created faster but is also more **reliable, secure, and maintainable**.
+
+### The Developer as Conductor
+
+The developer of the future is a **"conductor,"** directing a symphony of AI agents, prompts, and automated verification tools. Their expertise is expressed not through lines of code written, but through:
+
+- **The quality of their high-level designs**
+- **The precision of their specifications**
+- **The critical depth of their evaluations**
+- **Their ability to see the system as a whole**
+
+This is the ultimate mindset required to move **"beyond vibe coding"** and become a true architect of the agentic age.
+
+---
+
 ## Further Reading
 
 - [OWASP Top 10 (2021)](https://owasp.org/Top10/)
 - [OWASP AI Security and Privacy Guide](https://owasp.org/www-project-ai-security-and-privacy-guide/)
-- Workshop: [Agentic Engineering, Secure by Design](../workshop.md)
+- Mani, A. (2025). *Beyond Vibe Coding: From Coder to AI-Era Developer*. O'Reilly Media.
+- Workshop: [Agentic Engineering, Secure by Design](../workshop)

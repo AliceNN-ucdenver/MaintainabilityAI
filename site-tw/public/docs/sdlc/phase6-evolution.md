@@ -1,8 +1,26 @@
 # Phase 6: Evolution
 
-> **Purpose**: Collect metrics, manage technical debt, refine prompts, and continuously improve the development process.
-
----
+<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4); border: 1px solid rgba(244, 114, 182, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+    <div style="font-size: 56px;">6️⃣</div>
+    <div>
+      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Evolution</h2>
+      <div style="font-size: 16px; color: #fce7f3; margin-top: 8px;">Continuous Improvement & Learning</div>
+    </div>
+  </div>
+  <div style="color: #fce7f3; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    <strong style="color: #f1f5f9;">Purpose:</strong> Collect metrics, manage technical debt, refine prompts, and continuously improve the development process.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Metrics</div>
+      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Tech Debt</div>
+      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Prompt Refinement</div>
+      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Dependencies</div>
+      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Retrospectives</div>
+    </div>
+  </div>
+</div>
 
 ## Metrics Collection
 
@@ -23,23 +41,40 @@ flowchart LR
 
 ## Key Metrics Dashboard
 
-### Security Metrics
-- **Vulnerability Remediation Time**: Discovery → fix deployed
-- **Security Scan Pass Rate**: % of PRs passing CodeQL/Snyk on first attempt
-- **Attack Prevention Rate**: Blocked injection/IDOR attempts per day
-- **Incident Count**: Production security incidents per month
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 32px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Security Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+      • Vulnerability remediation time<br/>
+      • Security scan pass rate<br/>
+      • Attack prevention rate<br/>
+      • Incident count
+    </div>
+  </div>
 
-### Quality Metrics
-- **Defect Density**: Bugs per 1000 LOC
-- **Test Coverage**: % coverage over time
-- **Fitness Function Compliance**: % of commits passing all functions
-- **Code Complexity**: Average cyclomatic complexity per function
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 32px; margin-bottom: 12px;">✨</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Quality Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+      • Defect density<br/>
+      • Test coverage<br/>
+      • Fitness function compliance<br/>
+      • Code complexity
+    </div>
+  </div>
 
-### Efficiency Metrics
-- **Time to Delivery**: Feature start → production
-- **AI Acceptance Rate**: % of AI suggestions merged without changes
-- **Prompt Reuse Rate**: % of work using team prompt library
-- **Cycle Time**: Implementation → merge
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Efficiency Metrics</h3>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+      • Time to delivery<br/>
+      • AI acceptance rate<br/>
+      • Prompt reuse rate<br/>
+      • Cycle time
+    </div>
+  </div>
+</div>
 
 ---
 
@@ -272,4 +307,4 @@ Enforcement: CI blocks merge if p95 > 200ms
 
 ---
 
-**[Return to Phase 1: Design →](phase1-design.md)** (Complete the cycle!)
+**[Return to Phase 1: Design →](phase1-design)** (Complete the cycle!)
