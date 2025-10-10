@@ -51,7 +51,7 @@ This comprehensive workshop guides teams through the transition from traditional
         • Security vs. speed tradeoffs
       </div>
     </div>
-    <a href="./part1-spectrum" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
+    <a href="/docs/workshop/part1-spectrum" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
       Start Part 1 →
     </a>
   </div>
@@ -76,7 +76,7 @@ This comprehensive workshop guides teams through the transition from traditional
         • Constraint-driven prompts
       </div>
     </div>
-    <a href="./part2-security-prompting" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
+    <a href="/docs/workshop/part2-security-prompting" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
       Start Part 2 →
     </a>
   </div>
@@ -101,7 +101,7 @@ This comprehensive workshop guides teams through the transition from traditional
         • Test-driven security fixes
       </div>
     </div>
-    <a href="./part3-live-remediation" style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
+    <a href="/docs/workshop/part3-live-remediation" style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
       Start Part 3 →
     </a>
   </div>
@@ -126,7 +126,7 @@ This comprehensive workshop guides teams through the transition from traditional
         • CI/CD integration
       </div>
     </div>
-    <a href="./part4-fitness-functions" style="display: inline-block; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
+    <a href="/docs/workshop/part4-fitness-functions" style="display: inline-block; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin-top: 12px;">
       Start Part 4 →
     </a>
   </div>
@@ -268,7 +268,7 @@ This comprehensive workshop guides teams through the transition from traditional
 ## Ready to Begin?
 
 <div style="text-align: center; margin: 48px 0;">
-  <a href="./part1-spectrum" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #f1f5f9; padding: 16px 48px; border-radius: 12px; text-decoration: none; font-size: 18px; font-weight: 700; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);">
+  <a href="/docs/workshop/part1-spectrum" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #f1f5f9; padding: 16px 48px; border-radius: 12px; text-decoration: none; font-size: 18px; font-weight: 700; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);">
     🚀 Start Workshop Part 1 →
   </a>
   <div style="color: #94a3b8; font-size: 14px; margin-top: 16px;">
