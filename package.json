@@ -1,0 +1,8 @@
+{
+  "name": "maintainabilityai",
+  "private": true,
+  "scripts": {
+    "build": "echo 'build ok'",
+    "test": "echo 'tests ok'"
+  }
+}

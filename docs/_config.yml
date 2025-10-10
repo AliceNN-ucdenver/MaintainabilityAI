@@ -1,0 +1,13 @@
+
+title: Maintainability.ai
+theme: just-the-docs
+url: https://maintainability.ai
+aux_links:
+  GitHub: https://github.com/AliceNN-ucdenver/MaintainabilityAI
+plugins:
+  - jekyll-seo-tag
+  - jekyll-include-cache
+  - jekyll-default-layout
+just_the_docs:
+  favicon_ico: /favicon.ico
+  nav_sort: case_insensitive
