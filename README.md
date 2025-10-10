@@ -101,14 +101,14 @@ sequenceDiagram
     Dev->>IDE: Write prompt with security constraints
     IDE->>Dev: Generate code suggestion
     Dev->>Local: npm test && npm run lint
-    Local-->>Dev: ✅ Pass / ❌ Fail
+    Local-->>Dev: Pass / Fail
     Dev->>Git: git commit
     Git->>Git: Run Snyk code scan
-    Git-->>Dev: ✅ Pass / ❌ Fail
+    Git-->>Dev: Pass / Fail
     Dev->>CI: git push (open PR)
     CI->>CI: CodeQL security analysis
     CI->>CI: Snyk dependency scan
-    CI-->>Dev: ✅ Pass / ❌ Fail
+    CI-->>Dev: Pass / Fail
     Dev->>Human: Request review
     Human->>Human: Apply Golden Rules checklist
     Human-->>Dev: Approve / Request changes
@@ -128,8 +128,8 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A[Design Intent] --> B[Security-First Prompt\n(OWASP pack)]
-  B --> C[AI Suggestion\n(Claude/Copilot/ChatGPT)]
+  A[Design Intent] --> B[Security-First Prompt OWASP pack]
+  B --> C[AI Suggestion Claude/Copilot/ChatGPT]
   C --> D[Local Checks\nESLint/Jest]
   D --> E[Pre-commit Scans\nSnyk Code]
   E --> F[PR + CI/CD\nCodeQL & Snyk]
