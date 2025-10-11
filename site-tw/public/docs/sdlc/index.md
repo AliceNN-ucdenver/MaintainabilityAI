@@ -6,273 +6,464 @@ This framework integrates **OWASP Top 10**, **Evolutionary Architecture** fitnes
 
 ---
 
+## 🎯 The Engineering Imperative
+
+<div style="margin-bottom: 16px;">
+
+In a world where AI can generate code at unprecedented speed, the critical question isn't whether to use AI. It's how to maintain engineering excellence while leveraging it.
+
+</div>
+
+<div style="margin-bottom: 16px;">
+
+[Recent research shows](https://arxiv.org/abs/2502.11844) that **62% of AI-generated code contains design flaws or security vulnerabilities**, even with the latest models. This isn't a temporary limitation. It's the fundamental nature of pattern-based learning systems.
+
+</div>
+
+<div style="margin-bottom: 16px;">
+
+The organizations that win won't be those that generate the most code or adopt AI fastest. They'll be **those that maintain engineering discipline while leveraging AI's capabilities**.
+
+</div>
+
+<div style="margin-bottom: 16px;">
+
+Your competitive advantage lies not in the speed of code generation but in the quality of architectural decisions, the robustness of security implementations, and the elegance of solutions that only experienced engineers can provide.
+
+</div>
+
+### The 70/30 Rule
+
+As documented in [Addy Osmani's *Beyond Vibe Coding*](https://www.oreilly.com/library/view/beyond-vibe-coding/9798341634749/) (O'Reilly, 2025), every developer using AI tools has discovered the same pattern: **AI can get you 70% of the way there, but the last 30% requires human expertise**.
+
+This framework operationalizes that insight:
+
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #3b82f6;">
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+<div>
+<div style="font-size: 18px; font-weight: 700; color: #4ade80; margin-bottom: 12px;">✓ What AI Handles Well (The Commoditized 70%)</div>
+<ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+<li>Boilerplate code and scaffolding</li>
+<li>Standard CRUD operations</li>
+<li>Common design patterns</li>
+<li>API endpoint generation</li>
+<li>Basic test creation</li>
+<li>Documentation templates</li>
+<li>Code formatting consistency</li>
+<li>Simple refactoring tasks</li>
+</ul>
+</div>
+<div>
+<div style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">⚠️ What Requires Human Expertise (The Differentiating 30%)</div>
+<ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+<li>Edge case identification and handling</li>
+<li>Security architecture and threat modeling</li>
+<li>Performance optimization at scale</li>
+<li>Business logic validation</li>
+<li>System integration boundaries</li>
+<li>Architectural decisions</li>
+<li>Technical debt management</li>
+<li>Regulatory compliance implementation</li>
+</ul>
+</div>
+</div>
+</div>
+
+**This framework ensures humans own the architecture and governance gates** (where systems succeed or fail), while AI handles implementation and verification (where speed matters most). Like building architects who ensure structures are safe, sound, and secure at scale, your engineering architects maintain oversight at critical decision points.
+
+---
+
 ## 🔄 SDLC Overview
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="text-align: center; margin-bottom: 32px;">
-    <div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
-    <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">6-Phase Continuous Development Cycle</div>
-    <div style="font-size: 16px; color: #cbd5e1;">Security gates, AI integration, and fitness functions at every phase</div>
-  </div>
+<div style="text-align: center; margin-bottom: 32px;">
+<div style="font-size: 48px; margin-bottom: 16px;">🔄</div>
+<div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">6-Phase Continuous Development Cycle</div>
+<div style="font-size: 16px; color: #cbd5e1;">Security gates, AI integration, and fitness functions at every phase</div>
+</div>
+<div style="margin: 40px 0; overflow-x: auto;">
+
+<!-- Forward Flow (Phases 1-6) -->
+<div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px; flex-wrap: nowrap; padding: 10px;">
+
+<div style="text-align: center; flex-shrink: 0;">
+<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); min-width: 100px;">
+<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">1</div>
+<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Design</div>
+</div>
 </div>
 
-## 📊 SDLC Phases
+<div style="color: #60a5fa; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; margin: 32px 0;">
-
-<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">1️⃣</div>
-    <div>
-      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 1: Design Intent</h3>
-      <div style="font-size: 13px; color: #bfdbfe; margin-top: 4px;">Requirements & Threat Modeling</div>
-    </div>
-  </div>
-  <div style="color: #dbeafe; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> Requirements gathering, STRIDE threat modeling, architecture design, OWASP category mapping
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #bfdbfe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">ChatGPT, Claude</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #bfdbfe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Threat coverage >95%</div>
-    </div>
-  </div>
-  <a href="./phase1-design" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-    View Phase 1 Details →
-  </a>
+<div style="text-align: center; flex-shrink: 0;">
+<div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); min-width: 100px;">
+<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">2</div>
+<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Implementation</div>
+</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: 0 4px 12px rgba(146, 64, 14, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">2️⃣</div>
-    <div>
-      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 2: Implementation</h3>
-      <div style="font-size: 13px; color: #fde68a; margin-top: 4px;">Secure Code Generation with AI</div>
-    </div>
-  </div>
-  <div style="color: #fef3c7; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> OWASP prompt pack usage, secure code generation, unit test creation, local validation
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #fde68a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Copilot, Claude</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #fde68a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">ESLint, Jest pass</div>
-    </div>
-  </div>
-  <a href="./phase2-implementation" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-    View Phase 2 Details →
-  </a>
+<div style="color: #fbbf24; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
+
+<div style="text-align: center; flex-shrink: 0;">
+<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); min-width: 100px;">
+<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">3</div>
+<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Verification</div>
+</div>
+<div style="font-size: 10px; color: #fca5a5; margin-top: 6px;">↓ Fail → Phase 2</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: 0 4px 12px rgba(153, 27, 27, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">3️⃣</div>
-    <div>
-      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 3: Verification</h3>
-      <div style="font-size: 13px; color: #fecaca; margin-top: 4px;">Security Scanning & Testing</div>
-    </div>
-  </div>
-  <div style="color: #fef2f2; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> CodeQL/Snyk scans, fitness function validation, attack vector testing, coverage enforcement
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #fecaca; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">CodeQL, Snyk, Claude</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #fecaca; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">No high-severity findings</div>
-    </div>
-  </div>
-  <a href="./phase3-verification" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-    View Phase 3 Details →
-  </a>
+<div style="color: #f87171; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
+
+<div style="text-align: center; flex-shrink: 0;">
+<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3); min-width: 100px;">
+<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">4</div>
+<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Governance</div>
+</div>
+<div style="font-size: 10px; color: #d8b4fe; margin-top: 6px;">↓ Reject → Phase 2</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(168, 85, 247, 0.3); box-shadow: 0 4px 12px rgba(88, 28, 135, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">4️⃣</div>
-    <div>
-      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 4: Governance</h3>
-      <div style="font-size: 13px; color: #e9d5ff; margin-top: 4px;">Human Review & Approval</div>
-    </div>
-  </div>
-  <div style="color: #f3e8ff; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> PR review process, Golden Rules validation, OWASP checklist verification, merge approval
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #e9d5ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Human + ChatGPT</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #e9d5ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Golden Rules compliance</div>
-    </div>
-  </div>
-  <a href="./phase4-governance" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-    View Phase 4 Details →
-  </a>
+<div style="color: #c084fc; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
+
+<div style="text-align: center; flex-shrink: 0;">
+<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); min-width: 100px;">
+<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">5</div>
+<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Deployment</div>
+</div>
+<div style="font-size: 10px; color: #6ee7b7; margin-top: 6px;">↓ Rollback → Phase 4</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(16, 185, 129, 0.3); box-shadow: 0 4px 12px rgba(6, 95, 70, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">5️⃣</div>
-    <div>
-      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 5: Deployment</h3>
-      <div style="font-size: 13px; color: #a7f3d0; margin-top: 4px;">CI/CD & Production Release</div>
-    </div>
-  </div>
-  <div style="color: #d1fae5; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> Automated CI/CD pipeline, production deployment, smoke tests, monitoring setup
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">GitHub Actions</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Zero critical CVEs</div>
-    </div>
-  </div>
-  <a href="./phase5-deployment" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-    View Phase 5 Details →
-  </a>
-</div>
+<div style="color: #34d399; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
 
-<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(236, 72, 153, 0.3); box-shadow: 0 4px 12px rgba(131, 24, 67, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">6️⃣</div>
-    <div>
-      <h3 style="margin: 0; font-size: 22px; color: #f1f5f9;">Phase 6: Evolution</h3>
-      <div style="font-size: 13px; color: #fbcfe8; margin-top: 4px;">Metrics & Continuous Improvement</div>
-    </div>
-  </div>
-  <div style="color: #fce7f3; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> Metrics analysis, technical debt management, prompt refinement, fitness function updates
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #fbcfe8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Primary Agents</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Claude, ChatGPT</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); padding: 12px; border-radius: 8px;">
-      <div style="font-size: 11px; color: #fbcfe8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Security Gate</div>
-      <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Metrics trending up</div>
-    </div>
-  </div>
-  <a href="./phase6-evolution" style="display: inline-block; background: rgba(255, 255, 255, 0.15); color: #f1f5f9; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-    View Phase 6 Details →
-  </a>
+<div style="text-align: center; flex-shrink: 0;">
+<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); min-width: 100px;">
+<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">6</div>
+<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Evolution</div>
+</div>
 </div>
 
 </div>
 
----
-
-## 🔁 Complete SDLC Flow
-
-```mermaid
-flowchart TD
-    A[Phase 1: Design Intent] --> B[Phase 2: Implementation]
-    B --> C[Phase 3: Verification]
-    C --> D[Phase 4: Governance]
-    D --> E[Phase 5: Deployment]
-    E --> F[Phase 6: Evolution]
-    F --> A
-    C --Fail--> B
-    D --Fail--> B
-    E --Rollback--> D
-    F --Tech Debt--> A
-
-    style A fill:#1e40af,stroke:#3b82f6,color:#f1f5f9
-    style B fill:#92400e,stroke:#f59e0b,color:#f1f5f9
-    style C fill:#991b1b,stroke:#ef4444,color:#f1f5f9
-    style D fill:#581c87,stroke:#a855f7,color:#f1f5f9
-    style E fill:#065f46,stroke:#10b981,color:#f1f5f9
-    style F fill:#831843,stroke:#ec4899,color:#f1f5f9
-```
-
----
-
-## 🔒 Security Gates Summary
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-
-<div style="display: grid; gap: 20px;">
-
-<div style="background: rgba(30, 64, 175, 0.2); border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px;">
-  <div style="font-weight: 700; color: #93c5fd; margin-bottom: 8px; font-size: 14px;">Phase 1: Design Gates</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    ☐ Threat model covers all STRIDE categories<br/>
-    ☐ OWASP categories identified for feature<br/>
-    ☐ Architecture includes security controls<br/>
-    ☐ Fitness functions defined
-  </div>
+<!-- Feedback Loop Arrow -->
+<div style="text-align: center; padding: 16px 0; border-top: 2px dashed rgba(244, 114, 182, 0.3); border-bottom: 2px dashed rgba(244, 114, 182, 0.3); margin: 0 20px;">
+<div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+<div style="color: #f472b6; font-size: 32px; font-weight: bold; transform: rotate(180deg);">⤴</div>
+<div style="font-size: 14px; color: #f9a8d4; font-weight: 600;">Continuous Feedback Loop: Phase 6 feeds learnings back to Phase 1</div>
+<div style="color: #f472b6; font-size: 32px; font-weight: bold; transform: scaleX(-1);">⤵</div>
+</div>
 </div>
 
-<div style="background: rgba(146, 64, 14, 0.2); border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px;">
-  <div style="font-weight: 700; color: #fcd34d; margin-bottom: 8px; font-size: 14px;">Phase 2: Implementation Gates</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    ☐ OWASP prompt packs used<br/>
-    ☐ Local tests pass (ESLint, Jest)<br/>
-    ☐ Code follows security patterns<br/>
-    ☐ AI-assistance documented in commits
-  </div>
+</div>
 </div>
 
-<div style="background: rgba(153, 27, 27, 0.2); border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px;">
-  <div style="font-weight: 700; color: #fca5a5; margin-bottom: 8px; font-size: 14px;">Phase 3: Verification Gates</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    ☐ CodeQL: No high/critical findings<br/>
-    ☐ Snyk: No high/critical vulnerabilities<br/>
-    ☐ Test coverage ≥80%<br/>
-    ☐ Fitness functions pass<br/>
-    ☐ Attack vector tests included
+## 🏗️ SDLC Framework: Phases & Security Gates
+
+<div style="background: linear-gradient(135deg, #0a1628 0%, #1e3a5f 100%); border-radius: 20px; padding: 40px; margin: 32px 0;">
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px;">
+
+<!-- Phase 1: Design & Architecture Gates -->
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; border-left: 4px solid #6b8cff; transition: all 0.3s ease;">
+  <h3 style="margin: 0 0 8px 0; font-size: 18px; display: flex; align-items: center; gap: 10px; color: #f1f5f9;">
+    <span style="width: 28px; height: 28px; border-radius: 6px; background: #6b8cff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">1</span>
+    Design & Architecture Gates
+  </h3>
+  <div style="color: #8a9fb3; font-size: 12px; margin-bottom: 8px; font-style: italic;">The Architectural Layer (100% Human)</div>
+  <div style="color: #cbd5e1; font-size: 13px; margin-bottom: 12px; line-height: 1.5;"><strong style="color: #93c5fd;">Purpose:</strong> Requirements gathering, STRIDE threat modeling, architecture design, OWASP category mapping</div>
+  <div style="background: rgba(107, 140, 255, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+    <div style="font-size: 11px; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Security Gate</div>
+    <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Threat coverage >95%</div>
   </div>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; list-style: none;">
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Threat modeling for all STRIDE categories
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      OWASP Top 10 risk assessment
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Architecture fitness functions defined
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Security controls blueprint
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      AI assistance boundaries established
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+  </ul>
+  <a href="./phase1-design" style="display: inline-block; background: rgba(107, 140, 255, 0.2); color: #6b8cff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 1 Details →</a>
 </div>
 
-<div style="background: rgba(88, 28, 135, 0.2); border-left: 4px solid #a855f7; padding: 16px; border-radius: 8px;">
-  <div style="font-weight: 700; color: #d8b4fe; margin-bottom: 8px; font-size: 14px;">Phase 4: Governance Gates</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    ☐ Human code review completed<br/>
-    ☐ Golden Rules checklist passed<br/>
-    ☐ OWASP requirements validated<br/>
-    ☐ AI disclosure in PR<br/>
-    ☐ Security rationale documented
+<!-- Phase 2: Implementation Gates -->
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; border-left: 4px solid #ff9f43; transition: all 0.3s ease;">
+  <h3 style="margin: 0 0 8px 0; font-size: 18px; display: flex; align-items: center; gap: 10px; color: #f1f5f9;">
+    <span style="width: 28px; height: 28px; border-radius: 6px; background: #ff9f43; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">2</span>
+    Implementation Gates
+  </h3>
+  <div style="color: #8a9fb3; font-size: 12px; margin-bottom: 8px; font-style: italic;">The 70% Layer (AI-Assisted)</div>
+  <div style="color: #cbd5e1; font-size: 13px; margin-bottom: 12px; line-height: 1.5;"><strong style="color: #fcd34d;">Purpose:</strong> OWASP prompt pack usage, secure code generation, unit test creation, local validation</div>
+  <div style="background: rgba(255, 159, 67, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+    <div style="font-size: 11px; color: #fcd34d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Security Gate</div>
+    <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">ESLint, Jest pass</div>
   </div>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; list-style: none;">
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      OWASP prompt packs deployment
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Boilerplate code generation
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Unit test creation (ESLint, Jest)
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Security pattern implementation
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Documentation generation
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+  </ul>
+  <a href="./phase2-implementation" style="display: inline-block; background: rgba(255, 159, 67, 0.2); color: #ff9f43; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 2 Details →</a>
 </div>
 
-<div style="background: rgba(6, 95, 70, 0.2); border-left: 4px solid #10b981; padding: 16px; border-radius: 8px;">
-  <div style="font-weight: 700; color: #6ee7b7; margin-bottom: 8px; font-size: 14px;">Phase 5: Deployment Gates</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    ☐ All Phase 3 scans re-run and pass<br/>
-    ☐ Production smoke tests pass<br/>
-    ☐ Monitoring configured<br/>
-    ☐ Rollback plan documented
+<!-- Phase 3: Verification Gates -->
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; border-left: 4px solid #ff6b6b; transition: all 0.3s ease;">
+  <h3 style="margin: 0 0 8px 0; font-size: 18px; display: flex; align-items: center; gap: 10px; color: #f1f5f9;">
+    <span style="width: 28px; height: 28px; border-radius: 6px; background: #ff6b6b; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">3</span>
+    Verification Gates
+  </h3>
+  <div style="color: #8a9fb3; font-size: 12px; margin-bottom: 8px; font-style: italic;">AI-Powered Analysis</div>
+  <div style="color: #cbd5e1; font-size: 13px; margin-bottom: 12px; line-height: 1.5;"><strong style="color: #fca5a5;">Purpose:</strong> CodeQL/Snyk scans, fitness function validation, attack vector testing, coverage enforcement</div>
+  <div style="background: rgba(255, 107, 107, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+    <div style="font-size: 11px; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Security Gate</div>
+    <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">No high-severity findings</div>
   </div>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; list-style: none;">
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      CodeQL security scanning
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Snyk vulnerability detection
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Test coverage validation (≥80%)
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Fitness function automation
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Attack vector simulation
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+  </ul>
+  <a href="./phase3-verification" style="display: inline-block; background: rgba(255, 107, 107, 0.2); color: #ff6b6b; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 3 Details →</a>
 </div>
 
-<div style="background: rgba(131, 24, 67, 0.2); border-left: 4px solid #ec4899; padding: 16px; border-radius: 8px;">
-  <div style="font-weight: 700; color: #f9a8d4; margin-bottom: 8px; font-size: 14px;">Phase 6: Evolution Gates</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    ☐ Metrics collected and analyzed<br/>
-    ☐ Technical debt prioritized<br/>
-    ☐ Prompts updated with learnings<br/>
-    ☐ Fitness functions trending positively
+<!-- Phase 4: Governance Gates -->
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; border-left: 4px solid #a55eea; transition: all 0.3s ease;">
+  <h3 style="margin: 0 0 8px 0; font-size: 18px; display: flex; align-items: center; gap: 10px; color: #f1f5f9;">
+    <span style="width: 28px; height: 28px; border-radius: 6px; background: #a55eea; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">4</span>
+    Governance Gates
+  </h3>
+  <div style="color: #8a9fb3; font-size: 12px; margin-bottom: 8px; font-style: italic;">The Critical 30% (Human Judgment)</div>
+  <div style="color: #cbd5e1; font-size: 13px; margin-bottom: 12px; line-height: 1.5;"><strong style="color: #d8b4fe;">Purpose:</strong> PR review process, Golden Rules validation, OWASP checklist verification, merge approval</div>
+  <div style="background: rgba(165, 94, 234, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+    <div style="font-size: 11px; color: #d8b4fe; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Security Gate</div>
+    <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Golden Rules compliance</div>
   </div>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; list-style: none;">
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Architectural review & approval
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Security risk acceptance
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Business logic validation
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Compliance certification
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      AI disclosure documentation
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+  </ul>
+  <a href="./phase4-governance" style="display: inline-block; background: rgba(165, 94, 234, 0.2); color: #a55eea; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 4 Details →</a>
 </div>
 
+<!-- Phase 5: Deployment Gates -->
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; border-left: 4px solid #26de81; transition: all 0.3s ease;">
+  <h3 style="margin: 0 0 8px 0; font-size: 18px; display: flex; align-items: center; gap: 10px; color: #f1f5f9;">
+    <span style="width: 28px; height: 28px; border-radius: 6px; background: #26de81; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">5</span>
+    Deployment Gates
+  </h3>
+  <div style="color: #8a9fb3; font-size: 12px; margin-bottom: 8px; font-style: italic;">Automated with Human Override</div>
+  <div style="color: #cbd5e1; font-size: 13px; margin-bottom: 12px; line-height: 1.5;"><strong style="color: #6ee7b7;">Purpose:</strong> Automated CI/CD pipeline, production deployment, smoke tests, monitoring setup</div>
+  <div style="background: rgba(38, 222, 129, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+    <div style="font-size: 11px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Security Gate</div>
+    <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Zero critical CVEs</div>
+  </div>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; list-style: none;">
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      All verification scans re-run
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Production smoke tests
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Monitoring configuration
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Rollback strategy approval
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Go/No-go decision
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+  </ul>
+  <a href="./phase5-deployment" style="display: inline-block; background: rgba(38, 222, 129, 0.2); color: #26de81; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 5 Details →</a>
+</div>
+
+<!-- Phase 6: Evolution Gates -->
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; border-left: 4px solid #fd79a8; transition: all 0.3s ease;">
+  <h3 style="margin: 0 0 8px 0; font-size: 18px; display: flex; align-items: center; gap: 10px; color: #f1f5f9;">
+    <span style="width: 28px; height: 28px; border-radius: 6px; background: #fd79a8; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">6</span>
+    Evolution Gates
+  </h3>
+  <div style="color: #8a9fb3; font-size: 12px; margin-bottom: 8px; font-style: italic;">Continuous Learning Loop</div>
+  <div style="color: #cbd5e1; font-size: 13px; margin-bottom: 12px; line-height: 1.5;"><strong style="color: #f9a8d4;">Purpose:</strong> Metrics analysis, technical debt management, prompt refinement, fitness function updates</div>
+  <div style="background: rgba(253, 121, 168, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;">
+    <div style="font-size: 11px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Security Gate</div>
+    <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">Metrics trending up</div>
+  </div>
+  <ul style="margin: 0 0 16px 0; padding-left: 20px; list-style: none;">
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Performance metrics analysis
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Technical debt tracking
+      <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Prompt optimization
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Fitness function refinement
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+    <li style="margin: 8px 0; font-size: 14px; line-height: 1.4; position: relative; padding-left: 20px; color: #cbd5e1;">
+      <span style="content: '▸'; position: absolute; left: 0; opacity: 0.5;">▸</span>
+      Architecture evolution
+      <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
+    </li>
+  </ul>
+  <a href="./phase6-evolution" style="display: inline-block; background: rgba(253, 121, 168, 0.2); color: #fd79a8; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 6 Details →</a>
+</div>
+
+</div>
+
+<div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 25px; margin-top: 30px;">
+<h3 style="margin: 0 0 12px 0; color: #4a9eff; font-size: 20px;">🎯 Framework Core Principles</h3>
+<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; font-style: italic;">
+As <a href="https://www.deloitte.com/nz/en/services/consulting/perspectives/ai-assisted-software-engineering.html" style="color: #60a5fa; text-decoration: none;">Aravind Subramanian, Deloitte Partner and AI Advisor</a>, argues: "AI governance is more than just rules; it's about creating a foundation of trust that supports innovation. By keeping humans in the loop, we inject empathy and judgment, crucial for navigating complex ethical landscapes. Governance isn't a barrier; it's a facilitator that empowers us to explore new ideas responsibly."
+</p>
+<table style="width: 100%; border-collapse: collapse;">
+<tr>
+<td style="padding: 12px; vertical-align: top; width: 50%;">
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+<div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
+<div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Humans Own Architecture:</strong> All system design and architectural decisions remain under human control</div>
+</div>
+</td>
+<td style="padding: 12px; vertical-align: top; width: 50%;">
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+<div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
+<div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">AI Accelerates Implementation:</strong> Leverage AI for the 70% routine work while maintaining quality gates</div>
+</div>
+</td>
+</tr>
+<tr>
+<td style="padding: 12px; vertical-align: top;">
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+<div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
+<div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Security by Design:</strong> OWASP Top 10 and threat modeling integrated at every phase</div>
+</div>
+</td>
+<td style="padding: 12px; vertical-align: top;">
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+<div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
+<div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Fitness Functions:</strong> Automated architectural governance ensures maintainability</div>
+</div>
+</td>
+</tr>
+<tr>
+<td style="padding: 12px; vertical-align: top;">
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+<div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
+<div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Transparent AI Usage:</strong> Clear documentation of where and how AI assistance was utilized</div>
+</div>
+</td>
+<td style="padding: 12px; vertical-align: top;">
+<div style="display: flex; align-items: flex-start; gap: 10px;">
+<div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
+<div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Continuous Evolution:</strong> Learn from each cycle to optimize the human-AI partnership</div>
+</div>
+</td>
+</tr>
+</table>
 </div>
 
 </div>
@@ -340,6 +531,54 @@ flowchart TD
       </tr>
     </tbody>
   </table>
+</div>
+
+---
+
+## ⚠️ Why This Framework Matters: Speed Without Quality Is Technical Debt at Scale
+
+<div style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(239, 68, 68, 0.3);">
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">The Hard Truth</div>
+<p style="color: #fecaca; font-size: 15px; line-height: 1.8; margin: 0 0 12px 0;">
+AI can generate code at unprecedented speed. Without proper engineering discipline, this means <strong style="color: #fff;">accumulating technical debt at unprecedented speed</strong>.
+</p>
+<p style="color: #fecaca; font-size: 15px; line-height: 1.8; margin: 0;">
+A poorly architected system built in days instead of months is still a poorly architected system. It just fails faster.
+</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 32px 0;">
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 24px; margin-bottom: 12px;">🏗️</div>
+<div style="font-size: 17px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Real-World Example: Architecture Matters</div>
+<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0 0 10px 0;">
+A senior engineer tackled a complex caching issue causing data inconsistencies for users in specific regions during peak load. AI helped analyze the codebase, but it was the engineer's understanding of distributed systems and network latency that identified the root cause.
+</p>
+<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">
+The strategic decision to develop a custom distributed caching library, using AI to accelerate implementation while maintaining architectural control, demonstrates optimal human-AI partnership.
+</p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 24px; margin-bottom: 12px;">🎯</div>
+<div style="font-size: 17px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Your Competitive Advantage</div>
+<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0 0 10px 0;">
+In a world where anyone can generate code, the ability to generate the **right** code, for the **right** reasons, with the **right** quality, becomes the ultimate differentiator.
+</p>
+<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">
+This is found in the engineer who knows why that database query is deliberately inefficient (to avoid locking during peak hours), the architect who remembers the three-year-old decision that makes microservices wrong for your context, and the security expert who designs systems that are architecturally immune to entire categories of vulnerabilities.
+</p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 24px; margin-bottom: 12px;">🚀</div>
+<div style="font-size: 17px; font-weight: 700; color: #34d399; margin-bottom: 12px;">The Organizations That Win</div>
+<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">
+Won't be those that generate the most code or move the fastest. They'll be those that maintain technical craftspersonship while leveraging AI's capabilities, that treat the architectural layer not as a problem to solve but as their strategic moat. Organizations that recognize the 70/30 Rule and invest in engineering excellence will transform AI from a potential threat into their greatest strategic asset.
+</p>
+</div>
+
 </div>
 
 ---
@@ -509,4 +748,78 @@ flowchart TD
   <a href="./phase1-design" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
     Begin with Phase 1: Design Intent →
   </a>
+</div>
+
+---
+
+## 🔮 The Future Belongs to Engineering Excellence
+
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+
+<p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0 0 12px 0;">
+History is clear: technological disruption doesn't eliminate knowledge workers. It elevates them. Just as ATMs freed bank tellers to become financial advisors, AI will free engineers to become architects, strategists, and innovators.
+</p>
+<p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0 0 24px 0;">
+The question isn't whether your engineers will survive the AI revolution. It's whether your organization will thrive by giving them the tools, training, and trust to lead it.
+</p>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+
+<div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 20px;">
+<div style="font-size: 20px; margin-bottom: 8px;">🏛️</div>
+<div style="font-size: 15px; font-weight: 600; color: #93c5fd; margin-bottom: 8px;">Embrace the Architectural Layer</div>
+<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
+Stop waiting for AI to handle the critical 30%. Instead, invest in engineers who excel at architecture, security, and complex problem-solving that AI cannot replicate.
+</p>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 20px;">
+<div style="font-size: 20px; margin-bottom: 8px;">📢</div>
+<div style="font-size: 15px; font-weight: 600; color: #fcd34d; margin-bottom: 8px;">Reframe the Narrative</div>
+<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
+Communicate clearly that AI empowers your best engineers rather than replacing them. Every message should reinforce how AI tools multiply human expertise.
+</p>
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px; padding: 20px;">
+<div style="font-size: 20px; margin-bottom: 8px;">⚡</div>
+<div style="font-size: 15px; font-weight: 600; color: #d8b4fe; margin-bottom: 8px;">Build Governance as Accelerator</div>
+<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
+Create frameworks that ensure quality at AI-speed while preventing technical debt accumulation. Governance isn't about slowing down; it's about sustainable velocity.
+</p>
+</div>
+
+<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px;">
+<div style="font-size: 20px; margin-bottom: 8px;">🎓</div>
+<div style="font-size: 15px; font-weight: 600; color: #6ee7b7; margin-bottom: 8px;">Invest in Mastery Programs</div>
+<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
+Develop clear tracks for Architecture Excellence, Security Excellence, and Quality Excellence. Tools will change; fundamental engineering skills endure.
+</p>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 20px;">
+<div style="font-size: 20px; margin-bottom: 8px;">📊</div>
+<div style="font-size: 15px; font-weight: 600; color: #fca5a5; margin-bottom: 8px;">Measure What Matters</div>
+<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
+Track not just velocity but technical debt, innovation index, and quality indicators. Monitor whether AI is helping you build better systems or just failing faster.
+</p>
+</div>
+
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 12px; padding: 20px;">
+<div style="font-size: 20px; margin-bottom: 8px;">🌟</div>
+<div style="font-size: 15px; font-weight: 600; color: #f9a8d4; margin-bottom: 8px;">Celebrate Human Advantage</div>
+<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
+Make heroes of engineers who use AI to solve previously impossible problems while maintaining architectural integrity and system quality.
+</p>
+</div>
+
+</div>
+
+<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; padding: 32px; margin-top: 32px; text-align: center;">
+<div style="font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">The Window for Action Is Now</div>
+<p style="color: #e0e7ff; font-size: 15px; line-height: 1.7; margin: 0 auto; max-width: 800px;">
+Organizations that move decisively to build AI-augmented engineering sophistication will dominate their markets. Those that wait for AI to "get better" or rush to automate without governance will accumulate technical debt that becomes insurmountable. <strong style="color: #fff;">The choice is yours: lead the transformation or become its casualty.</strong>
+</p>
+</div>
+
 </div>
