@@ -15,17 +15,17 @@ export default function HomePage() {
             <p className="mt-6 text-xl md:text-2xl text-slate-300 max-w-3xl leading-relaxed">
               From prompt to production. We help engineering orgs ship faster <strong className="text-white">without</strong> sacrificing security or maintainability.
             </p>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link to="/docs/workshop" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
+            <div className="mt-10 flex flex-col sm:flex-row flex-wrap gap-4">
+              <Link to="/docs/workshop" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition text-center">
                 View Workshop
               </Link>
-              <Link to="/agenda" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 font-semibold text-lg transition">
+              <Link to="/agenda" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 font-semibold text-lg transition text-center">
                 Workshop Agenda
               </Link>
-              <Link to="/docs/" className="px-8 py-4 rounded-xl border-2 border-slate-700 hover:bg-slate-900 font-semibold text-lg transition">
+              <Link to="/docs/" className="px-8 py-4 rounded-xl border-2 border-slate-700 hover:bg-slate-900 font-semibold text-lg transition text-center">
                 Read the Docs
               </Link>
-              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-8 py-4 rounded-xl border border-slate-700 hover:border-slate-600 font-semibold text-lg transition">
+              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-8 py-4 rounded-xl border border-slate-700 hover:border-slate-600 font-semibold text-lg transition text-center">
                 View on GitHub
               </a>
             </div>
@@ -456,15 +456,15 @@ export default function HomePage() {
             Let's discuss how we can help your team ship faster without compromising security.
           </p>
 
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-8">
+          <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="https://chiefarcheologist.com/contact" className="px-8 py-4 rounded-xl bg-brand text-slate-900 hover:bg-indigo-400 transition font-bold text-lg">
+              <a href="https://chiefarcheologist.com/contact" className="px-6 sm:px-8 py-4 rounded-xl bg-brand text-slate-900 hover:bg-indigo-400 transition font-bold text-base sm:text-lg text-center">
                 Contact Chief Archeologist
               </a>
-              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-8 py-4 rounded-xl border-2 border-slate-700 hover:border-brand hover:bg-slate-900 transition font-semibold text-lg">
+              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-6 sm:px-8 py-4 rounded-xl border-2 border-slate-700 hover:border-brand hover:bg-slate-900 transition font-semibold text-base sm:text-lg text-center">
                 Explore on GitHub
               </a>
-              <Link to="/docs/workshop" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 transition font-semibold text-lg">
+              <Link to="/docs/workshop" className="px-6 sm:px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 transition font-semibold text-base sm:text-lg text-center">
                 Start Workshop
               </Link>
             </div>

@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom';
 
 export default function WorkshopPage() {
   return (
-    <main className="max-w-6xl mx-auto px-6 py-12">
-      <div className="mb-12">
-        <Link to="/" className="text-brand hover:text-indigo-400 inline-flex items-center gap-2 mb-6">
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div className="mb-8 sm:mb-12">
+        <Link to="/" className="text-brand hover:text-indigo-400 inline-flex items-center gap-2 mb-4 sm:mb-6 text-sm sm:text-base">
           ← Back to Home
         </Link>
-        <h1 className="text-5xl md:text-6xl font-black">Workshop: Agentic, Secure AI Engineering</h1>
-        <p className="mt-4 text-xl text-slate-300 max-w-3xl">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight">Workshop: Agentic, Secure AI Engineering</h1>
+        <p className="mt-4 text-base sm:text-lg md:text-xl text-slate-300 max-w-3xl">
           An 8-part, hands-on workshop for teams learning security-first AI-assisted development.
           From vibe coding to production-grade agentic workflows with OWASP + Maintainability integration.
         </p>
@@ -35,15 +35,15 @@ export default function WorkshopPage() {
       </div>
 
       {/* Call to Action for Workshop Overview */}
-      <div className="rounded-2xl border-2 border-brand bg-gradient-to-br from-indigo-950/50 to-slate-900 p-8 mb-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Start the Workshop</h2>
-            <p className="text-slate-300">
+      <div className="rounded-2xl border-2 border-brand bg-gradient-to-br from-indigo-950/50 to-slate-900 p-6 sm:p-8 mb-8 sm:mb-12">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
+          <div className="text-center md:text-left">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">Start the Workshop</h2>
+            <p className="text-slate-300 text-sm sm:text-base">
               Get hands-on with our 4-part workshop series. Learn security-first AI development with real code examples.
             </p>
           </div>
-          <Link to="/docs/workshop" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition whitespace-nowrap">
+          <Link to="/docs/workshop" className="px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-brand text-slate-900 font-bold text-base sm:text-lg hover:bg-indigo-400 transition whitespace-nowrap w-full md:w-auto text-center">
             Begin Workshop →
           </Link>
         </div>
