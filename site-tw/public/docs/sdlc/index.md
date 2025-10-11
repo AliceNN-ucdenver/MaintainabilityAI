@@ -133,6 +133,15 @@ This framework operationalizes that insight:
       <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
     </li>
   </ul>
+
+  <!-- Flow Indicators -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="flex: 1; background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <div style="font-size: 10px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✓ Success</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">→ Phase 2</div>
+    </div>
+  </div>
+
   <a href="./phase1-design" style="display: inline-block; background: rgba(107, 140, 255, 0.2); color: #6b8cff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 1 Details →</a>
 </div>
 
@@ -175,6 +184,15 @@ This framework operationalizes that insight:
       <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
     </li>
   </ul>
+
+  <!-- Flow Indicators -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="flex: 1; background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <div style="font-size: 10px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✓ Success</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">→ Phase 3</div>
+    </div>
+  </div>
+
   <a href="./phase2-implementation" style="display: inline-block; background: rgba(255, 159, 67, 0.2); color: #ff9f43; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 2 Details →</a>
 </div>
 
@@ -217,6 +235,19 @@ This framework operationalizes that insight:
       <span style="display: inline-block; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">AI</span>
     </li>
   </ul>
+
+  <!-- Flow Indicators -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="flex: 1; background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <div style="font-size: 10px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✓ Pass</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">→ Phase 4</div>
+    </div>
+    <div style="flex: 1; background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+      <div style="font-size: 10px; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✗ Fail</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">↩ Phase 2</div>
+    </div>
+  </div>
+
   <a href="./phase3-verification" style="display: inline-block; background: rgba(255, 107, 107, 0.2); color: #ff6b6b; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 3 Details →</a>
 </div>
 
@@ -259,6 +290,19 @@ This framework operationalizes that insight:
       <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
     </li>
   </ul>
+
+  <!-- Flow Indicators -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="flex: 1; background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <div style="font-size: 10px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✓ Approve</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">→ Phase 5</div>
+    </div>
+    <div style="flex: 1; background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+      <div style="font-size: 10px; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✗ Reject</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">↩ Phase 2</div>
+    </div>
+  </div>
+
   <a href="./phase4-governance" style="display: inline-block; background: rgba(165, 94, 234, 0.2); color: #a55eea; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 4 Details →</a>
 </div>
 
@@ -301,6 +345,19 @@ This framework operationalizes that insight:
       <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
     </li>
   </ul>
+
+  <!-- Flow Indicators -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="flex: 1; background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <div style="font-size: 10px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✓ Success</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">→ Phase 6</div>
+    </div>
+    <div style="flex: 1; background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+      <div style="font-size: 10px; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">✗ Rollback</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">↩ Phase 4</div>
+    </div>
+  </div>
+
   <a href="./phase5-deployment" style="display: inline-block; background: rgba(38, 222, 129, 0.2); color: #26de81; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 5 Details →</a>
 </div>
 
@@ -343,6 +400,15 @@ This framework operationalizes that insight:
       <span style="display: inline-block; background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; font-weight: 600;">HUMAN</span>
     </li>
   </ul>
+
+  <!-- Flow Indicators -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="flex: 1; background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 6px; padding: 8px 12px; border: 1px solid rgba(236, 72, 153, 0.3);">
+      <div style="font-size: 10px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">↻ Loop</div>
+      <div style="font-size: 12px; color: #f1f5f9; font-weight: 600;">→ Phase 1</div>
+    </div>
+  </div>
+
   <a href="./phase6-evolution" style="display: inline-block; background: rgba(253, 121, 168, 0.2); color: #fd79a8; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">View Phase 6 Details →</a>
 </div>
 
