@@ -81,77 +81,10 @@ This framework operationalizes that insight:
 <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">6-Phase Continuous Development Cycle</div>
 <div style="font-size: 16px; color: #cbd5e1;">Security gates, AI integration, and fitness functions at every phase</div>
 </div>
-<div style="margin: 40px 0; overflow-x: auto;">
 
-<!-- Forward Flow (Phases 1-6) -->
-<div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px; flex-wrap: nowrap; padding: 10px;">
-
-<div style="text-align: center; flex-shrink: 0;">
-<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); min-width: 100px;">
-<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">1</div>
-<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Design</div>
-</div>
-</div>
-
-<div style="color: #60a5fa; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
-
-<div style="text-align: center; flex-shrink: 0;">
-<div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); min-width: 100px;">
-<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">2</div>
-<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Implementation</div>
-</div>
-</div>
-
-<div style="color: #fbbf24; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
-
-<div style="text-align: center; flex-shrink: 0;">
-<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); min-width: 100px;">
-<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">3</div>
-<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Verification</div>
-</div>
-<div style="font-size: 10px; color: #fca5a5; margin-top: 6px;">↓ Fail → Phase 2</div>
-</div>
-
-<div style="color: #f87171; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
-
-<div style="text-align: center; flex-shrink: 0;">
-<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3); min-width: 100px;">
-<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">4</div>
-<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Governance</div>
-</div>
-<div style="font-size: 10px; color: #d8b4fe; margin-top: 6px;">↓ Reject → Phase 2</div>
-</div>
-
-<div style="color: #c084fc; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
-
-<div style="text-align: center; flex-shrink: 0;">
-<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); min-width: 100px;">
-<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">5</div>
-<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Deployment</div>
-</div>
-<div style="font-size: 10px; color: #6ee7b7; margin-top: 6px;">↓ Rollback → Phase 4</div>
-</div>
-
-<div style="color: #34d399; font-size: 28px; font-weight: bold; flex-shrink: 0;">→</div>
-
-<div style="text-align: center; flex-shrink: 0;">
-<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); min-width: 100px;">
-<div style="font-size: 24px; font-weight: 700; color: #f1f5f9;">6</div>
-<div style="font-size: 13px; font-weight: 600; color: #f1f5f9;">Evolution</div>
-</div>
-</div>
-
-</div>
-
-<!-- Feedback Loop Arrow -->
-<div style="text-align: center; padding: 16px 0; border-top: 2px dashed rgba(244, 114, 182, 0.3); border-bottom: 2px dashed rgba(244, 114, 182, 0.3); margin: 0 20px;">
-<div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
-<div style="color: #f472b6; font-size: 32px; font-weight: bold; transform: rotate(180deg);">⤴</div>
-<div style="font-size: 14px; color: #f9a8d4; font-weight: 600;">Continuous Feedback Loop: Phase 6 feeds learnings back to Phase 1</div>
-<div style="color: #f472b6; font-size: 32px; font-weight: bold; transform: scaleX(-1);">⤵</div>
-</div>
-</div>
-
+<div style="text-align: center; padding: 20px 0;">
+<div style="font-size: 18px; color: #f9a8d4; font-weight: 600; margin-bottom: 8px;">Design → Implementation → Verification → Governance → Deployment → Evolution</div>
+<div style="font-size: 14px; color: #cbd5e1;">Phase 6 feeds continuous learnings back to Phase 1</div>
 </div>
 </div>
 
@@ -415,55 +348,82 @@ This framework operationalizes that insight:
 
 </div>
 
+<!-- Flow Legend -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 30px 0;">
+
+<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(16, 185, 129, 0.3);">
+<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+<div style="font-size: 28px;">→</div>
+<div style="font-size: 18px; font-weight: 700; color: #f1f5f9;">Forward Flow</div>
+</div>
+<p style="color: #d1fae5; font-size: 14px; margin: 0; line-height: 1.6;">
+Normal progression through phases 1 → 2 → 3 → 4 → 5 → 6, then back to 1 for continuous improvement
+</p>
+</div>
+
+<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(239, 68, 68, 0.3);">
+<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+<div style="font-size: 28px;">↩</div>
+<div style="font-size: 18px; font-weight: 700; color: #f1f5f9;">Feedback Loops</div>
+</div>
+<p style="color: #fecaca; font-size: 14px; margin: 0; line-height: 1.6;">
+Phase 3 (Verification) failures return to Phase 2. Phase 4 (Governance) rejections return to Phase 2. Phase 5 (Deployment) rollbacks return to Phase 4
+</p>
+</div>
+
+</div>
+
 <div style="background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 25px; margin-top: 30px;">
 <h3 style="margin: 0 0 12px 0; color: #4a9eff; font-size: 20px;">🎯 Framework Core Principles</h3>
 <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; font-style: italic;">
 As <a href="https://www.deloitte.com/nz/en/services/consulting/perspectives/ai-assisted-software-engineering.html" style="color: #60a5fa; text-decoration: none;">Aravind Subramanian, Deloitte Partner and AI Advisor</a>, argues: "AI governance is more than just rules; it's about creating a foundation of trust that supports innovation. By keeping humans in the loop, we inject empathy and judgment, crucial for navigating complex ethical landscapes. Governance isn't a barrier; it's a facilitator that empowers us to explore new ideas responsibly."
 </p>
-<table style="width: 100%; border-collapse: collapse;">
-<tr>
-<td style="padding: 12px; vertical-align: top; width: 50%;">
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+
+<div style="padding: 12px;">
 <div style="display: flex; align-items: flex-start; gap: 10px;">
 <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
 <div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Humans Own Architecture:</strong> All system design and architectural decisions remain under human control</div>
 </div>
-</td>
-<td style="padding: 12px; vertical-align: top; width: 50%;">
+</div>
+
+<div style="padding: 12px;">
 <div style="display: flex; align-items: flex-start; gap: 10px;">
 <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
 <div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">AI Accelerates Implementation:</strong> Leverage AI for the 70% routine work while maintaining quality gates</div>
 </div>
-</td>
-</tr>
-<tr>
-<td style="padding: 12px; vertical-align: top;">
+</div>
+
+<div style="padding: 12px;">
 <div style="display: flex; align-items: flex-start; gap: 10px;">
 <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
 <div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Security by Design:</strong> OWASP Top 10 and threat modeling integrated at every phase</div>
 </div>
-</td>
-<td style="padding: 12px; vertical-align: top;">
+</div>
+
+<div style="padding: 12px;">
 <div style="display: flex; align-items: flex-start; gap: 10px;">
 <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
 <div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Fitness Functions:</strong> Automated architectural governance ensures maintainability</div>
 </div>
-</td>
-</tr>
-<tr>
-<td style="padding: 12px; vertical-align: top;">
+</div>
+
+<div style="padding: 12px;">
 <div style="display: flex; align-items: flex-start; gap: 10px;">
 <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
 <div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Transparent AI Usage:</strong> Clear documentation of where and how AI assistance was utilized</div>
 </div>
-</td>
-<td style="padding: 12px; vertical-align: top;">
+</div>
+
+<div style="padding: 12px;">
 <div style="display: flex; align-items: flex-start; gap: 10px;">
 <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #4a9eff, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 12px; font-weight: bold;">✓</div>
 <div style="flex: 1; font-size: 14px; line-height: 1.5; color: #cbd5e1;"><strong style="color: #4a9eff;">Continuous Evolution:</strong> Learn from each cycle to optimize the human-AI partnership</div>
 </div>
-</td>
-</tr>
-</table>
+</div>
+
+</div>
 </div>
 
 </div>
@@ -791,9 +751,9 @@ Create frameworks that ensure quality at AI-speed while preventing technical deb
 
 <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px;">
 <div style="font-size: 20px; margin-bottom: 8px;">🎓</div>
-<div style="font-size: 15px; font-weight: 600; color: #6ee7b7; margin-bottom: 8px;">Invest in Mastery Programs</div>
+<div style="font-size: 15px; font-weight: 600; color: #6ee7b7; margin-bottom: 8px;">Invest in Apprentice Programs</div>
 <p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Develop clear tracks for Architecture Excellence, Security Excellence, and Quality Excellence. Tools will change; fundamental engineering skills endure.
+Develop apprentice programs in architecture, risk, and security. Tools will change; fundamental engineering skills endure.
 </p>
 </div>
 
