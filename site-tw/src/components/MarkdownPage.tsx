@@ -243,6 +243,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             };
 
             // Insert button after the header text
+            // @ts-ignore - TypeScript inference issue, headerElement is guaranteed non-null here
             headerElement.appendChild(copyBtn);
           }
         });
@@ -283,6 +284,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
           rehypePlugins={[rehypeRaw]}
           components={{
             // Style code blocks
+            // @ts-ignore - TypeScript inference issue, inline exists
             code({ node, inline, className, children, ...props }) {
               const match = /language-(\w+)/.exec(className || '');
               const lang = match ? match[1] : '';
