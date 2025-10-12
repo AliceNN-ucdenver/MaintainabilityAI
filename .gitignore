@@ -3,8 +3,10 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
-yarn.lock
+# NOTE: Lock files should be committed for security and reproducibility
+# package-lock.json  ← DO NOT IGNORE (needed for npm audit, Snyk, deterministic builds)
+# yarn.lock          ← DO NOT IGNORE (if using Yarn)
+# pnpm-lock.yaml     ← DO NOT IGNORE (if using pnpm)
 
 # Build outputs
 dist/
