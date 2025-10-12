@@ -173,7 +173,7 @@ Testing Requirements:
 
 ## Example: Walk Through A03 Injection Prompt Pack
 
-Let's analyze the A03 Injection prompt from `/prompts/owasp/A03_injection.md`:
+Let's analyze the A03 Injection prompt from `site-tw/public/docs/prompts/owasp/A03_injection.md`:
 
 ### Component 1: Role
 
@@ -478,9 +478,9 @@ Task:
 ### 1. Start with OWASP Template
 
 Use this repo's OWASP prompt packs as templates:
-- `/prompts/owasp/A01_broken_access_control.md`
-- `/prompts/owasp/A02_crypto_failures.md`
-- `/prompts/owasp/A03_injection.md`
+- `site-tw/public/docs/prompts/owasp/A01_broken_access_control.md`
+- `site-tw/public/docs/prompts/owasp/A02_crypto_failures.md`
+- `site-tw/public/docs/prompts/owasp/A03_injection.md`
 - ... (A04-A10)
 
 ### 2. Customize for Your Stack

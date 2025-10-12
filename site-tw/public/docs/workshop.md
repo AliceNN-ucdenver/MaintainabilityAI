@@ -30,12 +30,12 @@ Master the anatomy of security-first prompts. Learn to embed OWASP requirements 
 **What You'll Learn**:
 - Prompt Anatomy: Role + Context + Security Requirements + Task + Checklist
 - The OWASP Top 10 (2021) mapped to prompt patterns
-- Using `/prompts/owasp/` directory in VS Code
+- Using `site-tw/public/docs/prompts/owasp/` directory in VS Code
 - Tool-specific variations: Claude Code, GitHub Copilot (`#codebase`), ChatGPT
 
 **Hands-On**: Build a file upload feature using A03 Injection + A05 Misconfiguration prompt packs. Compare "vague prompt" vs. "security-first prompt" outputs.
 
-**Resources**: [`/prompts/owasp/A03_injection.md`](./prompts/owasp/A03_injection), [`/prompts/owasp/A05_security_misconfig.md`](./prompts/owasp/A05_security_misconfig)
+**Resources**: [`site-tw/public/docs/prompts/owasp/A03_injection.md`](./prompts/owasp/A03_injection), [`site-tw/public/docs/prompts/owasp/A05_security_misconfig.md`](./prompts/owasp/A05_security_misconfig)
 
 ---
 
@@ -72,7 +72,7 @@ Implement Evolutionary Architecture fitness functions to prevent technical debt.
 3. Coverage test: Fail if coverage drops below 80%
 4. Performance test: Baseline API latency, fail on regression
 
-**Resources**: [`/prompts/maintainability/fitness-functions.md`](./prompts/maintainability/fitness-functions)
+**Resources**: [`site-tw/public/docs/prompts/maintainability/fitness-functions.md`](./prompts/maintainability/fitness-functions)
 
 **Deliverable**: CI workflow runs fitness tests, blocks PR if violations detected.
 
@@ -112,7 +112,7 @@ Create hybrid prompts combining security + maintainability requirements for prod
 - Combine: OWASP A01 (Access Control) + A07 (AuthN) + A09 (Logging) + Fitness Functions (complexity ≤10)
 - Add dependency constraint: Use bcrypt ≥5.1.0 (dependency hygiene)
 - Test with 3 developers, measure: security scan pass rate, complexity, time to completion
-- Iterate based on feedback, version in `/prompts/team/secure-maintainable-api.md`
+- Iterate based on feedback, version in `site-tw/public/docs/prompts/team/secure-maintainable-api.md`
 
 **Deliverable**: Hybrid prompt template (security + maintainability) with metrics.
 

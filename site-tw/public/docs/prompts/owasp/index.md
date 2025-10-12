@@ -254,8 +254,8 @@ OWASP releases a new Top 10 every 3-4 years. When a new version is published:
 git clone https://github.com/AliceNN-ucdenver/MaintainabilityAI.git
 cd MaintainabilityAI
 
-# Access all prompt packs
-cd prompts/owasp
+# Navigate to prompt packs (located in documentation site)
+cd site-tw/public/docs/prompts/owasp
 
 # Copy a prompt to clipboard (macOS)
 cat A03_injection.md | pbcopy
@@ -266,6 +266,8 @@ cat A03_injection.md | xclip -selection clipboard
 # Copy a prompt to clipboard (Windows PowerShell)
 Get-Content A03_injection.md | Set-Clipboard
 ```
+
+**Note**: All prompt packs are stored at `site-tw/public/docs/prompts/` to keep them synchronized with the online documentation.
 
 ---
 

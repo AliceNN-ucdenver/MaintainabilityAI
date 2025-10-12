@@ -504,7 +504,7 @@ git commit -m "fix(A03): Add SQL injection prevention to searchUsers
 ## Getting Started
 
 1. **Print these rules** and post near your workstation
-2. **Create prompt library** in your repo (`/prompts/team/`)
+2. **Create prompt library** in your repo (`site-tw/public/docs/prompts/team/`)
 3. **Update PR template** to require AI disclosure
 4. **Add pre-commit hook** to check for AI labels
 5. **Schedule monthly review** of AI-generated code quality

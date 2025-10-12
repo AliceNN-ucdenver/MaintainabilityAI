@@ -19,16 +19,22 @@
     <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Start with Workshop Part 1: The Spectrum to understand AI development modes</p>
   </a>
 
-  <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+  <a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
     <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Need Security Prompts?</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Download OWASP Top 10 prompt packs from GitHub (A01-A10)</p>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">OWASP Security Prompts</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Browse OWASP Top 10 prompt packs (A01-A10) with metrics dashboard</p>
   </a>
 
-  <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+  <a href="./prompts/threat-modeling" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Threat Modeling (STRIDE)</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">AI-powered threat modeling with 6 STRIDE categories</p>
+  </a>
+
+  <a href="./prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
     <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Need Maintainability Prompts?</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Download evolutionary architecture patterns and fitness functions</p>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Maintainability Prompts</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Evolutionary architecture patterns and fitness functions</p>
   </a>
 
   <a href="./agents/" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
@@ -60,7 +66,7 @@ Complete 6-phase framework integrating security and maintainability throughout t
 
 Security-first prompt packs for AI code generation. Each category includes comprehensive prompts, code examples, and testing checklists:
 
-**Download from GitHub**: [/prompts/owasp/](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp)
+**[📚 View Complete OWASP Dashboard](./prompts/owasp)** - Includes success metrics and 4-step workflow
 
 - [A01: Broken Access Control](./prompts/owasp/A01_broken_access_control) - RBAC, IDOR prevention
 - [A02: Cryptographic Failures](./prompts/owasp/A02_crypto_failures) - Encryption, hashing, TLS
@@ -75,11 +81,26 @@ Security-first prompt packs for AI code generation. Each category includes compr
 
 ---
 
+### Threat Modeling (STRIDE)
+
+AI-powered threat modeling before code is written. Identify threats systematically using Microsoft's STRIDE framework:
+
+**[📚 View Threat Modeling Dashboard](./prompts/threat-modeling)** - Includes success metrics and STRIDE overview
+
+- [Spoofing Identity](./prompts/threat-modeling/spoofing) - Authentication threats, credential theft
+- [Tampering with Data](./prompts/threat-modeling/tampering) - SQL injection, parameter manipulation
+- [Repudiation](./prompts/threat-modeling/repudiation) - Audit logging, non-repudiation
+- [Information Disclosure](./prompts/threat-modeling/information-disclosure) - Data leaks, verbose errors
+- [Denial of Service](./prompts/threat-modeling/denial-of-service) - Rate limiting, resource exhaustion
+- [Elevation of Privilege](./prompts/threat-modeling/elevation-of-privilege) - Privilege escalation attacks
+
+---
+
 ### Maintainability (Evolutionary Architecture)
 
 Fitness functions and patterns for building long-lived, maintainable systems:
 
-**Download from GitHub**: [/prompts/maintainability/](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability)
+**[📚 View Maintainability Dashboard](./prompts/maintainability)** - Includes fitness function metrics
 
 - [Fitness Functions](./prompts/maintainability/fitness-functions) - Automated quality gates (complexity ≤10, coverage ≥80%, deps ≤90 days)
 - [Dependency Hygiene](./prompts/maintainability/dependency-hygiene) - 3-month freshness rule with Renovate bot
@@ -165,46 +186,41 @@ Platform-specific guidance for security-first development with different AI tool
 
 ---
 
-## 📦 Downloadable Prompt Packs
+## 📦 Prompt Pack Libraries
 
-All prompt packs follow the proven **Role + Context + Requirements + Task + Checklist** pattern.
+All prompt packs follow the proven **Role + Context + Requirements + Task + Checklist** pattern and are accessible directly from this documentation site.
 
-### Setup: Clone the Repository
+### Browse Online (Recommended)
 
-**Recommended for best UX** (works with Claude Code and Copilot):
+**Best for all users** - Browse prompts with metrics dashboards, examples, and visual guides:
+
+- **[OWASP Security Prompts](./prompts/owasp)** - 10 comprehensive prompt packs (A01-A10) with before/after examples
+- **[STRIDE Threat Modeling](./prompts/threat-modeling)** - 6 STRIDE categories for AI-powered threat detection
+- **[Maintainability Patterns](./prompts/maintainability)** - Fitness functions, dependency hygiene, technical debt management
+
+### For Local Development (Advanced)
+
+**Clone the repository** to reference prompts by file path (works with Claude Code and Copilot):
 ```bash
 git clone https://github.com/AliceNN-ucdenver/MaintainabilityAI.git
 cd MaintainabilityAI
 ```
 
-Now you can reference prompts by local file path instead of copy/paste:
-- Claude Code: "Use `/path/to/MaintainabilityAI/prompts/owasp/A03_injection.md` to refactor..."
-- Copilot: `#file:/prompts/owasp/A03_injection.md` + your request
+Now you can reference prompts by local file path:
+- Claude Code: "Use `site-tw/public/docs/prompts/owasp/A03_injection.md` to refactor..."
+- Copilot: `#file:site-tw/public/docs/prompts/owasp/A03_injection.md` + your request
+- ChatGPT: Copy prompt from [online docs](./prompts/owasp) and paste
 
-**Alternative** (for ChatGPT web users): Copy prompts from [GitHub](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts) and paste.
-
-### OWASP Security Prompts
-**Location**: `/prompts/owasp/` | **GitHub**: [View Online](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp)
-
-- 10 comprehensive prompt packs (A01-A10)
-- Before/after code examples
-- Testing checklists with attack vectors
-- Tool-specific guidance for Claude, Copilot, ChatGPT
-
-### Maintainability Prompts
-**Location**: `/prompts/maintainability/` | **GitHub**: [View Online](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability)
-
-- [Fitness Functions](./prompts/maintainability/fitness-functions) - Automated quality gates
-- [Dependency Hygiene](./prompts/maintainability/dependency-hygiene) - 3-month freshness rule
-- [Strangler Fig](./prompts/maintainability/strangler-fig) - Incremental legacy migration
-- [Technical Debt](./prompts/maintainability/technical-debt) - Structured tracking system
+**Note**: All prompts are located at `site-tw/public/docs/prompts/` in the repository.
 
 ### Keeping Prompts Updated
 
 ```bash
-# Pull latest prompt improvements
+# Pull latest prompt improvements from repository root
 cd MaintainabilityAI
 git pull origin main
+
+# Prompts are located at: site-tw/public/docs/prompts/
 ```
 
 ---
@@ -224,7 +240,7 @@ git pull origin main
 
 1. **Choose your AI tool**: [Review Agent Guides](./agents/) to select Claude (refactoring), Copilot (inline), or ChatGPT (design)
 2. **Start with a workshop**: [Part 1: The Spectrum](./workshop/part1-spectrum) teaches the fundamental approach
-3. **Download prompt packs**: Get [OWASP](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/owasp) + [Maintainability](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/prompts/maintainability) prompts from GitHub
+3. **Browse prompt packs**: Explore [OWASP](./prompts/owasp), [STRIDE](./prompts/threat-modeling), and [Maintainability](./prompts/maintainability) prompts online
 4. **Follow the SDLC**: Design → Implement → Verify → Govern → Deploy → Evolve ([SDLC Overview](./sdlc/))
 5. **Apply Golden Rules**: [Read the 6 rules](./governance/vibe-golden-rules) - be specific, trust but verify, treat AI as junior dev
 6. **Measure outcomes**: Track security scan pass rate, complexity adherence, and velocity

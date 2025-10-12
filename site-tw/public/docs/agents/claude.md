@@ -207,16 +207,16 @@ For each OWASP category, provide the full prompt pack and your specific context:
 
 | OWASP Category | Claude Command Pattern |
 |----------------|------------------------|
-| **A01: Broken Access Control** | Reference `/prompts/owasp/A01_broken_access_control.md` + "Implement RBAC for [feature]" |
-| **A02: Cryptographic Failures** | Reference `/prompts/owasp/A02_crypto_failures.md` + "Add secure encryption to [module]" |
-| **A03: Injection** | Reference `/prompts/owasp/A03_injection.md` + "Refactor with parameterized queries" |
-| **A04: Insecure Design** | Reference `/prompts/owasp/A04_insecure_design.md` + "Review architecture for [feature]" |
-| **A05: Security Misconfiguration** | Reference `/prompts/owasp/A05_security_misconfig.md` + "Harden server configuration" |
-| **A06: Vulnerable Components** | Reference `/prompts/owasp/A06_vuln_outdated.md` + "Audit and upgrade dependencies" |
-| **A07: Authentication Failures** | Reference `/prompts/owasp/A07_authn_failures.md` + "Implement secure authentication" |
-| **A08: Integrity Failures** | Reference `/prompts/owasp/A08_integrity_failures.md` + "Add integrity verification" |
-| **A09: Logging/Monitoring** | Reference `/prompts/owasp/A09_logging_monitoring.md` + "Add security logging" |
-| **A10: SSRF** | Reference `/prompts/owasp/A10_ssrf.md` + "Secure external API calls" |
+| **A01: Broken Access Control** | Reference `site-tw/public/docs/prompts/owasp/A01_broken_access_control.md` + "Implement RBAC for [feature]" |
+| **A02: Cryptographic Failures** | Reference `site-tw/public/docs/prompts/owasp/A02_crypto_failures.md` + "Add secure encryption to [module]" |
+| **A03: Injection** | Reference `site-tw/public/docs/prompts/owasp/A03_injection.md` + "Refactor with parameterized queries" |
+| **A04: Insecure Design** | Reference `site-tw/public/docs/prompts/owasp/A04_insecure_design.md` + "Review architecture for [feature]" |
+| **A05: Security Misconfiguration** | Reference `site-tw/public/docs/prompts/owasp/A05_security_misconfig.md` + "Harden server configuration" |
+| **A06: Vulnerable Components** | Reference `site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md` + "Audit and upgrade dependencies" |
+| **A07: Authentication Failures** | Reference `site-tw/public/docs/prompts/owasp/A07_authn_failures.md` + "Implement secure authentication" |
+| **A08: Integrity Failures** | Reference `site-tw/public/docs/prompts/owasp/A08_integrity_failures.md` + "Add integrity verification" |
+| **A09: Logging/Monitoring** | Reference `site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md` + "Add security logging" |
+| **A10: SSRF** | Reference `site-tw/public/docs/prompts/owasp/A10_ssrf.md` + "Secure external API calls" |
 
 ---
 

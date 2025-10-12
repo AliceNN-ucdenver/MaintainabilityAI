@@ -31,7 +31,7 @@ Review /prompts/owasp/A07_authn_failures.md and generate secure authentication m
 **Pattern**: Always reference the specific OWASP prompt pack for your task.
 
 ```markdown
-#file:/prompts/owasp/A03_injection.md
+#file:site-tw/public/docs/prompts/owasp/A03_injection.md
 
 Using the security requirements above, refactor this function to use parameterized queries:
 
@@ -114,16 +114,16 @@ For each OWASP category, reference the prompt pack before generating code:
 
 | OWASP Category | Copilot Command Pattern |
 |----------------|-------------------------|
-| **A01: Broken Access Control** | `#file:/prompts/owasp/A01_broken_access_control.md Implement RBAC for [endpoint]` |
-| **A02: Cryptographic Failures** | `#file:/prompts/owasp/A02_crypto_failures.md Add secure password hashing to [function]` |
-| **A03: Injection** | `#file:/prompts/owasp/A03_injection.md Refactor SQL query with parameterization` |
-| **A04: Insecure Design** | `#file:/prompts/owasp/A04_insecure_design.md Review threat model for [feature]` |
-| **A05: Security Misconfiguration** | `#file:/prompts/owasp/A05_security_misconfig.md Add security headers to Express app` |
-| **A06: Vulnerable Components** | `#file:/prompts/owasp/A06_vuln_outdated.md Audit dependencies for CVEs` |
-| **A07: Authentication Failures** | `#file:/prompts/owasp/A07_authn_failures.md Implement MFA for login` |
-| **A08: Integrity Failures** | `#file:/prompts/owasp/A08_integrity_failures.md Add signature verification` |
-| **A09: Logging/Monitoring** | `#file:/prompts/owasp/A09_logging_monitoring.md Add structured logging with PII redaction` |
-| **A10: SSRF** | `#file:/prompts/owasp/A10_ssrf.md Validate external URLs before fetch` |
+| **A01: Broken Access Control** | `#file:site-tw/public/docs/prompts/owasp/A01_broken_access_control.md Implement RBAC for [endpoint]` |
+| **A02: Cryptographic Failures** | `#file:site-tw/public/docs/prompts/owasp/A02_crypto_failures.md Add secure password hashing to [function]` |
+| **A03: Injection** | `#file:site-tw/public/docs/prompts/owasp/A03_injection.md Refactor SQL query with parameterization` |
+| **A04: Insecure Design** | `#file:site-tw/public/docs/prompts/owasp/A04_insecure_design.md Review threat model for [feature]` |
+| **A05: Security Misconfiguration** | `#file:site-tw/public/docs/prompts/owasp/A05_security_misconfig.md Add security headers to Express app` |
+| **A06: Vulnerable Components** | `#file:site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md Audit dependencies for CVEs` |
+| **A07: Authentication Failures** | `#file:site-tw/public/docs/prompts/owasp/A07_authn_failures.md Implement MFA for login` |
+| **A08: Integrity Failures** | `#file:site-tw/public/docs/prompts/owasp/A08_integrity_failures.md Add signature verification` |
+| **A09: Logging/Monitoring** | `#file:site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md Add structured logging with PII redaction` |
+| **A10: SSRF** | `#file:site-tw/public/docs/prompts/owasp/A10_ssrf.md Validate external URLs before fetch` |
 
 ---
 
@@ -135,19 +135,19 @@ Use these maintainability prompt packs alongside OWASP security prompts for prod
 
 | Maintainability Pattern | Copilot Command Pattern |
 |-------------------------|-------------------------|
-| **Fitness Functions** | `#file:/prompts/maintainability/fitness-functions.md Create complexity test: fail if any function >10` |
-| **Dependency Hygiene** | `#file:/prompts/maintainability/dependency-hygiene.md Implement 3-month freshness rule with Renovate bot` |
-| **Strangler Fig Migration** | `#file:/prompts/maintainability/strangler-fig.md Create proxy layer for incremental service migration` |
-| **Technical Debt Tracking** | `#file:/prompts/maintainability/technical-debt.md Generate TECHNICAL-DEBT.yml with automated detection` |
+| **Fitness Functions** | `#file:site-tw/public/docs/prompts/maintainability/fitness-functions.md Create complexity test: fail if any function >10` |
+| **Dependency Hygiene** | `#file:site-tw/public/docs/prompts/maintainability/dependency-hygiene.md Implement 3-month freshness rule with Renovate bot` |
+| **Strangler Fig Migration** | `#file:site-tw/public/docs/prompts/maintainability/strangler-fig.md Create proxy layer for incremental service migration` |
+| **Technical Debt Tracking** | `#file:site-tw/public/docs/prompts/maintainability/technical-debt.md Generate TECHNICAL-DEBT.yml with automated detection` |
 
 ### Hybrid Prompts (Security + Maintainability)
 
 **Example: Secure API Endpoint with Maintainability Constraints**
 
 ```markdown
-#file:/prompts/owasp/A01_broken_access_control.md
-#file:/prompts/owasp/A07_authn_failures.md
-#file:/prompts/maintainability/fitness-functions.md
+#file:site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
+#file:site-tw/public/docs/prompts/owasp/A07_authn_failures.md
+#file:site-tw/public/docs/prompts/maintainability/fitness-functions.md
 
 Implement secure user profile endpoint with:
 
@@ -172,8 +172,8 @@ Generate:
 **Example: Dependency Upgrade with Security Validation**
 
 ```markdown
-#file:/prompts/maintainability/dependency-hygiene.md
-#file:/prompts/owasp/A06_vuln_outdated.md
+#file:site-tw/public/docs/prompts/maintainability/dependency-hygiene.md
+#file:site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md
 
 Upgrade express from 4.17.1 to 4.18.2:
 
@@ -263,7 +263,7 @@ flowchart LR
 Every security-related prompt should include:
 
 ```markdown
-#file:/prompts/owasp/[category].md
+#file:site-tw/public/docs/prompts/owasp/[category].md
 
 Context:
 - Tech stack: [Node 18, TypeScript, Express, PostgreSQL]
@@ -293,7 +293,7 @@ Generate code that passes:
 **Step 1: Reference Prompt Pack**
 
 ```markdown
-#file:/prompts/owasp/A03_injection.md
+#file:site-tw/public/docs/prompts/owasp/A03_injection.md
 
 Review the security requirements for SQL injection prevention.
 ```
@@ -370,7 +370,7 @@ Reference: /docs/sdlc/phase6-evolution.md (dependency management)
 "Add authentication to the API"
 
 # ✅ Specific
-"#file:/prompts/owasp/A07_authn_failures.md
+"#file:site-tw/public/docs/prompts/owasp/A07_authn_failures.md
 Implement authentication middleware with:
 - bcrypt password hashing (cost 12)
 - Rate limiting (5 attempts/15min)
@@ -429,7 +429,7 @@ Apply the [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules.md) w
 
 **Solution**:
 ```markdown
-#file:/prompts/owasp/A03_injection.md
+#file:site-tw/public/docs/prompts/owasp/A03_injection.md
 The searchUsers function is vulnerable to SQL injection.
 Refactor using parameterized queries and add Zod validation per the prompt pack.
 ```

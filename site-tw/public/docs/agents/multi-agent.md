@@ -89,17 +89,17 @@ flowchart TD
 ```markdown
 Agent 1 (Copilot - Authentication):
 Task: Implement OWASP A07-compliant authentication
-Prompt: /prompts/owasp/A07_authn_failures.md
+Prompt: site-tw/public/docs/prompts/owasp/A07_authn_failures.md
 Output: Auth middleware + unit tests
 
 Agent 2 (Claude - Data Access):
 Task: Implement OWASP A03-compliant data layer
-Prompt: /prompts/owasp/A03_injection.md
+Prompt: site-tw/public/docs/prompts/owasp/A03_injection.md
 Output: Database repository + unit tests
 
 Agent 3 (ChatGPT - API Routes):
 Task: Implement OWASP A01-compliant API endpoints
-Prompt: /prompts/owasp/A01_broken_access_control.md
+Prompt: site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
 Output: Express routes + unit tests
 
 Agent 4 (Claude - Integration):
@@ -199,8 +199,8 @@ Output format:
 **Agent: Copilot** (excels at code generation with context)
 
 ```markdown
-#file:/prompts/owasp/A01_broken_access_control.md
-#file:/prompts/owasp/A03_injection.md
+#file:site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
+#file:site-tw/public/docs/prompts/owasp/A03_injection.md
 
 Threat Model Input:
 [Paste threat model JSON from Phase 1]
@@ -266,7 +266,7 @@ Role: Security Validator
 Inputs:
 - Threat Model: [paste JSON from Phase 1]
 - Implementation: [paste code from Phase 2]
-- OWASP Prompt Packs: /prompts/owasp/A01, A03, A09
+- OWASP Prompt Packs: site-tw/public/docs/prompts/owasp/A01, A03, A09
 
 Task: Validate implementation against threat model and OWASP requirements.
 

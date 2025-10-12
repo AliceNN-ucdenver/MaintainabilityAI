@@ -84,9 +84,9 @@ Use this template for all AI-assisted PRs:
 - [x] This PR includes AI-generated code
 - **AI Tool**: GitHub Copilot
 - **Prompt Packs Used**:
-  - `/prompts/owasp/A01_broken_access_control.md`
-  - `/prompts/owasp/A03_injection.md`
-  - `/prompts/owasp/A09_logging_monitoring.md`
+  - `site-tw/public/docs/prompts/owasp/A01_broken_access_control.md`
+  - `site-tw/public/docs/prompts/owasp/A03_injection.md`
+  - `site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md`
 - **Human Review**: Code reviewed line-by-line, attack vectors tested
 - **Changes After AI**: Added edge case handling for concurrent operations
 
@@ -96,7 +96,7 @@ Use this template for all AI-assisted PRs:
 - [x] Rule 3: AI treated as junior dev, guidance provided
 - [x] Rule 4: Commits labeled with 🤖 AI-assisted
 - [x] Rule 5: Security rationale documented in code comments
-- [x] Rule 6: Successful prompts added to `/prompts/team/`
+- [x] Rule 6: Successful prompts added to `site-tw/public/docs/prompts/team/`
 
 ## Security Checklist
 - [x] Input validation on all user-provided data
@@ -265,7 +265,7 @@ Review Question: Should this prompt be added to team library?
 Check:
 - [ ] Prompt produced secure code on first try?
 - [ ] Reusable pattern for future features?
-- [ ] Added to `/prompts/team/` directory?
+- [ ] Added to `site-tw/public/docs/prompts/team/` directory?
 
 Action: If yes, create prompt pack in team library
 ```
