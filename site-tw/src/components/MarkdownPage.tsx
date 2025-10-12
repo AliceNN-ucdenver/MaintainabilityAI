@@ -33,6 +33,21 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if we need to redirect to add trailing slash for known directories
+  useEffect(() => {
+    if (!path) {
+      const urlPath = location.pathname;
+      const knownDirectories = ['sdlc', 'workshop', 'governance', 'owasp', 'maintainability', 'threat-modeling', 'agents'];
+      const segments = urlPath.split('/');
+      const lastSegment = segments[segments.length - 1];
+      
+      // If this is a known directory without trailing slash, redirect
+      if (urlPath.startsWith('/docs/') && knownDirectories.includes(lastSegment) && !urlPath.endsWith('/')) {
+        window.history.replaceState(null, '', urlPath + '/');
+      }
+    }
+  }, [location.pathname, path]);
+
   // Determine the markdown file path
   const getMarkdownPath = () => {
     if (path) return path;
@@ -63,7 +78,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
 
     // If path originally had trailing slash or is a known directory, try index.md
     if (urlPath.startsWith('/docs/')) {
-      const knownDirectories = ['sdlc', 'prompts', 'workshop', 'governance', 'owasp', 'maintainability'];
+      const knownDirectories = ['sdlc', 'workshop', 'governance', 'owasp', 'maintainability', 'threat-modeling', 'agents'];
       const segments = urlPath.split('/');
       const lastSegment = segments[segments.length - 1];
 
@@ -141,6 +156,100 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
 
       // Delay to ensure DOM is ready
       setTimeout(renderMermaid, 100);
+    }
+  }, [markdown, loading]);
+
+  // Add copy-to-clipboard functionality for prompt boxes
+  useEffect(() => {
+    if (!loading && markdown) {
+      const addCopyButtons = () => {
+        // Find all prompt boxes (divs with gradient background containing code blocks)
+        const promptBoxes = document.querySelectorAll('div[style*="linear-gradient"]');
+
+        promptBoxes.forEach((box) => {
+          // Check if this box contains a code block with a prompt
+          const codeBlock = box.querySelector('pre code');
+          if (!codeBlock) return;
+
+          // Check if copy button already exists
+          if (box.querySelector('.copy-prompt-btn')) return;
+
+          const promptText = codeBlock.textContent || '';
+
+          // Find the header text that says "Copy this prompt..."
+          const headerElements = box.querySelectorAll('strong');
+          let headerElement: Element | null = null;
+
+          headerElements.forEach((el) => {
+            if (el.textContent?.includes('Copy this prompt')) {
+              headerElement = el.parentElement;
+            }
+          });
+
+          if (headerElement) {
+            // Create copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-prompt-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.style.cssText = `
+              background: rgba(16, 185, 129, 0.2);
+              border: 1px solid rgba(16, 185, 129, 0.5);
+              color: #10b981;
+              padding: 6px 12px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 600;
+              margin-left: 12px;
+              transition: all 0.2s;
+              display: inline-block;
+              vertical-align: middle;
+            `;
+
+            // Add hover effect
+            copyBtn.onmouseenter = () => {
+              copyBtn.style.background = 'rgba(16, 185, 129, 0.3)';
+              copyBtn.style.borderColor = 'rgba(16, 185, 129, 0.7)';
+            };
+            copyBtn.onmouseleave = () => {
+              copyBtn.style.background = 'rgba(16, 185, 129, 0.2)';
+              copyBtn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            };
+
+            // Add click handler
+            copyBtn.onclick = async () => {
+              try {
+                await navigator.clipboard.writeText(promptText);
+
+                // Show success feedback
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '✅ Copied!';
+                copyBtn.style.color = '#22c55e';
+
+                setTimeout(() => {
+                  copyBtn.innerHTML = originalText;
+                  copyBtn.style.color = '#10b981';
+                }, 2000);
+              } catch (err) {
+                console.error('Failed to copy:', err);
+                copyBtn.innerHTML = '❌ Failed';
+                copyBtn.style.color = '#ef4444';
+
+                setTimeout(() => {
+                  copyBtn.innerHTML = '📋 Copy';
+                  copyBtn.style.color = '#10b981';
+                }, 2000);
+              }
+            };
+
+            // Insert button after the header text
+            headerElement.appendChild(copyBtn);
+          }
+        });
+      };
+
+      // Delay to ensure DOM is ready
+      setTimeout(addCopyButtons, 150);
     }
   }, [markdown, loading]);
 

@@ -91,7 +91,7 @@ flowchart LR
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
     <div style="font-size: 40px;">🎭</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="spoofing" style="color: #f1f5f9; text-decoration: none;">Spoofing Identity</a></div>
+      <div style="font-size: 22px; font-weight: 700;"><a href="./spoofing" style="color: #f1f5f9; text-decoration: none;">Spoofing Identity</a></div>
       <div style="color: #fca5a5; font-size: 14px;">Pretending to be someone else</div>
     </div>
   </div>
@@ -108,7 +108,7 @@ flowchart LR
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
     <div style="font-size: 40px;">✏️</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="tampering" style="color: #f1f5f9; text-decoration: none;">Tampering with Data</a></div>
+      <div style="font-size: 22px; font-weight: 700;"><a href="./tampering" style="color: #f1f5f9; text-decoration: none;">Tampering with Data</a></div>
       <div style="color: #fdba74; font-size: 14px;">Modifying data maliciously</div>
     </div>
   </div>
@@ -125,7 +125,7 @@ flowchart LR
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
     <div style="font-size: 40px;">🙈</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="repudiation" style="color: #f1f5f9; text-decoration: none;">Repudiation</a></div>
+      <div style="font-size: 22px; font-weight: 700;"><a href="./repudiation" style="color: #f1f5f9; text-decoration: none;">Repudiation</a></div>
       <div style="color: #fde047; font-size: 14px;">Denying actions without proof</div>
     </div>
   </div>
@@ -142,7 +142,7 @@ flowchart LR
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
     <div style="font-size: 40px;">🔓</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="information-disclosure" style="color: #f1f5f9; text-decoration: none;">Information Disclosure</a></div>
+      <div style="font-size: 22px; font-weight: 700;"><a href="./information-disclosure" style="color: #f1f5f9; text-decoration: none;">Information Disclosure</a></div>
       <div style="color: #67e8f9; font-size: 14px;">Exposing sensitive information</div>
     </div>
   </div>
@@ -159,7 +159,7 @@ flowchart LR
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
     <div style="font-size: 40px;">💥</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="denial-of-service" style="color: #f1f5f9; text-decoration: none;">Denial of Service</a></div>
+      <div style="font-size: 22px; font-weight: 700;"><a href="./denial-of-service" style="color: #f1f5f9; text-decoration: none;">Denial of Service</a></div>
       <div style="color: #c4b5fd; font-size: 14px;">Making system unavailable</div>
     </div>
   </div>
@@ -176,7 +176,7 @@ flowchart LR
   <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
     <div style="font-size: 40px;">👑</div>
     <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="elevation-of-privilege" style="color: #f1f5f9; text-decoration: none;">Elevation of Privilege</a></div>
+      <div style="font-size: 22px; font-weight: 700;"><a href="./elevation-of-privilege" style="color: #f1f5f9; text-decoration: none;">Elevation of Privilege</a></div>
       <div style="color: #fda4af; font-size: 14px;">Gaining unauthorized permissions</div>
     </div>
   </div>
@@ -265,7 +265,7 @@ Draw your system components (frontend, API, database, external services) and dat
 Review which threat categories apply to your architecture. Usually, all six apply to some degree.
 
 ### Step 3: Use AI with Prompt Pack
-Copy the relevant prompt pack (e.g., [Spoofing](spoofing)), customize with your architecture details, and paste into ChatGPT or Claude.
+Copy the relevant prompt pack (e.g., [Spoofing](./spoofing)), customize with your architecture details, and paste into ChatGPT or Claude.
 
 ### Step 4: Review AI Output
 AI will generate a list of potential threats. Validate each one — is it realistic? Does it apply to your specific design?
@@ -312,7 +312,7 @@ STRIDE identifies *what* can go wrong. OWASP provides *how* to fix it:
   <div style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">Ready to Threat Model with AI?</div>
   <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Pick a STRIDE category above and start generating threat models with ChatGPT or Claude. Remember: <strong style="color: #dc2626;">Threat modeling is security design done right.</strong></div>
   <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-    <a href="spoofing" style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+    <a href="./spoofing" style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
       Start with Spoofing →
     </a>
     <a href="/docs/framework" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">

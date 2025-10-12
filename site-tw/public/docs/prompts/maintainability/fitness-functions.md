@@ -1,295 +1,257 @@
-# Fitness Functions — Prompt Pack
+# Fitness Functions — Maintainability Prompt Pack
 
-## For Claude Code / ChatGPT
-
-**Role**: You are an Evolutionary Architecture engineer implementing automated fitness functions for continuous architectural governance.
-
-**Context**:
-- Node 18 + TypeScript project
-- Jest test framework for fitness function execution
-- Target metrics: cyclomatic complexity ≤10, dependency freshness ≤90 days, test coverage ≥80%, performance p95 <200ms
-
-**Security & Quality Requirements**:
-- Fitness functions must run in CI/CD pipeline (non-blocking initially, blocking after baseline)
-- Use `ts-morph` for AST analysis (cyclomatic complexity)
-- Use `npm outdated --json` for dependency freshness checks
-- Use `nyc` or `jest --coverage` for coverage metrics
-- Use `autocannon` or `clinic` for performance profiling
-- Results must be serializable to JSON for trend analysis
-- Fail fast on violations, report specific file/line numbers
-- No external API calls during fitness function execution (offline-first)
-
-**Task**:
-1. Create `tests/fitness-functions/complexity.test.ts` that:
-   - Scans all `.ts` files in `src/`
-   - Uses `ts-morph` to calculate cyclomatic complexity per function
-   - Fails if any function exceeds threshold (default: 10)
-   - Reports violations with file path, function name, and actual complexity
-2. Create `tests/fitness-functions/dependency-freshness.test.ts` that:
-   - Runs `npm outdated --json`
-   - Parses output to find dependencies >90 days old
-   - Fails if critical/security dependencies are outdated
-   - Allows non-critical dependencies to age up to 6 months (configurable)
-3. Create `tests/fitness-functions/coverage.test.ts` that:
-   - Reads `coverage/coverage-summary.json`
-   - Validates branch, line, function, and statement coverage ≥80%
-   - Fails if coverage dropped >2% from baseline
-4. Create `tests/fitness-functions/performance.test.ts` that:
-   - Starts test server
-   - Runs `autocannon` against critical endpoints
-   - Validates p95 latency <200ms, p99 <500ms
-   - Compares against baseline, fails if regression >10%
-5. Create `.github/workflows/fitness-functions.yml` that:
-   - Runs all fitness tests on every PR
-   - Uploads results as artifacts
-   - Comments on PR with pass/fail summary
-
-**Checklist**:
-- [ ] Install dependencies: `npm install -D ts-morph autocannon nyc`
-- [ ] All fitness functions are Jest tests (`.test.ts` files)
-- [ ] Complexity threshold configurable via env var `MAX_COMPLEXITY` (default: 10)
-- [ ] Dependency freshness threshold configurable via `MAX_DEP_AGE_DAYS` (default: 90)
-- [ ] Coverage baseline stored in `baseline/coverage-baseline.json`
-- [ ] Performance baseline stored in `baseline/perf-baseline.json`
-- [ ] CI workflow uses `continue-on-error: true` initially (warning mode)
-- [ ] After 2 weeks, switch to `continue-on-error: false` (blocking mode)
-- [ ] Fitness function output includes remediation guidance (e.g., "Split function X into smaller units")
-- [ ] All baselines versioned in Git (so we can track architectural drift over time)
+> **Fitness Functions** are automated, objective quality gates that continuously validate architectural characteristics. They prevent technical debt by failing builds when code degrades beyond acceptable thresholds.
 
 ---
 
-## For GitHub Copilot (#codebase)
+## 🎯 What are Fitness Functions?
+
+**Definition**: Executable tests that measure architectural quality metrics (complexity, coverage, performance) and fail if thresholds are exceeded. Think "unit tests for architecture."
+
+**Common Fitness Function Types**:
+- **Complexity**: Cyclomatic complexity per function (threshold: ≤10)
+- **Test Coverage**: Line, branch, and statement coverage (threshold: ≥80%)
+- **Performance**: p95 latency for critical endpoints (threshold: <200ms)
+- **Dependency Freshness**: Age of dependencies (threshold: ≤90 days)
+- **Security**: High/critical vulnerabilities (threshold: 0)
+
+**Why They Matter**: Without fitness functions, code quality degrades silently over time (architectural erosion). Manual code reviews can't catch every violation.
+
+---
+
+## 🔗 Maps to OWASP
+
+**Supports**: All OWASP categories by enforcing quality standards
+**Primary**: [A06 - Vulnerable Components](/docs/prompts/owasp/A06_vuln_outdated) (dependency freshness)
+**Secondary**: [A04 - Insecure Design](/docs/prompts/owasp/A04_insecure_design) (complexity reduces attack surface)
+
+---
+
+## 🤖 AI Prompt #1: Identify Where to Apply Fitness Functions
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+
+**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
 
 ```
-#codebase Implement fitness functions for Evolutionary Architecture governance.
+Role: You are an Evolutionary Architecture engineer analyzing a codebase to determine which fitness functions would provide the most value.
+
+Context:
+I have the following project:
+
+[PASTE YOUR PROJECT DETAILS HERE]
+
+Example:
+- Node.js 18 + TypeScript
+- 50K+ LOC across 200 files
+- Jest test framework
+- Express REST API with 30+ endpoints
+- PostgreSQL database
+- 15 developers contributing
+- GitHub Actions CI/CD
+- Current issues: high complexity in auth module, inconsistent test coverage, slow dependency updates
+
+Task:
+Analyze this project and recommend:
+
+1. Which fitness functions to implement (complexity, coverage, performance, dependencies)
+2. Priority order (which will catch the most issues fastest)
+3. Baseline thresholds (what limits make sense for THIS codebase, not aspirational goals)
+4. Implementation plan (which tools to use, how to integrate with CI)
+
+Format:
+For each fitness function, provide:
+
+**Metric**: [What to measure]
+**Threshold**: [Acceptable limit based on current state]
+**Priority**: [High/Medium/Low]
+**Rationale**: [Why this matters for this specific codebase]
+**Implementation**: [Which tool/library to use - e.g., ts-complex, autocannon, npm outdated]
+**CI Integration**: [How to run in GitHub Actions - be specific]
+
+Focus Areas:
+Pay special attention to:
+- Hotspot files (high complexity + frequent changes = risk)
+- Critical paths (auth, payment, data access)
+- Legacy modules (likely candidates for complexity violations)
+- Public APIs (need strong test coverage)
+- Performance-critical endpoints (user-facing, data-heavy)
+
+Output:
+Provide a prioritized list of 3-5 fitness functions with specific thresholds and implementation steps. Start with the fitness function that will catch the most issues with the least effort.
+```
+
+</div>
+
+---
+
+## 🤖 AI Prompt #2: Generate Fitness Function Tests
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+
+**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+
+```
+Role: You are a software engineer implementing fitness functions as automated tests that run in CI/CD pipelines.
+
+Context:
+I have a Node.js 18 + TypeScript project using Jest for testing and GitHub Actions for CI/CD.
+
+Target metrics:
+- Cyclomatic complexity ≤10 per function
+- Test coverage ≥80% (line + branch)
+- Dependency age ≤90 days
+- Performance p95 <200ms for /api/* endpoints
+
+Task: Generate 4 executable fitness function test files:
+
+1. tests/fitness-functions/complexity.test.ts
+   - Use ts-complex library to analyze TypeScript files
+   - Check cyclomatic complexity for all functions in src/
+   - Fail if any function exceeds 10
+   - Report violations with file:line:function name
+   - Suggest refactoring strategies in error message
+
+2. tests/fitness-functions/coverage.test.ts
+   - Read coverage/coverage-summary.json (generated by Jest)
+   - Check line, branch, function, statement coverage
+   - Fail if any metric <80%
+   - Compare against baseline/coverage-baseline.json
+   - Fail if coverage dropped >2% from baseline
+
+3. tests/fitness-functions/dependency-freshness.test.ts
+   - Run "npm outdated --json" to find old packages
+   - Check publish date of each dependency using "npm view <pkg>@<version> time.modified"
+   - Fail if any dependency >90 days old
+   - Warn if dependency >60 days old
+   - Categorize by severity: critical (security), major (breaking), minor (safe)
+
+4. tests/fitness-functions/performance.test.ts
+   - Start test server programmatically
+   - Use autocannon to load test GET /api/users and POST /api/orders
+   - Measure p95, p99 latency and throughput
+   - Compare against baseline/perf-baseline.json
+   - Fail if p95 >200ms or regressed >10% from baseline
+   - Clean up server process after test
 
 Requirements:
-- Cyclomatic complexity: ≤10 per function using ts-morph AST analysis
-- Dependency freshness: ≤90 days old using npm outdated
-- Test coverage: ≥80% (branch + line) using nyc
-- Performance: p95 <200ms using autocannon
-- All as Jest tests in tests/fitness-functions/
-- CI workflow that runs on every PR
+- All tests must be Jest .test.ts files that can run with "npm test"
+- Tests must fail with actionable error messages (include file paths, actual vs expected values)
+- Thresholds should be configurable via environment variables (MAX_COMPLEXITY, MIN_COVERAGE, MAX_DEP_AGE_DAYS)
+- Include helper functions for calculations (don't repeat code)
+- Add JSDoc comments explaining what each function does
 
-File structure:
-tests/fitness-functions/complexity.test.ts
-tests/fitness-functions/dependency-freshness.test.ts
-tests/fitness-functions/coverage.test.ts
-tests/fitness-functions/performance.test.ts
-baseline/coverage-baseline.json (initial: copy from coverage/coverage-summary.json)
-baseline/perf-baseline.json (initial: run autocannon and save)
-.github/workflows/fitness-functions.yml
+Also generate:
+- .github/workflows/fitness-functions.yml (runs on every PR, uploads artifacts)
+- baseline/coverage-baseline.json (example structure with 85% coverage)
+- baseline/perf-baseline.json (example structure with p95: 145ms)
+- README-FITNESS-FUNCTIONS.md (explains how to run tests and update baselines)
 
-Fail with actionable messages: "Function `processOrder` in src/orders.ts has complexity 15 (limit: 10). Consider splitting into smaller functions."
+Output: Complete, executable TypeScript code for all files. Initially configure CI with continue-on-error: true (warning mode) so we can monitor for 2 weeks before switching to blocking mode.
 ```
+
+</div>
 
 ---
 
-## Example Remediation Pattern
+## ✅ Human Review Checklist
 
-### Before (Complexity Violation)
-```typescript
-// src/orders.ts
-export function processOrder(order: Order) {
-  // Cyclomatic complexity: 18 (too high)
-  if (order.type === 'standard') {
-    if (order.items.length > 10) {
-      if (order.customer.isPremium) {
-        // ... 50 lines of nested logic
-      }
-    }
-  } else if (order.type === 'express') {
-    // ... more nested branches
-  }
-  // ... more conditions
-}
-```
+After AI generates fitness function tests, **review the code carefully** before running it. Here's what to verify in each area:
 
-### After (Refactored to Pass Fitness Function)
-```typescript
-// src/orders.ts
-export function processOrder(order: Order) {
-  // Complexity: 3 (under limit)
-  const strategy = selectOrderStrategy(order);
-  const validated = validateOrderItems(order);
-  return strategy.process(validated);
-}
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
-function selectOrderStrategy(order: Order): OrderStrategy {
-  // Complexity: 4
-  if (order.type === 'standard') return new StandardOrderStrategy();
-  if (order.type === 'express') return new ExpressOrderStrategy();
-  throw new Error(`Unknown order type: ${order.type}`);
-}
+### 🗂️ File Structure
 
-function validateOrderItems(order: Order): Order {
-  // Complexity: 5
-  if (order.items.length === 0) throw new Error('No items');
-  if (order.items.length > 100) throw new Error('Too many items');
-  return order;
-}
-```
-
-**Fitness Function Test**:
-```typescript
-// tests/fitness-functions/complexity.test.ts
-import { Project } from 'ts-morph';
-
-describe('Cyclomatic Complexity', () => {
-  it('should enforce max complexity of 10', () => {
-    const project = new Project({ tsConfigFilePath: './tsconfig.json' });
-    const violations: string[] = [];
-
-    project.getSourceFiles('src/**/*.ts').forEach(file => {
-      file.getFunctions().forEach(fn => {
-        const complexity = calculateComplexity(fn); // Use ts-morph AST
-        if (complexity > 10) {
-          violations.push(
-            `${file.getFilePath()}:${fn.getName()} has complexity ${complexity} (limit: 10)`
-          );
-        }
-      });
-    });
-
-    expect(violations).toHaveLength(0);
-  });
-});
-```
+Verify the AI created all necessary files in the correct locations. You should have four test files in a fitness-functions directory, a GitHub Actions workflow for CI integration, baseline files for tracking historical metrics, and documentation explaining how to run and update the tests.
 
 ---
 
-## Common Fitness Function Categories
+### 🔍 Complexity Analysis
 
-### 1. **Structural Fitness Functions**
-- Cyclomatic complexity (measures branching logic)
-- Dependency graph analysis (detect circular dependencies)
-- Layering violations (e.g., UI shouldn't import database directly)
-- Namespace coupling (measure dependencies between modules)
+The complexity test should use a dedicated tool like `ts-complex` (not manual AST parsing or regex) to analyze your TypeScript code. It needs to correctly count all branching structures including conditionals, loops, case statements, logical operators, and exception handlers. When violations are found, error messages should pinpoint the exact location and suggest specific refactoring patterns like extracting methods or using guard clauses. The threshold should be configurable through environment variables so teams can adjust it based on their needs.
 
-### 2. **Quality Fitness Functions**
-- Test coverage (branch, line, mutation)
-- Code duplication (identify copy-paste violations)
-- Documentation coverage (JSDoc for public APIs)
-- Type safety (no `any` usage, strict null checks)
-
-### 3. **Operational Fitness Functions**
-- Performance (latency, throughput, memory)
-- Dependency freshness (detect outdated libraries)
-- Security vulnerabilities (Snyk, npm audit)
-- Build time (CI should complete <5 min)
-
-### 4. **Evolutionary Fitness Functions**
-- Strangler Fig progress (measure % of old code migrated)
-- Feature flag coverage (new features behind flags)
-- API versioning compliance (breaking changes require new version)
-- Database migration safety (all migrations reversible)
+**Test it**: Run the complexity test locally to see which functions exceed the threshold and verify the error messages are actionable.
 
 ---
 
-## Defense Layers
+### 📊 Coverage Validation
 
-1. **IDE (Pre-commit)**:
-   - ESLint rule: `complexity: ['error', 10]`
-   - SonarLint extension highlighting complex functions
-   - Pre-commit hook runs `npm run test:fitness --bail`
+The coverage test should read Jest's coverage report and validate all four metrics: lines, branches, functions, and statements. It needs to compare current coverage against a stored baseline to detect regressions, not just check absolute thresholds. When coverage drops, the error message should clearly show which metric failed and by how much, along with practical remediation steps. Make sure thresholds are configurable so you can start with realistic values and tighten them over time.
 
-2. **Local (Developer Machine)**:
-   - `npm run test:fitness` before every commit
-   - Results cached locally for fast feedback
-   - Husky hook prevents commit if violations
-
-3. **CI (Pull Request)**:
-   - GitHub Actions runs all fitness functions
-   - Comments on PR with trend analysis (complexity increasing/decreasing)
-   - Blocks merge if critical fitness functions fail
-
-4. **Production (Continuous Monitoring)**:
-   - Weekly job runs fitness functions on main branch
-   - Alerts if architectural drift exceeds threshold
-   - Dashboard shows trends over time (Grafana/DataDog)
+**Test it**: Generate a coverage report first, then run the fitness function to verify it correctly identifies gaps.
 
 ---
 
-## Testing Checklist
+### 📦 Dependency Freshness
 
-### Complexity Tests
-- [ ] Passes when all functions have complexity ≤10
-- [ ] Fails when a function exceeds threshold
-- [ ] Reports file path, function name, and actual complexity
-- [ ] Suggests refactoring strategies (extract method, strategy pattern)
+The dependency test should check the actual publish dates of your dependencies, not just compare version numbers. It needs to categorize outdated packages by severity (security issues are more urgent than minor version bumps) and provide clear upgrade paths. The test should warn before it fails, giving teams time to plan upgrades. Make sure it integrates with npm audit to flag known security vulnerabilities in outdated packages.
 
-### Dependency Freshness Tests
-- [ ] Passes when all dependencies are <90 days old
-- [ ] Fails when critical dependency is outdated
-- [ ] Allows configurable grace period for non-critical deps
-- [ ] Links to npm advisory if security vulnerability exists
-
-### Coverage Tests
-- [ ] Passes when coverage ≥80% (line + branch)
-- [ ] Fails when coverage drops >2% from baseline
-- [ ] Reports which files reduced coverage
-- [ ] Updates baseline only on explicit approval (manual step)
-
-### Performance Tests
-- [ ] Passes when p95 <200ms for all critical endpoints
-- [ ] Fails when performance regresses >10% from baseline
-- [ ] Uses consistent load (e.g., 100 req/s for 10s)
-- [ ] Runs against production-like environment (Docker container)
+**Test it**: Run the dependency check to see which packages are flagged and verify the age calculations are accurate.
 
 ---
 
-## Integration with AI Tools
+### ⚡ Performance Testing
 
-**ChatGPT**: Analyze fitness function failures and suggest refactoring strategies
-```
-Analyze this complexity violation and suggest refactoring:
+The performance test should start your application programmatically, run realistic load tests against critical endpoints, and then cleanly shut down. It needs to measure both absolute latency (p95, p99) and regression from baseline to catch gradual performance degradation. The test must properly clean up spawned processes to avoid leaving servers running in the background. Error messages should show actual vs expected latency with percentage regression for easy interpretation.
 
-File: src/orders.ts
-Function: processOrder
-Complexity: 18 (limit: 10)
-
-[paste function code]
-```
-
-**Claude Code**: Refactor violating functions using fitness function output
-```
-Fix this complexity violation using Extract Method pattern:
-[paste fitness function error and code]
-
-Requirements:
-- Target complexity ≤8 per function
-- Preserve all existing tests
-- Use dependency injection for strategies
-```
-
-**GitHub Copilot**: Auto-suggest fixes inline
-```
-#codebase This function fails the complexity fitness function (18 > 10). Refactor using Strategy pattern.
-```
+**Test it**: Ensure the test starts the server, completes the load test, and terminates cleanly without hanging processes.
 
 ---
 
-## When to Use This Prompt Pack
+### ⚙️ CI/CD Integration
 
-✅ **Use for**:
-- Preventing architectural erosion over time
-- Enforcing quality gates in CI/CD
-- Measuring technical debt objectively
-- Guiding refactoring priorities (fix highest complexity first)
-- Tracking Evolutionary Architecture progress (Strangler Fig metrics)
+The GitHub Actions workflow should run on every pull request and push to main, using `npm ci` for deterministic dependency installation. Initially configure it with `continue-on-error: true` so you can monitor results for a couple weeks before switching to blocking mode. The workflow should upload test results as artifacts for historical tracking and optionally comment on pull requests with pass/fail summaries.
 
-❌ **Don't use for**:
-- Greenfield projects <1000 LOC (fitness functions are overhead)
-- Scripts or one-off tools (YAGNI)
-- Prototypes where quality is deprioritized
-- Legacy systems where baseline is impossible to establish
+**After monitoring period**: Change to blocking mode by setting `continue-on-error: false`.
 
 ---
 
-## References
+### 📈 Baseline Management
 
+Baseline files store historical metrics so you can detect regressions over time. They should contain realistic starting values based on your current codebase, not aspirational goals. These files must be committed to Git and include metadata like timestamp and commit SHA for tracking. Make sure the documentation explains how to regenerate baselines when you intentionally change thresholds or make architectural improvements.
+
+**Update process**: After validating test results, copy fresh metrics to baseline files and commit them with a clear message explaining the change.
+
+---
+
+### 🛡️ Security Review
+
+Before running any AI-generated code, scan it for security risks. Check for hardcoded secrets, arbitrary code execution patterns like `eval` or unsanitized `exec` calls, external network calls that could leak data, file system operations that go beyond the project directory, and dependencies from unknown sources. AI-generated tests should be self-contained and offline-first.
+
+**Red flags**: Any code that exfiltrates data, executes arbitrary input, or accesses sensitive system resources.
+
+---
+
+### 🧪 Final Validation
+
+Install any new dependencies the tests require, then run each fitness function individually to verify it works and produces clear output. Run all tests together to check for conflicts or race conditions. Validate the GitHub Actions workflow syntax before committing it. If you have time, test the full CI pipeline locally using tools like `act` to catch issues before pushing.
+
+**Expected outcome**: Tests should either pass cleanly or fail with specific, actionable error messages that guide you to the problem.
+
+</div>
+
+---
+
+## 🔄 Next Steps
+
+1. **Use Prompt #1** with ChatGPT/Claude to identify which fitness functions your project needs
+2. **Use Prompt #2** to generate the test code
+3. **Review generated code** using the checklist above
+4. **Run tests locally**: `npm test tests/fitness-functions`
+5. **Create baselines**: Run tests once, copy results to `baseline/`
+6. **Integrate CI**: Add workflow to `.github/workflows/`
+7. **Start in warning mode**: Monitor for 2 weeks, then switch to blocking
+8. **Monitor trends**: Track metrics over time (Grafana, DataDog)
+9. **Refactor violations**: Use [Technical Debt Management](technical-debt) to prioritize fixes
+
+---
+
+## 📖 Additional Resources
+
+- **[Dependency Hygiene Prompt Pack](dependency-hygiene)** — Enforce 90-day freshness rule
+- **[Technical Debt Management](technical-debt)** — Track and prioritize refactoring work
 - **Book**: *Building Evolutionary Architectures* (Ford, Parsons, Kua)
-- **Tool**: `ts-morph` for TypeScript AST analysis
-- **Tool**: `autocannon` for HTTP load testing
-- **Pattern**: Strangler Fig (incremental migration with fitness functions tracking progress)
-- **Kata**: "Upgrade All The Things" — enforce 3-month dependency freshness rule
+
+---
+
+**Remember**: Fitness functions prevent architectural erosion. Manual reviews catch bugs; fitness functions enforce quality standards automatically.

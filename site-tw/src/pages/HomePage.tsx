@@ -90,10 +90,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Our Offering */}
+      {/* Our Approach */}
       <section className="border-t border-slate-800 bg-slate-900/30">
         <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Offering</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Approach</h2>
           <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
             Comprehensive training and resources for teams adopting AI-assisted development
           </p>
@@ -210,211 +210,87 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* OWASP Top 10 */}
+      {/* Prompt Pack Libraries */}
       <section className="border-t border-slate-800 bg-slate-900/30">
         <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">OWASP Top 10 (2021)</h2>
-          <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
-            Security-first prompt packs for AI code generation. Embed OWASP requirements directly into your prompts.
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Security & Maintainability Prompt Packs</h2>
+          <p className="text-center text-slate-400 mb-12 max-w-3xl mx-auto">
+            Production-ready AI prompts for secure, maintainable code generation. Each pack includes role definition, context, requirements, validation checklists, and tool-specific variations.
           </p>
 
-          <div className="rounded-2xl border border-slate-700 bg-slate-950/50 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-slate-900">
-                <tr className="border-b border-slate-700">
-                  <th className="text-left p-4 font-semibold text-brand">Category</th>
-                  <th className="text-left p-4 font-semibold text-brand">Focus</th>
-                  <th className="text-left p-4 font-semibold text-brand">Prompt Pack</th>
-                </tr>
-              </thead>
-              <tbody className="text-slate-300">
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A01_broken_access_control" className="font-semibold hover:text-brand">A01: Broken Access Control</Link>
-                  </td>
-                  <td className="p-4 text-sm">RBAC authorization, ownership checks, IDOR prevention</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A01_broken_access_control.md" className="text-brand hover:text-indigo-400">A01_broken_access_control.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A02_crypto_failures" className="font-semibold hover:text-brand">A02: Cryptographic Failures</Link>
-                  </td>
-                  <td className="p-4 text-sm">bcrypt password hashing, AES-256-GCM encryption, TLS enforcement</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A02_crypto_failures.md" className="text-brand hover:text-indigo-400">A02_crypto_failures.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A03_injection" className="font-semibold hover:text-brand">A03: Injection</Link>
-                  </td>
-                  <td className="p-4 text-sm">Parameterized queries, input validation, command injection prevention</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A03_injection.md" className="text-brand hover:text-indigo-400">A03_injection.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A04_insecure_design" className="font-semibold hover:text-brand">A04: Insecure Design</Link>
-                  </td>
-                  <td className="p-4 text-sm">Threat modeling, secure architecture patterns, defense in depth</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A04_insecure_design.md" className="text-brand hover:text-indigo-400">A04_insecure_design.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A05_security_misconfig" className="font-semibold hover:text-brand">A05: Security Misconfiguration</Link>
-                  </td>
-                  <td className="p-4 text-sm">Security headers, CORS policies, default credentials removal</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A05_security_misconfig.md" className="text-brand hover:text-indigo-400">A05_security_misconfig.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A06_vuln_outdated" className="font-semibold hover:text-brand">A06: Vulnerable Components</Link>
-                  </td>
-                  <td className="p-4 text-sm">Dependency scanning, CVE monitoring, automated patching</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A06_vuln_outdated.md" className="text-brand hover:text-indigo-400">A06_vuln_outdated.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A07_authn_failures" className="font-semibold hover:text-brand">A07: Authentication Failures</Link>
-                  </td>
-                  <td className="p-4 text-sm">Multi-factor auth, session management, credential stuffing prevention</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A07_authn_failures.md" className="text-brand hover:text-indigo-400">A07_authn_failures.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A08_integrity_failures" className="font-semibold hover:text-brand">A08: Software/Data Integrity Failures</Link>
-                  </td>
-                  <td className="p-4 text-sm">CI/CD security, code signing, deserialization protection</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A08_integrity_failures.md" className="text-brand hover:text-indigo-400">A08_integrity_failures.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A09_logging_monitoring" className="font-semibold hover:text-brand">A09: Security Logging Failures</Link>
-                  </td>
-                  <td className="p-4 text-sm">Structured logging, PII redaction, security event monitoring</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A09_logging_monitoring.md" className="text-brand hover:text-indigo-400">A09_logging_monitoring.md</a>
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/prompts/owasp/A10_ssrf" className="font-semibold hover:text-brand">A10: Server-Side Request Forgery</Link>
-                  </td>
-                  <td className="p-4 text-sm">URL validation, allowlist enforcement, internal service protection</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/owasp/A10_ssrf.md" className="text-brand hover:text-indigo-400">A10_ssrf.md</a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Threat Modeling (STRIDE) */}
+            <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-8 hover:border-brand/50 transition">
+              <div className="text-5xl mb-4">🎯</div>
+              <h3 className="font-bold text-2xl mb-3">STRIDE Threat Modeling</h3>
+              <p className="text-slate-300 leading-relaxed mb-6">
+                AI-powered threat detection <strong className="text-white">before code is written</strong>. Systematic identification using Microsoft's 6-category STRIDE framework.
+              </p>
+              <ul className="space-y-2 text-slate-400 text-sm mb-6">
+                <li>✓ 6 STRIDE categories (Spoofing → Elevation)</li>
+                <li>✓ Auto-maps threats to OWASP controls</li>
+                <li>✓ 93% threats found pre-code</li>
+                <li>✓ Saves 4hrs per feature</li>
+              </ul>
+              <Link to="/docs/prompts/threat-modeling" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
+                View STRIDE Prompt Packs
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* OWASP Top 10 */}
+            <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-8 hover:border-brand/50 transition">
+              <div className="text-5xl mb-4">🛡️</div>
+              <h3 className="font-bold text-2xl mb-3">OWASP Top 10 (2021)</h3>
+              <p className="text-slate-300 leading-relaxed mb-6">
+                Security-first prompts for <strong className="text-white">10 critical vulnerability categories</strong>. Embed OWASP requirements directly into AI code generation.
+              </p>
+              <ul className="space-y-2 text-slate-400 text-sm mb-6">
+                <li>✓ Complete A01-A10 coverage</li>
+                <li>✓ Parameterized queries, RBAC, crypto</li>
+                <li>✓ Before/after code examples</li>
+                <li>✓ Attack vector test suites</li>
+              </ul>
+              <Link to="/docs/prompts/owasp" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
+                View OWASP Prompt Packs
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* Evolutionary Architecture */}
+            <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-8 hover:border-brand/50 transition">
+              <div className="text-5xl mb-4">📐</div>
+              <h3 className="font-bold text-2xl mb-3">Evolutionary Architecture</h3>
+              <p className="text-slate-300 leading-relaxed mb-6">
+                Maintainability patterns for <strong className="text-white">long-lived systems</strong>. AI-assisted refactoring with automated fitness functions.
+              </p>
+              <ul className="space-y-2 text-slate-400 text-sm mb-6">
+                <li>✓ Fitness functions (complexity ≤10)</li>
+                <li>✓ Dependency hygiene (≤90 days)</li>
+                <li>✓ Strangler Fig migrations</li>
+                <li>✓ Technical debt tracking</li>
+              </ul>
+              <Link to="/docs/prompts/maintainability" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
+                View Maintainability Packs
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
           </div>
 
-          <div className="mt-8 text-center">
-            <a href="https://owasp.org/Top10/" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
-              View Official OWASP Top 10 (2021)
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <div className="mt-12 text-center">
+            <p className="text-slate-400 mb-4">All prompt packs optimized for Claude Code, GitHub Copilot, and ChatGPT</p>
+            <Link to="/docs/" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold text-lg">
+              Browse Complete Documentation
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Evolutionary Architecture */}
-      <section className="border-t border-slate-800 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Evolutionary Architecture</h2>
-          <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
-            Maintainability-first patterns for long-lived systems. AI-assisted refactoring with automated fitness functions.
-          </p>
-
-          <div className="rounded-2xl border border-slate-700 bg-slate-950/50 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-slate-900">
-                <tr className="border-b border-slate-700">
-                  <th className="text-left p-4 font-semibold text-brand">Pattern</th>
-                  <th className="text-left p-4 font-semibold text-brand">Focus</th>
-                  <th className="text-left p-4 font-semibold text-brand">Prompt Pack</th>
-                </tr>
-              </thead>
-              <tbody className="text-slate-300">
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/maintainability/fitness-functions" className="font-semibold hover:text-brand">Fitness Functions</Link>
-                  </td>
-                  <td className="p-4 text-sm">Automated quality gates: complexity ≤10, coverage ≥80%, deps ≤90 days</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/maintainability/fitness-functions.md" className="text-brand hover:text-indigo-400">fitness-functions.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/maintainability/evolutionary-architecture" className="font-semibold hover:text-brand">Dependency Hygiene</Link>
-                  </td>
-                  <td className="p-4 text-sm">3-month freshness rule: Renovate bot + security SLAs + breaking change guards</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/maintainability/dependency-hygiene.md" className="text-brand hover:text-indigo-400">dependency-hygiene.md</a>
-                  </td>
-                </tr>
-                <tr className="border-b border-slate-800 hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/maintainability/evolutionary-architecture" className="font-semibold hover:text-brand">Strangler Fig</Link>
-                  </td>
-                  <td className="p-4 text-sm">Incremental migration: Shadow mode → Canary → 100% with instant rollback</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/maintainability/strangler-fig.md" className="text-brand hover:text-indigo-400">strangler-fig.md</a>
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-900/50">
-                  <td className="p-4">
-                    <Link to="/docs/maintainability/evolutionary-architecture" className="font-semibold hover:text-brand">Technical Debt</Link>
-                  </td>
-                  <td className="p-4 text-sm">Structured tracking: P0 ≤7 days, 20% sprint capacity for paydown</td>
-                  <td className="p-4 text-sm">
-                    <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/prompts/maintainability/technical-debt.md" className="text-brand hover:text-indigo-400">technical-debt.md</a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-8 grid md:grid-cols-3 gap-6">
-            <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-              <div className="text-brand text-4xl font-black mb-2">≤10</div>
-              <h4 className="font-bold text-lg mb-2">Complexity Limit</h4>
-              <p className="text-slate-400 text-sm">
-                Cyclomatic complexity per function enforced by fitness functions
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-              <div className="text-brand text-4xl font-black mb-2">90d</div>
-              <h4 className="font-bold text-lg mb-2">Dependency Freshness</h4>
-              <p className="text-slate-400 text-sm">
-                3-month rule: All dependencies ≤90 days old with automated updates
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-              <div className="text-brand text-4xl font-black mb-2">20%</div>
-              <h4 className="font-bold text-lg mb-2">Debt Budget</h4>
-              <p className="text-slate-400 text-sm">
-                Sprint capacity allocated to technical debt paydown
-              </p>
-            </div>
+            </Link>
           </div>
         </div>
       </section>
