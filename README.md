@@ -1,4 +1,3 @@
-````markdown
 # MaintainabilityAI Framework
 
 [![CI](https://img.shields.io/github/actions/workflow/status/AliceNN-ucdenver/MaintainabilityAI/pages.yml?label=Build%20%26%20Pages)](https://github.com/AliceNN-ucdenver/MaintainabilityAI/actions)
