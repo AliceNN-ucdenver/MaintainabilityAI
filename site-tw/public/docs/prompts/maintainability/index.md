@@ -115,144 +115,14 @@
 
 ## 📚 Maintainability Prompt Packs
 
-<div style="display: grid; gap: 24px; margin: 32px 0;">
+| Pattern | Focus | Key Metric | Use Case |
+|---------|-------|------------|----------|
+| **[📊 Fitness Functions](./fitness-functions)** | Automated quality gates | Complexity ≤10, Coverage ≥80%, Deps <90d, p95 <200ms | CI/CD gates, pre-commit hooks, code quality enforcement |
+| **[📦 Dependency Hygiene](./dependency-hygiene)** | 3-month freshness rule | All packages <90 days old | Renovate automation, security patching, version management |
+| **[🌳 Strangler Fig Pattern](./strangler-fig)** | Incremental legacy migration | Traffic routing 0%→100% | Avoiding big-bang rewrites, safe modernization |
+| **[⚠️ Technical Debt Management](./technical-debt)** | Systematic refactoring | 20% sprint capacity for paydown | Backlog prioritization, debt tracking, quality improvement |
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 28px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
-  <div style="display: flex; align-items: start; gap: 20px;">
-    <div style="font-size: 48px; line-height: 1;">📊</div>
-    <div style="flex: 1;">
-      <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9;"><a href="./fitness-functions" style="color: #818cf8; text-decoration: none;">Fitness Functions</a></h3>
-      <p style="margin: 0 0 16px 0; color: #cbd5e1; font-size: 15px; line-height: 1.6;">Automated quality gates for complexity, dependencies, coverage, and performance</p>
-      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
-        <span style="background: rgba(129, 140, 248, 0.2); color: #a5b4fc; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid rgba(129, 140, 248, 0.3);">Complexity ≤10</span>
-        <span style="background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid rgba(167, 139, 250, 0.3);">Deps ≤90 days</span>
-        <span style="background: rgba(34, 211, 238, 0.2); color: #67e8f9; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid rgba(34, 211, 238, 0.3);">Coverage ≥80%</span>
-        <span style="background: rgba(94, 234, 212, 0.2); color: #5eead4; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid rgba(94, 234, 212, 0.3);">p95 &lt;200ms</span>
-      </div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-        <strong style="color: #f1f5f9;">What you'll build:</strong>
-        <ul style="margin: 8px 0; padding-left: 20px;">
-          <li>TypeScript complexity analyzer (ts-morph)</li>
-          <li>Dependency freshness checker</li>
-          <li>Coverage baseline enforcement</li>
-          <li>Performance regression detection</li>
-          <li>GitHub Actions CI/CD integration</li>
-        </ul>
-      </div>
-      <a href="/docs/workshop/part4-fitness-functions" style="display: inline-block; margin-top: 12px; color: #818cf8; text-decoration: none; font-size: 14px; font-weight: 600;">
-        📖 Workshop Part 4 →
-      </a>
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 28px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
-  <div style="display: flex; align-items: start; gap: 20px;">
-    <div style="font-size: 48px; line-height: 1;">📦</div>
-    <div style="flex: 1;">
-      <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9;"><a href="./dependency-hygiene" style="color: #a78bfa; text-decoration: none;">Dependency Hygiene</a></h3>
-      <p style="margin: 0 0 16px 0; color: #cbd5e1; font-size: 15px; line-height: 1.6;">The 3-month freshness rule and automated dependency updates</p>
-      <div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-        <div style="color: #fca5a5; font-size: 14px; font-weight: 600; margin-bottom: 4px;">⚠️ Critical Insight</div>
-        <div style="color: #cbd5e1; font-size: 13px;">80% of breaches involve unpatched dependencies. Upgrading v1.0→v1.1 is easy; v1.0→v5.0 is a nightmare.</div>
-      </div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-        <strong style="color: #f1f5f9;">What you'll build:</strong>
-        <ul style="margin: 8px 0; padding-left: 20px;">
-          <li>Renovate bot configuration</li>
-          <li>Automated security vulnerability alerts</li>
-          <li>Smart merge policies (patch auto-merge, major needs review)</li>
-          <li>Dependency age dashboard</li>
-        </ul>
-      </div>
-      <div style="margin-top: 12px; padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-        <strong style="color: #5eead4; font-size: 13px;">3-Month Rule:</strong>
-        <span style="color: #cbd5e1; font-size: 13px;"> No dependency &gt;90 days behind latest version</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 28px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
-  <div style="display: flex; align-items: start; gap: 20px;">
-    <div style="font-size: 48px; line-height: 1;">🌳</div>
-    <div style="flex: 1;">
-      <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9;"><a href="./strangler-fig" style="color: #c4b5fd; text-decoration: none;">Strangler Fig Pattern</a></h3>
-      <p style="margin: 0 0 16px 0; color: #cbd5e1; font-size: 15px; line-height: 1.6;">Incremental migration from legacy to modern architecture (no big-bang rewrites)</p>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px;">
-        <div style="text-align: center; padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-          <div style="font-size: 24px; font-weight: 700; color: #5eead4;">0%</div>
-          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Start</div>
-        </div>
-        <div style="text-align: center; padding: 12px; background: rgba(251, 191, 36, 0.15); border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
-          <div style="font-size: 24px; font-weight: 700; color: #fbbf24;">10%</div>
-          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Testing</div>
-        </div>
-        <div style="text-align: center; padding: 12px; background: rgba(249, 115, 22, 0.15); border-radius: 8px; border: 1px solid rgba(249, 115, 22, 0.3);">
-          <div style="font-size: 24px; font-weight: 700; color: #fb923c;">50%</div>
-          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Migration</div>
-        </div>
-        <div style="text-align: center; padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-          <div style="font-size: 24px; font-weight: 700; color: #10b981;">100%</div>
-          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Complete</div>
-        </div>
-      </div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-        <strong style="color: #f1f5f9;">The Pattern:</strong> Build new implementation alongside legacy, route traffic gradually (0%→10%→50%→100%), monitor, then decommission old code.
-      </div>
-      <div style="margin-top: 12px; padding: 12px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
-        <strong style="color: #fca5a5; font-size: 13px;">❌ Anti-Pattern:</strong>
-        <span style="color: #cbd5e1; font-size: 13px;"> Big bang rewrite (18 months, no releases, 80% failure rate)</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 12px; padding: 28px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
-  <div style="display: flex; align-items: start; gap: 20px;">
-    <div style="font-size: 48px; line-height: 1;">⚠️</div>
-    <div style="flex: 1;">
-      <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9;"><a href="./technical-debt" style="color: #fbbf24; text-decoration: none;">Technical Debt Management</a></h3>
-      <p style="margin: 0 0 16px 0; color: #cbd5e1; font-size: 15px; line-height: 1.6;">Tracking, prioritizing, and paying down technical debt systematically</p>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
-        <thead>
-          <tr style="background: rgba(71, 85, 105, 0.3);">
-            <th style="padding: 8px; text-align: left; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Priority</th>
-            <th style="padding: 8px; text-align: left; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Timeline</th>
-            <th style="padding: 8px; text-align: center; border: 1px solid rgba(100, 116, 139, 0.3); color: #f1f5f9;">Blocks Release?</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="background: rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 2px 8px; border-radius: 4px; font-weight: 600;">P0</span> Production broken</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">24-48 hours</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); text-align: center; color: #cbd5e1;">✅ Yes</td>
-          </tr>
-          <tr style="background: rgba(71, 85, 105, 0.2);">
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="background: rgba(251, 191, 36, 0.3); color: #fbbf24; padding: 2px 8px; border-radius: 4px; font-weight: 600;">P1</span> Feature broken</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">1-2 weeks</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); text-align: center; color: #cbd5e1;">⚠️ Maybe</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="background: rgba(129, 140, 248, 0.3); color: #a5b4fc; padding: 2px 8px; border-radius: 4px; font-weight: 600;">P2</span> Quality issue</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Next sprint</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); text-align: center; color: #cbd5e1;">❌ No</td>
-          </tr>
-          <tr style="background: rgba(71, 85, 105, 0.2);">
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;"><span style="background: rgba(100, 116, 139, 0.3); color: #94a3b8; padding: 2px 8px; border-radius: 4px; font-weight: 600;">P3</span> Nice-to-have</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); color: #cbd5e1;">Backlog</td>
-            <td style="padding: 8px; border: 1px solid rgba(100, 116, 139, 0.3); text-align: center; color: #cbd5e1;">❌ No</td>
-          </tr>
-        </tbody>
-      </table>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-        <strong style="color: #f1f5f9;">Key principle:</strong> Budget 20% of sprint capacity for debt paydown. Make debt visible in GitHub Issues with priority labels.
-      </div>
-    </div>
-  </div>
-</div>
-
-</div>
+**Quick Start**: New to evolutionary architecture? Start with **[Fitness Functions](./fitness-functions)** to implement your first automated quality gate, then add **[Dependency Hygiene](./dependency-hygiene)** for automated updates.
 
 ---
 
@@ -322,17 +192,13 @@ flowchart TD
 
 ## 🎓 Learning Path
 
-**New to Evolutionary Architecture?** Start here:
+**New to Evolutionary Architecture?** Recommended sequence:
 
 1. **[Workshop Part 4: Fitness Functions](/docs/workshop/part4-fitness-functions)** — Build your first fitness function
-2. **[Fitness Functions Prompt Pack](./fitness-functions)** — Implement complexity checks
-3. **[Dependency Hygiene Prompt Pack](./dependency-hygiene)** — Automate updates
-4. **[Framework Guide](/docs/framework)** — Understand the big picture
+2. **[Fitness Functions](./fitness-functions)** → **[Dependency Hygiene](./dependency-hygiene)** — Start with quality gates and automation
+3. **[Framework Guide](/docs/framework)** — See how maintainability integrates with security and SDLC
 
-**Advanced Topics**:
-- **[Strangler Fig Pattern](./strangler-fig)** — Migrate legacy systems safely
-- **[Technical Debt Management](./technical-debt)** — Systematize refactoring
-- **[SDLC Integration](/docs/sdlc/)** — Embed into development lifecycle
+**Advanced**: **[Strangler Fig Pattern](./strangler-fig)** (legacy migration) · **[Technical Debt Management](./technical-debt)** (systematic refactoring) · **[SDLC Integration](/docs/sdlc/)** (full lifecycle)
 
 ---
 

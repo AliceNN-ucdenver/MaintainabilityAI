@@ -4,168 +4,164 @@
 
 ---
 
+## 🎯 OWASP Top 10 Security Coverage Dashboard
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin: 32px 0;">
+
+<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); border: 1px solid rgba(239, 68, 68, 0.3);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="font-size: 32px;">🔐</div>
+    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Access Control</div>
+  </div>
+  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">#1</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Most critical web vulnerability</div>
+  <div style="color: #fca5a5; font-size: 12px;">A01 · IDOR · Privilege Escalation</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(234, 88, 12, 0.3); border: 1px solid rgba(249, 115, 22, 0.3);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="font-size: 32px;">🔒</div>
+    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Cryptography</div>
+  </div>
+  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">#2</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Password & data encryption</div>
+  <div style="color: #fdba74; font-size: 12px;">A02 · bcrypt · AES-256-GCM</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(202, 138, 4, 0.3); border: 1px solid rgba(234, 179, 8, 0.3);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="font-size: 32px;">💉</div>
+    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Injection</div>
+  </div>
+  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">#3</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">SQL, NoSQL, command injection</div>
+  <div style="color: #fde047; font-size: 12px;">A03 · Parameterized Queries</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(22, 163, 74, 0.3); border: 1px solid rgba(34, 197, 94, 0.3);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="font-size: 32px;">✅</div>
+    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Coverage</div>
+  </div>
+  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">10/10</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Complete OWASP coverage</div>
+  <div style="color: #86efac; font-size: 12px;">All categories · Ready to use</div>
+</div>
+
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(15, 23, 42, 0.5); border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="text-align: center; color: #f1f5f9;">
+    <div style="font-size: 48px; margin-bottom: 16px;">🛡️</div>
+    <div style="font-size: 28px; font-weight: 700; margin-bottom: 12px;">Security-First AI Development</div>
+    <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 24px;">Every prompt pack includes Role → Context → Requirements → Task → Checklist</div>
+    <div style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
+      <div>
+        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">10</div>
+        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">OWASP Categories</div>
+      </div>
+      <div>
+        <div style="font-size: 24px; font-weight: 700; color: #f97316;">3</div>
+        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">AI Platforms</div>
+      </div>
+      <div>
+        <div style="font-size: 24px; font-weight: 700; color: #eab308;">5</div>
+        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Components/Pack</div>
+      </div>
+      <div>
+        <div style="font-size: 24px; font-weight: 700; color: #22c55e;">100%</div>
+        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Human Review</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+---
+
 ## 🎯 How to Use These Prompt Packs
 
-1. **Select the OWASP category** relevant to your security work
-2. **Copy the prompt pack** for your AI tool (Claude Code, Copilot, or ChatGPT)
-3. **Customize the Context section** with your tech stack and constraints
-4. **Paste into your AI assistant** and let it generate secure code
-5. **Apply human review** using the provided checklist
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 32px 0;">
+
+<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(239, 68, 68, 0.3);">
+  <div style="font-size: 48px; margin-bottom: 12px;">1️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Select Category</div>
+  <div style="font-size: 14px; color: #cbd5e1;">Choose OWASP category for your security work</div>
+</div>
+
+<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(249, 115, 22, 0.3);">
+  <div style="font-size: 48px; margin-bottom: 12px;">2️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Customize Context</div>
+  <div style="font-size: 14px; color: #cbd5e1;">Adapt for your tech stack and constraints</div>
+</div>
+
+<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(234, 179, 8, 0.3);">
+  <div style="font-size: 48px; margin-bottom: 12px;">3️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Generate Code</div>
+  <div style="font-size: 14px; color: #cbd5e1;">Use Claude, Copilot, or ChatGPT</div>
+</div>
+
+<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(34, 197, 94, 0.3);">
+  <div style="font-size: 48px; margin-bottom: 12px;">4️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Human Review</div>
+  <div style="font-size: 14px; color: #cbd5e1;">Validate with provided checklist</div>
+</div>
+
+</div>
 
 ---
 
 ## 📚 OWASP Top 10 (2021) Prompt Packs
 
-### [A01: Broken Access Control](./A01_broken_access_control)
-**Focus**: RBAC/ABAC authorization, ownership checks, IDOR prevention
+| Category | Focus | Common Vulnerability | Secure Pattern |
+|----------|-------|---------------------|----------------|
+| **[A01: Broken Access Control](A01_broken_access_control)** | RBAC/ABAC authorization, IDOR prevention | Missing authorization, horizontal/vertical privilege escalation | Deny-by-default with explicit role and ownership validation |
+| **[A02: Cryptographic Failures](A02_crypto_failures)** | Password hashing, encryption at rest | Plain text passwords, weak hashing (MD5, SHA-1), hardcoded keys | bcrypt/Argon2 for passwords, AES-256-GCM for data |
+| **[A03: Injection](A03_injection)** | SQL, NoSQL, command injection prevention | String concatenation in queries, unsanitized input | Parameterized queries, input validation with allowlist |
+| **[A04: Insecure Design](A04_insecure_design)** | Threat modeling, secure architecture | Missing rate limiting, business logic bypasses | Threat model first, apply security patterns |
+| **[A05: Security Misconfiguration](A05_security_misconfig)** | Security headers, CORS policies | Missing CSP/HSTS, overly permissive CORS, debug enabled | Secure defaults, principle of least privilege |
+| **[A06: Vulnerable Components](A06_vuln_outdated)** | Dependency scanning, supply chain security | Outdated dependencies with CVEs, no SCA in CI | Lock files, automated scanning, 3-month update rule |
+| **[A07: Authentication Failures](A07_authn_failures)** | Password policies, session management, MFA | Weak passwords, session fixation, missing MFA | bcrypt + high cost factor, rate limiting, MFA |
+| **[A08: Integrity Failures](A08_integrity_failures)** | CI/CD security, code signing | Unsigned artifacts, compromised build pipeline | Signed commits, SLSA framework, hash verification |
+| **[A09: Logging/Monitoring Failures](A09_logging_monitoring)** | Structured logging, PII redaction | No security event logging, PII in logs | Structured logs (JSON), PII redaction, alerting |
+| **[A10: SSRF](A10_ssrf)** | URL validation, metadata protection | Unvalidated user URLs, access to cloud metadata | URL allowlist, deny private IPs, validate schemes |
 
-**Common Vulnerabilities**:
-- Missing authorization checks
-- Insecure direct object references (IDOR)
-- Horizontal privilege escalation (accessing other users' data)
-- Vertical privilege escalation (user → admin)
-
-**Secure Pattern**: Deny-by-default with explicit role and ownership validation
-
-**Use Cases**: User profile access, admin endpoints, resource ownership validation
-
----
-
-### [A02: Cryptographic Failures](./A02_crypto_failures)
-**Focus**: Password hashing, encryption at rest, TLS configuration
-
-**Common Vulnerabilities**:
-- Plain text passwords in database
-- Weak hashing algorithms (MD5, SHA-1)
-- Hardcoded encryption keys
-- Missing TLS/SSL
-
-**Secure Pattern**: bcrypt/Argon2 for passwords, AES-256-GCM for data, rotate keys
-
-**Use Cases**: User registration, sensitive data storage, API key management
+**Quick Start**: New to OWASP? Start with **[A03: Injection](A03_injection)** (most common), then **[A01: Broken Access Control](A01_broken_access_control)** (most critical), followed by **[A07: Authentication Failures](A07_authn_failures)** (essential for login systems).
 
 ---
 
-### [A03: Injection](./A03_injection)
-**Focus**: SQL injection, NoSQL injection, command injection prevention
+## 🔄 Security-First Development Workflow
 
-**Common Vulnerabilities**:
-- String concatenation in SQL queries
-- NoSQL operator injection ($where, $regex)
-- OS command injection via unsanitized input
-- LDAP/XPath injection
+```mermaid
+flowchart LR
+    A[Threat Modeling] --> B[Select OWASP Pack]
+    B --> C[Customize for Stack]
+    C --> D[AI Generates Code]
+    D --> E[Human Review]
+    E --> F{Security Check}
+    F -->|Pass| G[Merge]
+    F -->|Fail| H[Refactor]
+    H --> D
+    G --> I[CI/CD Scan]
+    I --> J[Deploy]
 
-**Secure Pattern**: Parameterized queries, input validation with allowlist regex, ORM safe methods
+    style A fill:#dc2626,stroke:#ef4444,color:#f1f5f9
+    style B fill:#ea580c,stroke:#f97316,color:#f1f5f9
+    style C fill:#ca8a04,stroke:#eab308,color:#f1f5f9
+    style D fill:#16a34a,stroke:#22c55e,color:#f1f5f9
+    style E fill:#0ea5e9,stroke:#06b6d4,color:#f1f5f9
+    style F fill:#8b5cf6,stroke:#a78bfa,color:#f1f5f9
+    style H fill:#ef4444,stroke:#f87171,color:#f1f5f9
+```
 
-**Use Cases**: Database queries, search functionality, user input processing
-
----
-
-### [A04: Insecure Design](./A04_insecure_design)
-**Focus**: Threat modeling, secure architecture patterns, business logic flaws
-
-**Common Vulnerabilities**:
-- Missing rate limiting
-- Unrestricted resource consumption
-- Business logic bypasses (coupon stacking, negative quantities)
-- Missing security controls by design
-
-**Secure Pattern**: Threat model first, apply security patterns (circuit breaker, rate limiter)
-
-**Use Cases**: System architecture, API design, payment flows, authentication systems
-
----
-
-### [A05: Security Misconfiguration](./A05_security_misconfig)
-**Focus**: Security headers, CORS policies, debug mode toggles
-
-**Common Vulnerabilities**:
-- Default credentials unchanged
-- Unnecessary features enabled
-- Missing security headers (CSP, HSTS, X-Frame-Options)
-- Overly permissive CORS
-- Stack traces in production
-
-**Secure Pattern**: Secure defaults, principle of least privilege, disable debug in production
-
-**Use Cases**: Express/Fastify configuration, CORS setup, environment-specific configs
-
----
-
-### [A06: Vulnerable and Outdated Components](./A06_vuln_outdated)
-**Focus**: Dependency scanning, version pinning, supply chain security
-
-**Common Vulnerabilities**:
-- Outdated dependencies with known CVEs
-- Unpinned versions in package.json
-- No SCA (Software Composition Analysis) in CI
-- Transitive dependencies with vulnerabilities
-
-**Secure Pattern**: Lock files, automated scanning (Snyk, npm audit), 3-month update rule
-
-**Use Cases**: Dependency management, CI/CD security gates, vulnerability remediation
-
----
-
-### [A07: Identification and Authentication Failures](./A07_authn_failures)
-**Focus**: Password policies, session management, MFA, credential storage
-
-**Common Vulnerabilities**:
-- Weak password requirements
-- Session fixation
-- Missing MFA
-- Credential stuffing vulnerability
-- Predictable session tokens
-
-**Secure Pattern**: bcrypt + high cost factor, secure session tokens, rate limiting, MFA
-
-**Use Cases**: User login, password reset, session management, OAuth integration
-
----
-
-### [A08: Software and Data Integrity Failures](./A08_integrity_failures)
-**Focus**: CI/CD pipeline security, code signing, supply chain attacks
-
-**Common Vulnerabilities**:
-- Unsigned artifacts
-- Compromised build pipeline
-- No integrity checks on dependencies
-- Auto-merge without review
-- Unsigned commits
-
-**Secure Pattern**: Signed commits, SLSA framework, hash verification, artifact signing
-
-**Use Cases**: CI/CD setup, package publishing, deployment pipelines
-
----
-
-### [A09: Security Logging and Monitoring Failures](./A09_logging_monitoring)
-**Focus**: Structured logging, PII redaction, security event detection
-
-**Common Vulnerabilities**:
-- No logging of security events (login failures, access control failures)
-- PII in logs
-- No alerting on suspicious activity
-- Logs not retained long enough
-
-**Secure Pattern**: Structured logs (JSON), PII redaction, centralized logging, alerting
-
-**Use Cases**: Application logging, security monitoring, incident response
-
----
-
-### [A10: Server-Side Request Forgery (SSRF)](./A10_ssrf)
-**Focus**: URL validation, allowlist egress, metadata protection
-
-**Common Vulnerabilities**:
-- Unvalidated user-supplied URLs
-- Access to cloud metadata endpoints (169.254.169.254)
-- Internal network scanning
-- DNS rebinding attacks
-
-**Secure Pattern**: URL allowlist, deny private IPs, validate schemes (http/https only)
-
-**Use Cases**: Webhook processing, URL fetching, image proxies, PDF generation
+**Key Stages**:
+1. **Threat Modeling**: Identify OWASP categories that apply to your feature (STRIDE analysis)
+2. **Select Pack**: Choose relevant prompt pack (A01-A10)
+3. **Customize**: Adapt Context section for your tech stack (Node/Python/Java, etc.)
+4. **Generate**: Use AI assistant (Claude/Copilot/ChatGPT) to generate secure code
+5. **Review**: Apply human validation using provided checklist (trust but verify)
+6. **Security Check**: Ensure all requirements met, no shortcuts taken
+7. **CI/CD**: Automated scans (CodeQL, Snyk) validate in pipeline
+8. **Deploy**: Ship to production with confidence
 
 ---
 
@@ -192,18 +188,13 @@ Each prompt pack follows the **5-component security-first pattern**:
 
 ## 🎓 Learning Path
 
-**New to OWASP?** Start here:
+**New to OWASP?** Recommended learning path:
 
 1. **[Workshop Part 2: Security-First Prompting](/docs/workshop/part2-security-prompting)** — Learn the 5-component pattern
 2. **[Workshop Part 3: Live Remediation](/docs/workshop/part3-live-remediation)** — Fix A03 SQL injection hands-on
-3. **[A03: Injection](./A03_injection)** — Most common vulnerability, best place to start
-4. **[A01: Broken Access Control](./A01_broken_access_control)** — Critical for multi-user apps
-5. **[A07: Authentication Failures](./A07_authn_failures)** — Essential for login systems
+3. **[A03: Injection](A03_injection)** → **[A01: Broken Access Control](A01_broken_access_control)** → **[A07: Authentication Failures](A07_authn_failures)**
 
-**Advanced Topics**:
-- **[A04: Insecure Design](./A04_insecure_design)** — Learn threat modeling and secure architecture
-- **[A08: Integrity Failures](./A08_integrity_failures)** — Secure your CI/CD pipeline
-- **[Framework Guide](/docs/framework)** — STRIDE threat modeling with LLMs
+**Advanced**: **[A04: Insecure Design](A04_insecure_design)** (threat modeling) · **[A08: Integrity Failures](A08_integrity_failures)** (CI/CD security) · **[Framework Guide](/docs/framework)** (STRIDE with LLMs)
 
 ---
 
@@ -301,4 +292,16 @@ Found a security issue in a prompt pack? Have a better secure pattern?
 
 ---
 
-**Ready to start?** Pick an OWASP category above and copy the prompt pack for your AI assistant. Remember: **AI generates, humans validate.**
+<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 40px; text-align: center; color: #f1f5f9; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="font-size: 56px; margin-bottom: 16px;">🚀</div>
+  <div style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">Ready to Build Secure Software with AI?</div>
+  <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Pick an OWASP category above and start generating secure code with your AI assistant. Remember: <strong style="color: #ef4444;">AI generates, humans validate.</strong></div>
+  <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+    <a href="A03_injection" style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+      Start with A03: Injection →
+    </a>
+    <a href="/docs/framework" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+      View Full Framework →
+    </a>
+  </div>
+</div>

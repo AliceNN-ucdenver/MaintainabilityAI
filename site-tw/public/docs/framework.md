@@ -27,1070 +27,586 @@ flowchart TD
 
 ---
 
-## Three Integration Layers
+## Framework Components
 
-### Layer 1: Security Foundation (OWASP)
+The framework integrates three core pillars that work together throughout the software development lifecycle:
 
-**OWASP Top 10 (2021)** provides the security framework:
+<div style="display: grid; gap: 32px; margin: 40px 0;">
 
-| Category | Prompt Pack | Integration Point | Fitness Function |
-|----------|-------------|-------------------|------------------|
-| **A01** | [Broken Access Control](/prompts/owasp/A01_broken_access_control.md) | Phase 2: Implementation | Authorization checks enforced |
-| **A02** | [Cryptographic Failures](/prompts/owasp/A02_crypto_failures.md) | Phase 2: Implementation | No hardcoded secrets |
-| **A03** | [Injection](/prompts/owasp/A03_injection.md) | Phase 2: Implementation | Parameterized queries only |
-| **A04** | [Insecure Design](/prompts/owasp/A04_insecure_design.md) | Phase 1: Design | Threat model complete |
-| **A05** | [Security Misconfiguration](/prompts/owasp/A05_security_misconfig.md) | Phase 5: Deployment | Secure headers enforced |
-| **A06** | [Vulnerable Components](/prompts/owasp/A06_vuln_outdated.md) | Phase 6: Evolution | Dependencies <3mo old |
-| **A07** | [Authentication Failures](/prompts/owasp/A07_authn_failures.md) | Phase 2: Implementation | MFA enforced |
-| **A08** | [Integrity Failures](/prompts/owasp/A08_integrity_failures.md) | Phase 5: Deployment | Signed artifacts |
-| **A09** | [Logging/Monitoring](/prompts/owasp/A09_logging_monitoring.md) | Phase 3: Verification | Security events logged |
-| **A10** | [SSRF](/prompts/owasp/A10_ssrf.md) | Phase 2: Implementation | URL allowlist enforced |
+<!-- SDLC Section -->
+<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3); border: 1px solid rgba(99, 102, 241, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
+    <div style="font-size: 64px;">🔄</div>
+    <div>
+      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">Software Development Lifecycle (SDLC)</div>
+      <div style="color: #c7d2fe; font-size: 16px;">6 phases from design to evolution</div>
+    </div>
+  </div>
 
----
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">The Six Phases:</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px; line-height: 1.8;">
+      <div><strong>1. Design</strong> — Threat modeling with STRIDE, OWASP mapping</div>
+      <div><strong>2. Implementation</strong> — Security-first prompts with AI agents</div>
+      <div><strong>3. Verification</strong> — CodeQL, Snyk, fitness function validation</div>
+      <div><strong>4. Governance</strong> — PR review with Golden Rules checklist</div>
+      <div><strong>5. Deployment</strong> — CI/CD security gates, smoke tests</div>
+      <div><strong>6. Evolution</strong> — Metrics, dependency updates, tech debt paydown</div>
+    </div>
+  </div>
 
-### Layer 2: AI Agent Orchestration
+  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    Each phase integrates AI assistance, security controls, and automated validation. The lifecycle is continuous — insights from production monitoring (Phase 6) feed back into design decisions (Phase 1). This creates a feedback loop where your development process becomes more secure and efficient over time.
+  </div>
 
-**Use the AI agents available to you** — this framework works with Claude Code, GitHub Copilot, ChatGPT, or any LLM assistant.
+  <a href="/docs/sdlc/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
+    Explore SDLC Phases →
+  </a>
+</div>
 
-**Simple recommendation**: Use whatever AI tool you have access to. All major AI assistants can:
-- Generate secure code from OWASP prompt packs
-- Create tests from specifications
-- Refactor complex code
-- Perform STRIDE threat analysis
+<!-- OWASP Section -->
+<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); border: 1px solid rgba(239, 68, 68, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
+    <div style="font-size: 64px;">🛡️</div>
+    <div>
+      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">OWASP Top 10 Security</div>
+      <div style="color: #fca5a5; font-size: 16px;">10 comprehensive prompt packs for secure AI development</div>
+    </div>
+  </div>
 
-**If you have multiple tools**, here's when each excels:
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Complete Coverage:</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 13px; line-height: 1.6;">
+      <div>✓ A01 — Broken Access Control</div>
+      <div>✓ A02 — Cryptographic Failures</div>
+      <div>✓ A03 — Injection</div>
+      <div>✓ A04 — Insecure Design</div>
+      <div>✓ A05 — Security Misconfiguration</div>
+      <div>✓ A06 — Vulnerable Components</div>
+      <div>✓ A07 — Authentication Failures</div>
+      <div>✓ A08 — Integrity Failures</div>
+      <div>✓ A09 — Logging/Monitoring</div>
+      <div>✓ A10 — Server-Side Request Forgery</div>
+    </div>
+  </div>
 
-| Your Task | Best Tool | Why |
-|-----------|-----------|-----|
-| **Threat modeling** (design phase) | ChatGPT or Claude | Structured analysis and documentation |
-| **Real-time coding** (inside IDE) | GitHub Copilot | Autocomplete as you type |
-| **Large refactoring** or test generation | Claude Code | Handles large codebases and complex edits |
-| **Code review** and checklists | ChatGPT or Claude | Structured validation against requirements |
+  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    Every prompt pack follows the proven 5-component pattern: Role → Context → Requirements → Task → Checklist. Use these with Claude Code, GitHub Copilot, or ChatGPT to generate secure code by default. Each pack includes attack scenarios, secure patterns, and validation checklists so AI generates code that's secure from the start.
+  </div>
 
-**Key principle**: AI tool choice matters far less than using **security-first prompts**. A generic "write login code" prompt produces insecure code in any AI tool. An OWASP A07 prompt pack produces secure code in any AI tool.
+  <a href="/docs/prompts/owasp/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
+    Browse OWASP Prompt Packs →
+  </a>
+</div>
 
-See [SDLC Phases](/docs/sdlc/) for detailed agent usage in each phase.
+<!-- Maintainability Section -->
+<div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(5, 150, 105, 0.3); border: 1px solid rgba(16, 185, 129, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
+    <div style="font-size: 64px;">📊</div>
+    <div>
+      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">Evolutionary Architecture & Maintainability</div>
+      <div style="color: #a7f3d0; font-size: 16px;">Automated fitness functions prevent architectural erosion</div>
+    </div>
+  </div>
 
----
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Automated Quality Gates:</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px; line-height: 1.8;">
+      <div><strong>Complexity ≤10</strong> — Cyclomatic complexity per function</div>
+      <div><strong>Coverage ≥80%</strong> — Test coverage on critical paths</div>
+      <div><strong>Deps &lt;90 days</strong> — No packages older than 3 months</div>
+      <div><strong>p95 &lt;200ms</strong> — Performance regression detection</div>
+    </div>
+  </div>
 
-### Layer 3: Maintainability & Evolution
+  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    Fitness functions are automated checks that protect your architecture from decay. Without them, quality standards exist only in reviewers' heads. With them, standards are enforced in CI/CD before merge. Includes prompt packs for implementing complexity analyzers, dependency freshness checks, the Strangler Fig migration pattern, and systematic technical debt management.
+  </div>
 
-**Evolutionary Architecture** with **Fitness Functions** ensures long-term health:
+  <a href="/docs/prompts/maintainability/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
+    Browse Maintainability Prompt Packs →
+  </a>
+</div>
 
-```mermaid
-flowchart TD
-    A[Code Change] --> B{Fitness Functions}
+</div>
 
-    B --> C[Complexity ≤10]
-    B --> D[Coverage ≥80%]
-    B --> E[Dependencies <3mo]
-    B --> F[Security Clean]
+<!-- Threat Modeling Section -->
+<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3); border: 1px solid rgba(139, 92, 246, 0.3);">
+  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
+    <div style="font-size: 64px;">🎯</div>
+    <div>
+      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">STRIDE Threat Modeling</div>
+      <div style="color: #c4b5fd; font-size: 16px;">AI-powered security design with Microsoft's STRIDE methodology</div>
+    </div>
+  </div>
 
-    C -->|Pass| G[Merge]
-    D -->|Pass| G
-    E -->|Pass| G
-    F -->|Pass| G
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Six Threat Categories:</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 14px; line-height: 1.8;">
+      <div><strong>S</strong>poofing — Identity impersonation</div>
+      <div><strong>T</strong>ampering — Data manipulation</div>
+      <div><strong>R</strong>epudiation — Denying actions</div>
+      <div><strong>I</strong>nformation Disclosure — Data leaks</div>
+      <div><strong>D</strong>enial of Service — Availability attacks</div>
+      <div><strong>E</strong>levation of Privilege — Unauthorized access</div>
+    </div>
+  </div>
 
-    C -->|Fail| H[Refactor]
-    D -->|Fail| I[Add Tests]
-    E -->|Fail| J[Upgrade Deps]
-    F -->|Fail| K[Fix Vuln]
+  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+    STRIDE helps you systematically identify security threats during design — before writing code. Use ChatGPT or Claude to analyze your architecture diagram and generate comprehensive threat models in minutes. Each STRIDE category maps to specific OWASP vulnerabilities, creating a clear path from threat identification to secure implementation.
+  </div>
 
-    H --> A
-    I --> A
-    J --> A
-    K --> A
+  <a href="/docs/prompts/threat-modeling/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
+    Browse STRIDE Prompt Packs →
+  </a>
+</div>
 
-    G --> L[Monitor]
-    L --> M{Degradation?}
-    M -->|Yes| N[Tech Debt Backlog]
-    M -->|No| L
+</div>
 
-    N --> A
-```
-
-See [Maintainability Framework](maintainability/) for details.
-
----
-
-## STRIDE Threat Modeling with LLMs
-
-**STRIDE** is Microsoft's threat modeling methodology that systematically identifies security threats across six categories. When combined with Large Language Models (LLMs), threat modeling becomes accessible to all developers — not just security specialists.
-
-### What is STRIDE?
-
-STRIDE is an acronym for six threat categories:
-
-| Threat | Description | Example | OWASP Mapping |
-|--------|-------------|---------|---------------|
-| **S**poofing | Pretending to be someone/something else | Fake login page, session hijacking | A07 (Authentication) |
-| **T**ampering | Modifying data or code | SQL injection, man-in-the-middle | A03 (Injection), A08 (Integrity) |
-| **R**epudiation | Denying actions without proof | User denies making transaction, no logs | A09 (Logging) |
-| **I**nformation Disclosure | Exposing sensitive information | SQL errors leaking schema, directory listing | A01 (Access Control), A02 (Crypto) |
-| **D**enial of Service | Making system unavailable | Resource exhaustion, algorithmic complexity attacks | A04 (Insecure Design) |
-| **E**levation of Privilege | Gaining unauthorized permissions | IDOR, broken access control, privilege escalation | A01 (Access Control) |
-
-**Why STRIDE matters**: It provides a **checklist approach** to threat modeling — instead of asking "what could go wrong?" you systematically check each threat category against each system component.
-
----
-
-### LLM-Powered STRIDE Analysis
-
-**Traditional problem**: Threat modeling requires security expertise and is time-consuming (4-8 hours per system)
-
-**LLM solution**: AI assistants can generate comprehensive STRIDE analyses in minutes, making threat modeling accessible during design phase
-
-#### Example: STRIDE Analysis for Document Sharing System
-
-**System Description**:
-```
-Web application where users can upload documents and share them with other users.
-- Frontend: React SPA
-- Backend: Node.js + Express
-- Database: PostgreSQL
-- Storage: AWS S3
-- Auth: JWT tokens
-```
-
-**ChatGPT Prompt for STRIDE Analysis**:
-
-````markdown
-Role: You are a security architect performing STRIDE threat modeling.
-
-Context:
-- System: Document sharing web application
-- Tech stack: React, Node.js/Express, PostgreSQL, AWS S3, JWT auth
-- Users can: upload documents, share with other users, download shared documents
-
-Task:
-Perform a complete STRIDE analysis for this system. For each STRIDE category:
-1. Identify 3-5 specific threats
-2. Map to OWASP Top 10 category
-3. Suggest concrete mitigation (not generic advice)
-4. Prioritize as High/Medium/Low risk
-
-Output format:
-## Spoofing Threats
-- **T1**: [Threat description]
-  - OWASP: [Category]
-  - Risk: [High/Medium/Low]
-  - Mitigation: [Specific control]
-
-[Repeat for T, R, I, D, E]
-````
-
-**ChatGPT Output Example**:
-
-```markdown
-## Spoofing Threats
-
-### T1: JWT Token Forgery
-- **Description**: Attacker forges JWT tokens to impersonate other users
-- **OWASP**: A07 (Authentication Failures)
-- **Risk**: High
-- **Mitigation**:
-  - Use strong secret (≥256 bits, store in env var, not code)
-  - Set short expiration (15 minutes access token, refresh token for renewal)
-  - Verify signature on every request with jwt.verify()
-  - Use RS256 (asymmetric) instead of HS256 if tokens issued by multiple services
-
-### T2: Session Hijacking via XSS
-- **Description**: Attacker steals JWT from localStorage via XSS attack
-- **OWASP**: A03 (Injection)
-- **Risk**: High
-- **Mitigation**:
-  - Store JWT in HttpOnly cookie (not localStorage)
-  - Set SameSite=Strict on cookie
-  - Implement Content Security Policy (CSP)
-  - Escape all user input in React (use {variable}, not dangerouslySetInnerHTML)
-
-## Tampering Threats
-
-### T3: SQL Injection in Search
-- **Description**: Attacker modifies database queries via search input
-- **OWASP**: A03 (Injection)
-- **Risk**: High
-- **Mitigation**:
-  - Use parameterized queries: db.query('SELECT * FROM docs WHERE name ILIKE $1', [input])
-  - Validate input with Zod schema (alphanumeric + space only)
-  - Limit query length (≤100 chars)
-
-### T4: File Upload Tampering
-- **Description**: Attacker uploads malicious file (executable, XSS payload)
-- **OWASP**: A03 (Injection), A04 (Insecure Design)
-- **Risk**: High
-- **Mitigation**:
-  - Validate Content-Type header AND file magic bytes (not just extension)
-  - Allowlist: image/*, application/pdf only
-  - Store in S3 with restricted bucket policy (no public access)
-  - Generate random filename (UUID), never use user-supplied name
-  - Scan uploads with ClamAV or AWS Macie
-
-## Repudiation Threats
-
-### T5: No Audit Trail for Document Access
-- **Description**: User denies accessing sensitive document
-- **OWASP**: A09 (Logging Failures)
-- **Risk**: Medium
-- **Mitigation**:
-  - Log every document access: {userId, documentId, action: 'view', timestamp, ip}
-  - Store logs in append-only table or external system (DataDog, CloudWatch)
-  - Retain logs for 90 days (compliance requirement)
-
-## Information Disclosure Threats
-
-### T6: SQL Error Leaks Schema
-- **Description**: Database error messages expose table/column names
-- **OWASP**: A05 (Security Misconfiguration)
-- **Risk**: Medium
-- **Mitigation**:
-  - Catch all database errors
-  - Return generic message to client: "Search failed"
-  - Log full error server-side (not client)
-  - Never use console.log in production
-
-### T7: IDOR in Download Endpoint
-- **Description**: Attacker accesses others' documents by changing documentId in URL
-- **OWASP**: A01 (Broken Access Control)
-- **Risk**: High
-- **Mitigation**:
-  - Verify ownership: SELECT * FROM docs WHERE id=$1 AND (ownerId=$2 OR $2 IN (SELECT userId FROM shares WHERE docId=$1))
-  - Deny-by-default: no access unless explicitly shared
-  - Test with automated access control tests
-
-## Denial of Service Threats
-
-### T8: Unbounded File Uploads
-- **Description**: Attacker uploads 10GB file, exhausting storage/bandwidth
-- **OWASP**: A04 (Insecure Design)
-- **Risk**: Medium
-- **Mitigation**:
-  - Set max file size: 25MB (enforce in Express middleware)
-  - Rate limit uploads: 10 uploads per hour per user
-  - Use streaming uploads (multer-s3) to avoid buffering in memory
-
-### T9: Algorithmic Complexity Attack
-- **Description**: Attacker sends regex DoS payload in search
-- **OWASP**: A04 (Insecure Design)
-- **Risk**: Low
-- **Mitigation**:
-  - Use simple regex with no nested quantifiers
-  - Set query timeout (e.g., 5 seconds)
-  - Limit input length (≤100 chars)
-
-## Elevation of Privilege Threats
-
-### T10: Horizontal Privilege Escalation
-- **Description**: User modifies another user's document by guessing documentId
-- **OWASP**: A01 (Broken Access Control)
-- **Risk**: High
-- **Mitigation**: (Same as T7 IDOR mitigation)
-
-### T11: Admin Role Escalation
-- **Description**: User modifies their own role to 'admin' via tampered JWT or API
-- **OWASP**: A01 (Broken Access Control)
-- **Risk**: High
-- **Mitigation**:
-  - Store role in database, not JWT payload (JWT can be decoded by client)
-  - Fetch role from DB on every request: SELECT role FROM users WHERE id=$1
-  - Never trust client-supplied role
-  - Admin role assignment requires 2FA + approval workflow
-```
-
-**Time saved**: Traditional threat model = 4 hours. LLM-assisted = 15 minutes + 30 minutes human review.
+**How They Work Together**: Start with SDLC Phase 1 (Design) using STRIDE threat modeling. Apply OWASP prompt packs in Phase 2 (Implementation) to generate secure code. Validate with fitness functions in Phase 3 (Verification). This integrated approach ensures security and maintainability are built in from day one, not bolted on later.
 
 ---
 
-### Visualizing Threats with Mermaid Architecture Diagrams
+## Security Pipeline: Defense in Depth
 
-Use Mermaid's architecture diagram syntax to visualize system components and data flows:
-
-```mermaid
-architecture-beta
-    group frontend(cloud)[Frontend Layer]
-    group backend(cloud)[Backend Layer]
-    group storage(database)[Storage Layer]
-
-    service browser(internet)[Browser] in frontend
-    service react(server)[React SPA] in frontend
-
-    service express(server)[Express API] in backend
-    service auth(server)[Auth Service] in backend
-
-    service postgres(database)[PostgreSQL] in storage
-    service s3(disk)[S3 Bucket] in storage
-
-    browser:R --> L:react
-    react:R --> L:express
-    express:B --> T:auth
-    express:R --> L:postgres
-    express:R --> L:s3
-```
-
-**Threat Flow Diagram**:
+MaintainabilityAI implements a **6-layer security pipeline** that catches vulnerabilities at every stage of development:
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant A as API
-    participant DB as Database
-    participant S3 as S3 Storage
+    participant Dev as Developer
+    participant IDE as IDE<br/>(AI Assistant)
+    participant Local as Local<br/>(Lint/Test)
+    participant Git as Pre-commit<br/>(Snyk)
+    participant CI as CI/CD<br/>(CodeQL/Snyk)
+    participant Human as Human Review
+    participant Prod as Production
 
-    Note over U,S3: T1: Spoofing - JWT Forgery [HIGH]
-    U->>F: Login with credentials
-    F->>A: POST /auth/login
-    A->>DB: Verify password bcrypt
-    A-->>F: JWT token HttpOnly cookie
-
-    Note over U,S3: T3: Tampering - SQL Injection [HIGH]
-    U->>F: Search malicious payload
-    F->>A: GET /docs/search
-    A->>DB: Parameterized query with $1 placeholder
-    DB-->>A: Safe results
-    A-->>F: Documents JSON
-
-    Note over U,S3: T7: Information Disclosure - IDOR [HIGH]
-    U->>F: Click download docId=123
-    F->>A: GET /docs/123/download
-    A->>DB: Check ownership and sharing
-    alt User has access
-        A->>S3: Generate signed URL
-        S3-->>F: Redirect to signed URL
-    else Access denied
-        A-->>F: 403 Forbidden
-    end
-
-    Note over U,S3: T8: Denial of Service - Large Upload [MEDIUM]
-    U->>F: Upload 100GB file
-    F->>A: POST /docs/upload
-    A->>A: Check size limit 25MB
-    A-->>F: 413 Payload Too Large
+    Dev->>IDE: Prompt with security constraints
+    IDE-->>Dev: Secure code generation
+    Dev->>Local: npm test && npm run lint
+    Local-->>Dev: ✅ Quality checks pass
+    Dev->>Git: git commit
+    Git-->>Dev: ✅ Security scan pass
+    Dev->>CI: git push (PR)
+    CI-->>Dev: ✅ CodeQL + Snyk pass
+    Dev->>Human: Request review
+    Human-->>Dev: ✅ Golden Rules applied
+    Human->>Prod: Merge & Deploy
 ```
 
-**Component-Threat Mapping**:
-
-```mermaid
-graph TB
-    subgraph "System Components"
-        A[Browser]
-        B[React SPA]
-        C[Express API]
-        D[Auth Service]
-        E[PostgreSQL]
-        F[S3 Storage]
-    end
-
-    subgraph "STRIDE Threats"
-        T1[T1: JWT Forgery<br/>HIGH]
-        T2[T2: XSS Session Hijack<br/>HIGH]
-        T3[T3: SQL Injection<br/>HIGH]
-        T7[T7: IDOR<br/>HIGH]
-        T8[T8: Large Upload DoS<br/>MEDIUM]
-    end
-
-    A -->|T2| B
-    B -->|T1| C
-    C -->|T3| E
-    C -->|T7| F
-    C -->|T8| F
-
-    style T1 fill:#ff5252
-    style T2 fill:#ff5252
-    style T3 fill:#ff5252
-    style T7 fill:#ff5252
-    style T8 fill:#ffa726
-```
-
----
-
-### Best Practices: LLM-Assisted Threat Modeling
-
-#### 1. Start with Architecture Diagram
-Before running STRIDE analysis, create a clear architecture diagram:
-
-```mermaid
-architecture-beta
-    group client(cloud)[Client Tier]
-    group app(cloud)[Application Tier]
-    group data(database)[Data Tier]
-    group external(internet)[External Services]
-
-    service mobile(tablet)[Mobile App] in client
-    service web(internet)[Web App] in client
-
-    service lb(server)[Load Balancer] in app
-    service api(server)[API Gateway] in app
-    service worker(server)[Background Workers] in app
-
-    service cache(disk)[Redis Cache] in data
-    service db(database)[PostgreSQL] in data
-    service queue(server)[Message Queue] in data
-
-    service auth0(server)[Auth0] in external
-    service stripe(server)[Stripe] in external
-    service aws(cloud)[AWS S3] in external
-
-    mobile:R --> L:lb
-    web:R --> L:lb
-    lb:R --> L:api
-    api:T --> B:cache
-    api:R --> L:db
-    api:B --> T:worker
-    worker:R --> L:queue
-    api:R --> L:auth0
-    api:R --> L:stripe
-    api:R --> L:aws
-```
-
-**Why this matters**: Clear diagrams help LLMs understand your system topology, leading to more accurate threat identification.
-
-#### 2. Iterate with Follow-Up Prompts
-
-After initial STRIDE analysis, drill down on high-risk threats:
-
-```markdown
-"For threat T3 (SQL Injection), provide:
-1. Complete secure code example in Node.js with pg library
-2. Zod validation schema
-3. Unit test covering the attack payload
-4. Integration test for database layer"
-```
-
-#### 3. Map Threats to Implementation Tasks
-
-Convert STRIDE output into actionable GitHub Issues:
-
-```markdown
-## Issue: [HIGH] T3 - SQL Injection in Search Endpoint
-
-**Threat Category**: Tampering (STRIDE), A03 Injection (OWASP)
-
-**Description**: Current search endpoint concatenates user input into SQL query, allowing injection attacks.
-
-**Vulnerable Code**:
-```typescript
-const sql = `SELECT * FROM docs WHERE name LIKE '%${req.query.q}%'`;
-```
-
-**Mitigation Tasks**:
-- [ ] Replace with parameterized query ($1 placeholder)
-- [ ] Add Zod validation (alphanumeric + space only)
-- [ ] Set max length 100 chars
-- [ ] Add test with payload: "'; DROP TABLE--"
-- [ ] Update prompt pack: /prompts/owasp/A03_injection.md
-
-**Prompt Pack**: Use [A03_injection.md](/prompts/owasp/A03_injection.md)
-
-**Assigned To**: @developer
-**Priority**: P0 (block release)
-**OWASP**: A03
-**STRIDE**: Tampering
-```
-
-#### 4. Validate with Human Security Review
-
-LLMs can miss threats or suggest imperfect mitigations. Always apply human review:
-
-**Review Checklist**:
-- [ ] Are all data flows identified in the diagram?
-- [ ] Did LLM miss any obvious threats? (check each STRIDE category)
-- [ ] Are mitigations **specific** (not "use encryption" but "AES-256-GCM with key rotation every 90 days")?
-- [ ] Are mitigations **testable**? (can we write a unit test proving it works?)
-- [ ] Are threats prioritized correctly? (High = exploitable + high impact)
-
----
-
-### STRIDE + OWASP Integration
-
-Map STRIDE threats back to OWASP prompt packs for implementation:
-
-| STRIDE Category | Primary OWASP | Secondary OWASP | Prompt Pack |
-|-----------------|---------------|-----------------|-------------|
-| **Spoofing** | A07 (Authentication) | A02 (Crypto) | [A07_authn_failures.md](/prompts/owasp/A07_authn_failures.md) |
-| **Tampering** | A03 (Injection) | A08 (Integrity) | [A03_injection.md](/prompts/owasp/A03_injection.md) |
-| **Repudiation** | A09 (Logging) | - | [A09_logging_monitoring.md](/prompts/owasp/A09_logging_monitoring.md) |
-| **Information Disclosure** | A01 (Access Control) | A02 (Crypto), A05 (Misconfig) | [A01_broken_access_control.md](/prompts/owasp/A01_broken_access_control.md) |
-| **Denial of Service** | A04 (Insecure Design) | A05 (Misconfig) | [A04_insecure_design.md](/prompts/owasp/A04_insecure_design.md) |
-| **Elevation of Privilege** | A01 (Access Control) | A07 (Authentication) | [A01_broken_access_control.md](/prompts/owasp/A01_broken_access_control.md) |
-
-**Workflow**:
-1. **Design Phase**: Run STRIDE analysis with ChatGPT → identify threats
-2. **Implementation Phase**: Use OWASP prompt pack → implement mitigations
-3. **Verification Phase**: Write tests for each threat → ensure mitigation works
-4. **Governance Phase**: Review all HIGH threats addressed → approve release
-
----
-
-### Tools & Resources
-
-**LLM Tools for Threat Modeling**:
-- **ChatGPT**: Best for structured STRIDE analysis and documentation
-- **Claude**: Best for analyzing large architecture diagrams and complex systems
-- **GitHub Copilot**: Best for generating mitigation code inline
-
-**Threat Modeling Tools**:
-- **Microsoft Threat Modeling Tool**: Desktop app with STRIDE templates
-- **OWASP Threat Dragon**: Open-source, web-based threat modeling
-- **IriusRisk**: Commercial tool with automated threat libraries
-
-**Further Reading**:
-- [Microsoft STRIDE Documentation](https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats)
-- [OWASP Threat Modeling Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html)
-- [Pure Storage Blog: LLMs for STRIDE](https://blog.purestorage.com/purely-technical/leveraging-large-language-models-for-stride-threat-modeling/)
-
----
-
-## Complete Workflow: Feature Development
-
-### End-to-End Example: Secure Document Sharing
-
-**Starting Point**: User story
-**Ending Point**: Production deployment with monitoring
-
----
-
-#### Phase 1: Design Intent (ChatGPT + Claude)
-
-**Step 1: Requirements** (ChatGPT)
-```markdown
-Feature: Users can share documents with other users
-
-Functional Requirements:
-- FR1: Share document via email
-- FR2: Permissions: read, write, admin
-- FR3: Revoke share anytime
-
-Security Requirements:
-- OWASP A01: Verify ownership before share
-- OWASP A03: Validate email input
-- OWASP A09: Audit trail for compliance
-```
-
-**Step 2: Threat Model** (ChatGPT with STRIDE)
-```markdown
-Threats Identified:
-- T1: JWT forgery (A07)
-- T3: Permission escalation (A01)
-- T4: SQL injection (A03)
-- T5: No audit trail (A09)
-- T6: IDOR attacks (A01)
-- T7: Info disclosure (A01)
-- T8: DoS via flooding (A04)
-- T9: Re-sharing escalation (A01)
-
-OWASP Categories: A01, A03, A07, A09
-```
-
-**Step 3: Architecture** (Claude)
-```typescript
-// Data model, API design, security controls
-CREATE TABLE document_shares (
-  id UUID PRIMARY KEY,  // Non-sequential (T6)
-  document_id UUID,
-  owner_id UUID,
-  shared_with_email VARCHAR(255),  // Validated (T4)
-  permission VARCHAR(10),  // Immutable (T3)
-  created_at TIMESTAMP  // Audit (T5)
-);
-```
-
-**Output**: Design document, threat model, OWASP mapping
-
-**Duration**: 2 hours
-
----
-
-#### Phase 2: Implementation (Copilot)
-
-**Prompt** (using OWASP packs):
-```markdown
-#file:/prompts/owasp/A01_broken_access_control.md
-#file:/prompts/owasp/A03_injection.md
-
-Context: Document sharing feature, threats T1-T9 from threat model
-
-Implement createShare() function:
-1. Verify ownership (T3, T6, T9)
-2. Validate email with Zod (T4)
-3. Parameterized query (T4)
-4. Audit log (T5)
-5. Generic errors (T7)
-```
-
-**Generated Code**:
-```typescript
-export async function createShare(
-  documentId: string,
-  requesterId: string,
-  data: ShareInput
-) {
-  // T3, T6, T9: Authorization
-  await verifyOwnership(documentId, requesterId);
-
-  // T4: Input validation
-  const validated = shareSchema.parse(data);
-
-  // T4: Parameterized query
-  const share = await db.query(
-    'INSERT INTO document_shares (document_id, owner_id, shared_with_email, permission) VALUES ($1, $2, $3, $4) RETURNING *',
-    [documentId, requesterId, validated.email, validated.permission]
-  );
-
-  // T5: Audit logging
-  await auditLog('share_created', { shareId: share.id, userId: requesterId });
-
-  return share;
-}
-```
-
-**Local Tests**:
-```bash
-npm run lint  # ESLint: Pass
-npm test      # Jest: 42 tests pass, 95% coverage
-```
-
-**Output**: Implementation + tests
-
-**Duration**: 3 hours
-
----
-
-#### Phase 3: Verification (Claude + CodeQL + Snyk)
-
-**Gate 1: ESLint & Jest** (local)
-```bash
-✅ Complexity: Max 8 (threshold 10)
-✅ Coverage: 95% (threshold 80%)
-```
-
-**Gate 2: CodeQL** (CI)
-```bash
+### The Six Layers
+
+**Example: Building a Document Sharing Feature** — *"Users should share documents with different permission levels"*
+
+Click any layer to see how it applies to this real feature:
+
+<div style="display: grid; gap: 16px; margin: 24px 0;">
+
+<details style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 1: IDE Security — Prevention at the Source</summary>
+  <div style="color: #fca5a5; font-size: 14px; margin: 16px 0 12px 0;">Use security-first prompts with OWASP categories. <strong>Prevents 60-70% of vulnerabilities</strong> before they're written.</div>
+
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; line-height: 1.7;">
+    <strong style="display: block; margin-bottom: 8px;">📋 User Story: Document Sharing</strong>
+    <strong>Requirement:</strong> Users can share documents via email with read/write/admin permissions<br/>
+    <strong>Threats Identified:</strong> IDOR attacks, SQL injection, permission escalation, no audit trail
+  </div>
+
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">💡 The Prompt:</strong>
+    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
+<strong>Role:</strong> Security engineer implementing secure document sharing
+
+<strong>Context:</strong>
+- Node.js + TypeScript + PostgreSQL
+- User authentication via JWT (user ID available)
+- Document permissions: read, write, admin
+- OWASP categories: A01 (Access Control), A03 (Injection), A09 (Logging)
+
+<strong>Functional Requirements:</strong>
+1. Implement createShare(documentId, recipientEmail, permission, userId)
+2. Verify userId owns documentId before sharing (prevent IDOR)
+3. Validate recipientEmail exists in users table
+4. Insert share record with permission level
+5. Return share ID on success
+
+<strong>Non-Functional Requirements (Security & Quality):</strong>
+- Use parameterized queries ($1, $2 placeholders) - <a href="/docs/prompts/owasp/A03_injection" style="color: #fca5a5;">OWASP A03</a>
+- Validate all inputs with Zod (email format, permission enum)
+- Verify resource ownership before any operation - <a href="/docs/prompts/owasp/A01_broken_access_control" style="color: #fca5a5;">OWASP A01</a>
+- Log security events (share created, failures) - <a href="/docs/prompts/owasp/A09_logging_monitoring" style="color: #fca5a5;">OWASP A09</a>
+- Generic error messages to client, detailed logs server-side
+- Cyclomatic complexity ≤10 per function
+- Test coverage ≥80% with attack payloads
+
+<strong>Fitness Functions to Satisfy:</strong>
+- Dependency freshness <90 days - <a href="/docs/prompts/maintainability/dependency-hygiene" style="color: #86efac;">See prompt pack</a>
+- No eval() or type-unsafe operations
+- All async operations have error handling
+
+<strong>Task:</strong>
+Generate createShare() function with full security controls and tests.</pre>
+  </div>
+
+  <div style="font-size: 14px; line-height: 1.7;">
+    <strong>What AI generates:</strong> Code with authorization checks, parameterized queries, input validation, and audit logs built in from the start.
+  </div>
+</details>
+
+<details style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 2: Local Checks — Fast Feedback Loop</summary>
+  <div style="color: #fdba74; font-size: 14px; margin: 16px 0 12px 0;">ESLint catches dangerous patterns. Jest validates security controls with attack payloads.</div>
+
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">✅ Running Local Tests:</strong>
+    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
+npm run lint
+✅ No eval() usage
+✅ No type-unsafe operations
+✅ Complexity: Max 8 (threshold: 10)
+
+npm test
+✅ SQL injection blocked: "'; DROP TABLE--"
+✅ IDOR attack blocked: Different user's doc
+✅ Permission escalation blocked
+✅ Coverage: 95% (threshold: 80%)</pre>
+  </div>
+
+  <div style="font-size: 14px; line-height: 1.7;">
+    <strong>Outcome:</strong> Immediate feedback — if security controls aren't working, you know before committing.
+  </div>
+</details>
+
+<details style="background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 3: Pre-commit Hooks — Last Defense Before Repo</summary>
+  <div style="color: #fde047; font-size: 14px; margin: 16px 0 12px 0;">Snyk scans for hardcoded secrets and vulnerable patterns. Blocks commits that introduce risks.</div>
+
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">🔍 Pre-commit Scan:</strong>
+    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
+git commit -m "feat: add document sharing"
+
+Running pre-commit hooks...
+✅ No hardcoded secrets detected
+✅ No vulnerable patterns found
+✅ All dependencies clean
+
+[main abc123] feat: add document sharing</pre>
+  </div>
+
+  <div style="font-size: 14px; line-height: 1.7;">
+    <strong>Outcome:</strong> Can't accidentally commit API keys, passwords, or known vulnerable code.
+  </div>
+</details>
+
+<details style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 4: CI/CD Gates — Automated Deep Analysis</summary>
+  <div style="color: #86efac; font-size: 14px; margin: 16px 0 12px 0;">CodeQL deep analysis, Snyk CVE scanning, fitness function validation.</div>
+
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">🤖 CI Pipeline (GitHub Actions):</strong>
+    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
+<strong>CodeQL Security Analysis:</strong>
 ✅ SQL injection: None detected
 ✅ Access control: All checks present
 ✅ Hardcoded secrets: None
-```
 
-**Gate 3: Snyk** (CI)
-```bash
-✅ Dependencies: 0 high/critical CVEs
-✅ Freshness: All packages <2 months old
-```
+<strong>Snyk Dependency Scan:</strong>
+✅ 0 high/critical CVEs
+✅ All packages &lt;2 months old
 
-**Gate 4: Attack Vector Tests** (Claude generates)
-```typescript
-it('should block SQL injection (T4)', async () => {
-  await expect(
-    createShare('doc-123', 'owner-456', {
-      email: "'; DROP TABLE users--",
-      permission: 'read'
-    })
-  ).rejects.toThrow(ValidationError);
-});
+<strong>Fitness Functions:</strong>
+✅ Complexity ≤10: Pass
+✅ Coverage ≥80%: Pass (95%)
+✅ Performance p95 &lt;200ms: Pass (145ms)</pre>
+  </div>
 
-it('should prevent IDOR (T6)', async () => {
-  await expect(
-    createShare('doc-victim', 'attacker', { ... })
-  ).rejects.toThrow(UnauthorizedError);
-});
-```
+  <div style="font-size: 14px; line-height: 1.7;">
+    <strong>Outcome:</strong> Deep semantic analysis finds issues local tools miss. Code quality enforced automatically.
+  </div>
+</details>
 
-**Output**: Verification report (all gates passed)
+<details style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 5: Human Review — Critical Thinking</summary>
+  <div style="color: #67e8f9; font-size: 14px; margin: 16px 0 12px 0;">Apply Golden Rules: trust but verify, understand every line, validate business logic.</div>
 
-**Duration**: 1 hour (automated)
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">👤 Reviewer Checklist:</strong>
+    <div style="font-size: 13px; line-height: 1.8;">
+      ✅ <strong>Understand every line:</strong> Can explain code to teammate<br/>
+      ✅ <strong>Verify security controls:</strong> Authorization, validation, error handling present<br/>
+      ✅ <strong>Check edge cases:</strong> What if email invalid? User deleted? Doc already shared?<br/>
+      ✅ <strong>AI disclosure:</strong> Commit labeled 🤖 AI-assisted with Copilot using A01, A03<br/>
+      ✅ <strong>Business logic:</strong> Does this actually solve the user's problem securely?
+    </div>
+  </div>
 
----
+  <div style="font-size: 14px; line-height: 1.7;">
+    <strong>Outcome:</strong> AI validates technical controls. Human validates if it's the right solution.
+  </div>
+</details>
 
-#### Phase 4: Governance (Human + ChatGPT)
+<details style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 6: Production Monitoring — Runtime Protection</summary>
+  <div style="color: #c4b5fd; font-size: 14px; margin: 16px 0 12px 0;">Monitor security events, alert on anomalies, log for forensics and compliance.</div>
 
-**PR Template**:
-```markdown
-## OWASP Categories: A01, A03, A09
-## Threats Mitigated: T1, T3, T4, T5, T6, T7, T8, T9 ✅
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">📊 Week 1 Production Metrics:</strong>
+    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
+<strong>Feature Performance:</strong>
+🎉 1,200+ documents shared/day
+⚡ p95 latency: 145ms (threshold: 200ms)
 
-## AI Disclosure
-- Tool: GitHub Copilot
-- Prompts: A01, A03, A09 prompt packs
-- Human review: Complete
+<strong>Security Events:</strong>
+🛡️ 23 IDOR attempts/day → <strong>All blocked</strong>
+🛡️ 5 SQL injection attempts/day → <strong>All blocked</strong>
+🛡️ 0 unauthorized data access
 
-## Golden Rules
-✅ Specific prompts used
-✅ Code reviewed and understood
-✅ AI treated as junior dev
-✅ Commits labeled with 🤖
-✅ Security rationale documented
-✅ Prompts shared with team
-```
+<strong>Action Items:</strong>
+→ Update A01 prompt with real attack patterns
+→ Add alert for IDOR attempts &gt;50/day</pre>
+  </div>
 
-**Human Review** (ChatGPT assists):
-```markdown
-ChatGPT validates OWASP checklists:
-✅ A01: Authorization checks present
-✅ A03: Parameterized queries only
-✅ A09: Audit logging comprehensive
+  <div style="font-size: 14px; line-height: 1.7;">
+    <strong>Outcome:</strong> Real attacks improve your prompts. Team gets better at security over time.
+  </div>
+</details>
 
-Human verifies:
-✅ Manual testing passed
-✅ All threats mitigated
-✅ Code quality acceptable
+</div>
 
-APPROVED FOR MERGE
-```
+### PR Security Review Checklist
 
-**Output**: Approved PR
+When reviewing AI-assisted code, apply these checks to ensure security requirements are met:
 
-**Duration**: 30 minutes
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
----
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
 
-#### Phase 5: Deployment (GitHub Actions)
+<div>
+  <div style="font-size: 18px; font-weight: 700; color: #ef4444; margin-bottom: 12px;">🔒 Security Controls</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Input Validation:</strong> Allowlist validation, length limits, type checking<br/>
+    <strong style="color: #f1f5f9;">Output Encoding:</strong> Context-appropriate encoding (HTML, SQL, JSON)<br/>
+    <strong style="color: #f1f5f9;">Auth/Authz:</strong> Horizontal & vertical access control verified<br/>
+    <strong style="color: #f1f5f9;">Error Handling:</strong> Generic messages, detailed server-side logs
+  </div>
+</div>
 
-**CI/CD Pipeline**:
-```yaml
-1. Build ✅
-2. Security re-scan (CodeQL, Snyk) ✅
-3. Deploy to staging ✅
-4. Smoke tests ✅
-5. Deploy to production ✅
-6. Monitor for errors ✅
-```
+<div>
+  <div style="font-size: 18px; font-weight: 700; color: #f97316; margin-bottom: 12px;">🧪 Testing</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Attack Scenarios:</strong> SQL injection, XSS, IDOR payloads tested<br/>
+    <strong style="color: #f1f5f9;">Edge Cases:</strong> Empty input, null/undefined, service failures<br/>
+    <strong style="color: #f1f5f9;">Coverage:</strong> Critical paths ≥80%, positive + negative cases
+  </div>
+</div>
 
-**Health Check**:
-```bash
-curl https://app.example.com/health
-> {"status": "healthy", "version": "1.2.3"}
-```
+<div>
+  <div style="font-size: 18px; font-weight: 700; color: #eab308; margin-bottom: 12px;">🤖 AI Disclosure</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Commit Label:</strong> 🤖 AI-assisted with [tool] using [pack]<br/>
+    <strong style="color: #f1f5f9;">Prompt Quality:</strong> OWASP categories referenced, constraints specified<br/>
+    <strong style="color: #f1f5f9;">Understanding:</strong> Can you explain every line to a teammate?
+  </div>
+</div>
 
-**Output**: Production deployment
+<div>
+  <div style="font-size: 18px; font-weight: 700; color: #22c55e; margin-bottom: 12px;">✅ Approval Criteria</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <strong style="color: #10b981;">Approve:</strong> All controls present, tests comprehensive, code understandable<br/>
+    <strong style="color: #ef4444;">Block:</strong> Vulnerabilities found, missing security tests, CI failing<br/>
+    <strong style="color: #94a3b8;">Comment:</strong> Minor improvements, edge case suggestions
+  </div>
+</div>
 
-**Duration**: 15 minutes (automated)
+</div>
 
----
+</div>
 
-#### Phase 6: Evolution (Ongoing)
-
-**Metrics Collection**:
-```markdown
-Week 1:
-- Share creation: 1,245/day
-- Failed attempts (T6): 23/day (blocked)
-- Performance (p95): 145ms
-
-Analysis:
-✅ All security controls working
-✅ Performance within threshold (<200ms)
-⚠️  High IDOR attempt rate → Investigate
-
-Action:
-- Add monitoring alert for IDOR attempts >50/day
-- Update A01 prompt with real attack examples
-```
-
-**Prompt Refinement**:
-```markdown
-A01 Prompt Pack v4:
-
-Added to checklist:
-□ Non-sequential IDs (UUID) for IDOR prevention
-□ Rate limiting on share operations
-□ Monitoring alerts for authorization failures
-
-Success rate: v3 (87%) → v4 (projected 95%)
-```
-
-**Dependency Upgrades**:
-```bash
-Monday: npm outdated
-> express: 4.18.2 → 4.19.0 (2 months old)
-> pg: 8.11.0 → 8.11.3 (1 month old)
-
-Tuesday: Upgrade patches
-> npm update
-> npm test ✅
-> git commit -m "chore: upgrade dependencies"
-```
-
-**Output**: Improved prompts, updated dependencies, reduced tech debt
-
-**Duration**: Ongoing (weekly tasks)
+**Key Principle**: Each layer provides overlapping protection. If one layer misses a vulnerability, subsequent layers catch it. This defense-in-depth approach is essential when using AI code generation.
 
 ---
 
-## How Design → Security → Governance Flow Works
+## AI Agents in the Framework
 
-```mermaid
-sequenceDiagram
-    participant User as User Story
-    participant Design as Phase 1: Design
-    participant OWASP as OWASP Prompt Packs
-    participant Impl as Phase 2: Implementation
-    participant Verify as Phase 3: Verification
-    participant Gov as Phase 4: Governance
-    participant Prod as Phase 5: Production
+Different AI agents excel at different phases of the SDLC. Choose the right tool for each task:
 
-    User->>Design: Feature request
-    Design->>Design: Threat model (STRIDE)
-    Design->>OWASP: Map threats to OWASP categories
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 32px 0;">
 
-    OWASP->>Impl: Use A01, A03, A09 prompts
-    Impl->>Impl: AI generates secure code
-    Impl->>Verify: Submit for verification
+<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">💬</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">ChatGPT</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    <strong>Best for:</strong> Threat modeling, OWASP validation, metrics analysis
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+    <strong>Phases:</strong> 1 (Design), 4 (Governance), 6 (Evolution)
+  </div>
+  <a href="/CHATGPT" style="color: #c7d2fe; text-decoration: underline; font-size: 14px;">→ See CHATGPT.md for prompts</a>
+</div>
 
-    Verify->>Verify: CodeQL + Snyk scans
-    Verify->>Verify: Attack vector tests
-    Verify-->>Impl: Issues found (fix loop)
-    Verify->>Gov: All gates passed
+<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🧑‍💻</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">GitHub Copilot</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    <strong>Best for:</strong> In-editor implementation, pattern following, boilerplate
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+    <strong>Phases:</strong> 2 (Implementation), quick fixes
+  </div>
+  <a href="/COPILOT" style="color: #ddd6fe; text-decoration: underline; font-size: 14px;">→ See COPILOT.md for #codebase tips</a>
+</div>
 
-    Gov->>Gov: Human applies Golden Rules
-    Gov->>Gov: ChatGPT validates OWASP
-    Gov-->>Impl: Changes requested (fix loop)
-    Gov->>Prod: Approved
+<div style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Claude Code</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    <strong>Best for:</strong> Complex refactoring, test generation, multi-file changes
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+    <strong>Phases:</strong> 3 (Verification), 6 (Evolution), debt reduction
+  </div>
+  <a href="/CLAUDE" style="color: #cffafe; text-decoration: underline; font-size: 14px;">→ See CLAUDE.md for workflows</a>
+</div>
 
-    Prod->>Prod: Deploy with monitoring
-    Prod->>User: Feature live
-```
+</div>
 
-**Key Integration Points**:
-
-1. **Design → OWASP**: Threat model identifies which OWASP categories apply
-2. **OWASP → Implementation**: Prompt packs guide secure code generation
-3. **Implementation → Verification**: Security scans validate OWASP compliance
-4. **Verification → Governance**: Human review confirms requirements met
-5. **Governance → Deployment**: Approved code ships to production
-6. **Production → Evolution**: Metrics inform prompt improvements
-
----
-
-## Where Each Agent Fits in the SDLC
-
-### ChatGPT: Analysis & Validation
-
-```mermaid
-flowchart LR
-    A[Phase 1:<br/>Threat Modeling] --> B[ChatGPT]
-    C[Phase 4:<br/>OWASP Validation] --> B
-    D[Phase 6:<br/>Metrics Analysis] --> B
-
-    B --> E[Structured Output]
-    E --> F[Threat Model JSON]
-    E --> G[Compliance Report]
-    E --> H[Improvement Plan]
-```
-
-**When to Use ChatGPT**:
-- Threat modeling with STRIDE
-- OWASP checklist validation
-- Documentation generation
-- Metrics analysis and insights
-
-**How to Use**: See [CHATGPT.md](/CHATGPT.md)
-
----
-
-### Copilot: In-Editor Implementation
-
-```mermaid
-flowchart LR
-    A[Phase 2:<br/>Implementation] --> B[Copilot]
-    C[#file: prompts] --> B
-    D[#codebase context] --> B
-
-    B --> E[Real-time Suggestions]
-    E --> F[Secure Code]
-    E --> G[Unit Tests]
-    E --> H[Inline Docs]
-```
-
-**When to Use Copilot**:
-- Single-function implementation
-- Following established patterns
-- Boilerplate generation
-- Quick fixes and refactoring
-
-**How to Use**: See [COPILOT.md](/COPILOT.md)
-
----
-
-### Claude: Complex Refactoring
-
-```mermaid
-flowchart LR
-    A[Phase 3:<br/>Test Generation] --> B[Claude]
-    C[Phase 6:<br/>Large Refactoring] --> B
-    D[Multi-file Changes] --> B
-
-    B --> E[Comprehensive Output]
-    E --> F[Full Test Suite]
-    E --> G[Refactored Modules]
-    E --> H[Migration Plan]
-```
-
-**When to Use Claude**:
-- Comprehensive test generation
-- Multi-file refactoring
-- Large-scale code analysis
-- Technical debt reduction
-
-**How to Use**: See [CLAUDE.md](/CLAUDE.md)
-
----
-
-## How Prompts Guide Each Phase
-
-### Phase-Prompt Mapping
-
-| SDLC Phase | Prompt Type | Example | Output |
-|------------|-------------|---------|--------|
-| **Phase 1: Design** | Threat modeling template | "Perform STRIDE analysis on auth feature" | Threat model JSON |
-| **Phase 2: Implementation** | OWASP prompt packs | Use `/prompts/owasp/A03_injection.md` | Secure implementation |
-| **Phase 3: Verification** | Test generation prompt | "Generate attack vector tests for A03" | Jest test suite |
-| **Phase 4: Governance** | Review checklist prompt | "Validate against OWASP A01 requirements" | Compliance report |
-| **Phase 5: Deployment** | Monitoring prompt | "Create alerts for security events" | Alert configuration |
-| **Phase 6: Evolution** | Refactoring prompt | "Refactor for complexity <10" | Improved code |
-
-**Prompt Library**:
-- `/prompts/owasp/` - OWASP Top 10 security prompts
-- `/prompts/team/` - Team-specific patterns (build your own!)
-
----
-
-## Framework Integration Flow
-
-**High-Level View**: How all pieces connect
-
-```mermaid
-flowchart TD
-    A[User Story] --> B[Design Phase:<br/>STRIDE + OWASP]
-    B --> C[Implementation:<br/>Use Prompt Packs]
-    C --> D[Verification:<br/>Tests + CI Scans]
-    D --> E[Review:<br/>Human Validation]
-    E --> F[Deploy:<br/>Production]
-    F --> G[Monitor:<br/>Fitness Functions]
-    G -->|Degradation Detected| H[Evolution Phase]
-    H --> A
-    G -->|Healthy| F
-
-    style A fill:#1e293b,stroke:#64748b,color:#f1f5f9
-    style B fill:#1e40af,stroke:#3b82f6,color:#f1f5f9
-    style C fill:#92400e,stroke:#f59e0b,color:#f1f5f9
-    style D fill:#991b1b,stroke:#ef4444,color:#f1f5f9
-    style E fill:#581c87,stroke:#a855f7,color:#f1f5f9
-    style F fill:#065f46,stroke:#10b981,color:#f1f5f9
-    style G fill:#831843,stroke:#ec4899,color:#f1f5f9
-    style H fill:#831843,stroke:#ec4899,color:#f1f5f9
-```
-
-**What happens in each phase**:
-- **Design**: Run STRIDE analysis with ChatGPT/Claude → identify threats → map to OWASP categories
-- **Implementation**: Use OWASP prompt packs with your AI assistant → generate secure code
-- **Verification**: Run fitness functions (complexity, coverage, performance) + automated scans (CodeQL, Snyk)
-- **Review**: Human applies Golden Rules checklist → validates security assumptions
-- **Deploy**: GitHub Actions builds and deploys → monitors security metrics
-- **Monitor**: Fitness functions track degradation → alerts on threshold violations
-- **Evolution**: Refactor violations → update baselines → cycle back to design for next feature
+**Multi-Agent Strategy**: Use [AGENTS.md](/AGENTS) to coordinate multiple AI agents across phases — e.g., ChatGPT for threat model → Copilot for implementation → Claude for test generation.
 
 ---
 
 ## Success Metrics
 
-Track these metrics across the framework:
+Each framework component has measurable outcomes. Track these dashboards to monitor health:
 
-### Security Metrics
-- **OWASP Coverage**: % of applicable categories addressed (target: 100%)
-- **Vulnerability Remediation Time**: Discovery → fix (target: <7 days)
-- **Security Scan Pass Rate**: First-try CodeQL/Snyk pass (target: >90%)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 32px 0;">
 
-### Velocity Metrics
-- **Time to Delivery**: Feature start → production (target: <5 days)
-- **AI Acceptance Rate**: % AI suggestions merged (target: >85%)
-- **Cycle Time**: Implementation → merge (target: <24 hours)
+<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Security Metrics</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
+    <strong>OWASP Coverage:</strong> 100% (target)<br/>
+    <strong>Vuln Remediation:</strong> &lt;7 days<br/>
+    <strong>Scan Pass Rate:</strong> &gt;90%<br/>
+    <strong>Threats Found Pre-Code:</strong> 93%
+  </div>
+  <a href="/docs/prompts/owasp" style="color: #fca5a5; text-decoration: underline; font-size: 14px;">→ View OWASP dashboard</a>
+</div>
 
-### Quality Metrics
-- **Fitness Function Compliance**: % commits passing (target: >95%)
-- **Test Coverage**: Overall coverage (target: >80%)
-- **Defect Density**: Bugs per 1000 LOC (target: <5)
+<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🏗️</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Quality Metrics</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
+    <strong>Complexity:</strong> ≤10 per function<br/>
+    <strong>Test Coverage:</strong> ≥80%<br/>
+    <strong>Performance:</strong> p95 &lt;200ms<br/>
+    <strong>Dependencies:</strong> &lt;90 days old
+  </div>
+  <a href="/docs/prompts/maintainability" style="color: #c7d2fe; text-decoration: underline; font-size: 14px;">→ View fitness function dashboard</a>
+</div>
 
-### Process Metrics
-- **Prompt Reuse Rate**: % work using prompt library (target: >70%)
-- **Review Time**: Human review duration (target: <30 min)
-- **Tech Debt Reduction**: Debt items closed per sprint (target: >5)
+<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Threat Modeling Metrics</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
+    <strong>STRIDE Coverage:</strong> 6/6 categories<br/>
+    <strong>Time Saved:</strong> 4hrs per feature<br/>
+    <strong>OWASP Mapping:</strong> 100% auto-linked<br/>
+    <strong>Threats Identified:</strong> 93% pre-code
+  </div>
+  <a href="/docs/prompts/threat-modeling" style="color: #fdba74; text-decoration: underline; font-size: 14px;">→ View threat modeling dashboard</a>
+</div>
 
----
+<div style="background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Velocity Metrics</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
+    <strong>Time to Delivery:</strong> &lt;5 days<br/>
+    <strong>AI Acceptance Rate:</strong> &gt;85%<br/>
+    <strong>Cycle Time:</strong> &lt;24 hours<br/>
+    <strong>Prompt Reuse:</strong> &gt;70%
+  </div>
+  <div style="color: #d1fae5; font-size: 14px;">→ Track in your CI/CD pipeline</div>
+</div>
 
-## Getting Started with the Framework
+</div>
 
-### 1. Repository Setup
-
-```bash
-# Clone or initialize repository
-git clone https://github.com/your-org/your-project
-
-# Install dependencies
-npm install
-
-# Copy framework files
-cp -r /prompts ./prompts
-cp .eslintrc.cjs jest.config.ts tsconfig.json ./
-```
-
-### 2. Configure Tools
-
-```yaml
-# .github/workflows/ci.yml
-name: Security CI
-
-on: [push, pull_request]
-
-jobs:
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: github/codeql-action/analyze@v3
-      - uses: snyk/actions/node@master
-      - run: npm run fitness-check
-```
-
-### 3. Team Training
-
-1. **Read**: [Golden Rules](governance/vibe-golden-rules.md)
-2. **Practice**: [Workshop modules](workshop/)
-3. **Try**: [OWASP examples](/examples/owasp/)
-4. **Review**: Agent guides ([COPILOT.md](/COPILOT.md), [CHATGPT.md](/CHATGPT.md), [CLAUDE.md](/CLAUDE.md))
-
-### 4. Start First Feature
-
-1. **Phase 1**: Use ChatGPT for threat modeling
-2. **Phase 2**: Use Copilot with OWASP prompts
-3. **Phase 3**: Run fitness functions
-4. **Phase 4**: Human review with Golden Rules
-5. **Phase 5**: Deploy with monitoring
-6. **Phase 6**: Collect metrics, refine prompts
-
-### 5. Iterate and Improve
-
-- Weekly: Upgrade dependencies
-- Monthly: Review metrics, update prompts
-- Quarterly: Evolutionary architecture review
+**Key Insight**: Security and velocity metrics are not in conflict. When AI generates secure code from the start (using OWASP prompts), you save time on remediation and ship faster.
 
 ---
 
-## Key Takeaways
+## Quick Start: First Feature in 1 Hour
 
-1. **Security First**: OWASP Top 10 guides every phase
-2. **AI as Accelerator**: Agents handle 70%, humans harden the 30%
-3. **Automated Quality Gates**: Fitness functions enforce standards
-4. **Evolutionary Change**: Incremental improvements over rewrites
-5. **Measurable Outcomes**: Track security, velocity, and quality metrics
-6. **Continuous Learning**: Refine prompts and processes based on data
+Apply this framework to your next feature using this practical workflow:
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+
+<div style="display: grid; gap: 24px;">
+
+<div style="background: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366f1; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">⏱️ 5 min — Threat Model</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    Ask ChatGPT: <em>"Run STRIDE analysis on [your feature]. Map threats to OWASP categories."</em>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 6px; font-size: 13px; color: #94a3b8;">
+    <strong style="color: #f1f5f9;">You get:</strong> List of threats + which OWASP prompt packs to use
+  </div>
+</div>
+
+<div style="background: rgba(124, 58, 237, 0.1); border-left: 4px solid #7c3aed; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">⏱️ 30 min — Implement Securely</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    Open <a href="/docs/prompts/owasp" style="color: #a78bfa;">OWASP prompt pack</a> (e.g., A01, A03). Copy prompt into Copilot/Claude with your requirements.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 6px; font-size: 13px; color: #94a3b8;">
+    <strong style="color: #f1f5f9;">You get:</strong> Code with security controls built in from the start
+  </div>
+</div>
+
+<div style="background: rgba(14, 165, 233, 0.1); border-left: 4px solid #0ea5e9; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">⏱️ 10 min — Validate Locally</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    Run <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">npm run lint && npm test</code>. Tests should include attack payloads.
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 6px; font-size: 13px; color: #94a3b8;">
+    <strong style="color: #f1f5f9;">You get:</strong> Immediate feedback if security controls fail
+  </div>
+</div>
+
+<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">⏱️ 15 min — Human Review</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    Review your own code using <a href="/docs/governance/vibe-golden-rules" style="color: #5eead4;">Golden Rules checklist</a>. Can you explain every line?
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 6px; font-size: 13px; color: #94a3b8;">
+    <strong style="color: #f1f5f9;">You get:</strong> Confidence that AI didn't introduce hidden issues
+  </div>
+</div>
+
+</div>
+
+<div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="color: #22c55e; font-size: 24px; font-weight: 700; margin-bottom: 8px;">✅ Ship to Production</div>
+  <div style="color: #94a3b8; font-size: 14px;">CI/CD re-validates everything. Security monitoring tracks real attacks. You're done.</div>
+</div>
+
+</div>
+
+**What You Just Learned**:
+1. Threat modeling takes minutes with AI (not hours)
+2. OWASP prompts prevent vulnerabilities before they're written
+3. Automated + human checks catch what each other misses
+4. The whole process is faster than traditional "write then fix" workflows
 
 ---
 
 ## Framework Resources
 
 ### Core Documentation
-- **[SDLC Overview](sdlc/)** - 6-phase development lifecycle
-- **[Maintainability Framework](maintainability/)** - Fitness functions and evolutionary architecture
-- **[OWASP Prompt Packs](/prompts/owasp/)** - Security-first prompts
+- **[SDLC Overview](/docs/sdlc/)** - 6-phase development lifecycle
+- **[Maintainability Framework](/docs/maintainability/)** - Fitness functions and evolutionary architecture
+- **[OWASP Prompt Packs](/docs/prompts/owasp/)** - Security-first prompts
+- **[Maintainability Prompt Packs](/docs/prompts/maintainability/)** - Evolutionary architecture patterns
 
 ### Agent Guides
 - **[COPILOT.md](/COPILOT.md)** - GitHub Copilot integration
@@ -1099,13 +615,12 @@ jobs:
 - **[AGENTS.md](/AGENTS.md)** - Multi-agent orchestration
 
 ### Governance
-- **[Golden Rules](governance/vibe-golden-rules.md)** - Core principles
-- **[Security Workflow](security-workflow.md)** - Defense-in-depth pipeline
+- **[Golden Rules](/docs/governance/vibe-golden-rules)** - Core principles and AI governance
 
 ### Learning
-- **[Workshop](workshop/)** - 8-part training modules
+- **[Workshop](/docs/workshop/)** - 8-part training modules
 - **[Examples](/examples/owasp/)** - Hands-on OWASP remediation
 
 ---
 
-**Ready to build secure, maintainable software with AI? Start with [Phase 1: Design →](sdlc/phase1-design.md)**
+**Ready to build secure, maintainable software with AI? Start with [Phase 1: Design →](/docs/sdlc/phase1-design)**

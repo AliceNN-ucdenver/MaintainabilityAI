@@ -92,7 +92,7 @@ This repo deploys **two** sites as one GitHub Pages artifact:
 ### Governance Documentation (`/docs/governance/`)
 
 - **[`vibe-golden-rules.md`](docs/governance/vibe-golden-rules.md)**: Comprehensive guide to the 6 Golden Rules with examples, patterns, and metrics
-- **[`security-workflow.md`](docs/security-workflow.md)**: 6-layer defense-in-depth pipeline (IDE → Local → Pre-commit → CI → Human → Prod)
+- **[`framework.md`](site-tw/public/docs/framework.md)**: Complete SDLC framework with integrated 6-layer security pipeline
 
 ### TypeScript & Testing Configuration
 
@@ -200,7 +200,7 @@ When working with this codebase, follow the security-first approach documented i
 5. **Document rationale** — Explain the "why" in code comments and commit messages
 6. **Share winning prompts** — Capture effective prompts in `/prompts` for reuse
 
-**Full pipeline**: See [`docs/security-workflow.md`](docs/security-workflow.md) for detailed 6-layer defense strategy.
+**Full pipeline**: See [`docs/framework.md`](site-tw/public/docs/framework.md) Security Pipeline section for detailed 6-layer defense strategy.
 
 ## Working with OWASP Examples
 
@@ -297,7 +297,7 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
   - Quick start and deployment guides
 
 - **[`docs/governance/vibe-golden-rules.md`](docs/governance/vibe-golden-rules.md)**: Comprehensive governance guide (17KB)
-- **[`docs/security-workflow.md`](docs/security-workflow.md)**: 6-layer security pipeline documentation (31KB)
+- **[`docs/framework.md`](site-tw/public/docs/framework.md)**: Complete framework with integrated security pipeline
 - **[`docs/workshop/`](docs/workshop/)**: Workshop curriculum modules
 
 ### Templates
@@ -333,7 +333,7 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
 
 5. **Documentation First**:
    - Check prompt packs before implementing
-   - Reference security-workflow.md for pipeline understanding
+   - Reference framework.md Security Pipeline section for pipeline understanding
    - Use vibe-golden-rules.md for governance guidance
 
 ### Repository Maturity
@@ -382,7 +382,6 @@ MaintainabilityAI/
 │  │  ├─ fitness-functions.md             # Automated quality gates
 │  │  └─ evolutionary-architecture.md     # Incremental change patterns
 │  ├─ governance/vibe-golden-rules.md     # 6 Golden Rules guide
-│  ├─ security-workflow.md                # 6-layer security pipeline
 │  └─ workshop/part1-3.md                 # Workshop curriculum
 ├─ site-tw/                               # Tailwind marketing site
 ├─ scripts/build-docs.mjs                 # Markdown → HTML compiler
