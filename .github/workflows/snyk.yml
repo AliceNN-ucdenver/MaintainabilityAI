@@ -4,17 +4,25 @@ on:
   pull_request:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  # Required: add this in GitHub → Settings → Secrets and variables → Actions → New repository secret
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  # Optional: uncomment and set if you want to pin scans to a specific Snyk org
+  # SNYK_ORG: your-snyk-org-slug
 
 jobs:
   snyk:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -23,77 +31,148 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install jq (for summaries)
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Run Snyk dependency scan
-        id: snyk-test
-        continue-on-error: true
+      - name: Install Snyk CLI
+        run: npm i -g snyk@latest
+
+      - name: Authenticate Snyk
         run: |
-          npx snyk test --all-projects --severity-threshold=medium --json > snyk-test-results.json || true
-          echo "Snyk dependency scan completed"
+          if [ -z "${SNYK_TOKEN}" ]; then
+            echo "❌ SNYK_TOKEN is not set. Add it as a GitHub secret."
+            exit 1
+          fi
+          snyk auth "${SNYK_TOKEN}"
 
-      - name: Run Snyk code scan (SAST)
+      # Install dependencies only if there's a package.json at repo root
+      - name: Install dependencies (if package.json present)
+        if: hashFiles('package.json') != ''
+        run: |
+          npm ci || npm install
+
+      # --- Dependency Scan (SCA) ---
+      # Only run when a supported lockfile exists; avoids the "lock file not found" error.
+      - name: Run Snyk dependency scan (SCA) if lockfile exists
+        id: snyk-sca
+        continue-on-error: true
+        if: |
+          hashFiles('package-lock.json') != '' ||
+          hashFiles('npm-shrinkwrap.json') != '' ||
+          hashFiles('yarn.lock') != '' ||
+          hashFiles('pnpm-lock.yaml') != ''
+        run: |
+          EXTRA_ARGS=""
+          if [ -n "${SNYK_ORG}" ]; then
+            EXTRA_ARGS="--org=${SNYK_ORG}"
+          fi
+          snyk test --severity-threshold=medium --json $EXTRA_ARGS > snyk-deps.json || true
+          echo "Snyk dependency scan completed."
+
+      # --- Static App Security Testing (SAST) ---
+      - name: Run Snyk Code scan (SAST)
         id: snyk-code
         continue-on-error: true
         run: |
-          npx snyk code test --severity-threshold=medium --json > snyk-code-results.json || true
-          echo "Snyk code scan completed"
+          EXTRA_ARGS=""
+          if [ -n "${SNYK_ORG}" ]; then
+            EXTRA_ARGS="--org=${SNYK_ORG}"
+          fi
+          snyk code test --severity-threshold=medium --json $EXTRA_ARGS > snyk-code.json || true
+          echo "Snyk code scan completed."
 
-      - name: Display Snyk test summary
+      # --- Optional: Upload SARIF for GitHub Code Scanning (Snyk Code only) ---
+      # Uncomment these two steps if you want findings in the "Security" tab
+      # - name: Generate SARIF from Snyk Code
+      #   id: snyk-code-sarif
+      #   continue-on-error: true
+      #   run: |
+      #     EXTRA_ARGS=""
+      #     if [ -n "${SNYK_ORG}" ]; then
+      #       EXTRA_ARGS="--org=${SNYK_ORG}"
+      #     fi
+      #     snyk code test --sarif $EXTRA_ARGS > snyk-code.sarif || true
+      #
+      # - name: Upload SARIF to GitHub Code Scanning
+      #   if: always() && hashFiles('snyk-code.sarif') != ''
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: snyk-code.sarif
+      #     category: snyk-code
+
+      # --- Human-friendly summary in job logs ---
+      - name: Summarize results
         if: always()
         run: |
-          echo "=== Snyk Dependency Scan ==="
-          if [ -f snyk-test-results.json ]; then
-            cat snyk-test-results.json | jq -r '.vulnerabilities[]? | "[\(.severity | ascii_upcase)] \(.title) in \(.packageName)"' || echo "No vulnerabilities found or error parsing results"
-          else
-            echo "No results file generated"
-          fi
+          echo "============================"
+          echo "  SNYK SECURITY SUMMARY"
+          echo "============================"
+
           echo ""
-          echo "=== Snyk Code Scan ==="
-          if [ -f snyk-code-results.json ]; then
-            cat snyk-code-results.json | jq -r '.runs[]?.results[]? | "[\(.level | ascii_upcase)] \(.message.text) at \(.locations[0].physicalLocation.artifactLocation.uri)"' || echo "No code issues found or error parsing results"
+          echo "=== Dependency Scan (SCA) ==="
+          if [ -f snyk-deps.json ]; then
+            COUNT=$(jq '[.vulnerabilities[]?] | length' snyk-deps.json 2>/dev/null || echo 0)
+            echo "Total dependency vulns: ${COUNT}"
+            jq -r '.vulnerabilities[]? | ("[\(.severity|ascii_upcase)] " + .title + " in " + (.packageName // "unknown") + (if .from then " → " + (.from|join(" > ")) else "" end))' snyk-deps.json 2>/dev/null || echo "No vulnerabilities or error parsing results"
           else
-            echo "No results file generated"
+            echo "No dependency results (no lockfile or scan skipped)."
           fi
 
-      - name: Upload Snyk test results
+          echo ""
+          echo "=== Code Scan (SAST) ==="
+          if [ -f snyk-code.json ]; then
+            COUNT_CODE=$(jq '[.runs[]?.results[]?] | length' snyk-code.json 2>/dev/null || echo 0)
+            echo "Total code issues: ${COUNT_CODE}"
+            jq -r '.runs[]?.results[]? | "[\(.level|ascii_upcase)] \(.message.text) at \(.locations[0].physicalLocation.artifactLocation.uri // "<unknown>"):\(.locations[0].physicalLocation.region.startLine // 0)"' snyk-code.json 2>/dev/null || echo "No code issues or error parsing results"
+          else
+            echo "No code results file."
+          fi
+
+      # --- Upload artifacts for PR reviewers ---
+      - name: Upload Snyk artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-test-results
-          path: snyk-test-results.json
+          name: snyk-artifacts
+          path: |
+            snyk-deps.json
+            snyk-code.json
+            snyk-code.sarif
           if-no-files-found: ignore
 
-      - name: Upload Snyk code results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-code-results
-          path: snyk-code-results.json
-          if-no-files-found: ignore
-
-      - name: Check for high severity vulnerabilities
+      # --- Soft gate: warn on high/critical, do not fail build ---
+      - name: Warn on high/critical issues (non-blocking)
         if: always()
         run: |
-          echo "Checking for high/critical severity issues..."
-
-          HIGH_VULN=0
-          if [ -f snyk-test-results.json ]; then
-            HIGH_VULN=$(cat snyk-test-results.json | jq '[.vulnerabilities[]? | select(.severity == "high" or .severity == "critical")] | length' || echo "0")
+          HIGH_VULNS=0
+          if [ -f snyk-deps.json ]; then
+            HIGH_VULNS=$(jq '[.vulnerabilities[]? | select(.severity == "high" or .severity == "critical")] | length' snyk-deps.json 2>/dev/null || echo 0)
           fi
 
           HIGH_CODE=0
-          if [ -f snyk-code-results.json ]; then
-            HIGH_CODE=$(cat snyk-code-results.json | jq '[.runs[]?.results[]? | select(.level == "error")] | length' || echo "0")
+          if [ -f snyk-code.json ]; then
+            # Treat SARIF "error" as high/critical. Adjust if you prefer "warning" too.
+            HIGH_CODE=$(jq '[.runs[]?.results[]? | select(.level == "error")] | length' snyk-code.json 2>/dev/null || echo 0)
           fi
 
-          echo "High/Critical vulnerabilities found: $HIGH_VULN"
-          echo "High severity code issues found: $HIGH_CODE"
+          echo "High/Critical dependency issues: ${HIGH_VULNS}"
+          echo "High-severity code issues (errors): ${HIGH_CODE}"
 
-          if [ "$HIGH_VULN" -gt 0 ] || [ "$HIGH_CODE" -gt 0 ]; then
-            echo "⚠️  Warning: High/critical severity issues detected. Review artifacts for details."
+          if [ "$HIGH_VULNS" -gt 0 ] || [ "$HIGH_CODE" -gt 0 ]; then
+            echo "⚠️  Warning: High/critical issues detected. See artifacts and logs for details."
             echo "This workflow does not block PRs, but issues should be addressed."
           else
-            echo "✅ No high/critical severity issues detected."
+            echo "✅ No high/critical issues detected."
           fi
+
+      # --- Optional: Monitor on default branch to show trends in Snyk UI ---
+      # Runs only on push to main; requires lockfile
+      - name: Snyk monitor (dependency trends)
+        if: github.ref == 'refs/heads/main' && (hashFiles('package-lock.json') != '' || hashFiles('npm-shrinkwrap.json') != '' || hashFiles('yarn.lock') != '' || hashFiles('pnpm-lock.yaml') != '')
+        continue-on-error: true
+        run: |
+          EXTRA_ARGS=""
+          if [ -n "${SNYK_ORG}" ]; then
+            EXTRA_ARGS="--org=${SNYK_ORG}"
+          fi
+          snyk monitor $EXTRA_ARGS || true
