@@ -423,6 +423,30 @@ ${vulnerability.codeSnippet || '(No code snippet available)'}
 `;
   }
 
+  // Add Claude Remediation Zone FIRST (always visible)
+  body += `
+
+---
+
+## 🤖 Claude Remediation Zone
+
+To request a remediation plan, comment:
+
+\`@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines below.\`
+
+### ✅ Human Review Checklist
+
+- [ ] Security fix addresses the root cause
+- [ ] Code maintains readability and maintainability
+- [ ] Fix doesn't introduce new vulnerabilities
+- [ ] Tests are included/updated
+- [ ] Documentation is updated
+- [ ] Performance impact is acceptable
+
+---
+
+`;
+
   // Add OWASP prompt (collapsed in details to save space)
   if (prompts.owaspPrompt) {
     const owaspPromptTruncated = prompts.owaspPrompt.length > 40000
@@ -502,25 +526,8 @@ ${contentTruncated}
     }
   }
 
-  // Add remediation zone
+  // Add additional metadata (collapsed)
   body += `
-
----
-
-## 🤖 Claude Remediation Zone
-
-To request a remediation plan, comment:
-
-\`@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines above.\`
-
-### ✅ Human Review Checklist
-
-- [ ] Security fix addresses the root cause
-- [ ] Code maintains readability and maintainability
-- [ ] Fix doesn't introduce new vulnerabilities
-- [ ] Tests are included/updated
-- [ ] Documentation is updated
-- [ ] Performance impact is acceptable
 
 ---
 
