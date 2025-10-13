@@ -1166,6 +1166,44 @@ Once you've implemented fitness functions, track these metrics to measure impact
 
 ## Next Steps
 
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(168, 85, 247, 0.4);">
+
+<div style="text-align: center; margin-bottom: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+  <div style="font-size: 24px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Workshop Complete!</div>
+  <div style="font-size: 15px; color: #cbd5e1;">You've mastered automated architectural governance with fitness functions</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Implement All Four Functions</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    Add complexity, dependency freshness, test coverage, and performance fitness functions to your repository. Start in warning mode for 2 weeks, then graduate to blocking mode. Track metrics over time.
+  </div>
+</div>
+
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Integrate with CI/CD Pipeline</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    Add fitness functions to your GitHub Actions workflow. Use continue-on-error: true initially, then make blocking. Set up Slack/email alerts for violations. Review failures in PR comments.
+  </div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Explore Advanced Topics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    Part 5: Security Scanning (CodeQL + Snyk Integration)<br/>
+    Part 6: Prompt Library Management<br/>
+    Part 7: Multi-Agent Orchestration<br/>
+    Part 8: Governance & Metrics
+  </div>
+</div>
+
+</div>
+
+</div>
+
 <div style="display: flex; gap: 20px; margin: 48px 0; flex-wrap: wrap;">
   <a href="./part3-live-remediation" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); color: #f87171; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 600; text-align: center;">
     ← Part 3: Live Remediation
@@ -1175,12 +1213,8 @@ Once you've implemented fitness functions, track these metrics to measure impact
   </a>
 </div>
 
-<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; padding: 24px; margin: 32px 0; text-align: center;">
-  <div style="font-size: 40px; margin-bottom: 12px;">🎓</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">Part 4 Complete!</h3>
-  <p style="color: #d1fae5; font-size: 15px; line-height: 1.7; margin: 0;">
-    You've implemented automated quality gates that will protect your architecture for years to come. Every PR now validates complexity, dependencies, coverage, and performance—automatically, objectively, continuously.
-  </p>
+<div style="text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px;">
+  Learn security scanning with CodeQL and Snyk in Part 5 (coming soon)
 </div>
 
 ---

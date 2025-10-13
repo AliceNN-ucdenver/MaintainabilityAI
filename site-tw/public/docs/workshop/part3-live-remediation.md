@@ -762,9 +762,11 @@ Remediates critical SQL injection vulnerability in searchUsers function.
 <div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
   <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Explore Advanced Topics</div>
   <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    Part 4: Fitness Functions & Metrics<br/>
-    Part 5: CodeQL Custom Rules<br/>
-    Part 6: Multi-Agent Workflows
+    Part 4: Fitness Functions (Automated Quality Gates)<br/>
+    Part 5: Security Scanning (CodeQL + Snyk Integration)<br/>
+    Part 6: Prompt Library Management<br/>
+    Part 7: Multi-Agent Orchestration<br/>
+    Part 8: Governance & Metrics
   </div>
 </div>
 

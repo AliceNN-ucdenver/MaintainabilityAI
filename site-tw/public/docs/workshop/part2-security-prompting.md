@@ -1295,6 +1295,45 @@ const s3Key = \`uploads/\${req.user.id}/\${uuid}\${ext}\`;</code></pre>
 
 ## Next Steps
 
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(251, 191, 36, 0.4);">
+
+<div style="text-align: center; margin-bottom: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+  <div style="font-size: 24px; font-weight: 700; color: #fcd34d; margin-bottom: 12px;">Workshop Complete!</div>
+  <div style="font-size: 15px; color: #cbd5e1;">You've mastered the RCTRO pattern for security-first AI prompting</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+
+<div style="background: rgba(251, 191, 36, 0.15); border-left: 4px solid #fbbf24; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fcd34d; margin-bottom: 12px;">Customize OWASP Templates</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    Take the OWASP prompt packs in /prompts/owasp/ and adapt them for your stack. Replace generic examples with your actual ORM, validation library, and security controls. Store customized prompts in your repo.
+  </div>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #f87171; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Practice Live Remediation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    In Part 3, you'll apply these RCTRO prompts to fix real SQL injection vulnerabilities in examples/owasp/A03_injection/. Run tests to verify security controls work. See the full workflow in action.
+  </div>
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Explore Advanced Topics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    Part 4: Fitness Functions (Automated Quality Gates)<br/>
+    Part 5: Security Scanning (CodeQL + Snyk Integration)<br/>
+    Part 6: Prompt Library Management<br/>
+    Part 7: Multi-Agent Orchestration<br/>
+    Part 8: Governance & Metrics
+  </div>
+</div>
+
+</div>
+
+</div>
+
 <div style="display: flex; gap: 20px; margin: 48px 0; flex-wrap: wrap;">
   <a href="./part1-spectrum" style="flex: 1; min-width: 200px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); color: #60a5fa; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 600; text-align: center;">
     ← Part 1: The Spectrum
