@@ -1,0 +1,942 @@
+#!/usr/bin/env node
+
+/**
+ * CodeQL SARIF Results Processor
+ *
+ * This script processes CodeQL SARIF results and creates GitHub issues with
+ * embedded MaintainabilityAI prompts for security vulnerabilities.
+ *
+ * @module process-codeql-results
+ * @requires @octokit/rest
+ * @requires axios
+ */
+
+const { Octokit } = require('@octokit/rest');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const config = {
+  githubToken: process.env.GITHUB_TOKEN,
+  promptRepo: process.env.PROMPT_REPO || 'AliceNN-ucdenver/MaintainabilityAI',
+  promptBranch: process.env.PROMPT_BRANCH || 'main',
+  severityThreshold: process.env.SEVERITY_THRESHOLD || 'high',
+  maxIssuesPerRun: parseInt(process.env.MAX_ISSUES_PER_RUN || '10', 10),
+  enableMaintainability: process.env.ENABLE_MAINTAINABILITY === 'true',
+  enableThreatModel: process.env.ENABLE_THREAT_MODEL === 'true',
+  autoAssign: (process.env.AUTO_ASSIGN || '').split(',').filter(Boolean),
+  excludedPaths: (process.env.EXCLUDED_PATHS || '').split(',').filter(Boolean),
+  owner: process.env.GITHUB_REPOSITORY_OWNER || (process.env.GITHUB_REPOSITORY || '/').split('/')[0],
+  repo: (process.env.GITHUB_REPOSITORY || '/').split('/')[1],
+  sarifPath: process.env.SARIF_PATH || 'results.sarif',
+  branch: process.env.GITHUB_REF_NAME || 'main',
+  sha: process.env.GITHUB_SHA || 'unknown'
+};
+
+// Validate required configuration
+if (!config.githubToken) {
+  console.error('❌ ERROR: GITHUB_TOKEN environment variable is required');
+  process.exit(1);
+}
+
+if (!config.owner || !config.repo) {
+  console.error('❌ ERROR: Could not determine repository owner/name from GITHUB_REPOSITORY');
+  process.exit(1);
+}
+
+console.log('🔧 Configuration:');
+console.log(`   Repository: ${config.owner}/${config.repo}`);
+console.log(`   SARIF Path: ${config.sarifPath}`);
+console.log(`   Severity Threshold: ${config.severityThreshold}`);
+console.log(`   Max Issues Per Run: ${config.maxIssuesPerRun}`);
+console.log(`   Maintainability Prompts: ${config.enableMaintainability ? '✅' : '❌'}`);
+console.log(`   Threat Model Prompts: ${config.enableThreatModel ? '✅' : '❌'}`);
+console.log(`   Prompt Source: ${config.promptRepo}@${config.promptBranch}`);
+
+// ============================================================================
+// INITIALIZE SERVICES
+// ============================================================================
+
+const octokit = new Octokit({ auth: config.githubToken });
+
+// Load prompt mappings
+const mappingsPath = path.join(__dirname, 'prompt-mappings.json');
+let mappings;
+
+try {
+  mappings = JSON.parse(fs.readFileSync(mappingsPath, 'utf8'));
+  console.log(`✅ Loaded prompt mappings from ${mappingsPath}`);
+} catch (error) {
+  console.error(`❌ ERROR: Could not load prompt mappings from ${mappingsPath}:`, error.message);
+  process.exit(1);
+}
+
+// ============================================================================
+// LOGGING SETUP
+// ============================================================================
+
+const logsDir = path.join(__dirname, 'logs');
+const logFile = path.join(logsDir, 'processing.log');
+const summaryFile = path.join(logsDir, 'summary.json');
+
+// Create logs directory if it doesn't exist
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+  console.log(`✅ Created logs directory: ${logsDir}`);
+}
+
+/**
+ * Append a log message to the log file with timestamp
+ * @param {string} level - Log level (INFO, WARN, ERROR)
+ * @param {string} message - Log message
+ */
+function log(level, message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] [${level}] ${message}\n`;
+
+  fs.appendFileSync(logFile, logMessage);
+
+  // Also output to console with appropriate formatting
+  const prefix = {
+    INFO: 'ℹ️',
+    WARN: '⚠️',
+    ERROR: '❌',
+    SUCCESS: '✅'
+  }[level] || '📝';
+
+  console.log(`${prefix} ${message}`);
+}
+
+// ============================================================================
+// PROMPT CACHE
+// ============================================================================
+
+const promptCache = new Map();
+
+/**
+ * Fetch a prompt from the MaintainabilityAI repository
+ * @param {string} category - Category (owasp, maintainability, threat-modeling)
+ * @param {string} file - Prompt filename
+ * @returns {Promise<string|null>} Prompt content or null if not found
+ */
+async function fetchPrompt(category, file) {
+  const cacheKey = `${category}/${file}`;
+
+  // Check cache first
+  if (promptCache.has(cacheKey)) {
+    log('INFO', `Using cached prompt: ${cacheKey}`);
+    return promptCache.get(cacheKey);
+  }
+
+  const url = `https://raw.githubusercontent.com/${config.promptRepo}/${config.promptBranch}/site-tw/public/docs/prompts/${category}/${file}`;
+
+  try {
+    log('INFO', `Fetching prompt: ${url}`);
+    const response = await axios.get(url, {
+      timeout: 10000,
+      validateStatus: (status) => status === 200
+    });
+
+    const content = response.data;
+    promptCache.set(cacheKey, content);
+    log('SUCCESS', `Fetched prompt: ${cacheKey} (${content.length} bytes)`);
+
+    return content;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      log('WARN', `Prompt not found: ${cacheKey}`);
+    } else {
+      log('ERROR', `Failed to fetch prompt ${cacheKey}: ${error.message}`);
+    }
+
+    promptCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+// ============================================================================
+// SARIF PARSING
+// ============================================================================
+
+/**
+ * Parse SARIF results file and extract vulnerabilities
+ * @param {string} sarifPath - Path to SARIF file
+ * @returns {Array<Object>} Array of vulnerability objects
+ */
+function parseSARIFResults(sarifPath) {
+  log('INFO', `Parsing SARIF file: ${sarifPath}`);
+
+  if (!fs.existsSync(sarifPath)) {
+    log('ERROR', `SARIF file not found: ${sarifPath}`);
+    return [];
+  }
+
+  let sarif;
+  try {
+    const content = fs.readFileSync(sarifPath, 'utf8');
+    sarif = JSON.parse(content);
+  } catch (error) {
+    log('ERROR', `Failed to parse SARIF file: ${error.message}`);
+    return [];
+  }
+
+  const vulnerabilities = [];
+
+  // SARIF structure: runs[0].results[]
+  for (const run of sarif.runs || []) {
+    const tool = run.tool?.driver?.name || 'CodeQL';
+    const toolVersion = run.tool?.driver?.semanticVersion || run.tool?.driver?.version || 'unknown';
+
+    for (const result of run.results || []) {
+      try {
+        const ruleId = result.ruleId;
+        const message = result.message?.text || 'No description provided';
+        const level = result.level || 'warning';
+
+        // Get primary location
+        const location = result.locations?.[0]?.physicalLocation;
+        if (!location) {
+          log('WARN', `Skipping result without location: ${ruleId}`);
+          continue;
+        }
+
+        const filePath = location.artifactLocation?.uri || 'unknown';
+        const region = location.region || {};
+        const startLine = region.startLine || 1;
+        const endLine = region.endLine || startLine;
+        const startColumn = region.startColumn || 1;
+        const endColumn = region.endColumn || startColumn;
+
+        // Extract code snippet
+        let codeSnippet = region.snippet?.text || '';
+
+        // Get rule details
+        const rule = run.tool?.driver?.rules?.find(r => r.id === ruleId);
+        const ruleName = rule?.shortDescription?.text || rule?.name || ruleId;
+        const ruleHelp = rule?.help?.text || rule?.fullDescription?.text || '';
+
+        vulnerabilities.push({
+          ruleId,
+          ruleName,
+          ruleHelp,
+          message,
+          level,
+          severity: mappings.severity_mapping[level] || 'medium',
+          filePath,
+          startLine,
+          endLine,
+          startColumn,
+          endColumn,
+          codeSnippet: codeSnippet.trim(),
+          tool,
+          toolVersion
+        });
+      } catch (error) {
+        log('ERROR', `Failed to parse result: ${error.message}`);
+      }
+    }
+  }
+
+  log('SUCCESS', `Parsed ${vulnerabilities.length} vulnerabilities from SARIF`);
+  return vulnerabilities;
+}
+
+// ============================================================================
+// OWASP MAPPING
+// ============================================================================
+
+/**
+ * Map CodeQL rule to OWASP category
+ * @param {string} ruleId - CodeQL rule ID
+ * @returns {Object|null} OWASP category info or null
+ */
+function mapToOWASP(ruleId) {
+  const owaspKey = mappings.codeql_to_owasp[ruleId];
+
+  if (!owaspKey) {
+    log('WARN', `No OWASP mapping found for rule: ${ruleId}`);
+    return null;
+  }
+
+  const category = mappings.owasp_categories[owaspKey];
+
+  if (!category) {
+    log('ERROR', `OWASP category not found: ${owaspKey}`);
+    return null;
+  }
+
+  return {
+    key: owaspKey,
+    ...category
+  };
+}
+
+// ============================================================================
+// MAINTAINABILITY DETECTION
+// ============================================================================
+
+/**
+ * Detect maintainability concerns based on message/rule content
+ * @param {Object} vulnerability - Vulnerability object
+ * @returns {Array<string>} Array of maintainability prompt files
+ */
+function detectMaintainabilityConcerns(vulnerability) {
+  if (!config.enableMaintainability) {
+    return [];
+  }
+
+  const concerns = new Set();
+  const searchText = `${vulnerability.message} ${vulnerability.ruleHelp} ${vulnerability.ruleId}`.toLowerCase();
+
+  // Check maintainability triggers from mappings
+  for (const [key, trigger] of Object.entries(mappings.maintainability_triggers)) {
+    for (const keyword of trigger.keywords) {
+      if (searchText.includes(keyword.toLowerCase())) {
+        concerns.add(trigger.prompt_file);
+        log('INFO', `Detected maintainability concern: ${key} for ${vulnerability.ruleId}`);
+        break;
+      }
+    }
+  }
+
+  return Array.from(concerns);
+}
+
+// ============================================================================
+// ISSUE BODY GENERATION
+// ============================================================================
+
+/**
+ * Create formatted GitHub issue body with embedded prompts
+ * @param {Object} vulnerability - Vulnerability object
+ * @param {Object} prompts - Object containing fetched prompts
+ * @returns {string} Formatted issue body in Markdown
+ */
+function createIssueBody(vulnerability, prompts) {
+  const timestamp = new Date().toISOString();
+  const owaspCategory = prompts.owaspCategory || 'Unknown';
+  const owaspKey = prompts.owaspKey || '';
+
+  // Determine language from file extension
+  const ext = path.extname(vulnerability.filePath).toLowerCase();
+  const languageMap = {
+    '.js': 'javascript',
+    '.ts': 'typescript',
+    '.jsx': 'javascript',
+    '.tsx': 'typescript',
+    '.py': 'python',
+    '.java': 'java',
+    '.go': 'go',
+    '.cs': 'csharp',
+    '.rb': 'ruby',
+    '.php': 'php'
+  };
+  const language = languageMap[ext] || 'text';
+
+  // Build issue body
+  let body = `## 🔴 Security Vulnerability: ${vulnerability.ruleName}
+
+**Detected by**: ${vulnerability.tool} v${vulnerability.toolVersion}
+**Created**: ${timestamp}
+
+---
+
+### 📋 Vulnerability Details
+
+| Property | Value |
+|----------|-------|
+| **Severity** | ${vulnerability.severity.toUpperCase()} |
+| **CodeQL Rule** | \`${vulnerability.ruleId}\` |
+| **OWASP Category** | [${owaspCategory}](https://maintainability.ai/docs/prompts/owasp/${prompts.owaspFile || ''}) |
+| **File** | \`${vulnerability.filePath}\` |
+| **Lines** | ${vulnerability.startLine}${vulnerability.endLine !== vulnerability.startLine ? `-${vulnerability.endLine}` : ''} |
+
+### 💻 Vulnerable Code
+
+\`\`\`${language}
+${vulnerability.codeSnippet || '(No code snippet available)'}
+\`\`\`
+
+**Issue**: ${vulnerability.message}
+`;
+
+  // Add rule help if available
+  if (vulnerability.ruleHelp) {
+    body += `
+
+**Additional Context**: ${vulnerability.ruleHelp}
+`;
+  }
+
+  // Add OWASP prompt
+  if (prompts.owaspPrompt) {
+    body += `
+
+---
+
+### 🛡️ Security Context (from MaintainabilityAI)
+
+${prompts.owaspPrompt}
+`;
+  }
+
+  // Add maintainability prompts
+  if (prompts.maintainabilityPrompts && prompts.maintainabilityPrompts.length > 0) {
+    body += `
+
+---
+
+### 📐 Maintainability Considerations
+
+`;
+
+    for (const maintPrompt of prompts.maintainabilityPrompts) {
+      if (maintPrompt.content) {
+        body += `
+#### ${maintPrompt.name}
+
+${maintPrompt.content}
+
+`;
+      }
+    }
+  }
+
+  // Add threat model prompts
+  if (prompts.threatModelPrompts && prompts.threatModelPrompts.length > 0) {
+    body += `
+
+---
+
+### 🎯 Threat Model Analysis
+
+`;
+
+    for (const threatPrompt of prompts.threatModelPrompts) {
+      if (threatPrompt.content) {
+        body += `
+#### ${threatPrompt.name}
+
+${threatPrompt.content}
+
+`;
+      }
+    }
+  }
+
+  // Add remediation zone
+  body += `
+
+---
+
+## 🤖 Claude Remediation Zone
+
+To request a remediation plan, comment:
+
+\`@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines above.\`
+
+### ✅ Human Review Checklist
+
+- [ ] Security fix addresses the root cause
+- [ ] Code maintains readability and maintainability
+- [ ] Fix doesn't introduce new vulnerabilities
+- [ ] Tests are included/updated
+- [ ] Documentation is updated
+- [ ] Performance impact is acceptable
+
+---
+
+<details>
+<summary>📊 Additional Metadata</summary>
+
+- **Detection Time**: ${timestamp}
+- **CodeQL Version**: ${vulnerability.toolVersion}
+- **Repository**: ${config.owner}/${config.repo}
+- **Branch**: ${config.branch}
+- **Commit**: ${config.sha}
+- **Rule ID**: ${vulnerability.ruleId}
+
+</details>
+`;
+
+  return body;
+}
+
+// ============================================================================
+// ISSUE TITLE GENERATION
+// ============================================================================
+
+/**
+ * Generate a concise issue title
+ * @param {Object} vulnerability - Vulnerability object
+ * @returns {string} Issue title
+ */
+function createIssueTitle(vulnerability) {
+  const fileName = path.basename(vulnerability.filePath);
+  return `[Security] ${vulnerability.ruleName} in ${fileName}:${vulnerability.startLine}`;
+}
+
+// ============================================================================
+// ISSUE DEDUPLICATION
+// ============================================================================
+
+/**
+ * Find existing issue for a vulnerability
+ * @param {Object} vulnerability - Vulnerability object
+ * @returns {Promise<Object|null>} Existing issue or null
+ */
+async function findExistingIssue(vulnerability) {
+  try {
+    log('INFO', `Searching for existing issue: ${vulnerability.ruleId} in ${vulnerability.filePath}:${vulnerability.startLine}`);
+
+    // Search for issues with codeql-finding label
+    const { data: issues } = await octokit.rest.issues.listForRepo({
+      owner: config.owner,
+      repo: config.repo,
+      labels: 'codeql-finding',
+      state: 'open',
+      per_page: 100
+    });
+
+    // Look for matching issue
+    for (const issue of issues) {
+      const body = issue.body || '';
+
+      // Check if rule ID, file path, and line number match
+      const hasRuleId = body.includes(`\`${vulnerability.ruleId}\``);
+      const hasFilePath = body.includes(`\`${vulnerability.filePath}\``);
+      const hasLineNumber = body.includes(`${vulnerability.startLine}`);
+
+      if (hasRuleId && hasFilePath && hasLineNumber) {
+        log('INFO', `Found existing issue #${issue.number}`);
+        return issue;
+      }
+    }
+
+    log('INFO', 'No existing issue found');
+    return null;
+  } catch (error) {
+    log('ERROR', `Failed to search for existing issue: ${error.message}`);
+    return null;
+  }
+}
+
+// ============================================================================
+// ISSUE LABELS
+// ============================================================================
+
+/**
+ * Generate labels for an issue
+ * @param {Object} vulnerability - Vulnerability object
+ * @param {Object} owaspInfo - OWASP category info
+ * @param {Array<string>} maintainabilityFiles - Maintainability prompt files
+ * @returns {Array<string>} Array of label names
+ */
+function generateLabels(vulnerability, owaspInfo, maintainabilityFiles) {
+  const labels = ['codeql-finding'];
+
+  // Severity label
+  const severityLabel = mappings.label_mapping[vulnerability.severity];
+  if (severityLabel) {
+    labels.push(severityLabel);
+  }
+
+  // OWASP label
+  if (owaspInfo?.key) {
+    labels.push(`owasp/${owaspInfo.key.toLowerCase()}`);
+  }
+
+  // Maintainability labels
+  for (const file of maintainabilityFiles) {
+    const aspect = file.replace('.md', '');
+    labels.push(`maintainability/${aspect}`);
+  }
+
+  // Remediation status label
+  labels.push('awaiting-remediation-plan');
+
+  return labels;
+}
+
+// ============================================================================
+// ISSUE CREATION/UPDATE
+// ============================================================================
+
+/**
+ * Create or update a GitHub issue
+ * @param {Object} vulnerability - Vulnerability object
+ * @param {string} issueBody - Formatted issue body
+ * @param {Array<string>} labels - Issue labels
+ * @returns {Promise<Object>} Created/updated issue
+ */
+async function createOrUpdateIssue(vulnerability, issueBody, labels) {
+  const title = createIssueTitle(vulnerability);
+
+  // Check for existing issue
+  const existingIssue = await findExistingIssue(vulnerability);
+
+  if (existingIssue) {
+    // Update existing issue
+    try {
+      log('INFO', `Updating existing issue #${existingIssue.number}`);
+
+      const { data: issue } = await octokit.rest.issues.update({
+        owner: config.owner,
+        repo: config.repo,
+        issue_number: existingIssue.number,
+        body: issueBody,
+        labels: labels
+      });
+
+      // Add comment to indicate update
+      await octokit.rest.issues.createComment({
+        owner: config.owner,
+        repo: config.repo,
+        issue_number: existingIssue.number,
+        body: `🔄 **Issue Updated**\n\nThis vulnerability was re-detected in the latest CodeQL scan.\n\n**Commit**: ${config.sha}\n**Branch**: ${config.branch}\n**Timestamp**: ${new Date().toISOString()}`
+      });
+
+      log('SUCCESS', `Updated issue #${issue.number}: ${title}`);
+      return { issue, action: 'updated' };
+    } catch (error) {
+      log('ERROR', `Failed to update issue #${existingIssue.number}: ${error.message}`);
+      throw error;
+    }
+  } else {
+    // Create new issue
+    try {
+      log('INFO', `Creating new issue: ${title}`);
+
+      const issueData = {
+        owner: config.owner,
+        repo: config.repo,
+        title: title,
+        body: issueBody,
+        labels: labels
+      };
+
+      // Add assignees if configured
+      if (config.autoAssign.length > 0) {
+        issueData.assignees = config.autoAssign;
+      }
+
+      const { data: issue } = await octokit.rest.issues.create(issueData);
+
+      log('SUCCESS', `Created issue #${issue.number}: ${title}`);
+      return { issue, action: 'created' };
+    } catch (error) {
+      log('ERROR', `Failed to create issue: ${error.message}`);
+      throw error;
+    }
+  }
+}
+
+// ============================================================================
+// PATH FILTERING
+// ============================================================================
+
+/**
+ * Check if a file path should be excluded
+ * @param {string} filePath - File path to check
+ * @returns {boolean} True if path should be excluded
+ */
+function shouldExcludePath(filePath) {
+  for (const excludedPath of config.excludedPaths) {
+    if (filePath.includes(excludedPath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ============================================================================
+// SEVERITY FILTERING
+// ============================================================================
+
+/**
+ * Check if vulnerability meets severity threshold
+ * @param {string} severity - Vulnerability severity
+ * @returns {boolean} True if severity meets threshold
+ */
+function meetsSeverityThreshold(severity) {
+  const severityLevels = ['low', 'medium', 'high', 'critical'];
+  const thresholdIndex = severityLevels.indexOf(config.severityThreshold);
+  const severityIndex = severityLevels.indexOf(severity);
+
+  return severityIndex >= thresholdIndex;
+}
+
+// ============================================================================
+// MAIN PROCESSING
+// ============================================================================
+
+/**
+ * Process findings and create/update issues
+ * @param {Array<Object>} findings - Array of vulnerabilities
+ * @returns {Promise<Object>} Processing results
+ */
+async function processFindings(findings) {
+  const results = {
+    total: findings.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+    by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
+    by_owasp: {}
+  };
+
+  let processedCount = 0;
+
+  for (const finding of findings) {
+    try {
+      // Check if we've reached the limit
+      if (processedCount >= config.maxIssuesPerRun) {
+        log('WARN', `Reached max issues per run (${config.maxIssuesPerRun}), stopping`);
+        results.skipped += findings.length - processedCount;
+        break;
+      }
+
+      // Count by severity
+      results.by_severity[finding.severity] = (results.by_severity[finding.severity] || 0) + 1;
+
+      // Filter by severity threshold
+      if (!meetsSeverityThreshold(finding.severity)) {
+        log('INFO', `Skipping ${finding.ruleId} (severity ${finding.severity} below threshold ${config.severityThreshold})`);
+        results.skipped++;
+        continue;
+      }
+
+      // Filter by excluded paths
+      if (shouldExcludePath(finding.filePath)) {
+        log('INFO', `Skipping ${finding.ruleId} (path ${finding.filePath} is excluded)`);
+        results.skipped++;
+        continue;
+      }
+
+      // Map to OWASP
+      const owaspInfo = mapToOWASP(finding.ruleId);
+      if (!owaspInfo) {
+        log('WARN', `Skipping ${finding.ruleId} (no OWASP mapping)`);
+        results.skipped++;
+        continue;
+      }
+
+      // Count by OWASP
+      results.by_owasp[owaspInfo.key] = (results.by_owasp[owaspInfo.key] || 0) + 1;
+
+      log('INFO', `Processing finding: ${finding.ruleId} (${owaspInfo.key})`);
+
+      // Fetch prompts
+      const prompts = {
+        owaspKey: owaspInfo.key,
+        owaspCategory: owaspInfo.name,
+        owaspFile: owaspInfo.prompt_file,
+        owaspPrompt: null,
+        maintainabilityPrompts: [],
+        threatModelPrompts: []
+      };
+
+      // Fetch OWASP prompt
+      prompts.owaspPrompt = await fetchPrompt('owasp', owaspInfo.prompt_file);
+
+      // Detect and fetch maintainability prompts
+      const maintainabilityFiles = detectMaintainabilityConcerns(finding);
+
+      // Add mapped maintainability prompts from OWASP category
+      if (owaspInfo.maintainability) {
+        for (const aspect of owaspInfo.maintainability) {
+          const file = `${aspect}.md`;
+          if (!maintainabilityFiles.includes(file)) {
+            maintainabilityFiles.push(file);
+          }
+        }
+      }
+
+      for (const file of maintainabilityFiles) {
+        const content = await fetchPrompt('maintainability', file);
+        if (content) {
+          prompts.maintainabilityPrompts.push({
+            name: file.replace('.md', '').replace(/-/g, ' ').toUpperCase(),
+            content
+          });
+        }
+      }
+
+      // Fetch threat model prompts if enabled
+      if (config.enableThreatModel && owaspInfo.threat_model) {
+        for (const threat of owaspInfo.threat_model) {
+          const file = `${threat}.md`;
+          const content = await fetchPrompt('threat-modeling', file);
+          if (content) {
+            prompts.threatModelPrompts.push({
+              name: threat.replace(/-/g, ' ').toUpperCase(),
+              content
+            });
+          }
+        }
+      }
+
+      // Create issue body
+      const issueBody = createIssueBody(finding, prompts);
+
+      // Generate labels
+      const labels = generateLabels(finding, owaspInfo, maintainabilityFiles);
+
+      // Create or update issue
+      const { issue, action } = await createOrUpdateIssue(finding, issueBody, labels);
+
+      if (action === 'created') {
+        results.created++;
+      } else if (action === 'updated') {
+        results.updated++;
+      }
+
+      processedCount++;
+
+      // Rate limiting protection
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+    } catch (error) {
+      log('ERROR', `Failed to process finding ${finding.ruleId}: ${error.message}`);
+      results.errors.push({
+        ruleId: finding.ruleId,
+        filePath: finding.filePath,
+        error: error.message
+      });
+      results.skipped++;
+    }
+  }
+
+  return results;
+}
+
+// ============================================================================
+// SUMMARY GENERATION
+// ============================================================================
+
+/**
+ * Generate and save summary statistics
+ * @param {Object} results - Processing results
+ */
+function generateSummary(results) {
+  const summary = {
+    timestamp: new Date().toISOString(),
+    repository: `${config.owner}/${config.repo}`,
+    branch: config.branch,
+    commit: config.sha,
+    configuration: {
+      severity_threshold: config.severityThreshold,
+      max_issues_per_run: config.maxIssuesPerRun,
+      maintainability_enabled: config.enableMaintainability,
+      threat_model_enabled: config.enableThreatModel
+    },
+    ...results
+  };
+
+  fs.writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
+  log('SUCCESS', `Saved summary to ${summaryFile}`);
+
+  // Output summary to console
+  console.log('\n' + '='.repeat(80));
+  console.log('📊 PROCESSING SUMMARY');
+  console.log('='.repeat(80));
+  console.log(`Total Findings:     ${results.total}`);
+  console.log(`Issues Created:     ${results.created}`);
+  console.log(`Issues Updated:     ${results.updated}`);
+  console.log(`Issues Skipped:     ${results.skipped}`);
+  console.log(`Errors:             ${results.errors.length}`);
+  console.log('\nBy Severity:');
+  console.log(`  Critical:         ${results.by_severity.critical || 0}`);
+  console.log(`  High:             ${results.by_severity.high || 0}`);
+  console.log(`  Medium:           ${results.by_severity.medium || 0}`);
+  console.log(`  Low:              ${results.by_severity.low || 0}`);
+  console.log('\nBy OWASP Category:');
+  for (const [category, count] of Object.entries(results.by_owasp)) {
+    const categoryName = mappings.owasp_categories[category]?.name || category;
+    console.log(`  ${categoryName}: ${count}`);
+  }
+
+  if (results.errors.length > 0) {
+    console.log('\n⚠️  Errors:');
+    for (const error of results.errors) {
+      console.log(`  - ${error.ruleId} in ${error.filePath}: ${error.error}`);
+    }
+  }
+
+  console.log('='.repeat(80) + '\n');
+}
+
+// ============================================================================
+// MAIN EXECUTION
+// ============================================================================
+
+async function main() {
+  const startTime = Date.now();
+
+  log('INFO', 'Starting CodeQL SARIF processing');
+  log('INFO', `Repository: ${config.owner}/${config.repo}`);
+  log('INFO', `SARIF file: ${config.sarifPath}`);
+
+  try {
+    // Parse SARIF results
+    const findings = parseSARIFResults(config.sarifPath);
+
+    if (findings.length === 0) {
+      log('INFO', 'No vulnerabilities found in SARIF results');
+      generateSummary({
+        total: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [],
+        by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
+        by_owasp: {}
+      });
+      return;
+    }
+
+    // Process findings
+    const results = await processFindings(findings);
+
+    // Generate summary
+    generateSummary(results);
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    log('SUCCESS', `Processing complete in ${duration}s`);
+
+    // Exit with error if there were processing errors
+    if (results.errors.length > 0) {
+      log('WARN', `Completed with ${results.errors.length} error(s)`);
+      process.exit(1);
+    }
+
+  } catch (error) {
+    log('ERROR', `Fatal error: ${error.message}`);
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+// Run main function
+if (require.main === module) {
+  main().catch(error => {
+    console.error('❌ Unhandled error:', error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  parseSARIFResults,
+  mapToOWASP,
+  fetchPrompt,
+  createIssueBody,
+  findExistingIssue,
+  generateLabels,
+  shouldExcludePath,
+  meetsSeverityThreshold
+};

@@ -1,0 +1,161 @@
+name: "Claude AI Remediation"
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  remediate:
+    name: AI-Assisted Remediation
+    runs-on: ubuntu-latest
+    # Only run if comment mentions @claude and issue has codeql-finding label
+    if: |
+      github.event.issue &&
+      contains(github.event.comment.body, '@claude') &&
+      contains(github.event.issue.labels.*.name, 'codeql-finding')
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Extract issue details
+      id: issue_details
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issue = context.payload.issue;
+          const comment = context.payload.comment;
+
+          // Extract issue number, title, body
+          core.setOutput('issue_number', issue.number);
+          core.setOutput('issue_title', issue.title);
+          core.setOutput('issue_body', issue.body);
+          core.setOutput('comment_body', comment.body);
+          core.setOutput('comment_user', comment.user.login);
+
+    - name: Claude Code Remediation
+      uses: anthropics/claude-code-action@v1
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        prompt: |
+          # Security Vulnerability Remediation Request
+
+          **Repository**: ${{ github.repository }}
+          **Issue**: #${{ steps.issue_details.outputs.issue_number }}
+          **Requested by**: @${{ steps.issue_details.outputs.comment_user }}
+
+          ## Issue Details
+
+          ${{ steps.issue_details.outputs.issue_body }}
+
+          ## User Request
+
+          ${{ steps.issue_details.outputs.comment_body }}
+
+          ## Your Task
+
+          You are a security-focused software engineer working on vulnerability remediation. Analyze the security issue above and follow these steps:
+
+          ### Phase 1: Assessment
+          1. Read the vulnerable code file mentioned in the issue
+          2. Understand the security vulnerability and attack vectors
+          3. Review the embedded OWASP prompt and security requirements
+
+          ### Phase 2: Solution Design
+          1. Design a fix that addresses the root cause
+          2. Ensure the solution follows security best practices from the prompt
+          3. Consider maintainability (complexity, DRY principle, single responsibility)
+          4. Plan any necessary tests
+
+          ### Phase 3: Implementation Plan
+          Post a comment on issue #${{ steps.issue_details.outputs.issue_number }} with:
+          ```markdown
+          ## 🔍 Remediation Plan
+
+          ### Root Cause
+          [Explain the vulnerability]
+
+          ### Proposed Solution
+          [Describe the fix with code examples]
+
+          ### Security Controls
+          - [ ] Input validation
+          - [ ] Parameterized queries / safe APIs
+          - [ ] Error handling
+          - [ ] Least privilege
+          - [ ] Additional controls
+
+          ### Maintainability Considerations
+          [Explain how the fix maintains code quality]
+
+          ### Testing Strategy
+          [Describe tests to validate the fix]
+
+          ### Approval Required
+          Please review and approve with: `@claude approved - implement this fix`
+          ```
+
+          ### Phase 4: Wait for Human Approval
+          - DO NOT implement the fix yet
+          - Wait for explicit approval in a follow-up comment
+          - Address any feedback or concerns
+
+          ### Phase 5: Implementation (only after approval)
+          Once approved:
+          1. Create a new branch: `fix/issue-${{ steps.issue_details.outputs.issue_number }}-security`
+          2. Implement the approved fix
+          3. Add/update tests
+          4. Create a pull request linking to the issue
+          5. Add comment to issue with PR link
+
+          ## Important Constraints
+
+          - NEVER implement fixes without explicit human approval
+          - ALWAYS follow the security requirements from the embedded OWASP prompt
+          - ALWAYS include tests for security controls
+          - ALWAYS maintain or improve code quality metrics
+          - Use GitHub CLI (`gh`) to post comments and create PRs
+
+          ## Example Commands You Can Use
+
+          ```bash
+          # Post a comment to the issue
+          gh issue comment ${{ steps.issue_details.outputs.issue_number }} --body "your comment"
+
+          # Create a branch (after approval)
+          git checkout -b fix/issue-${{ steps.issue_details.outputs.issue_number }}-security
+
+          # Create a PR (after implementation)
+          gh pr create --title "..." --body "..." --base main
+          ```
+
+          Start by reading the vulnerable code and posting your remediation plan.
+
+        claude_args: |
+          --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Read,Edit,Write,Glob,Grep"
+
+    - name: Label issue as in-progress
+      if: success()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ steps.issue_details.outputs.issue_number }},
+            labels: ['remediation-in-progress']
+          });
+
+          await github.rest.issues.removeLabel({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ steps.issue_details.outputs.issue_number }},
+            name: 'awaiting-remediation-plan'
+          }).catch(() => {});
