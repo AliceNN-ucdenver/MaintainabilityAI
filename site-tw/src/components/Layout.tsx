@@ -97,6 +97,7 @@ export default function Layout() {
               <h4 className="font-semibold mb-4">Framework</h4>
               <ul className="space-y-2 text-slate-400 text-sm">
                 <li><Link to="/docs/sdlc/" className="hover:text-white">SDLC Phases</Link></li>
+                <li><Link to="/docs/prompts/threat-modeling/" className="hover:text-white">Threat Modeling Prompts</Link></li>
                 <li><Link to="/docs/prompts/owasp/" className="hover:text-white">OWASP Prompts</Link></li>
                 <li><Link to="/docs/prompts/maintainability/" className="hover:text-white">Maintainability Prompts</Link></li>
                 <li><Link to="/docs/framework" className="hover:text-white">Framework Guide</Link></li>
