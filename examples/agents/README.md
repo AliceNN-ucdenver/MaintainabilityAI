@@ -6,7 +6,7 @@
 graph LR
     A[Push Code] --> B[CodeQL Scan]
     B --> C[Create Issues]
-    C --> D[@claude mention]
+    C --> D[claude mention]
     D --> E[AI Remediation Plan]
     E --> F[Human Approval]
     F --> G[Auto-implement Fix]

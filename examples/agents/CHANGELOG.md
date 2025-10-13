@@ -1,6 +1,29 @@
 # Changelog
 
-## 2025-10-13 - Production Ready Release
+## 2025-10-13 - Production Ready Release (v1.1)
+
+### Improved
+
+#### 5. Claude Workflow Optimization ✨
+**Enhancement**: Better handling of approval workflow to avoid redundant plan regeneration
+
+**Changes**:
+- Added `track_progress: true` to enable progress tracking comments
+- Updated prompt with explicit approval detection logic
+- Claude now checks for previous remediation plan before re-analyzing
+- If approval found, skips directly to implementation (no plan repost)
+
+**Benefits**:
+- ✅ Faster approval-to-implementation workflow
+- ✅ No duplicate remediation plans
+- ✅ Clearer intent in workflow runs
+- ✅ Better use of API credits
+
+**File**: `.github/workflows/claude-remediation.yml`
+
+---
+
+## 2025-10-13 - Production Ready Release (v1.0)
 
 All critical issues identified during testing have been resolved. System is production-ready.
 
@@ -59,7 +82,7 @@ All critical issues identified during testing have been resolved. System is prod
 ✅ **SARIF Extraction**: Works with `javascript.sarif`
 ✅ **Prompt Embedding**: All prompts collapsible, no size errors
 ✅ **Rule Coverage**: All detected vulnerabilities mapped
-✅ **Claude AI**: Authentication working (ready to test remediation)
+✅ **Claude AI**: Authentication working, approval workflow optimized
 
 ---
 
