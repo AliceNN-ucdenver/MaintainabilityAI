@@ -101,18 +101,22 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
 
       try {
         const mdPath = getMarkdownPath();
-        console.log('Loading markdown from:', mdPath);
+        console.log('[MarkdownPage] Loading markdown from:', mdPath);
+        console.log('[MarkdownPage] Current pathname:', location.pathname);
 
         const response = await fetch(mdPath);
 
+        console.log('[MarkdownPage] Fetch response:', response.status, response.statusText);
+
         if (!response.ok) {
-          throw new Error(`Failed to load ${mdPath}: ${response.statusText}`);
+          throw new Error(`Failed to load ${mdPath}: ${response.status} ${response.statusText}`);
         }
 
         const text = await response.text();
+        console.log('[MarkdownPage] Loaded markdown:', text.length, 'bytes');
         setMarkdown(text);
       } catch (err) {
-        console.error('Error loading markdown:', err);
+        console.error('[MarkdownPage] Error loading markdown:', err);
         setError(err instanceof Error ? err.message : 'Failed to load document');
       } finally {
         setLoading(false);
