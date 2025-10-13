@@ -1,5 +1,91 @@
 # Changelog
 
+## 2025-10-13 - Production Ready Release (v1.3)
+
+### Added
+
+#### 7. Code Snippet Extraction from Source Files ✨
+**Feature**: Display vulnerable code in GitHub issues even when SARIF lacks snippets
+
+**Problem**: CodeQL SARIF files often don't include the `region.snippet.text` field, so issues showed "(No code snippet available)"
+
+**Solution**:
+- Implemented `extractCodeSnippet()` function to read source files directly
+- Falls back to file extraction when SARIF lacks snippets
+- Includes 2 lines of context before/after vulnerable code
+- Adds line numbers for easy navigation
+- Marks vulnerable lines with `→` prefix
+
+**Benefits**:
+- ✅ Always shows code context in issues
+- ✅ Helps developers understand vulnerabilities faster
+- ✅ Line numbers match CodeQL's analysis
+- ✅ Graceful fallback if file not found
+
+**File**: `automation/process-codeql-results.js`
+
+**Example output**:
+```
+  71: app.post('/api/login', async (req, res) => {
+  72:   const { username, password } = req.body;
+→  73:   const query = `SELECT * FROM users WHERE username = '${username}'`;
+→  74:   const result = await pool.query(query);
+  75:   if (result.rows.length > 0) {
+```
+
+---
+
+## 2025-10-13 - Production Ready Release (v1.2)
+
+### Added
+
+#### 6. Auto-Close Resolved Vulnerabilities ✨
+**Feature**: Automatically close issues when vulnerabilities are fixed and no longer appear in CodeQL scans
+
+**How it works**:
+- After processing new findings, checks all open `codeql-finding` issues
+- Compares against current SARIF results
+- If vulnerability no longer exists → auto-closes the issue
+- Adds closing comment with scan details
+- Applies `resolved` label for tracking
+
+**Protections**:
+- ✅ Skips issues labeled `false-positive` (manual override)
+- ✅ Adds detailed closing comment with scan info
+- ✅ Includes commit SHA and branch for audit trail
+- ✅ Can be reopened if closed incorrectly
+
+**Benefits**:
+- ✅ Reduces manual issue triage
+- ✅ Keeps issue tracker clean
+- ✅ Provides immediate feedback on fixes
+- ✅ Tracks resolution in issue history
+
+**File**: `automation/process-codeql-results.js`
+
+**Example closing comment**:
+```markdown
+## ✅ Vulnerability Resolved
+
+This issue is being automatically closed because the vulnerability 
+is no longer detected in the latest CodeQL scan.
+
+**Details:**
+- **Rule**: `js/sql-injection`
+- **File**: `src/app.ts`
+- **Line**: 73
+- **Scan Date**: 2025-10-13T16:30:00.000Z
+- **Branch**: main
+- **Commit**: abc123
+
+If this was closed in error, please reopen and add the 
+`false-positive` label to prevent auto-closing in the future.
+
+🤖 Auto-closed by CodeQL to Issues automation
+```
+
+---
+
 ## 2025-10-13 - Production Ready Release (v1.1)
 
 ### Improved
@@ -83,6 +169,8 @@ All critical issues identified during testing have been resolved. System is prod
 ✅ **Prompt Embedding**: All prompts collapsible, no size errors
 ✅ **Rule Coverage**: All detected vulnerabilities mapped
 ✅ **Claude AI**: Authentication working, approval workflow optimized
+✅ **Auto-Close**: Resolves issues when vulnerabilities are fixed
+✅ **Code Snippets**: File extraction works when SARIF lacks snippets
 
 ---
 

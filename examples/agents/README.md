@@ -120,15 +120,17 @@ Claude will analyze and post a detailed plan. To approve:
 
 ### Automation Scripts
 
-**`automation/process-codeql-results.js`** (834 lines)
+**`automation/process-codeql-results.js`** (1,150 lines)
 - Parses CodeQL SARIF results
-- Maps 29 CodeQL rules to OWASP categories
+- Maps 32 CodeQL rules to OWASP categories
 - Fetches security prompts from MaintainabilityAI
+- Extracts code snippets from source files (fallback when SARIF lacks them)
 - Creates comprehensive GitHub issues
 - Implements deduplication and rate limiting
+- Auto-closes resolved vulnerabilities
 
 **`automation/prompt-mappings.json`**
-- CodeQL rule → OWASP category mappings
+- CodeQL rule → OWASP category mappings (32 total)
 - Links to maintainability patterns
 - Connects to STRIDE threat models
 
@@ -245,11 +247,15 @@ Please review and approve with: `@claude approved - implement this fix`
 
 1. **CodeQL Analysis**: Scans TypeScript/JavaScript for vulnerabilities
 2. **SARIF Parsing**: Extracts findings with severity, location, code snippets
+   - If SARIF lacks snippets, reads source files directly with line numbers
+   - Includes 2 lines of context before/after vulnerable code
+   - Marks vulnerable lines with `→` prefix
 3. **OWASP Mapping**: Maps CodeQL rule IDs to OWASP Top 10 categories
 4. **Prompt Fetching**: Downloads full security guidance from MaintainabilityAI
 5. **Issue Creation**: Creates comprehensive issue with all context
 6. **Deduplication**: Prevents duplicate issues (matches on rule + file + line)
 7. **Smart Labeling**: Applies security, OWASP, and maintainability labels
+8. **Auto-Close**: Closes resolved issues when vulnerability no longer detected
 
 ### Claude AI Remediation Process
 

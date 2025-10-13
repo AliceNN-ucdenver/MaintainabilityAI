@@ -159,6 +159,52 @@ async function fetchPrompt(category, file) {
 }
 
 // ============================================================================
+// CODE SNIPPET EXTRACTION
+// ============================================================================
+
+/**
+ * Extract code snippet from a file
+ * @param {string} filePath - Path to the file
+ * @param {number} startLine - Start line number (1-indexed)
+ * @param {number} endLine - End line number (1-indexed)
+ * @param {number} contextLines - Number of context lines before/after
+ * @returns {string} Code snippet
+ */
+function extractCodeSnippet(filePath, startLine, endLine, contextLines = 2) {
+  try {
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      log('WARN', `File not found for snippet extraction: ${filePath}`);
+      return '(File not found)';
+    }
+
+    // Read the file
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const lines = fileContent.split('\n');
+
+    // Calculate snippet range with context
+    const snippetStart = Math.max(0, startLine - contextLines - 1);
+    const snippetEnd = Math.min(lines.length, endLine + contextLines);
+
+    // Extract lines
+    const snippetLines = lines.slice(snippetStart, snippetEnd);
+
+    // Add line numbers for context
+    const numberedLines = snippetLines.map((line, index) => {
+      const lineNum = snippetStart + index + 1;
+      const isVulnerable = lineNum >= startLine && lineNum <= endLine;
+      const prefix = isVulnerable ? '→ ' : '  ';
+      return `${prefix}${String(lineNum).padStart(4)}: ${line}`;
+    });
+
+    return numberedLines.join('\n');
+  } catch (error) {
+    log('WARN', `Failed to extract code snippet from ${filePath}: ${error.message}`);
+    return '(Unable to extract code snippet)';
+  }
+}
+
+// ============================================================================
 // SARIF PARSING
 // ============================================================================
 
@@ -213,6 +259,11 @@ function parseSARIFResults(sarifPath) {
 
         // Extract code snippet
         let codeSnippet = region.snippet?.text || '';
+
+        // If SARIF doesn't include snippet, extract from file
+        if (!codeSnippet || codeSnippet.trim() === '') {
+          codeSnippet = extractCodeSnippet(filePath, startLine, endLine, 2);
+        }
 
         // Get rule details
         const rule = run.tool?.driver?.rules?.find(r => r.id === ruleId);
@@ -701,6 +752,114 @@ function meetsSeverityThreshold(severity) {
 }
 
 // ============================================================================
+// AUTO-CLOSE RESOLVED ISSUES
+// ============================================================================
+
+/**
+ * Auto-close issues for vulnerabilities that are no longer in the SARIF results
+ * @param {Set<string>} currentVulnerabilities - Set of current vulnerability keys
+ * @returns {Promise<number>} Number of issues closed
+ */
+async function autoCloseResolvedIssues(currentVulnerabilities) {
+  let closedCount = 0;
+
+  try {
+    // Get all open issues with codeql-finding label
+    const { data: openIssues } = await octokit.rest.issues.listForRepo({
+      owner: config.owner,
+      repo: config.repo,
+      labels: 'codeql-finding',
+      state: 'open',
+      per_page: 100
+    });
+
+    log('INFO', `Found ${openIssues.length} open CodeQL issue(s) to check`);
+
+    for (const issue of openIssues) {
+      // Skip issues marked as false-positive
+      const labels = issue.labels.map(l => typeof l === 'string' ? l : l.name);
+      if (labels.includes('false-positive')) {
+        log('INFO', `Skipping issue #${issue.number} (marked as false-positive)`);
+        continue;
+      }
+
+      const body = issue.body || '';
+
+      // Extract vulnerability key from issue body
+      // Format: `js/sql-injection` in `src/app.ts` at line 73
+      const ruleMatch = body.match(/\*\*CodeQL Rule\*\* \| `([^`]+)`/);
+      const fileMatch = body.match(/\*\*File\*\* \| `([^`]+)`/);
+      const lineMatch = body.match(/\*\*Lines\*\* \| (\d+)/);
+
+      if (!ruleMatch || !fileMatch || !lineMatch) {
+        log('WARN', `Could not parse issue #${issue.number}, skipping auto-close check`);
+        continue;
+      }
+
+      const ruleId = ruleMatch[1];
+      const filePath = fileMatch[1];
+      const startLine = lineMatch[1];
+      const vulnKey = `${ruleId}:${filePath}:${startLine}`;
+
+      // Check if this vulnerability still exists in current scan
+      if (!currentVulnerabilities.has(vulnKey)) {
+        log('INFO', `Vulnerability resolved: ${vulnKey}, closing issue #${issue.number}`);
+
+        // Close the issue
+        await octokit.rest.issues.update({
+          owner: config.owner,
+          repo: config.repo,
+          issue_number: issue.number,
+          state: 'closed'
+        });
+
+        // Add closing comment
+        await octokit.rest.issues.createComment({
+          owner: config.owner,
+          repo: config.repo,
+          issue_number: issue.number,
+          body: `## ✅ Vulnerability Resolved
+
+This issue is being automatically closed because the vulnerability is no longer detected in the latest CodeQL scan.
+
+**Details:**
+- **Rule**: \`${ruleId}\`
+- **File**: \`${filePath}\`
+- **Line**: ${startLine}
+- **Scan Date**: ${new Date().toISOString()}
+- **Branch**: ${config.branch}
+- **Commit**: ${config.sha}
+
+If this was closed in error, please reopen and add the \`false-positive\` label to prevent auto-closing in the future.
+
+---
+
+🤖 Auto-closed by CodeQL to Issues automation`
+        });
+
+        // Add resolved label
+        await octokit.rest.issues.addLabels({
+          owner: config.owner,
+          repo: config.repo,
+          issue_number: issue.number,
+          labels: ['resolved']
+        });
+
+        closedCount++;
+
+        // Rate limiting protection
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  } catch (error) {
+    log('ERROR', `Error in auto-close: ${error.message}`);
+    throw error;
+  }
+
+  return closedCount;
+}
+
+// ============================================================================
 // MAIN PROCESSING
 // ============================================================================
 
@@ -715,12 +874,16 @@ async function processFindings(findings) {
     created: 0,
     updated: 0,
     skipped: 0,
+    closed: 0,
     errors: [],
     by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
     by_owasp: {}
   };
 
   let processedCount = 0;
+
+  // Track current vulnerabilities for auto-close feature
+  const currentVulnerabilities = new Set();
 
   for (const finding of findings) {
     try {
@@ -826,6 +989,10 @@ async function processFindings(findings) {
         results.updated++;
       }
 
+      // Track this vulnerability as currently existing
+      const vulnKey = `${finding.ruleId}:${finding.filePath}:${finding.startLine}`;
+      currentVulnerabilities.add(vulnKey);
+
       processedCount++;
 
       // Rate limiting protection
@@ -840,6 +1007,16 @@ async function processFindings(findings) {
       });
       results.skipped++;
     }
+  }
+
+  // Auto-close resolved vulnerabilities
+  log('INFO', 'Checking for resolved vulnerabilities to auto-close...');
+  try {
+    const closedCount = await autoCloseResolvedIssues(currentVulnerabilities);
+    results.closed = closedCount;
+    log('INFO', `Auto-closed ${closedCount} resolved issue(s)`);
+  } catch (error) {
+    log('ERROR', `Failed to auto-close resolved issues: ${error.message}`);
   }
 
   return results;
@@ -878,6 +1055,7 @@ function generateSummary(results) {
   console.log(`Total Findings:     ${results.total}`);
   console.log(`Issues Created:     ${results.created}`);
   console.log(`Issues Updated:     ${results.updated}`);
+  console.log(`Issues Closed:      ${results.closed || 0} (auto-closed resolved vulnerabilities)`);
   console.log(`Issues Skipped:     ${results.skipped}`);
   console.log(`Errors:             ${results.errors.length}`);
   console.log('\nBy Severity:');
