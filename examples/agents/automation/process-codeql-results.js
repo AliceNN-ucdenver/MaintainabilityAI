@@ -372,19 +372,28 @@ ${vulnerability.codeSnippet || '(No code snippet available)'}
 `;
   }
 
-  // Add OWASP prompt
+  // Add OWASP prompt (collapsed in details to save space)
   if (prompts.owaspPrompt) {
+    const owaspPromptTruncated = prompts.owaspPrompt.length > 40000
+      ? prompts.owaspPrompt.substring(0, 40000) + '\n\n... (truncated for size, see full prompt at link above)'
+      : prompts.owaspPrompt;
+
     body += `
 
 ---
 
 ### 🛡️ Security Context (from MaintainabilityAI)
 
-${prompts.owaspPrompt}
+<details>
+<summary><strong>Click to expand OWASP ${owaspCategory} security guidance</strong> (${Math.round(prompts.owaspPrompt.length / 1024)}KB)</summary>
+
+${owaspPromptTruncated}
+
+</details>
 `;
   }
 
-  // Add maintainability prompts
+  // Add maintainability prompts (collapsed)
   if (prompts.maintainabilityPrompts && prompts.maintainabilityPrompts.length > 0) {
     body += `
 
@@ -396,17 +405,24 @@ ${prompts.owaspPrompt}
 
     for (const maintPrompt of prompts.maintainabilityPrompts) {
       if (maintPrompt.content) {
-        body += `
-#### ${maintPrompt.name}
+        const contentTruncated = maintPrompt.content.length > 10000
+          ? maintPrompt.content.substring(0, 10000) + '\n\n... (truncated for size)'
+          : maintPrompt.content;
 
-${maintPrompt.content}
+        body += `
+<details>
+<summary><strong>${maintPrompt.name}</strong> (${Math.round(maintPrompt.content.length / 1024)}KB)</summary>
+
+${contentTruncated}
+
+</details>
 
 `;
       }
     }
   }
 
-  // Add threat model prompts
+  // Add threat model prompts (collapsed)
   if (prompts.threatModelPrompts && prompts.threatModelPrompts.length > 0) {
     body += `
 
@@ -418,10 +434,17 @@ ${maintPrompt.content}
 
     for (const threatPrompt of prompts.threatModelPrompts) {
       if (threatPrompt.content) {
-        body += `
-#### ${threatPrompt.name}
+        const contentTruncated = threatPrompt.content.length > 10000
+          ? threatPrompt.content.substring(0, 10000) + '\n\n... (truncated for size)'
+          : threatPrompt.content;
 
-${threatPrompt.content}
+        body += `
+<details>
+<summary><strong>${threatPrompt.name}</strong> (${Math.round(threatPrompt.content.length / 1024)}KB)</summary>
+
+${contentTruncated}
+
+</details>
 
 `;
       }
@@ -462,6 +485,13 @@ To request a remediation plan, comment:
 
 </details>
 `;
+
+  // Final safety check: GitHub has a 65536 character limit for issue bodies
+  const MAX_BODY_LENGTH = 65000; // Leave buffer for safety
+  if (body.length > MAX_BODY_LENGTH) {
+    log('WARN', `Issue body too long (${body.length} chars), truncating to ${MAX_BODY_LENGTH}`);
+    body = body.substring(0, MAX_BODY_LENGTH) + '\n\n---\n\n**⚠️ Note**: This issue was truncated due to size limits. See the OWASP category link above for complete security guidance.';
+  }
 
   return body;
 }

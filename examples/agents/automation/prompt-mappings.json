@@ -26,7 +26,10 @@
     "js/prototype-pollution": "A08_integrity_failures",
     "js/information-exposure": "A05_security_misconfig",
     "js/sensitive-data-exposure": "A02_crypto_failures",
-    "js/insufficient-logging": "A09_logging_monitoring"
+    "js/insufficient-logging": "A09_logging_monitoring",
+    "js/request-forgery": "A01_broken_access_control",
+    "js/http-to-file-access": "A01_broken_access_control",
+    "js/file-access-to-http": "A05_security_misconfig"
   },
   "owasp_categories": {
     "A01_broken_access_control": {
