@@ -71,8 +71,17 @@ jobs:
     - name: Extract SARIF
       run: |
         unzip -o sarif-results.zip
-        mv results.sarif codeql-results.sarif || true
-        ls -la *.sarif
+        # CodeQL creates language-specific SARIF files (javascript.sarif, etc.)
+        # Find and rename to codeql-results.sarif
+        SARIF_FILE=$(ls *.sarif | head -1)
+        if [ -n "$SARIF_FILE" ]; then
+          mv "$SARIF_FILE" codeql-results.sarif
+          echo "Using SARIF file: $SARIF_FILE"
+        else
+          echo "Error: No SARIF file found after extraction"
+          exit 1
+        fi
+        ls -la codeql-results.sarif
 
     - name: Process CodeQL Results
       env:
