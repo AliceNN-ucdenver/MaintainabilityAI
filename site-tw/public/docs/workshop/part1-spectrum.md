@@ -20,9 +20,16 @@
 
 ## The Three Modes
 
-The landscape of AI-assisted development isn't binary—it's a spectrum. At one end, we have rapid, exploratory "vibe coding" where speed trumps structure. At the other, we have autonomous agentic systems executing complex multi-step tasks. In between lies the sweet spot for production engineering: AI-assisted development with human oversight.
-
-Understanding where your project sits on this spectrum isn't just an academic exercise. It's the difference between shipping secure, maintainable code and inheriting a maintenance nightmare that haunts your team for years.
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border-left: 4px solid #6366f1;">
+  <p style="color: #cbd5e1; font-size: 17px; line-height: 1.8; margin: 0 0 20px 0;">
+    The landscape of AI-assisted development isn't binary—<strong style="color: #f1f5f9;">it's a spectrum</strong>. At one end, we have rapid, exploratory <strong style="color: #c4b5fd;">"vibe coding"</strong> where speed trumps structure. At the other, we have <strong style="color: #fcd34d;">autonomous agentic systems</strong> executing complex multi-step tasks. In between lies the sweet spot for production engineering: <strong style="color: #6ee7b7;">AI-assisted development with human oversight</strong>.
+  </p>
+  <div style="background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; border-radius: 8px; padding: 20px; margin-top: 20px;">
+    <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0;">
+      Understanding where your project sits on this spectrum isn't just an academic exercise. <strong style="color: #fca5a5;">It's the difference between shipping secure, maintainable code and inheriting a maintenance nightmare that haunts your team for years.</strong>
+    </p>
+  </div>
+</div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 48px 0;">
 
@@ -137,14 +144,33 @@ Understanding where your project sits on this spectrum isn't just an academic ex
         <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ High</td>
         <td style="padding: 16px; color: #e2e8f0;">Medium</td>
       </tr>
-      <tr>
+      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
         <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Maintenance Burden</td>
         <td style="padding: 16px; color: #e2e8f0;">None (throw away)</td>
         <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ High</td>
         <td style="padding: 16px; color: #e2e8f0;">Medium</td>
       </tr>
+      <tr style="background: rgba(16, 185, 129, 0.05); border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+        <td style="padding: 16px; color: #a7f3d0; font-weight: 700;">⏱️ Time to Implement</td>
+        <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">30 minutes</td>
+        <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">2.5 hours</td>
+        <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">1 hour (+ review)</td>
+      </tr>
+      <tr style="background: rgba(239, 68, 68, 0.05);">
+        <td style="padding: 16px; color: #fca5a5; font-weight: 700;">💥 Cost of Failure</td>
+        <td style="padding: 16px; color: #fca5a5; font-weight: 600;">6 months remediation</td>
+        <td style="padding: 16px; color: #6ee7b7; font-weight: 600;">✅ Minimal (caught early)</td>
+        <td style="padding: 16px; color: #fca5a5; font-weight: 600;">3 weeks incident response</td>
+      </tr>
     </tbody>
   </table>
+</div>
+
+<div style="background: rgba(124, 58, 237, 0.1); border-left: 4px solid #7c3aed; border-radius: 8px; padding: 24px; margin: 32px 0;">
+  <div style="color: #c4b5fd; font-size: 18px; font-weight: 700; margin-bottom: 12px;">⚖️ Golden Rule: Prevention vs. Failure</div>
+  <p style="color: #e2e8f0; line-height: 1.8; font-size: 16px; margin: 0;">
+    Spending <strong style="color: #a7f3d0;">+2 hours on security-first prompts and validation</strong> prevents <strong style="color: #fca5a5;">6 months of remediation work</strong>. The cost of prevention is always <strong style="color: #f1f5f9;">100x cheaper</strong> than the cost of failure. Choose your development mode wisely.
+  </p>
 </div>
 
 <div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 8px; padding: 24px; margin: 32px 0;">
@@ -195,87 +221,131 @@ Here's the uncomfortable truth that every developer working with AI must interna
 
 ## Where Humans Add Irreplaceable Value
 
-Understanding the 70/30 split is theoretical. Let's make it concrete by examining five critical areas where human expertise remains essential, even with the most advanced AI assistants.
+<div style="background: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 24px; margin: 32px 0;">
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.7; margin: 0;">
+    Understanding the 70/30 split is theoretical. Let's make it concrete by examining <strong style="color: #f1f5f9;">five critical areas where human expertise remains essential</strong>, even with the most advanced AI assistants.
+  </p>
+</div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 48px 0;">
+<div style="display: flex; flex-direction: column; gap: 20px; margin: 48px 0;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #06b6d4; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #67e8f9; margin-top: 0; font-size: 20px; font-weight: 700;">1. System Design</h3>
-  <div style="background: rgba(6, 182, 212, 0.1); border-radius: 8px; padding: 16px; margin-top: 16px;">
-    <div style="color: #a5f3fc; font-size: 14px; font-weight: 600;">AI Limitation:</div>
-    <p style="color: #cbd5e1; line-height: 1.6; margin-top: 8px;">
-      Lacks holistic view of system architecture and can't evaluate trade-offs across reliability, scalability, cost, and team expertise.
-    </p>
-  </div>
-  <div style="background: rgba(6, 182, 212, 0.15); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #06b6d4;">
-    <div style="color: #67e8f9; font-size: 14px; font-weight: 600;">Human Value:</div>
-    <p style="color: #e2e8f0; line-height: 1.6; margin-top: 8px;">
-      <strong>Example:</strong> AI can implement a caching layer, but humans decide which caching strategy fits the access pattern, where to place cache invalidation logic, and how to handle cache stampede scenarios. These decisions require understanding your specific workload characteristics and failure modes.
-    </p>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #06b6d4; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
+    <div style="background: rgba(6, 182, 212, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #67e8f9;">1</div>
+    <div>
+      <h3 style="color: #67e8f9; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">System Design</h3>
+      <div style="background: rgba(6, 182, 212, 0.1); border-radius: 8px; padding: 16px;">
+        <div style="color: #a5f3fc; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
+        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
+          Lacks holistic view of system architecture and can't evaluate trade-offs across reliability, scalability, cost, and team expertise.
+        </p>
+      </div>
+    </div>
+    <div>
+      <div style="height: 52px;"></div>
+      <div style="background: rgba(6, 182, 212, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #06b6d4;">
+        <div style="color: #67e8f9; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
+        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
+          <strong style="color: #a5f3fc;">Example:</strong> AI can implement a caching layer, but humans decide which caching strategy fits the access pattern, where to place cache invalidation logic, and how to handle cache stampede scenarios.
+        </p>
+      </div>
+    </div>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #ec4899; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #f9a8d4; margin-top: 0; font-size: 20px; font-weight: 700;">2. Complex Debugging</h3>
-  <div style="background: rgba(236, 72, 153, 0.1); border-radius: 8px; padding: 16px; margin-top: 16px;">
-    <div style="color: #fbcfe8; font-size: 14px; font-weight: 600;">AI Limitation:</div>
-    <p style="color: #cbd5e1; line-height: 1.6; margin-top: 8px;">
-      Struggles with race conditions, memory leaks, and edge cases that only manifest under specific production conditions.
-    </p>
-  </div>
-  <div style="background: rgba(236, 72, 153, 0.15); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #ec4899;">
-    <div style="color: #f9a8d4; font-size: 14px; font-weight: 600;">Human Value:</div>
-    <p style="color: #e2e8f0; line-height: 1.6; margin-top: 8px;">
-      <strong>Example:</strong> Production bug where payments fail intermittently. AI might suggest checking logs or adding retry logic. An experienced human recognizes it's a clock skew issue causing JWT signature validation failures between distributed servers.
-    </p>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #c4b5fd; margin-top: 0; font-size: 20px; font-weight: 700;">3. Domain Expertise</h3>
-  <div style="background: rgba(139, 92, 246, 0.1); border-radius: 8px; padding: 16px; margin-top: 16px;">
-    <div style="color: #ddd6fe; font-size: 14px; font-weight: 600;">AI Limitation:</div>
-    <p style="color: #cbd5e1; line-height: 1.6; margin-top: 8px;">
-      No understanding of business context, industry regulations, or compliance frameworks like HIPAA, PCI-DSS, or SOC 2.
-    </p>
-  </div>
-  <div style="background: rgba(139, 92, 246, 0.15); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #8b5cf6;">
-    <div style="color: #c4b5fd; font-size: 14px; font-weight: 600;">Human Value:</div>
-    <p style="color: #e2e8f0; line-height: 1.6; margin-top: 8px;">
-      <strong>Example:</strong> Healthcare application. AI generates standard user authentication. Human ensures HIPAA-compliant audit logging, patient consent workflows, break-glass emergency access, and proper PHI encryption with key rotation.
-    </p>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #ec4899; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
+    <div style="background: rgba(236, 72, 153, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #f9a8d4;">2</div>
+    <div>
+      <h3 style="color: #f9a8d4; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Complex Debugging</h3>
+      <div style="background: rgba(236, 72, 153, 0.1); border-radius: 8px; padding: 16px;">
+        <div style="color: #fbcfe8; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
+        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
+          Struggles with race conditions, memory leaks, and edge cases that only manifest under specific production conditions.
+        </p>
+      </div>
+    </div>
+    <div>
+      <div style="height: 52px;"></div>
+      <div style="background: rgba(236, 72, 153, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #ec4899;">
+        <div style="color: #f9a8d4; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
+        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
+          <strong style="color: #fbcfe8;">Example:</strong> Production bug where payments fail intermittently. AI might suggest checking logs. An experienced human recognizes it's a clock skew issue causing JWT signature validation failures between distributed servers.
+        </p>
+      </div>
+    </div>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #ef4444; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #fca5a5; margin-top: 0; font-size: 20px; font-weight: 700;">4. Security Threat Modeling</h3>
-  <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 16px; margin-top: 16px;">
-    <div style="color: #fecaca; font-size: 14px; font-weight: 600;">AI Limitation:</div>
-    <p style="color: #cbd5e1; line-height: 1.6; margin-top: 8px;">
-      Can follow security patterns but doesn't anticipate novel attack vectors or understand attacker motivations and risk assessment.
-    </p>
-  </div>
-  <div style="background: rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #ef4444;">
-    <div style="color: #fca5a5; font-size: 14px; font-weight: 600;">Human Value:</div>
-    <p style="color: #e2e8f0; line-height: 1.6; margin-top: 8px;">
-      <strong>Example:</strong> OAuth integration. AI implements standard OAuth flow correctly. Human identifies critical questions: What if the redirect_uri is manipulated? How do we prevent token replay attacks? Should we implement PKCE for mobile clients? What's our token rotation strategy?
-    </p>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
+    <div style="background: rgba(139, 92, 246, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #c4b5fd;">3</div>
+    <div>
+      <h3 style="color: #c4b5fd; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Domain Expertise</h3>
+      <div style="background: rgba(139, 92, 246, 0.1); border-radius: 8px; padding: 16px;">
+        <div style="color: #ddd6fe; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
+        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
+          No understanding of business context, industry regulations, or compliance frameworks like HIPAA, PCI-DSS, or SOC 2.
+        </p>
+      </div>
+    </div>
+    <div>
+      <div style="height: 52px;"></div>
+      <div style="background: rgba(139, 92, 246, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #8b5cf6;">
+        <div style="color: #c4b5fd; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
+        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
+          <strong style="color: #ddd6fe;">Example:</strong> Healthcare application. AI generates standard auth. Human ensures HIPAA-compliant audit logging, patient consent workflows, break-glass emergency access, and proper PHI encryption with key rotation.
+        </p>
+      </div>
+    </div>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #10b981; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #6ee7b7; margin-top: 0; font-size: 20px; font-weight: 700;">5. Performance Optimization</h3>
-  <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 16px; margin-top: 16px;">
-    <div style="color: #a7f3d0; font-size: 14px; font-weight: 600;">AI Limitation:</div>
-    <p style="color: #cbd5e1; line-height: 1.6; margin-top: 8px;">
-      May not understand real-world performance constraints, hardware limitations, or the subtle trade-offs between different optimization strategies.
-    </p>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #ef4444; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
+    <div style="background: rgba(239, 68, 68, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #fca5a5;">4</div>
+    <div>
+      <h3 style="color: #fca5a5; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Security Threat Modeling</h3>
+      <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 16px;">
+        <div style="color: #fecaca; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
+        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
+          Can follow security patterns but doesn't anticipate novel attack vectors or understand attacker motivations and risk assessment.
+        </p>
+      </div>
+    </div>
+    <div>
+      <div style="height: 52px;"></div>
+      <div style="background: rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #ef4444;">
+        <div style="color: #fca5a5; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
+        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
+          <strong style="color: #fecaca;">Example:</strong> OAuth integration. AI implements standard flow. Human asks: What if redirect_uri is manipulated? How do we prevent token replay? Should we implement PKCE for mobile? What's our token rotation strategy?
+        </p>
+      </div>
+    </div>
   </div>
-  <div style="background: rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #10b981;">
-    <div style="color: #6ee7b7; font-size: 14px; font-weight: 600;">Human Value:</div>
-    <p style="color: #e2e8f0; line-height: 1.6; margin-top: 8px;">
-      <strong>Example:</strong> Database query optimization. AI suggests adding indexes based on query patterns. Human analyzes actual query cardinality, understands that indexes hurt write performance, and decides to denormalize data instead because the read/write ratio justifies it.
-    </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #10b981; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
+  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
+    <div style="background: rgba(16, 185, 129, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #6ee7b7;">5</div>
+    <div>
+      <h3 style="color: #6ee7b7; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Performance Optimization</h3>
+      <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 16px;">
+        <div style="color: #a7f3d0; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
+        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
+          May not understand real-world performance constraints, hardware limitations, or the subtle trade-offs between different optimization strategies.
+        </p>
+      </div>
+    </div>
+    <div>
+      <div style="height: 52px;"></div>
+      <div style="background: rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #10b981;">
+        <div style="color: #6ee7b7; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
+        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
+          <strong style="color: #a7f3d0;">Example:</strong> Database query optimization. AI suggests adding indexes. Human analyzes query cardinality, understands indexes hurt write performance, and decides to denormalize data instead because the read/write ratio justifies it.
+        </p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -581,80 +651,123 @@ Understanding the spectrum is only valuable if you also understand the consequen
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); border-radius: 12px; padding: 32px; margin: 48px 0; box-shadow: 0 8px 32px rgba(124, 58, 237, 0.4);">
-  <h3 style="color: #f1f5f9; margin-top: 0; font-size: 24px; font-weight: 800; text-align: center;">⚖️ Golden Rule: Prevention vs. Failure Costs</h3>
-
-  <div style="overflow-x: auto; margin-top: 24px;">
-    <table style="width: 100%; border-collapse: collapse; background: rgba(0, 0, 0, 0.2); border-radius: 8px; overflow: hidden;">
-      <thead>
-        <tr style="background: rgba(255, 255, 255, 0.1);">
-          <th style="padding: 16px; text-align: left; color: #e9d5ff; font-weight: 700;">Failure Mode</th>
-          <th style="padding: 16px; text-align: left; color: #e9d5ff; font-weight: 700;">Prevention</th>
-          <th style="padding: 16px; text-align: left; color: #a7f3d0; font-weight: 700;">Cost to Prevent</th>
-          <th style="padding: 16px; text-align: left; color: #fca5a5; font-weight: 700;">Cost of Failure</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-          <td style="padding: 16px; color: #e9d5ff;">Vibe in Production</td>
-          <td style="padding: 16px; color: #f3e8ff;">Use AI-Assisted for production code</td>
-          <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">+2 hours</td>
-          <td style="padding: 16px; color: #fca5a5; font-weight: 600;">6 months remediation</td>
-        </tr>
-        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-          <td style="padding: 16px; color: #e9d5ff;">Agentic Without Verification</td>
-          <td style="padding: 16px; color: #f3e8ff;">Mandatory code review + test suite</td>
-          <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">+30 minutes</td>
-          <td style="padding: 16px; color: #fca5a5; font-weight: 600;">3 weeks incident response</td>
-        </tr>
-        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-          <td style="padding: 16px; color: #e9d5ff;">Missing Domain Expertise</td>
-          <td style="padding: 16px; color: #f3e8ff;">Human defines requirements first</td>
-          <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">+1 day training</td>
-          <td style="padding: 16px; color: #fca5a5; font-weight: 600;">$50M HIPAA fine</td>
-        </tr>
-        <tr>
-          <td style="padding: 16px; color: #e9d5ff;">Wrong Tool for Task</td>
-          <td style="padding: 16px; color: #f3e8ff;">Human makes architecture decisions</td>
-          <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">+2 hours design</td>
-          <td style="padding: 16px; color: #fca5a5; font-weight: 600;">6 months wasted work</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p style="color: #e9d5ff; line-height: 1.8; font-size: 17px; text-align: center; margin: 24px 0 0 0; font-weight: 600;">
-    The cost of prevention is always 100x cheaper than the cost of failure. Choose your development mode wisely.
-  </p>
-</div>
-
 ---
 
 ## Workshop Exercise
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); border-left: 4px solid #3b82f6;">
-  <h3 style="color: #93c5fd; margin-top: 0; font-size: 22px; font-weight: 700;">🎯 Scenario: Implementing User Authentication</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px; font-size: 16px;">
-    Your team needs to implement user authentication for a new microservice. You have three AI development modes available. Your choice will determine whether this becomes a security success story or a cautionary tale.
-  </p>
+  <h3 style="color: #93c5fd; margin-top: 0; font-size: 22px; font-weight: 700;">🎯 Hands-On Scenario: JWT-Based API Authentication</h3>
 
-  <div style="background: rgba(59, 130, 246, 0.1); border-radius: 8px; padding: 24px; margin-top: 24px;">
-    <h4 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">Questions to Consider:</h4>
-    <ol style="color: #e2e8f0; line-height: 1.8; margin-top: 12px; padding-left: 24px; font-size: 15px;">
-      <li style="margin-bottom: 12px;"><strong>Which mode would you choose and why?</strong> Consider security criticality, code lifespan, and team composition.</li>
-      <li style="margin-bottom: 12px;"><strong>What security constraints would you include in your prompt?</strong> Think about OWASP categories, compliance requirements, and attack vectors.</li>
-      <li style="margin-bottom: 12px;"><strong>What human validation would you perform after AI generates code?</strong> What specific security controls must you verify?</li>
-      <li><strong>How would you document this for your team?</strong> What information must be captured for maintainability and audit purposes?</li>
-    </ol>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 24px; margin-top: 20px;">
+    <h4 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">The Context</h4>
+    <p style="color: #e2e8f0; line-height: 1.7; font-size: 15px; margin: 12px 0 0 0;">
+      You're building a <strong style="color: #f1f5f9;">REST API for a healthcare SaaS product</strong>. The API needs to authenticate users via JWT tokens and authorize access to patient records based on roles (Doctor, Nurse, Patient). Your team uses <strong style="color: #f1f5f9;">Node.js + TypeScript + Express + PostgreSQL</strong>.
+    </p>
+    <div style="margin-top: 16px; padding: 16px; background: rgba(0, 0, 0, 0.3); border-radius: 8px;">
+      <div style="color: #a5f3fc; font-size: 13px; font-weight: 700; margin-bottom: 8px;">REQUIREMENTS:</div>
+      <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0; padding-left: 20px;">
+        <li>Users authenticate with email/password → receive JWT token</li>
+        <li>JWT must be signed with HS256, expire in 1 hour, include userId + role</li>
+        <li>Protected routes must validate JWT and check role-based permissions</li>
+        <li>Failed auth attempts must be logged for security monitoring</li>
+        <li>Passwords must be hashed with bcrypt (cost factor 12)</li>
+        <li><strong style="color: #fca5a5;">HIPAA compliance required</strong> — audit logging mandatory</li>
+      </ul>
+    </div>
   </div>
 
-  <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 24px; margin-top: 20px;">
-    <h4 style="color: #fcd34d; margin-top: 0; font-size: 18px; font-weight: 700;">Discussion Points:</h4>
-    <ul style="color: #e2e8f0; line-height: 1.8; margin-top: 12px; padding-left: 24px; font-size: 15px;">
-      <li style="margin-bottom: 12px;">How does your answer change if it's a <strong>prototype versus production system</strong>? What's the risk tolerance difference?</li>
-      <li style="margin-bottom: 12px;">What if you're <strong>unfamiliar with the authentication library</strong>? Should this change your development mode or just your prompt strategy?</li>
-      <li>What if there are <strong>regulatory compliance requirements</strong> (HIPAA, PCI-DSS, SOC 2)? How does this constrain your choices?</li>
-    </ul>
+  <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 28px;">
+
+<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
+  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 1: Which development mode would you choose and why?</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      Consider: <strong>security criticality</strong>, <strong>code lifespan</strong>, <strong>team expertise</strong>, and <strong>compliance requirements</strong>.
+    </p>
+    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Think about risk tolerance</summary>
+      <p style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        Healthcare + HIPAA = <strong style="color: #fca5a5;">zero tolerance for security failures</strong>. Vibe coding is immediately ruled out. Between AI-Assisted and Agentic: AI-Assisted is safer because <strong>you control the architecture and review every security decision</strong>. Agentic could work for <em>specific subtasks</em> (like password hashing) but not the entire auth system.
+      </p>
+    </details>
+  </div>
+</details>
+
+<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
+  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 2: What security constraints would you include in your prompt?</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      Think about <strong>OWASP categories</strong>, <strong>attack vectors</strong>, and <strong>compliance requirements</strong>.
+    </p>
+    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Map to OWASP Top 10</summary>
+      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        <strong style="color: #f1f5f9;">Key constraints to include:</strong>
+        <ul style="margin-top: 8px; padding-left: 20px;">
+          <li><strong style="color: #a5f3fc;">A01 - Access Control:</strong> Role-based authorization, deny-by-default, check both role + resource ownership</li>
+          <li><strong style="color: #a5f3fc;">A02 - Crypto Failures:</strong> bcrypt (cost 12), secure JWT signing with 256-bit secret from env vars</li>
+          <li><strong style="color: #a5f3fc;">A03 - Injection:</strong> Parameterized queries for user lookup, validate email format with Zod</li>
+          <li><strong style="color: #a5f3fc;">A07 - Auth Failures:</strong> Rate limiting (5 attempts/15min), constant-time password comparison</li>
+          <li><strong style="color: #a5f3fc;">A09 - Logging:</strong> Log auth failures with userId + IP (no passwords!), log access to patient records</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</details>
+
+<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
+  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 3: What human validation must you perform after AI generates code?</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      What specific security controls must you <strong>manually verify</strong>?
+    </p>
+    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Security checklist</summary>
+      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        <strong style="color: #f1f5f9;">Critical validations:</strong>
+        <ul style="margin-top: 8px; padding-left: 20px;">
+          <li>JWT secret comes from `process.env.JWT_SECRET` (never hardcoded)</li>
+          <li>Password comparison uses `bcrypt.compare()` not `===`</li>
+          <li>JWT expiry is set (`expiresIn: '1h'`)</li>
+          <li>Database queries use `$1` placeholders (no string concatenation)</li>
+          <li>Error messages are generic ("Invalid credentials") not specific ("Password incorrect")</li>
+          <li>Rate limiting middleware is applied to `/auth/login`</li>
+          <li>Tests include attack payloads: SQL injection in email, timing attacks on password comparison</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</details>
+
+<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
+  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 4: How would you document this for your team?</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      What information must be captured for <strong>maintainability and audit purposes</strong>?
+    </p>
+    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Golden Rules in practice</summary>
+      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        <strong style="color: #f1f5f9;">Required documentation:</strong>
+        <ul style="margin-top: 8px; padding-left: 20px;">
+          <li><strong>Commit message:</strong> `🤖 AI-assisted with Claude Code using OWASP A02/A07 prompt packs`</li>
+          <li><strong>PR description:</strong> Security controls implemented (bcrypt, JWT, rate limiting), OWASP categories addressed, test coverage with attack vectors</li>
+          <li><strong>Code comments:</strong> Why specific algorithms chosen (bcrypt cost 12 for HIPAA), why JWT expiry is 1 hour (balance security/UX)</li>
+          <li><strong>Threat model:</strong> Document assumptions (JWT secret rotation policy, rate limit thresholds)</li>
+          <li><strong>Prompt library:</strong> Save the successful prompt to `/prompts/auth-jwt.md` for team reuse</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</details>
+
+  </div>
+
+  <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 24px; margin-top: 28px; border-left: 3px solid #10b981;">
+    <h4 style="color: #6ee7b7; margin-top: 0; font-size: 16px; font-weight: 700;">🎯 Key Insight</h4>
+    <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
+      This scenario demonstrates why <strong style="color: #f1f5f9;">AI-Assisted mode is the gold standard for production security</strong>. You need AI for speed, but you need <strong>human judgment for threat modeling, compliance context, and security validation</strong>. This hands-on exercise prepares you for Parts 2-4, where we'll implement this exact scenario using OWASP prompt packs and fitness functions.
+    </p>
   </div>
 </div>
 

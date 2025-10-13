@@ -21,13 +21,19 @@
 
 ## The Silent Killer of Code Quality
 
-Every developer has lived this nightmare. You inherit a codebase. The first function you open has 47 lines, 8 levels of nesting, and a cyclomatic complexity of 23. The tests? They cover 42% of the code—and most of that is trivial getters and setters. The dependencies? Half of them haven't been updated in 18 months. The performance? No one knows, because no one's measuring it.
-
-**This is architectural erosion**, and it happens to every codebase without automated guardrails.
-
-Fitness functions are your defense. They're objective, automated tests that validate the **architectural characteristics** you care about—complexity, maintainability, security, performance. They run in CI/CD. They fail fast. They prevent regressions before they reach production.
-
-In this workshop, you'll implement the four core fitness functions that **every production codebase needs**:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border-left: 4px solid #a855f7;">
+  <p style="color: #cbd5e1; font-size: 17px; line-height: 1.8; margin: 0 0 20px 0;">
+    Every developer has lived this nightmare. You inherit a codebase where the first function you open has 47 lines, 8 levels of nesting, and cyclomatic complexity of 23. Tests cover 42% of the code—mostly trivial getters. Dependencies haven't been updated in 18 months. Performance? No one's measuring it. This is <strong style="color: #fca5a5;">architectural erosion</strong>, and it happens to every codebase without automated guardrails.
+  </p>
+  <div style="background: rgba(168, 85, 247, 0.15); border-left: 3px solid #a855f7; border-radius: 8px; padding: 20px; margin-top: 20px;">
+    <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0 0 16px 0;">
+      <strong style="color: #c4b5fd;">Fitness functions are your defense.</strong> They're objective, automated tests that validate the architectural characteristics you care about—complexity, maintainability, security, performance. They run in CI/CD. They fail fast. They prevent regressions before they reach production.
+    </p>
+    <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0;">
+      Your architecture becomes <strong style="color: #a855f7;">self-defending</strong>. In this workshop, you'll implement the four core fitness functions that every production codebase needs:
+    </p>
+  </div>
+</div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
   <div style="background: linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%); border: 2px solid rgba(251, 146, 60, 0.3); border-radius: 12px; padding: 20px;">
@@ -52,7 +58,11 @@ In this workshop, you'll implement the four core fitness functions that **every 
   </div>
 </div>
 
-**The philosophy**: Start with objective thresholds. Run them in warning mode. Establish baselines. Then graduate to blocking mode. Once you do, your architecture becomes **self-defending**.
+<div style="background: rgba(168, 85, 247, 0.1); border-left: 3px solid #a855f7; border-radius: 8px; padding: 16px; margin: 24px 0;">
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin: 0;">
+    <strong style="color: #c4b5fd;">The Philosophy:</strong> Start with objective thresholds. Run them in warning mode. Establish baselines. Then graduate to blocking mode. Once you do, your architecture becomes self-defending.
+  </p>
+</div>
 
 ---
 
@@ -206,8 +216,8 @@ Let's implement an automated test that scans your TypeScript codebase and fails 
 <div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #4f46e5; border-radius: 8px; padding: 20px; margin: 24px 0;">
   <div style="font-weight: 700; color: #a5b4fc; margin-bottom: 12px; font-size: 15px;">📋 Setup Instructions</div>
   <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
-    <strong>Step 1:</strong> Install ts-morph (TypeScript AST analysis library)<br/>
-    <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 8px; border-radius: 4px; color: #e0e7ff;">npm install -D ts-morph</code>
+    <strong>Step 1:</strong> Install ts-complexity (TypeScript complexity analysis library)<br/>
+    <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 8px; border-radius: 4px; color: #e0e7ff;">npm install -D ts-complexity</code>
   </div>
 </div>
 
@@ -215,45 +225,54 @@ Let's implement an automated test that scans your TypeScript codebase and fails 
 
 Instead of writing this from scratch, let's use Claude Code with a security-first prompt:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 2px solid #334155; border-radius: 12px; padding: 24px; margin: 24px 0;">
-  <div style="font-weight: 700; color: #c7d2fe; margin-bottom: 16px; font-size: 16px;">Prompt for Claude Code</div>
-  <div style="background: rgba(15, 23, 42, 0.8); border-radius: 8px; padding: 20px; color: #cbd5e1; font-size: 14px; line-height: 1.8; font-family: ui-monospace, monospace;">
+### AI Prompt: Implement Complexity Fitness Function
+
+<div style="text-align: center; margin-bottom: 20px;">
+  <div style="font-size: 18px; font-weight: 700; color: #a855f7; margin-bottom: 12px;">Complete RCTRO Prompt</div>
+</div>
 
 ```
-Role: You are an Evolutionary Architecture engineer implementing automated complexity fitness functions.
+Role: You are a senior engineer implementing fitness functions for evolutionary architecture.
 
 Context:
-- TypeScript project with Jest test framework
-- Need to enforce cyclomatic complexity ≤10 per function
-- Use ts-morph library for AST analysis
-- Fail fast with actionable error messages
+- Node 18 + TypeScript
+- Jest testing framework
+- ts-complexity library for cyclomatic complexity analysis
+- CI/CD: GitHub Actions
 
 Task:
-Create tests/fitness-functions/complexity.test.ts
-that:
-1. Uses ts-morph Project to load all .ts files from src/
-2. Iterates through all functions and methods in each file
-3. Calculates cyclomatic complexity using AST node counting
-4. Fails if any function exceeds MAX_COMPLEXITY (env var, default 10)
-5. Reports violations with file:line, function name, complexity, and remediation suggestion
+Create tests/fitness-functions/complexity.test.ts that scans all TypeScript source files and fails if any function exceeds cyclomatic complexity threshold of 10.
 
-Implementation Requirements:
-- Complexity calculation: count if/else, case, for, while, &&, ||, ?, catch, ternary operators
-- Exclude test files (*.test.ts, *.spec.ts)
-- Make threshold configurable via process.env.MAX_COMPLEXITY
-- Output format: "src/orders.ts:42 — processOrder() has complexity 15 (limit: 10). Suggestion: Extract validation logic into separate function."
+Requirements:
+1. **Complexity Analysis**
+   - Use ts-complexity to analyze all .ts files in src/ directory
+   - Calculate cyclomatic complexity for all functions, methods, and arrow functions
+   - Exclude test files (*.test.ts, *.spec.ts)
+   - Validation: ☐ Scans all source files, excludes tests and node_modules
 
-Checklist:
-☐ Scans all .ts files in src/ (not node_modules, not tests)
-☐ Calculates complexity for functions, methods, arrow functions
-☐ Fails test if any function exceeds threshold
-☐ Error message includes file:line, function name, complexity, suggestion
-☐ Threshold configurable via MAX_COMPLEXITY env var (default: 10)
-☐ Test passes on clean codebase
+2. **Threshold Enforcement**
+   - Default threshold: complexity ≤10
+   - Make threshold configurable via process.env.MAX_COMPLEXITY
+   - Fail test if ANY function exceeds threshold
+   - Validation: ☐ Threshold is configurable and enforced
+
+3. **Actionable Error Messages**
+   - Report format: "src/orders.ts:42 — processOrder() has complexity 15 (limit: 10)"
+   - Include remediation suggestion: "Suggestion: Extract validation logic into separate function"
+   - List ALL violations (not just first failure)
+   - Validation: ☐ Error messages include file path, line number, function name, complexity value, and suggestion
+
+4. **Test Implementation**
+   - Use Jest test framework
+   - Test should pass when all functions comply with threshold
+   - Test should fail with clear output when violations exist
+   - Validation: ☐ Test integrates with npm test workflow
+
+Output:
+Provide complete TypeScript code for:
+- tests/fitness-functions/complexity.test.ts
+- Include usage instructions in code comments
 ```
-
-</div>
-</div>
 
 **Step 3: Run the Fitness Function**
 
@@ -276,26 +295,48 @@ npm test tests/fitness-functions/complexity.test.ts
 
 **Step 4: Use AI to Refactor Violations**
 
-Give Claude Code the violation details and let it apply refactoring patterns:
+Give Claude Code the violation details and let it apply refactoring patterns. Use this complete RCTRO prompt:
 
-<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #4f46e5; border-radius: 8px; padding: 16px; margin: 24px 0;">
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+```
+Role: You are an evolutionary architect refactoring code to meet fitness function constraints.
 
-```    
-Fix this complexity violation using Extract Method pattern:
+Context:
+- TypeScript + Node 18
+- Jest test framework
+- Fitness function detected complexity violation
+- All existing tests must pass after refactoring
+
+Task:
+Refactor the following function to reduce cyclomatic complexity from 15 to ≤8 using the Extract Method pattern.
+
 File: src/orders.ts:42
 Function: processOrder
-Complexity: 15 (limit: 10)
-[paste function code]
-Requirements:
-- Target complexity ≤8 per function
-- Preserve all existing tests (run npm test to verify)
-- Use descriptive function names
-- Maintain type safety (no any types)
-```
+Current Complexity: 15 (limit: 10)
 
-</div>
-</div>
+[paste the processOrder function code here]
+
+Requirements:
+1. **Extract Method Pattern**
+   - Break complex conditionals into named helper functions
+   - Each extracted function should have complexity ≤3
+   - Validation: ☐ Main function complexity ≤8
+
+2. **Preserve Behavior**
+   - All existing tests must pass (run npm test)
+   - No changes to function signature or return type
+   - Validation: ☐ Test suite passes with 0 failures
+
+3. **Code Quality**
+   - Use descriptive function names that explain intent
+   - Maintain strict type safety (no `any` types)
+   - Add JSDoc comments for extracted functions
+   - Validation: ☐ ESLint passes with 0 warnings
+
+Output:
+Provide refactored TypeScript code for:
+- src/orders.ts (refactored processOrder with extracted helper functions)
+- Explanation of which conditionals were extracted and why
+```
 
 ---
 
@@ -388,24 +429,54 @@ Requirements:
 
 ### Implementation: Dependency Freshness Fitness Function
 
-<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #4f46e5; border-radius: 8px; padding: 20px; margin: 24px 0;">
-  <div style="font-weight: 700; color: #a5b4fc; margin-bottom: 12px; font-size: 15px;">📋 Prompt for Claude Code</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
-    <strong>Role:</strong> Evolutionary Architecture engineer implementing dependency freshness fitness functions.<br/><br/>
-    <strong>Task:</strong> Create <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 6px; border-radius: 4px;">tests/fitness-functions/dependency-freshness.test.ts</code> that:<br/>
-    1. Runs <code>npm outdated --json</code> and parses output<br/>
-    2. For each outdated dependency, determines age and criticality<br/>
-    3. Fails if any critical dependency is >90 days old<br/>
-    4. Runs <code>npm audit --json</code> and fails on high/critical vulnerabilities<br/>
-    5. Reports violations with package name, version, days old, and advisory link<br/><br/>
-    <strong>Checklist:</strong><br/>
-    ☐ Parses npm outdated safely (handles empty results)<br/>
-    ☐ Fails if critical dependency >90 days old<br/>
-    ☐ Runs npm audit and fails on high/critical CVEs<br/>
-    ☐ Links to npm advisories<br/>
-    ☐ devDependencies allowed to be older (180 days)
-  </div>
+### AI Prompt: Implement Dependency Freshness Fitness Function
+
+<div style="text-align: center; margin-bottom: 20px;">
+  <div style="font-size: 18px; font-weight: 700; color: #a855f7; margin-bottom: 12px;">Complete RCTRO Prompt</div>
 </div>
+
+```
+Role: You are a senior engineer implementing fitness functions for evolutionary architecture.
+
+Context:
+- Node 18 + TypeScript
+- Jest testing framework
+- npm CLI for dependency analysis (npm outdated, npm audit)
+- CI/CD: GitHub Actions
+
+Task:
+Create tests/fitness-functions/dependency-freshness.test.ts that enforces the 3-month rule: no production dependencies >90 days old, no high/critical CVEs.
+
+Requirements:
+1. **Dependency Age Analysis**
+   - Execute npm outdated --json and parse results
+   - Calculate age for each outdated package
+   - Differentiate between dependencies (90-day limit) and devDependencies (180-day limit)
+   - Validation: ☐ Parses npm outdated output safely, handles empty results
+
+2. **Security Vulnerability Check**
+   - Execute npm audit --json
+   - Parse audit results for high and critical vulnerabilities
+   - Fail test if any high or critical CVE found
+   - Validation: ☐ Detects security vulnerabilities and blocks merge
+
+3. **Actionable Error Reporting**
+   - Report format: "express: 4.17.1 → 4.18.2 (120 days old, exceeds 90-day limit)"
+   - Include update command: "Update: npm install express@latest"
+   - For CVEs, include advisory URL: "Advisory: https://npmjs.com/advisories/1673"
+   - Validation: ☐ Error messages include package name, versions, age, update command
+
+4. **Test Implementation**
+   - Use Jest test framework with child_process.execSync for npm commands
+   - Test should pass when all dependencies are fresh and secure
+   - Test should fail with detailed report when violations exist
+   - Validation: ☐ Integrates with CI/CD pipeline
+
+Output:
+Provide complete TypeScript code for:
+- tests/fitness-functions/dependency-freshness.test.ts
+- Include error handling for npm command failures
+```
 
 **Expected Output When Violations Exist:**
 
@@ -500,16 +571,58 @@ git commit -m "chore: establish coverage baseline"
 
 **Step 3: Create Fitness Function with AI**
 
-<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #4f46e5; border-radius: 8px; padding: 16px; margin: 24px 0;">
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    <strong style="color: #a5b4fc;">Prompt:</strong> Create <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 6px; border-radius: 4px;">tests/fitness-functions/coverage.test.ts</code> that:<br/>
-    1. Reads coverage/coverage-summary.json<br/>
-    2. Validates all 4 coverage types ≥80%<br/>
-    3. Compares against baseline/coverage-baseline.json<br/>
-    4. Fails if coverage dropped >2% in any category<br/>
-    5. Reports violations with current vs baseline, and files with lowest coverage
-  </div>
+### AI Prompt: Implement Test Coverage Fitness Function
+
+<div style="text-align: center; margin-bottom: 20px;">
+  <div style="font-size: 18px; font-weight: 700; color: #a855f7; margin-bottom: 12px;">Complete RCTRO Prompt</div>
 </div>
+
+```
+Role: You are a senior engineer implementing fitness functions for evolutionary architecture.
+
+Context:
+- Node 18 + TypeScript
+- Jest testing framework with coverage enabled
+- Jest generates coverage/coverage-summary.json
+- Baseline stored in baseline/coverage-baseline.json
+- CI/CD: GitHub Actions
+
+Task:
+Create tests/fitness-functions/coverage.test.ts that enforces 80% minimum coverage across all metrics and prevents coverage regressions.
+
+Requirements:
+1. **Coverage Threshold Enforcement**
+   - Read coverage/coverage-summary.json
+   - Validate line coverage ≥80%
+   - Validate branch coverage ≥80%
+   - Validate function coverage ≥80%
+   - Validate statement coverage ≥80%
+   - Validation: ☐ All four coverage types validated against 80% threshold
+
+2. **Baseline Comparison**
+   - Read baseline/coverage-baseline.json
+   - Compare current vs baseline for each coverage type
+   - Fail if any coverage type dropped >2%
+   - Validation: ☐ Detects coverage regressions
+
+3. **Actionable Error Reporting**
+   - Report which coverage types failed threshold
+   - Show current vs baseline values
+   - Identify files with lowest coverage
+   - Suggest: "Add tests for uncovered branches in src/orders.ts"
+   - Validation: ☐ Error messages include specific files to fix
+
+4. **Test Implementation**
+   - Use Jest test framework
+   - Handle missing coverage file gracefully
+   - Test should pass when all thresholds met
+   - Validation: ☐ Integrates with npm test workflow
+
+Output:
+Provide complete TypeScript code for:
+- tests/fitness-functions/coverage.test.ts
+- Include instructions for generating baseline
+```
 
 **Expected Output When Coverage Drops:**
 
@@ -656,16 +769,58 @@ git commit -m "chore: establish performance baseline"</pre>
 
 **Step 3: Create Performance Fitness Function with AI**
 
-<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #4f46e5; border-radius: 8px; padding: 16px; margin: 24px 0;">
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    <strong style="color: #a5b4fc;">Prompt:</strong> Create <code style="background: rgba(15, 23, 42, 0.8); padding: 2px 6px; border-radius: 4px;">tests/fitness-functions/performance.test.ts</code> that:<br/>
-    1. Starts the Express server on a test port<br/>
-    2. Runs autocannon against critical endpoints (10s duration, 10 connections)<br/>
-    3. Validates p95 latency <200ms<br/>
-    4. Compares against baseline, fails if regression >10%<br/>
-    5. Shuts down server after test completes
-  </div>
+### AI Prompt: Implement Performance Fitness Function
+
+<div style="text-align: center; margin-bottom: 20px;">
+  <div style="font-size: 18px; font-weight: 700; color: #a855f7; margin-bottom: 12px;">Complete RCTRO Prompt</div>
 </div>
+
+```
+Role: You are a senior engineer implementing fitness functions for evolutionary architecture.
+
+Context:
+- Node 18 + TypeScript
+- Jest testing framework
+- autocannon for HTTP load testing
+- Express.js application
+- Baseline stored in baseline/perf-baseline.json
+- CI/CD: GitHub Actions
+
+Task:
+Create tests/fitness-functions/performance.test.ts that validates p95 latency remains under 200ms and detects performance regressions >10%.
+
+Requirements:
+1. **Server Lifecycle Management**
+   - Start Express server on test port (e.g., 3001)
+   - Wait for server to be ready before testing
+   - Properly shut down server after test completes
+   - Validation: ☐ Server starts and stops cleanly in test
+
+2. **Load Testing Execution**
+   - Use autocannon with: 10 connections, 10 second duration
+   - Test critical endpoints (e.g., GET /api/users, POST /api/orders)
+   - Capture p95 and p99 latency metrics
+   - Validation: ☐ Load test runs successfully against live server
+
+3. **Performance Validation**
+   - Validate p95 latency <200ms
+   - Read baseline/perf-baseline.json
+   - Compare current vs baseline
+   - Fail if regression >10%
+   - Validation: ☐ Detects performance regressions
+
+4. **Actionable Error Reporting**
+   - Report format: "GET /api/users: p95: 245ms (baseline: 120ms, regressed 104%)"
+   - Suggest profiling tool: "Profile with `clinic doctor` to identify bottleneck"
+   - Show which endpoints passed vs failed
+   - Validation: ☐ Error messages identify specific slow endpoints
+
+Output:
+Provide complete TypeScript code for:
+- tests/fitness-functions/performance.test.ts
+- Include server startup/shutdown logic
+- Include instructions for establishing baseline
+```
 
 **Expected Output When Regression Detected:**
 
@@ -682,6 +837,115 @@ git commit -m "chore: establish performance baseline"</pre>
     POST /api/orders
       p95: 180ms ✅
       p99: 250ms ✅</pre>
+</div>
+
+---
+
+## Workshop Exercise: Implement Your Own Fitness Function
+
+Now it's your turn. Implement a fitness function for a quality metric important to your team.
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #a855f7;">
+
+<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">Scenario: Bundle Size Fitness Function</div>
+
+<div style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin-bottom: 20px;">
+Your team has noticed that the JavaScript bundle size keeps growing. Large bundles slow down initial page load, hurt SEO rankings, and frustrate users on slow connections. You need to implement an automated fitness function that fails if the bundle exceeds 500KB.
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.1); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+  <div style="font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">📋 Requirements</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Build the production bundle using your build tool (Vite, webpack, etc.)<br/>
+    • Measure the size of the main bundle file (e.g., dist/main.js)<br/>
+    • Fail if bundle exceeds 500KB<br/>
+    • Report which assets are largest and suggestions for optimization
+  </div>
+</div>
+
+<details style="background: rgba(168, 85, 247, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #a855f7; margin-bottom: 16px;">
+  <summary style="font-weight: 700; color: #c4b5fd; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 1: How do you measure bundle size programmatically?</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      What Node.js APIs or tools can you use to get file sizes after building?
+    </p>
+    <details style="background: rgba(168, 85, 247, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #c4b5fd; font-size: 14px; cursor: pointer;">💡 Hint: Node.js fs module</summary>
+      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        Use Node.js <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #c4b5fd;">fs.statSync()</code> to get file size:
+        <div style="margin-top: 12px; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 12px; overflow-x: auto;">
+          <pre style="color: #c4b5fd; font-size: 12px; margin: 0;"><code>import { statSync } from 'fs';
+import { join } from 'path';
+
+const bundlePath = join(__dirname, '../../dist/main.js');
+const stats = statSync(bundlePath);
+const sizeKB = stats.size / 1024;</code></pre>
+        </div>
+        <div style="margin-top: 12px; color: #c4b5fd;">
+          <strong>Alternative:</strong> Use webpack-bundle-analyzer or vite-plugin-bundle-analyzer to generate a JSON report with asset sizes.
+        </div>
+      </div>
+    </details>
+  </div>
+</details>
+
+<details style="background: rgba(168, 85, 247, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #a855f7; margin-bottom: 16px;">
+  <summary style="font-weight: 700; color: #c4b5fd; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 2: Should you build before or during the test?</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      Should your fitness function run `npm run build` or assume the bundle already exists?
+    </p>
+    <details style="background: rgba(168, 85, 247, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #c4b5fd; font-size: 14px; cursor: pointer;">💡 Hint: CI/CD workflow order</summary>
+      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        <strong style="color: #c4b5fd;">Best practice:</strong> Build BEFORE running fitness functions.
+        <div style="margin-top: 12px;">
+          <strong>CI/CD order:</strong><br/>
+          1. npm ci (install dependencies)<br/>
+          2. npm run build (generate production bundle)<br/>
+          3. npm test tests/fitness-functions/ (run all fitness functions)
+        </div>
+        <div style="margin-top: 12px; color: #fca5a5;">
+          <strong>Why?</strong> Building during test is slow and hides build failures. Fitness functions should validate build artifacts, not create them.
+        </div>
+        <div style="margin-top: 12px;">
+          Your test should fail gracefully if dist/ doesn't exist: "Bundle not found. Run npm run build first."
+        </div>
+      </div>
+    </details>
+  </div>
+</details>
+
+<details style="background: rgba(168, 85, 247, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #a855f7;">
+  <summary style="font-weight: 700; color: #c4b5fd; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 3: Craft the RCTRO Prompt</summary>
+  <div style="padding-top: 16px;">
+    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
+      Write a complete RCTRO prompt to guide AI in creating this fitness function.
+    </p>
+    <details style="background: rgba(168, 85, 247, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
+      <summary style="font-weight: 600; color: #c4b5fd; font-size: 14px; cursor: pointer;">💡 Hint: Include Role, Context, Task, Requirements, Output</summary>
+      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
+        Your prompt should include:
+        <ul style="margin-top: 8px; padding-left: 20px;">
+          <li><strong>Role:</strong> Senior engineer implementing fitness functions for evolutionary architecture</li>
+          <li><strong>Context:</strong> Node 18 + TypeScript, Jest, Vite build tool, target bundle size 500KB</li>
+          <li><strong>Task:</strong> Create tests/fitness-functions/bundle-size.test.ts</li>
+          <li><strong>Requirements:</strong>
+            <ul style="margin-top: 4px; padding-left: 20px;">
+              <li>Check if dist/main.js exists (fail gracefully if missing)</li>
+              <li>Use fs.statSync() to get bundle size</li>
+              <li>Fail if bundle >500KB</li>
+              <li>Report current size and threshold</li>
+              <li>Suggest optimization: "Consider code splitting, tree shaking, or lazy loading"</li>
+            </ul>
+          </li>
+          <li><strong>Output:</strong> Complete TypeScript test file with error handling</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</details>
+
 </div>
 
 ---
@@ -830,35 +1094,72 @@ Once you've implemented fitness functions, track these metrics to measure impact
 
 ## Key Takeaways
 
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(79, 70, 229, 0.4);">
-  <div style="font-weight: 800; font-size: 24px; color: #f1f5f9; margin-bottom: 20px; text-align: center;">What You've Learned</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 32px 0;">
 
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-    <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-      <div style="font-weight: 700; color: #e0e7ff; margin-bottom: 12px;">✅ The Four Pillars</div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-        Complexity ≤10, dependencies ≤90 days old, coverage ≥80%, p95 latency &lt;200ms. These are your non-negotiable baselines.
-      </div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-      <div style="font-weight: 700; color: #e0e7ff; margin-bottom: 12px;">✅ Warning → Blocking Mode</div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-        Start with continue-on-error: true. Collect baseline data. Tune thresholds. Then enforce as blocking.
-      </div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-      <div style="font-weight: 700; color: #e0e7ff; margin-bottom: 12px;">✅ AI-Assisted Remediation</div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-        Use Claude Code to refactor complexity violations, ChatGPT to analyze SARIF output, Copilot to add missing tests.
-      </div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-      <div style="font-weight: 700; color: #e0e7ff; margin-bottom: 12px;">✅ Evolutionary Architecture</div>
-      <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-        Fitness functions prevent architectural erosion. They're the immune system for your codebase.
-      </div>
-    </div>
-  </div>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #fb923c;">
+  <div style="font-size: 28px; margin-bottom: 12px;">🧩</div>
+  <h3 style="color: #fb923c; margin-top: 0; font-size: 18px; font-weight: 700;">The Four Pillars</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Complexity ≤10, dependencies ≤90 days old, coverage ≥80%, p95 latency <200ms. These are your non-negotiable baselines. Every production codebase needs these four fitness functions enforced in CI/CD.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #22c55e;">
+  <div style="font-size: 28px; margin-bottom: 12px;">📊</div>
+  <h3 style="color: #22c55e; margin-top: 0; font-size: 18px; font-weight: 700;">Objective Metrics Matter</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Fitness functions are objective and automatable. They remove subjective debates about code quality and replace them with measurable thresholds. If a function has complexity 15, it fails—no arguments, no exceptions.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #3b82f6;">
+  <div style="font-size: 28px; margin-bottom: 12px;">🚦</div>
+  <h3 style="color: #3b82f6; margin-top: 0; font-size: 18px; font-weight: 700;">Warning Mode First</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Start with continue-on-error: true. Collect baseline data for 2 weeks. Tune thresholds based on real data. Then graduate to blocking mode. This prevents false positives from disrupting your team while establishing realistic benchmarks.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #ec4899;">
+  <div style="font-size: 28px; margin-bottom: 12px;">🔧</div>
+  <h3 style="color: #ec4899; margin-top: 0; font-size: 18px; font-weight: 700;">CI/CD Enforcement</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Fitness functions only matter if they block merges. Run them in GitHub Actions on every PR. Failed fitness function = blocked PR. No exceptions. Your architecture enforces itself automatically.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #a855f7;">
+  <div style="font-size: 28px; margin-bottom: 12px;">🤖</div>
+  <h3 style="color: #a855f7; margin-top: 0; font-size: 18px; font-weight: 700;">AI-Assisted Remediation</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Use AI to fix violations: Claude Code for refactoring complex functions, ChatGPT for analyzing dependency vulnerabilities, Copilot for adding missing tests. The prompt packs from Part 2 apply here too.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #f59e0b;">
+  <div style="font-size: 28px; margin-bottom: 12px;">🏗️</div>
+  <h3 style="color: #f59e0b; margin-top: 0; font-size: 18px; font-weight: 700;">Evolutionary Architecture</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Fitness functions prevent architectural erosion by catching regressions immediately. They're the immune system for your codebase—detecting and rejecting changes that violate quality standards before they metastasize.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #06b6d4;">
+  <div style="font-size: 28px; margin-bottom: 12px;">📈</div>
+  <h3 style="color: #06b6d4; margin-top: 0; font-size: 18px; font-weight: 700;">Continuous Improvement</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Track metrics over time. As your team's practices improve, raise thresholds: complexity from 10→8, coverage from 80%→85%. Your fitness functions evolve with your engineering maturity.
+  </p>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #84cc16;">
+  <div style="font-size: 28px; margin-bottom: 12px;">✅</div>
+  <h3 style="color: #84cc16; margin-top: 0; font-size: 18px; font-weight: 700;">Measurable Impact</h3>
+  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
+    Teams with fitness functions see 65% fewer production bugs, 40% faster velocity, and zero CVE incidents in production. The upfront investment in automation pays compounding dividends over years.
+  </p>
+</div>
+
 </div>
 
 ---

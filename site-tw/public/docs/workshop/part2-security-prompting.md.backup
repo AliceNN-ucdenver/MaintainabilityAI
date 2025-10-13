@@ -182,24 +182,28 @@ Provide complete, executable TypeScript code for:
         Specifying "security engineer implementing OWASP A03" primes AI to prioritize defense-in-depth over convenience. Without this, AI defaults to "make it work" rather than "make it secure."
       </div>
     </div>
+
     <div style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; border-radius: 8px; padding: 16px;">
       <div style="color: #c4b5fd; font-weight: 600; margin-bottom: 6px;">2️⃣ Context → Stack-Specific Implementation</div>
       <div style="color: #e2e8f0; font-size: 14px; line-height: 1.7;">
-        "pg library" tells AI to use `$1, $2` placeholders (not `?` or `:param`). Without this, you get code for the wrong ORM that won't compile.
+        "pg library" tells AI to use <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">$1, $2</code> placeholders (not <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">?</code> or <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">:param</code>). Without this, you get code for the wrong ORM that won't compile.
       </div>
     </div>
+
     <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 8px; padding: 16px;">
       <div style="color: #86efac; font-weight: 600; margin-bottom: 6px;">3️⃣ Task → Clear Action</div>
       <div style="color: #e2e8f0; font-size: 14px; line-height: 1.7;">
         "Analyze examples/owasp/A03_injection/insecure.ts and refactor" gives AI a concrete starting point. Vague tasks like "make it secure" produce vague results.
       </div>
     </div>
+
     <div style="background: rgba(234, 88, 12, 0.1); border-left: 3px solid #f97316; border-radius: 8px; padding: 16px;">
       <div style="color: #fdba74; font-weight: 600; margin-bottom: 6px;">4️⃣ Requirements → Specific Security Controls</div>
       <div style="color: #e2e8f0; font-size: 14px; line-height: 1.7;">
         Numbered requirements with validation checkboxes ensure nothing gets missed. "Parameterized queries" is vague; "$1 placeholders, never string concatenation" is testable.
       </div>
     </div>
+
     <div style="background: rgba(14, 165, 233, 0.1); border-left: 3px solid #06b6d4; border-radius: 8px; padding: 16px;">
       <div style="color: #67e8f9; font-weight: 600; margin-bottom: 6px;">5️⃣ Output → Complete Deliverables</div>
       <div style="color: #e2e8f0; font-size: 14px; line-height: 1.7;">
@@ -214,6 +218,353 @@ Provide complete, executable TypeScript code for:
       When reviewing code, experienced engineers ask: "What threat model? (Role) What's the stack? (Context) What needs to be done? (Task) What controls are required? (Requirements) What should I deliver? (Output)". RCTRO teaches AI to think the same way.
     </div>
   </div>
+</div>
+
+---
+
+## Pattern Deep Dive: Context + Constraints + Validation + Tests
+
+Let's break down each component of the RCTRO pattern with concrete examples showing why each piece matters and what happens when you omit it.
+
+<div style="display: grid; gap: 24px; margin: 32px 0;">
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #8b5cf6;">
+  <summary style="font-size: 22px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ 1. Context: Technology Stack Specificity</summary>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    AI assistants are trained on millions of code examples across hundreds of languages and frameworks. Without explicit context, they'll default to the most common patterns—which might not match your stack and often aren't the most secure.
+  </div>
+
+  <div style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; border-radius: 8px; padding: 20px; margin: 16px 0;">
+    <div style="color: #c4b5fd; font-size: 15px; font-weight: 600; margin-bottom: 12px;">✅ Effective Context Specification</div>
+    <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; overflow-x: auto;">
+      <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.7;"><code>Context:
+- Node 18 + TypeScript 5
+- PostgreSQL 15 using `pg` library (NOT Sequelize, NOT TypeORM)
+- Zod for schema validation
+- Jest for testing with ts-jest preset
+- Environment: Serverless (AWS Lambda with 1GB memory limit)</code></pre>
+    </div>
+  </div>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    <strong style="color: #f1f5f9;">Why this matters:</strong> The `pg` library uses `$1, $2` placeholders for parameterized queries. If you don't specify this, AI might generate code for Sequelize (which uses `?` placeholders) or TypeORM (which uses `:paramName`). The code won't run, you'll waste time debugging, and you might accidentally introduce vulnerabilities while "fixing" it.
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px;">
+      <div style="color: #fca5a5; font-weight: 700; margin-bottom: 8px;">❌ Vague: "Use a database"</div>
+      <div style="color: #cbd5e1; font-size: 13px;">AI might generate MySQL, MongoDB, or SQLite code. Wrong syntax, wrong security patterns.</div>
+    </div>
+    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px;">
+      <div style="color: #86efac; font-weight: 700; margin-bottom: 8px;">✅ Specific: "PostgreSQL 15 with pg library"</div>
+      <div style="color: #cbd5e1; font-size: 13px;">AI generates correct parameterized queries with $1 placeholders, uses pg.Pool correctly.</div>
+    </div>
+  </div>
+
+  <div style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <div style="color: #c4b5fd; font-size: 14px; font-weight: 600; margin-bottom: 8px;">💡 Key Takeaway</div>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+      Include version numbers, library names, and alternatives to avoid. Different versions of the same library often have different security APIs (e.g., bcrypt cost factors, crypto algorithm names).
+    </div>
+  </div>
+
+</details>
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #ef4444;">
+  <summary style="font-size: 22px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ 2. Constraints: What NOT to Do</summary>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    Security is often defined by what you <em>don't</em> do: don't concatenate SQL strings, don't log passwords, don't expose stack traces, don't use eval(). Constraints are just as important as requirements because they prevent AI from taking the easy (but insecure) path.
+  </div>
+
+  <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 8px; padding: 20px; margin: 16px 0;">
+    <div style="color: #fca5a5; font-size: 15px; font-weight: 600; margin-bottom: 12px;">🚫 Explicit Constraints That Prevent Vulnerabilities</div>
+    <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; overflow-x: auto;">
+      <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.7;"><code>Constraints (What NEVER to Do):
+- NEVER use string concatenation or template literals in SQL queries
+- NEVER expose database errors to clients (no stack traces, no SQL in responses)
+- NEVER log raw user input without sanitization
+- NEVER use eval(), Function(), or vm.runInNewContext() with user input
+- NEVER store passwords in plaintext or with weak hashing (MD5, SHA1)
+- Must use parameterized queries exclusively ($1, $2 placeholders)</code></pre>
+    </div>
+  </div>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    <strong style="color: #f1f5f9;">Why this matters:</strong> AI models are trained on vast amounts of code, including insecure code. Without explicit constraints, they might generate a SQL query with string interpolation because it's syntactically simpler and appears frequently in training data. By stating "NEVER use string concatenation in SQL," you're overriding that default behavior.
+  </div>
+
+  <div style="display: grid; gap: 12px; margin: 16px 0;">
+    <div style="background: rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 16px; border: 1px solid rgba(239, 68, 68, 0.3);">
+      <div style="display: flex; align-items: start; gap: 12px;">
+        <div style="font-size: 24px;">⚠️</div>
+        <div>
+          <div style="color: #fca5a5; font-weight: 700; margin-bottom: 4px;">Without Constraints</div>
+          <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6;">
+            AI generates: <span style="color: #fca5a5;">`db.query(\`SELECT * FROM users WHERE id = ${userId}\`)`</span><br/>
+            Result: SQL injection vulnerability shipped to production
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="background: rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 16px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <div style="display: flex; align-items: start; gap: 12px;">
+        <div style="font-size: 24px;">✅</div>
+        <div>
+          <div style="color: #86efac; font-weight: 700; margin-bottom: 4px;">With Explicit Constraints</div>
+          <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6;">
+            AI generates: <span style="color: #86efac;">`db.query('SELECT * FROM users WHERE id = $1', [userId])`</span><br/>
+            Result: Secure parameterized query, no injection possible
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <div style="color: #fca5a5; font-size: 14px; font-weight: 600; margin-bottom: 8px;">💡 Key Takeaway</div>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+      Use the word "NEVER" in all caps to create strong negative constraints. This signals to the AI that these are non-negotiable security requirements, not just stylistic preferences.
+    </div>
+  </div>
+
+</details>
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #10b981;">
+  <summary style="font-size: 22px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ 3. Validation: Input/Output Controls</summary>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    "Validate user input" is one of the most common security recommendations—and one of the most useless. <em>How</em> should you validate? Against what rules? With which library? What happens when validation fails? Security-first prompts answer all of these questions explicitly.
+  </div>
+
+  <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 8px; padding: 20px; margin: 16px 0;">
+    <div style="color: #86efac; font-size: 15px; font-weight: 600; margin-bottom: 12px;">✅ Concrete Validation Requirements</div>
+    <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; overflow-x: auto;">
+      <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.7;"><code>Validation Requirements:
+- Use Zod schema validation (import { z } from 'zod')
+- Allowlist regex for email search: [a-zA-Z0-9 _.-@]
+- Enforce max length: 100 characters
+- Trim whitespace before validation
+- Reject any input containing SQL keywords: SELECT, DROP, INSERT, UPDATE, DELETE
+- On validation failure: throw error with message "Invalid input" (no details)
+- Never echo back invalid input in error messages</code></pre>
+    </div>
+  </div>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    <strong style="color: #f1f5f9;">Why this matters:</strong> Each validation rule prevents a specific attack vector. The allowlist regex blocks SQL injection characters like single quotes (`'`), semicolons (`;`), and SQL comments (`--`). The length limit prevents buffer overflows and ReDoS attacks. Not echoing invalid input back prevents XSS. Each rule is testable and independently verifiable.
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 16px;">
+      <div style="color: #fca5a5; font-weight: 700; font-size: 14px; margin-bottom: 12px;">❌ Vague Validation Prompt</div>
+      <div style="background: rgba(0,0,0,0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+        <code style="color: #fca5a5; font-size: 12px;">"Validate user input"</code>
+      </div>
+      <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6;">
+        <strong style="color: #f1f5f9;">AI might generate:</strong><br/>
+        • Basic type check only<br/>
+        • No length limits<br/>
+        • No character allowlist<br/>
+        • Verbose error messages<br/>
+        • Missing edge cases
+      </div>
+    </div>
+    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px;">
+      <div style="color: #86efac; font-weight: 700; font-size: 14px; margin-bottom: 12px;">✅ Specific Validation Prompt</div>
+      <div style="background: rgba(0,0,0,0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+        <code style="color: #86efac; font-size: 12px;">"Zod with [a-zA-Z0-9 _.-@], max 100 chars"</code>
+      </div>
+      <div style="color: #cbd5e1; font-size: 13px; line-height: 1.6;">
+        <strong style="color: #f1f5f9;">AI generates:</strong><br/>
+        • Zod schema with regex<br/>
+        • Length limit enforced<br/>
+        • Whitespace trimmed<br/>
+        • Generic error messages<br/>
+        • All attack vectors blocked
+      </div>
+    </div>
+  </div>
+
+  <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <div style="color: #86efac; font-size: 14px; font-weight: 600; margin-bottom: 8px;">💡 Key Takeaway</div>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+      Specify the exact validation library, the allowlist regex pattern, length limits, and error message format. This ensures consistent, testable validation across your entire codebase.
+    </div>
+  </div>
+
+</details>
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #06b6d4;">
+  <summary style="font-size: 22px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ 4. Tests: Verification Criteria</summary>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    Security controls only matter if they actually work. The best way to prove they work is through tests—especially tests that simulate real attacks. Security-first prompts explicitly require AI to run existing tests and write new ones for attack scenarios.
+  </div>
+
+  <div style="background: rgba(14, 165, 233, 0.1); border-left: 3px solid #06b6d4; border-radius: 8px; padding: 20px; margin: 16px 0;">
+    <div style="color: #67e8f9; font-size: 15px; font-weight: 600; margin-bottom: 12px;">✅ Comprehensive Testing Requirements</div>
+    <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; overflow-x: auto;">
+      <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.7;"><code>Testing Requirements:
+1. Run existing tests in __tests__/injection.test.ts
+2. Add test cases for these attack vectors:
+   - SQL injection: ' OR '1'='1
+   - SQL comment injection: '; DROP TABLE users--
+   - Null byte injection: %00, \u0000
+   - Length boundary: 100 chars (pass), 101 chars (fail)
+   - Invalid characters: <, >, &, ", '
+3. Verify Zod validation rejects all invalid inputs
+4. Ensure error messages don't leak SQL/schema details
+5. Confirm tests achieve ≥80% code coverage</code></pre>
+    </div>
+  </div>
+
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 16px 0;">
+    <strong style="color: #f1f5f9;">Why this matters:</strong> Tests are executable proof that security controls work. By specifying exact attack payloads, you ensure AI generates code that actually blocks those attacks—not just code that <em>looks</em> secure. Tests also serve as regression prevention: if someone later refactors the code and removes a security control, the tests will catch it.
+  </div>
+
+  <div style="background: rgba(14, 165, 233, 0.1); border-radius: 8px; padding: 20px; margin: 16px 0;">
+    <div style="color: #67e8f9; font-size: 14px; font-weight: 700; margin-bottom: 12px;">📋 Example Test AI Should Generate</div>
+    <div style="background: rgba(0,0,0,0.5); border-radius: 8px; padding: 16px; overflow-x: auto;">
+      <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.6;"><code>describe('searchUsers - SQL Injection Prevention', () => {
+  it('blocks SQL injection with OR clause', async () => {
+    const attackPayload = "' OR '1'='1";
+    await expect(searchUsers(attackPayload))
+      .rejects.toThrow('Invalid input');
+  });
+
+  it('blocks SQL comment injection', async () => {
+    const attackPayload = "'; DROP TABLE users--";
+    await expect(searchUsers(attackPayload))
+      .rejects.toThrow('Invalid input');
+  });
+
+  it('enforces 100 character limit', async () => {
+    const validInput = 'a'.repeat(100);
+    const invalidInput = 'a'.repeat(101);
+
+    await expect(searchUsers(validInput)).resolves.toBeDefined();
+    await expect(searchUsers(invalidInput))
+      .rejects.toThrow('Invalid input');
+  });
+});</code></pre>
+    </div>
+  </div>
+
+  <div style="background: rgba(14, 165, 233, 0.1); border-left: 3px solid #06b6d4; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <div style="color: #67e8f9; font-size: 14px; font-weight: 600; margin-bottom: 8px;">💡 Key Takeaway</div>
+    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+      Provide exact attack payloads in your prompt. This ensures AI writes tests that verify actual threat scenarios, not just happy-path functionality. Include file paths to existing test files so AI can run them and ensure they pass.
+    </div>
+  </div>
+
+</details>
+
+</div>
+
+---
+
+## Real-World Example: A03 Injection Prompt Pack Walkthrough
+
+Let's dissect a complete, production-ready security prompt from this repository's OWASP A03 prompt pack. This is the exact prompt you'd use with Claude Code, GitHub Copilot, or ChatGPT to fix SQL injection vulnerabilities.
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(239, 68, 68, 0.4);">
+
+<div style="text-align: center; margin-bottom: 32px;">
+  <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">🔍 Anatomy of a Production Prompt</div>
+  <div style="font-size: 14px; color: #cbd5e1;">Breaking down `/prompts/owasp/A03_injection.md`</div>
+</div>
+
+<div style="display: grid; gap: 20px;">
+
+<div style="background: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px;">
+  <div style="color: #a5b4fc; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Component 1: Role</div>
+  <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+    <code style="color: #cbd5e1; font-size: 13px;">"Role: You are a security engineer implementing OWASP A03:2021 - Injection."</code>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #f1f5f9;">Analysis:</strong> This single sentence does three things: (1) establishes security as the primary concern, (2) references a specific OWASP category so AI can access relevant training data, (3) sets expectation that defense-in-depth is required, not just a quick fix.
+  </div>
+</div>
+
+<div style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 20px;">
+  <div style="color: #c4b5fd; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Component 2: Context</div>
+  <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 14px; margin-bottom: 12px; overflow-x: auto;">
+    <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.6;"><code>Context:
+- Node 18 + TypeScript
+- PostgreSQL using `pg` library
+- We must use parameterized queries only (no string concatenation)
+- Validate inputs with Zod schema validation
+- Apply length limits (max 100 chars) and character allowlists
+- Ensure errors never leak schema details</code></pre>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #f1f5f9;">Analysis:</strong> Specifies exact tech stack (Node 18, TypeScript, pg, Zod), includes both positive constraints (use parameterized queries) and negative (no string concatenation), sets concrete limits (100 chars), addresses error handling. AI now knows <em>exactly</em> what code to generate.
+  </div>
+</div>
+
+<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 12px; padding: 20px;">
+  <div style="color: #86efac; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Component 3: Security Requirements</div>
+  <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 14px; margin-bottom: 12px; overflow-x: auto;">
+    <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.6;"><code>Security Requirements:
+- Use prepared statements with placeholders ($1, $2, etc.)
+- Validate all user inputs with Zod schemas
+- Apply allowlist regex for permitted characters
+- Enforce length limits on all inputs
+- Sanitize output if rendered in HTML
+- Never expose SQL/database errors to clients
+- Log security events (blocked injection attempts)</code></pre>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #f1f5f9;">Analysis:</strong> Lists 7 specific, testable requirements covering input validation, query construction, output handling, error handling, and logging. Each requirement is actionable and verifiable. This is defense-in-depth: multiple layers that each independently prevent the attack.
+  </div>
+</div>
+
+<div style="background: rgba(234, 88, 12, 0.1); border-left: 4px solid #f97316; border-radius: 12px; padding: 20px;">
+  <div style="color: #fdba74; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Component 4: Task</div>
+  <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 14px; margin-bottom: 12px; overflow-x: auto;">
+    <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.6;"><code>Task:
+1) Refactor `examples/owasp/A03_injection/insecure.ts` to use prepared statements with $1 placeholders
+2) Add Zod validation to `searchUsers`:
+   - Only allow [a-zA-Z0-9 _.-@] characters
+   - Max length: 100
+   - Trim whitespace
+3) Sanitize error messages (never expose SQL or schema info)
+4) Add TypeScript types for returned data
+5) Run tests in `examples/owasp/A03_injection/__tests__/injection.test.ts` and ensure they pass</code></pre>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #f1f5f9;">Analysis:</strong> Breaks down implementation into 5 concrete, ordered steps. Specifies exact file paths so AI knows where to edit. Includes specific validation rules (regex, length limit). Requires running tests as final verification. Each step is independently testable.
+  </div>
+</div>
+
+<div style="background: rgba(14, 165, 233, 0.1); border-left: 4px solid #06b6d4; border-radius: 12px; padding: 20px;">
+  <div style="color: #67e8f9; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Component 5: Security Checklist</div>
+  <div style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 14px; margin-bottom: 12px; overflow-x: auto;">
+    <pre style="color: #cbd5e1; font-size: 13px; margin: 0; line-height: 1.6;"><code>Security Checklist:
+- ☐ Parameterized queries only (pg.query with $1, $2 placeholders)
+- ☐ Input validation via Zod with allowlist regex
+- ☐ Length limits enforced (<=100 chars)
+- ☐ Output encoding if data is rendered in HTML
+- ☐ Generic error messages (no SQL/schema leaks)
+- ☐ Never log raw user input without sanitization
+- ☐ Tests pass with attack payloads blocked</code></pre>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #f1f5f9;">Analysis:</strong> 7 checkbox items that can be mechanically verified. Each corresponds to a security requirement. Mix of implementation checks (parameterized queries) and test verification (attack payloads blocked). This becomes your PR review checklist—if any box is unchecked, the PR isn't ready to merge.
+  </div>
+</div>
+
+</div>
+
+<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 12px; padding: 20px; margin-top: 24px;">
+  <div style="color: #86efac; font-size: 15px; font-weight: 700; margin-bottom: 8px;">💡 The Power of Completeness</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    This prompt is comprehensive: it tells AI <strong>what to do</strong> (use parameterized queries), <strong>what not to do</strong> (no string concatenation), <strong>how to validate</strong> (Zod with regex), <strong>how to test</strong> (attack payloads), and <strong>how to verify</strong> (checklist). AI can generate secure, production-ready code in one pass because it has complete specifications.
+  </div>
+</div>
+
 </div>
 
 ---
