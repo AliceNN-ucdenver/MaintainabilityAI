@@ -257,8 +257,11 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
   if (loading) {
     return (
       <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="text-center text-slate-400">
-          <div className="animate-pulse">Loading...</div>
+        <div className="text-center text-slate-400 min-h-screen flex items-center justify-center">
+          <div>
+            <div className="animate-pulse text-xl mb-4">Loading document...</div>
+            <div className="text-sm text-slate-500">Path: {location.pathname}</div>
+          </div>
         </div>
       </main>
     );
