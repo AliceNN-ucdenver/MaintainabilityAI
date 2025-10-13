@@ -1,5 +1,44 @@
 # Changelog
 
+## 2025-10-13 - Production Ready Release (v1.4)
+
+### Improved
+
+#### 8. Enhanced Deployment Script ✨
+**Enhancement**: Improved `deploy-test.sh` with automatic template cloning and better defaults
+
+**Changes**:
+- Clones latest template from GitHub (no local path dependencies)
+- Sensible defaults for all prompts (just press Enter!)
+- Automatic cleanup of temporary clone directory
+- More user-friendly prompts with `[default]` syntax
+
+**Defaults**:
+- Target directory: `~/agent-test`
+- Repository name: `agent-test`
+- Visibility: `public`
+- Create repo: `yes` (Y/n)
+
+**Benefits**:
+- ✅ No need to have the repo cloned locally
+- ✅ Always uses latest template version from GitHub
+- ✅ Faster setup (fewer prompts to answer)
+- ✅ Automatic cleanup (no leftover temp files)
+
+**File**: `deploy-test.sh`
+
+**Example usage**:
+```bash
+# Run from anywhere - just hit Enter for all defaults!
+curl -sSL https://raw.githubusercontent.com/AliceNN-ucdenver/MaintainabilityAI/main/examples/agents/deploy-test.sh | bash
+
+# Or locally:
+./deploy-test.sh
+# Press Enter 4 times + enter API key = done!
+```
+
+---
+
 ## 2025-10-13 - Production Ready Release (v1.3)
 
 ### Added

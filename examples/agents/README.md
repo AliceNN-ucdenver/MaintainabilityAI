@@ -22,7 +22,42 @@ graph LR
 
 ## ⚡ Quick Start
 
-### 1. Copy This Repository Template
+### Option 1: Automated Deployment (Recommended)
+
+Run the deployment script for a guided setup:
+
+```bash
+# Download and run the deployment script
+curl -sSL https://raw.githubusercontent.com/AliceNN-ucdenver/MaintainabilityAI/main/examples/agents/deploy-test.sh | bash
+```
+
+**Or if you have the repo cloned:**
+
+```bash
+cd examples/agents
+./deploy-test.sh
+```
+
+The script will:
+- ✅ Clone the latest template from GitHub
+- ✅ Prompt for configuration (with sensible defaults - just hit Enter!)
+- ✅ Create a new GitHub repository
+- ✅ Configure the Anthropic API key secret
+- ✅ Clean up temporary files automatically
+
+**Defaults:**
+- Target directory: `~/agent-test` (press Enter to accept)
+- Repository name: `agent-test` (press Enter to accept)
+- Visibility: `public` (press Enter to accept)
+- Create repo: `yes` (press Enter to accept)
+
+---
+
+### Option 2: Manual Setup
+
+If you prefer manual setup:
+
+#### 1. Copy This Repository Template
 
 ```bash
 # Create new repo and copy files
@@ -33,7 +68,7 @@ cp -r /path/to/this/folder/.github .
 git add . && git commit -m "Initial commit" && git push
 ```
 
-### 2. Add Required Secret
+#### 2. Add Required Secret
 
 ```bash
 # Add your Anthropic API key

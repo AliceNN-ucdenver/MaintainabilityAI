@@ -14,15 +14,44 @@ echo -e "${BLUE}╔════════════════════�
 echo ""
 
 # Configuration
-SOURCE_DIR="/Users/shawnmccarthy/maintainabilityai/examples/agents"
-TARGET_DIR="$HOME/agent-test"
-REPO_NAME="agent-test"
+TEMPLATE_REPO="https://github.com/AliceNN-ucdenver/MaintainabilityAI.git"
+DEFAULT_TARGET_DIR="$HOME/agent-test"
+DEFAULT_REPO_NAME="agent-test"
+TEMP_DIR=$(mktemp -d)
 
-# Check if source directory exists
-if [ ! -d "$SOURCE_DIR" ]; then
-    echo -e "${RED}❌ Error: Source directory not found: $SOURCE_DIR${NC}"
+# Cleanup function
+cleanup() {
+    if [ -d "$TEMP_DIR" ]; then
+        echo -e "${BLUE}🧹 Cleaning up temporary directory...${NC}"
+        rm -rf "$TEMP_DIR"
+    fi
+}
+
+# Register cleanup on exit
+trap cleanup EXIT
+
+# Prompt for target directory with default
+echo -e "${YELLOW}📋 Configuration:${NC}"
+echo ""
+read -p "Target directory [${DEFAULT_TARGET_DIR}]: " TARGET_DIR
+TARGET_DIR="${TARGET_DIR:-$DEFAULT_TARGET_DIR}"
+
+read -p "GitHub repository name [${DEFAULT_REPO_NAME}]: " REPO_NAME
+REPO_NAME="${REPO_NAME:-$DEFAULT_REPO_NAME}"
+echo ""
+
+# Clone the template repository
+echo -e "${BLUE}📦 Cloning MaintainabilityAI template...${NC}"
+git clone --depth 1 "$TEMPLATE_REPO" "$TEMP_DIR" >/dev/null 2>&1
+
+if [ ! -d "$TEMP_DIR/examples/agents" ]; then
+    echo -e "${RED}❌ Error: Could not find examples/agents in cloned repository${NC}"
     exit 1
 fi
+
+SOURCE_DIR="$TEMP_DIR/examples/agents"
+echo -e "${GREEN}✅ Template cloned successfully${NC}"
+echo ""
 
 # Prompt for Anthropic API key
 echo -e "${YELLOW}📋 Setup Information:${NC}"
@@ -116,7 +145,8 @@ echo ""
 # Create GitHub repository
 echo -e "${BLUE}🚀 Creating GitHub repository...${NC}"
 echo ""
-read -p "Create GitHub repository now? (y/n): " CREATE_REPO
+read -p "Create GitHub repository now? [Y/n]: " CREATE_REPO
+CREATE_REPO="${CREATE_REPO:-y}"
 
 if [[ "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     # Check if gh CLI is installed
@@ -134,13 +164,13 @@ if [[ "$CREATE_REPO" =~ ^[Yy]$ ]]; then
             gh auth login
         fi
 
-        # Prompt for repository visibility
-        read -p "Make repository public or private? (public/private): " VISIBILITY
-        VISIBILITY=$(echo "$VISIBILITY" | tr '[:upper:]' '[:lower:]')
+        # Prompt for repository visibility with default
+        read -p "Make repository public or private? [public]: " VISIBILITY
+        VISIBILITY=$(echo "${VISIBILITY:-public}" | tr '[:upper:]' '[:lower:]')
 
         if [[ ! "$VISIBILITY" =~ ^(public|private)$ ]]; then
-            VISIBILITY="private"
-            echo -e "${YELLOW}⚠️  Invalid choice. Defaulting to private.${NC}"
+            VISIBILITY="public"
+            echo -e "${YELLOW}⚠️  Invalid choice. Defaulting to public.${NC}"
         fi
 
         # Create repository
