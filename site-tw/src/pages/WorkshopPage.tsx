@@ -99,10 +99,10 @@ export default function WorkshopPage() {
               <p className="text-slate-400">Step-by-step SQL injection remediation using real vulnerable code.</p>
             </Link>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6">
+            <Link to="/docs/workshop/part4-fitness-functions" className="block rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-brand/50 transition">
               <h3 className="font-bold text-xl mb-2">Part 4: Fitness Functions (Automated Quality Gates)</h3>
               <p className="text-slate-400">Implement Evolutionary Architecture fitness functions to prevent technical debt.</p>
-            </div>
+            </Link>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6">
               <h3 className="font-bold text-xl mb-2">Part 5: CodeQL + Snyk (Full Security Pipeline)</h3>

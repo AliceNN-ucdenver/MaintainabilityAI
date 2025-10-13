@@ -230,7 +230,6 @@ This comprehensive workshop guides teams through the transition from traditional
         ✓ Command line familiarity
       </div>
     </div>
-
     <div>
       <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Required Tools</div>
       <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
@@ -240,7 +239,6 @@ This comprehensive workshop guides teams through the transition from traditional
         ✓ AI tool access (Claude/Copilot/ChatGPT)
       </div>
     </div>
-
     <div>
       <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Optional Setup</div>
       <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
