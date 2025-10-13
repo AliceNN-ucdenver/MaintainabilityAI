@@ -430,9 +430,34 @@ ${vulnerability.codeSnippet || '(No code snippet available)'}
 
 ## 🤖 Claude Remediation Zone
 
-To request a remediation plan, comment:
+To request a remediation plan, **copy and paste this comment**:
 
-\`@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines below.\`
+\`\`\`
+@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
+\`\`\`
+
+<details>
+<summary>📋 <strong>Click here for copy instructions</strong></summary>
+
+**How to use:**
+1. Select the text in the code block above
+2. Copy (Ctrl+C / Cmd+C)
+3. Paste into a new comment on this issue
+4. Submit the comment
+
+**Alternative prompts:**
+
+For just the remediation plan:
+\`\`\`
+@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
+\`\`\`
+
+To start implementation immediately:
+\`\`\`
+@claude Please provide a remediation plan for this vulnerability and implement the fix following the security and maintainability guidelines provided.
+\`\`\`
+
+</details>
 
 ### ✅ Human Review Checklist
 
