@@ -59,7 +59,9 @@ echo ""
 echo "You'll need an Anthropic API key to use Claude AI remediation."
 echo "Get your key from: https://console.anthropic.com/settings/keys"
 echo ""
-read -p "Enter your Anthropic API key (sk-ant-api03-...): " ANTHROPIC_API_KEY
+read -s -p "Enter your Anthropic API key (sk-ant-api03-...): " ANTHROPIC_API_KEY
+echo ""
+echo -e "${GREEN}✓ API key captured${NC}"
 echo ""
 
 if [ -z "$ANTHROPIC_API_KEY" ]; then
