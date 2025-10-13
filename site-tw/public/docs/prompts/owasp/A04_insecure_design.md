@@ -378,71 +378,118 @@ export function validateTransfer(fromUserId: string, toUserId: string, amount: n
 
 ## ✅ Human Review Checklist
 
-After AI generates secure design code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated secure design code, verify:</div>
 
-### 🎲 Token Unpredictability
+<div style="display: grid; gap: 20px;">
 
-All security tokens must be generated using cryptographically secure random number generators, specifically crypto.randomBytes with minimum 32 bytes (256 bits) of entropy. Tokens must never be derived from predictable sources like email addresses, usernames, timestamps, sequential IDs, or any combination thereof. The crypto module's randomBytes function uses the operating system's CSPRNG which is suitable for security-sensitive random values. Test token generation by collecting multiple samples and verifying no discernible patterns exist. Tokens should be base64 or hex encoded for safe transmission.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Token Unpredictability</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All security tokens generated using crypto.randomBytes with minimum 32 bytes (256 bits) of entropy<br/>
+    ✓ Tokens never derived from predictable sources like emails, usernames, timestamps, or sequential IDs<br/>
+    ✓ Uses operating system CSPRNG via crypto module for cryptographically secure random values<br/>
+    ✓ Tokens base64 or hex encoded for safe transmission<br/>
+    ✓ No discernible patterns in token generation when collecting multiple samples<br/>
+    ✓ Test: Generate 100 tokens and verify no patterns, sequential values, or predictable elements exist
+  </div>
+</div>
 
-**Test it**: Generate 100 tokens and verify no patterns, sequential values, or predictable elements. Entropy should be approximately 256 bits.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Token Expiration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every token has explicit expiration time appropriate to use case<br/>
+    ✓ Password reset tokens expire within 15-30 minutes maximum<br/>
+    ✓ Session tokens expire within hours to days depending on sensitivity<br/>
+    ✓ Verification tokens expire within 24 hours maximum<br/>
+    ✓ Expiration validated on every token use with creation timestamp comparison<br/>
+    ✓ Expired tokens immediately deleted from storage<br/>
+    ✓ Attempts to use expired tokens logged as security events<br/>
+    ✓ Test: Create token, wait past expiration, attempt use and verify rejection with generic error
+  </div>
+</div>
 
----
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">One-Time Token Usage</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Tokens for sensitive operations like password reset, email verification, or 2FA are single-use only<br/>
+    ✓ Token marked as used in metadata after successful verification and action completion<br/>
+    ✓ All subsequent attempts to use consumed tokens rejected<br/>
+    ✓ Token reuse attempts logged as potential security incidents<br/>
+    ✓ Multi-step workflows issue new tokens for each step rather than reusing single token<br/>
+    ✓ Test: Use token successfully, attempt reuse and verify second attempt fails with logged security event
+  </div>
+</div>
 
-### ⏱️ Token Expiration
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Rate Limiting</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Rate limiting implemented on all security-sensitive operations<br/>
+    ✓ Password reset requests limited to 3-5 per email per hour<br/>
+    ✓ Login attempts limited to 5-10 per IP per 15 minutes<br/>
+    ✓ Token verification attempts similarly rate limited<br/>
+    ✓ Server-side implementation using in-memory structures or Redis/Memcached for distributed systems<br/>
+    ✓ Generic error messages when rate limits exceeded without revealing specific limits or wait times<br/>
+    ✓ Test: Make repeated requests until rate limit triggers and verify blocking with generic errors
+  </div>
+</div>
 
-Every token must have an explicit expiration time appropriate to its use case. Password reset tokens should expire within 15-30 minutes, session tokens within hours to days depending on sensitivity, and verification tokens within 24 hours maximum. Expiration must be validated on every token use, not just at generation. Store creation timestamp with token metadata and compare age against maximum allowed. Expired tokens should be immediately deleted from storage and attempts to use them logged as security events. Never extend token validity once issued.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Token Storage Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Tokens never stored in plaintext, always hashed using bcrypt or SHA-256<br/>
+    ✓ Token verification uses hash comparison with constant-time comparison to prevent timing attacks<br/>
+    ✓ Token metadata stored separately including email/user ID, creation timestamp, expiration time, usage flag<br/>
+    ✓ Metadata enables expiration checks and one-time use enforcement without exposing token value<br/>
+    ✓ Storage compromise does not expose usable token values<br/>
+    ✓ Test: Inspect token storage (database, memory) and verify only hashed tokens stored, never plaintext
+  </div>
+</div>
 
-**Test it**: Create token, wait past expiration time, attempt to use it. Should be rejected with generic error message.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Multiple independent security layers implemented with no single point of failure<br/>
+    ✓ Layers include cryptographic token generation, token hashing, expiration enforcement, one-time use, rate limiting, logging<br/>
+    ✓ Each layer fails independently without compromising other layers<br/>
+    ✓ Rate limiting prevents brute force even if token discovered<br/>
+    ✓ Expiration limits attack window even if rate limiting bypassed<br/>
+    ✓ One-time use prevents replay even if token intercepted<br/>
+    ✓ Test: Verify multiple protections exist and disabling one still leaves others protecting system
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Business Logic Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All business operations validate inputs against business rules not just technical constraints<br/>
+    ✓ Negative quantities in purchases or transfers prevented<br/>
+    ✓ Self-transfers where from and to accounts are identical blocked<br/>
+    ✓ Order totals validated to match sum of line items<br/>
+    ✓ Refund amounts verified to not exceed original purchase<br/>
+    ✓ Maximum transaction sizes enforced<br/>
+    ✓ State transitions in multi-step workflows validated (no skipping steps)<br/>
+    ✓ All checks happen server-side in business logic layer, never relying on client-side validation<br/>
+    ✓ Test: Attempt invalid operations (negative quantity, self-transfer, excessive amounts) and verify server-side rejection
+  </div>
+</div>
 
-### 🔒 One-Time Token Usage
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Security Event Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All security-relevant events logged with sufficient context for investigation<br/>
+    ✓ Logged events include token generation, verification attempts (success and failure), rate limit violations, expiration checks, business logic validation failures<br/>
+    ✓ Logs include masked user identifiers, IP addresses, timestamps, and actions taken<br/>
+    ✓ Token values, passwords, and secrets never logged<br/>
+    ✓ Structured JSON format for easy parsing and analysis<br/>
+    ✓ Failed security events trigger alerts when patterns indicate attacks<br/>
+    ✓ Logs sent to centralized system for tamper resistance<br/>
+    ✓ Test: Trigger various security events and verify comprehensive logs with appropriate detail and no sensitive data exposure
+  </div>
+</div>
 
-Tokens for sensitive operations like password reset, email verification, or two-factor authentication must be single-use only. Once a token is successfully verified and the associated action completed, mark the token as used in metadata and reject any subsequent attempts to use it. This prevents replay attacks where an attacker intercepts a token and attempts to reuse it. Attempts to reuse consumed tokens should be logged as potential security incidents. For workflows requiring multiple steps, issue new tokens for each step rather than reusing a single token.
-
-**Test it**: Use token successfully, attempt to use same token again. Second attempt should fail with logged security event.
-
----
-
-### 🚦 Rate Limiting
-
-Implement rate limiting on all security-sensitive operations to prevent brute force and enumeration attacks. Password reset requests should be limited to 3-5 per email per hour. Login attempts should be limited to 5-10 per IP per 15 minutes. Token verification attempts should be limited similarly. Rate limits must be implemented server-side using either in-memory data structures for single-server deployments or Redis/Memcached for distributed systems. When rate limits are exceeded, return generic error messages without revealing the specific limit or how long to wait.
-
-**Test it**: Make repeated requests until rate limit triggers. Verify subsequent requests are blocked and error messages are generic.
-
----
-
-### 🗂️ Token Storage Security
-
-Never store tokens in plaintext. Hash tokens using bcrypt or SHA-256 before storing in database or memory. This ensures that even if token storage is compromised, attackers cannot use stored values. When verifying tokens, hash the provided token and compare against stored hashes using constant-time comparison. Store token metadata separately: email/user ID, creation timestamp, expiration time, and usage flag. This metadata enables expiration checks and one-time use enforcement without exposing the actual token value.
-
-**Test it**: Inspect token storage (database, memory) and verify only hashed tokens are stored, never plaintext values.
-
----
-
-### 🛡️ Defense in Depth
-
-Security must never rely on a single control. Implement multiple independent layers: cryptographically secure token generation, token hashing in storage, expiration enforcement, one-time use validation, rate limiting, and security event logging. If one layer fails or is bypassed, remaining layers should still protect the system. For example, even if an attacker discovers a token, rate limiting prevents brute force guessing, expiration limits window of opportunity, and one-time use prevents replay. Each layer should fail independently without compromising other layers.
-
-**Test it**: Verify multiple protections exist. Disable one protection (in test environment) and confirm others still block attacks.
-
----
-
-### 📊 Business Logic Validation
-
-All business operations must validate inputs against business rules, not just technical constraints. Prevent negative quantities in purchases or transfers. Prevent self-transfers where from and to accounts are identical. Validate that order totals match sum of line items. Check that refund amounts don't exceed original purchase. Enforce maximum transaction sizes. Validate state transitions in multi-step workflows (can't skip from step 1 to step 5). These checks must happen server-side in business logic layer, never relying on client-side validation.
-
-**Test it**: Attempt invalid business operations (negative quantity, self-transfer, excessive amounts). All should be rejected server-side.
-
----
-
-### 📝 Security Event Logging
-
-All security-relevant events must be logged with sufficient context for investigation but without exposing sensitive data. Log token generation, verification attempts (success and failure), rate limit violations, expiration checks, and business logic validation failures. Include masked user identifiers, IP addresses, timestamps, and action taken. Never log token values, passwords, or other secrets. Logs should be structured (JSON) for easy parsing. Failed security events should trigger alerts when patterns indicate attacks. Log to centralized system for tamper resistance.
-
-**Test it**: Trigger various security events and verify comprehensive logs created with appropriate detail and no sensitive data exposure.
+</div>
 
 </div>
 

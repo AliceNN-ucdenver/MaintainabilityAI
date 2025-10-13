@@ -340,71 +340,89 @@ Additional controls:
 
 ## ✅ Human Review Checklist
 
-After AI generates repudiation threats, validate each finding before implementing mitigations. Here's what to verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f59e0b;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">Before merging AI-generated Repudiation threat mitigation code, verify:</div>
 
-### 📊 Audit Log Coverage
+<div style="display: grid; gap: 20px;">
 
-Every security-relevant action must be logged with sufficient detail for forensic investigation. This includes authentication events (login, logout, password reset, MFA enrollment), authorization changes (role modifications, permission grants), data access to sensitive resources (PII, financial data, healthcare records), and administrative actions (user deletion, config changes, system settings). Each log entry should answer who, what, when, where, and how.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Audit Log Coverage</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every security-relevant action logged with sufficient detail for forensic investigation<br/>
+    ✓ Authentication events logged: login, logout, password reset, MFA enrollment<br/>
+    ✓ Authorization changes logged: role modifications, permission grants<br/>
+    ✓ Data access to sensitive resources logged: PII, financial data, healthcare records<br/>
+    ✓ Administrative actions logged: user deletion, config changes, system settings<br/>
+    ✓ Each log entry answers who, what, when, where, and how<br/>
+    ✓ Test: Perform sensitive action (delete user, change password) and verify log entry appears with complete context including user ID, IP address, timestamp, and action details
+  </div>
+</div>
 
-**Test it**: Perform a sensitive action (delete user, change password) and verify a log entry appears with complete context. Check that logs include user ID, IP address, timestamp, and action details.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Log Integrity and Immutability</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Audit logs stored in append-only systems that application cannot modify or delete<br/>
+    ✓ Centralized logging platforms used: CloudWatch, Splunk, or ELK with IAM policies preventing write access from application accounts<br/>
+    ✓ Cryptographic signing (HMAC-SHA256) implemented for each log entry to detect tampering<br/>
+    ✓ Logs stored in separate account or subscription from application to prevent lateral movement<br/>
+    ✓ Test: Attempt to modify or delete log entry from application, verify access denial, check log signatures are generated and can be verified
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Log Retention and Compliance</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Logs retained for durations satisfying compliance requirements: 90 days minimum for SOC 2, 1 year for PCI DSS, 7 years for some HIPAA records<br/>
+    ✓ Automated log rotation and archival to cold storage (S3 Glacier, Azure Archive) after active retention period<br/>
+    ✓ Retention policies documented and automated deletion implemented after compliance period expires<br/>
+    ✓ Validate: Review log retention settings in logging platform, verify old logs archived and available for retrieval, confirm automated deletion configured
+  </div>
+</div>
 
-### 🔒 Log Integrity and Immutability
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Sensitive Data Masking</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never log passwords, session tokens, credit card numbers, Social Security numbers, or API keys<br/>
+    ✓ Automatic PII detection and redaction implemented using regex or library functions<br/>
+    ✓ Log identifiers (user ID, email) instead of full names<br/>
+    ✓ Careful with request bodies, error messages, and debug logs that might expose secrets<br/>
+    ✓ Test: Submit request with credit card number and verify masking in logs (shows only last 4 digits), check passwords never appear in any log file
+  </div>
+</div>
 
-Audit logs must be stored in append-only systems that the application cannot modify or delete. Use centralized logging platforms like CloudWatch, Splunk, or ELK with IAM policies preventing write access from application accounts. Implement cryptographic signing (HMAC-SHA256) for each log entry to detect tampering. Store logs in a separate account or subscription from the application to prevent lateral movement.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Real-Time Alerting</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ High-severity security events trigger immediate alerts to security teams via PagerDuty, Slack, email, or SIEM<br/>
+    ✓ Alert rules defined for failed authentication bursts, privilege escalation attempts, anomalous data access patterns, and admin actions<br/>
+    ✓ Alerts include enough context to triage without accessing full logs<br/>
+    ✓ Test: Trigger high-severity event (10 failed logins in 1 minute) and verify alert sent within 30 seconds, check alert includes actionable details
+  </div>
+</div>
 
-**Test it**: Attempt to modify or delete a log entry from the application. Verify access is denied. Check that log signatures are generated and can be verified.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Log Correlation and Tracing</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Each log entry includes correlation ID or request ID linking related events across services<br/>
+    ✓ Enables tracing single user action through microservices architecture<br/>
+    ✓ Structured logging (JSON format) used with consistent field names across all services<br/>
+    ✓ Integration with distributed tracing tools (Jaeger, Zipkin) for performance and security correlation<br/>
+    ✓ Validate: Generate request ID at ingress and verify appearance in all downstream logs, test search for specific request ID shows all related events
+  </div>
+</div>
 
----
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring and Anomaly Detection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Dashboards implemented showing authentication trends, failed login rates, data access patterns, and admin action frequency<br/>
+    ✓ Statistical anomaly detection alerts on unusual patterns (10x normal login attempts, access to 100+ user records in 5 minutes)<br/>
+    ✓ Dashboards regularly reviewed for suspicious activity during security reviews<br/>
+    ✓ Set up: Create dashboards in logging platform showing key security metrics, configure thresholds for alerts based on historical baselines
+  </div>
+</div>
 
-### 🕰️ Log Retention and Compliance
-
-Logs must be retained for durations that satisfy compliance requirements: 90 days minimum for SOC 2, 1 year for PCI DSS, 7 years for some HIPAA records. Implement automated log rotation and archival to cold storage (S3 Glacier, Azure Archive) after active retention period. Document retention policies and implement automated deletion after compliance period expires.
-
-**Validate**: Review log retention settings in your logging platform. Verify old logs are archived and available for retrieval. Confirm automated deletion is configured.
-
----
-
-### 🔍 Sensitive Data Masking
-
-Never log passwords, session tokens, credit card numbers, Social Security numbers, or API keys. Implement automatic PII detection and redaction using regex or library functions. Log identifiers (user ID, email) instead of full names. Be especially careful with request bodies, error messages, and debug logs that might expose secrets.
-
-**Test it**: Submit a request with a credit card number and verify it's masked in logs (shows only last 4 digits). Check that passwords never appear in any log file.
-
----
-
-### 🚨 Real-Time Alerting
-
-High-severity security events should trigger immediate alerts to security teams via PagerDuty, Slack, email, or SIEM. Define alert rules for failed authentication bursts, privilege escalation attempts, anomalous data access patterns, and admin actions. Alerts should include enough context to triage without accessing full logs.
-
-**Test it**: Trigger a high-severity event (10 failed logins in 1 minute) and verify an alert is sent within 30 seconds. Check alert includes actionable details.
-
----
-
-### 🔗 Log Correlation and Tracing
-
-Each log entry should include a correlation ID or request ID that links related events across services. This enables tracing a single user action through microservices architecture. Use structured logging (JSON format) with consistent field names across all services. Integrate with distributed tracing tools (Jaeger, Zipkin) for performance and security correlation.
-
-**Validate**: Generate a request ID at ingress and verify it appears in all downstream logs. Test that you can search for a specific request ID and see all related events.
-
----
-
-### 📈 Monitoring and Anomaly Detection
-
-Implement dashboards showing authentication trends, failed login rates, data access patterns, and admin action frequency. Use statistical anomaly detection to alert on unusual patterns (10x normal login attempts, access to 100+ user records in 5 minutes). Regularly review dashboards for suspicious activity during security reviews.
-
-**Set up**: Create dashboards in your logging platform showing key security metrics. Configure thresholds for alerts based on historical baselines.
-
----
-
-### 🔬 Threat Scenario Realism
-
-For each AI-generated threat, verify the attack scenario is technically feasible. Check that log coverage recommendations align with your compliance requirements. Validate that alerting thresholds won't cause alert fatigue with false positives. Ensure logging doesn't impact application performance (async logging, sampling for high-volume endpoints).
-
-**Red flags**: Logging passwords or tokens, synchronous logging on hot paths causing latency, missing correlation IDs, logs stored where app can delete them.
+</div>
 
 </div>
 

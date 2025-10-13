@@ -128,63 +128,94 @@ Output: Complete, executable code for all 4 files.
 
 ## ✅ Human Review Checklist
 
-After AI generates the dependency hygiene system, **review the code carefully** before running it. Here's what to verify in each area:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #8b5cf6;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">After AI generates the dependency hygiene system, review the code carefully before running it:</div>
 
-### 📦 Package.json Configuration
+<div style="display: grid; gap: 20px;">
 
-Verify all dependencies are pinned to exact versions with no semver ranges. Check that the engines field specifies your Node.js and npm versions to prevent tooling mismatches across the team. The packageManager field should lock npm to a specific version for deterministic builds.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Package.json Configuration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All dependencies pinned to exact versions with no semver ranges<br/>
+    ✓ Engines field specifies Node.js and npm versions<br/>
+    ✓ PackageManager field locks npm to specific version for deterministic builds<br/>
+    ✓ Test by running npm ci locally and in CI to ensure lock file is honored
+  </div>
+</div>
 
-**Test it**: Run `npm ci` locally and in CI to ensure the lock file is honored and builds are reproducible.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Freshness Check Script</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Uses npm outdated --json to find outdated packages<br/>
+    ✓ Checks actual publish dates using npm registry API<br/>
+    ✓ Age calculations are accurate (not just version number comparison)<br/>
+    ✓ Categorizes packages by severity: P0 (security), P1 (major versions), P2 (minor/patch)<br/>
+    ✓ Generates structured JSON report for tracking trends<br/>
+    ✓ Test by running script and verifying accurate age calculations
+  </div>
+</div>
 
----
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Renovate Configuration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Runs weekly (not daily) to avoid PR spam<br/>
+    ✓ Groups patch updates together for auto-merge<br/>
+    ✓ Separate PRs for minor and major updates requiring manual review<br/>
+    ✓ Vulnerability alerts enabled to notify security team immediately<br/>
+    ✓ Docker images pinned to SHA256 digests (not just tags)<br/>
+    ✓ Test by verifying Renovate creates expected PRs with correct labels and assignees
+  </div>
+</div>
 
-### 🔍 Freshness Check Script
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Security Scanning</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ CI workflow uses npm ci (not npm install) to respect lock file exactly<br/>
+    ✓ Both npm audit and Snyk run on every PR<br/>
+    ✓ Audit configured to fail on high/critical vulnerabilities<br/>
+    ✓ Snyk initially set to continue-on-error: true for monitoring period<br/>
+    ✓ Workflow uploads freshness report as artifact for historical trend analysis<br/>
+    ✓ Test by triggering workflow manually and verifying it catches known vulnerabilities
+  </div>
+</div>
 
-The script should use `npm outdated --json` to find outdated packages, then check actual publish dates using the npm registry API. Age calculations need to be accurate (don't just compare version numbers). The script must categorize packages by severity: security vulnerabilities are P0, major versions behind are P1, minor/patch updates are P2. Make sure it generates a structured JSON report for tracking trends over time.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Reporting and Metrics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Report includes timestamp, max age threshold, list of violations<br/>
+    ✓ Lists warnings for packages approaching threshold<br/>
+    ✓ Total count of outdated packages<br/>
+    ✓ Enables tracking improvement over time<br/>
+    ✓ Identifies which packages are consistently problematic<br/>
+    ✓ Validate JSON report is structured correctly for Grafana or DataDog
+  </div>
+</div>
 
-**Test it**: Run the script and verify it correctly flags packages you know are outdated with accurate age calculations.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Exception Handling</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Handles packages removed from npm<br/>
+    ✓ Handles private packages requiring authentication<br/>
+    ✓ Handles monorepo packages with workspace: protocol<br/>
+    ✓ Handles dependencies with pre-release versions<br/>
+    ✓ Edge cases don't cause entire check to fail<br/>
+    ✓ Red flags: crashes on npm registry API errors or incorrect flagging of internal packages
+  </div>
+</div>
 
----
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Update Workflow</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Patch updates auto-merge if all tests pass<br/>
+    ✓ Minor updates require quick review but can merge within 24 hours<br/>
+    ✓ Major updates need thorough testing, feature flag protection, and rollback plans<br/>
+    ✓ Security updates have SLAs: critical <24 hours, high <7 days<br/>
+    ✓ After deployment: monitor for 2 weeks, then switch to blocking mode
+  </div>
+</div>
 
-### 🤖 Renovate Configuration
-
-Renovate should run weekly (not daily, to avoid PR spam) and group patch updates together for auto-merge. Minor and major updates need separate PRs for manual review. The config must enable vulnerability alerts that immediately notify the security team. Docker images should be pinned to SHA256 digests, not just tags, to prevent supply chain attacks.
-
-**Test it**: After merging the config, check that Renovate creates the expected PRs with correct labels and assignees.
-
----
-
-### 🔒 Security Scanning
-
-The CI workflow should use `npm ci` (not `npm install`) to respect the lock file exactly. Both npm audit and Snyk should run, with audit configured to fail on high/critical vulnerabilities. Initially set Snyk to `continue-on-error: true` so you can monitor results for a couple weeks before switching to blocking mode. The workflow must upload the freshness report as an artifact for historical trend analysis.
-
-**Test it**: Trigger the workflow manually and verify it catches known vulnerabilities in test dependencies.
-
----
-
-### 📊 Reporting and Metrics
-
-The dependency freshness report should include: timestamp, max age threshold, list of violations with package names and ages, list of warnings for packages approaching the threshold, and total count of outdated packages. This data enables tracking improvement over time and identifying which packages are consistently problematic.
-
-**Validate**: Check that the JSON report is structured correctly and can be parsed by monitoring tools like Grafana or DataDog.
-
----
-
-### 🚨 Exception Handling
-
-The freshness check script needs proper error handling for edge cases: packages that were removed from npm, private packages that require authentication, monorepo packages with workspace: protocol, and dependencies with pre-release versions. These shouldn't cause the entire check to fail.
-
-**Red flags**: Scripts that crash on npm registry API errors or incorrectly flag internal packages as outdated.
-
----
-
-### 🔄 Update Workflow
-
-Establish a clear process for handling Renovate PRs. Patch updates should auto-merge if all tests pass. Minor updates require a quick review but can usually merge within 24 hours. Major updates need thorough testing, feature flag protection for risky changes, and rollback plans. Security updates should have SLAs: critical <24 hours, high <7 days.
-
-**After deployment**: Monitor for 2 weeks in warning mode, then switch to blocking mode by setting `continue-on-error: false`.
+</div>
 
 </div>
 

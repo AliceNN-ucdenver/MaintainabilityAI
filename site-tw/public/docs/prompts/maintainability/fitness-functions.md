@@ -156,77 +156,116 @@ Output: Complete, executable TypeScript code for all files. Initially configure 
 
 ## ✅ Human Review Checklist
 
-After AI generates fitness function tests, **review the code carefully** before running it. Here's what to verify in each area:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #10b981;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #86efac; margin-bottom: 20px;">After AI generates fitness function tests, review the code carefully before running it:</div>
 
-### 🗂️ File Structure
+<div style="display: grid; gap: 20px;">
 
-Verify the AI created all necessary files in the correct locations. You should have four test files in a fitness-functions directory, a GitHub Actions workflow for CI integration, baseline files for tracking historical metrics, and documentation explaining how to run and update the tests.
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">File Structure</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Four test files in fitness-functions directory<br/>
+    ✓ GitHub Actions workflow for CI integration<br/>
+    ✓ Baseline files for tracking historical metrics<br/>
+    ✓ Documentation explaining how to run and update tests
+  </div>
+</div>
 
----
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Complexity Analysis</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Uses dedicated tool like ts-complex (not manual AST parsing or regex)<br/>
+    ✓ Correctly counts all branching structures (conditionals, loops, case statements, logical operators, exception handlers)<br/>
+    ✓ Error messages pinpoint exact location and suggest specific refactoring patterns<br/>
+    ✓ Threshold configurable through environment variables<br/>
+    ✓ Test by running locally and verifying error messages are actionable
+  </div>
+</div>
 
-### 🔍 Complexity Analysis
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Coverage Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Reads Jest's coverage report and validates all four metrics (lines, branches, functions, statements)<br/>
+    ✓ Compares current coverage against stored baseline to detect regressions<br/>
+    ✓ Error messages show which metric failed, by how much, and remediation steps<br/>
+    ✓ Thresholds configurable for starting with realistic values<br/>
+    ✓ Test by generating coverage report first, then running fitness function
+  </div>
+</div>
 
-The complexity test should use a dedicated tool like `ts-complex` (not manual AST parsing or regex) to analyze your TypeScript code. It needs to correctly count all branching structures including conditionals, loops, case statements, logical operators, and exception handlers. When violations are found, error messages should pinpoint the exact location and suggest specific refactoring patterns like extracting methods or using guard clauses. The threshold should be configurable through environment variables so teams can adjust it based on their needs.
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Dependency Freshness</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Checks actual publish dates of dependencies (not just version numbers)<br/>
+    ✓ Categorizes outdated packages by severity (security vs minor version bumps)<br/>
+    ✓ Provides clear upgrade paths<br/>
+    ✓ Warns before failing to give teams time to plan upgrades<br/>
+    ✓ Integrates with npm audit to flag known security vulnerabilities<br/>
+    ✓ Test by running check and verifying age calculations are accurate
+  </div>
+</div>
 
-**Test it**: Run the complexity test locally to see which functions exceed the threshold and verify the error messages are actionable.
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Performance Testing</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Starts application programmatically and cleanly shuts down<br/>
+    ✓ Runs realistic load tests against critical endpoints<br/>
+    ✓ Measures both absolute latency (p95, p99) and regression from baseline<br/>
+    ✓ Properly cleans up spawned processes (no background servers left running)<br/>
+    ✓ Error messages show actual vs expected latency with percentage regression<br/>
+    ✓ Test to ensure clean startup, load test, and termination
+  </div>
+</div>
 
----
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">CI/CD Integration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Workflow runs on every pull request and push to main<br/>
+    ✓ Uses npm ci for deterministic dependency installation<br/>
+    ✓ Initially configured with continue-on-error: true for monitoring period<br/>
+    ✓ Uploads test results as artifacts for historical tracking<br/>
+    ✓ Optionally comments on pull requests with pass/fail summaries<br/>
+    ✓ After monitoring: change to blocking mode with continue-on-error: false
+  </div>
+</div>
 
-### 📊 Coverage Validation
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Baseline Management</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Baseline files contain realistic starting values based on current codebase<br/>
+    ✓ Files committed to Git with metadata (timestamp, commit SHA)<br/>
+    ✓ Documentation explains how to regenerate baselines<br/>
+    ✓ Update process: validate results, copy fresh metrics, commit with clear message
+  </div>
+</div>
 
-The coverage test should read Jest's coverage report and validate all four metrics: lines, branches, functions, and statements. It needs to compare current coverage against a stored baseline to detect regressions, not just check absolute thresholds. When coverage drops, the error message should clearly show which metric failed and by how much, along with practical remediation steps. Make sure thresholds are configurable so you can start with realistic values and tighten them over time.
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Security Review</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ No hardcoded secrets<br/>
+    ✓ No arbitrary code execution patterns (eval, unsanitized exec calls)<br/>
+    ✓ No external network calls that could leak data<br/>
+    ✓ File system operations limited to project directory<br/>
+    ✓ No dependencies from unknown sources<br/>
+    ✓ Tests are self-contained and offline-first<br/>
+    ✓ Red flags: data exfiltration, arbitrary input execution, sensitive system access
+  </div>
+</div>
 
-**Test it**: Generate a coverage report first, then run the fitness function to verify it correctly identifies gaps.
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Final Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Install new dependencies required by tests<br/>
+    ✓ Run each fitness function individually to verify clear output<br/>
+    ✓ Run all tests together to check for conflicts or race conditions<br/>
+    ✓ Validate GitHub Actions workflow syntax before committing<br/>
+    ✓ Optional: test full CI pipeline locally using tools like act<br/>
+    ✓ Expected outcome: tests pass cleanly or fail with actionable error messages
+  </div>
+</div>
 
----
-
-### 📦 Dependency Freshness
-
-The dependency test should check the actual publish dates of your dependencies, not just compare version numbers. It needs to categorize outdated packages by severity (security issues are more urgent than minor version bumps) and provide clear upgrade paths. The test should warn before it fails, giving teams time to plan upgrades. Make sure it integrates with npm audit to flag known security vulnerabilities in outdated packages.
-
-**Test it**: Run the dependency check to see which packages are flagged and verify the age calculations are accurate.
-
----
-
-### ⚡ Performance Testing
-
-The performance test should start your application programmatically, run realistic load tests against critical endpoints, and then cleanly shut down. It needs to measure both absolute latency (p95, p99) and regression from baseline to catch gradual performance degradation. The test must properly clean up spawned processes to avoid leaving servers running in the background. Error messages should show actual vs expected latency with percentage regression for easy interpretation.
-
-**Test it**: Ensure the test starts the server, completes the load test, and terminates cleanly without hanging processes.
-
----
-
-### ⚙️ CI/CD Integration
-
-The GitHub Actions workflow should run on every pull request and push to main, using `npm ci` for deterministic dependency installation. Initially configure it with `continue-on-error: true` so you can monitor results for a couple weeks before switching to blocking mode. The workflow should upload test results as artifacts for historical tracking and optionally comment on pull requests with pass/fail summaries.
-
-**After monitoring period**: Change to blocking mode by setting `continue-on-error: false`.
-
----
-
-### 📈 Baseline Management
-
-Baseline files store historical metrics so you can detect regressions over time. They should contain realistic starting values based on your current codebase, not aspirational goals. These files must be committed to Git and include metadata like timestamp and commit SHA for tracking. Make sure the documentation explains how to regenerate baselines when you intentionally change thresholds or make architectural improvements.
-
-**Update process**: After validating test results, copy fresh metrics to baseline files and commit them with a clear message explaining the change.
-
----
-
-### 🛡️ Security Review
-
-Before running any AI-generated code, scan it for security risks. Check for hardcoded secrets, arbitrary code execution patterns like `eval` or unsanitized `exec` calls, external network calls that could leak data, file system operations that go beyond the project directory, and dependencies from unknown sources. AI-generated tests should be self-contained and offline-first.
-
-**Red flags**: Any code that exfiltrates data, executes arbitrary input, or accesses sensitive system resources.
-
----
-
-### 🧪 Final Validation
-
-Install any new dependencies the tests require, then run each fitness function individually to verify it works and produces clear output. Run all tests together to check for conflicts or race conditions. Validate the GitHub Actions workflow syntax before committing it. If you have time, test the full CI pipeline locally using tools like `act` to catch issues before pushing.
-
-**Expected outcome**: Tests should either pass cleanly or fail with specific, actionable error messages that guide you to the problem.
+</div>
 
 </div>
 

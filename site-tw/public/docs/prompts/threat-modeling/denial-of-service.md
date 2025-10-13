@@ -404,71 +404,99 @@ Additional controls:
 
 ## ✅ Human Review Checklist
 
-After AI generates denial of service threats, validate each finding before implementing mitigations. Here's what to verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #06b6d4;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #67e8f9; margin-bottom: 20px;">Before merging AI-generated Denial of Service threat mitigation code, verify:</div>
 
-### 🚦 Rate Limiting and Throttling
+<div style="display: grid; gap: 20px;">
 
-Every public API endpoint must have rate limiting configured. Critical endpoints (login, password reset, search) need stricter limits than read-only operations. Implement multiple layers: per-IP limits to block attackers, per-user limits to prevent abuse, and per-endpoint limits to protect specific resources. Use sliding windows instead of fixed windows to prevent burst attacks at window boundaries. Store rate limit counters in Redis for distributed systems.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Rate Limiting and Throttling</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every public API endpoint has rate limiting configured<br/>
+    ✓ Critical endpoints (login, password reset, search) have stricter limits than read-only operations<br/>
+    ✓ Multiple layers implemented: per-IP limits to block attackers, per-user limits to prevent abuse, per-endpoint limits to protect specific resources<br/>
+    ✓ Sliding windows used instead of fixed windows to prevent burst attacks at window boundaries<br/>
+    ✓ Rate limit counters stored in Redis for distributed systems<br/>
+    ✓ Test: Send 100 requests rapidly to endpoint and verify 11th request returns 429 Too Many Requests, check rate limits reset after time window
+  </div>
+</div>
 
-**Test it**: Send 100 requests rapidly to an endpoint and verify the 11th request returns 429 Too Many Requests. Check that rate limits reset after the time window.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Timeouts and Circuit Breakers</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All external calls (databases, APIs, third-party services) have timeouts configured<br/>
+    ✓ Database queries timeout after 5-10 seconds, HTTP requests to external APIs timeout after 3-5 seconds<br/>
+    ✓ Circuit breakers stop calling failing services after N consecutive failures<br/>
+    ✓ Exponential backoff used when retrying failed operations<br/>
+    ✓ Never allow unbounded waits or infinite loops<br/>
+    ✓ Test: Simulate slow database or API by adding artificial delays, verify requests timeout and return errors instead of hanging indefinitely
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Resource Limits and Quotas</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Limits set on memory usage (Node.js --max-old-space-size), CPU time, file sizes, and connection counts<br/>
+    ✓ Per-user quotas implemented for expensive operations (uploads, reports, exports)<br/>
+    ✓ Pagination used for all list endpoints with default page size of 100 and max of 1000<br/>
+    ✓ WebSocket connections per user limited to prevent connection exhaustion<br/>
+    ✓ Resource usage monitored and alerts configured when approaching limits<br/>
+    ✓ Test: Attempt to upload file larger than limit and verify rejection, query list endpoint without pagination and verify returns at most default page size
+  </div>
+</div>
 
-### ⏱️ Timeouts and Circuit Breakers
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Complexity</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never allow user-controlled input to affect algorithmic complexity<br/>
+    ✓ Regex patterns validated against ReDoS vulnerabilities using safe-regex library<br/>
+    ✓ Search query length limited to 100 characters<br/>
+    ✓ Sort operations on user-provided fields rejected (use allowlist)<br/>
+    ✓ All numeric inputs validated to have reasonable bounds<br/>
+    ✓ Database full-text search used instead of application-side filtering<br/>
+    ✓ Test: Submit pathological regex patterns and verify rejection, attempt to sort by 100 different fields and verify sorting limited to safe columns
+  </div>
+</div>
 
-All external calls (databases, APIs, third-party services) must have timeouts configured. Database queries should timeout after 5-10 seconds. HTTP requests to external APIs should timeout after 3-5 seconds. Implement circuit breakers that stop calling failing services after N consecutive failures. Use exponential backoff when retrying failed operations. Never allow unbounded waits or infinite loops.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Database Query Optimization</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All database queries have EXPLAIN plans reviewed during development<br/>
+    ✓ Indexes added on frequently queried columns<br/>
+    ✓ Pagination used with LIMIT and OFFSET for large result sets<br/>
+    ✓ Statement timeouts set at database level (SET statement_timeout = '5s')<br/>
+    ✓ N+1 queries avoided by using joins or batching<br/>
+    ✓ Slow query logs monitored and queries exceeding 100ms optimized<br/>
+    ✓ Test: Run EXPLAIN on all queries and verify index usage, check slow query log for queries taking >100ms
+  </div>
+</div>
 
-**Test it**: Simulate a slow database or API by adding artificial delays. Verify requests timeout and return errors instead of hanging indefinitely.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Authentication Complexity</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Authentication operations (bcrypt, Argon2) run asynchronously to avoid blocking event loop<br/>
+    ✓ Rate limiting implemented before expensive operations to prevent DoS<br/>
+    ✓ Redis used to cache failed authentication attempts and block repeated attempts<br/>
+    ✓ CAPTCHA or MFA considered after N failed attempts<br/>
+    ✓ Never perform authentication operations in synchronous loops<br/>
+    ✓ Validate: Verify bcrypt/Argon2 cost factors set appropriately (bcrypt cost 12 = ~250ms), check authentication endpoints have strict rate limits (5 attempts per 15 minutes)
+  </div>
+</div>
 
----
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring and Alerting</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Metrics collection implemented for CPU, memory, disk, network, and request latency<br/>
+    ✓ Alerts configured for abnormal patterns: CPU >80%, memory >85%, disk >90%, request latency p95 >500ms, error rate >1%<br/>
+    ✓ Distributed tracing used to identify slow operations<br/>
+    ✓ Rate limit hit rates monitored (high rate may indicate legitimate traffic growth)<br/>
+    ✓ Auto-scaling implemented to handle traffic spikes<br/>
+    ✓ Set up: Create dashboards showing system resource usage, configure PagerDuty alerts for critical thresholds, test alerts by simulating high load
+  </div>
+</div>
 
-### 📊 Resource Limits and Quotas
-
-Set limits on memory usage (Node.js `--max-old-space-size`), CPU time, file sizes, and connection counts. Implement per-user quotas for expensive operations (uploads, reports, exports). Use pagination for all list endpoints with default page size of 100 and max of 1000. Limit WebSocket connections per user to prevent connection exhaustion. Monitor resource usage and alert when approaching limits.
-
-**Test it**: Attempt to upload a file larger than the limit and verify it's rejected. Query a list endpoint without pagination and verify it returns at most the default page size.
-
----
-
-### 🔍 Input Validation and Complexity
-
-Never allow user-controlled input to affect algorithmic complexity. Validate regex patterns against ReDoS vulnerabilities using safe-regex library. Limit search query length to 100 characters. Reject sort operations on user-provided fields (use allowlist). Validate all numeric inputs have reasonable bounds. Use database full-text search instead of application-side filtering.
-
-**Test it**: Submit pathological regex patterns and verify they're rejected. Attempt to sort by 100 different fields and verify sorting is limited to safe columns.
-
----
-
-### 💾 Database Query Optimization
-
-All database queries must have EXPLAIN plans reviewed during development. Add indexes on frequently queried columns. Use pagination with LIMIT and OFFSET for large result sets. Set statement timeouts at database level (`SET statement_timeout = '5s'`). Avoid N+1 queries by using joins or batching. Monitor slow query logs and optimize queries exceeding 100ms.
-
-**Test it**: Run EXPLAIN on all queries and verify they use indexes. Check slow query log for queries taking >100ms.
-
----
-
-### 🔐 Authentication Complexity
-
-Authentication operations (bcrypt, Argon2) are intentionally slow. Ensure they run asynchronously to avoid blocking the event loop. Implement rate limiting before expensive operations to prevent DoS. Use Redis to cache failed authentication attempts and block repeated attempts. Consider using CAPTCHA or MFA after N failed attempts. Never perform authentication operations in synchronous loops.
-
-**Validate**: Verify bcrypt/Argon2 cost factors are set appropriately (bcrypt cost 12 = ~250ms). Check that authentication endpoints have strict rate limits (5 attempts per 15 minutes).
-
----
-
-### 📈 Monitoring and Alerting
-
-Implement metrics collection for CPU, memory, disk, network, and request latency. Set up alerts for abnormal patterns: CPU >80%, memory >85%, disk >90%, request latency p95 >500ms, error rate >1%. Use distributed tracing to identify slow operations. Monitor rate limit hit rates (high rate may indicate legitimate traffic growth). Implement auto-scaling to handle traffic spikes.
-
-**Set up**: Create dashboards showing system resource usage. Configure PagerDuty alerts for critical thresholds. Test alerts by simulating high load.
-
----
-
-### 🔬 Threat Scenario Realism
-
-For each AI-generated threat, verify the attack scenario is technically feasible with minimal resources. Check that impact assessments account for cascading failures (one slow endpoint affecting others). Validate that mitigations don't negatively impact legitimate users (rate limits too strict). Ensure monitoring can detect attacks before they cause outages.
-
-**Red flags**: Endpoints without rate limits, user-controlled regex, no query timeouts, missing file size limits, synchronous expensive operations, unbounded loops.
+</div>
 
 </div>
 

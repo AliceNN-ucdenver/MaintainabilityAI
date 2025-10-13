@@ -285,71 +285,91 @@ export function sanitizeFilename(filename: string): string {
 
 ## ✅ Human Review Checklist
 
-After AI generates injection prevention code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated injection prevention code, verify:</div>
 
-### 🗄️ Parameterized Queries
+<div style="display: grid; gap: 20px;">
 
-Every database query must use parameterized statements with placeholders like $1, $2, $3 for PostgreSQL or ? for MySQL, never string concatenation or template literals containing user input. The SQL structure and user data must be completely separated so the database can distinguish code from data. Check that no queries build SQL strings dynamically by appending user input. ORM methods like Sequelize or Prisma provide safe query builders but verify they're used correctly. All WHERE clauses, ORDER BY, and LIMIT values from user input must use parameters.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Parameterized Queries</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every database query uses parameterized statements with $1, $2, $3 or ? placeholders<br/>
+    ✓ Never string concatenation or template literals containing user input<br/>
+    ✓ SQL structure and user data completely separated<br/>
+    ✓ No queries build SQL strings dynamically by appending user input<br/>
+    ✓ ORM methods (Sequelize, Prisma) used correctly<br/>
+    ✓ All WHERE clauses, ORDER BY, and LIMIT values from user input use parameters<br/>
+    ✓ Test: SQL injection payloads like ' OR '1'='1 and '; DROP TABLE users-- treated as literal strings
+  </div>
+</div>
 
-**Test it**: Attempt SQL injection payloads like `' OR '1'='1`, `'; DROP TABLE users--` and verify they're treated as literal strings, not executed.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Input Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All user input passes through Zod schema validation before use in queries or commands<br/>
+    ✓ Validation uses allowlist regex patterns defining what IS allowed<br/>
+    ✓ Length limits enforced on all string inputs with reasonable maximums<br/>
+    ✓ Input trimmed of whitespace automatically<br/>
+    ✓ Validation happens server-side, never trust client-side alone<br/>
+    ✓ Type checking verifies input matches expected types (string, number, UUID)<br/>
+    ✓ Test: Submit invalid characters, overly long strings, malformed data - all rejected before database
+  </div>
+</div>
 
----
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">No String Concatenation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ No string concatenation or template literals in queries<br/>
+    ✓ Patterns like "SELECT * FROM users WHERE id = " + userId are eliminated<br/>
+    ✓ All query construction separates SQL structure from user data<br/>
+    ✓ Dynamic table/column names use allowlist validation, never direct user input<br/>
+    ✓ Variable query structure uses switch statement for predefined safe queries<br/>
+    ✓ Test: Grep for patterns like "SELECT" + userInput, `INSERT INTO ${table}`, query(sql + userId)
+  </div>
+</div>
 
-### ✅ Input Validation
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Safe APIs & Output Encoding</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never use eval(), Function(), or vm.runInContext() with user input<br/>
+    ✓ For shell commands, use child_process.spawn() with argument arrays, not exec() with concatenation<br/>
+    ✓ For NoSQL, use query builder methods, not raw query objects from user input<br/>
+    ✓ For file operations, validate filenames against allowlist before using fs methods<br/>
+    ✓ User-generated content in HTML encoded with DOMPurify or validator.escape()<br/>
+    ✓ Never insert user input directly into script tags or event handlers<br/>
+    ✓ Test: Search for eval(), exec() with user input; file operations reject path traversal like ../../etc/passwd
+  </div>
+</div>
 
-All user input must pass through Zod schema validation before being used in queries or commands. Validation should use allowlist regex patterns that define what IS allowed, not blocklist patterns of what isn't. Length limits must be enforced on all string inputs with reasonable maximums. Input should be trimmed of whitespace automatically. Validation must happen server-side; never trust client-side validation alone. Type checking should verify input matches expected types (string, number, UUID) before processing.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Error Handling & Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Error messages to users are generic, never expose SQL syntax, table structures, or column names<br/>
+    ✓ Messages like "Search failed" or "Invalid request" are safe<br/>
+    ✓ Detailed errors logged server-side only, never shown to end users<br/>
+    ✓ Production environments never show debug information or stack traces<br/>
+    ✓ Query logging never logs user input values that could contain sensitive data<br/>
+    ✓ Logs contain only query structure and parameter types, not values<br/>
+    ✓ Test: Trigger database errors - client sees only generic messages, full details logged server-side
+  </div>
+</div>
 
-**Test it**: Submit invalid characters, overly long strings, and malformed data. All should be rejected before reaching database or command execution.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Multiple layers of protection: parameterization + input validation + least privilege<br/>
+    ✓ Even with parameterized queries, add input validation<br/>
+    ✓ Use least-privilege database accounts, run with minimal permissions<br/>
+    ✓ Use prepared statements and stored procedures where appropriate<br/>
+    ✓ Implement rate limiting to slow down attack attempts<br/>
+    ✓ Monitor for suspicious query patterns (many failed queries, unusual characters)<br/>
+    ✓ Set up WAF rules to detect common injection patterns<br/>
+    ✓ Test: Verify removing one layer doesn't expose vulnerability - multiple independent protections exist
+  </div>
+</div>
 
----
-
-### 🚫 String Concatenation
-
-Search the codebase for string concatenation or template literals in queries. Patterns like `"SELECT * FROM users WHERE id = " + userId` or `` `SELECT * FROM ${table}` `` are vulnerable. All query construction must separate SQL structure from user data. Dynamic table names or column names should use allowlist validation, never direct user input. If query structure must vary, use a switch statement to select from predefined safe queries, not dynamic construction.
-
-**Test it**: Grep codebase for patterns like `"SELECT" + userInput`, `` `INSERT INTO ${userTable}` ``, `query(sql + userId)` and verify none exist.
-
----
-
-### 🛡️ Safe APIs
-
-Use safe alternatives to dangerous functions. Never use eval(), Function(), or vm.runInContext() with user input. For shell commands, use child_process.spawn() with argument arrays instead of child_process.exec() with concatenated strings. For NoSQL, use MongoDB's query builder methods, not raw query objects from user input. For LDAP, use library escape functions for special characters. For file operations, validate filenames against allowlist before using with fs methods.
-
-**Test it**: Search codebase for eval(), exec(), and verify any usage doesn't include user input. Test file operations reject path traversal like `../../etc/passwd`.
-
----
-
-### 📤 Output Encoding
-
-User-generated content displayed in HTML must be encoded to prevent XSS. Use libraries like DOMPurify or validator.escape() for HTML context. For JSON responses, ensure proper JSON encoding. For URLs, use encodeURIComponent(). For XML, escape special characters. Context matters—the same data encoded differently for HTML attributes, JavaScript strings, and SQL. Never insert user input directly into `<script>` tags or event handlers without proper encoding.
-
-**Test it**: Submit `<script>alert('XSS')</script>` and verify it's displayed as text, not executed.
-
----
-
-### 🔐 Error Handling
-
-Error messages returned to users must be generic and never expose SQL syntax, table structures, column names, or database types. Messages like "Search failed" or "Invalid request" are safe. Detailed errors including query syntax, constraint violations, or stack traces should only be logged server-side. Production environments must never show debug information to end users. Database errors should be caught and wrapped in generic application errors.
-
-**Test it**: Trigger various database errors (invalid input, constraint violations) and verify client only sees generic messages.
-
----
-
-### 📋 Query Logging
-
-SQL queries may be logged for debugging but must never log user input values that could contain sensitive data. Log only query structure and parameter types, not parameter values. Sanitize logs to remove passwords, tokens, and PII before writing. Consider using parameterized logging with placeholders. In production, reduce logging verbosity to only log errors, not every query. Ensure log files have appropriate permissions and are not web-accessible.
-
-**Test it**: Submit sensitive data and check logs don't contain raw passwords or PII, only sanitized/masked values.
-
----
-
-### 🎯 Defense in Depth
-
-Implement multiple layers of protection. Even with parameterized queries, add input validation. Even with validation, use least-privilege database accounts. Run database with minimal permissions, not root. Use prepared statements and stored procedures where appropriate. Implement rate limiting to slow down attack attempts. Monitor for suspicious query patterns (many failed queries, unusual characters). Set up WAF rules to detect common injection patterns.
-
-**Test it**: Verify multiple protections exist—parameterization, validation, least privilege, monitoring. Removing one layer shouldn't expose vulnerability.
+</div>
 
 </div>
 

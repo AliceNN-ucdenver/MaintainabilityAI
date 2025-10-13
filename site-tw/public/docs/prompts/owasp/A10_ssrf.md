@@ -594,79 +594,143 @@ export async function handleWebhook(webhookUrl: string): Promise<void> {
 
 ## ✅ Human Review Checklist
 
-After AI generates SSRF prevention code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated SSRF prevention code, verify:</div>
 
-### 🌐 URL Validation
+<div style="display: grid; gap: 20px;">
 
-Verify all user-supplied URLs are parsed using Node.js URL class which properly handles edge cases and malformed URLs. Protocol must be restricted to http and https only, rejecting file://, gopher://, ftp://, data:, javascript:, and any other schemes. URL parsing should happen before any other validation to ensure consistent parsing and prevent bypass through encoding tricks. Validate hostname is not empty and properly formed. Check for URL encoding bypasses like %2F for forward slash or %3A for colon. Normalize URLs before comparison to prevent case sensitivity or encoding bypasses. Test with various malformed URLs and alternative IP representations to ensure parser handles them correctly. Consider using a URL parsing library specifically designed for security like url-parse with known vulnerabilities patched.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">URL Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All user-supplied URLs parsed using Node.js URL class which handles edge cases and malformed URLs<br/>
+    ✓ Protocol restricted to http and https only, rejecting file://, gopher://, ftp://, data:, javascript:, and other schemes<br/>
+    ✓ URL parsing happens before any other validation for consistent parsing and bypass prevention<br/>
+    ✓ Hostname validated as not empty and properly formed<br/>
+    ✓ URL encoding bypasses checked like %2F for forward slash or %3A for colon<br/>
+    ✓ URLs normalized before comparison to prevent case sensitivity or encoding bypasses<br/>
+    ✓ Tested with various malformed URLs and alternative IP representations to ensure correct parser handling<br/>
+    ✓ Test: Submit file:///etc/passwd, gopher://internal, data:text/html, javascript:alert() verify all non-http/https blocked
+  </div>
+</div>
 
-**Test it**: Submit various URL formats including file:///etc/passwd, gopher://internal, data:text/html, and javascript:alert(). All non-http/https should be blocked.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Domain Allowlist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Deny-by-default domain allowlist implemented where only explicitly permitted domains can be accessed<br/>
+    ✓ Allowlist maintained as configuration not hardcoded throughout application<br/>
+    ✓ Both exact domain matching and subdomain matching supported if needed using suffix checks<br/>
+    ✓ Domains normalized to lowercase before comparison to prevent case sensitivity bypasses<br/>
+    ✓ Wildcards used carefully as *.example.com could be exploited if attacker registers evil-example.com<br/>
+    ✓ All blocked domain access attempts logged with full URL and timestamp for security monitoring<br/>
+    ✓ Allowlist regularly reviewed to remove unused domains reducing attack surface<br/>
+    ✓ Temporary testing domains like webhook.site documented with justification and removal timeline<br/>
+    ✓ Separate allowlists per feature or environment implemented if different trust levels exist<br/>
+    ✓ Test: Attempt localhost, internal IPs, external domains not in allowlist verify all blocked with specific errors
+  </div>
+</div>
 
----
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Private IP Blocking</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All RFC1918 private IP ranges blocked (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) using proper CIDR matching with ipaddr.js<br/>
+    ✓ Loopback range 127.0.0.0/8 blocked not just 127.0.0.1, includes 127.0.0.2 and 127.1 shorthand<br/>
+    ✓ Link-local range 169.254.0.0/16 blocked which includes cloud metadata endpoint 169.254.169.254<br/>
+    ✓ Carrier-grade NAT range 100.64.0.0/10 blocked<br/>
+    ✓ IPv6 ranges blocked: loopback ::1, private fc00::/7, link-local fe80::/10, multicast ff00::/8<br/>
+    ✓ ipaddr.js match() method used which properly handles CIDR notation and IP version compatibility<br/>
+    ✓ Decimal IP representation (2130706433 for 127.0.0.1), octal, and hex representations tested<br/>
+    ✓ 0.0.0.0 blocked which refers to current host<br/>
+    ✓ Test: Attempt 127.0.0.1, 127.1, 10.0.0.1, 172.16.0.1, 192.168.1.1, 169.254.169.254, [::1] verify all blocked
+  </div>
+</div>
 
-### 🔐 Domain Allowlist
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Metadata Endpoint Protection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All known cloud metadata endpoints blocked (169.254.169.254 for AWS/Azure/GCP/DigitalOcean, metadata.google.internal, metadata.azure.com, fd00:ec2::254)<br/>
+    ✓ Both hostname and resolved IP checked against metadata endpoint list<br/>
+    ✓ Metadata access is critical vulnerability exposing IAM credentials, API keys, instance metadata without authentication<br/>
+    ✓ All metadata access attempts logged as critical security events requiring immediate investigation<br/>
+    ✓ Entire 169.254.0.0/16 range considered for blocking as multiple cloud providers use this space<br/>
+    ✓ Docker metadata at 172.17.0.1 blocked for containerized environments<br/>
+    ✓ Metadata endpoint list updated as new cloud providers emerge or existing providers add endpoints<br/>
+    ✓ Test: Attempt 169.254.169.254, metadata.google.internal, metadata.azure.com directly and via DNS verify all blocked and logged
+  </div>
+</div>
 
-Implement deny-by-default domain allowlist where only explicitly permitted domains can be accessed. Allowlist should be maintained as configuration not hardcoded throughout application. Support both exact domain matching and subdomain matching if needed using suffix checks. Normalize domains to lowercase before comparison to prevent case sensitivity bypasses. Consider using wildcards carefully as *.example.com could be exploited if attacker registers evil-example.com. Log all blocked domain access attempts with full URL and timestamp for security monitoring. Regularly review allowlist to remove unused domains reducing attack surface. For temporary testing domains like webhook.site, document why they're allowed and when they should be removed. Implement separate allowlists per feature or environment if different trust levels exist.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">DNS Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Hostname resolved to IP addresses using dns.promises.resolve() before HTTP request to prevent DNS rebinding attacks<br/>
+    ✓ Every resolved IP address validated against private IP ranges and metadata endpoints<br/>
+    ✓ If any resolved IP is private or metadata, entire request rejected<br/>
+    ✓ DNS resolution failures handled by rejecting request rather than proceeding without validation<br/>
+    ✓ DNS rebinding TTL tricks where attacker sets very low TTL considered and mitigated<br/>
+    ✓ DNS response caching with security checks or DNS resolver that blocks private IPs considered<br/>
+    ✓ For highest security, DNS resolved, IPs validated, then resolved IP used directly with Host header bypassing client-side DNS<br/>
+    ✓ Test: Create test domain resolving to private IP or 169.254.169.254 verify blocked, test domain with multiple IPs including mix
+  </div>
+</div>
 
-**Test it**: Attempt to access domains not in allowlist including localhost, internal IPs, and external domains. All should be blocked with specific error messages.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Redirect Handling</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Automatic redirect following disabled using fetch() option redirect: 'error' to prevent allowed domain redirecting to internal service<br/>
+    ✓ If redirects are business requirement, manual redirect handling validates redirect target URL through full validation chain<br/>
+    ✓ Redirect chain depth limited to maximum 3 redirects preventing infinite loops<br/>
+    ✓ Redirect stays within same allowed domain or uses separate allowlist for redirect targets<br/>
+    ✓ All redirects logged with original and target URLs for security monitoring<br/>
+    ✓ Location header can contain relative or absolute URLs requiring careful parsing<br/>
+    ✓ Some HTTP clients follow redirects even for error status codes like 401 or 403 considered<br/>
+    ✓ Test: Set up allowed domain redirecting to localhost or 169.254.169.254 verify redirect blocked, test redirect chains and cross-domain
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Timeout Protection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Request timeout implemented using AbortController with maximum 5 seconds to prevent slowloris attacks<br/>
+    ✓ Timeout cleared after successful request completion to prevent resource leaks<br/>
+    ✓ Separate timeouts considered for DNS resolution (1s), connection establishment (2s), data transfer (5s) for finer control<br/>
+    ✓ Timeout applies to entire request lifecycle not just initial connection<br/>
+    ✓ In production, timeout values tuned based on legitimate request patterns but never exceed 10 seconds total<br/>
+    ✓ Timeout events logged as potential attack indicators<br/>
+    ✓ Connection pooling with maximum concurrent connections limit preventing resource exhaustion<br/>
+    ✓ Keep-alive timeout implemented to close idle connections<br/>
+    ✓ Test: Create slow HTTP server delaying response verify request times out after 5 seconds, monitor resource usage during timeout
+  </div>
+</div>
 
-### 🚫 Private IP Blocking
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Response Size Limits</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Content-Length header checked before fetching response body, rejected if exceeds maximum 10MB to prevent memory exhaustion DoS<br/>
+    ✓ If Content-Length header missing or lies, limit enforced by measuring actual data received and aborting if exceeds threshold<br/>
+    ✓ Response read in chunks with size validation rather than single response.text() call<br/>
+    ✓ Different limits considered for different content types like 100KB for JSON API responses vs 10MB for document downloads<br/>
+    ✓ Large response attempts logged with source URL and size<br/>
+    ✓ Rate limiting implemented on total bandwidth consumed per IP or per time period<br/>
+    ✓ For streaming responses, timeout on total transfer time not just initial connection<br/>
+    ✓ Memory usage monitored during large responses to detect issues before production impact<br/>
+    ✓ Test: Create response with Content-Length claiming 1KB but sending 50MB verify abort, test without Content-Length header
+  </div>
+</div>
 
-Block all RFC1918 private IP ranges including 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16 using proper CIDR matching with ipaddr.js library. Block loopback range 127.0.0.0/8 not just 127.0.0.1 as attackers may use 127.0.0.2 or 127.1 (shorthand for 127.0.0.1). Block link-local range 169.254.0.0/16 which includes cloud metadata endpoint 169.254.169.254. Block carrier-grade NAT range 100.64.0.0/10. For IPv6, block loopback ::1, private fc00::/7, link-local fe80::/10, and multicast ff00::/8. Use ipaddr.js match() method which properly handles CIDR notation and IP version compatibility. Test against decimal IP representation (2130706433 for 127.0.0.1), octal, and hex representations. Block 0.0.0.0 which refers to current host.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Multiple independent layers of SSRF protection implemented where failure of one layer doesn't expose vulnerability<br/>
+    ✓ Application-level controls include URL validation, domain allowlist, DNS validation, IP blocking, timeout, size limits<br/>
+    ✓ Network-level controls include firewall egress rules blocking private IPs, network segmentation isolating application from internal services, proxy server for all external requests<br/>
+    ✓ Infrastructure controls include running application in container or VM with minimal network access, cloud security groups restricting egress, monitoring network traffic for suspicious patterns<br/>
+    ✓ Administrative controls include security testing for SSRF in CI/CD, regular security audits, incident response procedures<br/>
+    ✓ Each layer provides redundancy so compromise of application doesn't automatically expose internal network<br/>
+    ✓ Test: Verify both application validation and network firewall rules block private IPs, try bypassing each layer individually verify others protect
+  </div>
+</div>
 
-**Test it**: Attempt access to 127.0.0.1, 127.1, 10.0.0.1, 172.16.0.1, 192.168.1.1, 169.254.169.254, [::1], and alternative representations. All should be blocked.
-
----
-
-### ☁️ Metadata Endpoint Protection
-
-Block all known cloud metadata endpoints including 169.254.169.254 (AWS, Azure, GCP, DigitalOcean), metadata.google.internal (GCP DNS name), metadata.azure.com (Azure alternative), and fd00:ec2::254 (AWS IPv6). Check both hostname and resolved IP against metadata endpoint list. Metadata access is critical vulnerability as endpoints expose IAM credentials, API keys, instance metadata, and user data without authentication. Log all metadata access attempts as critical security events requiring immediate investigation. Consider blocking entire 169.254.0.0/16 range as multiple cloud providers use this space. For containerized environments, also block Docker metadata at 172.17.0.1. Update metadata endpoint list as new cloud providers emerge or existing providers add endpoints.
-
-**Test it**: Attempt access to 169.254.169.254, metadata.google.internal, metadata.azure.com directly and via DNS that resolves to these. All should be blocked and logged.
-
----
-
-### 🔍 DNS Validation
-
-Resolve hostname to IP addresses using dns.promises.resolve() before making HTTP request to prevent DNS rebinding attacks where attacker-controlled domain initially resolves to public IP then rebinds to private IP. Validate every resolved IP address against private IP ranges and metadata endpoints. If any resolved IP is private or metadata, reject entire request. Handle DNS resolution failures by rejecting request rather than proceeding without validation. Be aware of DNS rebinding time-to-live (TTL) tricks where attacker sets very low TTL causing re-resolution between your checks and actual fetch. Consider implementing DNS response caching with security checks or using DNS resolver that blocks private IPs. For highest security, resolve DNS, validate IPs, then use resolved IP directly with Host header for request bypassing client-side DNS entirely.
-
-**Test it**: Create test domain that resolves to private IP or 169.254.169.254 and verify access is blocked. Test domain that resolves to multiple IPs including mix of public and private.
-
----
-
-### 🔄 Redirect Handling
-
-Disable automatic redirect following using fetch() option redirect: 'error' to prevent attacker from using allowed domain that redirects to internal service. If redirects are business requirement, implement manual redirect handling that validates redirect target URL through full validation chain including protocol check, domain allowlist, DNS resolution, and IP validation. Limit redirect chain depth to maximum 3 redirects preventing infinite loops. Ensure redirect stays within same allowed domain or use separate allowlist for redirect targets. Log all redirects with original and target URLs for security monitoring. Consider that Location header can contain relative or absolute URLs requiring careful parsing. Be aware some HTTP clients follow redirects even for error status codes like 401 or 403. Test redirect handling with various redirect chains and cross-domain redirects.
-
-**Test it**: Set up allowed domain that redirects to localhost or 169.254.169.254 and verify redirect is blocked. Test redirect chains and cross-domain redirects.
-
----
-
-### ⏱️ Timeout Protection
-
-Implement request timeout using AbortController with maximum 5 seconds to prevent slowloris attacks where server sends data very slowly holding connection open indefinitely. Clear timeout after successful request completion to prevent resource leaks. Consider separate timeouts for DNS resolution (1 second), connection establishment (2 seconds), and data transfer (5 seconds) for finer control. Timeout should apply to entire request lifecycle not just initial connection. In production, tune timeout values based on legitimate request patterns but never exceed 10 seconds total. Log timeout events as potential attack indicators. Implement connection pooling with maximum concurrent connections limit preventing resource exhaustion from many slow requests. Use keep-alive timeout to close idle connections.
-
-**Test it**: Create slow HTTP server that delays response and verify request times out after 5 seconds. Monitor resource usage during timeout to ensure cleanup.
-
----
-
-### 📊 Response Size Limits
-
-Check Content-Length header before fetching response body and reject if exceeds maximum 10MB to prevent memory exhaustion DoS attacks. If Content-Length header is missing or lies, enforce limit by measuring actual data received and aborting if exceeds threshold. Read response in chunks with size validation rather than single response.text() call. Consider different limits for different content types like 100KB for JSON API responses vs 10MB for document downloads. Log large response attempts with source URL and size. Implement rate limiting on total bandwidth consumed per IP or per time period. For streaming responses, implement timeout on total transfer time not just initial connection. Monitor memory usage during large responses to detect issues before production impact.
-
-**Test it**: Create response with Content-Length header claiming 1KB but actually sending 50MB and verify request is aborted. Test without Content-Length header.
-
----
-
-### 🛡️ Defense in Depth
-
-Implement multiple independent layers of SSRF protection where failure of one layer doesn't expose vulnerability. Application-level controls include URL validation, domain allowlist, DNS validation, IP blocking, timeout, and size limits. Network-level controls include firewall egress rules blocking private IPs, network segmentation isolating application from internal services, and using proxy server for all external requests. Infrastructure controls include running application in container or VM with minimal network access, using cloud security groups restricting egress, and monitoring network traffic for suspicious patterns. Administrative controls include security testing for SSRF in CI/CD, regular security audits, and incident response procedures. Each layer provides redundancy so compromise of application doesn't automatically expose internal network.
-
-**Test it**: Verify both application validation and network firewall rules block private IPs. Try bypassing each layer individually and verify others still protect.
+</div>
 
 </div>
 

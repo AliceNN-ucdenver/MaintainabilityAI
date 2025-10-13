@@ -611,71 +611,135 @@ export function validateInput(input: string, schema: any, ipAddress: string) {
 
 ## ✅ Human Review Checklist
 
-After AI generates logging and monitoring code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated logging and monitoring code, verify:</div>
 
-### 📝 Structured Logging
+<div style="display: grid; gap: 20px;">
 
-Verify all logging uses Winston or similar structured logger with JSON format, never plain console.log statements. Every log entry should include consistent fields like timestamp, level, service name, environment, and event type. JSON format enables easy parsing by SIEM tools like Splunk, Elastic Stack, or CloudWatch Logs. Configure separate log files for different severity levels such as error.log for errors, security.log for security events, and combined.log for all entries. Implement log rotation with maximum file size (10MB) and retention period (30-90 days) to prevent disk space exhaustion while maintaining audit history. Console transport should only be enabled in development, not production. All logs must use UTF-8 encoding and be properly escaped to prevent log injection attacks.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Structured Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All logging uses Winston or similar structured logger with JSON format, never plain console.log statements<br/>
+    ✓ Every log entry includes consistent fields like timestamp, level, service name, environment, event type<br/>
+    ✓ JSON format enables easy parsing by SIEM tools like Splunk, Elastic Stack, or CloudWatch Logs<br/>
+    ✓ Separate log files configured for different severity levels (error.log, security.log, combined.log)<br/>
+    ✓ Log rotation implemented with maximum file size (10MB) and retention period (30-90 days)<br/>
+    ✓ Console transport only enabled in development, not production<br/>
+    ✓ All logs use UTF-8 encoding and properly escaped to prevent log injection attacks<br/>
+    ✓ Test: Grep codebase for console.log/console.error verify all replaced, check logs are valid JSON with jq
+  </div>
+</div>
 
-**Test it**: Grep codebase for console.log/console.error and verify all replaced with logger.info/logger.error. Check logs are valid JSON with jq or JSON parser.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Sensitive Data Masking</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Passwords, tokens, API keys, session IDs, private keys, and secrets never logged under any circumstances<br/>
+    ✓ These fields completely removed from log data, not just masked<br/>
+    ✓ Automatic sanitization function strips sensitive fields from all objects before logging<br/>
+    ✓ PII like email addresses partially masked showing only first character plus asterisks (u***@example.com)<br/>
+    ✓ IP addresses mask last octet for IPv4 (192.168.1.***) and last segments for IPv6<br/>
+    ✓ Credit card numbers show only last 4 digits, SSNs never logged<br/>
+    ✓ Sanitization happens recursively for nested objects and arrays<br/>
+    ✓ Allowlist of fields that can be logged unmasked rather than blocklist for new sensitive fields protected by default<br/>
+    ✓ Test: Search logs for literal passwords, tokens, full emails verify none exist, test sanitization function verify masking
+  </div>
+</div>
 
----
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Security Event Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All authentication events logged including successful logins, failed login attempts, logout, session expiration<br/>
+    ✓ Authorization failures (access denied, privilege escalation attempts) logged with sufficient context<br/>
+    ✓ Input validation failures logged as potential attack indicators without logging actual malicious input<br/>
+    ✓ Rate limiting violations indicating automated attacks logged<br/>
+    ✓ Privilege changes (role modifications, user creation/deletion, permission grants) have audit trail<br/>
+    ✓ Each security event includes user identifier, masked IP address, user agent, resource, action, outcome, reason, timestamp<br/>
+    ✓ Standardized event type enumeration used rather than freeform strings for pattern analysis and alerting<br/>
+    ✓ Test: Trigger various security events (failed login, access denied, validation error) verify all logged with complete context
+  </div>
+</div>
 
-### 🔐 Sensitive Data Masking
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Contextual Metadata</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every security log entry contains sufficient contextual metadata for forensic analysis<br/>
+    ✓ Includes user identifier (ID not full email), masked email, masked IP, user agent, timestamp in ISO 8601 with timezone<br/>
+    ✓ Resource being accessed, action being performed, outcome (success/failure), reason for failure included<br/>
+    ✓ Request ID or trace ID for correlating logs across distributed services<br/>
+    ✓ Session age and last accessed time help detect session hijacking<br/>
+    ✓ Geographic location from IP can identify suspicious login locations<br/>
+    ✓ Logs answer who did what to which resource at what time from where with what result<br/>
+    ✓ Stack traces or technical details not logged in security logs focused on security events not debugging<br/>
+    ✓ Test: Review sample security logs verify they answer who, what, where, when, why, how, verify request tracing works
+  </div>
+</div>
 
-Verify that passwords, tokens, API keys, session IDs, private keys, and other secrets are never logged under any circumstances. These fields should be completely removed from log data, not just masked. Implement automatic sanitization function that strips sensitive fields from all objects before logging. PII such as email addresses should be partially masked showing only first character plus asterisks like u***@example.com to maintain usefulness for debugging while protecting privacy. IP addresses should mask the last octet for IPv4 like 192.168.1.*** and last segments for IPv6. Credit card numbers should show only last 4 digits. Social Security Numbers should never be logged. Sanitization must happen recursively for nested objects and arrays. Create allowlist of fields that can be logged unmasked rather than blocklist of fields to mask, ensuring new sensitive fields are protected by default.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Real-Time Alerting</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Critical security events trigger real-time alerts to security team rather than waiting for log review<br/>
+    ✓ Alerting rules for brute force attacks (>5 failed login attempts from same IP in 5 minutes)<br/>
+    ✓ Privilege escalation attempts (access denied to admin resources, role modification) alert immediately<br/>
+    ✓ Account lockouts indicate sustained attack attempts and trigger alerts<br/>
+    ✓ Multiple validation failures in short time suggest automated scanning<br/>
+    ✓ Successful login after multiple failures may indicate credential stuffing success<br/>
+    ✓ Alert destinations configured (Sentry, DataDog, New Relic, PagerDuty, Slack, email)<br/>
+    ✓ Alert throttling implemented to prevent notification flooding during sustained attacks<br/>
+    ✓ Alerts include actionable information like attacker IP, targeted account, recommended mitigation steps<br/>
+    ✓ Test: Trigger each alerting condition (5 failed logins, admin access denied) verify alerts delivered under 1 minute
+  </div>
+</div>
 
-**Test it**: Search logs for literal passwords, tokens, or full email addresses and verify none exist. Test sanitization function with sensitive data and verify complete removal or proper masking.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Log Retention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Logs retained for sufficient duration for forensic investigation (incidents often discovered weeks/months later)<br/>
+    ✓ Minimum retention period 30 days for general logs, 90 days for security logs (PCI-DSS compliance)<br/>
+    ✓ Longer retention considered for regulated industries (1 year for healthcare HIPAA, finance SOX)<br/>
+    ✓ Automated log rotation based on file size (10MB max) or time period (daily rotation)<br/>
+    ✓ Archived logs compressed to save storage space<br/>
+    ✓ Logs older than retention period automatically deleted (data minimization, reduced liability)<br/>
+    ✓ Immutable log storage considered for critical systems (WORM systems, S3 with object lock)<br/>
+    ✓ Log retention policy documented and meets industry compliance requirements<br/>
+    ✓ Test: Verify log rotation creates new files at limits, check old logs compressed and deleted, verify retention period
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Log Integrity</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Logs protected from tampering by attackers who gained system access<br/>
+    ✓ Append-only file permissions where logs can be written but not modified or deleted<br/>
+    ✓ Centralized log aggregation sends logs to remote SIEM immediately (local deletion doesn't destroy evidence)<br/>
+    ✓ Log signing using HMAC-SHA256 considered for detecting modified or forged entries<br/>
+    ✓ Logs stored in separate security domain with restricted access<br/>
+    ✓ Blockchain-based audit logs for highest security requirements (cryptographic proof of integrity and ordering)<br/>
+    ✓ Alerting implemented on log modification or deletion attempts<br/>
+    ✓ Regular audit of log permissions and access controls ensures logs remain trustworthy forensic evidence<br/>
+    ✓ In containerized environments, log volumes mounted as read-only from application perspective<br/>
+    ✓ Test: Verify log files have restricted permissions (640 or stricter), attempt modification verify detection, test log shipping
+  </div>
+</div>
 
-### 🎯 Security Event Logging
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring Dashboard</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Centralized monitoring dashboard visualizes security metrics and trends over time<br/>
+    ✓ Authentication metrics tracked (total login attempts, successful logins, failed logins, account lockouts)<br/>
+    ✓ Authorization metrics monitored (access denials, privilege escalation attempts)<br/>
+    ✓ Rate limiting violations and validation failures indicating attack activity displayed<br/>
+    ✓ Geographic distribution of login attempts shown to identify unusual locations<br/>
+    ✓ Anomaly detection alerts on deviations (logins from new countries, unusual login times, sudden spike in failed attempts)<br/>
+    ✓ Pre-built queries for common security investigations (events for specific user, access attempts to sensitive resource, activity from suspicious IP)<br/>
+    ✓ Dashboard updates in real-time or near real-time (under 1 minute latency)<br/>
+    ✓ Role-based access controls where security team sees full details while other teams see anonymized aggregates<br/>
+    ✓ Export capabilities enable ad-hoc analysis in tools like Excel or Jupyter notebooks<br/>
+    ✓ Test: Verify dashboard shows metrics accurately, test real-time updates by triggering events, test queries return correct results
+  </div>
+</div>
 
-All authentication events must be logged including successful logins, failed login attempts, logout, and session expiration. Authorization failures such as access denied to resources or privilege escalation attempts require logging with sufficient context. Input validation failures should be logged as potential attack indicators without logging the actual malicious input which may contain injection payloads. Rate limiting violations indicate automated attacks and must be logged. Privilege changes such as role modifications, user creation/deletion, and permission grants require audit trail. Each security event log should include user identifier, IP address (masked), user agent, resource accessed, action attempted, outcome (success/failure), reason for failure, and timestamp. Use standardized event type enumeration rather than freeform strings to enable pattern analysis and alerting rules.
-
-**Test it**: Trigger various security events (failed login, access denied, validation error) and verify all logged with complete context. Check event types use consistent enum values.
-
----
-
-### 📊 Contextual Metadata
-
-Every security log entry must contain sufficient contextual metadata for forensic analysis including user identifier (ID, not full email), masked email address, masked IP address, user agent string, timestamp in ISO 8601 format with timezone, resource being accessed, action being performed, outcome (success or failure), and reason for failure. Include request ID or trace ID for correlating logs across distributed services. Session age and last accessed time help detect session hijacking. Geographic location derived from IP address can identify suspicious login locations. For audit compliance, logs must answer who did what to which resource at what time from where with what result. Avoid logging stack traces or technical details in security logs which should focus on security events rather than debugging information.
-
-**Test it**: Review sample security logs and verify they answer the six questions: who, what, where, when, why, and how. Verify request tracing works across multiple services.
-
----
-
-### 🚨 Real-Time Alerting
-
-Critical security events must trigger real-time alerts to security team rather than waiting for log review. Implement alerting rules for brute force attacks such as more than 5 failed login attempts from same IP in 5 minutes. Privilege escalation attempts including access denied to admin resources or role modification should alert immediately. Account lockouts indicate sustained attack attempts. Multiple validation failures in short time suggest automated scanning. Successful login after multiple failures may indicate credential stuffing success. Configure alert destinations such as Sentry for application monitoring, DataDog or New Relic for infrastructure monitoring, PagerDuty for incident response, Slack or email for security team notifications. Implement alert throttling to prevent notification flooding during sustained attacks. Alerts should include actionable information like attacker IP, targeted account, and recommended mitigation steps. Test alert delivery regularly to ensure monitoring system reliability.
-
-**Test it**: Trigger each alerting condition (5 failed logins, admin access denied) and verify alerts delivered to configured destinations within acceptable time (under 1 minute).
-
----
-
-### 🕒 Log Retention
-
-Logs must be retained for sufficient duration to enable forensic investigation of security incidents which often aren't discovered until weeks or months after initial compromise. Minimum retention period is 30 days for general logs and 90 days for security logs to meet common compliance requirements like PCI-DSS. Consider longer retention such as 1 year for highly regulated industries like healthcare (HIPAA) or finance (SOX). Implement automated log rotation based on file size (10MB max) or time period (daily rotation). Archived logs should be compressed to save storage space. Logs older than retention period should be automatically deleted to comply with data minimization principles and reduce liability. For critical systems, consider immutable log storage in WORM (write once read many) systems or cloud services like S3 with object lock. Document log retention policy and ensure it meets industry compliance requirements and organizational security standards.
-
-**Test it**: Verify log rotation creates new files at size/time limits. Check old logs are compressed and eventually deleted. Verify retention period matches compliance requirements.
-
----
-
-### 🔒 Log Integrity
-
-Logs must be protected from tampering by attackers who gained system access. Implement append-only file permissions where logs can be written but not modified or deleted. Use centralized log aggregation sending logs to remote SIEM system immediately so local deletion doesn't destroy evidence. Consider log signing using HMAC-SHA256 where each log entry includes signature computed from entry content plus secret key, enabling detection of modified or forged entries. Store logs in separate security domain with restricted access preventing application compromises from affecting log integrity. For highest security requirements, use blockchain-based audit logs providing cryptographic proof of log integrity and ordering. Implement alerting on log modification or deletion attempts. Regular audit of log permissions and access controls ensures logs remain trustworthy forensic evidence. In containerized environments, mount log volumes as read-only from application perspective with separate log collector having write access.
-
-**Test it**: Verify log files have restricted permissions (640 or stricter). Attempt to modify log entries and verify detection or prevention. Test log shipping to remote aggregator continues even if local logs deleted.
-
----
-
-### 📈 Monitoring Dashboard
-
-Implement centralized monitoring dashboard visualizing security metrics and trends over time. Track authentication metrics including total login attempts, successful logins, failed logins, and account lockouts. Monitor authorization metrics like access denials and privilege escalation attempts. Display rate limiting violations and validation failures indicating attack activity. Show geographic distribution of login attempts to identify unusual locations. Implement anomaly detection alerting on deviations from normal patterns such as logins from new countries, unusual login times, or sudden spike in failed attempts. Create pre-built queries for common security investigations like all events for specific user, all access attempts to sensitive resource, or all activity from suspicious IP. Dashboard should update in real-time or near real-time (under 1 minute latency). Provide role-based access controls where security team sees full details while other teams see anonymized aggregates. Export capabilities enable ad-hoc analysis in tools like Excel or Jupyter notebooks.
-
-**Test it**: Verify dashboard shows security metrics accurately. Test real-time updates by triggering events and verifying they appear within expected latency. Test queries return correct results.
+</div>
 
 </div>
 

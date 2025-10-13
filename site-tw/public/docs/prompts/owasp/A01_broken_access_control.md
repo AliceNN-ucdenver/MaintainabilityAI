@@ -244,71 +244,88 @@ app.delete('/api/admin/users', requireRole(['admin']), async (req: AuthRequest, 
 
 ## ✅ Human Review Checklist
 
-After AI generates access control code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated access control code, verify:</div>
 
-### 🔒 Authorization Middleware
+<div style="display: grid; gap: 20px;">
 
-Verify that all authorization middleware follows a deny-by-default approach where access must be explicitly granted. Middleware should never trust client-provided data like user IDs or roles from headers, cookies, or request bodies. Each middleware function must properly handle missing user context by returning 401 Unauthorized. Role checks should be case-sensitive and validate against an allowlist of known roles. The middleware should fail closed by denying access when encountering errors rather than allowing requests through.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Authorization Middleware</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Deny-by-default approach where access must be explicitly granted<br/>
+    ✓ Never trust client-provided data like user IDs or roles from headers, cookies, or request bodies<br/>
+    ✓ Properly handle missing user context by returning 401 Unauthorized<br/>
+    ✓ Role checks are case-sensitive and validate against allowlist of known roles<br/>
+    ✓ Middleware fails closed by denying access when encountering errors<br/>
+    ✓ Test: Attempt protected routes without authentication, with wrong role, and with valid credentials
+  </div>
+</div>
 
-**Test it**: Attempt to access protected routes without authentication, with wrong role, and with valid credentials to verify all paths.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">IDOR Protection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every function accessing user resources validates ownership before returning data<br/>
+    ✓ Validation happens server-side, never relying on client-side filtering<br/>
+    ✓ Database queries include ownership checks in WHERE clause or verify after retrieval<br/>
+    ✓ Admin users may bypass ownership checks but this is explicit and logged<br/>
+    ✓ All IDOR violations logged with sufficient detail for security monitoring<br/>
+    ✓ Generic error messages returned to clients to avoid information disclosure<br/>
+    ✓ Test: As user A, attempt to access user B's resources by ID manipulation - all fail with 403
+  </div>
+</div>
 
----
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Role-Based Access Control</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Role definitions centralized in single configuration file or enum<br/>
+    ✓ Each protected route explicitly declares required roles using middleware<br/>
+    ✓ System supports hierarchical roles where appropriate (admin inherits user permissions)<br/>
+    ✓ Role changes are admin-only operations and all modifications logged<br/>
+    ✓ When adding new roles, all relevant middleware and permissions updated consistently<br/>
+    ✓ Test: Create test users with each role - verify they only access appropriate endpoints
+  </div>
+</div>
 
-### 🎯 IDOR Protection
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Function-Level Access & Privilege Escalation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Administrative functions require explicit role checks, not just authentication<br/>
+    ✓ Direct URL access to admin functions blocked for non-admin users<br/>
+    ✓ API endpoints validate permissions for every operation independently<br/>
+    ✓ Regular users cannot elevate their own privileges through any interface<br/>
+    ✓ Profile update endpoints never accept role or permission fields from client input<br/>
+    ✓ JWT claims or session data containing roles are server-signed and validated on every request<br/>
+    ✓ Test: Use curl/Postman to attempt direct API calls to admin endpoints with non-admin tokens
+  </div>
+</div>
 
-Every function that accesses user resources must validate ownership before returning data. This validation should happen server-side, never relying on client-side filtering. Database queries must include ownership checks in the WHERE clause or verify ownership after retrieval. Admin users may bypass ownership checks but this should be explicit and logged. All IDOR violations should be logged with sufficient detail for security monitoring. Generic error messages should be returned to clients to avoid information disclosure about valid resource IDs.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Authorization Context & Data Access</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ User context (ID, role, permissions) comes from authenticated session or JWT only<br/>
+    ✓ Never from request parameters, headers, or body<br/>
+    ✓ All authorization decisions made server-side with no client-side reliance<br/>
+    ✓ Users only access resources they own or have explicit permission grants<br/>
+    ✓ Listing queries filter by ownership or granted permissions, never return all records<br/>
+    ✓ Cross-user access logged for audit purposes<br/>
+    ✓ Test: Attempt to forge authorization by adding custom headers or manipulating payloads
+  </div>
+</div>
 
-**Test it**: As user A, attempt to access user B's resources by manipulating IDs in requests. All attempts should fail with 403 Forbidden.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Audit Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All authorization failures logged with sufficient context<br/>
+    ✓ Logs include user ID, requested resource, required permission, IP, user agent, timestamp<br/>
+    ✓ Successful access to sensitive resources also logged<br/>
+    ✓ Log entries do not contain sensitive data but enough info to track security incidents<br/>
+    ✓ Failed authorization attempts increment counter for rate limiting and attack detection<br/>
+    ✓ Test: Trigger authorization failures - verify logs contain necessary details without sensitive info
+  </div>
+</div>
 
----
-
-### 👥 Role-Based Access Control
-
-Role definitions should be centralized in a single configuration file or enum, not scattered throughout the codebase. Each protected route must explicitly declare required roles using middleware, never checking roles inline in route handlers. The system should support hierarchical roles where appropriate (admin inherits all user permissions). Role changes should be admin-only operations, and any role modifications should be logged. When adding new roles, update all relevant middleware and permission checks consistently.
-
-**Test it**: Create test users with each role and verify they can only access appropriate endpoints. Admin users should access all functions.
-
----
-
-### 📊 Function-Level Access
-
-Administrative functions must require explicit role checks, not just authentication. Direct URL access to admin functions should be blocked for non-admin users even if UI elements are hidden. API endpoints should validate permissions for every operation (read, write, delete) independently. Bulk operations like "delete all" require additional confirmation steps and stricter role checks. Background jobs that perform privileged operations must include authorization context, not run with elevated system privileges by default.
-
-**Test it**: Using curl or Postman, attempt direct API calls to admin endpoints with non-admin tokens. All should return 403 Forbidden.
-
----
-
-### 🔐 Vertical Privilege Escalation
-
-Regular users should never be able to elevate their own privileges through any interface. Role modification endpoints must verify the requester has admin privileges and validate the target role is not higher than allowed. Profile update endpoints must never accept role or permission fields from client input. Any attempt to modify security-relevant fields should be logged as a security event. JWT claims or session data containing roles must be server-signed and validated on every request.
-
-**Test it**: Attempt to modify your own role via profile update API, form tampering, or JWT manipulation. None should succeed.
-
----
-
-### 🔄 Horizontal Privilege Escalation
-
-Users should only access resources they own or have been explicitly granted access to. Shared resources require explicit permission grants stored in the database, not implied by knowledge of the resource ID. When listing resources, queries must filter by ownership or granted permissions, never returning all records. Transfer of ownership should require authorization from both parties or admin approval. Any cross-user access should be logged for audit purposes.
-
-**Test it**: Create two user accounts and verify neither can access the other's documents, orders, or profile data.
-
----
-
-### 🛡️ Authorization Context
-
-User context (ID, role, permissions) must come from authenticated session or JWT, never from request parameters, headers, or body. After authentication middleware populates `req.user`, subsequent middleware should trust this context but validate permissions for each action. All authorization decisions should be made server-side with no reliance on client-side JavaScript or hidden form fields. When impersonating users (admin feature), the original admin's identity should be preserved in logs.
-
-**Test it**: Attempt to forge authorization by adding custom headers or manipulating request payloads. Server should ignore client-provided authorization data.
-
----
-
-### 📝 Audit Logging
-
-All authorization failures should be logged with sufficient context to investigate suspicious activity. Logs must include user ID, requested resource, required permission, IP address, user agent, and timestamp. Successful access to sensitive resources should also be logged. Log entries should not contain sensitive data but enough information to track security incidents. Failed authorization attempts should increment a counter for rate limiting and attack detection.
-
-**Test it**: Trigger authorization failures and verify logs contain necessary details without exposing sensitive information.
+</div>
 
 </div>
 

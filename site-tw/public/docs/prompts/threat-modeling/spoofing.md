@@ -221,71 +221,91 @@ Additional controls:
 
 ## ✅ Human Review Checklist
 
-After AI generates spoofing threats, validate each finding before implementing mitigations. Here's what to verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #8b5cf6;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">Before merging AI-generated Spoofing threat mitigation code, verify:</div>
 
-### 🔐 Password and Credential Storage
+<div style="display: grid; gap: 20px;">
 
-The system should never store passwords in plaintext or use weak hashing algorithms like MD5 or SHA-1. All passwords must be hashed with bcrypt at cost factor 12 or higher, which takes approximately 250ms to compute and resists GPU cracking. Check that password policies enforce minimum complexity requirements: 12+ characters with mixed case, numbers, and symbols. Verify that credentials are never logged, transmitted in URLs, or exposed in error messages.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Password and Credential Storage</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ System never stores passwords in plaintext or uses weak hashing algorithms like MD5 or SHA-1<br/>
+    ✓ All passwords hashed with bcrypt at cost factor 12 or higher (approximately 250ms computation time)<br/>
+    ✓ Password policies enforce minimum complexity requirements: 12+ characters with mixed case, numbers, symbols<br/>
+    ✓ Credentials are never logged, transmitted in URLs, or exposed in error messages<br/>
+    ✓ Test: Attempt login with weak passwords like password123 and verify rejection, inspect database to confirm hashed passwords
+  </div>
+</div>
 
-**Test it**: Attempt to log in with weak passwords like "password123" and verify they're rejected. Inspect database to confirm passwords are hashed.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Token and Session Management</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ JWT secrets stored in environment variables, never hardcoded in source code or client bundles<br/>
+    ✓ Secrets are cryptographically random with at least 256 bits of entropy<br/>
+    ✓ All tokens have expiration timestamps: 15 minutes for access tokens, 7 days for refresh tokens<br/>
+    ✓ Session cookies use HttpOnly, Secure, and SameSite=Strict flags to prevent XSS and CSRF attacks<br/>
+    ✓ Tokens invalidated on logout and refresh token rotation is implemented<br/>
+    ✓ Test: Inspect cookies in browser DevTools to verify security flags, try replaying expired token and confirm rejection
+  </div>
+</div>
 
----
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Password Reset and Account Recovery</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Password reset tokens generated using crypto.randomBytes(32) or equivalent, producing 256 bits of unpredictable randomness<br/>
+    ✓ Tokens expire within 15-30 minutes and are single-use only (invalidated after consumption)<br/>
+    ✓ Rate limiting enforced at 5 reset requests per hour per email address<br/>
+    ✓ System sends email notifications whenever passwords are changed for unauthorized reset detection<br/>
+    ✓ Test: Request multiple resets rapidly and verify rate limiting blocks excessive requests, check token expiration and reuse prevention
+  </div>
+</div>
 
-### 🎫 Token and Session Management
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Multi-Factor Authentication</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ For high-value accounts (admin, financial), multi-factor authentication is mandatory, not optional<br/>
+    ✓ System supports TOTP via authenticator apps, SMS codes, or hardware keys<br/>
+    ✓ Backup codes generated at enrollment for account recovery<br/>
+    ✓ MFA cannot be bypassed through alternate authentication paths like password reset or remember this device shortcuts<br/>
+    ✓ Test: Attempt login to admin account without MFA and verify access denial, try bypassing MFA through password reset flow
+  </div>
+</div>
 
-JWT secrets must be stored in environment variables and never hardcoded in source code or client bundles. The secrets should be cryptographically random with at least 256 bits of entropy. All tokens need expiration timestamps, typically 15 minutes for access tokens and 7 days for refresh tokens. Session cookies require `HttpOnly`, `Secure`, and `SameSite=Strict` flags to prevent XSS and CSRF attacks. Check that tokens are invalidated on logout and that refresh token rotation is implemented.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">API and Service Authentication</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ API keys are 32+ characters of random data, stored hashed in database, and rotated every 90 days<br/>
+    ✓ For service-to-service communication, use mutual TLS or OAuth client credentials flow instead of static API keys<br/>
+    ✓ Never embed API keys in mobile apps or client-side JavaScript where they can be extracted<br/>
+    ✓ Key scoping implemented to limit what each API key can access<br/>
+    ✓ Test: Extract API key from mobile app binary and verify minimal permissions, attempt to use key outside intended scope
+  </div>
+</div>
 
-**Test it**: Inspect cookies in browser DevTools to verify security flags are set. Try replaying an expired token and confirm it's rejected.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Brute Force and Account Lockout</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Login endpoints implement progressive delays or account lockout after 5 failed authentication attempts<br/>
+    ✓ Lockouts last 15-30 minutes or require email verification to unlock<br/>
+    ✓ CAPTCHA added after 3 failed attempts to block automated attacks<br/>
+    ✓ Monitoring for distributed brute force attacks across multiple accounts with IP-based rate limiting<br/>
+    ✓ Test: Attempt brute force login with 10 incorrect passwords, verify account locks and CAPTCHA appears
+  </div>
+</div>
 
----
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Authentication Logging and Monitoring</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All authentication events logged with timestamp, IP address, User-Agent, success/failure status, and user identifier<br/>
+    ✓ Logs sent to centralized logging system (ELK, Splunk, CloudWatch) for correlation<br/>
+    ✓ Alerts configured for suspicious patterns: logins from new geolocations, multiple failed attempts, concurrent sessions from different IPs, privilege escalation<br/>
+    ✓ PII like passwords is never logged<br/>
+    ✓ Validate: Review authentication logs and verify actionable forensic data, test that password values never appear in any log
+  </div>
+</div>
 
-### 🔄 Password Reset and Account Recovery
-
-Password reset tokens must be generated using `crypto.randomBytes(32)` or equivalent, producing 256 bits of unpredictable randomness. The tokens should expire within 15-30 minutes and be single-use only (invalidated after consumption). Rate limiting must be enforced at 5 reset requests per hour per email address. The system should send email notifications whenever passwords are changed, allowing users to detect unauthorized resets.
-
-**Test it**: Request multiple resets rapidly and verify rate limiting blocks excessive requests. Check that tokens expire and cannot be reused.
-
----
-
-### 🚪 Multi-Factor Authentication
-
-For high-value accounts (admin, financial), multi-factor authentication should be mandatory, not optional. The system should support TOTP (time-based one-time passwords) via authenticator apps, SMS codes, or hardware keys. Backup codes must be generated at enrollment for account recovery. Verify that MFA cannot be bypassed through alternate authentication paths like password reset or "remember this device" shortcuts.
-
-**Test it**: Attempt to log into admin account without MFA and verify access is denied. Try bypassing MFA through password reset flow.
-
----
-
-### 🔑 API and Service Authentication
-
-API keys should be 32+ characters of random data, stored hashed in the database, and rotated every 90 days. For service-to-service communication, use mutual TLS or OAuth client credentials flow instead of static API keys. Never embed API keys in mobile apps or client-side JavaScript where they can be extracted. Implement key scoping to limit what each API key can access.
-
-**Test it**: Extract API key from mobile app binary and verify it has minimal permissions. Attempt to use key outside its intended scope.
-
----
-
-### 🛡️ Brute Force and Account Lockout
-
-Login endpoints must implement progressive delays or account lockout after 5 failed authentication attempts. Lockouts should last 15-30 minutes or require email verification to unlock. Add CAPTCHA after 3 failed attempts to block automated attacks. Monitor for distributed brute force attacks across multiple accounts and implement IP-based rate limiting.
-
-**Test it**: Attempt to brute force a login with 10 incorrect passwords. Verify account locks and CAPTCHA appears.
-
----
-
-### 📊 Authentication Logging and Monitoring
-
-All authentication events must be logged with timestamp, IP address, User-Agent, success/failure status, and user identifier. Logs should be sent to centralized logging system (ELK, Splunk, CloudWatch) for correlation. Alert on suspicious patterns: logins from new geolocations, multiple failed attempts, concurrent sessions from different IPs, or privilege escalation. Ensure PII like passwords is never logged.
-
-**Validate**: Review authentication logs and verify they contain actionable forensic data. Test that password values are never present in any log.
-
----
-
-### 🔬 Threat Scenario Realism
-
-For each AI-generated threat, verify the attack scenario is technically feasible with current attacker capabilities. Check that the impact assessment is accurate — does compromising this component truly lead to the claimed damage? Validate that mitigations are specific and implementable, not generic "use secure coding practices" advice. Ensure OWASP mappings are correct.
-
-**Red flags**: Threats that require unrealistic attacker resources, mitigations that contradict business requirements, or scenarios that don't match your actual architecture.
+</div>
 
 </div>
 

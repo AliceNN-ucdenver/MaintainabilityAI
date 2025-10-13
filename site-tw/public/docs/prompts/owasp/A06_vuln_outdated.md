@@ -424,79 +424,132 @@ export function getSecureCSP(): string {
 
 ## ✅ Human Review Checklist
 
-After AI generates secure component management code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated dependency management code, verify:</div>
 
-### 📦 Dependency Versions
+<div style="display: grid; gap: 20px;">
 
-All package versions in package.json must be pinned to exact versions without ^ or ~ prefixes. Wildcard characters allow automatic updates that may introduce vulnerabilities. Each dependency should specify exact major.minor.patch version like "express": "4.18.2". Review package-lock.json to ensure integrity hashes are present for every package and sub-dependency. When updating packages, review changelog and security advisories for breaking changes or new vulnerabilities. Document why each specific version was chosen in a DEPENDENCIES.md file or inline comments.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Dependency Version Pinning</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All package versions in package.json pinned to exact versions without ^ or ~ prefixes<br/>
+    ✓ Each dependency specifies exact major.minor.patch version like "express": "4.18.2"<br/>
+    ✓ Package-lock.json contains integrity hashes for every package and sub-dependency<br/>
+    ✓ Package updates include review of changelog and security advisories<br/>
+    ✓ Version choices documented in DEPENDENCIES.md file or inline comments<br/>
+    ✓ Test: Run npm install and verify package-lock.json unchanged, no ^ or ~ in package.json
+  </div>
+</div>
 
-**Test it**: Run npm install and verify package-lock.json has not changed. Check that no ^ or ~ characters appear in package.json dependencies.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Vulnerability Scanning</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ npm audit run in project root, all high and critical vulnerabilities addressed before deployment<br/>
+    ✓ CI/CD pipeline configured to fail builds if audit returns vulnerabilities above threshold<br/>
+    ✓ Each vulnerability reviewed to understand attack vector and affected code paths<br/>
+    ✓ Non-exploitable vulnerabilities documented with justification<br/>
+    ✓ Automated dependency scanning set up with GitHub Dependabot, Snyk, or WhiteSource<br/>
+    ✓ Regular dependency reviews scheduled quarterly to update outdated packages<br/>
+    ✓ Test: Run npm audit verify exit code 0, trigger build with vulnerable package verify build fails
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Subresource Integrity</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every external script and stylesheet from CDN has integrity attribute with SHA-384 or SHA-512 hash<br/>
+    ✓ SRI hashes generated and verified before deploying<br/>
+    ✓ crossorigin="anonymous" attribute included to enable CORS for integrity checking<br/>
+    ✓ Registry maintained of trusted resources with current SRI hashes<br/>
+    ✓ require-sri-for script style directive used in Content Security Policy<br/>
+    ✓ Resource changes cause hash mismatch and browser refuses to load as intended protection<br/>
+    ✓ Test: Modify one character of integrity hash, verify browser shows SRI error and script doesn't execute
+  </div>
+</div>
 
-### 🔍 Vulnerability Scanning
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">No Dynamic Code Execution</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ No eval(), Function(), vm.runInContext(), or vm.runInThisContext() calls with user input or remote content<br/>
+    ✓ JSON data parsed with JSON.parse() which is safe and cannot execute code<br/>
+    ✓ Modules loaded with dynamic import() which goes through module resolution not arbitrary execution<br/>
+    ✓ Dynamic configuration parsed as JSON and validated with Zod schema<br/>
+    ✓ Never deserialize or execute code from untrusted sources (CDNs, user uploads, API responses)<br/>
+    ✓ Test: Search codebase with grep -r "eval(", verify no matches for Function(, all dynamic content uses safe methods
+  </div>
+</div>
 
-Run npm audit in the project root and address all high and critical vulnerabilities before deployment. Configure CI/CD pipeline to fail builds if audit returns vulnerabilities above acceptable threshold. Review each vulnerability to understand the attack vector and affected code paths. Some vulnerabilities may not be exploitable in your specific usage - document these exceptions. Set up automated dependency scanning with GitHub Dependabot, Snyk, or WhiteSource to get alerts on new CVEs. Schedule regular dependency reviews quarterly to update outdated packages.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Unused Dependencies Cleanup</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ npx depcheck identifies packages in package.json but not imported anywhere<br/>
+    ✓ Unused dependencies removed to reduce attack surface<br/>
+    ✓ Transitive dependencies reviewed with npm ls to ensure necessity<br/>
+    ✓ Large libraries evaluated - use specific functions rather than entire library if possible<br/>
+    ✓ Dependencies consolidated - don't install multiple similar packages<br/>
+    ✓ Documentation in package.json comments or DEPENDENCIES.md explaining why each package required<br/>
+    ✓ Test: Run npx depcheck verify "No depcheck issue", review npm ls for reasonable tree depth
+  </div>
+</div>
 
-**Test it**: Run npm audit and verify exit code 0 with no vulnerabilities. Trigger build with known vulnerable package and verify build fails.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Update Frequency & Maintenance</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Dependency age checked with npm outdated, packages without updates in 2+ years reviewed<br/>
+    ✓ Unmaintained packages identified as security risks, alternatives researched<br/>
+    ✓ Critical security packages (crypto, auth, validation) are actively maintained with frequent updates<br/>
+    ✓ Calendar reminder set for quarterly dependency reviews<br/>
+    ✓ Major version releases evaluated for upgrade within 3-6 months<br/>
+    ✓ Balance maintained between stability and security<br/>
+    ✓ Test: Run npm outdated verify no packages more than 1 major version behind, check GitHub commit dates
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Supply Chain Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Package authenticity verified before installing with npm view package-name to check publisher<br/>
+    ✓ Package signatures checked with npm audit signatures for supported packages<br/>
+    ✓ Source code on GitHub reviewed for suspicious activity before adopting new dependencies<br/>
+    ✓ Packages with obfuscated code or compiled binaries without source avoided<br/>
+    ✓ npm scope used for organizational packages to prevent typosquatting<br/>
+    ✓ Package-lock.json enabled and committed to git for reproducible builds<br/>
+    ✓ npm private registry or Verdaccio considered for additional supply chain control<br/>
+    ✓ Test: Run npm audit signatures, check NPM package page for verification badge, review deps on GitHub
+  </div>
+</div>
 
-### 🔐 Subresource Integrity
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Content Security Policy</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ CSP header configured to restrict where scripts can be loaded from<br/>
+    ✓ default-src 'self' allows only same-origin by default<br/>
+    ✓ Specific CDN domains added to script-src directive for external scripts<br/>
+    ✓ require-sri-for script style directive mandates SRI for all external resources<br/>
+    ✓ Nonce or hash-based CSP used for inline scripts if needed<br/>
+    ✓ CSP tested in report-only mode first to avoid breaking legitimate functionality<br/>
+    ✓ CSP violation reports monitored to detect attack attempts<br/>
+    ✓ Never use unsafe-inline or unsafe-eval in script-src as they defeat CSP protection<br/>
+    ✓ Test: Load app check DevTools Network tab for CSP header, verify violations reported, test intentional violation
+  </div>
+</div>
 
-Every external script and stylesheet loaded from CDN must have an integrity attribute with SHA-384 or SHA-512 hash. Generate SRI hashes using the generateSRIHash function and verify them before deploying. Include crossorigin="anonymous" attribute to enable CORS for integrity checking. If external resource changes, hash will mismatch and browser will refuse to load it - this is intentional protection. Maintain a registry of trusted resources with their current SRI hashes. Use require-sri-for script style in Content Security Policy to enforce SRI at HTTP header level.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Automated Updates</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Dependabot or Renovate configured to automatically create PRs for dependency updates<br/>
+    ✓ Automated update PRs reviewed and tested before merging, not blindly accepted<br/>
+    ✓ Separate PRs for major version updates requiring manual review vs minor/patch updates<br/>
+    ✓ Automated updates configured to only suggest when vulnerability is fixed<br/>
+    ✓ CI/CD runs full test suite on dependency update PRs<br/>
+    ✓ Staging environment considered for testing dependency updates before production<br/>
+    ✓ Automation balanced with human review - automate discovery, manually approve critical changes<br/>
+    ✓ Test: Enable Dependabot verify PRs created for outdated deps, review PR descriptions for changelogs
+  </div>
+</div>
 
-**Test it**: Modify one character of the integrity hash and verify browser console shows SRI validation error and script does not execute.
-
----
-
-### 🚫 No Dynamic Code Execution
-
-Search entire codebase for eval(), Function(), vm.runInContext(), and vm.runInThisContext() calls. None of these should accept user input or remote content. For JSON data, use JSON.parse() which is safe and cannot execute code. For modules, use dynamic import() which goes through module resolution, not arbitrary code execution. If configuration must be loaded dynamically, parse as JSON and validate structure with Zod schema. Never deserialize or execute code from untrusted sources including CDNs, user uploads, or API responses.
-
-**Test it**: Search codebase with grep -r "eval(" and verify no matches. Search for Function( and verify no matches. All dynamic content uses JSON.parse or import().
-
----
-
-### 🧹 Unused Dependencies
-
-Run npx depcheck to identify packages installed in package.json but not imported anywhere in code. Remove unused dependencies to reduce attack surface - each package is potential vulnerability entry point. Review dependencies of dependencies (transitive deps) with npm ls and ensure they're all necessary. Consider alternatives to large libraries - do you need all of lodash or just one function? Consolidate dependencies where possible - don't install both axios and node-fetch if one suffices. Document in package.json comments or DEPENDENCIES.md why each package is required and where it's used.
-
-**Test it**: Run npx depcheck and verify "No depcheck issue" message. Review npm ls output for reasonable dependency tree depth (prefer shallow).
-
----
-
-### 📅 Update Frequency
-
-Check age of dependencies with npm outdated and review packages without updates in 2+ years. Unmaintained packages are security risks as vulnerabilities won't be patched. Research alternatives to abandoned packages before adopting them. For critical security packages (crypto, auth, input validation), prefer actively maintained options with frequent updates. Set calendar reminder to review dependencies quarterly. When major versions are released, evaluate upgrade path within 3-6 months. Balance stability with security - too-old dependencies become vulnerable, too-new might be unstable.
-
-**Test it**: Run npm outdated and verify no packages are more than 1 major version behind current. Check last commit date on GitHub for each core dependency.
-
----
-
-### 🔗 Supply Chain Security
-
-Verify authenticity of packages before installing with npm view package-name to see publisher and verify it's official. Check package signature with npm audit signatures for packages that support it. Review package source code on GitHub for suspicious activity before adopting new dependencies. Avoid packages with obfuscated code or compiled binaries without source. Use npm scope for organizational packages to prevent typosquatting. Enable package-lock.json and commit it to git to ensure reproducible builds. Consider using npm private registry or Verdaccio for additional supply chain control.
-
-**Test it**: Run npm audit signatures and verify results. Check NPM package page for publisher verification badge. Review top-level dependencies on GitHub.
-
----
-
-### 🛡️ Content Security Policy
-
-Configure Content Security Policy header to restrict where scripts can be loaded from. Use default-src 'self' to only allow same-origin by default. Add specific CDN domains to script-src directive for external scripts. Include require-sri-for script style directive to mandate SRI for all external resources. Use nonce or hash-based CSP for inline scripts if needed. Test CSP in report-only mode first to avoid breaking legitimate functionality. Monitor CSP violation reports to detect attack attempts. Never use unsafe-inline or unsafe-eval in script-src as they defeat CSP protection.
-
-**Test it**: Load application and check browser DevTools Network tab for CSP header. Verify CSP violations are reported in console. Test with intentional violation.
-
----
-
-### 🔄 Automated Updates
-
-Configure Dependabot or Renovate to automatically create pull requests for dependency updates. Review and test automated update PRs before merging - don't blindly accept. Set up separate PR for major version updates requiring manual review vs minor/patch updates. Configure automated updates to only suggest if vulnerability is fixed. Use CI/CD to run full test suite on dependency update PRs. Consider staging environment for testing dependency updates before production. Balance automation with human review - automate discovery and proposal, manually approve critical changes.
-
-**Test it**: Enable Dependabot and verify PRs are created for outdated dependencies. Review PR descriptions for changelog and vulnerability info.
+</div>
 
 </div>
 

@@ -323,71 +323,97 @@ Additional controls:
 
 ## ✅ Human Review Checklist
 
-After AI generates information disclosure threats, validate each finding before implementing mitigations. Here's what to verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #3b82f6;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #93c5fd; margin-bottom: 20px;">Before merging AI-generated Information Disclosure threat mitigation code, verify:</div>
 
-### 🔐 Access Control and Authorization
+<div style="display: grid; gap: 20px;">
 
-Every API endpoint that returns user data must verify the requesting user is authorized to access that specific resource. Implement centralized authorization middleware that checks resource ownership before fetching data. Never trust client-provided IDs without validation. Use deny-by-default policies where access must be explicitly granted. Test IDOR vulnerabilities by attempting to access other users' resources through ID manipulation.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Access Control and Authorization</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every API endpoint returning user data verifies requesting user is authorized to access that specific resource<br/>
+    ✓ Centralized authorization middleware checks resource ownership before fetching data<br/>
+    ✓ Never trust client-provided IDs without validation<br/>
+    ✓ Deny-by-default policies implemented where access must be explicitly granted<br/>
+    ✓ Test: Log in as User A, capture API requests, change resource IDs to User B's resources, and verify access denial with 403 Forbidden
+  </div>
+</div>
 
-**Test it**: Log in as User A, capture their API requests, change resource IDs to User B's resources, and verify access is denied with 403 Forbidden.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Data Minimization and Field Filtering</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ APIs return only minimum data necessary for specific use case<br/>
+    ✓ Never return entire database rows with SELECT * queries<br/>
+    ✓ Explicitly list fields in queries and filter sensitive data (SSN, full credit card numbers, passwords) from responses<br/>
+    ✓ Response schemas define exactly which fields are exposed<br/>
+    ✓ Separate read models used for different contexts (admin vs user vs public)<br/>
+    ✓ Test: Inspect API responses and verify no sensitive fields present, check database queries specify exact columns not SELECT *
+  </div>
+</div>
 
----
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Error Handling and Information Leakage</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Production applications never expose stack traces, SQL queries, file paths, or technology details in error responses<br/>
+    ✓ Global error handlers return generic messages to clients while logging details server-side<br/>
+    ✓ NODE_ENV=production set to disable verbose errors<br/>
+    ✓ Custom error classes created for expected errors (validation, not found) with safe messages<br/>
+    ✓ Error monitoring services used for internal debugging<br/>
+    ✓ Test: Send malformed requests and verify error responses are generic, check stack traces never appear in API responses
+  </div>
+</div>
 
-### 🔒 Data Minimization and Field Filtering
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Encryption at Rest</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All sensitive data encrypted in databases, file storage, backups, and caches<br/>
+    ✓ AES-256-GCM used for encryption with keys managed by AWS KMS, Azure Key Vault, or HashiCorp Vault<br/>
+    ✓ Never store encryption keys in code or environment variables alongside the data<br/>
+    ✓ Encryption enabled for databases (PostgreSQL TDE, MySQL encryption), S3 buckets (SSE-KMS), and EBS volumes<br/>
+    ✓ Backups encrypted before uploading to storage<br/>
+    ✓ Test: Inspect database files, S3 objects, and backup files to verify encryption enabled, attempt to access raw data without decryption keys
+  </div>
+</div>
 
-APIs should return only the minimum data necessary for the specific use case. Never return entire database rows with `SELECT *` queries. Explicitly list fields in queries and filter sensitive data (SSN, full credit card numbers, passwords) from responses. Implement response schemas that define exactly which fields are exposed. Consider using separate read models for different contexts (admin vs user vs public).
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Encryption in Transit</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All communication uses TLS 1.3 or 1.2 with strong cipher suites<br/>
+    ✓ TLS 1.0/1.1 and weak ciphers (RC4, DES) disabled<br/>
+    ✓ HTTPS Strict Transport Security (HSTS) enabled with max-age=31536000; includeSubDomains; preload<br/>
+    ✓ Certificate pinning used in mobile apps<br/>
+    ✓ WebSocket connections use WSS (not WS)<br/>
+    ✓ Internal service-to-service communication uses TLS<br/>
+    ✓ Test: Use SSL Labs or testssl.sh to scan domain, verify A or A+ rating with TLS 1.3 support and no weak ciphers
+  </div>
+</div>
 
-**Test it**: Inspect API responses and verify no sensitive fields are present. Check that database queries specify exact columns, not `SELECT *`.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Secrets Management</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never hardcode API keys, database passwords, encryption keys, or OAuth secrets in source code<br/>
+    ✓ Environment variables loaded from secure vaults (AWS Secrets Manager, Azure Key Vault, Doppler)<br/>
+    ✓ Secrets rotated quarterly<br/>
+    ✓ Secret scanning implemented in CI/CD (trufflehog, git-secrets) to prevent accidental commits<br/>
+    ✓ Separate secrets used for each environment (dev, staging, prod)<br/>
+    ✓ Test: Search codebase for hardcoded secrets using regex, verify secrets loaded from environment variables or vault services
+  </div>
+</div>
 
----
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Logging and Monitoring Privacy</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Logs never contain passwords, session tokens, credit card numbers, SSNs, or API keys<br/>
+    ✓ Automatic PII redaction implemented using regex patterns or libraries<br/>
+    ✓ Log only identifiers (user ID, transaction ID) instead of sensitive values<br/>
+    ✓ All log statements reviewed to ensure compliance<br/>
+    ✓ Log sampling configured for high-volume endpoints to reduce storage costs while maintaining security visibility<br/>
+    ✓ Validate: Search logs for sensitive patterns (credit card regex, SSN format), verify PII is masked or absent, test authentication failures don't log passwords
+  </div>
+</div>
 
-### 🚨 Error Handling and Information Leakage
-
-Production applications must never expose stack traces, SQL queries, file paths, or technology details in error responses. Implement global error handlers that return generic messages to clients while logging details server-side. Set `NODE_ENV=production` to disable verbose errors. Create custom error classes for expected errors (validation, not found) with safe messages. Use error monitoring services for internal debugging.
-
-**Test it**: Send malformed requests and verify error responses are generic. Check that stack traces never appear in API responses.
-
----
-
-### 🔐 Encryption at Rest
-
-All sensitive data must be encrypted in databases, file storage, backups, and caches. Use AES-256-GCM for encryption with keys managed by AWS KMS, Azure Key Vault, or HashiCorp Vault. Never store encryption keys in code or environment variables alongside the data. Enable encryption for databases (PostgreSQL TDE, MySQL encryption), S3 buckets (SSE-KMS), and EBS volumes. Encrypt backups before uploading to storage.
-
-**Test it**: Inspect database files, S3 objects, and backup files to verify encryption is enabled. Attempt to access raw data without decryption keys.
-
----
-
-### 🌐 Encryption in Transit
-
-All communication must use TLS 1.3 or 1.2 with strong cipher suites. Disable TLS 1.0/1.1 and weak ciphers (RC4, DES). Enable HTTPS Strict Transport Security (HSTS) with `max-age=31536000; includeSubDomains; preload`. Use certificate pinning in mobile apps. Verify WebSocket connections use WSS (not WS). Validate that internal service-to-service communication uses TLS.
-
-**Test it**: Use SSL Labs or testssl.sh to scan your domain. Verify A or A+ rating with TLS 1.3 support and no weak ciphers.
-
----
-
-### 🔑 Secrets Management
-
-Never hardcode API keys, database passwords, encryption keys, or OAuth secrets in source code. Use environment variables loaded from secure vaults (AWS Secrets Manager, Azure Key Vault, Doppler). Rotate secrets quarterly. Implement secret scanning in CI/CD (trufflehog, git-secrets) to prevent accidental commits. Use separate secrets for each environment (dev, staging, prod).
-
-**Test it**: Search codebase for hardcoded secrets using regex. Verify secrets are loaded from environment variables or vault services.
-
----
-
-### 📊 Logging and Monitoring Privacy
-
-Logs must never contain passwords, session tokens, credit card numbers, SSNs, or API keys. Implement automatic PII redaction using regex patterns or libraries. Log only identifiers (user ID, transaction ID) instead of sensitive values. Review all log statements to ensure compliance. Configure log sampling for high-volume endpoints to reduce storage costs while maintaining security visibility.
-
-**Validate**: Search logs for sensitive patterns (credit card regex, SSN format). Verify PII is masked or absent. Test that authentication failures don't log passwords.
-
----
-
-### 🔬 Threat Scenario Realism
-
-For each AI-generated threat, verify the attack scenario is technically feasible with your architecture. Check that impact assessments account for regulatory requirements (GDPR fines, HIPAA penalties). Validate that mitigations are practical and don't break legitimate functionality. Ensure code examples match your technology stack.
-
-**Red flags**: Endpoints returning full database rows, error handlers exposing stack traces in production, unencrypted backups, secrets in Git history, public S3 buckets.
+</div>
 
 </div>
 

@@ -152,71 +152,102 @@ Output: Complete, executable code for all 5 files.
 
 ## ✅ Human Review Checklist
 
-After AI generates the Strangler Fig implementation, **review the code carefully** before deploying. Here's what to verify in each area:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #06b6d4;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #67e8f9; margin-bottom: 20px;">After AI generates the Strangler Fig implementation, review the code carefully before deploying:</div>
 
-### 🚦 Feature Flag Integration
+<div style="display: grid; gap: 20px;">
 
-The feature flag client should handle both LaunchDarkly SDK and fallback to environment variables if the service is unavailable. Verify that flags default to false (old system) if there's any error fetching them. User-specific targeting must work correctly so you can enable the new system for internal users first. The client should cache flag values locally to avoid blocking requests on external API calls.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Feature Flag Integration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Feature flag client handles both LaunchDarkly SDK and environment variable fallback<br/>
+    ✓ Flags default to false (old system) if any error occurs fetching them<br/>
+    ✓ User-specific targeting works correctly for internal user testing<br/>
+    ✓ Client caches flag values locally to avoid blocking requests on external API calls<br/>
+    ✓ Test by disabling feature flag service and verifying fallback to old implementation
+  </div>
+</div>
 
-**Test it**: Disable the feature flag service and verify the system falls back to the old implementation without errors.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Proxy Routing Logic</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Three distinct modes implemented: shadow, canary, and full<br/>
+    ✓ Shadow mode runs both systems but returns only old response to users<br/>
+    ✓ Canary mode uses consistent hash of user ID (same user always gets same version)<br/>
+    ✓ Automatic fallback to old system if new system returns errors or times out<br/>
+    ✓ Test by simulating new system failures and verifying automatic fallback
+  </div>
+</div>
 
----
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Response Comparison</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Shadow mode uses deep structural diff, not just JSON.stringify comparison<br/>
+    ✓ Differences logged in structured format for easy querying and analysis<br/>
+    ✓ Requests never fail based on diffs (validation only)<br/>
+    ✓ Diff percentage tracked over time with alerts for sudden spikes<br/>
+    ✓ Test by introducing a small difference and verifying it's logged without user impact
+  </div>
+</div>
 
-### 🔀 Proxy Routing Logic
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Data Consistency</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Dual writes update both old and new databases atomically where possible<br/>
+    ✓ Maximum tolerable lag documented if eventual consistency is acceptable<br/>
+    ✓ New system can reconstruct state entirely from events if using event sourcing<br/>
+    ✓ Backfill scripts are idempotent and safe to run multiple times<br/>
+    ✓ Validate by running systems side-by-side and checking data stays in sync
+  </div>
+</div>
 
-The routing middleware must implement three distinct modes cleanly. In shadow mode, both systems run but only the old response is returned to users. In canary mode, percentage-based routing should use a consistent hash of user ID (not random) so the same user always gets the same version. The proxy must automatically fall back to the old system if the new system returns errors or times out.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Canary Rollout Process</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Clear criteria for advancing canary percentage (5% → 25% → 50% → 75% → 100%)<br/>
+    ✓ Error rate threshold <2x the old system's rate<br/>
+    ✓ Latency should not increase more than 10%<br/>
+    ✓ Business metrics (conversion rate, revenue) remain stable<br/>
+    ✓ Automatic rollback if error rate exceeds threshold<br/>
+    ✓ Manual rollback capability via feature flag toggle
+  </div>
+</div>
 
-**Test it**: Simulate new system failures and verify requests automatically fall back to the old system without user impact.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Migration Progress Tracking</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Fitness function accurately counts migrated vs total endpoints<br/>
+    ✓ Git blame detects stalls (no updates to proxy file in 30 days)<br/>
+    ✓ Historical trend data showing progress over time<br/>
+    ✓ Realistic targets set: 100% migration in 12-18 months<br/>
+    ✓ Test fitness function reports correct migration percentage and days since last update
+  </div>
+</div>
 
----
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Backward Compatibility</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ New system returns exact same JSON structure as old system during migration<br/>
+    ✓ JSON Schema or TypeScript interfaces enforce API contracts<br/>
+    ✓ Contract tests run on every deploy to catch breaking changes<br/>
+    ✓ API evolution only after 100% cutover and 30-day observation period<br/>
+    ✓ Red flags: field name changes, type changes, or missing fields
+  </div>
+</div>
 
-### 📊 Response Comparison
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #0891b2; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Monitoring and Observability</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Dashboards show traffic split, error rates (old vs new), latency (p50, p95, p99), diff rate<br/>
+    ✓ Alert on error rate >2x baseline, latency increase >10%, diff rate >5%<br/>
+    ✓ System version (old/new) included as tag in all metrics<br/>
+    ✓ Monitor dashboards daily during canary rollout<br/>
+    ✓ Adjust percentages based on metrics
+  </div>
+</div>
 
-Shadow mode response comparison should use deep structural diff, not just JSON.stringify comparison. Log differences in a structured format that's easy to query and analyze. Don't fail requests based on diffs—this is purely for validation. Track diff percentage over time and alert if it suddenly spikes, which indicates a regression in the new system.
-
-**Test it**: Intentionally introduce a small difference in the new system and verify it's logged correctly without affecting users.
-
----
-
-### 💾 Data Consistency
-
-Dual writes must update both old and new databases atomically where possible. If eventual consistency is acceptable, document the maximum tolerable lag. The new system should be able to reconstruct its state entirely from events if using event sourcing. Backfill scripts must be idempotent so they can be run multiple times safely.
-
-**Validate**: Run both systems side-by-side and verify data stays in sync within acceptable lag thresholds.
-
----
-
-### 🔄 Canary Rollout Process
-
-Establish clear criteria for advancing the canary percentage. Typical progression: start at 5% for 24 hours, advance to 25% if error rate and latency are acceptable, then 50%, 75%, and finally 100%. Error rate threshold should be <2x the old system's rate. Latency should not increase more than 10%. Business metrics (conversion rate, revenue) must stay stable.
-
-**Rollback triggers**: Automatic rollback if error rate exceeds threshold, manual rollback capability via feature flag toggle.
-
----
-
-### 📈 Migration Progress Tracking
-
-The fitness function should accurately count migrated vs total endpoints. Use Git blame to detect stalls (no updates to the proxy file in 30 days indicates the migration is stuck). Generate historical trend data showing progress over time. Set realistic targets: 100% migration in 12-18 months depending on system complexity.
-
-**Test it**: Run the fitness function and verify it correctly reports current migration percentage and days since last update.
-
----
-
-### 🛡️ Backward Compatibility
-
-The new system must return the exact same JSON structure as the old system during migration. Use JSON Schema or TypeScript interfaces to enforce API contracts. Contract tests should run on every deploy to catch breaking changes. Only after 100% cutover and 30-day observation period can you safely evolve the API.
-
-**Red flags**: Any response field name changes, type changes, or missing fields that could break downstream consumers.
-
----
-
-### 📡 Monitoring and Observability
-
-Set up dashboards showing: traffic split percentage, error rates (old vs new), latency (p50, p95, p99 for both systems), response diff rate, and business metrics. Alert on: error rate >2x baseline, latency increase >10%, diff rate >5%, any new system 5xx errors. Include the system version (old/new) as a tag in all metrics for easy comparison.
-
-**After deployment**: Monitor dashboards daily during canary rollout, adjust percentages based on metrics.
+</div>
 
 </div>
 

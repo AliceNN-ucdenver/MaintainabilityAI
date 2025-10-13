@@ -83,113 +83,18 @@ flowchart LR
 
 ## 📚 STRIDE Categories & Prompt Packs
 
-**STRIDE** is Microsoft's mnemonic for six threat categories. Each prompt pack helps you use AI to identify threats in that category:
+**STRIDE** is Microsoft's mnemonic for six threat categories. Each prompt pack helps you use AI to identify threats in that category and maps them to OWASP mitigations:
 
-<div style="display: grid; gap: 20px; margin: 32px 0;">
+| STRIDE Category | Common Threats | Primary OWASP | Secondary OWASP | Example Scenario |
+|-----------------|----------------|---------------|-----------------|------------------|
+| **[🎭 Spoofing Identity](./spoofing)** | Weak authentication, credential theft, session hijacking, token replay attacks | [A07 (Authentication)](/docs/prompts/owasp/A07_authn_failures) | [A02 (Crypto)](/docs/prompts/owasp/A02_crypto_failures) | User logs in but session token is predictable, allowing attackers to guess valid sessions |
+| **[✏️ Tampering with Data](./tampering)** | SQL injection, parameter manipulation, man-in-the-middle attacks, unsigned artifacts | [A03 (Injection)](/docs/prompts/owasp/A03_injection) | [A08 (Integrity)](/docs/prompts/owasp/A08_integrity_failures) | Attacker modifies product price in POST request from $100 to $1, bypassing server validation |
+| **[🙈 Repudiation](./repudiation)** | Missing audit logs, unauthenticated actions, log tampering, insufficient logging | [A09 (Logging)](/docs/prompts/owasp/A09_logging_monitoring) | — | Administrator deletes user account but no audit log records who performed the action or when |
+| **[🔓 Information Disclosure](./information-disclosure)** | Exposed PII, verbose error messages, directory listing, insecure storage, IDOR | [A01 (Access Control)](/docs/prompts/owasp/A01_broken_access_control) | [A02 (Crypto)](/docs/prompts/owasp/A02_crypto_failures) | API returns full user object including password hash and SSN when only username is needed |
+| **[💥 Denial of Service](./denial-of-service)** | Resource exhaustion, algorithmic complexity attacks, missing rate limits, unbounded queries | [A04 (Insecure Design)](/docs/prompts/owasp/A04_insecure_design) | [A05 (Misconfig)](/docs/prompts/owasp/A05_security_misconfig) | Search endpoint accepts regex with no timeout, attacker sends ReDoS pattern causing CPU spike |
+| **[👑 Elevation of Privilege](./elevation-of-privilege)** | Missing authorization, insecure defaults, role confusion, vertical privilege escalation | [A01 (Access Control)](/docs/prompts/owasp/A01_broken_access_control) | [A07 (Authentication)](/docs/prompts/owasp/A07_authn_failures) | Regular user changes 'role=user' to 'role=admin' in JWT and gains admin access without validation |
 
-<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">🎭</div>
-    <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="./spoofing" style="color: #f1f5f9; text-decoration: none;">Spoofing Identity</a></div>
-      <div style="color: #fca5a5; font-size: 14px;">Pretending to be someone else</div>
-    </div>
-  </div>
-  <div style="font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
-    <strong>Threats:</strong> Weak authentication, credential theft, session hijacking, token replay attacks<br/>
-    <strong>Maps to:</strong> <a href="/docs/prompts/owasp/A07_authn_failures" style="color: #fde047; text-decoration: underline;">OWASP A07 (Authentication Failures)</a>
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px;">
-    <strong>Example:</strong> "User logs in but session token is predictable, allowing attackers to guess valid sessions"
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">✏️</div>
-    <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="./tampering" style="color: #f1f5f9; text-decoration: none;">Tampering with Data</a></div>
-      <div style="color: #fdba74; font-size: 14px;">Modifying data maliciously</div>
-    </div>
-  </div>
-  <div style="font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
-    <strong>Threats:</strong> SQL injection, parameter manipulation, man-in-the-middle attacks, unsigned artifacts<br/>
-    <strong>Maps to:</strong> <a href="/docs/prompts/owasp/A03_injection" style="color: #fde047; text-decoration: underline;">OWASP A03 (Injection)</a>, <a href="/docs/prompts/owasp/A08_integrity_failures" style="color: #fde047; text-decoration: underline;">A08 (Integrity)</a>
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px;">
-    <strong>Example:</strong> "Attacker modifies product price in POST request from $100 to $1, bypassing server validation"
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(202, 138, 4, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">🙈</div>
-    <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="./repudiation" style="color: #f1f5f9; text-decoration: none;">Repudiation</a></div>
-      <div style="color: #fde047; font-size: 14px;">Denying actions without proof</div>
-    </div>
-  </div>
-  <div style="font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
-    <strong>Threats:</strong> Missing audit logs, unauthenticated actions, log tampering, insufficient logging<br/>
-    <strong>Maps to:</strong> <a href="/docs/prompts/owasp/A09_logging_monitoring" style="color: #dc2626; text-decoration: underline;">OWASP A09 (Logging/Monitoring)</a>
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px;">
-    <strong>Example:</strong> "Administrator deletes user account but no audit log records who performed the action or when"
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">🔓</div>
-    <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="./information-disclosure" style="color: #f1f5f9; text-decoration: none;">Information Disclosure</a></div>
-      <div style="color: #67e8f9; font-size: 14px;">Exposing sensitive information</div>
-    </div>
-  </div>
-  <div style="font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
-    <strong>Threats:</strong> Exposed PII, verbose error messages, directory listing, insecure storage, IDOR<br/>
-    <strong>Maps to:</strong> <a href="/docs/prompts/owasp/A01_broken_access_control" style="color: #fde047; text-decoration: underline;">OWASP A01 (Access Control)</a>, <a href="/docs/prompts/owasp/A02_crypto_failures" style="color: #fde047; text-decoration: underline;">A02 (Crypto)</a>
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px;">
-    <strong>Example:</strong> "API returns full user object including password hash and SSN when only username is needed"
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">💥</div>
-    <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="./denial-of-service" style="color: #f1f5f9; text-decoration: none;">Denial of Service</a></div>
-      <div style="color: #c4b5fd; font-size: 14px;">Making system unavailable</div>
-    </div>
-  </div>
-  <div style="font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
-    <strong>Threats:</strong> Resource exhaustion, algorithmic complexity attacks, missing rate limits, unbounded queries<br/>
-    <strong>Maps to:</strong> <a href="/docs/prompts/owasp/A04_insecure_design" style="color: #fde047; text-decoration: underline;">OWASP A04 (Insecure Design)</a>
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px;">
-    <strong>Example:</strong> "Search endpoint accepts regex with no timeout, attacker sends ReDoS pattern causing CPU spike"
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #be123c 0%, #e11d48 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(190, 18, 60, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">👑</div>
-    <div>
-      <div style="font-size: 22px; font-weight: 700;"><a href="./elevation-of-privilege" style="color: #f1f5f9; text-decoration: none;">Elevation of Privilege</a></div>
-      <div style="color: #fda4af; font-size: 14px;">Gaining unauthorized permissions</div>
-    </div>
-  </div>
-  <div style="font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
-    <strong>Threats:</strong> Missing authorization, insecure defaults, role confusion, vertical privilege escalation<br/>
-    <strong>Maps to:</strong> <a href="/docs/prompts/owasp/A01_broken_access_control" style="color: #fde047; text-decoration: underline;">OWASP A01 (Broken Access Control)</a>
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px;">
-    <strong>Example:</strong> "Regular user changes 'role=user' to 'role=admin' in JWT and gains admin access without validation"
-  </div>
-</div>
-
-</div>
+**Quick Start**: New to threat modeling? Start with **[Spoofing Identity](./spoofing)** and **[Tampering with Data](./tampering)** — these cover the most common threats (authentication and injection attacks).
 
 ---
 
@@ -278,21 +183,11 @@ Create a threat model document listing: Threat → STRIDE Category → OWASP Map
 
 ---
 
-## 🔗 Integration with OWASP
+## 🔄 STRIDE to OWASP Workflow
 
 STRIDE identifies *what* can go wrong. OWASP provides *how* to fix it:
 
-| STRIDE Category | Primary OWASP | Secondary OWASP |
-|-----------------|---------------|-----------------|
-| **Spoofing** | [A07 (Authentication)](/docs/prompts/owasp/A07_authn_failures) | [A02 (Crypto)](/docs/prompts/owasp/A02_crypto_failures) |
-| **Tampering** | [A03 (Injection)](/docs/prompts/owasp/A03_injection) | [A08 (Integrity)](/docs/prompts/owasp/A08_integrity_failures) |
-| **Repudiation** | [A09 (Logging)](/docs/prompts/owasp/A09_logging_monitoring) | — |
-| **Information Disclosure** | [A01 (Access Control)](/docs/prompts/owasp/A01_broken_access_control) | [A02 (Crypto)](/docs/prompts/owasp/A02_crypto_failures) |
-| **Denial of Service** | [A04 (Insecure Design)](/docs/prompts/owasp/A04_insecure_design) | [A05 (Misconfig)](/docs/prompts/owasp/A05_security_misconfig) |
-| **Elevation of Privilege** | [A01 (Access Control)](/docs/prompts/owasp/A01_broken_access_control) | [A07 (Authentication)](/docs/prompts/owasp/A07_authn_failures) |
-
-**Workflow**:
-1. **Design Phase**: Run STRIDE analysis with AI → identify threats
+1. **Design Phase**: Run STRIDE analysis with AI → identify threats (use table above)
 2. **Implementation Phase**: Use OWASP prompt pack → implement mitigations
 3. **Verification Phase**: Test with attack scenarios → validate controls
 

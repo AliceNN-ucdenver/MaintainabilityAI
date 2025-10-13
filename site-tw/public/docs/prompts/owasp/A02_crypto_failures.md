@@ -287,71 +287,100 @@ export function generateSecureToken(bytes: number = 32): string {
 
 ## ✅ Human Review Checklist
 
-After AI generates cryptographic code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #dc2626;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated cryptographic code, verify:</div>
 
-### 🔐 Encryption Algorithm
+<div style="display: grid; gap: 20px;">
 
-Verify that only AES-256-GCM is used for symmetric encryption, never DES, 3DES, RC4, or any ECB mode ciphers. The algorithm must provide both confidentiality and authenticity through authenticated encryption. GCM mode includes an authentication tag that prevents tampering. Check that the implementation uses the Node.js crypto module with the correct algorithm name 'aes-256-gcm'. Ensure no custom crypto implementations exist as these are prone to subtle vulnerabilities.
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Encryption Algorithm</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Only AES-256-GCM used for symmetric encryption, never DES, 3DES, RC4, or ECB mode<br/>
+    ✓ Algorithm provides both confidentiality and authenticity through authenticated encryption<br/>
+    ✓ GCM mode includes authentication tag that prevents tampering<br/>
+    ✓ Implementation uses Node.js crypto module with correct algorithm name<br/>
+    ✓ No custom crypto implementations exist<br/>
+    ✓ Test: Encrypt data and verify output includes IV, auth tag, and ciphertext - tampering fails decryption
+  </div>
+</div>
 
-**Test it**: Encrypt data and verify the output includes IV, authentication tag, and ciphertext. Tamper with the ciphertext and verify decryption fails.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Key Management</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All encryption keys come from environment variables or secrets management system<br/>
+    ✓ Never hardcoded in source code or configuration files checked into Git<br/>
+    ✓ Keys are exactly 32 bytes (256 bits) for AES-256<br/>
+    ✓ Application validates key length on startup and fails fast if missing or wrong length<br/>
+    ✓ Key rotation mechanisms documented and testable<br/>
+    ✓ Production keys never appear in development environments or logs<br/>
+    ✓ Test: Remove key from environment - app fails to start with clear error, Git history has no keys
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">IV Generation & Randomness</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every encryption operation generates fresh random IV using crypto.randomBytes(16)<br/>
+    ✓ IV never reused with same key<br/>
+    ✓ IVs prepended to ciphertext for decryption availability<br/>
+    ✓ All cryptographic randomness uses crypto.randomBytes(), never Math.random() or Date.now()<br/>
+    ✓ Random values have sufficient entropy (32 bytes for tokens, 16 bytes for IVs)<br/>
+    ✓ No custom random number generators for security-sensitive operations<br/>
+    ✓ Test: Encrypt same plaintext twice - outputs completely different due to random IVs
+  </div>
+</div>
 
-### 🔑 Key Management
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Password Hashing</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Passwords hashed with bcrypt using cost factor of at least 12<br/>
+    ✓ Never MD5, SHA1, SHA256, or plaintext storage<br/>
+    ✓ Bcrypt automatically handles salt generation<br/>
+    ✓ Password verification uses bcrypt.compare() for constant-time comparison<br/>
+    ✓ Passwords never logged, stored unhashed in memory longer than necessary, or transmitted except over TLS<br/>
+    ✓ Test: Hash same password twice - hashes differ (random salt), bcrypt.compare works for valid/invalid
+  </div>
+</div>
 
-All encryption keys must come from environment variables or a secrets management system, never hardcoded in source code or configuration files checked into Git. Keys should be exactly 32 bytes (256 bits) for AES-256. The application must validate key length on startup and fail fast with clear error messages if keys are missing or wrong length. Key rotation mechanisms should be documented and testable. Production keys must never appear in development environments or logs.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Authenticated Encryption</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All encryption includes authentication to prevent tampering<br/>
+    ✓ GCM mode provides authentication through authentication tag<br/>
+    ✓ After encryption, retrieve auth tag with cipher.getAuthTag() and include with ciphertext<br/>
+    ✓ During decryption, set auth tag with decipher.setAuthTag() before calling final()<br/>
+    ✓ Never use CBC, CFB, or OFB modes without separate HMAC<br/>
+    ✓ Test: Modify encrypted data before decryption - verify rejection with authentication failure error
+  </div>
+</div>
 
-**Test it**: Remove encryption key from environment and verify application fails to start with clear error. Check Git history contains no committed keys.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Data in Transit</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All network communication containing sensitive data uses TLS 1.2 or higher, never plain HTTP<br/>
+    ✓ APIs reject HTTP requests for sensitive endpoints or redirect to HTTPS<br/>
+    ✓ HTTPS enforced in production through HSTS headers<br/>
+    ✓ TLS certificates valid and verified (not self-signed in production)<br/>
+    ✓ Database connections use TLS/SSL when communicating over networks<br/>
+    ✓ No sensitive data transmitted in URL query parameters<br/>
+    ✓ Test: Attempt HTTP connection to sensitive endpoints - verify rejection or redirect to HTTPS
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Sensitive Data in Logs</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Logs never contain passwords, API keys, tokens, encryption keys, credit cards, or other secrets<br/>
+    ✓ Logging sanitization removes or masks sensitive fields before writing<br/>
+    ✓ Stack traces sanitized to not expose sensitive data<br/>
+    ✓ Log files protected with appropriate file permissions and encrypted at rest if needed<br/>
+    ✓ Error messages to clients are generic and don't leak cryptographic implementation details<br/>
+    ✓ Test: Trigger errors in encryption/authentication - logs contain only generic messages, no sensitive data
+  </div>
+</div>
 
-### 🎲 Initialization Vector (IV) Generation
-
-Every encryption operation must generate a fresh random IV using crypto.randomBytes(16). The IV must never be reused with the same key, as this breaks the security of most encryption modes including GCM. IVs should be prepended to the ciphertext so they're available for decryption. The IV itself doesn't need to be secret but must be unique for each encryption. Verify no static IVs or counters are used.
-
-**Test it**: Encrypt the same plaintext twice and verify the outputs are completely different due to random IVs.
-
----
-
-### 🔒 Password Hashing
-
-Passwords must be hashed with bcrypt using a cost factor of at least 12, never with MD5, SHA1, SHA256, or stored in plaintext. Bcrypt automatically handles salt generation and is intentionally slow to resist brute force attacks. Password verification must use bcrypt.compare() which provides constant-time comparison to prevent timing attacks. Never implement custom password comparison logic. Passwords should never be logged, stored unhashed in memory longer than necessary, or transmitted except over TLS.
-
-**Test it**: Hash the same password twice and verify hashes differ (random salt). Verify bcrypt.compare works correctly for valid and invalid passwords.
-
----
-
-### 🎯 Authenticated Encryption
-
-All encryption must include authentication to prevent tampering. GCM mode provides this through an authentication tag. After encryption, retrieve the auth tag with cipher.getAuthTag() and include it with the ciphertext. During decryption, set the auth tag with decipher.setAuthTag() before calling final(). If the tag doesn't match, the data was tampered with and decryption will throw an error. Never use CBC, CFB, or OFB modes without a separate HMAC for authentication.
-
-**Test it**: Modify encrypted data before decryption and verify it's rejected with an error about authentication failure.
-
----
-
-### 🔢 Random Number Generation
-
-All cryptographic randomness must use crypto.randomBytes(), never Math.random(), Date.now(), or predictable sequences. This includes generating tokens, session IDs, password reset codes, IVs, and cryptographic keys. Math.random() is not cryptographically secure and can be predicted by attackers. Verify the application doesn't use any custom random number generators for security-sensitive operations. Random values should have sufficient entropy for their purpose (32 bytes for tokens, 16 bytes for IVs).
-
-**Test it**: Generate multiple tokens and verify they're unpredictable and don't contain patterns or sequential values.
-
----
-
-### 📦 Data in Transit
-
-All network communication containing sensitive data must use TLS 1.2 or higher, never plain HTTP. APIs should reject HTTP requests for sensitive endpoints and redirect to HTTPS. Verify HTTPS is enforced in production through HSTS headers. TLS certificates must be valid and verified (not self-signed in production). Database connections must use TLS/SSL when communicating over networks. Verify no sensitive data is transmitted in URL query parameters where it may be logged.
-
-**Test it**: Attempt to connect via HTTP to sensitive endpoints and verify it's rejected or redirected to HTTPS.
-
----
-
-### 🚫 Sensitive Data in Logs
-
-Logs must never contain passwords, API keys, tokens, encryption keys, credit cards, or other secrets. Implement logging sanitization that removes or masks these fields before writing to logs. Stack traces should be sanitized to not expose sensitive data. Log files must be protected with appropriate file permissions and encrypted at rest if they contain any potentially sensitive information. Error messages returned to clients should be generic and not leak information about cryptographic implementation details.
-
-**Test it**: Trigger errors in encryption/authentication code and verify logs don't contain sensitive data, only generic messages.
+</div>
 
 </div>
 

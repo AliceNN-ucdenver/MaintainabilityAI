@@ -265,71 +265,94 @@ Additional controls:
 
 ## ✅ Human Review Checklist
 
-After AI generates tampering threats, validate each finding before implementing mitigations. Here's what to verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f97316;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fdba74; margin-bottom: 20px;">Before merging AI-generated Tampering threat mitigation code, verify:</div>
 
-### 💉 Input Validation and Injection Prevention
+<div style="display: grid; gap: 20px;">
 
-All user inputs must be validated against strict schemas defining type, length, format, and allowed characters. Use allowlist validation (accept only known-good patterns) rather than blocklist (reject known-bad patterns). Database queries must use parameterized statements or prepared statements, never string concatenation. Check that special characters are properly escaped in all contexts: SQL, HTML, JavaScript, shell commands, LDAP queries.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Input Validation and Injection Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All user inputs validated against strict schemas defining type, length, format, and allowed characters<br/>
+    ✓ Use allowlist validation (accept only known-good patterns) rather than blocklist (reject known-bad patterns)<br/>
+    ✓ Database queries use parameterized statements or prepared statements, never string concatenation<br/>
+    ✓ Special characters properly escaped in all contexts: SQL, HTML, JavaScript, shell commands, LDAP queries<br/>
+    ✓ Test: Submit SQL injection payloads like ' OR '1'='1 to all input fields and verify rejection or safe escaping, use sqlmap to test database endpoints
+  </div>
+</div>
 
-**Test it**: Submit SQL injection payloads like `' OR '1'='1` to all input fields and verify they're rejected or safely escaped. Use sqlmap to test database endpoints.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Server-Side Business Logic Enforcement</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never trust client-provided data for security or business decisions<br/>
+    ✓ All prices, quantities, permissions, and calculations performed server-side using authoritative data sources<br/>
+    ✓ Server fetches product prices from database, not accepting them from client<br/>
+    ✓ User roles and permissions validated on every request using server-side session data, not client-provided tokens<br/>
+    ✓ Test: Use browser DevTools or Burp Suite to modify request payloads, change prices to $0, quantities to negative numbers, or user IDs to other accounts, verify server rejects invalid values
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Code and Artifact Integrity</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All deployed code, container images, and dependencies signed with cryptographic signatures<br/>
+    ✓ Deployment pipeline verifies signatures before running any artifact<br/>
+    ✓ SHA-256 checksums used for file integrity verification<br/>
+    ✓ Third-party JavaScript libraries from CDNs include Subresource Integrity (SRI) hashes<br/>
+    ✓ Package lockfiles (package-lock.json, yarn.lock) committed to prevent dependency tampering<br/>
+    ✓ Test: Attempt to deploy unsigned artifact and verify rejection, check HTML includes SRI hashes for CDN scripts, modify dependency and confirm lockfile detects change
+  </div>
+</div>
 
-### 🔒 Server-Side Business Logic Enforcement
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Transport Security and MITM Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All communication between components uses TLS 1.3 with strong cipher suites<br/>
+    ✓ Certificate validation enforced (no certificate warnings ignored)<br/>
+    ✓ APIs implement certificate pinning for mobile apps to prevent MITM attacks<br/>
+    ✓ Webhook receivers validate sender signatures (HMAC) to prevent payload tampering<br/>
+    ✓ Internal microservices use mutual TLS for authentication<br/>
+    ✓ Test: Use mitmproxy to intercept traffic and attempt to modify requests, verify TLS connections fail if certificate is invalid, check webhook payloads include HMAC signatures
+  </div>
+</div>
 
-Never trust client-provided data for security or business decisions. All prices, quantities, permissions, and calculations must be performed server-side using authoritative data sources. The server should fetch product prices from the database, not accept them from the client. User roles and permissions must be validated on every request using server-side session data, not client-provided tokens.
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Database Access Controls</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Database accounts used by application have minimal privileges<br/>
+    ✓ Query user has only SELECT permission on most tables, with UPDATE/DELETE/INSERT restricted to specific tables<br/>
+    ✓ Separate database accounts for different microservices<br/>
+    ✓ Database audit logging enabled to track all modifications<br/>
+    ✓ Database triggers implemented to prevent unauthorized updates to critical fields like user.role or product.price<br/>
+    ✓ Test: Attempt to execute UPDATE or DELETE statements through application, verify only SELECT queries succeed for read-only endpoints, review database user permissions
+  </div>
+</div>
 
-**Test it**: Use browser DevTools or Burp Suite to modify request payloads. Change prices to $0, quantities to negative numbers, or user IDs to other accounts. Verify the server rejects invalid values.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">File Upload Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All file uploads validated by type (check magic bytes, not file extension), size (enforce maximum), and content (scan for malware)<br/>
+    ✓ Uploaded files stored outside web root with randomized names<br/>
+    ✓ Never execute uploaded files or eval their contents<br/>
+    ✓ Content Security Policy (CSP) implemented to prevent execution of uploaded scripts<br/>
+    ✓ Uploads scanned with antivirus before saving<br/>
+    ✓ Test: Upload file with double extension like malware.jpg.php and verify rejection or safe storage, upload SVG with embedded JavaScript and confirm no execution
+  </div>
+</div>
 
----
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Logging and Change Detection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All data modifications logged with who, what, when, where details<br/>
+    ✓ Immutable audit logs stored in separate system (cannot be modified by application)<br/>
+    ✓ File integrity monitoring (FIM) implemented to detect unauthorized changes to critical files<br/>
+    ✓ Database has row-level versioning or audit tables tracking all changes<br/>
+    ✓ Validate: Review audit logs after making data changes, verify logs include user ID, timestamp, old value, new value, and IP address, test that logs are append-only
+  </div>
+</div>
 
-### 📝 Code and Artifact Integrity
-
-All deployed code, container images, and dependencies must be signed with cryptographic signatures. The deployment pipeline should verify signatures before running any artifact. Use SHA-256 checksums for file integrity verification. Third-party JavaScript libraries loaded from CDNs must include Subresource Integrity (SRI) hashes. Package lockfiles (package-lock.json, yarn.lock) must be committed to prevent dependency tampering.
-
-**Test it**: Attempt to deploy an unsigned artifact and verify it's rejected. Check that HTML includes SRI hashes for CDN scripts. Modify a dependency and confirm the lockfile detects the change.
-
----
-
-### 🔐 Transport Security and MITM Prevention
-
-All communication between components must use TLS 1.3 with strong cipher suites. Certificate validation must be enforced (no certificate warnings ignored). APIs should implement certificate pinning for mobile apps to prevent MITM attacks. Webhook receivers should validate sender signatures (HMAC) to prevent payload tampering. Internal microservices should use mutual TLS for authentication.
-
-**Test it**: Use mitmproxy to intercept traffic and attempt to modify requests. Verify TLS connections fail if certificate is invalid. Check that webhook payloads include HMAC signatures.
-
----
-
-### 🗄️ Database Access Controls
-
-Database accounts used by the application should have minimal privileges. The query user should have only SELECT permission on most tables, with UPDATE/DELETE/INSERT restricted to specific tables. Use separate database accounts for different microservices. Enable database audit logging to track all modifications. Implement database triggers to prevent unauthorized updates to critical fields like user.role or product.price.
-
-**Test it**: Attempt to execute UPDATE or DELETE statements through the application. Verify only SELECT queries succeed for read-only endpoints. Review database user permissions.
-
----
-
-### 📦 File Upload Security
-
-All file uploads must be validated by type (check magic bytes, not file extension), size (enforce maximum), and content (scan for malware). Store uploaded files outside the web root with randomized names. Never execute uploaded files or eval their contents. Implement Content Security Policy (CSP) to prevent execution of uploaded scripts. Scan uploads with antivirus before saving.
-
-**Test it**: Upload a file with double extension like `malware.jpg.php` and verify it's rejected or stored safely. Upload an SVG with embedded JavaScript and confirm it doesn't execute.
-
----
-
-### 🔍 Logging and Change Detection
-
-All data modifications must be logged with who, what, when, where details. Use immutable audit logs stored in a separate system (cannot be modified by application). Implement file integrity monitoring (FIM) to detect unauthorized changes to critical files. Database should have row-level versioning or audit tables tracking all changes.
-
-**Validate**: Review audit logs after making data changes. Verify logs include user ID, timestamp, old value, new value, and IP address. Test that logs are append-only.
-
----
-
-### 🔬 Threat Scenario Realism
-
-For each AI-generated threat, verify the attack scenario is technically feasible. Check that the impact assessment is accurate and specific. Validate that mitigations address the root cause (not just symptoms). Ensure code examples show both vulnerable and secure patterns. Verify OWASP mappings are correct.
-
-**Red flags**: Threats that assume unrealistic attacker access, mitigations that break legitimate functionality, or scenarios that don't match your actual tech stack.
+</div>
 
 </div>
 

@@ -558,79 +558,139 @@ export function getSecureCookieOptions() {
 
 ## ✅ Human Review Checklist
 
-After AI generates authentication code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated authentication code, verify:</div>
 
-### 🔐 Password Storage
+<div style="display: grid; gap: 20px;">
 
-All passwords must be hashed using bcrypt with cost factor of at least 12, which provides strong protection against brute force attacks. Never store passwords in plaintext or use weak hashing algorithms like MD5, SHA-1, or SHA-256 which are too fast for password hashing. The bcrypt library handles salt generation automatically and uses a slow, memory-hard algorithm resistant to GPU acceleration. When users register, hash password immediately before storing. Never log passwords or include them in error messages. Document bcrypt version and cost factor used for future migration planning.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Password Storage</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All passwords hashed using bcrypt with cost factor of at least 12<br/>
+    ✓ Never store passwords in plaintext or use weak algorithms (MD5, SHA-1, SHA-256)<br/>
+    ✓ bcrypt library handles salt generation automatically with slow, memory-hard algorithm resistant to GPU acceleration<br/>
+    ✓ Passwords hashed immediately before storing on user registration<br/>
+    ✓ Passwords never logged or included in error messages<br/>
+    ✓ bcrypt version and cost factor documented for future migration planning<br/>
+    ✓ Test: Inspect database verify only bcrypt hashes stored, register with same password twice verify different hashes
+  </div>
+</div>
 
-**Test it**: Inspect database and verify only bcrypt hashes are stored, no plaintext. Try registering with same password twice and verify different hashes (random salts).
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Timing Attack Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Password verification uses constant-time comparison to prevent timing attacks<br/>
+    ✓ bcrypt.compare() performs constant-time comparison internally, never use ==, ===, or string operators<br/>
+    ✓ Failed login attempts consume similar time by hashing against dummy hash when user doesn't exist<br/>
+    ✓ Prevents user enumeration through timing analysis<br/>
+    ✓ Response times similar for wrong password vs wrong user within ~10ms<br/>
+    ✓ Test: Measure response time for wrong password vs wrong user, times should be similar
+  </div>
+</div>
 
----
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Brute Force Protection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Multi-layered protection using both IP-based rate limiting and per-account lockout<br/>
+    ✓ Rate limiting restricts login attempts to 5 per IP per 15 minutes<br/>
+    ✓ Attempts tracked in memory using Map for small deployments or Redis for production<br/>
+    ✓ Account lockout activates after 5 consecutive failed attempts, locks for 15 minutes minimum<br/>
+    ✓ Failed attempt counter reset on successful login<br/>
+    ✓ All rate limit violations and lockouts logged as security events<br/>
+    ✓ Generic error messages that don't reveal whether rate limit or lockout triggered<br/>
+    ✓ Test: Make 6 attempts from same IP verify 6th blocked, 5 wrong passwords verify account locks
+  </div>
+</div>
 
-### ⏱️ Timing Attack Prevention
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Account Lockout</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Failed login attempts tracked per account, automatic lock after reaching threshold<br/>
+    ✓ Lockout timestamp stored with user record, checked on every login attempt<br/>
+    ✓ Locked accounts return same generic "Invalid credentials" error as wrong password<br/>
+    ✓ Automatic unlock after lockout duration expires without admin intervention<br/>
+    ✓ Progressive lockout considered where duration increases with repeated lockouts<br/>
+    ✓ Lockout events logged with masked user identifier and timestamp<br/>
+    ✓ Account recovery mechanism provided for legitimate users who forgot password<br/>
+    ✓ Test: Enter wrong password 5 times verify lock, wait duration verify auto-unlock, check logs
+  </div>
+</div>
 
-Password verification must use constant-time comparison to prevent timing attacks that leak information about password correctness. Use bcrypt.compare() which performs constant-time comparison internally, never use ==, ===, or string comparison operators. Timing attacks allow attackers to incrementally guess passwords by measuring response time differences. Even failed login attempts should consume similar time by hashing the provided password against a dummy hash when user doesn't exist. This prevents user enumeration through timing analysis.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Session Management</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Session IDs generated using crypto.randomBytes with minimum 32 bytes (256 bits) entropy<br/>
+    ✓ Session metadata stored including userId, creation timestamp, last accessed timestamp, IP address<br/>
+    ✓ Both idle timeout (30 min inactivity) and absolute timeout (24 hours from creation) implemented<br/>
+    ✓ Both timeouts validated on every session check<br/>
+    ✓ Session ID regenerated on login to prevent session fixation attacks<br/>
+    ✓ Sessions stored server-side (memory, Redis, database), never trust client-side session data<br/>
+    ✓ Session deleted from storage on logout<br/>
+    ✓ Last accessed timestamp updated on each authenticated request for idle timeout<br/>
+    ✓ Test: Login verify session works, wait 31 min idle verify expired, wait 25 hours verify expired
+  </div>
+</div>
 
-**Test it**: Measure response time for wrong password vs wrong user. Times should be similar (within ~10ms). bcrypt.compare inherently provides timing safety.
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Secure Cookies</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Session cookies have httpOnly flag preventing JavaScript access defending against XSS<br/>
+    ✓ Secure flag true in production ensuring transmission only over HTTPS<br/>
+    ✓ SameSite attribute set to 'strict' or 'lax' to prevent CSRF attacks<br/>
+    ✓ Appropriate maxAge set matching session absolute timeout<br/>
+    ✓ Generic cookie name like 'sessionId' not revealing technology stack<br/>
+    ✓ Path set to minimum required scope, typically '/'<br/>
+    ✓ __Host- prefix considered for cookies to enforce secure and path restrictions<br/>
+    ✓ Never store sensitive data in cookies, only session identifier referencing server-side storage<br/>
+    ✓ Test: Inspect cookies in DevTools verify httpOnly, secure, sameSite flags, attempt JavaScript access verify undefined
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Multi-Factor Authentication</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ TOTP (Time-based One-Time Password) implemented using libraries like speakeasy<br/>
+    ✓ Cryptographically secure random secrets generated (32 bytes minimum) for each user<br/>
+    ✓ QR codes provided for easy setup in authenticator apps (Google Authenticator, Authy)<br/>
+    ✓ MFA secret stored encrypted in database<br/>
+    ✓ Tokens verified with time window (±1-2 minutes) to account for clock drift<br/>
+    ✓ MFA enforced for admin accounts, offered as option for regular users<br/>
+    ✓ Backup codes provided for account recovery if MFA device lost<br/>
+    ✓ MFA setup and verification events logged<br/>
+    ✓ Same token never accepted twice (replay prevention implemented)<br/>
+    ✓ Test: Enable MFA scan QR verify token works, test expired token verify rejection, test reused token verify rejection
+  </div>
+</div>
 
-### 🚫 Brute Force Protection
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Generic Error Messages</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All authentication failures return identical generic error messages to prevent user enumeration<br/>
+    ✓ "Invalid credentials" used for wrong password, wrong username, locked account, disabled account, rate limit exceeded<br/>
+    ✓ Never reveal whether specific username exists, password is close, or account is locked<br/>
+    ✓ Time-based user enumeration prevented by constant-time password comparison<br/>
+    ✓ Registration doesn't reveal if email already exists until after email verification<br/>
+    ✓ Password reset doesn't reveal if email exists in system<br/>
+    ✓ Different code paths take similar time to prevent timing-based enumeration<br/>
+    ✓ Test: Login with wrong user, wrong password, locked account verify identical error with similar response times
+  </div>
+</div>
 
-Implement multi-layered brute force protection using both IP-based rate limiting and per-account lockout. Rate limiting should restrict login attempts per IP address to 5 attempts per 15 minutes. Track attempts in memory using Map for small deployments or Redis for production. Account lockout should activate after 5 consecutive failed login attempts, locking the account for 15 minutes minimum. Reset failed attempt counter on successful login. Log all rate limit violations and lockouts as security events for monitoring. Return generic error messages that don't reveal whether rate limit or lockout was triggered.
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Security Event Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All authentication events logged including successful logins, failed attempts, account lockouts, MFA setup/verification, password changes, logout<br/>
+    ✓ Contextual data included: masked user identifier (first 3 chars + ***), masked IP address (last octet hidden), timestamp, user agent, action outcome<br/>
+    ✓ Passwords, session IDs, and MFA secrets never logged<br/>
+    ✓ Logs sent to centralized system with restricted access<br/>
+    ✓ Alerts set up for suspicious patterns like many failed logins from single IP, rapid sequential failed attempts, successful login after multiple failures<br/>
+    ✓ Logs retained for minimum 90 days for forensic analysis<br/>
+    ✓ Test: Trigger various authentication events verify all logged with appropriate detail, check no sensitive data in logs
+  </div>
+</div>
 
-**Test it**: Make 6 login attempts from same IP and verify 6th is blocked. Make 5 wrong password attempts and verify account locks. Successful login should reset counter.
-
----
-
-### 🎯 Account Lockout
-
-Track failed login attempts per account and automatically lock accounts after reaching threshold. Store lockout timestamp with user record and check on every login attempt. Locked accounts should return same generic "Invalid credentials" error as wrong password to avoid information disclosure. Implement automatic unlock after lockout duration expires rather than requiring admin intervention. Consider progressive lockout where duration increases with repeated lockouts. Log lockout events with masked user identifier and timestamp. Provide account recovery mechanism for legitimate users who forgot password.
-
-**Test it**: Enter wrong password 5 times and verify account locks. Wait lockout duration and verify automatic unlock. Check logs contain lockout events.
-
----
-
-### 🔑 Session Management
-
-Generate session IDs using crypto.randomBytes with minimum 32 bytes (256 bits) of entropy for unpredictability. Store session metadata including userId, creation timestamp, last accessed timestamp, and IP address. Implement both idle timeout (30 minutes of inactivity) and absolute timeout (24 hours from creation). Validate both timeouts on every session check. Regenerate session ID on login to prevent session fixation attacks. Store sessions server-side in memory, Redis, or database, never trust client-side session data. Delete session from storage on logout. Update last accessed timestamp on each authenticated request to maintain idle timeout.
-
-**Test it**: Login and verify session works. Wait 31 minutes idle and verify session expired. Login and wait 25 hours and verify session expired despite activity.
-
----
-
-### 🍪 Secure Cookies
-
-Session cookies must have httpOnly flag preventing JavaScript access to defend against XSS. Secure flag must be true in production to ensure transmission only over HTTPS. SameSite attribute should be 'strict' or 'lax' to prevent CSRF attacks. Set appropriate maxAge matching session absolute timeout. Use generic cookie name like 'sessionId' not revealing technology stack. Set path to minimum required scope, typically '/'. Consider __Host- prefix for cookies to enforce secure and path restrictions. Never store sensitive data in cookies, only session identifier which references server-side session storage.
-
-**Test it**: Inspect cookies in browser DevTools and verify httpOnly, secure, and sameSite flags present. Attempt to access cookie with JavaScript and verify undefined.
-
----
-
-### 🔐 Multi-Factor Authentication
-
-Implement TOTP (Time-based One-Time Password) using libraries like speakeasy for standardized MFA. Generate cryptographically secure random secrets (32 bytes minimum) for each user. Provide QR codes for easy setup in authenticator apps like Google Authenticator or Authy. Store MFA secret encrypted in database. Verify tokens with time window (±1-2 minutes) to account for clock drift. Enforce MFA for admin accounts and offer as option for regular users. Provide backup codes for account recovery if MFA device is lost. Log MFA setup and verification events. Never accept same token twice (implement replay prevention).
-
-**Test it**: Enable MFA, scan QR code, verify token works. Test with expired token (>2 minutes old) and verify rejection. Test with reused token and verify rejection.
-
----
-
-### 📝 Generic Error Messages
-
-All authentication failures must return identical generic error messages to prevent user enumeration. Use "Invalid credentials" for wrong password, wrong username, locked account, disabled account, and rate limit exceeded. Never reveal whether specific username exists, password is close, or account is locked. Time-based user enumeration is prevented by constant-time password comparison. Registration should not reveal if email already exists until after email verification. Password reset should not reveal if email exists in system. Different code paths should take similar time to execute to prevent timing-based enumeration.
-
-**Test it**: Login with wrong user, wrong password, and locked account. All should return identical "Invalid credentials" error with similar response times.
-
----
-
-### 🔍 Security Event Logging
-
-Log all authentication events including successful logins, failed attempts, account lockouts, MFA setup/verification, password changes, and logout. Include contextual data: masked user identifier (first 3 chars + ***), masked IP address (last octet hidden), timestamp, user agent, and action outcome. Never log passwords, session IDs, or MFA secrets. Log to centralized system with restricted access. Set up alerts for suspicious patterns like many failed logins from single IP, rapid sequential failed attempts, or successful login after multiple failures. Retain logs for minimum 90 days for forensic analysis.
-
-**Test it**: Trigger various authentication events and verify all are logged with appropriate detail. Check logs don't contain sensitive data like passwords or full session IDs.
+</div>
 
 </div>
 

@@ -430,71 +430,97 @@ Additional controls:
 
 ## ✅ Human Review Checklist
 
-After AI generates elevation of privilege threats, validate each finding before implementing mitigations. Here's what to verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated Elevation of Privilege threat mitigation code, verify:</div>
 
-### 🔐 Server-Side Authorization
+<div style="display: grid; gap: 20px;">
 
-Every endpoint that performs privileged operations must check authorization server-side. Never rely on client-side checks (hidden UI elements, disabled buttons) because attackers bypass the UI entirely. Fetch the user's current role from the database on every request, not from JWT claims that can be manipulated. Implement deny-by-default policies where access must be explicitly granted. Check authorization after authentication but before executing any business logic.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Server-Side Authorization</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Every endpoint performing privileged operations checks authorization server-side<br/>
+    ✓ Never rely on client-side checks (hidden UI elements, disabled buttons) because attackers bypass UI entirely<br/>
+    ✓ User's current role fetched from database on every request, not from JWT claims that can be manipulated<br/>
+    ✓ Deny-by-default policies implemented where access must be explicitly granted<br/>
+    ✓ Authorization checked after authentication but before executing any business logic<br/>
+    ✓ Test: Attempt to call admin endpoints while logged in as regular user, modify JWT claims and verify they're ignored, check authorization enforced even when bypassing UI
+  </div>
+</div>
 
-**Test it**: Attempt to call admin endpoints while logged in as a regular user. Modify JWT claims and verify they're ignored. Check that authorization is enforced even when bypassing the UI.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Role-Based Access Control (RBAC)</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Clear role hierarchy implemented with well-defined permissions: guest (unauthenticated), user (basic access), moderator (content management), admin (user management), superadmin (system configuration)<br/>
+    ✓ Roles stored in database as single source of truth<br/>
+    ✓ Never allow users to modify their own role field<br/>
+    ✓ Role inheritance implemented where appropriate (admin inherits user permissions)<br/>
+    ✓ Middleware or decorators enforce role checks consistently across all endpoints<br/>
+    ✓ Validate: Document all roles and their permissions, review database schema to ensure role field has appropriate constraints, verify role changes require admin approval
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Mass Assignment Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Explicit allowlists define which fields each role can modify<br/>
+    ✓ Regular users never able to update role, is_admin, permissions, or similar security-critical fields<br/>
+    ✓ Separate validation schemas created for different roles<br/>
+    ✓ ORMs with field-level access control used or dynamic SQL built with only allowed columns<br/>
+    ✓ All attempts to update restricted fields logged as potential attacks<br/>
+    ✓ Test: Submit requests with extra fields like role: admin and verify they're ignored or rejected, check database updates only touch explicitly allowed columns
+  </div>
+</div>
 
-### 📊 Role-Based Access Control (RBAC)
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Resource Ownership and Horizontal Escalation Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Ownership checks ensure users can only access their own resources<br/>
+    ✓ For endpoints like /api/users/:userId/orders, verify req.user.id === userId or user has admin privileges<br/>
+    ✓ Database queries use ownership filters: WHERE user_id = $1 AND id = $2<br/>
+    ✓ Never expose sequential resource IDs (use UUIDs)<br/>
+    ✓ ACLs implemented for resources shared between users<br/>
+    ✓ Test: Log in as User A, attempt to access User B's resources by changing IDs in URLs, verify all requests return 403 Forbidden
+  </div>
+</div>
 
-Implement a clear role hierarchy with well-defined permissions. Common roles: guest (unauthenticated), user (basic access), moderator (content management), admin (user management), superadmin (system configuration). Store roles in database as single source of truth. Never allow users to modify their own role field. Implement role inheritance where appropriate (admin inherits user permissions). Use middleware or decorators to enforce role checks consistently across all endpoints.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">File System and Path Validation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never construct file paths using user-provided input directly<br/>
+    ✓ Database-backed file identifiers (UUIDs) used that map to internal paths<br/>
+    ✓ basename() applied to strip directory components<br/>
+    ✓ Absolute paths resolved and verified they're within allowed directories<br/>
+    ✓ Separate storage locations implemented for different sensitivity levels (public uploads, private documents, system configs)<br/>
+    ✓ Object storage (S3) used instead of file system when possible<br/>
+    ✓ Test: Attempt path traversal with ../, ..%2F, and URL-encoded variants, verify all attempts blocked and logged
+  </div>
+</div>
 
-**Validate**: Document all roles and their permissions. Review database schema to ensure role field has appropriate constraints. Verify role changes require admin approval.
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Logging and Anomaly Detection</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All authorization failures logged with user ID, requested resource, required permission, and actual permission<br/>
+    ✓ Monitoring for patterns indicating privilege escalation attempts: repeated 403 errors, access to many resources sequentially, profile updates with restricted fields<br/>
+    ✓ Security teams alerted on suspicious activity<br/>
+    ✓ Honeypot endpoints implemented that should never be accessed (trigger immediate alerts)<br/>
+    ✓ Validate: Review authorization failure logs, verify sufficient context for investigation, test alerts fire when authorization fails repeatedly
+  </div>
+</div>
 
----
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Least Privilege and Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Users granted minimum permissions necessary for their role<br/>
+    ✓ Multiple layers of authorization implemented: network level (firewall rules), application level (middleware), database level (row-level security)<br/>
+    ✓ Separate database accounts with limited privileges used for different services<br/>
+    ✓ Multi-factor authentication required for admin actions<br/>
+    ✓ Approval workflows implemented for sensitive operations (user deletion, role changes)<br/>
+    ✓ Review: Audit all role permissions and remove unnecessary access, verify database users have minimal privileges (read-only where possible)
+  </div>
+</div>
 
-### 🛡️ Input Validation and Mass Assignment Prevention
-
-Use explicit allowlists defining which fields each role can modify. Regular users should never be able to update `role`, `is_admin`, `permissions`, or similar security-critical fields. Create separate validation schemas for different roles. Use ORMs with field-level access control or build dynamic SQL with only allowed columns. Log all attempts to update restricted fields as potential attacks.
-
-**Test it**: Submit requests with extra fields like `role: "admin"` and verify they're ignored or rejected. Check that database updates only touch explicitly allowed columns.
-
----
-
-### 🗂️ Resource Ownership and Horizontal Escalation Prevention
-
-Implement ownership checks ensuring users can only access their own resources. For endpoints like `/api/users/:userId/orders`, verify `req.user.id === userId` or that user has admin privileges. Use database queries with ownership filters: `WHERE user_id = $1 AND id = $2`. Never expose sequential resource IDs (use UUIDs). Implement ACLs for resources shared between users.
-
-**Test it**: Log in as User A, attempt to access User B's resources by changing IDs in URLs. Verify all requests return 403 Forbidden.
-
----
-
-### 📂 File System and Path Validation
-
-Never construct file paths using user-provided input directly. Use database-backed file identifiers (UUIDs) that map to internal paths. Apply `basename()` to strip directory components. Resolve absolute paths and verify they're within allowed directories. Implement separate storage locations for different sensitivity levels (public uploads, private documents, system configs). Use object storage (S3) instead of file system when possible.
-
-**Test it**: Attempt path traversal with `../`, `..%2F`, and URL-encoded variants. Verify all attempts are blocked and logged.
-
----
-
-### 🔍 Logging and Anomaly Detection
-
-Log all authorization failures with user ID, requested resource, required permission, and actual permission. Monitor for patterns indicating privilege escalation attempts: repeated 403 errors, access to many resources sequentially, profile updates with restricted fields. Alert security teams on suspicious activity. Implement honeypot endpoints that should never be accessed (trigger immediate alerts).
-
-**Validate**: Review authorization failure logs. Verify they contain enough context to investigate. Test that alerts fire when authorization fails repeatedly.
-
----
-
-### 🔄 Least Privilege and Defense in Depth
-
-Grant users the minimum permissions necessary for their role. Implement multiple layers of authorization: network level (firewall rules), application level (middleware), database level (row-level security). Use separate database accounts with limited privileges for different services. Require multi-factor authentication for admin actions. Implement approval workflows for sensitive operations (user deletion, role changes).
-
-**Review**: Audit all role permissions and remove unnecessary access. Verify database users have minimal privileges (read-only where possible).
-
----
-
-### 🔬 Threat Scenario Realism
-
-For each AI-generated threat, verify the attack scenario is technically feasible with your authorization model. Check that impact assessments are realistic (can attacker truly gain full admin access?). Validate that mitigations address root causes (not just symptoms). Ensure code examples match your tech stack and authorization pattern.
-
-**Red flags**: JWT role claims used for authorization without server-side validation, mass assignment vulnerabilities allowing role changes, missing authorization checks on admin endpoints, path traversal in file serving.
+</div>
 
 </div>
 

@@ -115,6 +115,14 @@
 
 ## 📚 Maintainability Prompt Packs
 
+### Core Principles
+| Pattern | Focus | Key Metric | Use Case |
+|---------|-------|------------|----------|
+| **[🧩 Complexity Reduction](./complexity-reduction)** | Simplifying complex code | Cyclomatic complexity ≤10 per function | Refactoring nested logic, Extract Method pattern, Strategy pattern |
+| **[♻️ DRY Principle](./dry-principle)** | Eliminating duplication | Code duplication <3% | Extract reusable functions, centralize constants, abstract patterns |
+| **[🎯 Single Responsibility](./single-responsibility)** | One function, one purpose | One reason to change per module | Layered architecture, separation of concerns, focused functions |
+
+### Evolutionary Architecture
 | Pattern | Focus | Key Metric | Use Case |
 |---------|-------|------------|----------|
 | **[📊 Fitness Functions](./fitness-functions)** | Automated quality gates | Complexity ≤10, Coverage ≥80%, Deps <90d, p95 <200ms | CI/CD gates, pre-commit hooks, code quality enforcement |
@@ -122,7 +130,7 @@
 | **[🌳 Strangler Fig Pattern](./strangler-fig)** | Incremental legacy migration | Traffic routing 0%→100% | Avoiding big-bang rewrites, safe modernization |
 | **[⚠️ Technical Debt Management](./technical-debt)** | Systematic refactoring | 20% sprint capacity for paydown | Backlog prioritization, debt tracking, quality improvement |
 
-**Quick Start**: New to evolutionary architecture? Start with **[Fitness Functions](./fitness-functions)** to implement your first automated quality gate, then add **[Dependency Hygiene](./dependency-hygiene)** for automated updates.
+**Quick Start**: New to maintainability? Start with **[Complexity Reduction](./complexity-reduction)** and **[DRY Principle](./dry-principle)** to improve existing code, then implement **[Fitness Functions](./fitness-functions)** to prevent future regressions.
 
 ---
 
@@ -133,7 +141,7 @@
 <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(99, 102, 241, 0.3);">
   <div style="font-size: 48px; margin-bottom: 12px;">1️⃣</div>
   <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Choose Pattern</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Select fitness function, dependency hygiene, strangler fig, or tech debt</div>
+  <div style="font-size: 14px; color: #cbd5e1;">Start with core principles (complexity, DRY, SRP) or evolutionary patterns (fitness functions, dependency hygiene)</div>
 </div>
 
 <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(139, 92, 246, 0.3);">
@@ -218,6 +226,7 @@ flowchart TD
 
 ## 🔗 Related Resources
 
+- **[STRIDE Threat Modeling](/docs/prompts/threat-modeling/)** — Design-phase security analysis
 - **[OWASP Prompt Packs](/docs/prompts/owasp/)** — Security-first development
 - **[AI Agent Guides](/docs/agents/)** — Claude, Copilot, ChatGPT integration
 - **[Workshop Series](/docs/workshop/)** — Hands-on training modules

@@ -493,71 +493,132 @@ jobs:
 
 ## ✅ Human Review Checklist
 
-After AI generates integrity verification code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated integrity verification code, verify:</div>
 
-### 🔐 Digital Signatures
+<div style="display: grid; gap: 20px;">
 
-All plugins, updates, and critical code must be verified using HMAC-SHA256 or digital signatures before execution. Store signing key securely in environment variables or secret management systems, never hardcode in source. Generate signatures for trusted content during build process and store with metadata. Before loading any external code, verify signature matches expected value using constant-time comparison to prevent timing attacks. Maintain allowlist of trusted sources with their expected signatures. Reject any content with missing, invalid, or mismatched signatures. Log all signature verification failures as security events.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Digital Signatures</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All plugins, updates, and critical code verified using HMAC-SHA256 or digital signatures before execution<br/>
+    ✓ Signing key stored securely in environment variables or secret management systems, never hardcoded<br/>
+    ✓ Signatures generated for trusted content during build process and stored with metadata<br/>
+    ✓ Signature verification uses constant-time comparison to prevent timing attacks<br/>
+    ✓ Allowlist maintained of trusted sources with their expected signatures<br/>
+    ✓ Content with missing, invalid, or mismatched signatures rejected<br/>
+    ✓ All signature verification failures logged as security events<br/>
+    ✓ Test: Tamper with one byte of plugin content, verify signature check fails and logs show integrity violation
+  </div>
+</div>
 
-**Test it**: Tamper with one byte of plugin content and verify signature check fails. Verify logs show integrity violation.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Checksum Verification</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ SHA-256 checksums calculated for all downloaded files and compared against expected values before use<br/>
+    ✓ Expected checksums fetched from trusted source over HTTPS, ideally from different channel than file<br/>
+    ✓ Constant-time comparison used for checksum validation to prevent timing attacks<br/>
+    ✓ Checksums stored alongside artifacts in version control or secure storage<br/>
+    ✓ Verification happens immediately after download, before parsing or executing content<br/>
+    ✓ Streaming hash calculation considered for large files to reduce memory usage<br/>
+    ✓ Checksum verification never skipped even for "trusted" sources<br/>
+    ✓ Test: Download file, modify one byte, verify checksum validation fails and file rejected
+  </div>
+</div>
 
----
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Safe Deserialization</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never use eval(), Function(), or vm.runInContext() with external data<br/>
+    ✓ JSON parsed with JSON.parse() which is safe and cannot execute code<br/>
+    ✓ Structure validated with Zod or similar schema validator after parsing<br/>
+    ✓ YAML uses yaml.safeLoad() not yaml.load() to prevent code execution<br/>
+    ✓ Never deserialize Python pickle, PHP unserialize, or Java ObjectInputStream from untrusted sources<br/>
+    ✓ Deserialization formats allowing code execution validated and safer alternatives considered<br/>
+    ✓ Allowlist implemented for accepted data types, unexpected structures rejected<br/>
+    ✓ Test: Attempt malicious payload deserialization, verify safe methods reject them, JSON.parse throws SyntaxError
+  </div>
+</div>
 
-### 📝 Checksum Verification
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Supply Chain Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Dependency integrity verified during installation using package-lock.json integrity hashes<br/>
+    ✓ npm audit run to check for known vulnerabilities in dependencies<br/>
+    ✓ GitHub Action versions pinned to specific commit SHAs, not @main or @latest<br/>
+    ✓ Dependency tree reviewed with npm ls, unnecessary transitive dependencies questioned<br/>
+    ✓ Dependabot or Renovate enabled for automated dependency updates with security scanning<br/>
+    ✓ npm private registry or artifact repository considered for additional control<br/>
+    ✓ Allowlist implemented of approved packages for critical applications<br/>
+    ✓ Signed commits required from contributors<br/>
+    ✓ Test: Modify package-lock.json integrity hash verify npm ci fails, check npm audit in CI/CD
+  </div>
+</div>
 
-Calculate SHA-256 checksums for all downloaded files and compare against expected values before use. Fetch expected checksums from trusted source over HTTPS, ideally from different channel than file itself. Use constant-time comparison for checksum validation to prevent timing attacks. Store checksums alongside artifacts in version control or secure storage. Verify checksums immediately after download, before parsing or executing content. For large files, consider streaming hash calculation to reduce memory usage. Never skip checksum verification even for "trusted" sources.
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">CI/CD Pipeline Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ CI/CD pipelines secured with artifact signing and verification at each stage<br/>
+    ✓ Build artifacts signed using HMAC or GPG during build process<br/>
+    ✓ Signatures stored alongside artifacts<br/>
+    ✓ Signatures verified before deployment to any environment<br/>
+    ✓ Separate signing keys used for different environments (dev, staging, prod)<br/>
+    ✓ Access to signing keys restricted using secret management<br/>
+    ✓ Immutable build artifacts implemented - never modified after build<br/>
+    ✓ Reproducible builds used where possible to verify artifact integrity<br/>
+    ✓ All artifact generation and verification events logged<br/>
+    ✓ Deployment fails if signature verification fails<br/>
+    ✓ Test: Deploy artifact without signature verify deployment fails, tamper post-build verify verification fails
+  </div>
+</div>
 
-**Test it**: Download file, modify one byte, verify checksum validation fails and file is rejected.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Replay Attack Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Timestamp included in all signed data structures to prevent replay attacks<br/>
+    ✓ Timestamp age validated on verification, data older than threshold (typically 5 minutes) rejected<br/>
+    ✓ ISO 8601 format timestamps used for consistency<br/>
+    ✓ Nonce (random value) included for additional replay prevention in high-security scenarios<br/>
+    ✓ Recently used nonces stored to detect duplicates<br/>
+    ✓ Sequence numbers considered for ordered operations<br/>
+    ✓ Replay attack attempts logged<br/>
+    ✓ Timestamp tolerance balanced with security - tighter windows more secure but may reject legitimate delayed requests<br/>
+    ✓ Test: Create signed data, wait past expiration time, attempt use and verify rejection due to age
+  </div>
+</div>
 
----
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Integrity Metadata</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Comprehensive metadata maintained for all trusted external resources (name, version, URL, signature, checksum, last verification date)<br/>
+    ✓ Metadata stored in version control alongside code for auditability<br/>
+    ✓ Verification process documented for adding new trusted resources<br/>
+    ✓ Metadata schema validation included to prevent malformed entries<br/>
+    ✓ Metadata versioning implemented to track changes over time<br/>
+    ✓ Tools provided to regenerate signatures and checksums when resources update<br/>
+    ✓ Metadata validation automated in CI/CD to catch misconfigurations<br/>
+    ✓ Code never allowed to specify its own integrity metadata<br/>
+    ✓ Test: Add resource to allowlist without proper metadata, verify loading fails with clear error message
+  </div>
+</div>
 
-### 🚫 Safe Deserialization
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Integrity Failure Logging</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ All integrity verification events logged including successful verifications and failures<br/>
+    ✓ Failure logs include resource identifier, expected vs actual signature/checksum, timestamp, action taken<br/>
+    ✓ Signing keys or full signatures never logged in plaintext logs<br/>
+    ✓ Sensitive information masked while preserving forensic value<br/>
+    ✓ Alerts set up for integrity failures as they may indicate active attacks<br/>
+    ✓ Integrity failure patterns aggregated to detect systematic attacks<br/>
+    ✓ Integrity logs retained separately from application logs for security analysis<br/>
+    ✓ Logs forwarded to SIEM or security monitoring system for correlation<br/>
+    ✓ Test: Trigger integrity failure, verify comprehensive log entry created with all necessary details
+  </div>
+</div>
 
-Never use eval(), Function(), or vm.runInContext() with external data. For JSON, use JSON.parse() which is safe and cannot execute code. After parsing, validate structure with Zod or similar schema validator. For YAML, use yaml.safeLoad() not yaml.load() to prevent code execution. Never deserialize Python pickle, PHP unserialize, or Java ObjectInputStream from untrusted sources as they enable code execution. If deserialization format allows code execution, validate source and consider safer alternatives like JSON. Implement allowlist of accepted data types and reject unexpected structures.
-
-**Test it**: Attempt to deserialize malicious payloads and verify safe methods reject them. JSON.parse should throw SyntaxError, not execute code.
-
----
-
-### 🔗 Supply Chain Security
-
-Verify integrity of all dependencies during installation using package-lock.json integrity hashes. Run npm audit to check for known vulnerabilities in dependencies. Pin GitHub Action versions to specific commit SHAs, not @main or @latest. Review dependency tree with npm ls and question unnecessary transitive dependencies. Enable Dependabot or Renovate for automated dependency updates with security scanning. Consider using npm private registry or artifact repository for additional control. Implement allowlist of approved packages for critical applications. Require signed commits from contributors.
-
-**Test it**: Modify package-lock.json integrity hash and verify npm ci fails. Check npm audit in CI/CD pipeline.
-
----
-
-### 🏗️ CI/CD Pipeline Security
-
-Secure CI/CD pipelines with artifact signing and verification at each stage. Sign build artifacts using HMAC or GPG during build process. Store signatures alongside artifacts. Verify signatures before deployment to any environment. Use separate signing keys for different environments (dev, staging, prod). Restrict access to signing keys using secret management. Implement immutable build artifacts - never modify after build. Use reproducible builds where possible to verify artifact integrity. Log all artifact generation and verification events. Fail deployment if signature verification fails.
-
-**Test it**: Deploy artifact without signature and verify deployment fails. Tamper with artifact post-build and verify verification fails.
-
----
-
-### ⏰ Replay Attack Prevention
-
-Include timestamp in all signed data structures to prevent replay attacks where attacker reuses old valid signed data. Validate timestamp age on verification, rejecting data older than acceptable threshold (typically 5 minutes). Use ISO 8601 format timestamps for consistency. Include nonce (random value) for additional replay prevention in high-security scenarios. Store recently used nonces to detect duplicates. Consider sequence numbers for ordered operations. Log replay attack attempts. Balance timestamp tolerance with security - tighter windows are more secure but may reject legitimate delayed requests.
-
-**Test it**: Create signed data, wait past expiration time, attempt to use it and verify rejection due to age.
-
----
-
-### 📋 Integrity Metadata
-
-Maintain comprehensive metadata for all trusted external resources including name, version, URL, signature, checksum, and last verification date. Store metadata in version control alongside code for auditability. Document verification process for adding new trusted resources. Include metadata schema validation to prevent malformed entries. Implement metadata versioning to track changes over time. Provide tools to regenerate signatures and checksums when resources update. Automate metadata validation in CI/CD to catch misconfigurations. Never allow code to specify its own integrity metadata.
-
-**Test it**: Add resource to allowlist without proper metadata and verify loading fails with clear error message.
-
----
-
-### 🔍 Integrity Failure Logging
-
-Log all integrity verification events including successful verifications and failures. For failures, log resource identifier, expected vs actual signature/checksum, timestamp, and action taken. Never log signing keys or full signatures in plaintext logs. Mask sensitive information while preserving forensic value. Set up alerts for integrity failures as they may indicate active attacks. Aggregate integrity failure patterns to detect systematic attacks. Retain integrity logs separately from application logs for security analysis. Forward logs to SIEM or security monitoring system for correlation.
-
-**Test it**: Trigger integrity failure and verify comprehensive log entry created with all necessary details.
+</div>
 
 </div>
 

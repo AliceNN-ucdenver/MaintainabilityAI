@@ -394,71 +394,124 @@ export { app };
 
 ## ✅ Human Review Checklist
 
-After AI generates security configuration code, carefully review each area before deploying:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated security configuration code, verify:</div>
 
-### 🌐 CORS Configuration
+<div style="display: grid; gap: 20px;">
 
-CORS must use an explicit allowlist of permitted origins, never wildcard `*` which allows any website to make authenticated requests. Origins should be loaded from environment variables and validated on every request. The origin validation function should check if the requesting origin matches the allowlist exactly, including protocol and port. Credentials should only be enabled when necessary and always paired with specific allowed origins. Exposed headers should be minimal, only including safe values like Content-Length. Preflight cache (maxAge) should be reasonable, typically 24 hours.
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">CORS Configuration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Explicit allowlist of permitted origins used, never wildcard * which allows any website<br/>
+    ✓ Origins loaded from environment variables and validated on every request<br/>
+    ✓ Origin validation checks exact match including protocol and port<br/>
+    ✓ Credentials only enabled when necessary and paired with specific allowed origins<br/>
+    ✓ Exposed headers minimal, only safe values like Content-Length<br/>
+    ✓ Preflight cache (maxAge) set to reasonable value, typically 24 hours<br/>
+    ✓ Test: Attempt requests from allowed origin (succeed) and non-allowed origin (fail with CORS error)
+  </div>
+</div>
 
-**Test it**: Attempt requests from allowed origin (should succeed) and non-allowed origin (should fail with CORS error).
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Security Headers</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Comprehensive security headers using helmet.js or manual configuration<br/>
+    ✓ Content-Security-Policy restricts resource loading to trusted sources, typically 'self'<br/>
+    ✓ Strict-Transport-Security enforces HTTPS with maxAge at least 1 year and includeSubDomains<br/>
+    ✓ X-Frame-Options set to DENY or SAMEORIGIN to prevent clickjacking<br/>
+    ✓ X-Content-Type-Options set to nosniff to prevent MIME sniffing attacks<br/>
+    ✓ Referrer-Policy limits referrer information leakage<br/>
+    ✓ Test: Use browser DevTools or curl to verify all security headers present with correct values
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Error Handling</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Error responses environment-aware, generic messages in production, detailed only in development<br/>
+    ✓ Production errors never expose stack traces, file paths, SQL syntax, or internal system details<br/>
+    ✓ All errors logged server-side with full context for debugging<br/>
+    ✓ Error messages include request ID for correlation between client and server logs<br/>
+    ✓ Different error types have specific status codes but don't leak sensitive details<br/>
+    ✓ Error logs monitored for patterns indicating attacks<br/>
+    ✓ Test: Trigger errors in production mode, verify generic messages to client, full details in server logs
+  </div>
+</div>
 
-### 🛡️ Security Headers
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Environment Configuration</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Configuration externalized to environment variables, never hardcoded in source code<br/>
+    ✓ Different .env files for development and production, never commit .env to version control<br/>
+    ✓ All sensitive values (database passwords, API keys, session secrets) from environment variables<br/>
+    ✓ .env.example template provided with placeholder values for developers<br/>
+    ✓ Required environment variables validated at application startup with fail-fast behavior<br/>
+    ✓ Environment-specific feature flags disable debug mode, verbose logging, API docs in production<br/>
+    ✓ Test: Run application without required environment variables, verify clear error message and failure
+  </div>
+</div>
 
-All responses must include comprehensive security headers using helmet.js or manual configuration. Content-Security-Policy should restrict resource loading to trusted sources, typically 'self' for most directives. Strict-Transport-Security must enforce HTTPS with maxAge of at least 1 year and includeSubDomains. X-Frame-Options should be DENY or SAMEORIGIN to prevent clickjacking. X-Content-Type-Options must be nosniff to prevent MIME sniffing attacks. Referrer-Policy should limit referrer information leakage. Check headers in browser DevTools Network tab or use online scanners like securityheaders.com.
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Cookie Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Session cookies have httpOnly flag to prevent JavaScript access, protecting against XSS<br/>
+    ✓ Secure flag set in production ensuring cookies only transmitted over HTTPS<br/>
+    ✓ SameSite attribute set to 'strict' or 'lax' to prevent CSRF attacks<br/>
+    ✓ Cookie name generic, not revealing framework or technology<br/>
+    ✓ Domain and path as restrictive as possible<br/>
+    ✓ Appropriate expiration set matching session timeout<br/>
+    ✓ Session ID regenerated after login to prevent fixation attacks<br/>
+    ✓ Test: Inspect cookies in browser DevTools, verify httpOnly, secure, and sameSite flags set correctly
+  </div>
+</div>
 
-**Test it**: Use browser DevTools or curl to verify all security headers are present in responses with correct values.
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Credential Management</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Never hardcode credentials, API keys, or secrets in source code<br/>
+    ✓ All sensitive values loaded from environment variables or secure vault systems<br/>
+    ✓ Default credentials changed before deployment<br/>
+    ✓ Example passwords, test API keys, and demo secrets removed from production configuration<br/>
+    ✓ Credentials rotated regularly, especially after personnel changes<br/>
+    ✓ Strong, randomly generated secrets used for session signing and encryption<br/>
+    ✓ Credentials stored encrypted at rest<br/>
+    ✓ Secret scanning implemented in CI/CD to prevent accidental commits<br/>
+    ✓ Test: Search codebase for patterns like "password=", "apiKey:", "secret:" and verify no hardcoded values
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Information Disclosure Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Server version headers like X-Powered-By disabled to not reveal technology stack<br/>
+    ✓ Comments removed from production HTML/JavaScript that expose architecture or vulnerabilities<br/>
+    ✓ Directory listing disabled in web server configuration<br/>
+    ✓ Database errors configured to not expose table structures or query syntax<br/>
+    ✓ Custom 404 pages implemented that don't reveal application structure<br/>
+    ✓ Verbose logging turned off in production<br/>
+    ✓ Stack traces and debug information only logged server-side, never sent to clients<br/>
+    ✓ Test: Check HTTP response headers for version info, attempt non-existent paths and verify generic 404
+  </div>
+</div>
 
-### 🚨 Error Handling
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Multiple independent layers of protection implemented in security configuration<br/>
+    ✓ CORS restricts which websites can make requests<br/>
+    ✓ Security headers protect against various attacks (XSS, clickjacking, MIME sniffing)<br/>
+    ✓ Error handling prevents information leakage<br/>
+    ✓ Rate limiting prevents abuse<br/>
+    ✓ Input validation protects against injection<br/>
+    ✓ Cookie settings prevent session hijacking<br/>
+    ✓ Each layer functions independently, one failure doesn't compromise all protections<br/>
+    ✓ Regular security audits verify all layers properly configured and functioning<br/>
+    ✓ Test: Use automated security scanners (OWASP ZAP, Mozilla Observatory) to verify comprehensive configuration
+  </div>
+</div>
 
-Error responses must be environment-aware, returning generic messages in production and detailed information only in development. Production errors should never expose stack traces, file paths, SQL syntax, or internal system details. All errors should be logged server-side with full context for debugging. Error messages should include a request ID for correlation between client and server logs. Different error types (validation, authentication, server) can have specific status codes but must not leak sensitive details. Monitor error logs for patterns indicating attacks.
-
-**Test it**: Trigger various errors in production mode and verify only generic messages returned, full details logged server-side.
-
----
-
-### 🔧 Environment Configuration
-
-Configuration must be externalized to environment variables, never hardcoded in source code. Use different .env files for development and production, never commit .env files to version control. All sensitive values (database passwords, API keys, session secrets) must come from environment variables. Provide .env.example template with placeholder values for developers. Validate required environment variables at application startup and fail fast if missing. Use environment-specific feature flags to disable debug mode, verbose logging, and API documentation in production.
-
-**Test it**: Run application without required environment variables and verify it fails with clear error message.
-
----
-
-### 🍪 Cookie Security
-
-Session cookies must have httpOnly flag to prevent JavaScript access, protecting against XSS attacks. Secure flag must be set in production to ensure cookies only transmitted over HTTPS. SameSite attribute should be 'strict' or 'lax' to prevent CSRF attacks. Cookie name should be generic, not revealing framework or technology. Domain and path should be as restrictive as possible. Set appropriate expiration matching session timeout. For sensitive applications, regenerate session ID after login to prevent fixation attacks.
-
-**Test it**: Inspect cookies in browser DevTools and verify httpOnly, secure, and sameSite flags are set correctly.
-
----
-
-### 🔐 Credential Management
-
-Never hardcode credentials, API keys, or secrets in source code. All sensitive values must be loaded from environment variables or secure vault systems. Default credentials must be changed before deployment. Remove example passwords, test API keys, and demo secrets from production configuration. Rotate credentials regularly, especially after personnel changes. Use strong, randomly generated secrets for session signing and encryption. Store credentials encrypted at rest. Implement secret scanning in CI/CD to prevent accidental commits.
-
-**Test it**: Search codebase for common patterns like "password=", "apiKey:", "secret:" and verify no hardcoded values exist.
-
----
-
-### 📊 Information Disclosure
-
-Disable server version headers like X-Powered-By that reveal technology stack. Remove comments from production HTML/JavaScript that expose architecture or vulnerabilities. Disable directory listing in web server configuration. Configure database errors to not expose table structures or query syntax. Implement custom 404 pages that don't reveal application structure. Turn off verbose logging in production. Stack traces and debug information should only be logged server-side, never sent to clients.
-
-**Test it**: Check HTTP response headers for version information. Attempt to access non-existent paths and verify generic 404 messages.
-
----
-
-### 🎯 Defense in Depth
-
-Security configuration should implement multiple independent layers of protection. CORS restricts which websites can make requests. Security headers protect against various attacks (XSS, clickjacking, MIME sniffing). Error handling prevents information leakage. Rate limiting prevents abuse. Input validation protects against injection. Cookie settings prevent session hijacking. Each layer should function independently, so if one fails, others still provide protection. Regular security audits should verify all layers are properly configured and functioning.
-
-**Test it**: Use automated security scanners (OWASP ZAP, Mozilla Observatory) to verify comprehensive security configuration.
+</div>
 
 </div>
 

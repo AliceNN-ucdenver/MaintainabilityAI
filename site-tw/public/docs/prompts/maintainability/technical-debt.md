@@ -178,71 +178,103 @@ Output: Complete, executable code for all 5 files.
 
 ## ✅ Human Review Checklist
 
-After AI generates the debt tracking system, **review the code carefully** before deploying. Here's what to verify in each area:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f59e0b;">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">After AI generates the debt tracking system, review the code carefully before deploying:</div>
 
-### 📋 Debt Register Structure
+<div style="display: grid; gap: 20px;">
 
-The TECHNICAL-DEBT.yml file should follow a strict schema with all required fields. Each debt item must have a unique ID, clear title, file path with line number, and realistic effort estimate. The category and severity fields enable filtering and prioritization. Make sure the YAML is properly formatted and Git-friendly (no merge conflicts).
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Debt Register Structure</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ TECHNICAL-DEBT.yml follows strict schema with all required fields<br/>
+    ✓ Each debt item has unique ID, clear title, file path with line number<br/>
+    ✓ Realistic effort estimates for all items<br/>
+    ✓ Category and severity fields enable filtering and prioritization<br/>
+    ✓ YAML is properly formatted and Git-friendly (no merge conflicts)<br/>
+    ✓ Test by parsing with a validator to ensure syntactic correctness
+  </div>
+</div>
 
-**Test it**: Parse the YAML file with a validator to ensure it's syntactically correct and follows the schema.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Automated Detection Logic</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Script finds TODO/FIXME comments by scanning all TypeScript files<br/>
+    ✓ Uses ts-complex for complexity analysis (not manual AST traversal)<br/>
+    ✓ Dependency age checks query actual npm registry publish date<br/>
+    ✓ Deduplication works correctly (no duplicate DEBT-XXX IDs for same issue)<br/>
+    ✓ Test by running on codebase with known issues and verifying complete detection
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">ID Generation</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Debt IDs are auto-incrementing (DEBT-001, DEBT-002, etc.) and never reused<br/>
+    ✓ Script reads existing register, finds highest ID, and increments from there<br/>
+    ✓ IDs padded with leading zeros for sortability (DEBT-001, not DEBT-1)<br/>
+    ✓ Transaction-like approach avoids race conditions<br/>
+    ✓ Red flags: duplicate IDs, gaps in numbering, or IDs that reset after deletion
+  </div>
+</div>
 
-### 🔍 Automated Detection Logic
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Reporting and Metrics</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Report provides actionable insights: categories, owners, debt age<br/>
+    ✓ Debt trend tracked over time by comparing historical reports<br/>
+    ✓ Flags debt items exceeding SLA (P0 >7 days, P1 >30 days)<br/>
+    ✓ Generates human-readable console output and machine-readable JSON<br/>
+    ✓ Validate JSON can be ingested by Grafana or DataDog
+  </div>
+</div>
 
-The detection script should find TODO/FIXME comments by scanning all TypeScript files, not just a subset. Use `ts-complex` for complexity analysis instead of manual AST traversal. When checking dependency age, query the actual npm registry publish date (not just version numbers). The script must deduplicate correctly—don't create DEBT-002 for the same issue as DEBT-001.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Debt Prevention</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ CI workflow fails fast if untracked debt is added<br/>
+    ✓ New TODO comments without corresponding DEBT-XXX ticket block PR<br/>
+    ✓ Complexity increases without refactoring plan require justification<br/>
+    ✓ Workflow comments on PRs with summary of new debt items<br/>
+    ✓ Test by creating PR with TODO comment and verifying CI fails with clear message
+  </div>
+</div>
 
-**Test it**: Run the script on a codebase with known issues and verify it finds them all without duplicates.
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">SLA Tracking</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Each debt item has creation date for age tracking<br/>
+    ✓ P0 debt (security) fixed within 7 days<br/>
+    ✓ P1 debt (blocks features) fixed within 30 days<br/>
+    ✓ P2 debt (maintainability) fixed within 90 days<br/>
+    ✓ Report highlights overdue items and calculates average time-to-resolution<br/>
+    ✓ After deployment: run weekly reports and escalate overdue P0/P1 debt
+  </div>
+</div>
 
----
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Ownership and Assignment</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Debt items have clear owners (assignee field)<br/>
+    ✓ Detection script can leave assignee as null initially<br/>
+    ✓ Weekly review meeting assigns all new debt<br/>
+    ✓ Track debt by assignee to ensure fair workload distribution<br/>
+    ✓ Process: assign top 5 highest-priority items in weekly debt review
+  </div>
+</div>
 
-### 🆔 ID Generation
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">20% Rule Enforcement</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✓ Team allocates 20% of sprint capacity to debt paydown<br/>
+    ✓ Each developer works on 1-2 debt items per 2-week sprint<br/>
+    ✓ Track debt paydown velocity (items closed per sprint)<br/>
+    ✓ Ensure 20% rule is actually followed, not just aspirational<br/>
+    ✓ Validate: review sprint retrospectives and verify debt work completion
+  </div>
+</div>
 
-Debt IDs should be auto-incrementing (DEBT-001, DEBT-002, etc.) and never reused. The script must read the existing debt register, find the highest ID number, and increment from there. Pad IDs with leading zeros for sortability (DEBT-001, not DEBT-1). Use a transaction-like approach to avoid race conditions if multiple developers run the script simultaneously.
-
-**Red flags**: Duplicate IDs, gaps in numbering, or IDs that reset to 001 after deletion.
-
----
-
-### 📊 Reporting and Metrics
-
-The debt report should provide actionable insights: which categories have the most debt, who owns which items, how long debt has been open. Track debt trend over time by comparing historical reports. Flag debt items that exceed their SLA (P0 >7 days, P1 >30 days). Generate both human-readable console output and machine-readable JSON for dashboards.
-
-**Validate**: Check that the JSON report can be ingested by monitoring tools like Grafana or DataDog.
-
----
-
-### 🚫 Debt Prevention
-
-The CI workflow should fail fast if untracked debt is added. New TODO comments without a corresponding DEBT-XXX ticket should block the PR. Complexity increases without a refactoring plan should require justification. The workflow must comment on PRs with a summary of new debt items, making it visible to reviewers.
-
-**Test it**: Create a test PR with a TODO comment and verify the CI fails with a clear error message.
-
----
-
-### 📅 SLA Tracking
-
-Each debt item needs a creation date so you can track age and enforce SLAs. P0 debt (security) must be fixed within 7 days. P1 debt (blocks features) within 30 days. P2 debt (maintainability) within 90 days. The debt report should highlight overdue items and calculate average time-to-resolution.
-
-**After deployment**: Run weekly reports and escalate overdue P0/P1 debt to leadership.
-
----
-
-### 👥 Ownership and Assignment
-
-Debt items should have clear owners (assignee field). Unassigned debt never gets fixed. The detection script can leave assignee as null initially, but the weekly review meeting should assign all new debt. Track debt by assignee to ensure workload is distributed fairly across the team.
-
-**Process**: In weekly debt review, assign top 5 highest-priority items to specific developers for the next sprint.
-
----
-
-### 🔄 20% Rule Enforcement
-
-The team must allocate 20% of sprint capacity to debt paydown, not feature work. This typically means each developer works on 1-2 debt items per 2-week sprint alongside feature work. Track debt paydown velocity (items closed per sprint) to ensure the 20% rule is actually followed, not just aspirational.
-
-**Validate**: Review sprint retrospectives and verify debt work is actually being completed, not constantly deprioritized.
+</div>
 
 </div>
 
