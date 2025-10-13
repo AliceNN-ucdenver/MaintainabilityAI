@@ -128,13 +128,22 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
 
   // Render mermaid diagrams after markdown is rendered
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+
     if (!loading && markdown) {
       const renderMermaid = async () => {
         try {
+          // Check if component is still mounted
+          if (!isMounted) return;
+
           // Find all mermaid code blocks
           const mermaidBlocks = document.querySelectorAll('.language-mermaid');
 
           for (let i = 0; i < mermaidBlocks.length; i++) {
+            // Check if component is still mounted before each operation
+            if (!isMounted) return;
+
             const block = mermaidBlocks[i] as HTMLElement;
             const code = block.textContent || '';
 
@@ -144,13 +153,21 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
 
             try {
               const { svg } = await mermaid.render(`mermaid-${i}-${Date.now()}`, code);
+
+              // Check again after async operation
+              if (!isMounted) return;
+
               container.innerHTML = svg;
 
-              // Replace code block with rendered diagram
-              block.parentElement?.replaceWith(container);
+              // Only replace if parent still exists and is in the document
+              if (block.parentElement && document.contains(block.parentElement)) {
+                block.parentElement.replaceWith(container);
+              }
             } catch (err) {
               console.error('Mermaid render error:', err);
-              block.parentElement?.classList.add('mermaid-error');
+              if (isMounted && block.parentElement && document.contains(block.parentElement)) {
+                block.parentElement.classList.add('mermaid-error');
+              }
             }
           }
         } catch (err) {
@@ -159,14 +176,29 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
       };
 
       // Delay to ensure DOM is ready
-      setTimeout(renderMermaid, 100);
+      timeoutId = setTimeout(renderMermaid, 100);
     }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [markdown, loading]);
 
   // Add copy-to-clipboard functionality for prompt boxes
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    const resetTimeouts: NodeJS.Timeout[] = [];
+
     if (!loading && markdown) {
       const addCopyButtons = () => {
+        // Check if component is still mounted
+        if (!isMounted) return;
+
         // Find all prompt boxes (divs with gradient background containing code blocks)
         const promptBoxes = document.querySelectorAll('div[style*="linear-gradient"]');
 
@@ -190,7 +222,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             }
           });
 
-          if (headerElement) {
+          if (headerElement && document.contains(headerElement)) {
             // Create copy button
             const copyBtn = document.createElement('button');
             copyBtn.className = 'copy-prompt-btn';
@@ -230,19 +262,25 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
                 copyBtn.innerHTML = '✅ Copied!';
                 copyBtn.style.color = '#22c55e';
 
-                setTimeout(() => {
-                  copyBtn.innerHTML = originalText;
-                  copyBtn.style.color = '#10b981';
+                const resetTimeout = setTimeout(() => {
+                  if (isMounted && document.contains(copyBtn)) {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.style.color = '#10b981';
+                  }
                 }, 2000);
+                resetTimeouts.push(resetTimeout);
               } catch (err) {
                 console.error('Failed to copy:', err);
                 copyBtn.innerHTML = '❌ Failed';
                 copyBtn.style.color = '#ef4444';
 
-                setTimeout(() => {
-                  copyBtn.innerHTML = '📋 Copy';
-                  copyBtn.style.color = '#10b981';
+                const resetTimeout = setTimeout(() => {
+                  if (isMounted && document.contains(copyBtn)) {
+                    copyBtn.innerHTML = '📋 Copy';
+                    copyBtn.style.color = '#10b981';
+                  }
                 }, 2000);
+                resetTimeouts.push(resetTimeout);
               }
             };
 
@@ -254,8 +292,17 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
       };
 
       // Delay to ensure DOM is ready
-      setTimeout(addCopyButtons, 150);
+      timeoutId = setTimeout(addCopyButtons, 150);
     }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      resetTimeouts.forEach(timeout => clearTimeout(timeout));
+    };
   }, [markdown, loading]);
 
   if (loading) {
