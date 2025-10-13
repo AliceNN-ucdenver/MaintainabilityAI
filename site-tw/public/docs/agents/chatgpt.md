@@ -13,14 +13,14 @@ This guide shows you how to effectively use ChatGPT (including GPT-4, Canvas, an
 ChatGPT excels when given comprehensive, structured prompts. The OWASP prompt packs in this repository are designed for ChatGPT's conversation style:
 
 **Pattern**:
-1. Copy the full prompt from `site-tw/public/docs/prompts/owasp/[category].md`
+1. Copy the full prompt from `/docs/prompts/owasp/[category]`
 2. Paste into ChatGPT
 3. Provide your specific context (file paths, code snippets)
 4. Review and iterate
 
 **Example**:
 ```markdown
-[Reference site-tw/public/docs/prompts/owasp/A03_injection.md]
+Reference the A03 Injection prompt pack at /docs/prompts/owasp/A03_injection
 
 Now apply this to my code:
 
@@ -40,9 +40,9 @@ Unlike IDE-integrated tools, ChatGPT doesn't automatically know your codebase st
 #### Method 1: Project Files (ChatGPT Plus/Teams)
 
 Upload key files to your ChatGPT project:
-- `site-tw/public/docs/prompts/owasp/*.md` (all OWASP prompt packs)
-- `site-tw/public/docs/governance/vibe-golden-rules.md`
-- `site-tw/public/docs/maintainability/fitness-functions.md`
+- OWASP prompt packs from `/docs/prompts/owasp/`
+- `/docs/governance/vibe-golden-rules`
+- `/docs/maintainability/fitness-functions`
 - Your specific code files
 
 ChatGPT will maintain this context across conversations.
@@ -54,7 +54,7 @@ When you can't use Projects, include context explicitly:
 ```markdown
 Repository Structure:
 - Node 18 + TypeScript + Express + PostgreSQL
-- OWASP prompt packs in site-tw/public/docs/prompts/owasp/
+- OWASP prompt packs in /docs/prompts/owasp/
 - Security scanning: CodeQL, Snyk
 - Testing: Jest + ESLint
 - Examples in /examples/owasp/A01-A10/
@@ -101,7 +101,7 @@ Acknowledge these constraints before we proceed.
 ```markdown
 I need to implement secure user authentication following OWASP A07:2021 - Authentication Failures.
 
-[Reference site-tw/public/docs/prompts/owasp/A07_authn_failures.md]
+Reference the A07 Authentication Failures prompt pack at /docs/prompts/owasp/A07_authn_failures
 
 Generate the implementation.
 ```
@@ -189,7 +189,7 @@ Generate a login function following OWASP A07 best practices.
 [ChatGPT generates code in Canvas]
 
 [Step 2 - Refine]
-Review this code against the OWASP A07 checklist from site-tw/public/docs/prompts/owasp/A07_authn_failures.md.
+Review this code against the OWASP A07 checklist from /docs/prompts/owasp/A07_authn_failures.
 Identify any missing security controls.
 
 [Step 3 - Apply]
@@ -226,9 +226,9 @@ OWASP Categories Involved:
 - A09: Logging/Monitoring (security events)
 
 Prompt Packs to Use:
-[Reference site-tw/public/docs/prompts/owasp/A01_broken_access_control.md]
-[Reference site-tw/public/docs/prompts/owasp/A03_injection.md]
-[Reference site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md]
+Reference the A01 Broken Access Control prompt pack at /docs/prompts/owasp/A01_broken_access_control
+Reference the A03 Injection prompt pack at /docs/prompts/owasp/A03_injection
+Reference the A09 Logging/Monitoring prompt pack at /docs/prompts/owasp/A09_logging_monitoring
 
 Tech Stack: Node 18 + TypeScript + Express + PostgreSQL
 
@@ -267,8 +267,8 @@ Maintainability Requirements:
 - Performance: p95 latency <200ms
 
 Prompt Packs:
-[Reference site-tw/public/docs/prompts/owasp/A01_broken_access_control.md]
-[Reference site-tw/public/docs/prompts/maintainability/fitness-functions.md]
+Reference the A01 Broken Access Control prompt pack at /docs/prompts/owasp/A01_broken_access_control
+Reference the Fitness Functions prompt pack at /docs/prompts/maintainability/fitness-functions
 
 Generate code that satisfies BOTH security AND maintainability constraints.
 ```
@@ -277,17 +277,17 @@ Generate code that satisfies BOTH security AND maintainability constraints.
 
 | Pattern | Use Case | ChatGPT Prompt Pattern |
 |---------|----------|------------------------|
-| **Fitness Functions** | Enforce quality gates (complexity, coverage, performance) | Reference `site-tw/public/docs/prompts/maintainability/fitness-functions.md` + "Create ts-morph test that fails if complexity >10" |
-| **Dependency Hygiene** | 3-month freshness rule, automated updates | Reference `site-tw/public/docs/prompts/maintainability/dependency-hygiene.md` + "Generate Renovate config with weekly updates" |
-| **Strangler Fig** | Incremental legacy migration | Reference `site-tw/public/docs/prompts/maintainability/strangler-fig.md` + "Create proxy layer for users service migration" |
-| **Technical Debt** | Structured debt tracking | Reference `site-tw/public/docs/prompts/maintainability/technical-debt.md` + "Generate TECHNICAL-DEBT.yml with automated detection script" |
+| **Fitness Functions** | Enforce quality gates (complexity, coverage, performance) | Reference `/docs/prompts/maintainability/fitness-functions` + "Create ts-morph test that fails if complexity >10" |
+| **Dependency Hygiene** | 3-month freshness rule, automated updates | Reference `/docs/prompts/maintainability/dependency-hygiene` + "Generate Renovate config with weekly updates" |
+| **Strangler Fig** | Incremental legacy migration | Reference `/docs/prompts/maintainability/strangler-fig` + "Create proxy layer for users service migration" |
+| **Technical Debt** | Structured debt tracking | Reference `/docs/prompts/maintainability/technical-debt` + "Generate TECHNICAL-DEBT.yml with automated detection script" |
 
 ### Multi-Turn Security + Maintainability Refinement
 
 **Turn 1**: Basic secure implementation (OWASP)
 ```markdown
 Implement document retrieval with OWASP A01 + A03 compliance.
-[Paste A01 + A03 prompt packs]
+Reference prompt packs: /docs/prompts/owasp/A01_broken_access_control and /docs/prompts/owasp/A03_injection
 ```
 
 **Turn 2**: Add maintainability constraints
@@ -296,7 +296,7 @@ Refactor to satisfy fitness functions:
 - Split functions if complexity >10
 - Extract helper functions for reusability
 - Add JSDoc comments for public APIs
-[Paste fitness-functions.md]
+Reference: /docs/prompts/maintainability/fitness-functions
 ```
 
 **Turn 3**: Generate comprehensive tests
@@ -313,7 +313,7 @@ Review dependencies used in this implementation:
 - Check for CVEs (Snyk/npm audit)
 - Verify all are <90 days old
 - Suggest pinned versions (no ^ or ~)
-[Paste dependency-hygiene.md]
+Reference: /docs/prompts/maintainability/dependency-hygiene
 ```
 
 ---
@@ -333,7 +333,7 @@ Implement a basic document retrieval function that fetches user documents from P
 ```markdown
 Now secure this against OWASP A01: Broken Access Control.
 Add authorization checks to ensure users can only access their own documents.
-Reference: site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
+Reference: /docs/prompts/owasp/A01_broken_access_control
 ```
 
 ### Turn 3: Add OWASP A03 (Injection)
@@ -341,7 +341,7 @@ Reference: site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
 ```markdown
 Secure this against OWASP A03: Injection.
 Use parameterized queries and add input validation.
-Reference: site-tw/public/docs/prompts/owasp/A03_injection.md
+Reference: /docs/prompts/owasp/A03_injection
 ```
 
 ### Turn 4: Add Logging
@@ -349,7 +349,7 @@ Reference: site-tw/public/docs/prompts/owasp/A03_injection.md
 ```markdown
 Add security logging following OWASP A09: Logging/Monitoring.
 Log authorization failures and suspicious activity.
-Reference: site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md
+Reference: /docs/prompts/owasp/A09_logging_monitoring
 ```
 
 ### Turn 5: Generate Tests
@@ -522,7 +522,7 @@ Session Summary:
 - Generated comprehensive tests
 
 Create a prompt pack following this template:
-[paste template from /docs/governance/vibe-golden-rules.md, Rule 6]
+Reference template from /docs/governance/vibe-golden-rules (Rule 6)
 
 Save to: /prompts/team/secure-file-upload.md
 ```
@@ -602,7 +602,7 @@ For each threat:
 3. Provide implementation guidance
 4. Reference relevant prompt pack
 
-Reference: /docs/sdlc/phase1-design.md
+Reference: /docs/sdlc/phase1-design
 ```
 
 ### Implementation: Security-First Coding
@@ -642,7 +642,7 @@ Tests should verify:
 - Error messages are generic
 - No resource leaks
 
-Reference: /docs/sdlc/phase3-verification.md
+Reference: /docs/sdlc/phase3-verification
 ```
 
 ---
@@ -701,7 +701,7 @@ Continue until Role 3 approves.
 ```markdown
 Task: Upgrade all dependencies following the 3-month freshness rule.
 
-Reference: /docs/sdlc/phase6-evolution.md
+Reference: /docs/sdlc/phase6-evolution
 
 Process:
 1. Analyze package.json and identify outdated packages
@@ -753,16 +753,16 @@ Output: Step-by-step upgrade plan with commands and verification steps.
 
 | Category | When to Use | ChatGPT Command |
 |----------|-------------|-----------------|
-| **A01** | User authorization, resource access | Copy `site-tw/public/docs/prompts/owasp/A01_broken_access_control.md` + your code |
-| **A02** | Password hashing, encryption, TLS | Copy `site-tw/public/docs/prompts/owasp/A02_crypto_failures.md` + your code |
-| **A03** | Database queries, command execution | Copy `site-tw/public/docs/prompts/owasp/A03_injection.md` + your code |
-| **A04** | Feature design, architecture review | Copy `site-tw/public/docs/prompts/owasp/A04_insecure_design.md` + threat model |
-| **A05** | Server configuration, security headers | Copy `site-tw/public/docs/prompts/owasp/A05_security_misconfig.md` + config |
-| **A06** | Dependency upgrades, vulnerability scanning | Copy `site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md` + package.json |
-| **A07** | Login, session management, MFA | Copy `site-tw/public/docs/prompts/owasp/A07_authn_failures.md` + auth code |
-| **A08** | Software updates, package integrity | Copy `site-tw/public/docs/prompts/owasp/A08_integrity_failures.md` + deployment |
-| **A09** | Logging, monitoring, alerting | Copy `site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md` + logging code |
-| **A10** | External API calls, URL fetching | Copy `site-tw/public/docs/prompts/owasp/A10_ssrf.md` + fetch code |
+| **A01** | User authorization, resource access | Reference `/docs/prompts/owasp/A01_broken_access_control` + your code |
+| **A02** | Password hashing, encryption, TLS | Reference `/docs/prompts/owasp/A02_crypto_failures` + your code |
+| **A03** | Database queries, command execution | Reference `/docs/prompts/owasp/A03_injection` + your code |
+| **A04** | Feature design, architecture review | Reference `/docs/prompts/owasp/A04_insecure_design` + threat model |
+| **A05** | Server configuration, security headers | Reference `/docs/prompts/owasp/A05_security_misconfig` + config |
+| **A06** | Dependency upgrades, vulnerability scanning | Reference `/docs/prompts/owasp/A06_vuln_outdated` + package.json |
+| **A07** | Login, session management, MFA | Reference `/docs/prompts/owasp/A07_authn_failures` + auth code |
+| **A08** | Software updates, package integrity | Reference `/docs/prompts/owasp/A08_integrity_failures` + deployment |
+| **A09** | Logging, monitoring, alerting | Reference `/docs/prompts/owasp/A09_logging_monitoring` + logging code |
+| **A10** | External API calls, URL fetching | Reference `/docs/prompts/owasp/A10_ssrf` + fetch code |
 
 ---
 
@@ -771,15 +771,15 @@ Output: Step-by-step upgrade plan with commands and verification steps.
 ### Security Prompts
 - [OpenAI ChatGPT Best Practices](https://platform.openai.com/docs/guides/prompt-engineering)
 - [OWASP Prompt Packs](../prompts/owasp/)
-- [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules.md)
+- [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules)
 - [SDLC Framework](/docs/sdlc/)
 
 ### Maintainability Prompts
-- [link](../prompts/maintainability/fitness-functions.md)
-- [link](../prompts/maintainability/dependency-hygiene.md)
-- [link](../prompts/maintainability/strangler-fig.md)
-- [link](../prompts/maintainability/technical-debt.md)
-- [Evolutionary Architecture Guide](/docs/maintainability/evolutionary-architecture.md)
+- [Fitness Functions](/docs/prompts/maintainability/fitness-functions)
+- [Dependency Hygiene](/docs/prompts/maintainability/dependency-hygiene)
+- [Strangler Fig Pattern](/docs/prompts/maintainability/strangler-fig)
+- [Technical Debt Management](/docs/prompts/maintainability/technical-debt)
+- [Evolutionary Architecture Guide](/docs/maintainability/evolutionary-architecture)
 
 ---
 

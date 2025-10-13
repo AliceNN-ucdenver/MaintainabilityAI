@@ -89,17 +89,17 @@ flowchart TD
 ```markdown
 Agent 1 (Copilot - Authentication):
 Task: Implement OWASP A07-compliant authentication
-Prompt: site-tw/public/docs/prompts/owasp/A07_authn_failures.md
+Prompt: /docs/prompts/owasp/A07_authn_failures
 Output: Auth middleware + unit tests
 
 Agent 2 (Claude - Data Access):
 Task: Implement OWASP A03-compliant data layer
-Prompt: site-tw/public/docs/prompts/owasp/A03_injection.md
+Prompt: /docs/prompts/owasp/A03_injection
 Output: Database repository + unit tests
 
 Agent 3 (ChatGPT - API Routes):
 Task: Implement OWASP A01-compliant API endpoints
-Prompt: site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
+Prompt: /docs/prompts/owasp/A01_broken_access_control
 Output: Express routes + unit tests
 
 Agent 4 (Claude - Integration):
@@ -199,11 +199,11 @@ Output format:
 **Agent: Copilot** (excels at code generation with context)
 
 ```markdown
-#file:site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
-#file:site-tw/public/docs/prompts/owasp/A03_injection.md
+#file:/docs/prompts/owasp/A01_broken_access_control
+#file:/docs/prompts/owasp/A03_injection
 
 Threat Model Input:
-[Paste threat model JSON from Phase 1]
+Reference threat model JSON from Phase 1
 
 Task: Implement updateUserProfile() function that mitigates all identified threats.
 
@@ -264,9 +264,9 @@ export async function updateUserProfile(
 Role: Security Validator
 
 Inputs:
-- Threat Model: [paste JSON from Phase 1]
-- Implementation: [paste code from Phase 2]
-- OWASP Prompt Packs: site-tw/public/docs/prompts/owasp/A01, A03, A09
+- Threat Model: Reference JSON from Phase 1
+- Implementation: Reference code from Phase 2
+- OWASP Prompt Packs: /docs/prompts/owasp/A01, /docs/prompts/owasp/A03, /docs/prompts/owasp/A09
 
 Task: Validate implementation against threat model and OWASP requirements.
 
@@ -318,7 +318,7 @@ Add rate limiting before approval.
 
 ```markdown
 Validation Feedback:
-[Paste validation report from Phase 3]
+Reference validation report from Phase 3
 
 Task: Address the failing check (T4 - Rate Limiting).
 
@@ -386,8 +386,8 @@ CONSTRAINTS:
 - [Constraint 2]
 
 REFERENCES:
-- /prompts/owasp/[category].md
-- /docs/maintainability/[document].md
+- /docs/prompts/owasp/[category]
+- /docs/maintainability/[document]
 
 ===== END HANDOFF =====
 ```
@@ -428,9 +428,9 @@ CONSTRAINTS:
 - Maintain <200ms response time for share operations
 
 REFERENCES:
-- /prompts/owasp/A01_broken_access_control.md
-- /prompts/owasp/A08_integrity_failures.md
-- /docs/maintainability/fitness-functions.md
+- /docs/prompts/owasp/A01_broken_access_control
+- /docs/prompts/owasp/A08_integrity_failures
+- /docs/maintainability/fitness-functions
 
 ===== END HANDOFF =====
 
@@ -783,14 +783,14 @@ TOTAL: 2 hours 45 minutes (vs. estimated 20 hours manual)
 
 ```markdown
 PHASE 1: Audit (Snyk Agent + ChatGPT)
-Snyk: Scan package.json for vulnerabilities
-ChatGPT: Analyze Snyk output and prioritize upgrades
-Output: Upgrade plan with risk assessment
+- Snyk: Scan package.json for vulnerabilities
+- ChatGPT: Analyze Snyk output and prioritize upgrades
+- Output: Upgrade plan with risk assessment
 
 PHASE 2: Compatibility Analysis (Claude)
-Task: Review changelogs for breaking changes
-Input: Upgrade plan from Phase 1
-Output: Migration guide per package
+- Task: Review changelogs for breaking changes
+- Input: Upgrade plan from Phase 1
+- Output: Migration guide per package
 
 PHASE 3: Sequential Upgrades (Copilot)
 For each package in priority order:
@@ -800,9 +800,9 @@ For each package in priority order:
   - If fail: Revert and flag for human review
 
 PHASE 4: Verification (CodeQL + Claude)
-CodeQL: Scan for new vulnerabilities
-Claude: Review test coverage on changed code
-Output: Security verification report
+- CodeQL: Scan for new vulnerabilities
+- Claude: Review test coverage on changed code
+- Output: Security verification report
 ```
 
 ---
@@ -931,11 +931,11 @@ Multi-agent patterns fit into each SDLC phase:
 
 ## Further Reading
 
-- [COPILOT.md](COPILOT.md) - GitHub Copilot-specific guidance
-- [CHATGPT.md](CHATGPT.md) - ChatGPT-specific guidance
-- [CLAUDE.md](CLAUDE.md) - Claude Code-specific guidance
+- [GitHub Copilot Guide](/docs/agents/copilot) - Copilot-specific guidance
+- [ChatGPT Guide](/docs/agents/chatgpt) - ChatGPT-specific guidance
+- [Claude Guide](/docs/agents/claude) - Claude Code-specific guidance
 - [SDLC Framework](/docs/sdlc/) - How agents fit into each phase
-- [Golden Rules](/docs/governance/vibe-golden-rules.md) - Governance principles
+- [Golden Rules](/docs/governance/vibe-golden-rules) - Governance principles
 
 ---
 

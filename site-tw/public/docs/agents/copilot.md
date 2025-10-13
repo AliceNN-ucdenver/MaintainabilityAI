@@ -31,7 +31,7 @@ Review /prompts/owasp/A07_authn_failures.md and generate secure authentication m
 **Pattern**: Always reference the specific OWASP prompt pack for your task.
 
 ```markdown
-#file:site-tw/public/docs/prompts/owasp/A03_injection.md
+#file:/docs/prompts/owasp/A03_injection
 
 Using the security requirements above, refactor this function to use parameterized queries:
 
@@ -114,16 +114,16 @@ For each OWASP category, reference the prompt pack before generating code:
 
 | OWASP Category | Copilot Command Pattern |
 |----------------|-------------------------|
-| **A01: Broken Access Control** | `#file:site-tw/public/docs/prompts/owasp/A01_broken_access_control.md Implement RBAC for [endpoint]` |
-| **A02: Cryptographic Failures** | `#file:site-tw/public/docs/prompts/owasp/A02_crypto_failures.md Add secure password hashing to [function]` |
-| **A03: Injection** | `#file:site-tw/public/docs/prompts/owasp/A03_injection.md Refactor SQL query with parameterization` |
-| **A04: Insecure Design** | `#file:site-tw/public/docs/prompts/owasp/A04_insecure_design.md Review threat model for [feature]` |
-| **A05: Security Misconfiguration** | `#file:site-tw/public/docs/prompts/owasp/A05_security_misconfig.md Add security headers to Express app` |
-| **A06: Vulnerable Components** | `#file:site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md Audit dependencies for CVEs` |
-| **A07: Authentication Failures** | `#file:site-tw/public/docs/prompts/owasp/A07_authn_failures.md Implement MFA for login` |
-| **A08: Integrity Failures** | `#file:site-tw/public/docs/prompts/owasp/A08_integrity_failures.md Add signature verification` |
-| **A09: Logging/Monitoring** | `#file:site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md Add structured logging with PII redaction` |
-| **A10: SSRF** | `#file:site-tw/public/docs/prompts/owasp/A10_ssrf.md Validate external URLs before fetch` |
+| **A01: Broken Access Control** | `#file:/docs/prompts/owasp/A01_broken_access_control Implement RBAC for [endpoint]` |
+| **A02: Cryptographic Failures** | `#file:/docs/prompts/owasp/A02_crypto_failures Add secure password hashing to [function]` |
+| **A03: Injection** | `#file:/docs/prompts/owasp/A03_injection Refactor SQL query with parameterization` |
+| **A04: Insecure Design** | `#file:/docs/prompts/owasp/A04_insecure_design Review threat model for [feature]` |
+| **A05: Security Misconfiguration** | `#file:/docs/prompts/owasp/A05_security_misconfig Add security headers to Express app` |
+| **A06: Vulnerable Components** | `#file:/docs/prompts/owasp/A06_vuln_outdated Audit dependencies for CVEs` |
+| **A07: Authentication Failures** | `#file:/docs/prompts/owasp/A07_authn_failures Implement MFA for login` |
+| **A08: Integrity Failures** | `#file:/docs/prompts/owasp/A08_integrity_failures Add signature verification` |
+| **A09: Logging/Monitoring** | `#file:/docs/prompts/owasp/A09_logging_monitoring Add structured logging with PII redaction` |
+| **A10: SSRF** | `#file:/docs/prompts/owasp/A10_ssrf Validate external URLs before fetch` |
 
 ---
 
@@ -135,19 +135,19 @@ Use these maintainability prompt packs alongside OWASP security prompts for prod
 
 | Maintainability Pattern | Copilot Command Pattern |
 |-------------------------|-------------------------|
-| **Fitness Functions** | `#file:site-tw/public/docs/prompts/maintainability/fitness-functions.md Create complexity test: fail if any function >10` |
-| **Dependency Hygiene** | `#file:site-tw/public/docs/prompts/maintainability/dependency-hygiene.md Implement 3-month freshness rule with Renovate bot` |
-| **Strangler Fig Migration** | `#file:site-tw/public/docs/prompts/maintainability/strangler-fig.md Create proxy layer for incremental service migration` |
-| **Technical Debt Tracking** | `#file:site-tw/public/docs/prompts/maintainability/technical-debt.md Generate TECHNICAL-DEBT.yml with automated detection` |
+| **Fitness Functions** | `#file:/docs/prompts/maintainability/fitness-functions Create complexity test: fail if any function >10` |
+| **Dependency Hygiene** | `#file:/docs/prompts/maintainability/dependency-hygiene Implement 3-month freshness rule with Renovate bot` |
+| **Strangler Fig Migration** | `#file:/docs/prompts/maintainability/strangler-fig Create proxy layer for incremental service migration` |
+| **Technical Debt Tracking** | `#file:/docs/prompts/maintainability/technical-debt Generate TECHNICAL-DEBT.yml with automated detection` |
 
 ### Hybrid Prompts (Security + Maintainability)
 
 **Example: Secure API Endpoint with Maintainability Constraints**
 
 ```markdown
-#file:site-tw/public/docs/prompts/owasp/A01_broken_access_control.md
-#file:site-tw/public/docs/prompts/owasp/A07_authn_failures.md
-#file:site-tw/public/docs/prompts/maintainability/fitness-functions.md
+#file:/docs/prompts/owasp/A01_broken_access_control
+#file:/docs/prompts/owasp/A07_authn_failures
+#file:/docs/prompts/maintainability/fitness-functions
 
 Implement secure user profile endpoint with:
 
@@ -172,8 +172,8 @@ Generate:
 **Example: Dependency Upgrade with Security Validation**
 
 ```markdown
-#file:site-tw/public/docs/prompts/maintainability/dependency-hygiene.md
-#file:site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md
+#file:/docs/prompts/maintainability/dependency-hygiene
+#file:/docs/prompts/owasp/A06_vuln_outdated
 
 Upgrade express from 4.17.1 to 4.18.2:
 
@@ -263,7 +263,7 @@ flowchart LR
 Every security-related prompt should include:
 
 ```markdown
-#file:site-tw/public/docs/prompts/owasp/[category].md
+#file:/docs/prompts/owasp/[category]
 
 Context:
 - Tech stack: [Node 18, TypeScript, Express, PostgreSQL]
@@ -293,7 +293,7 @@ Generate code that passes:
 **Step 1: Reference Prompt Pack**
 
 ```markdown
-#file:site-tw/public/docs/prompts/owasp/A03_injection.md
+#file:/docs/prompts/owasp/A03_injection
 
 Review the security requirements for SQL injection prevention.
 ```
@@ -370,7 +370,7 @@ Reference: /docs/sdlc/phase6-evolution.md (dependency management)
 "Add authentication to the API"
 
 # ✅ Specific
-"#file:site-tw/public/docs/prompts/owasp/A07_authn_failures.md
+"#file:/docs/prompts/owasp/A07_authn_failures
 Implement authentication middleware with:
 - bcrypt password hashing (cost 12)
 - Rate limiting (5 attempts/15min)
@@ -401,7 +401,7 @@ After generating the code, create Jest tests that verify:
 
 ## Golden Rules Integration
 
-Apply the [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules.md) with Copilot:
+Apply the [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules) with Copilot:
 
 1. **Be Specific**: Reference OWASP prompts, tech stack, and constraints
 2. **Trust But Verify**: Review every line Copilot generates
@@ -429,7 +429,7 @@ Apply the [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules.md) w
 
 **Solution**:
 ```markdown
-#file:site-tw/public/docs/prompts/owasp/A03_injection.md
+#file:/docs/prompts/owasp/A03_injection
 The searchUsers function is vulnerable to SQL injection.
 Refactor using parameterized queries and add Zod validation per the prompt pack.
 ```
@@ -466,15 +466,15 @@ Track these metrics to optimize Copilot usage:
 ### Security Prompts
 - [GitHub Copilot Documentation](https://docs.github.com/en/copilot)
 - [OWASP Prompt Packs](/prompts/owasp/)
-- [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules.md)
+- [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules)
 - [SDLC Framework](/docs/sdlc/)
 
 ### Maintainability Prompts
-- [Fitness Functions Prompt Pack](/prompts/maintainability/fitness-functions.md)
-- [Dependency Hygiene Prompt Pack](/prompts/maintainability/dependency-hygiene.md)
-- [Strangler Fig Prompt Pack](/prompts/maintainability/strangler-fig.md)
-- [Technical Debt Prompt Pack](/prompts/maintainability/technical-debt.md)
-- [Evolutionary Architecture Guide](/docs/maintainability/evolutionary-architecture.md)
+- [Fitness Functions Prompt Pack](/docs/prompts/maintainability/fitness-functions)
+- [Dependency Hygiene Prompt Pack](/docs/prompts/maintainability/dependency-hygiene)
+- [Strangler Fig Prompt Pack](/docs/prompts/maintainability/strangler-fig)
+- [Technical Debt Prompt Pack](/docs/prompts/maintainability/technical-debt)
+- [Evolutionary Architecture Guide](/docs/maintainability/evolutionary-architecture)
 
 ---
 

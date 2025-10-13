@@ -29,141 +29,149 @@ flowchart TD
 
 ## Framework Components
 
-The framework integrates three core pillars that work together throughout the software development lifecycle:
+The framework follows a **continuous lifecycle** that integrates security, AI agents, and quality gates at every phase:
 
-<div style="display: grid; gap: 32px; margin: 40px 0;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
-<!-- SDLC Section -->
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3); border: 1px solid rgba(99, 102, 241, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
-    <div style="font-size: 64px;">🔄</div>
-    <div>
-      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">Software Development Lifecycle (SDLC)</div>
-      <div style="color: #c7d2fe; font-size: 16px;">6 phases from design to evolution</div>
-    </div>
-  </div>
-
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">The Six Phases:</div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px; line-height: 1.8;">
-      <div><strong>1. Design</strong> — Threat modeling with STRIDE, OWASP mapping</div>
-      <div><strong>2. Implementation</strong> — Security-first prompts with AI agents</div>
-      <div><strong>3. Verification</strong> — CodeQL, Snyk, fitness function validation</div>
-      <div><strong>4. Governance</strong> — PR review with Golden Rules checklist</div>
-      <div><strong>5. Deployment</strong> — CI/CD security gates, smoke tests</div>
-      <div><strong>6. Evolution</strong> — Metrics, dependency updates, tech debt paydown</div>
-    </div>
-  </div>
-
-  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    Each phase integrates AI assistance, security controls, and automated validation. The lifecycle is continuous — insights from production monitoring (Phase 6) feed back into design decisions (Phase 1). This creates a feedback loop where your development process becomes more secure and efficient over time.
-  </div>
-
-  <a href="/docs/sdlc/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    Explore SDLC Phases →
-  </a>
+<!-- SDLC Flow -->
+<div style="text-align: center; margin-bottom: 32px;">
+  <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">🔄 The Complete SDLC</div>
+  <div style="font-size: 15px; color: #cbd5e1; margin-bottom: 32px;">Six phases that work together in a continuous feedback loop</div>
 </div>
 
-<!-- OWASP Section -->
-<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); border: 1px solid rgba(239, 68, 68, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
-    <div style="font-size: 64px;">🛡️</div>
-    <div>
-      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">OWASP Top 10 Security</div>
-      <div style="color: #fca5a5; font-size: 16px;">10 comprehensive prompt packs for secure AI development</div>
-    </div>
-  </div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Complete Coverage:</div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 13px; line-height: 1.6;">
-      <div>✓ A01 — Broken Access Control</div>
-      <div>✓ A02 — Cryptographic Failures</div>
-      <div>✓ A03 — Injection</div>
-      <div>✓ A04 — Insecure Design</div>
-      <div>✓ A05 — Security Misconfiguration</div>
-      <div>✓ A06 — Vulnerable Components</div>
-      <div>✓ A07 — Authentication Failures</div>
-      <div>✓ A08 — Integrity Failures</div>
-      <div>✓ A09 — Logging/Monitoring</div>
-      <div>✓ A10 — Server-Side Request Forgery</div>
-    </div>
-  </div>
-
-  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    Every prompt pack follows the proven 5-component pattern: Role → Context → Requirements → Task → Checklist. Use these with Claude Code, GitHub Copilot, or ChatGPT to generate secure code by default. Each pack includes attack scenarios, secure patterns, and validation checklists so AI generates code that's secure from the start.
-  </div>
-
-  <a href="/docs/prompts/owasp/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    Browse OWASP Prompt Packs →
-  </a>
+<div style="background: rgba(79, 70, 229, 0.15); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 40px; margin-bottom: 8px;">🎯</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Design</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">STRIDE threat modeling, OWASP mapping, fitness function definitions</div>
+  <a href="/docs/sdlc/phase1-design" style="color: #a5b4fc; font-size: 13px; text-decoration: none; margin-top: 8px; display: inline-block;">→ Phase 1 Details</a>
 </div>
 
-<!-- Maintainability Section -->
-<div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(5, 150, 105, 0.3); border: 1px solid rgba(16, 185, 129, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
-    <div style="font-size: 64px;">📊</div>
-    <div>
-      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">Evolutionary Architecture & Maintainability</div>
-      <div style="color: #a7f3d0; font-size: 16px;">Automated fitness functions prevent architectural erosion</div>
-    </div>
-  </div>
+<div style="background: rgba(124, 58, 237, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 40px; margin-bottom: 8px;">💻</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Implementation</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Security-first prompts with AI agents, OWASP prompt packs, local testing</div>
+  <a href="/docs/sdlc/phase2-implementation" style="color: #c4b5fd; font-size: 13px; text-decoration: none; margin-top: 8px; display: inline-block;">→ Phase 2 Details</a>
+</div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Automated Quality Gates:</div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px; line-height: 1.8;">
-      <div><strong>Complexity ≤10</strong> — Cyclomatic complexity per function</div>
-      <div><strong>Coverage ≥80%</strong> — Test coverage on critical paths</div>
-      <div><strong>Deps &lt;90 days</strong> — No packages older than 3 months</div>
-      <div><strong>p95 &lt;200ms</strong> — Performance regression detection</div>
-    </div>
-  </div>
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 40px; margin-bottom: 8px;">✅</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Verification</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">CodeQL security scanning, Snyk CVE checks, fitness function validation</div>
+  <a href="/docs/sdlc/phase3-verification" style="color: #86efac; font-size: 13px; text-decoration: none; margin-top: 8px; display: inline-block;">→ Phase 3 Details</a>
+</div>
 
-  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    Fitness functions are automated checks that protect your architecture from decay. Without them, quality standards exist only in reviewers' heads. With them, standards are enforced in CI/CD before merge. Includes prompt packs for implementing complexity analyzers, dependency freshness checks, the Strangler Fig migration pattern, and systematic technical debt management.
-  </div>
+<div style="background: rgba(234, 88, 12, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 40px; margin-bottom: 8px;">👥</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Governance</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">PR review with Golden Rules, OWASP compliance, human-in-the-loop checks</div>
+  <a href="/docs/sdlc/phase4-governance" style="color: #fdba74; font-size: 13px; text-decoration: none; margin-top: 8px; display: inline-block;">→ Phase 4 Details</a>
+</div>
 
-  <a href="/docs/prompts/maintainability/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    Browse Maintainability Prompt Packs →
+<div style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 40px; margin-bottom: 8px;">🚀</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Deployment</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">CI/CD security gates, smoke tests, monitoring and alerting setup</div>
+  <a href="/docs/sdlc/phase5-deployment" style="color: #67e8f9; font-size: 13px; text-decoration: none; margin-top: 8px; display: inline-block;">→ Phase 5 Details</a>
+</div>
+
+<div style="background: rgba(234, 179, 8, 0.15); border-left: 4px solid #eab308; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 40px; margin-bottom: 8px;">📈</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Evolution</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Metrics analysis, dependency updates, tech debt paydown, prompt iteration</div>
+  <a href="/docs/sdlc/phase6-evolution" style="color: #fde047; font-size: 13px; text-decoration: none; margin-top: 8px; display: inline-block;">→ Phase 6 Details</a>
+</div>
+
+</div>
+
+<div style="text-align: center; padding: 24px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.3);">
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    <strong style="color: #f1f5f9;">Continuous Feedback Loop:</strong> Insights from production (Phase 6) feed back into design decisions (Phase 1), creating an evolving system that becomes more secure and efficient over time.
+  </div>
+  <a href="/docs/sdlc/" style="display: inline-block; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 14px; border: 1px solid rgba(99, 102, 241, 0.4);">
+    Explore Complete SDLC →
   </a>
 </div>
 
 </div>
 
-<!-- Threat Modeling Section -->
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 16px; padding: 40px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3); border: 1px solid rgba(139, 92, 246, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
-    <div style="font-size: 64px;">🎯</div>
-    <div>
-      <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">STRIDE Threat Modeling</div>
-      <div style="color: #c4b5fd; font-size: 16px;">AI-powered security design with Microsoft's STRIDE methodology</div>
-    </div>
-  </div>
+<!-- Supporting Framework Elements -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 40px 0;">
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-    <div style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Six Threat Categories:</div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 14px; line-height: 1.8;">
-      <div><strong>S</strong>poofing — Identity impersonation</div>
-      <div><strong>T</strong>ampering — Data manipulation</div>
-      <div><strong>R</strong>epudiation — Denying actions</div>
-      <div><strong>I</strong>nformation Disclosure — Data leaks</div>
-      <div><strong>D</strong>enial of Service — Availability attacks</div>
-      <div><strong>E</strong>levation of Privilege — Unauthorized access</div>
-    </div>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #ef4444; border-radius: 12px; padding: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🛡️</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">OWASP Top 10</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    10 comprehensive prompt packs covering all OWASP categories. Each includes attack scenarios, secure patterns, and validation checklists.
   </div>
-
-  <div style="font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    STRIDE helps you systematically identify security threats during design — before writing code. Use ChatGPT or Claude to analyze your architecture diagram and generate comprehensive threat models in minutes. Each STRIDE category maps to specific OWASP vulnerabilities, creating a clear path from threat identification to secure implementation.
+  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+    A01–A10 • Role → Context → Task → Checklist
   </div>
+  <a href="/docs/prompts/owasp/" style="color: #fca5a5; font-size: 14px; text-decoration: none; font-weight: 600;">Browse OWASP Packs →</a>
+</div>
 
-  <a href="/docs/prompts/threat-modeling/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 14px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 15px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    Browse STRIDE Prompt Packs →
-  </a>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🎯</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">STRIDE Threat Modeling</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    AI-powered security design with Microsoft's STRIDE methodology. Maps threats to OWASP vulnerabilities in minutes.
+  </div>
+  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+    Spoofing • Tampering • Repudiation • Info Disclosure • DoS • Elevation
+  </div>
+  <a href="/docs/prompts/threat-modeling/" style="color: #c4b5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Browse STRIDE Packs →</a>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #10b981; border-radius: 12px; padding: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">📊</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Fitness Functions</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Automated quality gates that prevent architectural erosion. Standards enforced in CI/CD, not just in reviewers' heads.
+  </div>
+  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+    Complexity ≤10 • Coverage ≥80% • Deps &lt;90 days • p95 &lt;200ms
+  </div>
+  <a href="/docs/prompts/maintainability/" style="color: #86efac; font-size: 14px; text-decoration: none; font-weight: 600;">Browse Maintainability Packs →</a>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #6366f1; border-radius: 12px; padding: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">💬</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">ChatGPT</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Conversational AI for threat modeling, OWASP validation, and metrics analysis. Excels at strategic thinking and architectural decisions.
+  </div>
+  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+    Threat Modeling • Security Analysis • Metrics Review
+  </div>
+  <a href="/docs/agents/chatgpt" style="color: #a5b4fc; font-size: 14px; text-decoration: none; font-weight: 600;">ChatGPT Agent Guide →</a>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🧑‍💻</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">GitHub Copilot</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    In-editor AI assistant for implementation, pattern following, and boilerplate generation. Real-time suggestions as you code.
+  </div>
+  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+    Code Completion • Pattern Following • Quick Fixes
+  </div>
+  <a href="/docs/agents/copilot" style="color: #c4b5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Copilot Agent Guide →</a>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #06b6d4; border-radius: 12px; padding: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🤖</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Claude Code</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Agentic AI for complex refactoring, comprehensive test generation, and multi-file changes. Deep understanding of codebases.
+  </div>
+  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+    Refactoring • Test Generation • Multi-File Edits
+  </div>
+  <a href="/docs/agents/claude" style="color: #67e8f9; font-size: 14px; text-decoration: none; font-weight: 600;">Claude Agent Guide →</a>
 </div>
 
 </div>
-
-**How They Work Together**: Start with SDLC Phase 1 (Design) using STRIDE threat modeling. Apply OWASP prompt packs in Phase 2 (Implementation) to generate secure code. Validate with fitness functions in Phase 3 (Verification). This integrated approach ensures security and maintainability are built in from day one, not bolted on later.
 
 ---
 
@@ -202,65 +210,75 @@ Click any layer to see how it applies to this real feature:
 
 <div style="display: grid; gap: 16px; margin: 24px 0;">
 
-<details style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #ef4444;">
   <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 1: IDE Security — Prevention at the Source</summary>
-  <div style="color: #fca5a5; font-size: 14px; margin: 16px 0 12px 0;">Use security-first prompts with OWASP categories. <strong>Prevents 60-70% of vulnerabilities</strong> before they're written.</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Use security-first prompts with OWASP categories. <strong>Prevents 60-70% of vulnerabilities</strong> before they're written.</div>
 
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; line-height: 1.7;">
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; line-height: 1.7;">
     <strong style="display: block; margin-bottom: 8px;">📋 User Story: Document Sharing</strong>
     <strong>Requirement:</strong> Users can share documents via email with read/write/admin permissions<br/>
     <strong>Threats Identified:</strong> IDOR attacks, SQL injection, permission escalation, no audit trail
   </div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <strong style="display: block; margin-bottom: 12px; font-size: 16px;">💡 The Prompt:</strong>
-    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
-<strong>Role:</strong> Security engineer implementing secure document sharing
+  <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 8px; padding: 20px; margin: 16px 0;">
+    <div style="color: #f1f5f9; font-size: 15px; font-weight: 600; margin-bottom: 16px;">📋 Copy this prompt and paste it into your AI coding assistant:</div>
 
-<strong>Context:</strong>
+```
+Role: Security engineer implementing secure document sharing
+
+Context:
 - Node.js + TypeScript + PostgreSQL
 - User authentication via JWT (user ID available)
 - Document permissions: read, write, admin
 - OWASP categories: A01 (Access Control), A03 (Injection), A09 (Logging)
 
-<strong>Functional Requirements:</strong>
+Functional Requirements:
 1. Implement createShare(documentId, recipientEmail, permission, userId)
 2. Verify userId owns documentId before sharing (prevent IDOR)
 3. Validate recipientEmail exists in users table
 4. Insert share record with permission level
 5. Return share ID on success
 
-<strong>Non-Functional Requirements (Security & Quality):</strong>
-- Use parameterized queries ($1, $2 placeholders) - <a href="/docs/prompts/owasp/A03_injection" style="color: #fca5a5;">OWASP A03</a>
+Non-Functional Requirements (Security & Quality):
+- Use parameterized queries ($1, $2 placeholders) to prevent SQL injection
 - Validate all inputs with Zod (email format, permission enum)
-- Verify resource ownership before any operation - <a href="/docs/prompts/owasp/A01_broken_access_control" style="color: #fca5a5;">OWASP A01</a>
-- Log security events (share created, failures) - <a href="/docs/prompts/owasp/A09_logging_monitoring" style="color: #fca5a5;">OWASP A09</a>
-- Generic error messages to client, detailed logs server-side
+- Verify resource ownership before any operation (horizontal access control)
+- Log security events: share created, authorization failures, validation errors
+- Return generic error messages to client, detailed logs server-side only
 - Cyclomatic complexity ≤10 per function
-- Test coverage ≥80% with attack payloads
+- Test coverage ≥80% including attack payloads (SQL injection, IDOR, invalid inputs)
 
-<strong>Fitness Functions to Satisfy:</strong>
-- Dependency freshness <90 days - <a href="/docs/prompts/maintainability/dependency-hygiene" style="color: #86efac;">See prompt pack</a>
+Fitness Functions to Satisfy:
+- Dependency freshness: All packages <90 days old
 - No eval() or type-unsafe operations
-- All async operations have error handling
+- All async operations have try-catch error handling
+- No secrets hardcoded (use environment variables)
 
-<strong>Task:</strong>
-Generate createShare() function with full security controls and tests.</pre>
+Task:
+Generate createShare() function with full security controls, comprehensive tests with attack scenarios, and security event logging.
+```
+
+<div style="margin-top: 12px; font-size: 13px; color: #cbd5e1;">
+      <strong style="color: #fca5a5;">Related Prompt Packs:</strong>
+      <a href="/docs/prompts/owasp/A01_broken_access_control" style="color: #fca5a5; text-decoration: underline; margin-left: 8px;">A01</a> •
+      <a href="/docs/prompts/owasp/A03_injection" style="color: #fca5a5; text-decoration: underline; margin-left: 4px;">A03</a> •
+      <a href="/docs/prompts/owasp/A09_logging_monitoring" style="color: #fca5a5; text-decoration: underline; margin-left: 4px;">A09</a> •
+      <a href="/docs/prompts/maintainability/dependency-hygiene" style="color: #86efac; text-decoration: underline; margin-left: 4px;">Dependency Hygiene</a>
+    </div>
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7;">
-    <strong>What AI generates:</strong> Code with authorization checks, parameterized queries, input validation, and audit logs built in from the start.
+  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+    <strong style="color: #f1f5f9;">What AI generates:</strong> Code with authorization checks, parameterized queries, input validation, and audit logs built in from the start — without requiring security knowledge on every PR.
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #f97316;">
   <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 2: Local Checks — Fast Feedback Loop</summary>
-  <div style="color: #fdba74; font-size: 14px; margin: 16px 0 12px 0;">ESLint catches dangerous patterns. Jest validates security controls with attack payloads.</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">ESLint catches dangerous patterns. Jest validates security controls with attack payloads.</div>
 
   <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
     <strong style="display: block; margin-bottom: 12px; font-size: 16px;">✅ Running Local Tests:</strong>
-    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
-npm run lint
+    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">npm run lint
 ✅ No eval() usage
 ✅ No type-unsafe operations
 ✅ Complexity: Max 8 (threshold: 10)
@@ -272,19 +290,18 @@ npm test
 ✅ Coverage: 95% (threshold: 80%)</pre>
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7;">
-    <strong>Outcome:</strong> Immediate feedback — if security controls aren't working, you know before committing.
+  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+    <strong style="color: #f1f5f9;">Outcome:</strong> Immediate feedback — if security controls aren't working, you know before committing.
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #eab308;">
   <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 3: Pre-commit Hooks — Last Defense Before Repo</summary>
-  <div style="color: #fde047; font-size: 14px; margin: 16px 0 12px 0;">Snyk scans for hardcoded secrets and vulnerable patterns. Blocks commits that introduce risks.</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Snyk scans for hardcoded secrets and vulnerable patterns. Blocks commits that introduce risks.</div>
 
   <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
     <strong style="display: block; margin-bottom: 12px; font-size: 16px;">🔍 Pre-commit Scan:</strong>
-    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
-git commit -m "feat: add document sharing"
+    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">git commit -m "feat: add document sharing"
 
 Running pre-commit hooks...
 ✅ No hardcoded secrets detected
@@ -294,19 +311,18 @@ Running pre-commit hooks...
 [main abc123] feat: add document sharing</pre>
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7;">
-    <strong>Outcome:</strong> Can't accidentally commit API keys, passwords, or known vulnerable code.
+  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+    <strong style="color: #f1f5f9;">Outcome:</strong> Can't accidentally commit API keys, passwords, or known vulnerable code.
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #22c55e;">
   <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 4: CI/CD Gates — Automated Deep Analysis</summary>
-  <div style="color: #86efac; font-size: 14px; margin: 16px 0 12px 0;">CodeQL deep analysis, Snyk CVE scanning, fitness function validation.</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">CodeQL deep analysis, Snyk CVE scanning, fitness function validation.</div>
 
   <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
     <strong style="display: block; margin-bottom: 12px; font-size: 16px;">🤖 CI Pipeline (GitHub Actions):</strong>
-    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
-<strong>CodeQL Security Analysis:</strong>
+    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;"><strong>CodeQL Security Analysis:</strong>
 ✅ SQL injection: None detected
 ✅ Access control: All checks present
 ✅ Hardcoded secrets: None
@@ -321,39 +337,38 @@ Running pre-commit hooks...
 ✅ Performance p95 &lt;200ms: Pass (145ms)</pre>
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7;">
-    <strong>Outcome:</strong> Deep semantic analysis finds issues local tools miss. Code quality enforced automatically.
+  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+    <strong style="color: #f1f5f9;">Outcome:</strong> Deep semantic analysis finds issues local tools miss. Code quality enforced automatically.
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #06b6d4;">
   <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 5: Human Review — Critical Thinking</summary>
-  <div style="color: #67e8f9; font-size: 14px; margin: 16px 0 12px 0;">Apply Golden Rules: trust but verify, understand every line, validate business logic.</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Apply Golden Rules: trust but verify, understand every line, validate business logic.</div>
 
   <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
     <strong style="display: block; margin-bottom: 12px; font-size: 16px;">👤 Reviewer Checklist:</strong>
-    <div style="font-size: 13px; line-height: 1.8;">
-      ✅ <strong>Understand every line:</strong> Can explain code to teammate<br/>
-      ✅ <strong>Verify security controls:</strong> Authorization, validation, error handling present<br/>
-      ✅ <strong>Check edge cases:</strong> What if email invalid? User deleted? Doc already shared?<br/>
-      ✅ <strong>AI disclosure:</strong> Commit labeled 🤖 AI-assisted with Copilot using A01, A03<br/>
-      ✅ <strong>Business logic:</strong> Does this actually solve the user's problem securely?
+    <div style="font-size: 13px; line-height: 1.8; color: #cbd5e1;">
+      ✅ <strong style="color: #f1f5f9;">Understand every line:</strong> Can explain code to teammate<br/>
+      ✅ <strong style="color: #f1f5f9;">Verify security controls:</strong> Authorization, validation, error handling present<br/>
+      ✅ <strong style="color: #f1f5f9;">Check edge cases:</strong> What if email invalid? User deleted? Doc already shared?<br/>
+      ✅ <strong style="color: #f1f5f9;">AI disclosure:</strong> Commit labeled 🤖 AI-assisted with Copilot using A01, A03<br/>
+      ✅ <strong style="color: #f1f5f9;">Business logic:</strong> Does this actually solve the user's problem securely?
     </div>
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7;">
-    <strong>Outcome:</strong> AI validates technical controls. Human validates if it's the right solution.
+  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+    <strong style="color: #f1f5f9;">Outcome:</strong> AI validates technical controls. Human validates if it's the right solution.
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #8b5cf6;">
   <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">▶ Layer 6: Production Monitoring — Runtime Protection</summary>
-  <div style="color: #c4b5fd; font-size: 14px; margin: 16px 0 12px 0;">Monitor security events, alert on anomalies, log for forensics and compliance.</div>
+  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Monitor security events, alert on anomalies, log for forensics and compliance.</div>
 
   <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
     <strong style="display: block; margin-bottom: 12px; font-size: 16px;">📊 Week 1 Production Metrics:</strong>
-    <pre style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">
-<strong>Feature Performance:</strong>
+    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;"><strong>Feature Performance:</strong>
 🎉 1,200+ documents shared/day
 ⚡ p95 latency: 145ms (threshold: 200ms)
 
@@ -367,8 +382,8 @@ Running pre-commit hooks...
 → Add alert for IDOR attempts &gt;50/day</pre>
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7;">
-    <strong>Outcome:</strong> Real attacks improve your prompts. Team gets better at security over time.
+  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
+    <strong style="color: #f1f5f9;">Outcome:</strong> Real attacks improve your prompts. Team gets better at security over time.
   </div>
 </details>
 
@@ -427,111 +442,105 @@ When reviewing AI-assisted code, apply these checks to ensure security requireme
 
 ---
 
-## AI Agents in the Framework
+## Success Metrics Dashboard
 
-Different AI agents excel at different phases of the SDLC. Choose the right tool for each task:
+Monitor framework health with these key metrics across security, quality, velocity, and AI effectiveness:
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 32px 0;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">💬</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">ChatGPT</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    <strong>Best for:</strong> Threat modeling, OWASP validation, metrics analysis
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
-    <strong>Phases:</strong> 1 (Design), 4 (Governance), 6 (Evolution)
-  </div>
-  <a href="/CHATGPT" style="color: #c7d2fe; text-decoration: underline; font-size: 14px;">→ See CHATGPT.md for prompts</a>
+<!-- Dashboard Header -->
+<div style="text-align: center; margin-bottom: 32px;">
+  <div style="font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">📊 Framework Health Metrics</div>
+  <div style="font-size: 14px; color: #94a3b8;">Track these indicators to measure security posture, code quality, and team velocity</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">🧑‍💻</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">GitHub Copilot</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    <strong>Best for:</strong> In-editor implementation, pattern following, boilerplate
+<!-- Metrics Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 32px;">
+
+<!-- Security -->
+<div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🛡️</div>
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Security</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">OWASP Coverage:</strong> 100%<br/>
+    <strong style="color: #f1f5f9;">Vuln Remediation:</strong> &lt;7 days<br/>
+    <strong style="color: #f1f5f9;">Scan Pass Rate:</strong> &gt;90%<br/>
+    <strong style="color: #f1f5f9;">Pre-Code Detection:</strong> 93%
   </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
-    <strong>Phases:</strong> 2 (Implementation), quick fixes
-  </div>
-  <a href="/COPILOT" style="color: #ddd6fe; text-decoration: underline; font-size: 14px;">→ See COPILOT.md for #codebase tips</a>
 </div>
 
-<div style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Claude Code</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    <strong>Best for:</strong> Complex refactoring, test generation, multi-file changes
+<!-- Quality -->
+<div style="background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🏗️</div>
+  <div style="font-size: 16px; font-weight: 700; color: #a5b4fc; margin-bottom: 12px;">Quality</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Complexity:</strong> ≤10 per function<br/>
+    <strong style="color: #f1f5f9;">Test Coverage:</strong> ≥80%<br/>
+    <strong style="color: #f1f5f9;">Performance:</strong> p95 &lt;200ms<br/>
+    <strong style="color: #f1f5f9;">Dependencies:</strong> &lt;90 days old
   </div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
-    <strong>Phases:</strong> 3 (Verification), 6 (Evolution), debt reduction
-  </div>
-  <a href="/CLAUDE" style="color: #cffafe; text-decoration: underline; font-size: 14px;">→ See CLAUDE.md for workflows</a>
 </div>
 
+<!-- Velocity -->
+<div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">⚡</div>
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Velocity</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Time to Delivery:</strong> &lt;5 days<br/>
+    <strong style="color: #f1f5f9;">Cycle Time:</strong> &lt;24 hours<br/>
+    <strong style="color: #f1f5f9;">PR Review Time:</strong> &lt;2 hours<br/>
+    <strong style="color: #f1f5f9;">Build Success:</strong> &gt;95%
+  </div>
 </div>
 
-**Multi-Agent Strategy**: Use [AGENTS.md](/AGENTS) to coordinate multiple AI agents across phases — e.g., ChatGPT for threat model → Copilot for implementation → Claude for test generation.
-
----
-
-## Success Metrics
-
-Each framework component has measurable outcomes. Track these dashboards to monitor health:
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 32px 0;">
-
-<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Security Metrics</div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
-    <strong>OWASP Coverage:</strong> 100% (target)<br/>
-    <strong>Vuln Remediation:</strong> &lt;7 days<br/>
-    <strong>Scan Pass Rate:</strong> &gt;90%<br/>
-    <strong>Threats Found Pre-Code:</strong> 93%
+<!-- AI Effectiveness -->
+<div style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">AI Effectiveness</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Acceptance Rate:</strong> &gt;85%<br/>
+    <strong style="color: #f1f5f9;">Prompt Reuse:</strong> &gt;70%<br/>
+    <strong style="color: #f1f5f9;">Time Saved/Feature:</strong> 4hrs<br/>
+    <strong style="color: #f1f5f9;">STRIDE Coverage:</strong> 6/6
   </div>
-  <a href="/docs/prompts/owasp" style="color: #fca5a5; text-decoration: underline; font-size: 14px;">→ View OWASP dashboard</a>
 </div>
 
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">🏗️</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Quality Metrics</div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
-    <strong>Complexity:</strong> ≤10 per function<br/>
-    <strong>Test Coverage:</strong> ≥80%<br/>
-    <strong>Performance:</strong> p95 &lt;200ms<br/>
-    <strong>Dependencies:</strong> &lt;90 days old
+<!-- Governance -->
+<div style="background: rgba(234, 88, 12, 0.1); border-left: 3px solid #f97316; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Governance</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">Golden Rules Applied:</strong> 100%<br/>
+    <strong style="color: #f1f5f9;">AI Disclosure Rate:</strong> 100%<br/>
+    <strong style="color: #f1f5f9;">Human Review:</strong> All PRs<br/>
+    <strong style="color: #f1f5f9;">Rollback Rate:</strong> &lt;2%
   </div>
-  <a href="/docs/prompts/maintainability" style="color: #c7d2fe; text-decoration: underline; font-size: 14px;">→ View fitness function dashboard</a>
 </div>
 
-<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Threat Modeling Metrics</div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
-    <strong>STRIDE Coverage:</strong> 6/6 categories<br/>
-    <strong>Time Saved:</strong> 4hrs per feature<br/>
-    <strong>OWASP Mapping:</strong> 100% auto-linked<br/>
-    <strong>Threats Identified:</strong> 93% pre-code
+<!-- Pipeline Health -->
+<div style="background: rgba(6, 182, 212, 0.1); border-left: 3px solid #06b6d4; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🔄</div>
+  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Pipeline Health</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+    <strong style="color: #f1f5f9;">CodeQL Pass Rate:</strong> &gt;95%<br/>
+    <strong style="color: #f1f5f9;">Snyk Clean:</strong> 0 high/crit<br/>
+    <strong style="color: #f1f5f9;">Fitness Functions:</strong> All pass<br/>
+    <strong style="color: #f1f5f9;">Deploy Frequency:</strong> Daily
   </div>
-  <a href="/docs/prompts/threat-modeling" style="color: #fdba74; text-decoration: underline; font-size: 14px;">→ View threat modeling dashboard</a>
-</div>
-
-<div style="background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; padding: 24px; color: #f1f5f9; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-  <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
-  <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Velocity Metrics</div>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8; margin-bottom: 16px;">
-    <strong>Time to Delivery:</strong> &lt;5 days<br/>
-    <strong>AI Acceptance Rate:</strong> &gt;85%<br/>
-    <strong>Cycle Time:</strong> &lt;24 hours<br/>
-    <strong>Prompt Reuse:</strong> &gt;70%
-  </div>
-  <div style="color: #d1fae5; font-size: 14px;">→ Track in your CI/CD pipeline</div>
 </div>
 
 </div>
 
-**Key Insight**: Security and velocity metrics are not in conflict. When AI generates secure code from the start (using OWASP prompts), you save time on remediation and ship faster.
+<!-- Key Insights -->
+<div style="background: rgba(99, 102, 241, 0.1); border-radius: 12px; padding: 24px; border: 1px solid rgba(99, 102, 241, 0.3);">
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">💡 Key Insights</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <strong style="color: #a5b4fc;">Security + Velocity are NOT in conflict:</strong> When AI generates secure code from the start using OWASP prompts, you save time on remediation and ship faster. Teams typically see 4 hours saved per feature and 93% of threats identified before code is written.<br/><br/>
+    <strong style="color: #a5b4fc;">Track in your CI/CD:</strong> Integrate these metrics into your existing dashboards (GitHub Actions, Jenkins, GitLab CI) to monitor framework adoption and effectiveness over time.
+  </div>
+</div>
+
+</div>
 
 ---
 
@@ -608,18 +617,13 @@ Apply this framework to your next feature using this practical workflow:
 - **[OWASP Prompt Packs](/docs/prompts/owasp/)** - Security-first prompts
 - **[Maintainability Prompt Packs](/docs/prompts/maintainability/)** - Evolutionary architecture patterns
 
-### Agent Guides
-- **[COPILOT.md](/COPILOT.md)** - GitHub Copilot integration
-- **[CHATGPT.md](/CHATGPT.md)** - ChatGPT workflows
-- **[CLAUDE.md](/CLAUDE.md)** - Claude Code usage
-- **[AGENTS.md](/AGENTS.md)** - Multi-agent orchestration
-
-### Governance
+### Governance & Best Practices
 - **[Golden Rules](/docs/governance/vibe-golden-rules)** - Core principles and AI governance
+- **[Security Workflow](/docs/security-workflow)** - 6-layer defense-in-depth pipeline
 
-### Learning
+### Learning Resources
 - **[Workshop](/docs/workshop/)** - 8-part training modules
-- **[Examples](/examples/owasp/)** - Hands-on OWASP remediation
+- **[AI Agents Guide](/docs/agents/)** - Multi-agent orchestration strategies
 
 ---
 

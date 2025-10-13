@@ -21,7 +21,7 @@ Context:
 - Security: Must comply with OWASP Top 10 (2021)
 
 Reference prompt pack:
-[Reference /prompts/owasp/A07_authn_failures.md]
+[Reference /docs/prompts/owasp/A07_authn_failures]
 
 Steps:
 1. Analyze current implementation for vulnerabilities
@@ -58,8 +58,8 @@ Current Issues:
 3. No input validation
 
 Reference:
-[Reference /prompts/owasp/A01_broken_access_control.md]
-[Reference /prompts/owasp/A03_injection.md]
+[Reference /docs/prompts/owasp/A01_broken_access_control]
+[Reference /docs/prompts/owasp/A03_injection]
 
 Requirements:
 - Parameterized queries only
@@ -207,16 +207,16 @@ For each OWASP category, provide the full prompt pack and your specific context:
 
 | OWASP Category | Claude Command Pattern |
 |----------------|------------------------|
-| **A01: Broken Access Control** | Reference `site-tw/public/docs/prompts/owasp/A01_broken_access_control.md` + "Implement RBAC for [feature]" |
-| **A02: Cryptographic Failures** | Reference `site-tw/public/docs/prompts/owasp/A02_crypto_failures.md` + "Add secure encryption to [module]" |
-| **A03: Injection** | Reference `site-tw/public/docs/prompts/owasp/A03_injection.md` + "Refactor with parameterized queries" |
-| **A04: Insecure Design** | Reference `site-tw/public/docs/prompts/owasp/A04_insecure_design.md` + "Review architecture for [feature]" |
-| **A05: Security Misconfiguration** | Reference `site-tw/public/docs/prompts/owasp/A05_security_misconfig.md` + "Harden server configuration" |
-| **A06: Vulnerable Components** | Reference `site-tw/public/docs/prompts/owasp/A06_vuln_outdated.md` + "Audit and upgrade dependencies" |
-| **A07: Authentication Failures** | Reference `site-tw/public/docs/prompts/owasp/A07_authn_failures.md` + "Implement secure authentication" |
-| **A08: Integrity Failures** | Reference `site-tw/public/docs/prompts/owasp/A08_integrity_failures.md` + "Add integrity verification" |
-| **A09: Logging/Monitoring** | Reference `site-tw/public/docs/prompts/owasp/A09_logging_monitoring.md` + "Add security logging" |
-| **A10: SSRF** | Reference `site-tw/public/docs/prompts/owasp/A10_ssrf.md` + "Secure external API calls" |
+| **A01: Broken Access Control** | Reference `/docs/prompts/owasp/A01_broken_access_control` + "Implement RBAC for [feature]" |
+| **A02: Cryptographic Failures** | Reference `/docs/prompts/owasp/A02_crypto_failures` + "Add secure encryption to [module]" |
+| **A03: Injection** | Reference `/docs/prompts/owasp/A03_injection` + "Refactor with parameterized queries" |
+| **A04: Insecure Design** | Reference `/docs/prompts/owasp/A04_insecure_design` + "Review architecture for [feature]" |
+| **A05: Security Misconfiguration** | Reference `/docs/prompts/owasp/A05_security_misconfig` + "Harden server configuration" |
+| **A06: Vulnerable Components** | Reference `/docs/prompts/owasp/A06_vuln_outdated` + "Audit and upgrade dependencies" |
+| **A07: Authentication Failures** | Reference `/docs/prompts/owasp/A07_authn_failures` + "Implement secure authentication" |
+| **A08: Integrity Failures** | Reference `/docs/prompts/owasp/A08_integrity_failures` + "Add integrity verification" |
+| **A09: Logging/Monitoring** | Reference `/docs/prompts/owasp/A09_logging_monitoring` + "Add security logging" |
+| **A10: SSRF** | Reference `/docs/prompts/owasp/A10_ssrf` + "Secure external API calls" |
 
 ---
 
@@ -230,11 +230,11 @@ For each OWASP category, provide the full prompt pack and your specific context:
 Implement secure user profile API with maintainability constraints.
 
 Security (OWASP):
-[Reference /prompts/owasp/A01_broken_access_control.md]
-[Reference /prompts/owasp/A07_authn_failures.md]
+[Reference /docs/prompts/owasp/A01_broken_access_control]
+[Reference /docs/prompts/owasp/A07_authn_failures]
 
 Maintainability (Fitness Functions):
-[Reference /prompts/maintainability/fitness-functions.md]
+[Reference /docs/prompts/maintainability/fitness-functions]
 
 Requirements:
 - OWASP A01: RBAC with ownership verification
@@ -258,8 +258,8 @@ Generate:
 Upgrade Express from 4.17.1 to 4.19.2 following security best practices.
 
 Reference:
-[Reference /prompts/maintainability/dependency-hygiene.md]
-[Reference /prompts/owasp/A06_vuln_outdated.md]
+[Reference /docs/prompts/maintainability/dependency-hygiene]
+[Reference /docs/prompts/owasp/A06_vuln_outdated]
 
 Process:
 1. Analyze CHANGELOG for breaking changes
@@ -492,8 +492,8 @@ Context:
 - OWASP categories: A03 (Injection), A07 (Authentication)
 
 Reference:
-[Reference /prompts/owasp/A03_injection.md]
-[Reference /prompts/owasp/A07_authn_failures.md]
+[Reference /docs/prompts/owasp/A03_injection]
+[Reference /docs/prompts/owasp/A07_authn_failures]
 
 Requirements:
 - Parameterized queries with pg
@@ -669,7 +669,7 @@ Please:
 Refactor with OWASP A03 compliance:
 
 Reference:
-[Reference /prompts/owasp/A03_injection.md]
+[Reference /docs/prompts/owasp/A03_injection]
 
 Requirements:
 - Parameterized queries (pg with $1, $2 placeholders)

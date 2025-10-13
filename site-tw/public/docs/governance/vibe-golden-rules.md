@@ -4,6 +4,76 @@
 
 > **Core Principle**: AI accelerates development, but human judgment ensures security and quality.
 
+---
+
+## 📋 The 8 Golden Rules (Quick Reference)
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 2px solid #4f46e5; page-break-inside: avoid;">
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; color: #f1f5f9;">
+
+<div style="background: rgba(99, 102, 241, 0.2); border-left: 4px solid #6366f1; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">1️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #c7d2fe;">Be Specific and Clear</div>
+  <div style="font-size: 14px; line-height: 1.6;">Clear prompts with Role, Context, Requirements, and Task yield secure, correct code.</div>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">2️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fca5a5;">Always Validate Output</div>
+  <div style="font-size: 14px; line-height: 1.6;">Trust but verify. Test with malicious inputs, review security controls, run scanners.</div>
+</div>
+
+<div style="background: rgba(16, 185, 129, 0.2); border-left: 4px solid #10b981; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">3️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #6ee7b7;">Treat AI as Junior Dev</div>
+  <div style="font-size: 14px; line-height: 1.6;">Fast and knowledgeable, but needs supervision, clear direction, and code review.</div>
+</div>
+
+<div style="background: rgba(251, 146, 60, 0.2); border-left: 4px solid #fb923c; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">4️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fdba74;">Understand All Code</div>
+  <div style="font-size: 14px; line-height: 1.6;">Never merge code you can't explain, debug, or defend in production.</div>
+</div>
+
+<div style="background: rgba(139, 92, 246, 0.2); border-left: 4px solid #8b5cf6; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">5️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #c4b5fd;">Isolate AI Changes</div>
+  <div style="font-size: 14px; line-height: 1.6;">Separate commits labeled 🤖 enable audits, rollbacks, and quality tracking.</div>
+</div>
+
+<div style="background: rgba(6, 182, 212, 0.2); border-left: 4px solid #06b6d4; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">6️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #67e8f9;">Human Review Required</div>
+  <div style="font-size: 14px; line-height: 1.6;">AI code goes through same peer review as human code. No rubber-stamping.</div>
+</div>
+
+<div style="background: rgba(244, 63, 94, 0.2); border-left: 4px solid #f43f5e; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">7️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fda4af;">Document Rationale</div>
+  <div style="font-size: 14px; line-height: 1.6;">AI can't explain "why" — you must document decisions, tradeoffs, and context.</div>
+</div>
+
+<div style="background: rgba(234, 179, 8, 0.2); border-left: 4px solid #eab308; padding: 20px; border-radius: 8px;">
+  <div style="font-size: 28px; margin-bottom: 8px;">8️⃣</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fde047;">Share Effective Prompts</div>
+  <div style="font-size: 14px; line-height: 1.6;">Build a team prompt library. Codify best practices, ensure consistency.</div>
+</div>
+
+</div>
+
+<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.2); color: #cbd5e1; font-size: 14px; text-align: center;">
+  <strong>Remember</strong>: These rules ensure speed and creativity are balanced with discipline, quality, and accountability.
+  <br>
+  <em>Print this page for your desk — keep the rules visible during AI-assisted development.</em>
+</div>
+
+</div>
+
+---
+
+## Detailed Rule Explanations
+
 These eight rules form the governance framework for ensuring that speed and creativity are balanced with discipline, quality, and accountability in AI-assisted engineering. They are not meant to stifle innovation but to create a sustainable and professional practice around it.
 
 ---
@@ -372,14 +442,74 @@ const hash = await bcrypt.hash(password, 12);
 ```
 
 ## Example Output
-[Show what good output looks like]
+
+**Good AI Output** (following the prompt):
+```typescript
+// Secure login implementation with rate limiting
+import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
+  message: 'Too many login attempts, please try again later'
+});
+
+export async function login(username: string, password: string) {
+  // Input validation with Zod
+  const validated = loginSchema.parse({ username, password });
+
+  // Fetch user with prepared statement
+  const user = await db.query(
+    'SELECT id, password_hash FROM users WHERE username = $1',
+    [validated.username]
+  );
+
+  if (!user) {
+    // Generic error (no username enumeration)
+    throw new Error('Invalid credentials');
+  }
+
+  // Constant-time comparison
+  const match = await bcrypt.compare(validated.password, user.password_hash);
+
+  if (!match) {
+    // Log failed attempt for monitoring
+    logger.warn('Failed login attempt', { userId: user.id });
+    throw new Error('Invalid credentials');
+  }
+
+  return { userId: user.id };
+}
+```
 
 ## Common Pitfalls
-- [Things to watch out for]
-- [Human verification steps]
+
+**Watch out for these issues in AI-generated code:**
+- **Missing rate limiting**: AI may implement auth but forget rate limits
+- **Username enumeration**: Error messages like "User not found" vs "Wrong password"
+- **Timing attacks**: Using `===` instead of constant-time comparison for passwords
+- **Hardcoded secrets**: AI may use example API keys instead of environment variables
+- **Insufficient logging**: No failed attempt tracking for security monitoring
+
+**Human Verification Steps:**
+1. Test with valid credentials → should succeed
+2. Test with invalid password → should return generic error
+3. Test with non-existent username → should return same generic error
+4. Test 6 rapid login attempts → should be rate-limited on 6th
+5. Check logs → failed attempts should be recorded (without passwords)
+6. Run CodeQL/Snyk → should pass security scans
 
 ## Related Prompts
-- [Link to related prompts]
+
+**Security Prompts:**
+- [OWASP A07: Authentication Failures](/docs/prompts/owasp/A07_authn_failures) — Complete authentication security
+- [OWASP A01: Broken Access Control](/docs/prompts/owasp/A01_broken_access_control) — Authorization after login
+- [OWASP A09: Logging/Monitoring](/docs/prompts/owasp/A09_logging_monitoring) — Security event logging
+
+**Maintainability Prompts:**
+- [Fitness Functions](/docs/prompts/maintainability/fitness-functions) — Automated quality gates
+- [Technical Debt Management](/docs/prompts/maintainability/technical-debt) — Track refactoring needs
 ```
 
 ### Prompt Iteration Log
@@ -504,7 +634,7 @@ git commit -m "fix(A03): Add SQL injection prevention to searchUsers
 ## Getting Started
 
 1. **Print these rules** and post near your workstation
-2. **Create prompt library** in your repo (`site-tw/public/docs/prompts/team/`)
+2. **Create prompt library** in your repo (`/docs/prompts/team/`)
 3. **Update PR template** to require AI disclosure
 4. **Add pre-commit hook** to check for AI labels
 5. **Schedule monthly review** of AI-generated code quality

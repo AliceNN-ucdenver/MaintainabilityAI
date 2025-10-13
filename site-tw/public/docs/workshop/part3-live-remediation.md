@@ -30,12 +30,41 @@
 
 ## Learning Objectives
 
-By the end of this exercise, you will:
-1. Identify SQL injection vulnerabilities in code
-2. Use a security-first prompt to guide AI remediation
-3. Verify fixes with automated tests
-4. Apply proper commit labeling for AI-assisted changes
-5. Understand defense-in-depth security layers
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Identify Vulnerabilities</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Learn to spot SQL injection patterns and understand attack vectors</div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Security-First Prompting</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Use structured prompts to guide AI remediation with security controls</div>
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Automated Verification</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Run tests to confirm attack payloads are blocked</div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🏷️</div>
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Proper Labeling</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Apply commit conventions and AI disclosure standards</div>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 32px; margin-bottom: 8px;">🛡️</div>
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Defense in Depth</div>
+  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Understand the 4 layers of SQL injection protection</div>
+</div>
+
+  </div>
+</div>
 
 ---
 
@@ -63,48 +92,121 @@ export async function searchUsers(query: string) {
 
 ### Step 1.2: Identify the Vulnerabilities
 
-**Security Analysis:**
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border: 1px solid rgba(239, 68, 68, 0.3);">
 
-1. **SQL Injection (Critical)**
-   - Line: `const sql = \`SELECT id, email FROM users WHERE email LIKE '%${query}%'\`;`
-   - Issue: Direct string interpolation of user input into SQL query
-   - Impact: Attacker can inject arbitrary SQL
+<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 24px;">🚨 Security Analysis: Four Critical Vulnerabilities</div>
 
-2. **No Input Validation**
-   - No length limits
-   - No character allowlist
-   - No type validation
+<div style="display: grid; gap: 20px;">
 
-3. **Information Disclosure**
-   - No error handling
-   - Database errors exposed to caller
-   - Schema details could leak
+<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+    <div style="font-size: 28px;">❌</div>
+    <div style="font-weight: 800; font-size: 16px; color: #fca5a5;">1. SQL Injection (Critical)</div>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    <strong style="color: #f1f5f9;">Line:</strong> <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">const sql = \`SELECT id, email FROM users WHERE email LIKE '%${query}%'\`;</code>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 8px;">
+    <strong style="color: #f1f5f9;">Issue:</strong> Direct string interpolation of user input into SQL query
+  </div>
+  <div style="color: #fca5a5; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #fecaca;">Impact:</strong> Attacker can inject arbitrary SQL commands (data theft, deletion, privilege escalation)
+  </div>
+</div>
 
-4. **Missing Security Controls**
-   - No logging of suspicious inputs
-   - No rate limiting
-   - No sanitization
+<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+    <div style="font-size: 28px;">❌</div>
+    <div style="font-weight: 800; font-size: 16px; color: #fca5a5;">2. No Input Validation</div>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    • No length limits (could be 10MB payload)<br/>
+    • No character allowlist (any special chars accepted)<br/>
+    • No type validation (accepts any value)
+  </div>
+</div>
+
+<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+    <div style="font-size: 28px;">❌</div>
+    <div style="font-weight: 800; font-size: 16px; color: #fca5a5;">3. Information Disclosure</div>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    • No error handling wrapper<br/>
+    • Database errors exposed to caller<br/>
+    • Schema details (table names, columns) could leak
+  </div>
+</div>
+
+<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+    <div style="font-size: 28px;">❌</div>
+    <div style="font-weight: 800; font-size: 16px; color: #fca5a5;">4. Missing Security Controls</div>
+  </div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    • No logging of suspicious inputs<br/>
+    • No rate limiting to prevent brute force<br/>
+    • No sanitization of special characters
+  </div>
+</div>
+
+</div>
+
+</div>
 
 ### Step 1.3: Understanding the Attack
 
-**Attack Payload Examples:**
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0;">
 
-```typescript
-// Attack 1: Bypass search filter
-searchUsers("' OR '1'='1")
-// Resulting SQL: SELECT id, email FROM users WHERE email LIKE '%' OR '1'='1%'
-// Result: Returns ALL users (authentication bypass)
+<div style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-bottom: 24px;">⚠️ Attack Payload Examples</div>
 
-// Attack 2: Extract sensitive data
-searchUsers("' UNION SELECT password, NULL FROM admin_users--")
-// Resulting SQL: SELECT id, email FROM users WHERE email LIKE '%' UNION SELECT password, NULL FROM admin_users--%'
-// Result: Dumps admin passwords
+<div style="display: grid; gap: 20px;">
 
-// Attack 3: Destructive attack
-searchUsers("'; DROP TABLE users--")
-// Resulting SQL: SELECT id, email FROM users WHERE email LIKE '%'; DROP TABLE users--%'
-// Result: Deletes entire users table
-```
+<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Attack 1: Bypass Search Filter</div>
+  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+    <code style="color: #fca5a5; font-size: 13px;">searchUsers("' OR '1'='1")</code>
+  </div>
+  <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px; font-weight: 600;">Resulting SQL:</div>
+  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+    <code style="color: #f1f5f9; font-size: 12px;">SELECT id, email FROM users WHERE email LIKE '%' OR '1'='1%'</code>
+  </div>
+  <div style="color: #fca5a5; font-size: 14px; font-weight: 600;">
+    ☠️ Result: Returns ALL users (authentication bypass)
+  </div>
+</div>
+
+<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Attack 2: Extract Sensitive Data</div>
+  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+    <code style="color: #fca5a5; font-size: 13px;">searchUsers("' UNION SELECT password, NULL FROM admin_users--")</code>
+  </div>
+  <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px; font-weight: 600;">Resulting SQL:</div>
+  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+    <code style="color: #f1f5f9; font-size: 12px;">SELECT id, email FROM users WHERE email LIKE '%' UNION SELECT password, NULL FROM admin_users--%'</code>
+  </div>
+  <div style="color: #fca5a5; font-size: 14px; font-weight: 600;">
+    ☠️ Result: Dumps admin passwords (data exfiltration)
+  </div>
+</div>
+
+<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Attack 3: Destructive Attack</div>
+  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+    <code style="color: #fca5a5; font-size: 13px;">searchUsers("'; DROP TABLE users--")</code>
+  </div>
+  <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px; font-weight: 600;">Resulting SQL:</div>
+  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+    <code style="color: #f1f5f9; font-size: 12px;">SELECT id, email FROM users WHERE email LIKE '%'; DROP TABLE users--%'</code>
+  </div>
+  <div style="color: #fca5a5; font-size: 14px; font-weight: 600;">
+    ☠️ Result: Deletes entire users table (data destruction)
+  </div>
+</div>
+
+</div>
+
+</div>
 
 ### Step 1.4: Examine Existing Tests
 
@@ -296,9 +398,9 @@ export async function searchUsers(query: string): Promise<UserSearchResult[]> {
 
 Go through the Security Checklist from the prompt:
 
-- **✅ Parameterized queries**: Uses `$1` placeholder, not string concatenation
-- **✅ Input validation**: Zod schema with `regex()` validator
-- **✅ Length limits**: `max(100)` enforced
+- **✅ Parameterized queries**: Uses $1 placeholder, not string concatenation
+- **✅ Input validation**: Zod schema with regex() validator
+- **✅ Length limits**: max(100) enforced
 - **✅ Output encoding**: Not rendering HTML (returning structured data)
 - **✅ Generic errors**: "Search failed" to client, detailed log server-side
 - **✅ No raw input logging**: Logs validation error message, not the raw query
@@ -337,49 +439,111 @@ npm run lint
 
 ### Step 5.3: Review Test Coverage
 
-If any tests fail, review why:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0;">
 
-**Common Issues:**
-1. **Zod validation too strict/loose**: Adjust regex pattern
-2. **Error messages too detailed**: Make more generic
-3. **Missing imports**: Add `import { z } from 'zod'`
-4. **Type errors**: Ensure TypeScript types are correct
+<div style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">🔍 Troubleshooting Test Failures</div>
 
-**Debugging Tips:**
-- Read test failure messages carefully
-- Check that Zod schema matches requirements exactly
-- Verify parameterized query uses `$1` placeholder
-- Ensure error handling doesn't leak details
+<div style="display: grid; gap: 16px;">
+
+<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">1. Zod Validation Too Strict/Loose</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+    Adjust regex pattern to match test expectations. Use <a href="https://regex101.com" style="color: #93c5fd;">regex101.com</a> to test patterns.
+  </div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">2. Error Messages Too Detailed</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+    Ensure client-facing errors are generic ("Search failed") while detailed errors go to server logs only.
+  </div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">3. Missing Imports</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+    Add <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">import { z } from 'zod'</code> at the top of the file.
+  </div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">4. TypeScript Type Errors</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+    Ensure function signature matches interface and query result type is properly typed.
+  </div>
+</div>
+
+</div>
+
+<div style="background: rgba(34, 197, 94, 0.1); border-radius: 8px; padding: 20px; margin-top: 20px;">
+  <div style="font-weight: 700; color: #86efac; margin-bottom: 12px;">💡 Debugging Tips:</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Read test failure messages carefully (Jest provides exact line numbers)<br/>
+    • Check that Zod schema matches requirements exactly<br/>
+    • Verify parameterized query uses <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">$1</code> placeholder<br/>
+    • Ensure error handling doesn't leak SQL or schema details
+  </div>
+</div>
+
+</div>
 
 ---
 
 ## Part 6: Human Review (Critical Step)
 
-AI-generated code must be reviewed by a human. Apply the Golden Rules:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #a855f7;">
 
-### Review Checklist
+<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">👁️ Golden Rule: Never Merge AI Code Without Understanding It</div>
 
-1. **Understand Every Line**
-   - ❓ Do I understand what `searchQuerySchema.parse()` does?
-   - ❓ Do I understand how `$1` placeholder works in pg?
-   - ❓ Can I explain this code to a teammate?
+<div style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+AI-generated code must be reviewed by a human. You are responsible for every line that gets merged, even if AI wrote it. Apply the Golden Rules systematically:
+</div>
 
-2. **Verify Security Controls**
-   - ✅ Is the regex allowlist appropriate for email search?
-   - ✅ Is 100-char limit reasonable for this use case?
-   - ✅ Are error messages truly generic?
-   - ✅ Is logging secure (no PII, no attack payloads)?
+<div style="display: grid; gap: 20px;">
 
-3. **Check Edge Cases**
-   - What if `query` is an empty string?
-   - What if `query` is null or undefined?
-   - What if database connection fails?
-   - What if `client.connect()` times out?
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">1. Understand Every Line</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ❓ Do I understand what <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">searchQuerySchema.parse()</code> does?<br/>
+    ❓ Do I understand how <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">$1</code> placeholder works in pg?<br/>
+    ❓ Can I explain this code to a teammate?<br/>
+    ❓ Would I be comfortable debugging this at 3am?
+  </div>
+</div>
 
-4. **Consider Business Context**
-   - Does 100-char limit make sense for our email domains?
-   - Should we allow special chars like `+` in emails? (e.g., `user+tag@example.com`)
-   - Do we need audit logging for searches?
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">2. Verify Security Controls</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    ✅ Is the regex allowlist appropriate for email search?<br/>
+    ✅ Is 100-char limit reasonable for this use case?<br/>
+    ✅ Are error messages truly generic?<br/>
+    ✅ Is logging secure (no PII, no attack payloads)?
+  </div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">3. Check Edge Cases</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • What if <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">query</code> is an empty string?<br/>
+    • What if <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">query</code> is null or undefined?<br/>
+    • What if database connection fails?<br/>
+    • What if <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">client.connect()</code> times out?
+  </div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">4. Consider Business Context</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Does 100-char limit make sense for our email domains?<br/>
+    • Should we allow special chars like <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">+</code> in emails? (e.g., <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">user+tag@example.com</code>)<br/>
+    • Do we need audit logging for searches?<br/>
+    • Are there performance implications?
+  </div>
+</div>
+
+</div>
+
+</div>
 
 ### Potential Issues to Fix
 
@@ -582,49 +746,119 @@ npm run build
 
 ## Part 10: Reflection and Iteration
 
-### Discussion Questions
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0;">
 
-1. **What did AI do well?**
-   - Generated correct parameterized query syntax
-   - Applied Zod validation as specified
-   - Followed prompt checklist items
+<div style="font-size: 20px; font-weight: 700; color: #93c5fd; margin-bottom: 24px;">🔄 Continuous Improvement: Learn from the Experience</div>
 
-2. **Where did human judgment add value?**
-   - Reviewing regex appropriateness (+ character)
-   - Considering empty string edge case
-   - Deciding on minimum length requirement
-   - Contextualizing security controls for business needs
+<div style="display: grid; gap: 20px; margin-bottom: 28px;">
 
-3. **What would you change?**
-   - Different length limits?
-   - More/fewer allowed characters?
-   - Additional logging?
-   - Rate limiting?
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">✅ What Did AI Do Well?</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Generated correct parameterized query syntax with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">$1</code> placeholders<br/>
+    • Applied Zod validation exactly as specified<br/>
+    • Followed prompt checklist items systematically<br/>
+    • Implemented error handling with generic messages
+  </div>
+</div>
 
-### Iterate on the Prompt
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">👤 Where Did Human Judgment Add Value?</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Reviewing regex appropriateness (should <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px;">+</code> character be allowed?)<br/>
+    • Considering empty string edge case<br/>
+    • Deciding on minimum length requirement<br/>
+    • Contextualizing security controls for business needs<br/>
+    • Balancing security with user experience
+  </div>
+</div>
 
-Based on your experience, update the prompt for next time:
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">🔧 What Would You Change Next Time?</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Different length limits for your specific use case?<br/>
+    • More/fewer allowed characters based on actual email patterns?<br/>
+    • Additional logging for security monitoring?<br/>
+    • Rate limiting to prevent brute force attacks?<br/>
+    • Unicode support for international users?
+  </div>
+</div>
 
-**Add to Context:**
-```markdown
-- Email addresses may use + for subaddressing (e.g., user+tag@example.com)
-- Require minimum 1 character (empty strings are not valid)
-```
+</div>
 
-**Add to Checklist:**
-```markdown
-- ☐ Regex allows + character for email subaddressing
-- ☐ Minimum length validation prevents empty queries
-```
+<div style="background: rgba(59, 130, 246, 0.1); border-radius: 8px; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.3);">
+  <div style="font-size: 17px; font-weight: 700; color: #93c5fd; margin-bottom: 16px;">📝 Iterate on the Prompt for Next Time</div>
 
-**Share with Team:**
-Save your updated prompt to your team's shared prompt library.
+  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 16px;">
+    Based on your experience, update the prompt with improvements:
+  </div>
+
+  <div style="background: rgba(0, 0, 0, 0.3); border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+    <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px; font-weight: 600;">Add to Context:</div>
+    <div style="color: #f1f5f9; font-size: 13px; font-family: monospace; line-height: 1.7;">
+      - Email addresses may use + for subaddressing (e.g., user+tag@example.com)<br/>
+      - Require minimum 1 character (empty strings are not valid)<br/>
+      - Support Unicode characters for international names
+    </div>
+  </div>
+
+  <div style="background: rgba(0, 0, 0, 0.3); border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+    <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px; font-weight: 600;">Add to Checklist:</div>
+    <div style="color: #f1f5f9; font-size: 13px; font-family: monospace; line-height: 1.7;">
+      - ☐ Regex allows + character for email subaddressing<br/>
+      - ☐ Minimum length validation prevents empty queries<br/>
+      - ☐ Unicode support for international characters
+    </div>
+  </div>
+
+  <div style="color: #86efac; font-size: 14px; font-weight: 600; margin-top: 20px;">
+    💡 Share with Team: Save your updated prompt to your team's shared prompt library
+  </div>
+</div>
+
+</div>
 
 ---
 
 ## Part 11: Defense in Depth — Beyond Code Fixes
 
-SQL injection protection isn't just about code. A robust defense requires **multiple layers** so that if one layer fails, others catch the attack.
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+
+<div style="font-size: 22px; font-weight: 700; color: #93c5fd; margin-bottom: 16px; text-align: center;">🛡️ Defense in Depth Strategy</div>
+
+<div style="color: #cbd5e1; font-size: 15px; line-height: 1.7; text-align: center; margin-bottom: 28px;">
+SQL injection protection isn't just about code. A robust defense requires <strong style="color: #f1f5f9;">multiple layers</strong> so that if one layer fails, others catch the attack.
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px;">
+
+<div style="background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
+  <div style="font-size: 40px; margin-bottom: 8px;">1️⃣</div>
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Code</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Parameterized queries + validation</div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.15); border: 2px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
+  <div style="font-size: 40px; margin-bottom: 8px;">2️⃣</div>
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Database</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Least privilege permissions</div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.15); border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
+  <div style="font-size: 40px; margin-bottom: 8px;">3️⃣</div>
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Network</div>
+  <div style="font-size: 13px; color: #cbd5e1;">WAF + rate limiting</div>
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.15); border: 2px solid rgba(168, 85, 247, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
+  <div style="font-size: 40px; margin-bottom: 8px;">4️⃣</div>
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Monitoring</div>
+  <div style="font-size: 13px; color: #cbd5e1;">Logging + alerting</div>
+</div>
+
+</div>
+
+</div>
 
 ### The 4 Layers of SQL Injection Defense
 
@@ -780,14 +1014,60 @@ annotations:
 
 ### Defense in Depth Summary Table
 
-| Layer | Defense | Blocks Attack | Detects Attack | Cost |
-|-------|---------|---------------|----------------|------|
-| **Code** | Parameterized queries, Zod validation | ✅ 99% | ❌ No | Low (dev time) |
-| **Database** | Least privilege permissions | ✅ Limits damage | ❌ No | Low (config) |
-| **Network** | WAF (AWS/Cloudflare) | ✅ Known patterns | ✅ Yes | Medium ($) |
-| **Monitoring** | Logging + alerting | ❌ No | ✅ Yes | Medium (ops time) |
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0;">
 
-**Golden Rule:** If Layer 1 (code) fails, Layers 2-4 contain the breach.
+<div style="overflow-x: auto;">
+  <table style="width: 100%; border-collapse: collapse; color: #cbd5e1;">
+    <thead>
+      <tr style="border-bottom: 2px solid rgba(100, 116, 139, 0.5);">
+        <th style="padding: 12px; text-align: left; color: #f1f5f9; font-weight: 700;">Layer</th>
+        <th style="padding: 12px; text-align: left; color: #f1f5f9; font-weight: 700;">Defense</th>
+        <th style="padding: 12px; text-align: center; color: #f1f5f9; font-weight: 700;">Blocks Attack</th>
+        <th style="padding: 12px; text-align: center; color: #f1f5f9; font-weight: 700;">Detects Attack</th>
+        <th style="padding: 12px; text-align: center; color: #f1f5f9; font-weight: 700;">Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom: 1px solid rgba(100, 116, 139, 0.3);">
+        <td style="padding: 12px; font-weight: 700; color: #fca5a5;">Code</td>
+        <td style="padding: 12px; color: #cbd5e1;">Parameterized queries, Zod validation</td>
+        <td style="padding: 12px; text-align: center; color: #86efac; font-weight: 700;">✅ 99%</td>
+        <td style="padding: 12px; text-align: center; color: #94a3b8;">❌ No</td>
+        <td style="padding: 12px; text-align: center; color: #86efac;">Low (dev time)</td>
+      </tr>
+      <tr style="border-bottom: 1px solid rgba(100, 116, 139, 0.3);">
+        <td style="padding: 12px; font-weight: 700; color: #fbbf24;">Database</td>
+        <td style="padding: 12px; color: #cbd5e1;">Least privilege permissions</td>
+        <td style="padding: 12px; text-align: center; color: #fbbf24; font-weight: 700;">✅ Limits damage</td>
+        <td style="padding: 12px; text-align: center; color: #94a3b8;">❌ No</td>
+        <td style="padding: 12px; text-align: center; color: #86efac;">Low (config)</td>
+      </tr>
+      <tr style="border-bottom: 1px solid rgba(100, 116, 139, 0.3);">
+        <td style="padding: 12px; font-weight: 700; color: #93c5fd;">Network</td>
+        <td style="padding: 12px; color: #cbd5e1;">WAF (AWS/Cloudflare)</td>
+        <td style="padding: 12px; text-align: center; color: #86efac; font-weight: 700;">✅ Known patterns</td>
+        <td style="padding: 12px; text-align: center; color: #86efac; font-weight: 700;">✅ Yes</td>
+        <td style="padding: 12px; text-align: center; color: #fbbf24;">Medium ($)</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; font-weight: 700; color: #c4b5fd;">Monitoring</td>
+        <td style="padding: 12px; color: #cbd5e1;">Logging + alerting</td>
+        <td style="padding: 12px; text-align: center; color: #94a3b8;">❌ No</td>
+        <td style="padding: 12px; text-align: center; color: #86efac; font-weight: 700;">✅ Yes</td>
+        <td style="padding: 12px; text-align: center; color: #fbbf24;">Medium (ops time)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin-top: 24px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">🎯 Golden Rule</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+    If Layer 1 (code) fails, Layers 2-4 contain the breach. Never rely on a single defensive layer.
+  </div>
+</div>
+
+</div>
 
 ---
 
@@ -951,14 +1231,54 @@ app.use(express.urlencoded({ limit: '10kb', extended: true }));
 
 ## Workshop Completion
 
-You've successfully:
-- ✅ Identified SQL injection vulnerability
-- ✅ Used security-first prompt to guide AI remediation
-- ✅ Reviewed AI-generated code critically
-- ✅ Verified fixes with automated tests
-- ✅ Applied proper commit labeling
-- ✅ Created security-focused PR
-- ✅ Understood human role in AI-assisted security
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(34, 197, 94, 0.4);">
+
+<div style="text-align: center; margin-bottom: 28px;">
+  <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+  <div style="font-size: 24px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Congratulations!</div>
+  <div style="font-size: 15px; color: #cbd5e1;">You've completed the live SQL injection remediation exercise</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">✅ Skills Mastered</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Identified SQL injection vulnerabilities<br/>
+    • Used security-first prompts effectively<br/>
+    • Reviewed AI-generated code critically<br/>
+    • Verified fixes with automated tests<br/>
+    • Applied proper commit labeling<br/>
+    • Created security-focused PR<br/>
+    • Understood defense-in-depth strategy
+  </div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">🎯 Key Takeaways</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • AI accelerates remediation but requires human oversight<br/>
+    • Structured prompts produce better security outcomes<br/>
+    • Tests validate that vulnerabilities are fixed<br/>
+    • Multiple defensive layers contain failures<br/>
+    • Documentation and labeling enable knowledge sharing
+  </div>
+</div>
+
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
+  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">🚀 What's Next</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    • Practice with other OWASP categories<br/>
+    • Build your team's prompt library<br/>
+    • Implement fitness functions<br/>
+    • Explore advanced security tooling<br/>
+    • Share learnings with your team
+  </div>
+</div>
+
+</div>
+
+</div>
 
 ---
 

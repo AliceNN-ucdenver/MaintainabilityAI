@@ -13,10 +13,10 @@
 ## 🚀 Quick Start
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
-  <a href="./workshop/part1-spectrum" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block; transition: transform 0.2s;">
-    <div style="font-size: 32px; margin-bottom: 12px;">🎓</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">New to the Framework?</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Start with Workshop Part 1: The Spectrum to understand AI development modes</p>
+  <a href="./framework" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block; transition: transform 0.2s;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">New to this Framework?</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">See how OWASP, STRIDE, fitness functions, and the 6-phase SDLC work together to deliver secure, maintainable features fast</p>
   </a>
 
   <a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
@@ -170,6 +170,48 @@
 
 ---
 
+## 📦 Prompt Pack Libraries
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+
+<div style="text-align: center; margin-bottom: 32px;">
+  <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Production-Ready AI Prompts</h3>
+  <p style="color: #94a3b8; font-size: 16px; margin: 0;">All prompt packs follow the proven <strong style="color: #c7d2fe;">Role → Context → Requirements → Task → Checklist</strong> pattern</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">
+
+<a href="./prompts/threat-modeling" style="text-decoration: none; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">STRIDE Threat Modeling</div>
+  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">6 categories for AI-powered threat detection before code is written</div>
+</a>
+
+<a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+  <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">OWASP Top 10 Security</div>
+  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">10 comprehensive packs with before/after examples and attack tests</div>
+</a>
+
+<a href="./prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+  <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Evolutionary Architecture</div>
+  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">Fitness functions and patterns for long-lived maintainable systems</div>
+</a>
+
+</div>
+
+<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px;">
+  <div style="color: #a5b4fc; font-size: 14px; line-height: 1.7;">
+    <strong style="color: #c7d2fe;">💡 Pro Tip:</strong> Clone the repository to use prompts with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #e0e7ff;">#file:</code> references in Claude Code and Copilot
+  </div>
+</div>
+
+</div>
+
+---
+
 ## 🎓 Workshop
 
 <div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px; margin: 24px 0;">
@@ -239,211 +281,19 @@ Platform-specific guidance for security-first development with different AI tool
 
 ---
 
-## 📦 Prompt Pack Libraries
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-
-<div style="text-align: center; margin-bottom: 32px;">
-  <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Production-Ready AI Prompts</h3>
-  <p style="color: #94a3b8; font-size: 16px; margin: 0;">All prompt packs follow the proven <strong style="color: #c7d2fe;">Role → Context → Requirements → Task → Checklist</strong> pattern</p>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">
-
-<a href="./prompts/threat-modeling" style="text-decoration: none; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
-  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">STRIDE Threat Modeling</div>
-  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">6 categories for AI-powered threat detection before code is written</div>
-</a>
-
-<a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-  <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
-  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">OWASP Top 10 Security</div>
-  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">10 comprehensive packs with before/after examples and attack tests</div>
-</a>
-
-<a href="./prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-  <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
-  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Evolutionary Architecture</div>
-  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">Fitness functions and patterns for long-lived maintainable systems</div>
-</a>
-
-</div>
-
-<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px;">
-  <div style="color: #a5b4fc; font-size: 14px; line-height: 1.7;">
-    <strong style="color: #c7d2fe;">💡 Pro Tip:</strong> Clone the repository to use prompts with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #e0e7ff;">#file:</code> references in Claude Code and Copilot
-  </div>
-</div>
-
-</div>
-
----
-
-## 📖 How to Use This Framework
-
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(79, 70, 229, 0.4); border: 1px solid rgba(99, 102, 241, 0.3);">
-
-<div style="text-align: center; margin-bottom: 32px;">
-  <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Ship Your First Secure Feature in 1 Hour</h3>
-  <p style="color: #c7d2fe; font-size: 16px; margin: 0;">Follow this proven workflow from threat model to production deployment</p>
-</div>
-
-<div style="display: grid; gap: 16px;">
-
-<div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; border-left: 4px solid #22c55e;">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-    <div style="background: #22c55e; color: #0f172a; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">1</div>
-    <strong style="color: #f1f5f9; font-size: 18px;">Threat Model (5 min)</strong>
-  </div>
-  <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Use <a href="./prompts/threat-modeling" style="color: #86efac;">STRIDE prompts</a> with ChatGPT to identify threats before writing code</p>
-</div>
-
-<div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-    <div style="background: #3b82f6; color: #0f172a; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">2</div>
-    <strong style="color: #f1f5f9; font-size: 18px;">Implement Securely (30 min)</strong>
-  </div>
-  <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Use <a href="./prompts/owasp" style="color: #93c5fd;">OWASP prompt packs</a> with Copilot/Claude to generate secure code with controls built in</p>
-</div>
-
-<div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-    <div style="background: #f59e0b; color: #0f172a; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">3</div>
-    <strong style="color: #f1f5f9; font-size: 18px;">Validate Locally (10 min)</strong>
-  </div>
-  <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Run <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">npm run lint && npm test</code> with attack payloads to verify security controls work</p>
-</div>
-
-<div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; border-left: 4px solid #a855f7;">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-    <div style="background: #a855f7; color: #0f172a; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">4</div>
-    <strong style="color: #f1f5f9; font-size: 18px;">Review & Ship (15 min)</strong>
-  </div>
-  <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Apply <a href="./governance/vibe-golden-rules" style="color: #d8b4fe;">Golden Rules</a> checklist, then let CI/CD re-validate and deploy</p>
-</div>
-
-</div>
-
-<div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-  <p style="color: #e0e7ff; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Ready to start?</p>
-  <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-    <a href="./workshop/part1-spectrum" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3);">
-      Start Workshop →
-    </a>
-    <a href="./sdlc/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3);">
-      View Complete SDLC →
-    </a>
-  </div>
-</div>
-
-</div>
-
----
-
-## 🎯 Success Metrics
-
-<div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px; margin: 24px 0;">
-  <div style="color: #a5b4fc; font-size: 14px;">
-    Track these metrics to measure framework effectiveness and demonstrate ROI
-  </div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin: 32px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 36px; margin-bottom: 16px;">🔒</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Security Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Vulnerability Rate</div>
-        <div style="color: #94a3b8; font-size: 13px;">0 high/critical in production</div>
-      </div>
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Scan Pass Rate</div>
-        <div style="color: #94a3b8; font-size: 13px;">100% CodeQL + Snyk passing</div>
-      </div>
-      <div>
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">OWASP Compliance</div>
-        <div style="color: #94a3b8; font-size: 13px;">All 10 categories addressed</div>
-      </div>
-    </div>
-  </div>
-
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 36px; margin-bottom: 16px;">📐</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Maintainability Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Cyclomatic Complexity</div>
-        <div style="color: #94a3b8; font-size: 13px;">All functions ≤10</div>
-      </div>
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Dependency Freshness</div>
-        <div style="color: #94a3b8; font-size: 13px;">All deps ≤90 days old</div>
-      </div>
-      <div>
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Test Coverage</div>
-        <div style="color: #94a3b8; font-size: 13px;">≥80% with attack vectors</div>
-      </div>
-    </div>
-  </div>
-
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 36px; margin-bottom: 16px;">⚡</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Velocity Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Delivery Speed</div>
-        <div style="color: #94a3b8; font-size: 13px;">2x faster with AI</div>
-      </div>
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Remediation Time</div>
-        <div style="color: #94a3b8; font-size: 13px;">Security fixes <24 hours</div>
-      </div>
-      <div>
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Technical Debt</div>
-        <div style="color: #94a3b8; font-size: 13px;">P0 issues ≤7 days</div>
-      </div>
-    </div>
-  </div>
-
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 36px; margin-bottom: 16px;">🏛️</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 20px; color: #f1f5f9; font-weight: 700;">Governance Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">AI Disclosure</div>
-        <div style="color: #94a3b8; font-size: 13px;">100% labeled with 🤖</div>
-      </div>
-      <div style="margin-bottom: 12px;">
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Human Review</div>
-        <div style="color: #94a3b8; font-size: 13px;">100% reviewed before merge</div>
-      </div>
-      <div>
-        <div style="color: #818cf8; font-weight: 600; font-size: 13px;">Prompt Reuse</div>
-        <div style="color: #94a3b8; font-size: 13px;">Team library growing</div>
-      </div>
-    </div>
-  </div>
-</div>
-
----
-
 ## ❓ Getting Help
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
   <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 28px; margin-bottom: 8px;">📧</div>
-    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Email Support</h4>
-    <a href="mailto:hello@maintainability.ai" style="color: #818cf8; text-decoration: none; font-size: 14px;">hello@maintainability.ai</a>
-  </div>
-
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
     <div style="font-size: 28px; margin-bottom: 8px;">💬</div>
     <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">GitHub Issues</h4>
     <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues" style="color: #818cf8; text-decoration: none; font-size: 14px;">Report bugs or request features</a>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 28px; margin-bottom: 8px;">🏛️</div>
+    <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #f1f5f9; font-weight: 700;">Contact Chief Archeologist</h4>
+    <a href="https://chiefarcheologist.com/contact" style="color: #818cf8; text-decoration: none; font-size: 14px;">Team training and consulting</a>
   </div>
 
   <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
