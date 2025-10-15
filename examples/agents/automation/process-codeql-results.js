@@ -90,17 +90,63 @@ if (!fs.existsSync(logsDir)) {
 }
 
 /**
- * Append a log message to the log file with timestamp
- * @param {string} level - Log level (INFO, WARN, ERROR)
- * @param {string} message - Log message
+ * Sanitize log messages to prevent injection and information leakage
+ * @param {string} message - Raw log message
+ * @returns {string} Sanitized message
  */
-function log(level, message) {
+function sanitizeLogMessage(message) {
+  if (typeof message !== 'string') {
+    return String(message);
+  }
+
+  return message
+    // Remove control characters (newlines, tabs, ANSI codes, etc.)
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+    // Truncate very long messages (prevent log file bloat)
+    .substring(0, 500)
+    // Replace multiple spaces with single space
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Sanitize file paths to prevent information leakage
+ * @param {string} filePath - File path
+ * @returns {string} Sanitized path (relative, not absolute)
+ */
+function sanitizeFilePath(filePath) {
+  if (typeof filePath !== 'string') {
+    return String(filePath);
+  }
+  // Remove absolute paths, keep relative
+  return filePath.replace(process.cwd(), '.');
+}
+
+/**
+ * Append a structured log message to the log file (JSON format)
+ * @param {string} level - Log level (INFO, WARN, ERROR, SUCCESS)
+ * @param {string} message - Log message
+ * @param {Object} metadata - Additional metadata (optional)
+ */
+function log(level, message, metadata = {}) {
   const timestamp = new Date().toISOString();
-  const logMessage = `[${timestamp}] [${level}] ${message}\n`;
+  const sanitized = sanitizeLogMessage(message);
 
-  fs.appendFileSync(logFile, logMessage);
+  // Structured JSON log entry
+  const logEntry = {
+    timestamp,
+    level,
+    message: sanitized,
+    ...Object.keys(metadata).reduce((acc, key) => {
+      acc[key] = sanitizeLogMessage(String(metadata[key]));
+      return acc;
+    }, {})
+  };
 
-  // Also output to console with appropriate formatting
+  // Write JSON log
+  fs.appendFileSync(logFile, JSON.stringify(logEntry) + '\n');
+
+  // Console output with emojis
   const prefix = {
     INFO: 'ℹ️',
     WARN: '⚠️',
@@ -108,20 +154,82 @@ function log(level, message) {
     SUCCESS: '✅'
   }[level] || '📝';
 
-  console.log(`${prefix} ${message}`);
+  console.log(`${prefix} ${sanitized}`);
 }
 
 // ============================================================================
-// PROMPT CACHE
+// PROMPT CACHE & INTEGRITY
 // ============================================================================
 
 const promptCache = new Map();
+const crypto = require('crypto');
+
+// Load prompt hashes for integrity verification
+const promptHashesPath = path.join(__dirname, 'prompt-hashes.json');
+let promptHashes = {};
+
+try {
+  promptHashes = JSON.parse(fs.readFileSync(promptHashesPath, 'utf8'));
+  log('SUCCESS', 'Loaded prompt hash manifest', {
+    files: Object.keys(promptHashes.owasp || {}).length +
+           Object.keys(promptHashes.maintainability || {}).length +
+           Object.keys(promptHashes['threat-modeling'] || {}).length
+  });
+} catch (error) {
+  log('ERROR', 'Failed to load prompt-hashes.json', { error: error.message });
+  console.error('❌ CRITICAL: Cannot verify prompt integrity without hash manifest');
+  process.exit(1);
+}
+
+// Allowlist of trusted domains for fetching prompts
+const ALLOWED_DOMAINS = [
+  'raw.githubusercontent.com'
+];
 
 /**
- * Fetch a prompt from the MaintainabilityAI repository
+ * Verify domain and protocol for prompt URLs
+ * @param {string} urlString - URL to verify
+ * @returns {boolean} True if allowed
+ */
+function verifyPromptUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+
+    // Verify HTTPS
+    if (url.protocol !== 'https:') {
+      log('ERROR', 'Blocked non-HTTPS prompt URL', { protocol: url.protocol });
+      return false;
+    }
+
+    // Verify domain allowlist
+    if (!ALLOWED_DOMAINS.includes(url.hostname)) {
+      log('ERROR', 'Blocked prompt fetch from untrusted domain', { domain: url.hostname });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    log('ERROR', 'Invalid prompt URL', { error: error.message });
+    return false;
+  }
+}
+
+/**
+ * Verify SHA-256 hash of fetched content
+ * @param {string} content - Content to verify
+ * @param {string} expectedHash - Expected hash in format "sha256:abc123..."
+ * @returns {boolean} True if hash matches
+ */
+function verifyPromptIntegrity(content, expectedHash) {
+  const actualHash = `sha256:${crypto.createHash('sha256').update(content).digest('hex')}`;
+  return actualHash === expectedHash;
+}
+
+/**
+ * Fetch a prompt from the MaintainabilityAI repository with integrity verification
  * @param {string} category - Category (owasp, maintainability, threat-modeling)
  * @param {string} file - Prompt filename
- * @returns {Promise<string|null>} Prompt content or null if not found
+ * @returns {Promise<string|null>} Prompt content or null if not found/verification failed
  */
 async function fetchPrompt(category, file) {
   const cacheKey = `${category}/${file}`;
@@ -132,25 +240,50 @@ async function fetchPrompt(category, file) {
     return promptCache.get(cacheKey);
   }
 
+  // Verify file is in allowlist (has expected hash)
+  const expectedHash = promptHashes[category]?.[file];
+  if (!expectedHash) {
+    log('ERROR', `Prompt not in hash manifest: ${cacheKey}`);
+    return null;
+  }
+
   const url = `https://raw.githubusercontent.com/${config.promptRepo}/${config.promptBranch}/examples/promptpack/${category}/${file}`;
 
+  // Verify URL domain and protocol
+  if (!verifyPromptUrl(url)) {
+    return null;
+  }
+
   try {
-    log('INFO', `Fetching prompt: ${url}`);
+    log('INFO', `Fetching prompt: ${cacheKey}`);
     const response = await axios.get(url, {
       timeout: 10000,
       validateStatus: (status) => status === 200
     });
 
     const content = response.data;
+
+    // Verify integrity with SHA-256 hash
+    if (!verifyPromptIntegrity(content, expectedHash)) {
+      log('ERROR', `Prompt integrity verification FAILED: ${cacheKey}`, {
+        expected: expectedHash.substring(0, 20) + '...',
+        actual: `sha256:${crypto.createHash('sha256').update(content).digest('hex').substring(0, 15)}...`
+      });
+      return null;
+    }
+
     promptCache.set(cacheKey, content);
-    log('SUCCESS', `Fetched prompt: ${cacheKey} (${content.length} bytes)`);
+    log('SUCCESS', `Prompt verified and cached: ${cacheKey}`, {
+      size: content.length,
+      hash: expectedHash.substring(0, 20) + '...'
+    });
 
     return content;
   } catch (error) {
     if (error.response?.status === 404) {
       log('WARN', `Prompt not found: ${cacheKey}`);
     } else {
-      log('ERROR', `Failed to fetch prompt ${cacheKey}: ${error.message}`);
+      log('ERROR', `Failed to fetch prompt: ${cacheKey}`, { error: error.message });
     }
 
     promptCache.set(cacheKey, null);

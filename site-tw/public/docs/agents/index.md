@@ -69,6 +69,53 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 
 ---
 
+### [Alice Agent - The Good Maintainer](/docs/agents/alice) 🐰
+**Built on**: Claude Code
+**Philosophy**: *"Why, sometimes I've believed as many as six impossible things before breakfast."*
+**Status**: Production-ready agentic AI proof of concept
+
+**What is Alice?**
+
+Alice is an autonomous security remediation agent that embodies the eight principles of excellent code maintainership: she reads documentation, tests cautiously, questions assumptions, maintains system integrity, documents her journey, believes in impossible things, manages chaos, and stays curious. Built on MaintainabilityAI's compact prompt packs, Alice automates security remediation while keeping humans firmly in control.
+
+**The Eight Principles**:
+1. 📖 **Read the documentation** (prompts, labels, context)
+2. 🧪 **Test cautiously** (incremental, validated changes)
+3. 🤔 **Question assumptions** (challenge technical debt)
+4. 🎯 **Maintain identity** (system integrity through transformations)
+5. 📝 **Document the journey** (detailed commits, rationale)
+6. 🌟 **Believe in impossible things** (legacy code CAN be fixed)
+7. 🎪 **Manage chaos** (bring order to complex codebases)
+8. 🔍 **Stay curious** (explore before acting)
+
+**Strengths**:
+- 🛡️ **Security-First**: SHA-256 hash verification, domain allowlisting, structured logging
+- 🔄 **Two-Phase Workflow**: Curiosity (read-only analysis) → Human Approval → Implementation
+- 📚 **Guided by Wisdom**: Uses OWASP/STRIDE/Maintainability compact prompt packs (23 files)
+- 🧪 **Incremental Change**: Tests after each step, never massive refactors
+- 👤 **Human-in-the-Loop**: Proposes plans, humans approve and merge PRs
+
+**Use Cases** (Alice thrives on "impossible" problems):
+- Security vulnerabilities everyone accepted as "too hard to fix"
+- Legacy code with 1000-line functions and zero tests
+- Technical debt from "temporary" fixes that became permanent
+- Code complexity that makes onboarding painful
+- Systematic OWASP remediation with CI/CD integration
+
+**Quick Start**:
+1. Comment `@alice analyze this` on any CodeQL issue
+2. Alice reads the "Drink Me" label (OWASP/STRIDE prompt pack)
+3. Alice explores your codebase and creates a remediation plan
+4. You review and approve: `@alice approved`
+5. Alice implements, tests, and creates PR
+6. You review code and merge when satisfied
+
+**Agentic AI Proof of Concept**: Alice demonstrates how autonomous AI agents can accelerate security remediation while maintaining strict governance through two-phase workflows, hash verification, and human approval gates. See the full workflow implementation in [`examples/agents/`](https://github.com/maintainabilityai/maintainabilityai/tree/main/examples/agents).
+
+[**📖 Full Alice Guide: The Good Maintainer →**](/docs/agents/alice)
+
+---
+
 ### [Multi-Agent Orchestration](/docs/agents/multi-agent)
 **Best For**: Complex workflows requiring specialized expertise
 
@@ -91,11 +138,11 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 | SDLC Phase | Primary Agent | Supporting Agents | Output |
 |------------|---------------|-------------------|--------|
 | **Design** | ChatGPT (Threat Modeling) | Claude (Architecture) | Threat model + design docs |
-| **Implementation** | Copilot (Code Gen) | Claude (Refactoring) | Secure implementation |
-| **Verification** | Claude (Test Gen) | CodeQL, Snyk | Test suite + scan results |
+| **Implementation** | Copilot (Code Gen) | Claude (Refactoring), Alice (Remediation) | Secure implementation |
+| **Verification** | Claude (Test Gen) | CodeQL, Snyk, Alice (Auto-fix) | Test suite + scan results |
 | **Governance** | ChatGPT (Review) | Human | Approval decision |
-| **Deployment** | GitHub Actions | - | Production deployment |
-| **Evolution** | Claude (Refactor) | ChatGPT (Analysis) | Technical debt reduction |
+| **Deployment** | GitHub Actions | Alice (CI/CD Remediation) | Production deployment |
+| **Evolution** | Claude (Refactor) | ChatGPT (Analysis), Alice (Debt Reduction) | Technical debt reduction |
 
 ### By Task Type
 
@@ -110,6 +157,10 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 | Documentation | ChatGPT | Detailed explanations, tutorials |
 | Code review | Claude | Security-focused, detailed analysis |
 | Dependency upgrades | Claude | Breaking change analysis, migration planning |
+| **CodeQL remediation** | **Alice** | **Autonomous two-phase workflow, human approval gate** |
+| **Legacy code refactoring** | **Alice** | **Incremental strangler fig, believes impossible things** |
+| **Technical debt reduction** | **Alice** | **Systematic, documented, test-driven** |
+| **CI/CD security fixes** | **Alice** | **Automated, hash-verified, governed** |
 
 ### By Complexity
 
@@ -270,6 +321,14 @@ See [SDLC Framework](/docs/sdlc/) for details.
 - ✅ Quick security fixes
 - ✅ Real-time constraint enforcement
 
+### Use Alice when you need:
+- ✅ Autonomous CodeQL security remediation
+- ✅ Legacy code refactoring with zero tests
+- ✅ Technical debt that's "too hard to fix"
+- ✅ CI/CD-integrated security automation
+- ✅ Human-approved two-phase workflows
+- ✅ Believing in "impossible" fixes
+
 ### Use Multi-Agent when you need:
 - ✅ Complex feature requiring multiple specialties
 - ✅ Parallel development across modules
@@ -290,6 +349,7 @@ See [SDLC Framework](/docs/sdlc/) for details.
 - [Claude Guide](/docs/agents/claude) - Complex refactoring and testing
 - [Copilot Guide](/docs/agents/copilot) - In-editor security-first coding
 - [ChatGPT Guide](/docs/agents/chatgpt) - Threat modeling and analysis
+- [Alice Guide](/docs/agents/alice) - Autonomous security remediation (agentic AI proof of concept)
 - [Multi-Agent Guide](/docs/agents/multi-agent) - Orchestration patterns
 
 ---

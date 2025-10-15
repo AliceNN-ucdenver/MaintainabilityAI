@@ -235,11 +235,19 @@ jobs:
 
           ### 👤 Approval Required
 
-          **Next Steps**:
+          **To approve this plan and trigger implementation, copy and paste this comment:**
 
-          1. **Review** this plan against the embedded OWASP/maintainability prompts
-          2. **Provide feedback** if any design choices need adjustment
-          3. **Approve** by commenting: `@claude approved` or `@alice approved`
+          \`\`\`
+          @claude approved
+          \`\`\`
+
+          **Alternative approval commands:**
+          - `@alice approved`
+          - `@claude go ahead`
+          - `@claude implement this`
+          - `@claude looks good`
+
+          **For changes:** Just comment with your feedback and I'll update the plan.
 
           I will NOT implement until you explicitly approve.
 
