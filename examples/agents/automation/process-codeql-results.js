@@ -132,7 +132,7 @@ async function fetchPrompt(category, file) {
     return promptCache.get(cacheKey);
   }
 
-  const url = `https://raw.githubusercontent.com/${config.promptRepo}/${config.promptBranch}/site-tw/public/docs/prompts/${category}/${file}`;
+  const url = `https://raw.githubusercontent.com/${config.promptRepo}/${config.promptBranch}/examples/promptpack/${category}/${file}`;
 
   try {
     log('INFO', `Fetching prompt: ${url}`);
@@ -156,6 +156,56 @@ async function fetchPrompt(category, file) {
     promptCache.set(cacheKey, null);
     return null;
   }
+}
+
+// ============================================================================
+// TITLE EXTRACTION UTILITIES
+// ============================================================================
+
+/**
+ * Extract OWASP number and title from filename or content
+ * @param {string} filename - Filename (e.g., "A01_broken_access_control.md")
+ * @param {string} content - Markdown content
+ * @returns {Object} Object with num and title properties
+ */
+function extractOwaspInfo(filename, content) {
+  // Extract number: "A01_broken_access_control.md" → "A01"
+  const numMatch = filename.match(/A(\d{2})/);
+  const num = numMatch ? `A${numMatch[1]}` : '';
+
+  // Extract title from first heading: "# Broken Access Control (OWASP A01) — Compact..."
+  const titleMatch = content.match(/^#\s+([^(—\n]+)/m);
+  const title = titleMatch ? titleMatch[1].trim() : '';
+
+  return { num, title };
+}
+
+/**
+ * Extract maintainability title from filename
+ * @param {string} filename - Filename (e.g., "complexity-reduction.md")
+ * @returns {string} Formatted title (e.g., "Complexity Reduction")
+ */
+function extractMaintainabilityTitle(filename) {
+  // "complexity-reduction.md" → "Complexity Reduction"
+  return filename
+    .replace('.md', '')
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * Extract STRIDE threat name from filename
+ * @param {string} filename - Filename (e.g., "spoofing.md")
+ * @returns {string} Formatted title (e.g., "Spoofing")
+ */
+function extractStrideTitle(filename) {
+  // "spoofing.md" → "Spoofing"
+  return filename
+    .replace('.md', '')
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 // ============================================================================
@@ -472,83 +522,88 @@ To start implementation immediately:
 
 `;
 
-  // Add OWASP prompt (collapsed in details to save space)
-  if (prompts.owaspPrompt) {
-    const owaspPromptTruncated = prompts.owaspPrompt.length > 40000
-      ? prompts.owaspPrompt.substring(0, 40000) + '\n\n... (truncated for size, see full prompt at link above)'
-      : prompts.owaspPrompt;
-
+  // Add OWASP prompts with nested collapsible sections
+  if (prompts.owaspPrompts && prompts.owaspPrompts.length > 0) {
     body += `
-
----
-
-### 🛡️ Security Context (from MaintainabilityAI)
-
 <details>
-<summary><strong>Click to expand OWASP ${owaspCategory} security guidance</strong> (${Math.round(prompts.owaspPrompt.length / 1024)}KB)</summary>
+<summary>📘 <strong>OWASP Security Guidance</strong> (${prompts.owaspPrompts.length} ${prompts.owaspPrompts.length === 1 ? 'guide' : 'guides'})</summary>
 
-${owaspPromptTruncated}
+`;
+
+    prompts.owaspPrompts.forEach(prompt => {
+      const { num, title } = extractOwaspInfo(prompt.filename, prompt.content);
+
+      body += `
+<details>
+<summary>🔒 <strong>${num} - ${title}</strong></summary>
+
+${prompt.content}
 
 </details>
+
+`;
+    });
+
+    body += `
+</details>
+
 `;
   }
 
-  // Add maintainability prompts (collapsed)
+  // Add maintainability prompts with nested collapsible sections
   if (prompts.maintainabilityPrompts && prompts.maintainabilityPrompts.length > 0) {
     body += `
-
----
-
-### 📐 Maintainability Considerations
+<details>
+<summary>🏗️ <strong>Maintainability Guidance</strong> (${prompts.maintainabilityPrompts.length} ${prompts.maintainabilityPrompts.length === 1 ? 'guide' : 'guides'})</summary>
 
 `;
 
-    for (const maintPrompt of prompts.maintainabilityPrompts) {
-      if (maintPrompt.content) {
-        const contentTruncated = maintPrompt.content.length > 10000
-          ? maintPrompt.content.substring(0, 10000) + '\n\n... (truncated for size)'
-          : maintPrompt.content;
+    prompts.maintainabilityPrompts.forEach(prompt => {
+      const title = extractMaintainabilityTitle(prompt.filename);
 
-        body += `
+      body += `
 <details>
-<summary><strong>${maintPrompt.name}</strong> (${Math.round(maintPrompt.content.length / 1024)}KB)</summary>
+<summary>📐 <strong>${title}</strong></summary>
 
-${contentTruncated}
+${prompt.content}
 
 </details>
 
 `;
-      }
-    }
+    });
+
+    body += `
+</details>
+
+`;
   }
 
-  // Add threat model prompts (collapsed)
+  // Add threat model prompts with nested collapsible sections
   if (prompts.threatModelPrompts && prompts.threatModelPrompts.length > 0) {
     body += `
-
----
-
-### 🎯 Threat Model Analysis
+<details>
+<summary>🎯 <strong>Threat Model Analysis (STRIDE)</strong> (${prompts.threatModelPrompts.length} ${prompts.threatModelPrompts.length === 1 ? 'threat' : 'threats'})</summary>
 
 `;
 
-    for (const threatPrompt of prompts.threatModelPrompts) {
-      if (threatPrompt.content) {
-        const contentTruncated = threatPrompt.content.length > 10000
-          ? threatPrompt.content.substring(0, 10000) + '\n\n... (truncated for size)'
-          : threatPrompt.content;
+    prompts.threatModelPrompts.forEach(prompt => {
+      const title = extractStrideTitle(prompt.filename);
 
-        body += `
+      body += `
 <details>
-<summary><strong>${threatPrompt.name}</strong> (${Math.round(threatPrompt.content.length / 1024)}KB)</summary>
+<summary>🎭 <strong>${title}</strong></summary>
 
-${contentTruncated}
+${prompt.content}
 
 </details>
 
 `;
-      }
-    }
+    });
+
+    body += `
+</details>
+
+`;
   }
 
   // Add additional metadata (collapsed)
@@ -961,13 +1016,19 @@ async function processFindings(findings) {
         owaspKey: owaspInfo.key,
         owaspCategory: owaspInfo.name,
         owaspFile: owaspInfo.prompt_file,
-        owaspPrompt: null,
+        owaspPrompts: [],
         maintainabilityPrompts: [],
         threatModelPrompts: []
       };
 
-      // Fetch OWASP prompt
-      prompts.owaspPrompt = await fetchPrompt('owasp', owaspInfo.prompt_file);
+      // Fetch OWASP prompt (now as array for nested collapsible structure)
+      const owaspContent = await fetchPrompt('owasp', owaspInfo.prompt_file);
+      if (owaspContent) {
+        prompts.owaspPrompts.push({
+          filename: owaspInfo.prompt_file,
+          content: owaspContent
+        });
+      }
 
       // Detect and fetch maintainability prompts
       const maintainabilityFiles = detectMaintainabilityConcerns(finding);
@@ -986,7 +1047,7 @@ async function processFindings(findings) {
         const content = await fetchPrompt('maintainability', file);
         if (content) {
           prompts.maintainabilityPrompts.push({
-            name: file.replace('.md', '').replace(/-/g, ' ').toUpperCase(),
+            filename: file,
             content
           });
         }
@@ -999,7 +1060,7 @@ async function processFindings(findings) {
           const content = await fetchPrompt('threat-modeling', file);
           if (content) {
             prompts.threatModelPrompts.push({
-              name: threat.replace(/-/g, ' ').toUpperCase(),
+              filename: file,
               content
             });
           }

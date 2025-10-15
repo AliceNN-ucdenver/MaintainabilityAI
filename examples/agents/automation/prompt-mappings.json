@@ -36,7 +36,7 @@
       "name": "Broken Access Control",
       "prompt_file": "A01_broken_access_control.md",
       "threat_model": ["elevation-of-privilege", "information-disclosure"],
-      "maintainability": ["single-responsibility"]
+      "maintainability": ["single-responsibility", "complexity-reduction"]
     },
     "A02_crypto_failures": {
       "name": "Cryptographic Failures",
@@ -54,7 +54,7 @@
       "name": "Insecure Design",
       "prompt_file": "A04_insecure_design.md",
       "threat_model": ["denial-of-service"],
-      "maintainability": ["fitness-functions"]
+      "maintainability": ["fitness-functions", "technical-debt", "strangler-fig"]
     },
     "A05_security_misconfig": {
       "name": "Security Misconfiguration",
@@ -66,13 +66,13 @@
       "name": "Vulnerable and Outdated Components",
       "prompt_file": "A06_vuln_outdated.md",
       "threat_model": [],
-      "maintainability": ["dependency-hygiene"]
+      "maintainability": ["dependency-hygiene", "fitness-functions", "technical-debt"]
     },
     "A07_authn_failures": {
       "name": "Identification and Authentication Failures",
       "prompt_file": "A07_authn_failures.md",
       "threat_model": ["spoofing"],
-      "maintainability": []
+      "maintainability": ["dry-principle"]
     },
     "A08_integrity_failures": {
       "name": "Software and Data Integrity Failures",
@@ -109,6 +109,18 @@
     "dependencies": {
       "prompt_file": "dependency-hygiene.md",
       "keywords": ["outdated", "vulnerable dependency", "unmaintained package"]
+    },
+    "refactoring": {
+      "prompt_file": "strangler-fig.md",
+      "keywords": ["legacy code", "incremental refactoring", "large migration", "phased approach"]
+    },
+    "technical_debt": {
+      "prompt_file": "technical-debt.md",
+      "keywords": ["workaround", "temporary fix", "needs refactoring", "technical debt", "code smell"]
+    },
+    "quality_gates": {
+      "prompt_file": "fitness-functions.md",
+      "keywords": ["automated checks", "quality metrics", "ci/cd", "validation", "guardrails"]
     }
   },
   "severity_mapping": {
