@@ -704,17 +704,17 @@ ${prompt.content}
 `;
   }
 
-  // Add Alice Remediation Zone at the bottom
+  // Add Claude Remediation Zone at the bottom
   body += `
 
 ---
 
-## 🤖 Alice Remediation Zone
+## 🤖 Claude Remediation Zone
 
 To request a remediation plan for **all ${count} occurrence${count > 1 ? 's' : ''}**, **copy and paste this comment**:
 
 \`\`\`
-@alice Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath} following the security and maintainability guidelines provided.
+@claude Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath} following the security and maintainability guidelines provided.
 \`\`\`
 
 ---
