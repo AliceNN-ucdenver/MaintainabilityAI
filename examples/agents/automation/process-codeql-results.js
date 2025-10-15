@@ -547,18 +547,19 @@ function detectMaintainabilityConcerns(vulnerability) {
 // ============================================================================
 
 /**
- * Create formatted GitHub issue body with embedded prompts
- * @param {Object} vulnerability - Vulnerability object
+ * Create formatted GitHub issue body with embedded prompts for grouped findings
+ * @param {Object} groupedFinding - Grouped vulnerability object with occurrences array
  * @param {Object} prompts - Object containing fetched prompts
  * @returns {string} Formatted issue body in Markdown
  */
-function createIssueBody(vulnerability, prompts) {
+function createIssueBody(groupedFinding, prompts) {
   const timestamp = new Date().toISOString();
   const owaspCategory = prompts.owaspCategory || 'Unknown';
   const owaspKey = prompts.owaspKey || '';
+  const count = groupedFinding.occurrences.length;
 
   // Determine language from file extension
-  const ext = path.extname(vulnerability.filePath).toLowerCase();
+  const ext = path.extname(groupedFinding.filePath).toLowerCase();
   const languageMap = {
     '.js': 'javascript',
     '.ts': 'typescript',
@@ -573,11 +574,12 @@ function createIssueBody(vulnerability, prompts) {
   };
   const language = languageMap[ext] || 'text';
 
-  // Build issue body
-  let body = `## 🔴 Security Vulnerability: ${vulnerability.ruleName}
+  // Build issue body header
+  let body = `## 🔴 Security Vulnerability: ${groupedFinding.ruleName}
 
-**Detected by**: ${vulnerability.tool} v${vulnerability.toolVersion}
+**Detected by**: ${groupedFinding.tool} v${groupedFinding.toolVersion}
 **Created**: ${timestamp}
+**Occurrences**: ${count} location${count > 1 ? 's' : ''} in this file
 
 ---
 
@@ -585,40 +587,50 @@ function createIssueBody(vulnerability, prompts) {
 
 | Property | Value |
 |----------|-------|
-| **Severity** | ${vulnerability.severity.toUpperCase()} |
-| **CodeQL Rule** | \`${vulnerability.ruleId}\` |
+| **Severity** | ${groupedFinding.severity.toUpperCase()} |
+| **CodeQL Rule** | \`${groupedFinding.ruleId}\` |
 | **OWASP Category** | [${owaspCategory}](https://maintainability.ai/docs/prompts/owasp/${prompts.owaspFile || ''}) |
-| **File** | \`${vulnerability.filePath}\` |
-| **Lines** | ${vulnerability.startLine}${vulnerability.endLine !== vulnerability.startLine ? `-${vulnerability.endLine}` : ''} |
+| **File** | \`${groupedFinding.filePath}\` |
+| **Total Occurrences** | ${count} |
 
-### 💻 Vulnerable Code
+### 💻 Vulnerable Code Locations
 
-\`\`\`${language}
-${vulnerability.codeSnippet || '(No code snippet available)'}
-\`\`\`
-
-**Issue**: ${vulnerability.message}
 `;
 
-  // Add rule help if available
-  if (vulnerability.ruleHelp) {
-    body += `
+  // Add each occurrence
+  groupedFinding.occurrences.forEach((occurrence, index) => {
+    const locationLabel = count > 1 ? `#### Location ${index + 1}: Lines ${occurrence.startLine}${occurrence.endLine !== occurrence.startLine ? `-${occurrence.endLine}` : ''}` : `#### Lines ${occurrence.startLine}${occurrence.endLine !== occurrence.startLine ? `-${occurrence.endLine}` : ''}`;
 
-**Additional Context**: ${vulnerability.ruleHelp}
+    body += `
+${locationLabel}
+
+\`\`\`${language}
+${occurrence.codeSnippet || '(No code snippet available)'}
+\`\`\`
+
+**Issue**: ${occurrence.message}
+
+`;
+  });
+
+  // Add rule help if available
+  if (groupedFinding.ruleHelp) {
+    body += `
+**Additional Context**: ${groupedFinding.ruleHelp}
 `;
   }
 
-  // Add Claude Remediation Zone FIRST (always visible)
+  // Add Alice Remediation Zone FIRST (always visible)
   body += `
 
 ---
 
 ## 🤖 Alice Remediation Zone
 
-To request a remediation plan, **copy and paste this comment**:
+To request a remediation plan for **all ${count} occurrence${count > 1 ? 's' : ''}**, **copy and paste this comment**:
 
 \`\`\`
-@alice Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
+@alice Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath} following the security and maintainability guidelines provided.
 \`\`\`
 
 <details>
@@ -634,27 +646,22 @@ To request a remediation plan, **copy and paste this comment**:
 
 For just the remediation plan:
 \`\`\`
-@alice Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
-\`\`\`
-
-To find similar issues in the same file:
-\`\`\`
-@alice Please analyze \`${vulnerability.filePath}\` for similar vulnerabilities to this ${vulnerability.ruleName} issue and provide a comprehensive remediation plan.
+@alice Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability following the security and maintainability guidelines provided.
 \`\`\`
 
 To start implementation immediately:
 \`\`\`
-@alice Please provide a remediation plan for this vulnerability and implement the fix following the security and maintainability guidelines provided.
+@alice Please provide a remediation plan for all occurrences and implement the fix following the security and maintainability guidelines provided.
 \`\`\`
 
 </details>
 
 ### ✅ Human Review Checklist
 
-- [ ] Security fix addresses the root cause
+- [ ] Security fix addresses the root cause in **all ${count} location${count > 1 ? 's' : ''}**
 - [ ] Code maintains readability and maintainability
 - [ ] Fix doesn't introduce new vulnerabilities
-- [ ] Tests are included/updated
+- [ ] Tests are included/updated for all occurrences
 - [ ] Documentation is updated
 - [ ] Performance impact is acceptable
 
@@ -779,13 +786,19 @@ ${prompt.content}
 // ============================================================================
 
 /**
- * Generate a concise issue title
- * @param {Object} vulnerability - Vulnerability object
+ * Generate a concise issue title for grouped findings
+ * @param {Object} groupedFinding - Grouped vulnerability object with occurrences array
  * @returns {string} Issue title
  */
-function createIssueTitle(vulnerability) {
-  const fileName = path.basename(vulnerability.filePath);
-  return `[Security] ${vulnerability.ruleName} in ${fileName}:${vulnerability.startLine}`;
+function createIssueTitle(groupedFinding) {
+  const fileName = path.basename(groupedFinding.filePath);
+  const count = groupedFinding.occurrences.length;
+
+  if (count === 1) {
+    return `[Security] ${groupedFinding.ruleName} in ${fileName}:${groupedFinding.occurrences[0].startLine}`;
+  } else {
+    return `[Security] ${groupedFinding.ruleName} in ${fileName} (${count} occurrences)`;
+  }
 }
 
 // ============================================================================
@@ -793,13 +806,13 @@ function createIssueTitle(vulnerability) {
 // ============================================================================
 
 /**
- * Find existing issue for a vulnerability
- * @param {Object} vulnerability - Vulnerability object
+ * Find existing issue for a grouped finding
+ * @param {Object} groupedFinding - Grouped vulnerability object
  * @returns {Promise<Object|null>} Existing issue or null
  */
-async function findExistingIssue(vulnerability) {
+async function findExistingIssue(groupedFinding) {
   try {
-    log('INFO', `Searching for existing issue: ${vulnerability.ruleId} in ${vulnerability.filePath}:${vulnerability.startLine}`);
+    log('INFO', `Searching for existing issue: ${groupedFinding.ruleId} in ${groupedFinding.filePath}`);
 
     // Search for issues with codeql-finding label
     const { data: issues } = await octokit.rest.issues.listForRepo({
@@ -810,16 +823,15 @@ async function findExistingIssue(vulnerability) {
       per_page: 100
     });
 
-    // Look for matching issue
+    // Look for matching issue by ruleId + filePath only (ignore line numbers)
     for (const issue of issues) {
       const body = issue.body || '';
 
-      // Check if rule ID, file path, and line number match
-      const hasRuleId = body.includes(`\`${vulnerability.ruleId}\``);
-      const hasFilePath = body.includes(`\`${vulnerability.filePath}\``);
-      const hasLineNumber = body.includes(`${vulnerability.startLine}`);
+      // Check if rule ID and file path match
+      const hasRuleId = body.includes(`\`${groupedFinding.ruleId}\``);
+      const hasFilePath = body.includes(`\`${groupedFinding.filePath}\``);
 
-      if (hasRuleId && hasFilePath && hasLineNumber) {
+      if (hasRuleId && hasFilePath) {
         log('INFO', `Found existing issue #${issue.number}`);
         return issue;
       }
@@ -984,7 +996,8 @@ function meetsSeverityThreshold(severity) {
 
 /**
  * Auto-close issues for vulnerabilities that are no longer in the SARIF results
- * @param {Set<string>} currentVulnerabilities - Set of current vulnerability keys
+ * For grouped issues, closes only if ALL occurrences are resolved
+ * @param {Set<string>} currentVulnerabilities - Set of current vulnerability keys (ruleId:filePath:line)
  * @returns {Promise<number>} Number of issues closed
  */
 async function autoCloseResolvedIssues(currentVulnerabilities) {
@@ -1012,25 +1025,53 @@ async function autoCloseResolvedIssues(currentVulnerabilities) {
 
       const body = issue.body || '';
 
-      // Extract vulnerability key from issue body
-      // Format: `js/sql-injection` in `src/app.ts` at line 73
+      // Extract rule and file from issue body
       const ruleMatch = body.match(/\*\*CodeQL Rule\*\* \| `([^`]+)`/);
       const fileMatch = body.match(/\*\*File\*\* \| `([^`]+)`/);
-      const lineMatch = body.match(/\*\*Lines\*\* \| (\d+)/);
 
-      if (!ruleMatch || !fileMatch || !lineMatch) {
+      if (!ruleMatch || !fileMatch) {
         log('WARN', `Could not parse issue #${issue.number}, skipping auto-close check`);
         continue;
       }
 
       const ruleId = ruleMatch[1];
       const filePath = fileMatch[1];
-      const startLine = lineMatch[1];
-      const vulnKey = `${ruleId}:${filePath}:${startLine}`;
 
-      // Check if this vulnerability still exists in current scan
-      if (!currentVulnerabilities.has(vulnKey)) {
-        log('INFO', `Vulnerability resolved: ${vulnKey}, closing issue #${issue.number}`);
+      // Extract all line numbers from the issue body for grouped findings
+      // Matches "Location X: Lines Y" or "Lines Y" or "#### Location 1: Lines 45-47"
+      const lineMatches = body.matchAll(/Lines?\s+(\d+)(?:-\d+)?/gi);
+      const issueLines = new Set();
+
+      for (const match of lineMatches) {
+        issueLines.add(match[1]);
+      }
+
+      // If no lines found, try the old format (single line in table)
+      if (issueLines.size === 0) {
+        const oldFormatLine = body.match(/\*\*Lines\*\* \| (\d+)/);
+        if (oldFormatLine) {
+          issueLines.add(oldFormatLine[1]);
+        }
+      }
+
+      if (issueLines.size === 0) {
+        log('WARN', `Could not extract line numbers from issue #${issue.number}, skipping auto-close check`);
+        continue;
+      }
+
+      // Check if ANY of the issue's occurrences still exist in current scan
+      let hasAnyOccurrence = false;
+      for (const line of issueLines) {
+        const vulnKey = `${ruleId}:${filePath}:${line}`;
+        if (currentVulnerabilities.has(vulnKey)) {
+          hasAnyOccurrence = true;
+          break;
+        }
+      }
+
+      // Only close if ALL occurrences are resolved (none exist in current scan)
+      if (!hasAnyOccurrence) {
+        log('INFO', `All occurrences resolved for ${ruleId} in ${filePath}, closing issue #${issue.number}`);
 
         // Close the issue
         await octokit.rest.issues.update({
@@ -1041,18 +1082,19 @@ async function autoCloseResolvedIssues(currentVulnerabilities) {
         });
 
         // Add closing comment
+        const occurrenceCount = issueLines.size;
         await octokit.rest.issues.createComment({
           owner: config.owner,
           repo: config.repo,
           issue_number: issue.number,
-          body: `## ✅ Vulnerability Resolved
+          body: `## ✅ All Vulnerabilities Resolved
 
-This issue is being automatically closed because the vulnerability is no longer detected in the latest CodeQL scan.
+This issue is being automatically closed because **all ${occurrenceCount} occurrence${occurrenceCount > 1 ? 's' : ''}** of this vulnerability ${occurrenceCount > 1 ? 'are' : 'is'} no longer detected in the latest CodeQL scan.
 
 **Details:**
 - **Rule**: \`${ruleId}\`
 - **File**: \`${filePath}\`
-- **Line**: ${startLine}
+- **Occurrences Resolved**: ${occurrenceCount}
 - **Scan Date**: ${new Date().toISOString()}
 - **Branch**: ${config.branch}
 - **Commit**: ${config.sha}
@@ -1076,6 +1118,8 @@ If this was closed in error, please reopen and add the \`false-positive\` label 
 
         // Rate limiting protection
         await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        log('INFO', `Issue #${issue.number} still has active occurrences, keeping open`);
       }
     }
   } catch (error) {
@@ -1084,6 +1128,49 @@ If this was closed in error, please reopen and add the \`false-positive\` label 
   }
 
   return closedCount;
+}
+
+// ============================================================================
+// FINDING GROUPING
+// ============================================================================
+
+/**
+ * Group findings by ruleId and filePath to create one issue per rule per file
+ * @param {Array<Object>} findings - Array of vulnerabilities
+ * @returns {Array<Object>} Array of grouped findings
+ */
+function groupFindingsByRuleAndFile(findings) {
+  const groups = new Map();
+
+  for (const finding of findings) {
+    const key = `${finding.ruleId}:${finding.filePath}`;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ruleId: finding.ruleId,
+        ruleName: finding.ruleName,
+        ruleHelp: finding.ruleHelp,
+        filePath: finding.filePath,
+        level: finding.level,
+        severity: finding.severity,
+        tool: finding.tool,
+        toolVersion: finding.toolVersion,
+        message: finding.message,
+        occurrences: []
+      });
+    }
+
+    groups.get(key).occurrences.push({
+      startLine: finding.startLine,
+      endLine: finding.endLine,
+      startColumn: finding.startColumn,
+      endColumn: finding.endColumn,
+      codeSnippet: finding.codeSnippet,
+      message: finding.message
+    });
+  }
+
+  return Array.from(groups.values());
 }
 
 // ============================================================================
@@ -1107,41 +1194,46 @@ async function processFindings(findings) {
     by_owasp: {}
   };
 
+  // GROUP FINDINGS FIRST by ruleId + filePath
+  log('INFO', 'Grouping findings by rule and file...');
+  const groupedFindings = groupFindingsByRuleAndFile(findings);
+  log('SUCCESS', `Grouped ${findings.length} finding(s) into ${groupedFindings.length} issue(s)`);
+
   let processedCount = 0;
 
-  // Track current vulnerabilities for auto-close feature
+  // Track current vulnerabilities for auto-close feature (track all individual occurrences)
   const currentVulnerabilities = new Set();
 
-  for (const finding of findings) {
+  for (const groupedFinding of groupedFindings) {
     try {
       // Check if we've reached the limit
       if (processedCount >= config.maxIssuesPerRun) {
         log('WARN', `Reached max issues per run (${config.maxIssuesPerRun}), stopping`);
-        results.skipped += findings.length - processedCount;
+        results.skipped += groupedFindings.length - processedCount;
         break;
       }
 
       // Count by severity
-      results.by_severity[finding.severity] = (results.by_severity[finding.severity] || 0) + 1;
+      results.by_severity[groupedFinding.severity] = (results.by_severity[groupedFinding.severity] || 0) + 1;
 
       // Filter by severity threshold
-      if (!meetsSeverityThreshold(finding.severity)) {
-        log('INFO', `Skipping ${finding.ruleId} (severity ${finding.severity} below threshold ${config.severityThreshold})`);
+      if (!meetsSeverityThreshold(groupedFinding.severity)) {
+        log('INFO', `Skipping ${groupedFinding.ruleId} (severity ${groupedFinding.severity} below threshold ${config.severityThreshold})`);
         results.skipped++;
         continue;
       }
 
       // Filter by excluded paths
-      if (shouldExcludePath(finding.filePath)) {
-        log('INFO', `Skipping ${finding.ruleId} (path ${finding.filePath} is excluded)`);
+      if (shouldExcludePath(groupedFinding.filePath)) {
+        log('INFO', `Skipping ${groupedFinding.ruleId} (path ${groupedFinding.filePath} is excluded)`);
         results.skipped++;
         continue;
       }
 
       // Map to OWASP
-      const owaspInfo = mapToOWASP(finding.ruleId);
+      const owaspInfo = mapToOWASP(groupedFinding.ruleId);
       if (!owaspInfo) {
-        log('WARN', `Skipping ${finding.ruleId} (no OWASP mapping)`);
+        log('WARN', `Skipping ${groupedFinding.ruleId} (no OWASP mapping)`);
         results.skipped++;
         continue;
       }
@@ -1149,7 +1241,7 @@ async function processFindings(findings) {
       // Count by OWASP
       results.by_owasp[owaspInfo.key] = (results.by_owasp[owaspInfo.key] || 0) + 1;
 
-      log('INFO', `Processing finding: ${finding.ruleId} (${owaspInfo.key})`);
+      log('INFO', `Processing grouped finding: ${groupedFinding.ruleId} (${owaspInfo.key}) - ${groupedFinding.occurrences.length} occurrence(s)`);
 
       // Fetch prompts
       const prompts = {
@@ -1170,8 +1262,8 @@ async function processFindings(findings) {
         });
       }
 
-      // Detect and fetch maintainability prompts
-      const maintainabilityFiles = detectMaintainabilityConcerns(finding);
+      // Detect and fetch maintainability prompts (use first occurrence as representative)
+      const maintainabilityFiles = detectMaintainabilityConcerns(groupedFinding);
 
       // Add mapped maintainability prompts from OWASP category
       if (owaspInfo.maintainability) {
@@ -1208,13 +1300,13 @@ async function processFindings(findings) {
       }
 
       // Create issue body
-      const issueBody = createIssueBody(finding, prompts);
+      const issueBody = createIssueBody(groupedFinding, prompts);
 
       // Generate labels
-      const labels = generateLabels(finding, owaspInfo, maintainabilityFiles);
+      const labels = generateLabels(groupedFinding, owaspInfo, maintainabilityFiles);
 
       // Create or update issue
-      const { issue, action } = await createOrUpdateIssue(finding, issueBody, labels);
+      const { issue, action } = await createOrUpdateIssue(groupedFinding, issueBody, labels);
 
       if (action === 'created') {
         results.created++;
@@ -1222,9 +1314,11 @@ async function processFindings(findings) {
         results.updated++;
       }
 
-      // Track this vulnerability as currently existing
-      const vulnKey = `${finding.ruleId}:${finding.filePath}:${finding.startLine}`;
-      currentVulnerabilities.add(vulnKey);
+      // Track ALL occurrences of this vulnerability as currently existing
+      for (const occurrence of groupedFinding.occurrences) {
+        const vulnKey = `${groupedFinding.ruleId}:${groupedFinding.filePath}:${occurrence.startLine}`;
+        currentVulnerabilities.add(vulnKey);
+      }
 
       processedCount++;
 
@@ -1232,10 +1326,10 @@ async function processFindings(findings) {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
     } catch (error) {
-      log('ERROR', `Failed to process finding ${finding.ruleId}: ${error.message}`);
+      log('ERROR', `Failed to process grouped finding ${groupedFinding.ruleId}: ${error.message}`);
       results.errors.push({
-        ruleId: finding.ruleId,
-        filePath: finding.filePath,
+        ruleId: groupedFinding.ruleId,
+        filePath: groupedFinding.filePath,
         error: error.message
       });
       results.skipped++;

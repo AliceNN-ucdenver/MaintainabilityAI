@@ -82,15 +82,23 @@ jobs:
 
           You are a security-focused software engineer. Your job is to analyze this vulnerability and create a detailed remediation plan for human review. You will NOT implement the fix yet.
 
+          **IMPORTANT**: The issue may contain **multiple occurrences** of the same vulnerability in the same file (e.g., "3 occurrences"). Your remediation plan must address **ALL occurrences**, not just one.
+
           ### Step 1: Read & Understand
 
-          1. **Read the vulnerable code file** mentioned in the issue
-          2. **Expand and review the OWASP prompt** in the collapsed section (📘 OWASP Security Guidance)
+          1. **Identify all occurrences** in the issue
+             - Look for "Occurrences: X locations in this file" in the issue header
+             - Check for "Location 1:", "Location 2:", etc. sections with code snippets
+             - Note the line numbers for each occurrence
+          2. **Read the vulnerable code file** mentioned in the issue
+             - Navigate to each occurrence location
+             - Understand the context around each vulnerable line
+          3. **Expand and review the OWASP prompt** in the collapsed section (📘 OWASP Security Guidance)
              - Look at "What It Looks Like" (vulnerable examples with ❌)
              - Study "What Good Looks Like" (secure patterns with ✅ and 5 key patterns numbered 1-5)
              - Note the "Human Review Checklist" at the end (6 items)
-          3. **Review related maintainability guidance** if present (🏗️ Maintainability Guidance)
-          4. **Understand the threat model** (🎯 Threat Model Analysis - STRIDE categories)
+          4. **Review related maintainability guidance** if present (🏗️ Maintainability Guidance)
+          5. **Understand the threat model** (🎯 Threat Model Analysis - STRIDE categories)
 
           ### Step 2: Design Your Solution
 
@@ -141,30 +149,45 @@ jobs:
 
           **Approach**: [High-level strategy matching "What Good Looks Like" from the prompt]
 
+          **Scope**: This issue contains **[X] occurrence(s)** of the same vulnerability pattern.
+
+          **All Locations to Fix**:
+          - Line(s) [X]: [Brief description of vulnerable code at this location]
+          - Line(s) [Y]: [Brief description of vulnerable code at this location]
+          - Line(s) [Z]: [Brief description of vulnerable code at this location]
+
           **Architecture**:
           - File: `path/to/vulnerable.ts`
-            - Apply Key Pattern 1: [Specific pattern from OWASP prompt]
-            - Apply Key Pattern 2: [...]
-            - Apply Key Pattern 3: [...]
-            - Apply Key Pattern 4: [...]
-            - Apply Key Pattern 5: [...]
+            - Location 1 (lines X): Apply all 5 key patterns
+            - Location 2 (lines Y): Apply all 5 key patterns
+            - Location 3 (lines Z): Apply all 5 key patterns
+            - **Common Pattern**: [If all occurrences can use the same helper function/pattern, describe it]
 
           - File: `path/to/vulnerable.test.ts`
-            - Add attack vector tests
+            - Add attack vector tests for each occurrence
             - Add edge case tests
+
+          **Five Key Patterns** (from OWASP prompt):
+          1. **[Pattern 1 name]**: [How to apply across all occurrences]
+          2. **[Pattern 2 name]**: [How to apply across all occurrences]
+          3. **[Pattern 3 name]**: [How to apply across all occurrences]
+          4. **[Pattern 4 name]**: [How to apply across all occurrences]
+          5. **[Pattern 5 name]**: [How to apply across all occurrences]
 
           **Code Examples**:
 
           \`\`\`typescript
-          // Example showing the fix (before/after snippet)
-          // BEFORE (vulnerable):
+          // Example showing the fix (before/after snippet for one occurrence)
+          // BEFORE (vulnerable - Line 45):
           const sql = \`SELECT * FROM users WHERE id = \${userId}\`;
 
-          // AFTER (secure):
+          // AFTER (secure - Line 45):
           const userIdSchema = z.string().uuid();
           const validId = userIdSchema.parse(userId);
           const sql = 'SELECT * FROM users WHERE id = $1';
           const result = await client.query(sql, [validId]);
+
+          // NOTE: Apply the same pattern to lines 89 and 134
           \`\`\`
 
           ### ✅ Security Design Checklist
@@ -397,23 +420,29 @@ jobs:
 
           ### Pre-Implementation: Find Your Plan & Extract Context
 
-          1. **Search issue comments** for your previous remediation plan
+          1. **Check for multiple occurrences in the issue**
+             - Look for "Occurrences: X locations in this file" in the issue header
+             - Note all line numbers: "Location 1: Lines 45-47", "Location 2: Lines 89-91", etc.
+             - **CRITICAL**: You must fix ALL occurrences, not just one
+
+          2. **Search issue comments** for your previous remediation plan
              - Look for a comment from `claude-code[bot]` or `alice[bot]`
              - Contains "## 🔍 Remediation Plan"
+             - Should list "All Locations to Fix" with line numbers
              - Has design decisions, 5 key patterns, and code examples
 
-          2. **Extract prompt pack categories and checklists from the issue**
+          3. **Extract prompt pack categories and checklists from the issue**
              - OWASP category: Look in issue title or body for "A01", "A02", etc.
              - **Human Review Checklist**: Expand the OWASP prompt section and find the 6-item checklist
              - Maintainability: Check for 🏗️ sections (Complexity Reduction, DRY Principle, etc.)
              - STRIDE threats: Check for 🎯 sections (Tampering, Spoofing, etc.)
              - You'll need these for the commit message AND the PR Human Review Tasks section
 
-          3. **Verify approval**
+          4. **Verify approval**
              - Latest comment contains "approved" or similar keyword
              - Human has reviewed and accepted the plan
 
-          4. **If you can't find your plan**: Post a comment asking for clarification and STOP
+          5. **If you can't find your plan**: Post a comment asking for clarification and STOP
 
           ---
 
@@ -427,13 +456,21 @@ jobs:
           git checkout -b fix/issue-${{ steps.issue_details.outputs.issue_number }}-security
           ```
 
-          #### Step 2: Implement Security Controls
+          #### Step 2: Implement Security Controls for ALL Occurrences
 
           Follow your approved plan to implement the fix:
 
           1. **Read the vulnerable file(s)**
-          2. **Apply all 5 Key Patterns** you proposed in your plan
-          3. **Match your code examples**: The final code should look like what you showed in the plan
+          2. **For EACH occurrence location** (line numbers from your plan):
+             - Navigate to the specific line
+             - Apply all 5 Key Patterns you proposed
+             - Match your code examples
+          3. **Verify ALL occurrences are fixed**: Use grep or search to ensure you didn't miss any
+             ```bash
+             # Example: Search for any remaining vulnerable patterns
+             grep -n "template literal SQL pattern" path/to/file.ts
+             # Should return 0 matches after your fix
+             ```
 
           #### Step 3: Validate Implementation Checklist (Items 4-6)
 
@@ -526,17 +563,22 @@ jobs:
           ```bash
           git add <modified-files>
 
-          # Example commit message format:
-          git commit -m "fix(security): Resolve A03 Injection in api/users.ts
+          # Example commit message format (adjust based on number of occurrences):
+          git commit -m "fix(security): Resolve A03 Injection in api/users.ts (3 occurrences)
 
           Fixes #${{ steps.issue_details.outputs.issue_number }}
 
-          Security Controls:
+          Fixed 3 instances of SQL injection vulnerability:
+          - Lines 45-47: User query
+          - Lines 89-91: Post query
+          - Lines 134-136: Search query
+
+          Security Controls Applied to All Occurrences:
           - Parameterized queries with \$1/\$2 placeholders
           - Input validation with Zod allowlist regex
           - Generic error messages (no SQL exposure)
 
-          Testing: Positive, negative, and edge case tests included
+          Testing: Positive, negative, and edge case tests included for all occurrences
 
           🤖 [bot] AI-assisted with Claude Code using MaintainabilityAI prompt packs:
           - OWASP: A03 Injection
@@ -680,28 +722,40 @@ jobs:
 
           ### Implementation Summary
 
+          **Fixed [X] occurrences** of this vulnerability in [filename]:
+          - Lines [X]: [Brief description]
+          - Lines [Y]: [Brief description]
+          - Lines [Z]: [Brief description]
+
           **All 6 Checklist Items Verified**:
 
           **Design Phase** (items 1-3):
-          - ✅ [Item 1]: [Implemented]
-          - ✅ [Item 2]: [Implemented]
-          - ✅ [Item 3]: [Implemented]
+          - ✅ [Item 1]: [Implemented across all occurrences]
+          - ✅ [Item 2]: [Implemented across all occurrences]
+          - ✅ [Item 3]: [Implemented across all occurrences]
 
           **Implementation Phase** (items 4-6):
-          - ✅ [Item 4]: [Verified with: grep/test/etc]
-          - ✅ [Item 5]: [Verified with: test/manual check/etc]
-          - ✅ [Item 6]: [Verified with: test/measurement/etc]
+          - ✅ [Item 4]: [Verified with: grep/test/etc - checked all locations]
+          - ✅ [Item 5]: [Verified with: test/manual check/etc - all occurrences tested]
+          - ✅ [Item 6]: [Verified with: test/measurement/etc - all instances validated]
 
           ### Testing Results
           \`\`\`
           npm test
-          ✓ All tests passing
+          ✓ All tests passing (including tests for all [X] occurrences)
           ✓ Coverage: [X]%
           ✓ Complexity: ≤[target]
           \`\`\`
 
+          ### Verification Command
+          \`\`\`bash
+          # Verified no remaining vulnerable patterns:
+          grep -n "vulnerable pattern" path/to/file.ts
+          # Returns: 0 matches
+          \`\`\`
+
           ### Next Steps
-          1. Review PR for code quality
+          1. Review PR for code quality (check all [X] locations)
           2. Verify CI/CD passes
           3. Merge when approved"
           ```
