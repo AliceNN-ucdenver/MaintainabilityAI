@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "vite --config site-tw/vite.config.js",
+    "dev": "cd site-tw && npx vite",
     "build": "npm run build:site",
     "build:site": "cd site-tw && npm ci || npm install && npm run build",
     "test": "jest --colors",

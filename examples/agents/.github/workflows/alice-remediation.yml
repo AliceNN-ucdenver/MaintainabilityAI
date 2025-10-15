@@ -1,4 +1,4 @@
-name: "Claude AI Remediation"
+name: "Alice AI Remediation"
 
 on:
   issue_comment:
@@ -238,14 +238,13 @@ jobs:
           **To approve this plan and trigger implementation, copy and paste this comment:**
 
           \`\`\`
-          @claude approved
+          @alice approved
           \`\`\`
 
           **Alternative approval commands:**
-          - `@alice approved`
-          - `@claude go ahead`
-          - `@claude implement this`
-          - `@claude looks good`
+          - `@alice go ahead`
+          - `@alice implement this`
+          - `@alice looks good`
 
           **For changes:** Just comment with your feedback and I'll update the plan.
 
@@ -403,11 +402,12 @@ jobs:
              - Contains "## 🔍 Remediation Plan"
              - Has design decisions, 5 key patterns, and code examples
 
-          2. **Extract prompt pack categories from the issue**
+          2. **Extract prompt pack categories and checklists from the issue**
              - OWASP category: Look in issue title or body for "A01", "A02", etc.
+             - **Human Review Checklist**: Expand the OWASP prompt section and find the 6-item checklist
              - Maintainability: Check for 🏗️ sections (Complexity Reduction, DRY Principle, etc.)
              - STRIDE threats: Check for 🎯 sections (Tampering, Spoofing, etc.)
-             - You'll need these for the commit message
+             - You'll need these for the commit message AND the PR Human Review Tasks section
 
           3. **Verify approval**
              - Latest comment contains "approved" or similar keyword
@@ -571,6 +571,30 @@ jobs:
 
           #### Step 7: Create Pull Request
 
+          **Before creating the PR**, prepare the Human Review Tasks checklist:
+
+          1. **Extract checklist items from the embedded OWASP prompt** in issue #${{ steps.issue_details.outputs.issue_number }}:
+             - Expand the "📘 OWASP Security Guidance" section
+             - Find "Human Review Checklist" (typically 6 items)
+             - Copy the item names (e.g., "Parameterized Queries", "Input Validation", etc.)
+
+          2. **For each checklist item**, create a specific verification task:
+             - Item 1-3 (Design): Describe what to look for in the code
+             - Item 4-6 (Verification): Provide the exact command to run
+
+          3. **Example for OWASP A03 Injection**:
+             ```markdown
+             **Security Checklist** (from OWASP A03 Injection):
+             - [ ] **Parameterized Queries**: Open \`api/users.ts\` lines 45-67 and confirm all queries use \$1/\$2 placeholders
+             - [ ] **Input Validation**: Test endpoint with attack payload \`'; DROP TABLE users--\` and verify 400 error with message "Invalid input"
+             - [ ] **No String Concatenation**: Run \`grep -r "SELECT.*\${" src/\` and verify 0 matches
+             - [ ] **Safe APIs**: Run \`grep -r "eval\\|Function(" src/\` and verify 0 matches
+             - [ ] **Error Handling**: Send invalid UUID and verify error is "Invalid user ID" not SQL error
+             - [ ] **Defense in Depth**: Run \`npm test -- --grep "injection"\` and verify all 5 tests pass
+             ```
+
+          Now create the PR with the populated checklist:
+
           ```bash
           gh pr create \
             --title "[Security] Fix Issue #${{ steps.issue_details.outputs.issue_number }}: ${{ steps.issue_details.outputs.issue_title }}" \
@@ -606,6 +630,34 @@ jobs:
           ### References
           - Remediation Plan: [link to plan comment]
           - OWASP Guidance: Embedded in issue #${{ steps.issue_details.outputs.issue_number }}
+
+          ---
+
+          ### 👤 Human Review Tasks
+
+          **IMPORTANT**: Before merging, verify each item below. These are extracted from the embedded prompt pack checklists in Issue #${{ steps.issue_details.outputs.issue_number }}.
+
+          **Security Checklist** (from OWASP prompt):
+          - [ ] **[Item 1 name]**: [Specific verification - e.g., \"Open \`file.ts\` lines X-Y and confirm all queries use \$1/\$2 placeholders\"]
+          - [ ] **[Item 2 name]**: [Specific verification - e.g., \"Test endpoint with attack payload: \'; DROP TABLE users-- and verify 400 error\"]
+          - [ ] **[Item 3 name]**: [Specific verification - e.g., \"Run \`grep -r \\\"SELECT.*\\\${\\\" src/\` and verify 0 matches\"]
+          - [ ] **[Item 4 name]**: [Specific verification - e.g., \"Run \`grep -r \\\"eval\\\\|Function(\\\" src/\` and verify 0 matches\"]
+          - [ ] **[Item 5 name]**: [Specific verification - e.g., \"Send invalid input and verify error is generic, not SQL error\"]
+          - [ ] **[Item 6 name]**: [Specific verification - e.g., \"Run \`npm test -- --grep \\\"injection\\\"\` and verify all tests pass\"]
+
+          **Maintainability Checklist** (if applicable):
+          - [ ] **Complexity**: Run \`npx ts-complexity src/modified-file.ts\` and verify all functions ≤10
+          - [ ] **Test Coverage**: Run \`npm test -- --coverage\` and verify modified files ≥80%
+          - [ ] **Code Duplication**: Review for DRY violations
+
+          **Threat Model Verification** (if applicable):
+          - [ ] **[STRIDE Category]**: [Specific threat mitigation to verify]
+
+          **General Quality Gates**:
+          - [ ] All CI/CD checks passing (CodeQL, Snyk, ESLint)
+          - [ ] No new security vulnerabilities introduced
+          - [ ] All tests passing locally and in CI
+          - [ ] Commit message includes 🤖 AI disclosure
 
           ---
 

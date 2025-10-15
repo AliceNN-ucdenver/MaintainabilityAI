@@ -1,6 +1,6 @@
 # 🚀 Deploy to New Repository
 
-**Copy this folder to a new repository and start using CodeQL + Claude AI in 5 minutes.**
+**Copy this folder to a new repository and start using CodeQL + Alice AI in 5 minutes.**
 
 ## Option 1: Quick Deploy Script
 
@@ -13,13 +13,13 @@ NEW_REPO_NAME="my-security-demo"
 NEW_REPO_ORG="your-github-username"  # or organization
 ANTHROPIC_API_KEY="sk-ant-api03-..."  # Get from https://console.anthropic.com/settings/keys
 
-echo "🚀 Deploying CodeQL + Claude AI template to ${NEW_REPO_ORG}/${NEW_REPO_NAME}"
+echo "🚀 Deploying CodeQL + Alice AI template to ${NEW_REPO_ORG}/${NEW_REPO_NAME}"
 
 # Create new repository
 echo "📦 Creating new GitHub repository..."
 gh repo create "${NEW_REPO_ORG}/${NEW_REPO_NAME}" \
   --public \
-  --description "CodeQL + Claude AI security automation" \
+  --description "CodeQL + Alice AI security automation" \
   --clone
 
 cd "${NEW_REPO_NAME}"
@@ -33,7 +33,7 @@ cp /path/to/maintainabilityai/examples/agents/.gitignore .
 # Initialize git and push
 echo "📤 Pushing to GitHub..."
 git add .
-git commit -m "Initial commit: CodeQL + Claude AI automation
+git commit -m "Initial commit: CodeQL + Alice AI automation
 
 🤖 AI-assisted repository setup using MaintainabilityAI template
 "
@@ -62,7 +62,7 @@ echo "📋 Next steps:"
 echo "  1. Enable GitHub Actions permissions (see manual step above)"
 echo "  2. Wait ~5 minutes for CodeQL scan to complete"
 echo "  3. Check Issues tab for security findings"
-echo "  4. Comment '@claude' on any issue to start remediation"
+echo "  4. Comment '@alice' on any issue to start remediation"
 echo ""
 echo "📚 Documentation:"
 echo "  - README.md - Overview and quick start"
@@ -113,7 +113,7 @@ cp /path/to/maintainabilityai/examples/agents/.gitignore .
 
 ```bash
 git add .
-git commit -m "Initial commit: CodeQL + Claude AI automation"
+git commit -m "Initial commit: CodeQL + Alice AI automation"
 git push origin main
 ```
 
@@ -156,14 +156,14 @@ gh run watch
 - 5-7 min: Issues created automatically
 - Check **Issues** tab for security findings
 
-### 8. Test Claude AI
+### 8. Test Alice AI
 
 On any issue with `codeql-finding` label:
 ```
-@claude Please provide a remediation plan for this vulnerability
+@alice Please provide a remediation plan for this vulnerability
 ```
 
-Wait ~2 minutes for Claude to respond with detailed plan.
+Wait ~2 minutes for Alice to respond with detailed plan.
 
 ---
 
@@ -189,7 +189,7 @@ After deployment, your repository will have:
 ### ✅ Automated Workflows
 - CodeQL security scanning (weekly + on push/PR)
 - Automatic issue creation with embedded prompts
-- Claude AI remediation on `@claude` mentions
+- Alice AI remediation on `@alice` mentions
 
 ### ✅ Comprehensive Documentation
 - README.md - Overview and quick start
@@ -269,7 +269,7 @@ cat results.sarif | jq '.runs[0].results | length'
 **Check**:
 1. Secret exists: `gh secret list | grep ANTHROPIC`
 2. Issue has label: `codeql-finding`
-3. Comment contains: `@claude`
+3. Comment contains: `@alice`
 
 ### Rate limit errors
 
@@ -309,7 +309,7 @@ gh workflow list
 # Should show:
 # - CodeQL Security Analysis
 # - CodeQL to Security Issues
-# - Claude AI Remediation
+# - Alice AI Remediation
 ```
 
 ---
@@ -332,4 +332,4 @@ See these repos using this template:
 
 **Questions?** Open an issue or check the [SETUP.md](SETUP.md) guide.
 
-**🤖 Built with Claude AI** using the MaintainabilityAI framework.
+**🤖 Built with Alice AI** using the MaintainabilityAI framework.

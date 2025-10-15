@@ -612,12 +612,12 @@ ${vulnerability.codeSnippet || '(No code snippet available)'}
 
 ---
 
-## 🤖 Claude Remediation Zone
+## 🤖 Alice Remediation Zone
 
 To request a remediation plan, **copy and paste this comment**:
 
 \`\`\`
-@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
+@alice Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
 \`\`\`
 
 <details>
@@ -633,12 +633,17 @@ To request a remediation plan, **copy and paste this comment**:
 
 For just the remediation plan:
 \`\`\`
-@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
+@alice Please provide a remediation plan for this vulnerability following the security and maintainability guidelines provided.
+\`\`\`
+
+To find similar issues in the same file:
+\`\`\`
+@alice Please analyze \`${vulnerability.filePath}\` for similar vulnerabilities to this ${vulnerability.ruleName} issue and provide a comprehensive remediation plan.
 \`\`\`
 
 To start implementation immediately:
 \`\`\`
-@claude Please provide a remediation plan for this vulnerability and implement the fix following the security and maintainability guidelines provided.
+@alice Please provide a remediation plan for this vulnerability and implement the fix following the security and maintainability guidelines provided.
 \`\`\`
 
 </details>

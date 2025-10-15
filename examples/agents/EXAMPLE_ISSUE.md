@@ -434,7 +434,7 @@ const query = `SELECT * FROM users WHERE username='${username}' AND password='${
 
 To request a remediation plan, comment:
 
-`@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines above.`
+`@alice Please provide a remediation plan for this vulnerability following the security and maintainability guidelines above.`
 
 ### ✅ Human Review Checklist
 

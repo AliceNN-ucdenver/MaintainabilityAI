@@ -129,13 +129,13 @@ If this was closed in error, please reopen and add the
 
 ### Improved
 
-#### 5. Claude Workflow Optimization ✨
+#### 5. Alice Workflow Optimization ✨
 **Enhancement**: Better handling of approval workflow to avoid redundant plan regeneration
 
 **Changes**:
 - Added `track_progress: true` to enable progress tracking comments
 - Updated prompt with explicit approval detection logic
-- Claude now checks for previous remediation plan before re-analyzing
+- Alice now checks for previous remediation plan before re-analyzing
 - If approval found, skips directly to implementation (no plan repost)
 
 **Benefits**:
@@ -144,7 +144,7 @@ If this was closed in error, please reopen and add the
 - ✅ Clearer intent in workflow runs
 - ✅ Better use of API credits
 
-**File**: `.github/workflows/claude-remediation.yml`
+**File**: `.github/workflows/alice-remediation.yml`
 
 ---
 
@@ -197,7 +197,7 @@ All critical issues identified during testing have been resolved. System is prod
 
 **Solution**: Added `github_token: ${{ secrets.GITHUB_TOKEN }}` parameter
 
-**File**: `.github/workflows/claude-remediation.yml`
+**File**: `.github/workflows/alice-remediation.yml`
 
 ---
 
@@ -207,7 +207,7 @@ All critical issues identified during testing have been resolved. System is prod
 ✅ **SARIF Extraction**: Works with `javascript.sarif`
 ✅ **Prompt Embedding**: All prompts collapsible, no size errors
 ✅ **Rule Coverage**: All detected vulnerabilities mapped
-✅ **Claude AI**: Authentication working, approval workflow optimized
+✅ **Alice AI**: Authentication working, approval workflow optimized
 ✅ **Auto-Close**: Resolves issues when vulnerabilities are fixed
 ✅ **Code Snippets**: File extraction works when SARIF lacks snippets
 
@@ -227,7 +227,7 @@ Use `deploy-test.sh` for fresh deployment. All fixes included automatically.
 
 **Built with**:
 - [CodeQL](https://codeql.github.com) - Semantic code analysis
-- [Claude AI](https://anthropic.com/claude) - AI-assisted remediation
+- [Alice AI](https://anthropic.com/claude) - AI-assisted remediation
 - [MaintainabilityAI](https://maintainability.ai) - OWASP security prompts
 - [claude-code-action](https://github.com/anthropics/claude-code-action) - GitHub integration
 

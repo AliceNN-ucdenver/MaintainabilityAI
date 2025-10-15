@@ -1,4 +1,4 @@
-# Setup Guide: CodeQL + Claude AI Remediation
+# Setup Guide: CodeQL + Alice AI Remediation
 
 Complete setup instructions for deploying this CodeQL + Claude AI automated remediation system to your repository.
 
@@ -8,7 +8,7 @@ This repository template provides:
 - **Vulnerable TypeScript application** with 10+ OWASP vulnerabilities
 - **CodeQL security scanning** workflow
 - **Automated issue creation** with embedded security prompts
-- **Claude AI remediation** via `@claude` mentions in issues
+- **Alice AI remediation** via `@alice` mentions in issues
 
 ## 🚀 Quick Start (5 Minutes)
 
@@ -25,7 +25,7 @@ cp -r /path/to/maintainabilityai/examples/agents/.github .
 
 # 3. Commit and push
 git add .
-git commit -m "Initial commit: CodeQL + Claude AI remediation system"
+git commit -m "Initial commit: CodeQL + Alice AI remediation system"
 git push origin main
 ```
 
@@ -105,7 +105,7 @@ After copying, your repository will have:
 │   └── workflows/
 │       ├── codeql.yml                  # Step 1: Run CodeQL security scan
 │       ├── codeql-to-issues.yml        # Step 2: Create issues from findings
-│       └── claude-remediation.yml      # Step 3: AI-assisted remediation
+│       └── alice-remediation.yml      # Step 3: AI-assisted remediation
 ├── src/
 │   ├── app.ts                          # Vulnerable Express API (10+ issues)
 │   ├── auth.ts                         # Authentication vulnerabilities
@@ -170,12 +170,12 @@ on:
 - Applies labels: `codeql-finding`, `security/high`, `owasp/a03-injection`, etc.
 - Deduplicates (won't create duplicates for same finding)
 
-### 3. Claude AI Remediation (On Demand)
+### 3. Alice AI Remediation (On Demand)
 
-**Trigger**: Comment `@claude` on any issue with `codeql-finding` label
+**Trigger**: Comment `@alice` on any issue with `codeql-finding` label
 
 ```yaml
-# .github/workflows/claude-remediation.yml
+# .github/workflows/alice-remediation.yml
 on:
   issue_comment:
     types: [created]
@@ -184,14 +184,14 @@ on:
 **What it does**:
 - Reads the issue body (includes vulnerability details + prompts)
 - Uses `anthropics/claude-code-action@v1` to analyze
-- Claude posts a **remediation plan** with:
+- Alice posts a **remediation plan** with:
   - Root cause analysis
   - Proposed solution with code examples
   - Security controls checklist
   - Maintainability considerations
   - Testing strategy
 - **Waits for human approval** before implementing
-- After approval (`@claude approved - implement this fix`):
+- After approval (`@alice approved - implement this fix`):
   - Creates branch: `fix/issue-{N}-security`
   - Implements the approved fix
   - Adds/updates tests
@@ -239,25 +239,25 @@ Example issues you should see:
 - `[Security] Broken access control in src/admin.ts:15`
 - `[Security] Path traversal in src/admin.ts:50`
 
-### Step 3: Test Claude AI Remediation
+### Step 3: Test Alice AI Remediation
 
 ```bash
 # Pick any issue with codeql-finding label
 # Post a comment:
-@claude Please provide a remediation plan for this vulnerability following the security and maintainability guidelines above.
+@alice Please provide a remediation plan for this vulnerability following the security and maintainability guidelines above.
 ```
 
 **Expected**:
-- Claude AI workflow triggers (~2 minutes)
-- Claude posts detailed remediation plan
+- Alice AI workflow triggers (~2 minutes)
+- Alice posts detailed remediation plan
 - Issue gets label: `remediation-in-progress`
 - Label `awaiting-remediation-plan` removed
 
 ### Step 4: Approve and Implement
 
-After reviewing Claude's plan, comment:
+After reviewing Alice's plan, comment:
 ```
-@claude approved - implement this fix
+@alice approved - implement this fix
 ```
 
 **Expected**:
@@ -355,9 +355,9 @@ function createIssueBody(vulnerability, prompts) {
 }
 ```
 
-### Modify Claude Prompt
+### Modify Alice Prompt
 
-Edit `.github/workflows/claude-remediation.yml`, the `prompt:` section:
+Edit `.github/workflows/alice-remediation.yml`, the `prompt:` section:
 
 ```yaml
 prompt: |
@@ -383,12 +383,12 @@ gh run download <run-id> -n codeql-sarif
 cat results.sarif | jq '.runs[0].results | length'
 ```
 
-### Claude workflow not triggering
+### Alice workflow not triggering
 
 **Possible causes**:
 1. Missing `ANTHROPIC_API_KEY` secret
 2. Issue doesn't have `codeql-finding` label
-3. Comment doesn't contain `@claude`
+3. Comment doesn't contain `@alice`
 
 **Solution**:
 ```bash
@@ -396,7 +396,7 @@ cat results.sarif | jq '.runs[0].results | length'
 gh secret list | grep ANTHROPIC
 
 # Check workflow runs
-gh run list --workflow="Claude AI Remediation"
+gh run list --workflow="Alice AI Remediation"
 ```
 
 ### "Error: Resource not accessible by integration"
@@ -502,8 +502,8 @@ After setup:
 1. **Explore the vulnerabilities**: Review `src/app.ts`, `src/auth.ts`, `src/admin.ts`
 2. **Run CodeQL scan**: Push a commit and watch the workflow
 3. **Review created issues**: Check the Issues tab for security findings
-4. **Test Claude remediation**: Pick an issue and comment `@claude`
-5. **Review and approve**: Examine Claude's plan and approve implementation
+4. **Test Alice remediation**: Pick an issue and comment `@alice`
+5. **Review and approve**: Examine Alice's plan and approve implementation
 6. **Merge the fix**: Review the PR and merge when ready
 
 ---

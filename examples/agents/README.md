@@ -1,12 +1,12 @@
-# CodeQL + Claude AI Automated Security Remediation
+# CodeQL + Alice AI Automated Security Remediation
 
-**Complete security automation system** that detects vulnerabilities with CodeQL and remediates them with Claude AI assistance.
+**Complete security automation system** that detects vulnerabilities with CodeQL and remediates them with Alice AI assistance.
 
 ```mermaid
 graph LR
     A[Push Code] --> B[CodeQL Scan]
     B --> C[Create Issues]
-    C --> D[claude mention]
+    C --> D[@alice mention]
     D --> E[AI Remediation Plan]
     E --> F[Human Approval]
     F --> G[Auto-implement Fix]
@@ -92,16 +92,16 @@ git push
 
 Wait ~5 minutes for CodeQL to complete. Check **Issues** tab for new security issues!
 
-### 5. Test Claude AI Remediation
+### 5. Test Alice AI Remediation
 
 On any issue with the `codeql-finding` label, comment:
 ```
-@claude Please provide a remediation plan for this vulnerability
+@alice Please provide a remediation plan for this vulnerability
 ```
 
-Claude will analyze and post a detailed plan. To approve:
+Alice will analyze and post a detailed plan. To approve:
 ```
-@claude approved - implement this fix
+@alice approved
 ```
 
 ---
@@ -147,8 +147,8 @@ Claude will analyze and post a detailed plan. To approve:
 - Applies smart labels and deduplication
 - Configurable severity thresholds
 
-**`.github/workflows/claude-remediation.yml`**
-- Triggers on `@claude` mentions in issues
+**`.github/workflows/alice-remediation.yml`**
+- Triggers on `@alice` mentions in issues
 - Uses `anthropics/claude-code-action@v1`
 - Provides remediation plans with human-in-the-loop approval
 - Auto-implements approved fixes and creates PRs
@@ -292,9 +292,9 @@ Please review and approve with: `@claude approved - implement this fix`
 7. **Smart Labeling**: Applies security, OWASP, and maintainability labels
 8. **Auto-Close**: Closes resolved issues when vulnerability no longer detected
 
-### Claude AI Remediation Process
+### Alice AI Remediation Process
 
-1. **Trigger**: Developer mentions `@claude` in issue comment
+1. **Trigger**: Developer mentions `@alice` in issue comment
 2. **Context Loading**: Claude reads full issue body (includes vulnerability + prompts)
 3. **Code Analysis**: Claude reads vulnerable code using file paths from issue
 4. **Plan Generation**: Claude posts detailed remediation plan
@@ -371,7 +371,7 @@ Fork [MaintainabilityAI](https://github.com/AliceNN-ucdenver/MaintainabilityAI) 
 
 ### Modify Claude Instructions
 
-Edit `.github/workflows/claude-remediation.yml` prompt section to customize Claude's behavior.
+Edit `.github/workflows/alice-remediation.yml` prompt section to customize Alice's behavior.
 
 ---
 
