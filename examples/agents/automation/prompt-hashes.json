@@ -1,14 +1,14 @@
 {
   "_metadata": {
-    "generated": "2025-10-15T14:14:37.350Z",
+    "generated": "2025-10-15T20:11:34.696Z",
     "generator": "generate-prompt-hashes.js",
     "algorithm": "SHA-256"
   },
   "owasp": {
-    "A01_broken-access-control.md": "sha256:68206c1cc1d24d3e59e740793d9d275b841bd591241a4f720c5cc5fb2e38a919",
+    "A01_broken_access_control.md": "sha256:68206c1cc1d24d3e59e740793d9d275b841bd591241a4f720c5cc5fb2e38a919",
     "A02_crypto-failures.md": "sha256:d4485b5171deaffb9c1a5df12e70705dff3f37fcac8e548730933f8d288da444",
     "A03_injection.md": "sha256:d7219080e0c3549f2950de1867b4e492bd209190588df6201b852c5aa0c29e8d",
-    "A04_insecure-design.md": "sha256:67f6428eb796b59c87b166a45d04a614712268c909fdf906d7a7f95ee28f0bbd",
+    "A04_insecure_design.md": "sha256:67f6428eb796b59c87b166a45d04a614712268c909fdf906d7a7f95ee28f0bbd",
     "A05_security-misconfiguration.md": "sha256:80e5e7165a8613c99189a8efe6a1865e13d448e54a22711d080ba2860fc3cf8b",
     "A06_vuln-outdated.md": "sha256:62d81730c0a7847e0450db3cf22b971ab4b1cf257cbde763453efdf3d14d366f",
     "A07_authn-failures.md": "sha256:4d17f3cd370e5d03ef5751fd4295221dd766262e74021b1fa3e73aad4e1459f3",

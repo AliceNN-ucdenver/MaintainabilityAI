@@ -517,23 +517,23 @@ function mapToOWASP(ruleId) {
 
 /**
  * Detect maintainability concerns based on message/rule content
- * @param {Object} vulnerability - Vulnerability object
+ * @param {Object} groupedFinding - Grouped vulnerability object
  * @returns {Array<string>} Array of maintainability prompt files
  */
-function detectMaintainabilityConcerns(vulnerability) {
+function detectMaintainabilityConcerns(groupedFinding) {
   if (!config.enableMaintainability) {
     return [];
   }
 
   const concerns = new Set();
-  const searchText = `${vulnerability.message} ${vulnerability.ruleHelp} ${vulnerability.ruleId}`.toLowerCase();
+  const searchText = `${groupedFinding.message} ${groupedFinding.ruleHelp} ${groupedFinding.ruleId}`.toLowerCase();
 
   // Check maintainability triggers from mappings
   for (const [key, trigger] of Object.entries(mappings.maintainability_triggers)) {
     for (const keyword of trigger.keywords) {
       if (searchText.includes(keyword.toLowerCase())) {
         concerns.add(trigger.prompt_file);
-        log('INFO', `Detected maintainability concern: ${key} for ${vulnerability.ruleId}`);
+        log('INFO', `Detected maintainability concern: ${key} for ${groupedFinding.ruleId}`);
         break;
       }
     }
@@ -851,16 +851,16 @@ async function findExistingIssue(groupedFinding) {
 
 /**
  * Generate labels for an issue
- * @param {Object} vulnerability - Vulnerability object
+ * @param {Object} groupedFinding - Grouped vulnerability object
  * @param {Object} owaspInfo - OWASP category info
  * @param {Array<string>} maintainabilityFiles - Maintainability prompt files
  * @returns {Array<string>} Array of label names
  */
-function generateLabels(vulnerability, owaspInfo, maintainabilityFiles) {
+function generateLabels(groupedFinding, owaspInfo, maintainabilityFiles) {
   const labels = ['codeql-finding'];
 
   // Severity label
-  const severityLabel = mappings.label_mapping[vulnerability.severity];
+  const severityLabel = mappings.label_mapping[groupedFinding.severity];
   if (severityLabel) {
     labels.push(severityLabel);
   }
