@@ -281,6 +281,27 @@ gh secret list | grep ANTHROPIC
 
 ---
 
+## 🔒 Security Notes
+
+### CodeQL Scanning Scope
+
+**What gets scanned**: All application code in your repository is analyzed by CodeQL with `security-extended` queries.
+
+**What's excluded**: The `automation/` directory is excluded from CodeQL scanning via `.github/codeql/codeql-config.yml` because:
+- These are framework automation scripts (not application code)
+- `process-codeql-results.js` fetches security prompts FROM a trusted remote source with proper validation
+- Excluding framework code prevents false positives while preserving security scanning for your actual application
+
+**Security controls in automation scripts**:
+- ✅ Domain allowlist verification (only `raw.githubusercontent.com`)
+- ✅ HTTPS-only enforcement
+- ✅ SHA-256 hash integrity verification of all fetched content
+- ✅ Content validation before use
+
+All other security queries remain active to catch real vulnerabilities in your application code.
+
+---
+
 ## 🤝 Contributing
 
 Contributions welcome!

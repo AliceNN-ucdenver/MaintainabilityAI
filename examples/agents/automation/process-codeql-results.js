@@ -256,7 +256,8 @@ async function fetchPrompt(category, file) {
 
   try {
     log('INFO', `Fetching prompt: ${cacheKey}`);
-    // Suppressed via .github/codeql/codeql-config.yml - false positive, we're fetching FROM remote (not sending TO remote)
+    // Note: automation/ directory excluded from CodeQL scanning (see .github/codeql/codeql-config.yml)
+    // This code fetches security prompts FROM trusted remote with domain allowlist + HTTPS + SHA-256 verification
     const response = await axios.get(url, {
       timeout: 10000,
       validateStatus: (status) => status === 200
