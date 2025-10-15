@@ -727,11 +727,15 @@ To request a remediation plan for **all ${count} occurrence${count > 1 ? 's' : '
 <summary>📊 Additional Metadata</summary>
 
 - **Detection Time**: ${timestamp}
-- **CodeQL Version**: ${groupedFinding.toolVersion}
+- **Language**: ${language.charAt(0).toUpperCase() + language.slice(1)}
+- **Tool**: ${groupedFinding.tool} v${groupedFinding.toolVersion}
 - **Repository**: ${config.owner}/${config.repo}
 - **Branch**: ${config.branch}
 - **Commit**: ${config.sha}
 - **Rule ID**: ${groupedFinding.ruleId}
+- **OWASP Category**: ${owaspKey}
+- **Severity**: ${groupedFinding.severity} (CodeQL level: ${groupedFinding.level})
+- **Prompt Source**: ${config.promptRepo}@${config.promptBranch}
 
 </details>
 `;
@@ -759,11 +763,8 @@ function createIssueTitle(groupedFinding) {
   const fileName = path.basename(groupedFinding.filePath);
   const count = groupedFinding.occurrences.length;
 
-  if (count === 1) {
-    return `[Security] ${groupedFinding.ruleName} in ${fileName}:${groupedFinding.occurrences[0].startLine}`;
-  } else {
-    return `[Security] ${groupedFinding.ruleName} in ${fileName} (${count} occurrences)`;
-  }
+  // Always use "(X occurrence/occurrences)" format for consistency
+  return `[Security] ${groupedFinding.ruleName} in ${fileName} (${count} occurrence${count > 1 ? 's' : ''})`;
 }
 
 // ============================================================================
