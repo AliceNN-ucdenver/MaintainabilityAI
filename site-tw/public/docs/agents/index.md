@@ -6,118 +6,112 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 
 ## Available Agents
 
-### [Claude](/docs/agents/claude)
-**Best For**: Complex refactoring, multi-file changes, comprehensive testing
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 32px 0;">
 
-**Strengths**:
-- Deep codebase understanding and analysis
-- Multi-file refactoring with security constraints
-- Comprehensive test suite generation with attack vectors
-- Detailed security explanations and documentation
-- Evolutionary architecture guidance
+<!-- Claude Card -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #334155; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease, border-color 0.3s ease;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">C</div>
+    <div>
+      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/claude" style="color: #f1f5f9; text-decoration: none;">Claude</a></h3>
+      <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">Complex Refactoring Expert</p>
+    </div>
+  </div>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Deep codebase understanding for multi-file refactoring, comprehensive test generation, and evolutionary architecture guidance.</p>
+  <div style="margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Large-scale security refactoring • Architecture fitness functions • Technical debt analysis</p>
+  </div>
+  <a href="/docs/agents/claude" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: transform 0.2s ease; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);">View Guide →</a>
+</div>
 
-**Use Cases**:
-- Large-scale security refactoring
-- Architecture fitness function implementation
-- Technical debt analysis and remediation
-- Complex OWASP compliance reviews
-- Multi-phase migration planning
+<!-- Copilot Card -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #334155; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease, border-color 0.3s ease;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">⚡</div>
+    <div>
+      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/copilot" style="color: #f1f5f9; text-decoration: none;">GitHub Copilot</a></h3>
+      <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">In-Editor Code Generation</p>
+    </div>
+  </div>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">IDE-integrated real-time security-aware code completion with #codebase context understanding for fast iteration.</p>
+  <div style="margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">In-editor secure code generation • Following patterns • Quick fixes • Single-function implementation</p>
+  </div>
+  <a href="/docs/agents/copilot" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: transform 0.2s ease; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">View Guide →</a>
+</div>
 
-**Quick Start**: [Claude Guide](/docs/agents/claude)
+<!-- ChatGPT Card -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #334155; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease, border-color 0.3s ease;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);">💬</div>
+    <div>
+      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/chatgpt" style="color: #f1f5f9; text-decoration: none;">ChatGPT</a></h3>
+      <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">Threat Modeling & Analysis</p>
+    </div>
+  </div>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Structured security analysis with STRIDE and OWASP methodologies, long-form explanations, and Canvas mode for iterative hardening.</p>
+  <div style="margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Security threat modeling • OWASP compliance reviews • Architecture design • Documentation</p>
+  </div>
+  <a href="/docs/agents/chatgpt" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: transform 0.2s ease; box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);">View Guide →</a>
+</div>
 
----
+<!-- Alice Card -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #6EE7F9; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 20px rgba(110, 231, 249, 0.2); transition: transform 0.3s ease, border-color 0.3s ease;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 3px solid #6EE7F9; box-shadow: 0 4px 12px rgba(110, 231, 249, 0.4);">
+      <img src="/images/alice-bot.png" alt="Alice Bot" style="width: 100%; height: 100%; object-fit: cover;" />
+    </div>
+    <div>
+      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/alice" style="color: #f1f5f9; text-decoration: none;">Alice Agent 🐰</a></h3>
+      <p style="margin: 4px 0 0 0; font-size: 13px; color: #6EE7F9; font-weight: 600;">The Good Maintainer</p>
+    </div>
+  </div>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 12px; font-style: italic;">"Why, sometimes I've believed as many as six impossible things before breakfast."</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous security remediation agent with two-phase workflow (Curiosity → Approval → Implementation). Believes in fixing "impossible" code.</p>
+  <div style="margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">The Eight Principles</p>
+    <div style="color: #e2e8f0; font-size: 13px; line-height: 1.8;">
+      📖 Read docs • 🧪 Test cautiously • 🤔 Question assumptions • 🎯 Maintain identity<br/>
+      📝 Document journey • 🌟 Believe impossible • 🎪 Manage chaos • 🔍 Stay curious
+    </div>
+  </div>
+  <div style="margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">CodeQL remediation • Legacy code refactoring • Technical debt reduction • CI/CD security automation</p>
+  </div>
+  <div style="background: rgba(110, 231, 249, 0.1); border-left: 3px solid #6EE7F9; padding: 12px; border-radius: 4px; margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 12px; margin: 0 0 4px 0;">🤖 AGENTIC AI PROOF OF CONCEPT</p>
+    <p style="color: #cbd5e1; font-size: 13px; margin: 0;">Autonomous agent with human-in-the-loop governance via two-phase workflow</p>
+  </div>
+  <a href="/docs/agents/alice" style="display: inline-block; background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); color: #0f172a; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; transition: transform 0.2s ease; box-shadow: 0 2px 8px rgba(110, 231, 249, 0.4);">Enter Wonderland →</a>
+</div>
 
-### [GitHub Copilot](/docs/agents/copilot)
-**Best For**: In-editor code generation, real-time completions, pattern following
+<!-- Multi-Agent Card -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #334155; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease, border-color 0.3s ease;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">🔄</div>
+    <div>
+      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/multi-agent" style="color: #f1f5f9; text-decoration: none;">Multi-Agent</a></h3>
+      <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 500;">Orchestration Patterns</p>
+    </div>
+  </div>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Complex workflows requiring specialized expertise through sequential pipelines, parallel execution, and consensus validation.</p>
+  <div style="margin-bottom: 16px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Complex features • Parallel development • Validation loops • Consensus-based approvals</p>
+  </div>
+  <a href="/docs/agents/multi-agent" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: transform 0.2s ease; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);">View Guide →</a>
+</div>
 
-**Strengths**:
-- IDE-integrated (VS Code)
-- Real-time security-aware code completion
-- `#codebase` context understanding
-- Fast iteration on single files
-- Workspace agent for codebase analysis
-
-**Use Cases**:
-- In-editor secure code generation
-- Following established patterns
-- Quick fixes with security constraints
-- Single-function implementation
-- Incremental feature development
-
-**Quick Start**: [Copilot Guide](/docs/agents/copilot)
-
----
-
-### [ChatGPT](/docs/agents/chatgpt)
-**Best For**: Threat modeling, analysis, documentation, iterative refinement
-
-**Strengths**:
-- Structured security analysis (STRIDE, OWASP)
-- Long-form explanations and documentation
-- Multi-turn refinement conversations
-- Canvas mode for iterative hardening
-- Educational responses explaining "why"
-
-**Use Cases**:
-- Security threat modeling
-- OWASP compliance reviews
-- Architecture design discussions
-- Creating comprehensive documentation
-- Test scenario generation
-
-**Quick Start**: [ChatGPT Guide](/docs/agents/chatgpt)
-
----
-
-### [Alice Agent - The Good Maintainer](/docs/agents/alice) 🐰
-**Built on**: Claude Code
-**Philosophy**: *"Why, sometimes I've believed as many as six impossible things before breakfast."*
-**Status**: Production-ready agentic AI proof of concept
-
-**What is Alice?**
-
-Alice is an autonomous security remediation agent that embodies the eight principles of excellent code maintainership: she reads documentation, tests cautiously, questions assumptions, maintains system integrity, documents her journey, believes in impossible things, manages chaos, and stays curious. Built on MaintainabilityAI's compact prompt packs, Alice automates security remediation while keeping humans firmly in control.
-
-**The Eight Principles**:
-1. 📖 **Read the documentation** (prompts, labels, context)
-2. 🧪 **Test cautiously** (incremental, validated changes)
-3. 🤔 **Question assumptions** (challenge technical debt)
-4. 🎯 **Maintain identity** (system integrity through transformations)
-5. 📝 **Document the journey** (detailed commits, rationale)
-6. 🌟 **Believe in impossible things** (legacy code CAN be fixed)
-7. 🎪 **Manage chaos** (bring order to complex codebases)
-8. 🔍 **Stay curious** (explore before acting)
-
-**Strengths**:
-- 🛡️ **Security-First**: SHA-256 hash verification, domain allowlisting, structured logging
-- 🔄 **Two-Phase Workflow**: Curiosity (read-only analysis) → Human Approval → Implementation
-- 📚 **Guided by Wisdom**: Uses OWASP/STRIDE/Maintainability compact prompt packs (23 files)
-- 🧪 **Incremental Change**: Tests after each step, never massive refactors
-- 👤 **Human-in-the-Loop**: Proposes plans, humans approve and merge PRs
-
-**Use Cases** (Alice thrives on "impossible" problems):
-- Security vulnerabilities everyone accepted as "too hard to fix"
-- Legacy code with 1000-line functions and zero tests
-- Technical debt from "temporary" fixes that became permanent
-- Code complexity that makes onboarding painful
-- Systematic OWASP remediation with CI/CD integration
-
-**Quick Start**:
-1. Comment `@alice analyze this` on any CodeQL issue
-2. Alice reads the "Drink Me" label (OWASP/STRIDE prompt pack)
-3. Alice explores your codebase and creates a remediation plan
-4. You review and approve: `@alice approved`
-5. Alice implements, tests, and creates PR
-6. You review code and merge when satisfied
-
-**Agentic AI Proof of Concept**: Alice demonstrates how autonomous AI agents can accelerate security remediation while maintaining strict governance through two-phase workflows, hash verification, and human approval gates. See the full workflow implementation in [`examples/agents/`](https://github.com/maintainabilityai/maintainabilityai/tree/main/examples/agents).
-
-[**📖 Full Alice Guide: The Good Maintainer →**](/docs/agents/alice)
+</div>
 
 ---
 
-### [Multi-Agent Orchestration](/docs/agents/multi-agent)
-**Best For**: Complex workflows requiring specialized expertise
+## Choosing the Right Agent
 
 **Patterns**:
 - **Sequential Pipeline**: Threat Model → Design → Implement → Test → Review
