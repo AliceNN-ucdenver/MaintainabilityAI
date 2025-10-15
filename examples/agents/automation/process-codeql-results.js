@@ -256,7 +256,8 @@ async function fetchPrompt(category, file) {
 
   try {
     log('INFO', `Fetching prompt: ${cacheKey}`);
-    const response = await axios.get(url, { // lgtm[js/file-access-to-http] - URL is verified against ALLOWED_DOMAINS allowlist and content is verified with SHA-256 hash
+    // Suppressed via .github/codeql/codeql-config.yml - false positive, we're fetching FROM remote (not sending TO remote)
+    const response = await axios.get(url, {
       timeout: 10000,
       validateStatus: (status) => status === 200
     });

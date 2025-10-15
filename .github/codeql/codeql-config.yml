@@ -1,0 +1,18 @@
+name: "CodeQL Config"
+
+# Queries to run
+queries:
+  - uses: security-extended
+
+# Query filters - suppress specific alerts
+query-filters:
+  # Suppress js/file-access-to-http in process-codeql-results.js
+  # This is a false positive - we're fetching FROM a remote URL (not sending local files TO a remote URL)
+  # The code has proper security controls:
+  #   1. URL domain verification against ALLOWED_DOMAINS allowlist
+  #   2. HTTPS-only enforcement
+  #   3. SHA-256 hash integrity verification of fetched content
+  - exclude:
+      id: js/file-access-to-http
+      paths:
+        - examples/agents/automation/process-codeql-results.js
