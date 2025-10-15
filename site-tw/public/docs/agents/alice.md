@@ -29,232 +29,468 @@ Alice is an **agentic AI proof of concept** built on Claude Code that automates 
 
 ## The Eight Principles
 
-Alice follows eight core principles of excellent code maintainership:
+<div style="text-align: center; margin: 32px 0 40px 0;">
+  <p style="color: #cbd5e1; font-size: 18px; line-height: 1.6; margin: 0;">Alice follows eight core principles of excellent code maintainership</p>
+</div>
 
-### 1. 📖 Read the Documentation
-*"What is the use of a book without pictures or conversations?"*
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin: 40px 0;">
 
-Alice reads **compact prompt packs** (OWASP, STRIDE, Maintainability) before touching code. She analyzes CodeQL findings, commit history, test suites, and comments to understand context.
+<!-- Principle 1 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #6366f1; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">1</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">📖</div>
+  <h3 style="color: #a78bfa; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Read the Documentation</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"What is the use of a book without pictures or conversations?"</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Alice reads <strong style="color: #a78bfa;">compact prompt packs</strong> (OWASP, STRIDE, Maintainability) before touching code. She analyzes CodeQL findings, commit history, test suites, and comments to understand context.</p>
+  <div style="background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Good maintainers don't guess—they gather context first.</p>
+  </div>
+</div>
 
-**Why it matters**: Good maintainers don't guess—they gather context first.
+<!-- Principle 2 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #10b981; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);">2</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">🧪</div>
+  <h3 style="color: #6ee7b7; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Test Cautiously</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"I wonder if I've been changed in the night?"</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Alice makes <strong style="color: #6ee7b7;">incremental changes</strong> with tests after each step. No massive refactors. Two-phase workflow: plan first, then implement.</p>
+  <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Incremental changes with tests keep systems stable while improving quality.</p>
+  </div>
+</div>
 
----
+<!-- Principle 3 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #f59e0b; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);">3</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">🤔</div>
+  <h3 style="color: #fbbf24; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Question Assumptions</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"Curiouser and curiouser!"</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">Alice challenges technical debt:</p>
+  <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0 0 16px 0; padding-left: 20px;">
+    <li>"Why is this a string concatenation?"</li>
+    <li>"This 'temporary fix' from 2019—still temporary?"</li>
+    <li>"Why does this function have 47 parameters?"</li>
+  </ul>
+  <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Technical debt accumulates when teams accept "that's just how it works here."</p>
+  </div>
+</div>
 
-### 2. 🧪 Test Cautiously
-*"I wonder if I've been changed in the night?"*
+<!-- Principle 4 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #06b6d4; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);">4</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">🎯</div>
+  <h3 style="color: #67e8f9; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Maintain Identity</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"Who am I?"</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Alice maintains <strong style="color: #67e8f9;">system integrity</strong> through refactoring. Function purpose stays clear, API contracts remain stable, business logic is validated by tests.</p>
+  <div style="background: rgba(6, 182, 212, 0.1); border-left: 3px solid #06b6d4; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Code can change form without losing its identity (purpose, behavior, contracts).</p>
+  </div>
+</div>
 
-Alice makes **incremental changes** with tests after each step. No massive refactors. Two-phase workflow: plan first, then implement.
+<!-- Principle 5 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #8b5cf6; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);">5</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">📝</div>
+  <h3 style="color: #c4b5fd; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Document the Journey</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"I must keep my journal!"</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Alice writes <strong style="color: #c4b5fd;">detailed commit messages</strong> explaining the "why," creates PR descriptions with security controls, adds code comments for non-obvious decisions.</p>
+  <div style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Future maintainers need to understand not just what changed, but why and how it was validated.</p>
+  </div>
+</div>
 
-**Why it matters**: Incremental changes with tests keep systems stable while improving quality.
+<!-- Principle 6 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #6EE7F9; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 16px rgba(110, 231, 249, 0.2); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #0f172a; box-shadow: 0 4px 12px rgba(110, 231, 249, 0.6);">6</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">🌟</div>
+  <h3 style="color: #6EE7F9; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Believe in Impossible Things</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"I can't believe that!" said Alice. "Can't you?" said the Queen. "Try."</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">Alice believes:</p>
+  <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0 0 16px 0; padding-left: 20px;">
+    <li>That 5-year-old 1000-line function? Use strangler fig to refactor incrementally</li>
+    <li>That "unfixable" security vulnerability? OWASP patterns show proven remediation</li>
+    <li>That test coverage stuck at 30%? Add tests function by function</li>
+  </ul>
+  <div style="background: rgba(110, 231, 249, 0.1); border-left: 3px solid #6EE7F9; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Pessimism breeds stagnation. Alice approaches "impossible" problems with curiosity.</p>
+  </div>
+</div>
 
----
+<!-- Principle 7 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #ec4899; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);">7</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">🎪</div>
+  <h3 style="color: #f9a8d4; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Manage Chaos</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"We're all mad here."</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">Codebases are chaos: spaghetti logic, inconsistent patterns, surprise side effects. Alice brings <strong style="color: #f9a8d4;">order</strong>:</p>
+  <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0 0 16px 0; padding-left: 20px;">
+    <li>Complexity reduction (flatten nesting, extract functions)</li>
+    <li>Strangler fig patterns (replace legacy incrementally)</li>
+    <li>Fitness functions (automated quality gates)</li>
+    <li>Defense in depth (multiple security layers)</li>
+  </ul>
+  <div style="background: rgba(236, 72, 153, 0.1); border-left: 3px solid #ec4899; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Chaos compounds over time. Alice systematically transforms it into maintainable code.</p>
+  </div>
+</div>
 
-### 3. 🤔 Question Assumptions
-*"Curiouser and curiouser!"*
+<!-- Principle 8 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #14b8a6; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+  <div style="position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);">8</div>
+  <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
+  <h3 style="color: #5eead4; font-size: 22px; margin: 0 0 12px 0; font-weight: 700;">Stay Curious</h3>
+  <p style="color: #6EE7F9; font-size: 14px; font-style: italic; margin: 0 0 16px 0; line-height: 1.5;">"Curiouser and curiouser!"</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Alice <strong style="color: #5eead4;">explores before acting</strong>. Phase 1 (Analysis) is pure curiosity—no code changes, just understanding. She uses Grep, Read, Glob to explore patterns, reads commit history, examines test coverage.</p>
+  <div style="background: rgba(20, 184, 166, 0.1); border-left: 3px solid #14b8a6; padding: 12px; border-radius: 6px;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 4px 0;">WHY IT MATTERS</p>
+    <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Good maintainers don't rush to "fix" things. They explore, understand, then propose solutions.</p>
+  </div>
+</div>
 
-Alice challenges technical debt:
-- "Why is this a string concatenation? Could this be parameterized?"
-- "This comment says 'temporary fix' from 2019—is it still temporary?"
-- "Why does this function have 47 parameters?"
-
-**Why it matters**: Technical debt accumulates when teams accept "that's just how it works here."
-
----
-
-### 4. 🎯 Maintain Identity
-*"Who am I?"*
-
-Alice maintains **system integrity** through refactoring. Function purpose stays clear, API contracts remain stable, business logic is validated by tests.
-
-**Why it matters**: Code can change form without losing its identity (purpose, behavior, contracts).
-
----
-
-### 5. 📝 Document the Journey
-*"I must keep my journal!"*
-
-Alice writes **detailed commit messages** explaining the "why," creates PR descriptions with security controls, adds code comments for non-obvious decisions.
-
-**Why it matters**: Future maintainers need to understand not just what changed, but why and how it was validated.
-
----
-
-### 6. 🌟 Believe in Impossible Things
-*"I can't believe that!" said Alice. "Can't you?" said the Queen. "Try."*
-
-Alice believes:
-- That 5-year-old 1000-line function? Use strangler fig to refactor incrementally
-- That "unfixable" security vulnerability? OWASP patterns show proven remediation
-- That test coverage stuck at 30%? Add tests function by function
-
-**Why it matters**: Pessimism breeds stagnation. Alice approaches "impossible" problems with curiosity.
-
----
-
-### 7. 🎪 Manage Chaos
-*"We're all mad here."*
-
-Codebases are chaos: spaghetti logic, inconsistent patterns, surprise side effects. Alice brings **order**:
-- Complexity reduction (flatten nesting, extract functions)
-- Strangler fig patterns (replace legacy incrementally)
-- Fitness functions (automated quality gates)
-- Defense in depth (multiple security layers)
-
-**Why it matters**: Chaos compounds over time. Alice systematically transforms it into maintainable code.
-
----
-
-### 8. 🔍 Stay Curious
-*"Curiouser and curiouser!"*
-
-Alice **explores before acting**. Phase 1 (Analysis) is pure curiosity—no code changes, just understanding. She uses Grep, Read, Glob to explore patterns, reads commit history, examines test coverage.
-
-**Why it matters**: Good maintainers don't rush to "fix" things. They explore, understand, then propose solutions.
+</div>
 
 ---
 
 ## How Alice Works
 
-Alice operates in **two phases** with a human approval gate between them:
+<div style="text-align: center; margin: 32px 0 40px 0;">
+  <p style="color: #cbd5e1; font-size: 18px; line-height: 1.6; margin: 0;">Alice operates in <strong style="color: #6EE7F9;">two phases</strong> with a human approval gate between them</p>
+</div>
 
-### Phase 1: Curiosity & Planning 🔍
+<div style="position: relative; margin: 40px 0;">
 
-**Trigger**: Comment **@alice** on any CodeQL issue
+  <!-- Vertical Timeline Line -->
+  <div style="position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, #6EE7F9 0%, #6366f1 50%, #10b981 100%); transform: translateX(-50%); border-radius: 2px;"></div>
 
-**Alice's mindset**: *"What's in this bottle? Let me read the label before drinking."*
+  <!-- Phase 1: Curiosity & Planning -->
+  <div style="position: relative; margin-bottom: 60px;">
+    <div style="display: flex; align-items: flex-start; gap: 32px;">
+      <div style="flex: 1; text-align: right; padding-right: 48px;">
+        <div style="background: linear-gradient(135deg, rgba(110, 231, 249, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%); border: 2px solid #6EE7F9; border-radius: 16px; padding: 28px; box-shadow: 0 4px 12px rgba(110, 231, 249, 0.2);">
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 16px;">
+            <h3 style="color: #6EE7F9; font-size: 24px; margin: 0; font-weight: 700;">Phase 1: Curiosity & Planning</h3>
+            <div style="font-size: 32px;">🔍</div>
+          </div>
 
-**What Alice does**:
-- Reads the "Drink Me" label (compact prompt packs for OWASP/STRIDE/Maintainability)
-- Explores codebase (Grep, Read, commit history)
-- Questions assumptions ("Why string concatenation?")
-- Creates remediation plan addressing **design decisions** (technology choices, validation strategy, architecture)
-- Outputs copy-paste approval statement
+          <div style="background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin: 0 0 8px 0;">TRIGGER</p>
+            <p style="color: #e2e8f0; font-size: 15px; margin: 0;">Comment <strong style="color: #6EE7F9;">@alice</strong> on any CodeQL issue</p>
+          </div>
 
-**Permissions**: Read-only (can't break anything)
+          <p style="color: #a78bfa; font-size: 15px; font-style: italic; margin: 0 0 20px 0; line-height: 1.5;">"What's in this bottle? Let me read the label before drinking."</p>
 
-**Result**: Detailed plan with questions for human review
+          <div style="text-align: left;">
+            <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 12px 0;">WHAT ALICE DOES:</p>
+            <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0 0 20px 0; padding-left: 24px;">
+              <li>Reads the "Drink Me" label (compact prompt packs)</li>
+              <li>Explores codebase (Grep, Read, commit history)</li>
+              <li>Questions assumptions ("Why string concatenation?")</li>
+              <li>Creates remediation plan with design decisions</li>
+              <li>Outputs copy-paste approval statement</li>
+            </ul>
 
----
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+              <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 12px; border-radius: 6px;">
+                <p style="color: #6ee7b7; font-weight: 600; font-size: 12px; margin: 0 0 4px 0;">PERMISSIONS</p>
+                <p style="color: #e2e8f0; font-size: 13px; margin: 0;">Read-only (can't break anything)</p>
+              </div>
+              <div style="background: rgba(110, 231, 249, 0.1); border-left: 3px solid #6EE7F9; padding: 12px; border-radius: 6px;">
+                <p style="color: #6EE7F9; font-weight: 600; font-size: 12px; margin: 0 0 4px 0;">RESULT</p>
+                <p style="color: #e2e8f0; font-size: 13px; margin: 0;">Detailed plan for human review</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="flex: 1;"></div>
+    </div>
 
-### 👤 Human Approval Gate
+    <!-- Phase Indicator Circle -->
+    <div style="position: absolute; left: 50%; top: 24px; transform: translateX(-50%); width: 80px; height: 80px; background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #0f172a; box-shadow: 0 8px 24px rgba(110, 231, 249, 0.6), 0 0 0 8px rgba(15, 23, 42, 1);">1</div>
+  </div>
 
-*"Who are YOU?"* — The Caterpillar
+  <!-- Human Approval Gate -->
+  <div style="position: relative; margin-bottom: 60px;">
+    <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%); border: 3px solid #f59e0b; border-radius: 16px; padding: 32px; text-align: center; max-width: 600px; margin: 0 auto; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);">
+      <div style="font-size: 48px; margin-bottom: 16px;">👤</div>
+      <h3 style="color: #fbbf24; font-size: 26px; margin: 0 0 12px 0; font-weight: 700;">Human Approval Gate</h3>
+      <p style="color: #6EE7F9; font-size: 16px; font-style: italic; margin: 0 0 24px 0;">"Who are YOU?" — The Caterpillar</p>
 
-**You review Alice's plan**:
-- Are technology choices appropriate?
-- Is refactoring approach sound?
-- Are test cases comprehensive?
+      <div style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <p style="color: #fbbf24; font-weight: 600; font-size: 14px; margin: 0 0 12px 0;">YOU REVIEW ALICE'S PLAN:</p>
+        <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+          ✓ Are technology choices appropriate?<br/>
+          ✓ Is refactoring approach sound?<br/>
+          ✓ Are test cases comprehensive?
+        </div>
+      </div>
 
-**Approve or provide feedback**:
-- To approve: Comment **@alice approved**
-- For changes: Comment with feedback, Alice updates plan
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div style="background: rgba(16, 185, 129, 0.2); border: 2px solid #10b981; border-radius: 8px; padding: 16px;">
+          <p style="color: #6ee7b7; font-weight: 700; font-size: 13px; margin: 0 0 8px 0;">✅ TO APPROVE</p>
+          <p style="color: #e2e8f0; font-size: 13px; margin: 0;">Comment <strong>@alice approved</strong></p>
+        </div>
+        <div style="background: rgba(236, 72, 153, 0.2); border: 2px solid #ec4899; border-radius: 8px; padding: 16px;">
+          <p style="color: #f9a8d4; font-weight: 700; font-size: 13px; margin: 0 0 8px 0;">💬 FOR CHANGES</p>
+          <p style="color: #e2e8f0; font-size: 13px; margin: 0;">Comment with feedback</p>
+        </div>
+      </div>
 
-**Why this matters**: Alice proposes, humans approve. Critical governance gate.
+      <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 14px; border-radius: 6px;">
+        <p style="color: #fbbf24; font-weight: 600; font-size: 13px; margin: 0 0 6px 0;">WHY THIS MATTERS</p>
+        <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Alice proposes, humans approve. Critical governance gate.</p>
+      </div>
+    </div>
 
----
+    <!-- Gate Indicator -->
+    <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 100px; height: 100px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.6), 0 0 0 8px rgba(15, 23, 42, 1); z-index: -1;">⚡</div>
+  </div>
 
-### Phase 2: Implementation 🎯
+  <!-- Phase 2: Implementation -->
+  <div style="position: relative; margin-bottom: 40px;">
+    <div style="display: flex; align-items: flex-start; gap: 32px;">
+      <div style="flex: 1;"></div>
+      <div style="flex: 1; padding-left: 48px;">
+        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%); border: 2px solid #10b981; border-radius: 16px; padding: 28px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="font-size: 32px;">🎯</div>
+            <h3 style="color: #6ee7b7; font-size: 24px; margin: 0; font-weight: 700;">Phase 2: Implementation</h3>
+          </div>
 
-**Trigger**: Human comments **@alice approved** (or "go ahead", "implement this", "looks good")
+          <div style="background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <p style="color: #6ee7b7; font-weight: 600; font-size: 13px; margin: 0 0 8px 0;">TRIGGER</p>
+            <p style="color: #e2e8f0; font-size: 15px; margin: 0;">Human comments <strong style="color: #6ee7b7;">@alice approved</strong></p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 8px 0 0 0; font-style: italic;">Or: "go ahead", "implement this", "looks good"</p>
+          </div>
 
-**Alice's mindset**: *"The Queen approved. Now I'll test each transformation carefully."*
+          <p style="color: #67e8f9; font-size: 15px; font-style: italic; margin: 0 0 20px 0; line-height: 1.5;">"The Queen approved. Now I'll test each transformation carefully."</p>
 
-**What Alice does**:
-- Creates isolated branch **alice-fix-issue-{number}**
-- Makes incremental changes (validates, refactors, error handling)
-- Runs tests after each step
-- Validates **verification checklist** (safe APIs, error handling, defense in depth)
-- Documents journey in detailed commit message
-- Creates PR with labels: **security**, **ai-assisted**, **remediation-in-progress**
+          <div style="text-align: left;">
+            <p style="color: #6ee7b7; font-weight: 600; font-size: 14px; margin: 0 0 12px 0;">WHAT ALICE DOES:</p>
+            <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin: 0 0 20px 0; padding-left: 24px;">
+              <li>Creates isolated branch <strong>alice-fix-issue-{number}</strong></li>
+              <li>Makes incremental changes (validate, refactor, error handling)</li>
+              <li>Runs tests after each step</li>
+              <li>Validates verification checklist</li>
+              <li>Documents journey in detailed commit</li>
+              <li>Creates PR with labels: <strong>security, ai-assisted</strong></li>
+            </ul>
 
-**Permissions**: Write access to branches (NOT main)
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+              <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 12px; border-radius: 6px;">
+                <p style="color: #6ee7b7; font-weight: 600; font-size: 12px; margin: 0 0 4px 0;">PERMISSIONS</p>
+                <p style="color: #e2e8f0; font-size: 13px; margin: 0;">Write to branches (NOT main)</p>
+              </div>
+              <div style="background: rgba(6, 182, 212, 0.1); border-left: 3px solid #06b6d4; padding: 12px; border-radius: 6px;">
+                <p style="color: #67e8f9; font-weight: 600; font-size: 12px; margin: 0 0 4px 0;">RESULT</p>
+                <p style="color: #e2e8f0; font-size: 13px; margin: 0;">PR ready for human review</p>
+              </div>
+            </div>
 
-**Result**: Branch with tested fixes, PR ready for human review
+            <div style="background: rgba(239, 68, 68, 0.15); border: 2px dashed #ef4444; border-radius: 8px; padding: 16px; text-align: center;">
+              <p style="color: #fca5a5; font-weight: 700; font-size: 14px; margin: 0;">⚠️ IMPORTANT: Alice does NOT auto-merge</p>
+              <p style="color: #e2e8f0; font-size: 13px; margin: 8px 0 0 0;">Humans review PR and merge when satisfied</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-**Important**: Alice does NOT auto-merge. Humans review PR and merge when satisfied.
+    <!-- Phase Indicator Circle -->
+    <div style="position: absolute; left: 50%; top: 24px; transform: translateX(-50%); width: 80px; height: 80px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: white; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.6), 0 0 0 8px rgba(15, 23, 42, 1);">2</div>
+  </div>
+
+</div>
 
 ---
 
 ## The Wonderland Journey
 
-*A whimsical tale of how Alice transforms chaos into order*
+<div style="text-align: center; margin: 40px 0 32px 0;">
+  <p style="font-size: 20px; color: #6EE7F9; font-style: italic; margin: 0;">A whimsical tale of how Alice transforms chaos into order</p>
+</div>
 
-### 🐰 Down the Rabbit Hole
+<div style="position: relative; margin: 40px 0;">
 
-The codebase is Wonderland—strange, illogical, full of surprises. In a dusty corner of the repository, Alice discovers an old function that's been "temporarily" handling user searches since 2019. It concatenates strings into SQL queries like the Mad Hatter stacking teacups—precariously, without much thought for gravity or consequences.
+<!-- Chapter 1: Down the Rabbit Hole -->
+<div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%); border: 2px solid #8b5cf6; border-radius: 16px; padding: 32px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="font-size: 48px;">🐰</div>
+    <h3 style="color: #a78bfa; font-size: 26px; margin: 0; font-weight: 700;">Down the Rabbit Hole</h3>
+  </div>
 
-CodeQL, ever the vigilant Cheshire Cat, grins knowingly and whispers: *"SQL injection, dear. Severity: High. Shall I show you the way out?"*
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0 0 16px 0;">The codebase is Wonderland—strange, illogical, full of surprises. In a dusty corner of the repository, Alice discovers an old function that's been "temporarily" handling user searches since 2019. It concatenates strings into SQL queries like the Mad Hatter stacking teacups—precariously, without much thought for gravity or consequences.</p>
 
-The developer, having fallen into this particular rabbit hole before, sighs and summons Alice: **@alice this looks bad, can you help?**
+  <div style="background: rgba(139, 92, 246, 0.2); border-left: 4px solid #8b5cf6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+    <p style="color: #c4b5fd; font-style: italic; font-size: 15px; margin: 0 0 8px 0;">"SQL injection, dear. Severity: High. Shall I show you the way out?"</p>
+    <p style="color: #94a3b8; font-size: 13px; margin: 0;">— CodeQL, the vigilant Cheshire Cat</p>
+  </div>
 
----
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0 0 0;">The developer, having fallen into this particular rabbit hole before, sighs and summons Alice: <strong style="color: #6EE7F9;">@alice this looks bad, can you help?</strong></p>
+</div>
 
-### 🍄 Reading the Label
+<!-- Chapter 2: Reading the Label -->
+<div style="background: linear-gradient(135deg, rgba(110, 231, 249, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%); border: 2px solid #6EE7F9; border-radius: 16px; padding: 32px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="font-size: 48px;">🍄</div>
+    <h3 style="color: #6EE7F9; font-size: 26px; margin: 0; font-weight: 700;">Reading the Label</h3>
+  </div>
 
-*"DRINK ME,"* says the bottle. But Alice, being a cautious sort, reads the fine print first.
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0 0 16px 0; font-style: italic;">"DRINK ME," says the bottle. But Alice, being a cautious sort, reads the fine print first.</p>
 
-The label (a compact prompt pack called **OWASP A03 - Injection**) explains:
-- Parameterized queries with **$1 placeholders** prevent SQL injection
-- Input validation with **allowlist regex** catches malicious characters
-- Generic error messages prevent **schema exposure**
+  <div style="background: rgba(110, 231, 249, 0.1); border: 2px solid #6EE7F9; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 12px 0;">THE LABEL (OWASP A03 - Injection)</p>
+    <ul style="color: #cbd5e1; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 24px;">
+      <li>Parameterized queries with <strong style="color: #6EE7F9;">$1 placeholders</strong> prevent SQL injection</li>
+      <li>Input validation with <strong style="color: #6EE7F9;">allowlist regex</strong> catches malicious characters</li>
+      <li>Generic error messages prevent <strong style="color: #6EE7F9;">schema exposure</strong></li>
+    </ul>
+  </div>
 
-Alice explores the codebase like she explored Wonderland's gardens—carefully noting which paths lead to roses and which to thorns. She discovers 14 other functions with similar vulnerabilities, a pattern as consistent as the Queen's croquet mallets (which are actually flamingos).
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0;">Alice explores the codebase like she explored Wonderland's gardens—carefully noting which paths lead to roses and which to thorns. She discovers 14 other functions with similar vulnerabilities, a pattern as consistent as the Queen's croquet mallets (which are actually flamingos).</p>
 
-*"Curiouser and curiouser!"* Alice exclaims. *"Why string concatenation when PostgreSQL supports parameterized queries? This was meant to be temporary?"*
+  <div style="background: rgba(110, 231, 249, 0.2); border-left: 4px solid #6EE7F9; padding: 16px; border-radius: 8px; margin: 16px 0;">
+    <p style="color: #6EE7F9; font-style: italic; font-size: 15px; margin: 0;">"Curiouser and curiouser! Why string concatenation when PostgreSQL supports parameterized queries? This was meant to be temporary?"</p>
+  </div>
 
-She creates a plan, addressing the design decisions: Which library? (pg—already in the package.) What validation? (Zod schema with alphanumeric allowlist.) How to refactor? (Three steps: validate, parameterize, safe errors.)
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0 0 0;">She creates a plan, addressing the design decisions: Which library? (pg—already in the package.) What validation? (Zod schema with alphanumeric allowlist.) How to refactor? (Three steps: validate, parameterize, safe errors.)</p>
+</div>
 
----
+<!-- Chapter 3: The Caterpillar's Question -->
+<div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%); border: 2px solid #f59e0b; border-radius: 16px; padding: 32px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="font-size: 48px;">🐛</div>
+    <h3 style="color: #fbbf24; font-size: 26px; margin: 0; font-weight: 700;">The Caterpillar's Question</h3>
+  </div>
 
-### 👤 The Caterpillar's Question
+  <div style="background: rgba(245, 158, 11, 0.2); border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 0 0 20px 0;">
+    <p style="color: #fcd34d; font-style: italic; font-size: 18px; margin: 0; letter-spacing: 0.1em;">"Who... are... YOU?"</p>
+    <p style="color: #94a3b8; font-size: 13px; margin: 8px 0 0 0;">— The Caterpillar, each word punctuated by a puff of smoke</p>
+  </div>
 
-*"Who... are... YOU?"* asks the Caterpillar, each word punctuated by a puff of smoke.
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0;">The human reviews Alice's plan. The technology choices are sound—they already use pg and Zod everywhere. The incremental approach is sensible. The error handling strikes the right balance between user-friendly and secure.</p>
 
-The human reviews Alice's plan. The technology choices are sound—they already use pg and Zod everywhere. The incremental approach is sensible. The error handling strikes the right balance between user-friendly and secure.
+  <div style="text-align: center; margin: 24px 0;">
+    <div style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 12px 32px; border-radius: 10px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);">
+      <p style="color: white; font-size: 18px; font-weight: 700; margin: 0;">@alice approved</p>
+    </div>
+  </div>
 
-**@alice approved,** says the human, and just like that, Alice begins her transformation.
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 20px 0 0 0; text-align: center;">And just like that, Alice begins her transformation.</p>
+</div>
 
----
+<!-- Chapter 4: Careful Transformation -->
+<div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%); border: 2px solid #10b981; border-radius: 16px; padding: 32px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="font-size: 48px;">🎩</div>
+    <h3 style="color: #34d399; font-size: 26px; margin: 0; font-weight: 700;">Careful Transformation</h3>
+  </div>
 
-### 🎩 Careful Transformation
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0 0 16px 0;">Alice shrinks the problem down to size. First, she adds validation—a protective layer like gloves before handling thorns. She runs the tests. They pass.</p>
 
-Alice shrinks the problem down to size. First, she adds validation—a protective layer like gloves before handling thorns. She runs the tests. They pass. *"I wonder if I've been changed?"*
+  <div style="background: rgba(16, 185, 129, 0.2); border-left: 4px solid #10b981; padding: 12px; border-radius: 8px; margin: 16px 0;">
+    <p style="color: #6ee7b7; font-style: italic; font-size: 14px; margin: 0;">"I wonder if I've been changed?"</p>
+  </div>
 
-Then, she transforms the query itself, replacing string concatenation with parameterized placeholders. The SQL is now a proper teacup instead of a precariously stacked tower. Tests run again. Still passing. *"Curiouser and curiouser—it works!"*
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0;">Then, she transforms the query itself, replacing string concatenation with parameterized placeholders. The SQL is now a proper teacup instead of a precariously stacked tower. Tests run again. Still passing.</p>
 
-Finally, she adds safe error handling, ensuring that database hiccups don't spill schema secrets to curious attackers. The function has transformed from a security vulnerability into a well-defended endpoint.
+  <div style="background: rgba(16, 185, 129, 0.2); border-left: 4px solid #10b981; padding: 12px; border-radius: 8px; margin: 16px 0;">
+    <p style="color: #6ee7b7; font-style: italic; font-size: 14px; margin: 0;">"Curiouser and curiouser—it works!"</p>
+  </div>
 
-Alice documents her journey in a detailed commit message, like leaving breadcrumbs through the forest—not for herself, but for the next traveler who ventures this way.
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0 0 0;">Finally, she adds safe error handling, ensuring that database hiccups don't spill schema secrets to curious attackers. The function has transformed from a security vulnerability into a well-defended endpoint.</p>
 
----
+  <div style="background: rgba(16, 185, 129, 0.1); border: 2px dashed #10b981; border-radius: 12px; padding: 20px; margin: 24px 0 0 0;">
+    <p style="color: #10b981; font-weight: 600; font-size: 14px; margin: 0 0 8px 0;">📝 BREADCRUMBS FOR TRAVELERS</p>
+    <p style="color: #cbd5e1; font-size: 15px; margin: 0; line-height: 1.7;">Alice documents her journey in a detailed commit message, like leaving breadcrumbs through the forest—not for herself, but for the next traveler who ventures this way.</p>
+  </div>
+</div>
 
-### 🌹 Painting the Roses Red
+<!-- Chapter 5: Painting the Roses Red -->
+<div style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(219, 39, 119, 0.1) 100%); border: 2px solid #ec4899; border-radius: 16px; padding: 32px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+    <div style="font-size: 48px;">🌹</div>
+    <h3 style="color: #f9a8d4; font-size: 26px; margin: 0; font-weight: 700;">Painting the Roses Red</h3>
+  </div>
 
-In Wonderland, the Queen's gardeners frantically paint white roses red to meet expectations. In our codebase, the human reviewer carefully examines Alice's PR—the "painting the roses red" quality check.
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0 0 16px 0;">In Wonderland, the Queen's gardeners frantically paint white roses red to meet expectations—a quick fix to avoid consequences. But the human reviewer asks a deeper question: <em style="color: #f9a8d4;">Are we just painting roses red, or is this the time to improve even more?</em></p>
 
-They test with an SQL injection payload: **'; DROP TABLE users--**
+  <div style="background: rgba(236, 72, 153, 0.1); border-left: 4px solid #ec4899; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <p style="color: #f9a8d4; font-weight: 600; font-size: 14px; margin: 0 0 8px 0;">🤔 THE HUMAN'S CRITICAL THINKING</p>
+    <p style="color: #e2e8f0; font-size: 15px; margin: 0; line-height: 1.7;">"This fixes the immediate SQL injection. But what about the other 13 instances? Should we tackle more now, or ship this incrementally? What's the risk/reward?"</p>
+  </div>
 
-The validation layer catches it immediately: *"Invalid username format."* The roses are indeed red. No white ones to lose heads over.
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0;">The human tests with an SQL injection payload to verify the fix works as intended:</p>
 
-The human clicks **Merge pull request**.
+  <div style="background: rgba(15, 23, 42, 0.8); border: 2px solid #334155; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">SQL INJECTION TEST PAYLOAD</p>
+    <p style="color: #ef4444; font-family: monospace; font-size: 16px; margin: 0;">'; DROP TABLE users--</p>
+  </div>
 
----
+  <div style="background: rgba(16, 185, 129, 0.2); border: 2px solid #10b981; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <p style="color: #10b981; font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">✅ VALIDATION LAYER RESPONSE</p>
+    <p style="color: #6ee7b7; font-size: 16px; margin: 0;">"Invalid username format."</p>
+  </div>
 
-### ✨ The Impossible Became Possible
+  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 16px 0;">The fix is solid. But the human makes a strategic decision: ship this one fix now to demonstrate the pattern, then systematically address the others. <strong style="color: #6EE7F9;">That's the value a human brings</strong>—not just quality control, but strategic thinking about incremental improvement.</p>
 
-What was "impossible":
-- *"This code is too risky to touch—it's been here 2 years"*
-- *"We don't have time to fix all the SQL injection issues"*
-- *"We'd need to refactor the entire API layer"*
+  <div style="background: rgba(110, 231, 249, 0.1); border: 2px dashed #6EE7F9; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 8px 0;">💡 THE HUMAN INSIGHT</p>
+    <p style="color: #cbd5e1; font-size: 15px; margin: 0; line-height: 1.7;">Sometimes painting the roses red is exactly what's needed—a focused, testable change. Other times, it's the signal to dig deeper. The human knows when to ship and when to iterate.</p>
+  </div>
 
-What Alice made possible:
-- Fixed the vulnerability in one afternoon
-- Incremental change (15 lines modified, 30 lines of tests)
-- Zero breaking changes
-- Detailed documentation for future maintainers
-- Systematic approach for the other 13 instances
+  <div style="text-align: center; margin: 24px 0 0 0;">
+    <div style="display: inline-block; background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); padding: 12px 32px; border-radius: 10px; box-shadow: 0 4px 12px rgba(110, 231, 249, 0.4);">
+      <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0;">✓ Merge pull request</p>
+    </div>
+  </div>
+</div>
 
-*"Why, sometimes I've believed as many as six impossible things before breakfast."*
+<!-- Chapter 6: The Impossible Became Possible -->
+<div style="background: linear-gradient(135deg, rgba(110, 231, 249, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%); border: 3px solid #6EE7F9; border-radius: 20px; padding: 40px; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(110, 231, 249, 0.3);">
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; justify-content: center;">
+    <div style="font-size: 56px;">✨</div>
+    <h3 style="color: #6EE7F9; font-size: 28px; margin: 0; font-weight: 700;">The Impossible Became Possible</h3>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0;">
+    <!-- What was "impossible" -->
+    <div style="background: rgba(239, 68, 68, 0.1); border: 2px solid #ef4444; border-radius: 12px; padding: 24px;">
+      <p style="color: #ef4444; font-weight: 600; font-size: 16px; margin: 0 0 16px 0;">❌ WHAT WAS "IMPOSSIBLE"</p>
+      <ul style="color: #fca5a5; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px; font-style: italic;">
+        <li>"This code is too risky to touch—it's been here 2 years"</li>
+        <li>"We don't have time to fix all the SQL injection issues"</li>
+        <li>"We'd need to refactor the entire API layer"</li>
+      </ul>
+    </div>
+
+    <!-- What Alice made possible -->
+    <div style="background: rgba(16, 185, 129, 0.1); border: 2px solid #10b981; border-radius: 12px; padding: 24px;">
+      <p style="color: #10b981; font-weight: 600; font-size: 16px; margin: 0 0 16px 0;">✅ WHAT ALICE MADE POSSIBLE</p>
+      <ul style="color: #6ee7b7; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px;">
+        <li>Fixed the vulnerability in one afternoon</li>
+        <li>Incremental change (15 lines modified, 30 lines of tests)</li>
+        <li>Zero breaking changes</li>
+        <li>Detailed documentation for future maintainers</li>
+        <li>Systematic approach for the other 13 instances</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin: 32px 0 0 0;">
+    <p style="font-size: 22px; color: #6EE7F9; font-style: italic; margin: 0;">"Why, sometimes I've believed as many as six impossible things before breakfast."</p>
+  </div>
+</div>
+
+</div>
 
 **That's the Good Maintainer in action.**
 
