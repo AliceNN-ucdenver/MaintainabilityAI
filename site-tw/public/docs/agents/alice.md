@@ -12,9 +12,18 @@ Alice is an **agentic AI proof of concept** built on Claude Code that automates 
 
 ## Why "Alice"?
 
-Software maintenance often feels like falling down a rabbit hole: legacy code with no comments, "temporary" fixes from years ago, technical debt everyone accepts as inevitable. **Alice brings order to chaos.**
-
-Just as Alice in Wonderland carefully read labels before drinking mysterious potions, questioned illogical rules, and maintained her sense of self through bizarre transformations—**Alice Agent embodies the principles of The Good Maintainer**.
+<div style="background: linear-gradient(135deg, rgba(110, 231, 249, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%); border-left: 4px solid #6EE7F9; border-radius: 12px; padding: 32px; margin: 24px 0;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center;">
+    <div>
+      <h3 style="color: #6EE7F9; font-size: 20px; margin: 0 0 16px 0; font-weight: 700;">The Rabbit Hole of Legacy Code</h3>
+      <p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0;">Software maintenance often feels like falling down a rabbit hole: legacy code with no comments, "temporary" fixes from years ago, technical debt everyone accepts as inevitable.</p>
+    </div>
+    <div>
+      <h3 style="color: #6EE7F9; font-size: 20px; margin: 0 0 16px 0; font-weight: 700;">Alice Brings Order to Chaos</h3>
+      <p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0;">Just as Alice in Wonderland carefully read labels before drinking mysterious potions, questioned illogical rules, and maintained her sense of self through bizarre transformations—<strong style="color: #6EE7F9;">Alice Agent embodies the principles of The Good Maintainer</strong>.</p>
+    </div>
+  </div>
+</div>
 
 ---
 
@@ -380,47 +389,65 @@ GitHub Actions workflow validates prompt hashes on every commit. Build fails if 
 
 ## Use Cases
 
-### ✅ Alice Thrives On:
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 32px 0;">
 
-**Security Vulnerabilities**
-- SQL injection, XSS, broken access control
-- OWASP Top 10 issues from CodeQL
-- Vulnerabilities everyone thought were "too hard to fix"
+<!-- Alice Thrives On -->
+<div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%); border: 2px solid #10b981; border-radius: 16px; padding: 28px;">
+  <h3 style="color: #10b981; font-size: 22px; margin: 0 0 20px 0; display: flex; align-items: center; gap: 12px;">
+    <span style="font-size: 32px;">✅</span>
+    <span>Alice Thrives On</span>
+  </h3>
 
-**Legacy Code**
-- 1000-line functions with zero tests
-- "Temporary" fixes from years ago
-- Code with no comments or documentation
+  <div style="margin-bottom: 20px;">
+    <h4 style="color: #6EE7F9; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">🔒 Security Vulnerabilities</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">SQL injection, XSS, broken access control • OWASP Top 10 issues from CodeQL • Vulnerabilities everyone thought were "too hard to fix"</p>
+  </div>
 
-**Technical Debt**
-- High cyclomatic complexity (>10)
-- Code duplication and inconsistent patterns
-- Workarounds that bypass validation
+  <div style="margin-bottom: 20px;">
+    <h4 style="color: #6EE7F9; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">📜 Legacy Code</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">1000-line functions with zero tests • "Temporary" fixes from years ago • Code with no comments or documentation</p>
+  </div>
 
-**CI/CD Integration**
-- Automated security remediation in pipelines
-- Systematic OWASP compliance
-- Dependency upgrade assistance
+  <div style="margin-bottom: 20px;">
+    <h4 style="color: #6EE7F9; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">⚠️ Technical Debt</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">High cyclomatic complexity (>10) • Code duplication and inconsistent patterns • Workarounds that bypass validation</p>
+  </div>
 
----
+  <div>
+    <h4 style="color: #6EE7F9; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">🔄 CI/CD Integration</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">Automated security remediation in pipelines • Systematic OWASP compliance • Dependency upgrade assistance</p>
+  </div>
+</div>
 
-### ❌ Alice Gets Confused By:
+<!-- Alice Gets Confused By -->
+<div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%); border: 2px solid #ef4444; border-radius: 16px; padding: 28px;">
+  <h3 style="color: #ef4444; font-size: 22px; margin: 0 0 20px 0; display: flex; align-items: center; gap: 12px;">
+    <span style="font-size: 32px;">❌</span>
+    <span>Alice Gets Confused By</span>
+  </h3>
 
-**Greenfield Features**
-- No existing code to read/understand
-- Better suited for human design → AI implementation
+  <div style="margin-bottom: 20px;">
+    <h4 style="color: #fca5a5; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">🌱 Greenfield Features</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">No existing code to read/understand • Better suited for human design → AI implementation</p>
+  </div>
 
-**Ambiguous Requirements**
-- "Make it better" without specifics
-- Needs clear success criteria
+  <div style="margin-bottom: 20px;">
+    <h4 style="color: #fca5a5; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">❓ Ambiguous Requirements</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">"Make it better" without specifics • Needs clear success criteria</p>
+  </div>
 
-**Architectural Rewrites**
-- Too large, too risky
-- Needs human design, not AI execution
+  <div style="margin-bottom: 20px;">
+    <h4 style="color: #fca5a5; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">🏗️ Architectural Rewrites</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">Too large, too risky • Needs human design, not AI execution</p>
+  </div>
 
-**Bikeshedding**
-- Tabs vs spaces
-- Naming debates without security impact
+  <div>
+    <h4 style="color: #fca5a5; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">💬 Bikeshedding</h4>
+    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0;">Tabs vs spaces • Naming debates without security impact</p>
+  </div>
+</div>
+
+</div>
 
 ---
 
@@ -479,45 +506,86 @@ When Alice nails a remediation, document the pattern:
 
 ## Believing in Impossible Things
 
-*"Why, sometimes I've believed as many as six impossible things before breakfast."*
+<div style="text-align: center; margin: 32px 0 24px 0;">
+  <p style="font-size: 24px; color: #6EE7F9; font-style: italic; margin: 0;">"Why, sometimes I've believed as many as six impossible things before breakfast."</p>
+  <p style="font-size: 14px; color: #94a3b8; margin: 8px 0 0 0;">— The Queen, Alice in Wonderland</p>
+</div>
 
-### Impossible Thing #1: Legacy Code Can Be Fixed
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin: 32px 0;">
 
-**The pessimism**: *"This 5-year-old function? Too risky to touch."*
+<!-- Impossible Thing 1 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);">1</div>
+    <h3 style="color: #a78bfa; font-size: 18px; margin: 0; font-weight: 700;">Legacy Code Can Be Fixed</h3>
+  </div>
+  <p style="color: #ef4444; font-size: 14px; font-style: italic; margin: 0 0 12px 0;">"This 5-year-old function? Too risky to touch."</p>
+  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Alice's approach:</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">Strangler fig pattern—extract one method at a time, add tests first, refactor incrementally.</p>
+  <p style="color: #6EE7F9; font-size: 13px; font-weight: 600; margin: 0;">✨ Result: 1000 → 200 lines over 5 PRs, fully tested, no regressions</p>
+</div>
 
-**Alice's approach**: Strangler fig pattern—extract one method at a time, add tests first, refactor incrementally.
+<!-- Impossible Thing 2 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #06b6d4; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);">2</div>
+    <h3 style="color: #67e8f9; font-size: 18px; margin: 0; font-weight: 700;">Technical Debt Can Be Paid Down</h3>
+  </div>
+  <p style="color: #ef4444; font-size: 14px; font-style: italic; margin: 0 0 12px 0;">"We've been saying 'we'll refactor this later' for 3 years."</p>
+  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Alice's approach:</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">Fitness functions fail CI when complexity >10. One function per PR. Celebrate wins.</p>
+  <p style="color: #6EE7F9; font-size: 13px; font-weight: 600; margin: 0;">✨ Result: Average complexity reduced from 18 → 9 in one quarter</p>
+</div>
 
-**Result**: Function reduced from 1000 → 200 lines over 5 PRs, fully tested, no regressions.
+<!-- Impossible Thing 3 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #10b981; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);">3</div>
+    <h3 style="color: #6ee7b7; font-size: 18px; margin: 0; font-weight: 700;">Security Doesn't Slow You Down</h3>
+  </div>
+  <p style="color: #ef4444; font-size: 14px; font-style: italic; margin: 0 0 12px 0;">"If we fix all these OWASP issues, we'll never ship features."</p>
+  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Alice's approach:</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">Automate tedious parts (reading OWASP docs, writing tests). Humans focus on creative parts (design, business logic).</p>
+  <p style="color: #6EE7F9; font-size: 13px; font-weight: 600; margin: 0;">✨ Result: Faster remediation with better quality—security becomes accelerator</p>
+</div>
 
----
+<!-- Impossible Thing 4 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #f59e0b; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);">4</div>
+    <h3 style="color: #fbbf24; font-size: 18px; margin: 0; font-weight: 700;">Chaos Can Become Order</h3>
+  </div>
+  <p style="color: #ef4444; font-size: 14px; font-style: italic; margin: 0 0 12px 0;">"This codebase is Wonderland—no saving it."</p>
+  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Alice's approach:</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">Bring structure incrementally. Fix one file, one function, one pattern at a time. Track metrics.</p>
+  <p style="color: #6EE7F9; font-size: 13px; font-weight: 600; margin: 0;">✨ Result: 6 months ago: 47 high-severity issues. Today: 2</p>
+</div>
 
-### Impossible Thing #2: Technical Debt Can Be Paid Down
+<!-- Impossible Thing 5 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #ec4899; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);">5</div>
+    <h3 style="color: #f9a8d4; font-size: 18px; margin: 0; font-weight: 700;">Zero Tests Can Become 80% Coverage</h3>
+  </div>
+  <p style="color: #ef4444; font-size: 14px; font-style: italic; margin: 0 0 12px 0;">"We don't have time to write tests for all this legacy code."</p>
+  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Alice's approach:</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">Characterization tests first (capture current behavior), then refactor with safety net. One test suite per PR.</p>
+  <p style="color: #6EE7F9; font-size: 13px; font-weight: 600; margin: 0;">✨ Result: 0% → 82% coverage in 3 months, caught 14 hidden bugs</p>
+</div>
 
-**The pessimism**: *"We've been saying 'we'll refactor this later' for 3 years."*
+<!-- Impossible Thing 6 -->
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #6EE7F9; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 16px rgba(110, 231, 249, 0.2);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: #0f172a; box-shadow: 0 4px 12px rgba(110, 231, 249, 0.6);">6</div>
+    <h3 style="color: #6EE7F9; font-size: 18px; margin: 0; font-weight: 700;">"Impossible" Deadlines Can Be Met</h3>
+  </div>
+  <p style="color: #ef4444; font-size: 14px; font-style: italic; margin: 0 0 12px 0;">"Security audit in 2 weeks? We have 50 vulnerabilities!"</p>
+  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">Alice's approach:</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 0 0 12px 0;">Parallel remediation (Alice on 3 issues simultaneously), humans review in batches, systematic triage by severity.</p>
+  <p style="color: #6EE7F9; font-size: 13px; font-weight: 600; margin: 0;">✨ Result: 50 vulnerabilities → 3 low-severity in 10 days, audit passed</p>
+</div>
 
-**Alice's approach**: Fitness functions fail CI when complexity >10. One function per PR. Celebrate wins.
-
-**Result**: Average complexity reduced from 18 → 9 in one quarter.
-
----
-
-### Impossible Thing #3: Security Doesn't Slow You Down
-
-**The pessimism**: *"If we fix all these OWASP issues, we'll never ship features."*
-
-**Alice's approach**: Automate tedious parts (reading OWASP docs, writing tests). Humans focus on creative parts (design, business logic).
-
-**Result**: Faster remediation with better quality—security becomes accelerator, not blocker.
-
----
-
-### Impossible Thing #4: Chaos Can Become Order
-
-**The pessimism**: *"This codebase is Wonderland—no saving it."*
-
-**Alice's approach**: Bring structure incrementally. Fix one file, one function, one pattern at a time. Track metrics.
-
-**Result**: 6 months ago: 47 high-severity issues. Today: 2.
+</div>
 
 ---
 
@@ -643,37 +711,71 @@ git commit -m "chore: Update prompt hashes after content changes"
 
 ## Epilogue: Down the Rabbit Hole
 
-*"It's no use going back to yesterday, because I was a different person then."* — Alice
+<div style="background: linear-gradient(135deg, rgba(110, 231, 249, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%); border-radius: 20px; padding: 48px; margin: 48px 0; border: 3px solid #6EE7F9; box-shadow: 0 8px 32px rgba(110, 231, 249, 0.2);">
 
-Software maintenance is a journey through Wonderland. Code that makes no sense until you read the commit history. "Temporary" fixes from years ago that everyone's afraid to touch. Legacy systems held together by hope and duct tape.
+  <div style="text-align: center; margin-bottom: 32px;">
+    <p style="font-size: 20px; color: #6EE7F9; font-style: italic; margin: 0; line-height: 1.6;">"It's no use going back to yesterday, because I was a different person then."</p>
+    <p style="font-size: 14px; color: #94a3b8; margin: 8px 0 0 0;">— Alice</p>
+  </div>
 
-**Alice doesn't accept "impossible."**
+  <div style="background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 28px; margin-bottom: 32px;">
+    <p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0 0 20px 0;">Software maintenance is a journey through Wonderland. Code that makes no sense until you read the commit history. "Temporary" fixes from years ago that everyone's afraid to touch. Legacy systems held together by hope and duct tape.</p>
+    <p style="color: #6EE7F9; font-size: 20px; font-weight: 700; text-align: center; margin: 0;">Alice doesn't accept "impossible."</p>
+  </div>
 
-She reads the documentation. She tests cautiously. She questions assumptions. She maintains integrity through chaos. She documents her journey. And most importantly, **she believes**.
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px;">
+    <div style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; padding: 16px; border-radius: 8px;">
+      <p style="color: #a78bfa; font-weight: 600; margin: 0 0 8px 0;">The Eight Principles in Action</p>
+      <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin: 0;">She reads the documentation. She tests cautiously. She questions assumptions. She maintains integrity through chaos. She documents her journey. And most importantly, <strong style="color: #6EE7F9;">she believes</strong>.</p>
+    </div>
+    <div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 16px; border-radius: 8px;">
+      <p style="color: #6ee7b7; font-weight: 600; margin: 0 0 8px 0;">The Results Speak</p>
+      <div style="color: #e2e8f0; font-size: 14px; line-height: 1.8; margin: 0;">
+        ✅ SQL injection from 2019? Fixed in one afternoon<br/>
+        ✅ 1000-line function? Refactored incrementally<br/>
+        ✅ "Unfixable" vulnerability? Remediated<br/>
+        ✅ "Unmaintainable" codebase? Transformed
+      </div>
+    </div>
+  </div>
 
-That SQL injection from 2019? Fixed in one afternoon.
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin-bottom: 32px; border: 2px solid #334155;">
+    <h3 style="color: #6EE7F9; font-size: 18px; margin: 0 0 20px 0; text-align: center; font-weight: 700;">The impossible becomes possible when you have:</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+      <div style="text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">📖</div>
+        <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 4px 0;">Wisdom</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">Compact prompt packs with proven patterns</p>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🧪</div>
+        <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 4px 0;">Caution</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">Incremental changes with tests</p>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🤔</div>
+        <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 4px 0;">Curiosity</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">Questioning technical debt</p>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">👤</div>
+        <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 4px 0;">Guidance</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">Human-in-the-loop approval</p>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
+        <p style="color: #6EE7F9; font-weight: 600; font-size: 14px; margin: 0 0 4px 0;">Automation</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">Alice doing the tedious parts</p>
+      </div>
+    </div>
+  </div>
 
-That 1000-line function? Refactored incrementally with full test coverage.
+  <div style="text-align: center; padding: 32px 0;">
+    <p style="color: #f1f5f9; font-size: 28px; font-weight: 700; margin: 0 0 16px 0;">Welcome to Wonderland.<br/>Welcome to better maintenance.</p>
+    <div style="background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); display: inline-block; padding: 16px 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(110, 231, 249, 0.4); margin-bottom: 24px;">
+      <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0;">🐰 Ready to start? Comment @alice on your next CodeQL issue.</p>
+    </div>
+    <p style="color: #94a3b8; font-size: 15px; font-style: italic; margin: 0;">Your codebase is different today than it was yesterday.<br/>Tomorrow, with Alice, it will be even better.</p>
+  </div>
 
-That "unfixable" security vulnerability? Remediated with proven OWASP patterns.
-
-That codebase everyone calls "unmaintainable"? Transformed, one PR at a time.
-
----
-
-**The impossible becomes possible when you have:**
-- 📖 Wisdom (compact prompt packs with proven patterns)
-- 🧪 Caution (incremental changes with tests)
-- 🤔 Curiosity (questioning technical debt)
-- 👤 Guidance (human-in-the-loop approval)
-- 🤖 Automation (Alice doing the tedious parts)
-
----
-
-**Welcome to Wonderland. Welcome to better maintenance.**
-
-🐰 **Ready to start? Comment @alice on your next CodeQL issue.**
-
----
-
-*"Your codebase is different today than it was yesterday. Tomorrow, with Alice, it will be even better."*
+</div>
