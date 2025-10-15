@@ -620,55 +620,6 @@ ${occurrence.codeSnippet || '(No code snippet available)'}
 `;
   }
 
-  // Add Alice Remediation Zone FIRST (always visible)
-  body += `
-
----
-
-## 🤖 Alice Remediation Zone
-
-To request a remediation plan for **all ${count} occurrence${count > 1 ? 's' : ''}**, **copy and paste this comment**:
-
-\`\`\`
-@alice Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath} following the security and maintainability guidelines provided.
-\`\`\`
-
-<details>
-<summary>📋 <strong>Click here for copy instructions</strong></summary>
-
-**How to use:**
-1. Select the text in the code block above
-2. Copy (Ctrl+C / Cmd+C)
-3. Paste into a new comment on this issue
-4. Submit the comment
-
-**Alternative prompts:**
-
-For just the remediation plan:
-\`\`\`
-@alice Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability following the security and maintainability guidelines provided.
-\`\`\`
-
-To start implementation immediately:
-\`\`\`
-@alice Please provide a remediation plan for all occurrences and implement the fix following the security and maintainability guidelines provided.
-\`\`\`
-
-</details>
-
-### ✅ Human Review Checklist
-
-- [ ] Security fix addresses the root cause in **all ${count} location${count > 1 ? 's' : ''}**
-- [ ] Code maintains readability and maintainability
-- [ ] Fix doesn't introduce new vulnerabilities
-- [ ] Tests are included/updated for all occurrences
-- [ ] Documentation is updated
-- [ ] Performance impact is acceptable
-
----
-
-`;
-
   // Add OWASP prompts with nested collapsible sections
   if (prompts.owaspPrompts && prompts.owaspPrompts.length > 0) {
     body += `
@@ -753,20 +704,34 @@ ${prompt.content}
 `;
   }
 
-  // Add additional metadata (collapsed)
+  // Add Alice Remediation Zone at the bottom
   body += `
 
 ---
 
+## 🤖 Alice Remediation Zone
+
+To request a remediation plan for **all ${count} occurrence${count > 1 ? 's' : ''}**, **copy and paste this comment**:
+
+\`\`\`
+@alice Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath} following the security and maintainability guidelines provided.
+\`\`\`
+
+---
+
+`;
+
+  // Add additional metadata (collapsed)
+  body += `
 <details>
 <summary>📊 Additional Metadata</summary>
 
 - **Detection Time**: ${timestamp}
-- **CodeQL Version**: ${vulnerability.toolVersion}
+- **CodeQL Version**: ${groupedFinding.toolVersion}
 - **Repository**: ${config.owner}/${config.repo}
 - **Branch**: ${config.branch}
 - **Commit**: ${config.sha}
-- **Rule ID**: ${vulnerability.ruleId}
+- **Rule ID**: ${groupedFinding.ruleId}
 
 </details>
 `;
@@ -888,16 +853,16 @@ function generateLabels(groupedFinding, owaspInfo, maintainabilityFiles) {
 
 /**
  * Create or update a GitHub issue
- * @param {Object} vulnerability - Vulnerability object
+ * @param {Object} groupedFinding - Grouped vulnerability object with occurrences array
  * @param {string} issueBody - Formatted issue body
  * @param {Array<string>} labels - Issue labels
  * @returns {Promise<Object>} Created/updated issue
  */
-async function createOrUpdateIssue(vulnerability, issueBody, labels) {
-  const title = createIssueTitle(vulnerability);
+async function createOrUpdateIssue(groupedFinding, issueBody, labels) {
+  const title = createIssueTitle(groupedFinding);
 
   // Check for existing issue
-  const existingIssue = await findExistingIssue(vulnerability);
+  const existingIssue = await findExistingIssue(groupedFinding);
 
   if (existingIssue) {
     // Update existing issue

@@ -7,6 +7,7 @@
     "js/path-traversal": "A01_broken_access_control",
     "js/weak-cryptography": "A02_crypto_failures",
     "js/insufficient-crypto": "A02_crypto_failures",
+    "js/insufficient-password-hash": "A02_crypto_failures",
     "js/hardcoded-credentials": "A07_authn_failures",
     "js/hardcoded-data-interpreted-as-code": "A08_integrity_failures",
     "js/missing-rate-limiting": "A04_insecure_design",
