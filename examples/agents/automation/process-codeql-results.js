@@ -256,8 +256,7 @@ async function fetchPrompt(category, file) {
 
   try {
     log('INFO', `Fetching prompt: ${cacheKey}`);
-    // lgtm[js/file-access-to-http] - URL is verified against ALLOWED_DOMAINS allowlist and content is verified with SHA-256 hash
-    const response = await axios.get(url, {
+    const response = await axios.get(url, { // lgtm[js/file-access-to-http] - URL is verified against ALLOWED_DOMAINS allowlist and content is verified with SHA-256 hash
       timeout: 10000,
       validateStatus: (status) => status === 200
     });

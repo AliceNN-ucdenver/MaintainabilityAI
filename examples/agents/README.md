@@ -1,500 +1,313 @@
-# CodeQL + Alice AI Automated Security Remediation
+# Alice AI + CodeQL Automated Security Remediation
 
-**Complete security automation system** that detects vulnerabilities with CodeQL and remediates them with Alice AI assistance.
+**Automated security system** that detects vulnerabilities with CodeQL and remediates them with Alice AI.
 
 ```mermaid
 graph LR
     A[Push Code] --> B[CodeQL Scan]
     B --> C[Create Issues]
-    C --> D[@alice mention]
-    D --> E[AI Remediation Plan]
+    C --> D[Comment: alice]
+    D --> E[AI Plan]
     E --> F[Human Approval]
-    F --> G[Auto-implement Fix]
+    F --> G[Auto-Fix]
     G --> H[Create PR]
 ```
 
 ## 🎯 What This Does
 
-1. **CodeQL scans your code** for security vulnerabilities (OWASP Top 10)
-2. **Automatically creates GitHub issues** with embedded security prompts
-3. **Claude AI provides remediation plans** when you mention `@claude`
-4. **After approval, Claude implements the fix** and creates a PR
-
-## ⚡ Quick Start
-
-### Option 1: Automated Deployment (Recommended)
-
-Run the deployment script for a guided setup:
-
-```bash
-# Download and run the deployment script
-curl -sSL https://raw.githubusercontent.com/AliceNN-ucdenver/MaintainabilityAI/main/examples/agents/deploy-test.sh | bash
-```
-
-**Or if you have the repo cloned:**
-
-```bash
-cd examples/agents
-./deploy-test.sh
-```
-
-The script will:
-- ✅ Clone the latest template from GitHub
-- ✅ Prompt for configuration (with sensible defaults - just hit Enter!)
-- ✅ Create a new GitHub repository
-- ✅ Configure the Anthropic API key secret
-- ✅ Clean up temporary files automatically
-
-**Defaults:**
-- Target directory: `~/agent-test` (press Enter to accept)
-- Repository name: `agent-test` (press Enter to accept)
-- Visibility: `public` (press Enter to accept)
-- Create repo: `yes` (press Enter to accept)
+1. **CodeQL scans** for OWASP Top 10 vulnerabilities
+2. **Auto-creates issues** with embedded security prompts
+3. **Alice AI provides** remediation plans when you comment `@alice`
+4. **After approval**, Alice implements the fix and creates a PR
 
 ---
 
-### Option 2: Manual Setup
+## ⚡ Quick Start
 
-If you prefer manual setup:
-
-#### 1. Copy This Repository Template
+### Option 1: One-Command Deploy (Recommended)
 
 ```bash
-# Create new repo and copy files
+curl -sSL https://raw.githubusercontent.com/AliceNN-ucdenver/MaintainabilityAI/main/examples/agents/deploy-test.sh | bash
+```
+
+The script will:
+- Clone the template
+- Create a GitHub repository
+- Configure secrets
+- Set up workflows
+
+Just hit **Enter** for all defaults!
+
+### Option 2: Manual Setup
+
+```bash
+# 1. Create repo and copy template
 gh repo create my-security-demo --public --clone
 cd my-security-demo
-cp -r /path/to/this/folder/* .
-cp -r /path/to/this/folder/.github .
+cp -r /path/to/examples/agents/* .
+cp -r /path/to/examples/agents/.github .
+
+# 2. Add Anthropic API key
+gh secret set ANTHROPIC_API_KEY --body "sk-ant-api03-..."
+
+# 3. Enable Actions permissions
+# Go to: Settings → Actions → General → Workflow permissions
+# ✅ Read and write permissions
+# ✅ Allow GitHub Actions to create and approve pull requests
+
+# 4. Push and trigger scan
 git add . && git commit -m "Initial commit" && git push
 ```
 
-#### 2. Add Required Secret
+Get your API key: https://console.anthropic.com/settings/keys
 
-```bash
-# Add your Anthropic API key
-gh secret set ANTHROPIC_API_KEY --body "sk-ant-api03-..."
-```
+### Test It
 
-Get your key: https://console.anthropic.com/settings/keys
+Wait ~5 minutes for CodeQL. Then on any issue with `codeql-finding` label:
 
-### 3. Enable GitHub Actions Permissions
-
-Go to **Settings → Actions → General → Workflow permissions**:
-- ✅ Read and write permissions
-- ✅ Allow GitHub Actions to create and approve pull requests
-
-### 4. Trigger CodeQL Scan
-
-```bash
-git commit --allow-empty -m "Trigger security scan"
-git push
-```
-
-Wait ~5 minutes for CodeQL to complete. Check **Issues** tab for new security issues!
-
-### 5. Test Alice AI Remediation
-
-On any issue with the `codeql-finding` label, comment:
 ```
 @alice Please provide a remediation plan for this vulnerability
 ```
 
-Alice will analyze and post a detailed plan. To approve:
+Alice analyzes and posts a plan. To approve:
+
 ```
 @alice approved
 ```
+
+Alice creates a branch, implements the fix, and opens a PR!
 
 ---
 
 ## 📦 What's Included
 
-### Vulnerable Demo Application
+### Vulnerable Demo App (Educational Only)
 
-**`src/app.ts`** - Express API with 10+ intentional vulnerabilities:
+**`src/app.ts`** - 10+ intentional vulnerabilities:
 - SQL injection (A03)
 - Broken access control (A01)
-- Weak cryptography (A02)
-- Insecure design (A04)
-- Security misconfiguration (A05)
+- Weak crypto (A02)
 - SSRF (A10)
 - Path traversal
 - And more...
 
-**`src/auth.ts`** - Authentication failures:
-- Weak password hashing (SHA1 instead of bcrypt)
-- Timing attack vulnerabilities
+**`src/auth.ts`** - Authentication flaws:
+- SHA1 password hashing (should be bcrypt)
+- Timing attacks
 - No rate limiting
-- No MFA support
 
 **`src/admin.ts`** - Access control issues:
 - No authorization checks
-- Insecure direct object references (IDOR)
-- Mass assignment vulnerabilities
-- Path traversal
+- IDOR vulnerabilities
+- Mass assignment
 
-⚠️ **For educational use only** - DO NOT use in production!
+⚠️ **Educational use only** - DO NOT deploy to production!
 
 ### GitHub Actions Workflows
 
 **`.github/workflows/codeql.yml`**
 - Runs CodeQL security analysis
-- Triggers on: push, PR, weekly schedule
-- Uploads SARIF results
+- Triggers on push, PR, weekly
 
 **`.github/workflows/codeql-to-issues.yml`**
-- Creates GitHub issues from CodeQL findings
-- Embeds OWASP security prompts from [MaintainabilityAI](https://maintainability.ai)
-- Applies smart labels and deduplication
-- Configurable severity thresholds
+- Creates issues from CodeQL findings
+- Embeds OWASP prompts from [maintainability.ai](https://maintainability.ai)
+- Smart deduplication and labeling
 
 **`.github/workflows/alice-remediation.yml`**
-- Triggers on `@alice` mentions in issues
+- Triggers on `@alice` mentions
 - Uses `anthropics/claude-code-action@v1`
-- Provides remediation plans with human-in-the-loop approval
-- Auto-implements approved fixes and creates PRs
+- Human-in-the-loop approval required
+- Auto-implements fixes and creates PRs
 
-### Automation Scripts
+### Automation
 
-**`automation/process-codeql-results.js`** (1,150 lines)
+**`automation/process-codeql-results.js`**
 - Parses CodeQL SARIF results
-- Maps 32 CodeQL rules to OWASP categories
-- Fetches security prompts from MaintainabilityAI
-- Extracts code snippets from source files (fallback when SARIF lacks them)
-- Creates comprehensive GitHub issues
-- Implements deduplication and rate limiting
-- Auto-closes resolved vulnerabilities
+- Maps 32 CodeQL rules → OWASP categories
+- Fetches security prompts
+- Creates comprehensive issues
+- Deduplication and auto-close
 
 **`automation/prompt-mappings.json`**
-- CodeQL rule → OWASP category mappings (32 total)
+- CodeQL rule → OWASP mappings (32 rules)
 - Links to maintainability patterns
-- Connects to STRIDE threat models
+- STRIDE threat model connections
 
 ---
 
 ## 🔧 Configuration
 
-All configuration in `.github/workflows/codeql-to-issues.yml`:
+Edit `.github/workflows/codeql-to-issues.yml`:
 
 ```yaml
 env:
   SEVERITY_THRESHOLD: 'high'          # critical | high | medium | low
-  MAX_ISSUES_PER_RUN: '10'            # Limit to prevent spam
-  ENABLE_MAINTAINABILITY: 'true'      # Include code quality prompts
-  ENABLE_THREAT_MODEL: 'true'         # Include STRIDE analysis
-  AUTO_ASSIGN: 'security-team,alice'  # Auto-assign issues
-  EXCLUDED_PATHS: 'test/,node_modules/' # Skip these paths
+  MAX_ISSUES_PER_RUN: '10'            # Prevent spam
+  ENABLE_MAINTAINABILITY: 'true'      # Include quality prompts
+  ENABLE_THREAT_MODEL: 'true'         # Include STRIDE
+  AUTO_ASSIGN: 'security-team,alice'  # Auto-assign
+  EXCLUDED_PATHS: 'test/,node_modules/'
 ```
 
 ---
 
-## 📋 Full Setup Guide
+## 🧪 Example: SQL Injection Fix
 
-See **[SETUP.md](SETUP.md)** for:
-- Detailed step-by-step instructions
-- Repository configuration
-- Secrets setup
-- Troubleshooting guide
-- Customization options
-- Monitoring and logging
-
----
-
-## 🧪 Example Workflow
-
-### Scenario: SQL Injection Detected
-
-**1. CodeQL finds vulnerability**
+**1. CodeQL detects:**
 ```typescript
 // src/app.ts:25
 const query = `SELECT * FROM users WHERE username = '${username}'`;
 ```
 
-**2. Issue created automatically**
-
-Title: `[Security] SQL injection in src/app.ts:25`
-
-Labels: `codeql-finding`, `security/critical`, `owasp/a03-injection`
-
-Body includes:
+**2. Issue created** with:
+- `codeql-finding`, `security/critical`, `owasp/a03-injection` labels
+- Full OWASP A03 security prompt
 - Vulnerable code snippet
-- Full OWASP A03 Injection security prompt (Role, Context, Requirements, Task, Checklist)
-- Maintainability considerations (complexity reduction, DRY principle)
-- Threat model analysis (tampering, elevation of privilege)
+- Maintainability guidance
 - Human review checklist
 
-**3. Developer requests remediation**
-```
-@claude Please provide a remediation plan for this vulnerability
-```
+**3. Developer comments:** `@alice Please provide a remediation plan`
 
-**4. Claude analyzes and responds**
+**4. Alice analyzes and responds:**
 ```markdown
 ## 🔍 Remediation Plan
 
 ### Root Cause
-String concatenation with user input creates SQL injection vulnerability.
-Attacker can inject: `admin' OR '1'='1` to bypass authentication.
+String concatenation creates SQL injection. Attacker can inject: `' OR '1'='1`
 
-### Proposed Solution
-Use parameterized queries with pg library:
-
+### Solution
+Use parameterized queries:
 ```typescript
 const query = 'SELECT * FROM users WHERE username = $1';
 const result = await pool.query(query, [username]);
 ```
 
 ### Security Controls
-- [x] Parameterized queries prevent injection
-- [x] Input validation with Zod schema
-- [x] Generic error messages (no schema leaks)
-- [x] Least privilege database connection
-
-### Testing Strategy
-- Unit tests with malicious payloads
-- Verify parameterization with query spy
-- Integration tests for auth flow
+- Parameterized queries
+- Zod input validation
+- Generic error messages
+- Least privilege connection
 
 ### Approval Required
-Please review and approve with: `@claude approved - implement this fix`
+Comment: `@alice approved`
 ```
 
-**5. Developer approves**
-```
-@claude approved - implement this fix
-```
+**5. Developer approves:** `@alice approved`
 
-**6. Claude implements fix**
-- Creates branch: `fix/issue-42-security`
-- Updates `src/app.ts` with parameterized query
-- Adds Zod validation
-- Updates/adds tests
-- Creates PR: `Fix SQL injection in login endpoint (closes #42)`
+**6. Alice implements:**
+- Creates branch `fix/issue-42-security`
+- Updates code with parameterized query
+- Adds validation and tests
+- Creates PR
 
-**7. Developer reviews and merges PR**
-
-✅ Vulnerability fixed!
-
----
-
-## 🎓 How It Works
-
-### Issue Creation Process
-
-1. **CodeQL Analysis**: Scans TypeScript/JavaScript for vulnerabilities
-2. **SARIF Parsing**: Extracts findings with severity, location, code snippets
-   - If SARIF lacks snippets, reads source files directly with line numbers
-   - Includes 2 lines of context before/after vulnerable code
-   - Marks vulnerable lines with `→` prefix
-3. **OWASP Mapping**: Maps CodeQL rule IDs to OWASP Top 10 categories
-4. **Prompt Fetching**: Downloads full security guidance from MaintainabilityAI
-5. **Issue Creation**: Creates comprehensive issue with all context
-6. **Deduplication**: Prevents duplicate issues (matches on rule + file + line)
-7. **Smart Labeling**: Applies security, OWASP, and maintainability labels
-8. **Auto-Close**: Closes resolved issues when vulnerability no longer detected
-
-### Alice AI Remediation Process
-
-1. **Trigger**: Developer mentions `@alice` in issue comment
-2. **Context Loading**: Claude reads full issue body (includes vulnerability + prompts)
-3. **Code Analysis**: Claude reads vulnerable code using file paths from issue
-4. **Plan Generation**: Claude posts detailed remediation plan
-5. **Human Review**: Developer reviews plan, provides feedback, or approves
-6. **Implementation**: After approval, Claude:
-   - Creates feature branch
-   - Implements fix following security requirements
-   - Adds/updates tests
-   - Creates PR with detailed description
-7. **Review & Merge**: Developer reviews PR and merges
-
-### Security Prompts Structure (RCTRO Pattern)
-
-Every issue includes complete security guidance:
-
-1. **Role**: You are a security-focused engineer...
-2. **Context**: Injection flaws occur when... (detailed explanation)
-3. **Task**: Implement these security controls... (step-by-step)
-4. **Requirements**:
-   - Input validation with allowlists
-   - Parameterized queries
-   - Error handling
-   - Least privilege
-5. **Output**: Code examples, testing approach, validation checklist
+**7. Developer reviews and merges** ✅
 
 ---
 
 ## 📊 Supported Vulnerabilities
 
-### Mapped CodeQL Rules (29 total)
+### 32 CodeQL Rules Mapped to OWASP Top 10
 
-| OWASP Category | CodeQL Rules | Count |
-|----------------|--------------|-------|
-| **A01 - Broken Access Control** | path-injection, missing-authorization, cors-misconfiguration | 3 |
-| **A02 - Cryptographic Failures** | weak-cryptography, insecure-randomness, hardcoded-credentials | 3 |
-| **A03 - Injection** | sql-injection, xss, command-injection, code-injection | 4 |
-| **A04 - Insecure Design** | insufficient-rate-limiting, weak-password-reset | 2 |
-| **A05 - Security Misconfiguration** | cors-misconfiguration, missing-security-headers | 2 |
-| **A06 - Vulnerable Components** | prototype-pollution, untrusted-deserialization | 2 |
-| **A07 - Auth Failures** | weak-password-hashing, session-fixation, timing-attack | 3 |
-| **A08 - Integrity Failures** | missing-integrity-check, unsafe-code-execution | 2 |
-| **A09 - Logging Failures** | sensitive-data-logging, insufficient-logging | 2 |
-| **A10 - SSRF** | server-side-request-forgery, unvalidated-redirect | 2 |
+| OWASP | Example Rules | Count |
+|-------|--------------|-------|
+| **A01** | path-injection, missing-authorization | 3 |
+| **A02** | weak-cryptography, hardcoded-credentials | 3 |
+| **A03** | sql-injection, xss, command-injection | 4 |
+| **A04** | insufficient-rate-limiting | 2 |
+| **A05** | missing-security-headers | 2 |
+| **A06** | prototype-pollution | 2 |
+| **A07** | weak-password-hashing, timing-attack | 3 |
+| **A08** | missing-integrity-check | 2 |
+| **A09** | sensitive-data-logging | 2 |
+| **A10** | ssrf, unvalidated-redirect | 2 |
 
-See **`automation/prompt-mappings.json`** for complete list.
-
----
-
-## 🛠️ Customization
-
-### Add Your Own CodeQL Rules
-
-Edit `automation/prompt-mappings.json`:
-
-```json
-{
-  "codeql_to_owasp": {
-    "js/your-custom-rule": "A03_injection"
-  }
-}
-```
-
-### Create Custom Security Prompts
-
-Fork [MaintainabilityAI](https://github.com/AliceNN-ucdenver/MaintainabilityAI) and:
-
-1. Add prompt: `site-tw/public/docs/prompts/owasp/YOUR_CATEGORY.md`
-2. Update config: `automation/prompt-mappings.json`
-3. Point workflow to your fork:
-   ```yaml
-   env:
-     PROMPT_REPO: 'your-org/your-fork'
-   ```
-
-### Modify Claude Instructions
-
-Edit `.github/workflows/alice-remediation.yml` prompt section to customize Alice's behavior.
-
----
-
-## 📚 Documentation
-
-- **[SETUP.md](SETUP.md)** - Complete setup and configuration guide (comprehensive)
-- **[EXAMPLE_ISSUE.md](EXAMPLE_ISSUE.md)** - Example of generated issue with prompts
-- **MaintainabilityAI Docs** - https://maintainability.ai/docs
+See `automation/prompt-mappings.json` for complete list.
 
 ---
 
 ## 🐛 Troubleshooting
 
-### No issues created after CodeQL scan
-
+**No issues created?**
 ```bash
-# Check SARIF results
-gh run download <run-id> -n codeql-sarif
-cat results.sarif | jq '.runs[0].results'
-
-# Lower severity threshold
-# Edit .github/workflows/codeql-to-issues.yml
+# Lower severity threshold in codeql-to-issues.yml
 env:
   SEVERITY_THRESHOLD: 'low'
 ```
 
-### Claude workflow not triggering
-
+**Alice not triggering?**
 ```bash
 # Verify secret exists
 gh secret list | grep ANTHROPIC
 
-# Check issue has required label
-# Ensure comment contains: @claude
+# Check issue has 'codeql-finding' label
+# Ensure comment contains '@alice'
 ```
 
-### Permissions errors
-
-Go to **Settings → Actions → General**:
+**Permission errors?**
+- Settings → Actions → General → Workflow permissions
 - ✅ Read and write permissions
-- ✅ Allow GitHub Actions to create and approve pull requests
+- ✅ Allow GitHub Actions to create/approve PRs
 
-See **[SETUP.md](SETUP.md)** for complete troubleshooting guide.
+---
+
+## 🎓 Documentation
+
+- **[SETUP.md](SETUP.md)** - Comprehensive setup guide
+- **[DEPLOY.md](DEPLOY.md)** - Deployment instructions
+- **[EXAMPLE_ISSUE.md](EXAMPLE_ISSUE.md)** - Sample generated issue
+- **Security Prompts** - https://maintainability.ai/docs/prompts/owasp/
+- **Full Docs** - https://maintainability.ai/docs
 
 ---
 
 ## 🎯 Use Cases
 
-### 1. Security Training
-- Use vulnerable demo app to learn OWASP Top 10
-- Practice secure remediation with AI guidance
-- Understand attack vectors and mitigations
+**1. Security Training**
+- Learn OWASP Top 10 with vulnerable examples
+- Practice remediation with AI guidance
 
-### 2. Existing Codebase Security
-- Deploy to existing repository
-- Replace demo app with your code
+**2. Existing Codebases**
+- Deploy to production repositories
 - Gradually fix detected vulnerabilities
 
-### 3. Security-First Development
-- Enable on all repositories
-- Catch vulnerabilities in PRs
-- Automated security guidance for developers
+**3. Security-First Development**
+- Enable on all repos
+- Catch issues in PRs automatically
 
-### 4. Team Education
-- Review Claude's remediation plans as a team
-- Discuss security tradeoffs
-- Build internal security knowledge
-
----
-
-## 📊 Metrics & Monitoring
-
-After each run, view statistics:
-
-```bash
-gh run download <run-id> -n codeql-processing-logs
-cat automation/logs/summary.json | jq
-```
-
-Example output:
-```json
-{
-  "timestamp": "2025-10-13T14:30:00Z",
-  "total": 15,
-  "created": 8,
-  "updated": 3,
-  "skipped": 4,
-  "by_severity": {"critical": 2, "high": 6, "medium": 5, "low": 2},
-  "by_owasp": {"A03_injection": 4, "A01_broken_access_control": 3}
-}
-```
+**4. Team Education**
+- Review Alice's plans as a team
+- Build security knowledge
 
 ---
 
 ## 🤝 Contributing
 
-Improvements welcome!
+Contributions welcome!
+- Add CodeQL rule mappings
+- Create security prompts
+- Enhance Alice instructions
 
-- Add more CodeQL rule mappings
-- Create additional security prompts
-- Improve issue templates
-- Enhance Claude instructions
+See [MaintainabilityAI](https://github.com/AliceNN-ucdenver/MaintainabilityAI) to contribute.
 
 ---
 
 ## 📄 License
 
-MIT License - Part of the [MaintainabilityAI](https://maintainability.ai) project.
-
-**Vulnerable code is for educational purposes only.**
+MIT License - Part of [MaintainabilityAI](https://maintainability.ai)
 
 ---
 
 ## 🔗 Links
 
 - **MaintainabilityAI**: https://maintainability.ai
+- **Alice Agent Docs**: https://maintainability.ai/docs/agents/alice
 - **OWASP Top 10**: https://owasp.org/Top10/
 - **CodeQL**: https://codeql.github.com
-- **Claude Code Action**: https://github.com/anthropics/claude-code-action
-- **Security Prompts**: https://maintainability.ai/docs/prompts/owasp/
+- **Claude Action**: https://github.com/anthropics/claude-code-action
 
 ---
 
-**🤖 Built with Claude AI** - This system demonstrates AI-assisted security remediation following the MaintainabilityAI framework's "Golden Rules of Vibe Coding."
+**🤖 Built with Claude AI** following the MaintainabilityAI framework's security-first principles.
 
-**Questions?** Open an issue or check [SETUP.md](SETUP.md) for detailed documentation.
+**Questions?** Open an issue or check [SETUP.md](SETUP.md).
