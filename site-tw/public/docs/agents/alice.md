@@ -8,6 +8,18 @@
 
 Alice is an **agentic AI proof of concept** built on Claude Code that automates security remediation while keeping humans in control. She reads documentation, tests cautiously, questions assumptions, and documents her journey—just like a great maintainer would.
 
+<div style="background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); border-radius: 12px; padding: 24px; margin: 32px 0; text-align: center; box-shadow: 0 6px 24px rgba(110, 231, 249, 0.4);">
+  <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+    🎥 Watch Alice in Action
+  </p>
+  <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px 0;">
+    See a complete live demo: from vulnerability detection → automated remediation → human review → merge
+  </p>
+  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/Ece2jtrqXuVPpGiVkg6aAkkBndoPRjlZWrqR1-waWv88CA?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=BF87Ii" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #6EE7F9; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+    ▶️ Watch the 15-Minute Demo
+  </a>
+</div>
+
 ---
 
 ## Why "Alice"?
