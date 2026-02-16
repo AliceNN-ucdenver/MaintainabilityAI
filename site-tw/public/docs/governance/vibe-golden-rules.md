@@ -15,7 +15,7 @@
 <div style="background: rgba(99, 102, 241, 0.2); border-left: 4px solid #6366f1; padding: 20px; border-radius: 8px;">
   <div style="font-size: 28px; margin-bottom: 8px;">1️⃣</div>
   <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #c7d2fe;">Be Specific and Clear</div>
-  <div style="font-size: 14px; line-height: 1.6;">Clear prompts with Role, Context, Requirements, and Task yield secure, correct code.</div>
+  <div style="font-size: 14px; line-height: 1.6;">Clear prompts using RCTRO (Role, Context, Task, Requirements, Output) yield secure, correct code.</div>
 </div>
 
 <div style="background: rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; padding: 20px; border-radius: 8px;">

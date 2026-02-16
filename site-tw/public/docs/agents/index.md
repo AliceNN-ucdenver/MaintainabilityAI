@@ -113,7 +113,7 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 
 ## Choosing the Right Agent
 
-**Patterns**:
+**Orchestration Patterns**:
 - **Sequential Pipeline**: Threat Model → Design → Implement → Test → Review
 - **Parallel Execution**: Multiple agents working on independent modules
 - **Validator Loop**: One agent generates, another validates
@@ -122,10 +122,6 @@ Tool-specific guidance for using the MaintainabilityAI framework with different 
 **Key Workflow**: Threat Modeler (ChatGPT) → Architect (Claude) → Implementer (Copilot) → Validator (Claude) → Reviewer (ChatGPT)
 
 **Quick Start**: [Multi-Agent Guide](/docs/agents/multi-agent)
-
----
-
-## Choosing the Right Agent
 
 ### By Development Phase
 

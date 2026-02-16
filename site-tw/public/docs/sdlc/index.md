@@ -88,6 +88,67 @@ This framework operationalizes that insight:
 </div>
 </div>
 
+## 😸 Cheshire — The VSCode Extension
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 1px solid rgba(139, 92, 246, 0.3);">
+
+<div style="display: flex; align-items: center; gap: 32px; flex-wrap: wrap;">
+
+<div style="flex-shrink: 0; text-align: center;">
+  <img src="../../images/cheshire.png" alt="Cheshire Cat — The SDLC Guide" style="width: 140px; height: 140px; border-radius: 16px; border: 2px solid #a78bfa; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);" />
+</div>
+
+<div style="flex: 1; min-width: 280px;">
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">The Cheshire Cat guides you through the SDLC</div>
+  <div style="font-size: 15px; color: #cbd5e1; line-height: 1.7; margin-bottom: 16px;">
+    A <strong style="color: #c4b5fd;">prototype VSCode extension</strong> that brings the MaintainabilityAI framework directly into your editor. Describe what you want to build — the Cat generates structured RCTRO specifications with OWASP security controls, STRIDE threat analysis, and maintainability patterns.
+  </div>
+  <div style="display: inline-block; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid rgba(139, 92, 246, 0.3);">Prototype — v0.1.0</div>
+</div>
+
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 32px;">
+
+<div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #a78bfa;">
+  <h4 style="color: #c4b5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">SDLC Scaffolding</h4>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">One command sets up your entire security-first pipeline: CLAUDE.md agent instructions, CodeQL workflows, fitness function automation, PR templates with AI disclosure, and OWASP prompt packs — all tailored to your detected tech stack.</p>
+</div>
+
+<div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #818cf8;">
+  <h4 style="color: #a5b4fc; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Issue Management</h4>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Describe a feature in plain text and Cheshire generates a complete RCTRO-formatted GitHub issue with collapsible prompt pack guidance, auto-created labels, and implementation zones for both Claude and Copilot.</p>
+</div>
+
+<div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #6366f1;">
+  <h4 style="color: #93c5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Security Scorecard</h4>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Browse 23 bundled prompt packs across OWASP, Maintainability, and STRIDE categories. Configure repository secrets for agent workflows. Monitor your project's security posture from the Cheshire activity bar. Humans manage technical debt issue creation, dependency updates, code coverage improvements, and other governance tasks directly from the scorecard.</p>
+</div>
+
+</div>
+
+<div style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; margin-top: 32px; text-align: center; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);">
+  <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+    🎥 Watch Cheshire in Action
+  </p>
+  <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px 0;">
+    See the full workflow: feature description → RCTRO generation → GitHub issue → agent implementation
+  </p>
+  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/IQAs4vpIObTOQ75l8bjm9DSGASlETl6xn6YIm7I1dRQPhE4?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=fbcbN8" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #c4b5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+    ▶️ Watch the Demo
+  </a>
+</div>
+
+<div style="margin-top: 24px; text-align: center;">
+  <p style="color: #94a3b8; font-size: 14px; font-style: italic; margin: 0;">
+    <em>"Would you tell me, please, which way I ought to go from here?"</em> — Unlike Alice, you know exactly where you want to go. The Cat is here to guide you there.
+  </p>
+</div>
+
+</div>
+
+---
+
 ## 🏗️ SDLC Framework: Phases & Security Gates
 
 <div style="background: linear-gradient(135deg, #0a1628 0%, #1e3a5f 100%); border-radius: 20px; padding: 40px; margin: 32px 0;">
@@ -561,54 +622,6 @@ As <a href="https://www.deloitte.com/nz/en/services/consulting/perspectives/ai-a
 
 ---
 
-## ⚠️ Why This Framework Matters: Speed Without Quality Is Technical Debt at Scale
-
-<div style="background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(239, 68, 68, 0.3);">
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">The Hard Truth</div>
-<p style="color: #fecaca; font-size: 15px; line-height: 1.8; margin: 0 0 12px 0;">
-AI can generate code at unprecedented speed. Without proper engineering discipline, this means <strong style="color: #fff;">accumulating technical debt at unprecedented speed</strong>.
-</p>
-<p style="color: #fecaca; font-size: 15px; line-height: 1.8; margin: 0;">
-A poorly architected system built in days instead of months is still a poorly architected system. It just fails faster.
-</p>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 32px 0;">
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-<div style="font-size: 24px; margin-bottom: 12px;">🏗️</div>
-<div style="font-size: 17px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Real-World Example: Architecture Matters</div>
-<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0 0 10px 0;">
-A senior engineer tackled a complex caching issue causing data inconsistencies for users in specific regions during peak load. AI helped analyze the codebase, but it was the engineer's understanding of distributed systems and network latency that identified the root cause.
-</p>
-<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">
-The strategic decision to develop a custom distributed caching library, using AI to accelerate implementation while maintaining architectural control, demonstrates optimal human-AI partnership.
-</p>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-<div style="font-size: 24px; margin-bottom: 12px;">🎯</div>
-<div style="font-size: 17px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Your Competitive Advantage</div>
-<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0 0 10px 0;">
-In a world where anyone can generate code, the ability to generate the **right** code, for the **right** reasons, with the **right** quality, becomes the ultimate differentiator.
-</p>
-<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">
-This is found in the engineer who knows why that database query is deliberately inefficient (to avoid locking during peak hours), the architect who remembers the three-year-old decision that makes microservices wrong for your context, and the security expert who designs systems that are architecturally immune to entire categories of vulnerabilities.
-</p>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-<div style="font-size: 24px; margin-bottom: 12px;">🚀</div>
-<div style="font-size: 17px; font-weight: 700; color: #34d399; margin-bottom: 12px;">The Organizations That Win</div>
-<p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">
-Won't be those that generate the most code or move the fastest. They'll be those that maintain technical craftspersonship while leveraging AI's capabilities, that treat the architectural layer not as a problem to solve but as their strategic moat. Organizations that recognize the 70/30 Rule and invest in engineering excellence will transform AI from a potential threat into their greatest strategic asset.
-</p>
-</div>
-
-</div>
-
----
-
 ## 📈 Success Metrics
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
@@ -776,76 +789,3 @@ Won't be those that generate the most code or move the fastest. They'll be those
   </a>
 </div>
 
----
-
-## 🔮 The Future Belongs to Engineering Excellence
-
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-
-<p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0 0 12px 0;">
-History is clear: technological disruption doesn't eliminate knowledge workers. It elevates them. Just as ATMs freed bank tellers to become financial advisors, AI will free engineers to become architects, strategists, and innovators.
-</p>
-<p style="color: #cbd5e1; font-size: 16px; line-height: 1.8; margin: 0 0 24px 0;">
-The question isn't whether your engineers will survive the AI revolution. It's whether your organization will thrive by giving them the tools, training, and trust to lead it.
-</p>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
-
-<div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 20px; margin-bottom: 8px;">🏛️</div>
-<div style="font-size: 15px; font-weight: 600; color: #93c5fd; margin-bottom: 8px;">Embrace the Architectural Layer</div>
-<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Stop waiting for AI to handle the critical 30%. Instead, invest in engineers who excel at architecture, security, and complex problem-solving that AI cannot replicate.
-</p>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 20px; margin-bottom: 8px;">📢</div>
-<div style="font-size: 15px; font-weight: 600; color: #fcd34d; margin-bottom: 8px;">Reframe the Narrative</div>
-<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Communicate clearly that AI empowers your best engineers rather than replacing them. Every message should reinforce how AI tools multiply human expertise.
-</p>
-</div>
-
-<div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 20px; margin-bottom: 8px;">⚡</div>
-<div style="font-size: 15px; font-weight: 600; color: #d8b4fe; margin-bottom: 8px;">Build Governance as Accelerator</div>
-<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Create frameworks that ensure quality at AI-speed while preventing technical debt accumulation. Governance isn't about slowing down; it's about sustainable velocity.
-</p>
-</div>
-
-<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 20px; margin-bottom: 8px;">🎓</div>
-<div style="font-size: 15px; font-weight: 600; color: #6ee7b7; margin-bottom: 8px;">Invest in Apprentice Programs</div>
-<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Develop apprentice programs in architecture, risk, and security. Tools will change; fundamental engineering skills endure.
-</p>
-</div>
-
-<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 20px; margin-bottom: 8px;">📊</div>
-<div style="font-size: 15px; font-weight: 600; color: #fca5a5; margin-bottom: 8px;">Measure What Matters</div>
-<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Track not just velocity but technical debt, innovation index, and quality indicators. Monitor whether AI is helping you build better systems or just failing faster.
-</p>
-</div>
-
-<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 20px; margin-bottom: 8px;">🌟</div>
-<div style="font-size: 15px; font-weight: 600; color: #f9a8d4; margin-bottom: 8px;">Celebrate Human Advantage</div>
-<p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0;">
-Make heroes of engineers who use AI to solve previously impossible problems while maintaining architectural integrity and system quality.
-</p>
-</div>
-
-</div>
-
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; padding: 32px; margin-top: 32px; text-align: center;">
-<div style="font-size: 20px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;">The Window for Action Is Now</div>
-<p style="color: #e0e7ff; font-size: 15px; line-height: 1.7; margin: 0 auto; max-width: 800px;">
-Organizations that move decisively to build AI-augmented engineering sophistication will dominate their markets. Those that wait for AI to "get better" or rush to automate without governance will accumulate technical debt that becomes insurmountable. <strong style="color: #fff;">The choice is yours: lead the transformation or become its casualty.</strong>
-</p>
-</div>
-
-</div>

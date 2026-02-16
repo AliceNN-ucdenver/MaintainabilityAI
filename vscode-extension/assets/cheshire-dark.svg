@@ -1,0 +1,16 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cheshire Cat grin — for dark editor backgrounds -->
+  <!-- Crescent grin -->
+  <path d="M2 7 Q4 5 8 5 Q12 5 14 7" stroke="#C4C4C4" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M2 7 Q4 11 8 11 Q12 11 14 7" stroke="#C4C4C4" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- Teeth lines -->
+  <line x1="5" y1="7" x2="5" y2="9.5" stroke="#C4C4C4" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="8" y1="6.2" x2="8" y2="10" stroke="#C4C4C4" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="11" y1="7" x2="11" y2="9.5" stroke="#C4C4C4" stroke-width="0.8" stroke-linecap="round"/>
+  <!-- Eyes -->
+  <ellipse cx="5" cy="3.5" rx="1.2" ry="1.4" fill="#C4C4C4"/>
+  <ellipse cx="11" cy="3.5" rx="1.2" ry="1.4" fill="#C4C4C4"/>
+  <!-- Pupils -->
+  <ellipse cx="5.3" cy="3.5" rx="0.5" ry="0.7" fill="#1e1e1e"/>
+  <ellipse cx="11.3" cy="3.5" rx="0.5" ry="0.7" fill="#1e1e1e"/>
+</svg>

@@ -144,7 +144,7 @@ npm run lint
 These governance principles ensure AI assistance enhances rather than compromises code quality:
 
 1. **Be Specific and Clear About What You Want**  
-   The quality of AI's output reflects the quality of your prompt. Use structured patterns: Role → Context → Requirements → Task → Checklist.
+   The quality of AI's output reflects the quality of your prompt. Use the RCTRO pattern: Role → Context → Task → Requirements → Output.
 
 2. **Always Validate AI Output Against Your Intent**  
    Test, review, and measure against requirements. Never merge code without understanding it.

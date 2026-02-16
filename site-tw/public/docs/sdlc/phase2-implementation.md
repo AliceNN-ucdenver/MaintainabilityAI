@@ -2,19 +2,14 @@
 
 <div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4); border: 1px solid rgba(251, 191, 36, 0.3);">
   <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">2️⃣</div>
+    <div style="font-size: 56px;">2&#xFE0F;&#x20E3;</div>
     <div>
       <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Implementation</h2>
       <div style="font-size: 16px; color: #fef3c7; margin-top: 8px;">AI-Guided Secure Code Generation</div>
     </div>
   </div>
-  <div style="color: #fef3c7; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> Generate secure code using AI agents guided by OWASP prompt packs and architectural constraints from Phase 1.
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-    <div style="color: #fef3c7; font-size: 14px; line-height: 1.8;">
-      This phase transforms architecture designs into production-ready code while maintaining security controls and fitness function compliance.
-    </div>
+  <div style="color: #fef3c7; font-size: 15px; line-height: 1.7;">
+    Generate secure code using AI agents guided by OWASP prompt packs and architectural constraints from Phase 1. This is the "70% layer" where AI accelerates implementation.
   </div>
 </div>
 
@@ -22,36 +17,30 @@
 
 ```mermaid
 flowchart LR
-    A[Design Artifacts] --> B[Select AI Agent]
+    A[Design Artifacts] --> B[Select Agent]
     B --> C[Apply OWASP Prompts]
     C --> D[Generate Code]
     D --> E[Local Tests]
-    E -->|Pass| F[Code Review]
+    E -->|Pass| F[Phase 3]
     E -->|Fail| D
-    F -->|Approved| G[Phase 3: Verification]
-    F -->|Changes| D
 ```
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Duration</div>
-    <div style="font-size: 24px; color: #f1f5f9; font-weight: 700;">2-6 hours</div>
-    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Feature-dependent</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Duration</div>
+    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">2-6 hours</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Primary Agents</div>
-    <div style="font-size: 16px; color: #f1f5f9; font-weight: 700;">Copilot, Claude, ChatGPT</div>
-    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Code generation & refactoring</div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Agents</div>
+    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Copilot, Claude, ChatGPT</div>
   </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
-  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 12px; font-size: 15px;">💻 Phase Outputs</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
-    ✓ Implementation code (TypeScript/JavaScript)<br/>
-    ✓ Unit tests (Jest)<br/>
-    ✓ Security controls (per threat model)<br/>
-    ✓ Documentation (inline comments, ADRs)
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Outputs</div>
+    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Implementation code, unit tests, security controls, docs</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Security Gate</div>
+    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">ESLint + Jest pass, coverage ≥ 80%</div>
   </div>
 </div>
 
@@ -59,276 +48,104 @@ flowchart LR
 
 ## Agent Selection Guide
 
-Choose the right agent for your implementation task:
+| Agent | Best For | Example |
+|---|---|---|
+| **Copilot** | Single-function impl, boilerplate, pattern following | `createShare()` using A01 prompt pack |
+| **Claude Code** | Multi-file features, large refactorings, test generation | Refactor entire auth module + add tests |
+| **ChatGPT** | Incremental development, learning patterns, iteration | Build feature step-by-step with review |
 
-```mermaid
-flowchart TD
-    A[Implementation Task] --> B{Task Type?}
-
-    B -->|Single file, pattern-based| C[GitHub Copilot]
-    B -->|Multi-file refactoring| D[Claude Code]
-    B -->|Structured, incremental| E[ChatGPT]
-
-    C --> C1[In VS Code]
-    C --> C2[Use #file: prompts]
-    C --> C3[Real-time feedback]
-
-    D --> D1[Complex changes]
-    D --> D2[Multiple files]
-    D --> D3[Deep refactoring]
-
-    E --> E1[Canvas mode]
-    E --> E2[Iterative refinement]
-    E --> E3[Long-form prompts]
-```
-
-### When to Use Each Agent
-
-| Agent | Best For | Example Task |
-|-------|----------|--------------|
-| **Copilot** | Single-function implementation, boilerplate, following existing patterns | "Implement `createShare()` function using A01 prompt pack" |
-| **Claude** | Multi-file features, large refactorings, comprehensive testing | "Refactor entire auth module to use bcrypt and add tests" |
-| **ChatGPT** | Incremental development, learning new patterns, structured iteration | "Build document sharing step-by-step with security review after each step" |
-
-See [Copilot Guide](../agents/copilot), [Claude Guide](../agents/claude), [ChatGPT Guide](../agents/chatgpt) for detailed guides.
+See [Copilot Guide](/docs/agents/copilot), [Claude Guide](/docs/agents/claude), [ChatGPT Guide](/docs/agents/chatgpt) for detailed guides.
 
 ---
 
-## Using OWASP Prompt Packs
+## Step 1: Apply OWASP Prompt Packs
 
-### Step 1: Identify Applicable Prompt Packs
+From Phase 1 threat model, select the corresponding OWASP prompt packs for your identified threats. Use this RCTRO prompt to generate secure implementation code.
 
-From Phase 1 threat model, you identified OWASP categories. Now select the corresponding prompt packs:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(245, 158, 11, 0.3);">
+<div style="font-size: 12px; color: #fcd34d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Secure Code Generation</div>
 
-```markdown
-Threats from Phase 1:
-- T1: JWT validation → A07 (Authentication)
-- T4: SQL injection → A03 (Injection)
-- T6: IDOR attacks → A01 (Access Control)
-- T5: No audit trail → A09 (Logging)
-
-Prompt Packs Needed:
-1. /prompts/owasp/A01_broken_access_control.md
-2. /prompts/owasp/A03_injection.md
-3. /prompts/owasp/A07_authn_failures.md
-4. /prompts/owasp/A09_logging_monitoring.md
 ```
-
-### Step 2: Apply Prompt Pack with Context
-
-**Example with Copilot**:
-
-```markdown
-#file:/prompts/owasp/A01_broken_access_control.md
-#file:/prompts/owasp/A03_injection.md
-
-Context from Phase 1:
-- Feature: Document sharing
-- Architecture: See design doc (data model, API endpoints)
-- Threats to mitigate: T1, T3, T4, T5, T6, T7, T8, T9
-
-Implement createShare() function:
-1. Verify requester is document owner (T3, T6, T9)
-2. Validate email and permission with Zod (T4)
-3. Use parameterized query to insert share (T4)
-4. Log share creation for audit (T5)
-5. Return generic success message (T7)
-6. Handle errors without info leakage (T7)
-
-TypeScript, Express.js, PostgreSQL (pg library)
-```
-
-**Example with ChatGPT**:
-
-```markdown
-[Paste /prompts/owasp/A01_broken_access_control.md]
-
-Feature Context:
-From Phase 1 threat model, I need to implement document sharing with these security controls:
-- T3: Immutable permissions (only owner can share)
-- T6: Authorization checks prevent IDOR
-- T9: Prevent re-sharing (only document owner can share)
-
-Architecture from Phase 1:
-```sql
-CREATE TABLE document_shares (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID NOT NULL,
-  owner_id UUID NOT NULL,
-  shared_with_email VARCHAR(255),
-  permission VARCHAR(10)
-);
-```
-
-Implement POST /api/documents/:documentId/shares endpoint:
-1. Authenticate requester (JWT middleware)
-2. Verify requester owns document
-3. Validate input (Zod schema)
-4. Create share (parameterized query)
-5. Return success (generic message)
-
-Show me the implementation step-by-step.
-```
-
----
-
-## Code Generation with Security Constraints
-
-### Pattern: Security-First Prompting
-
-Every implementation prompt should include:
-
-1. **Role**: "You are a security engineer implementing OWASP [category]"
-2. **Context**: Tech stack, existing architecture, data model
-3. **Requirements**: Specific security controls from threat model
-4. **Task**: Step-by-step implementation guidance
-5. **Checklist**: OWASP compliance items
-
-### Example: Implementing A03 Injection Prevention
-
-```markdown
-Role: You are a security engineer implementing OWASP A03:2021 - Injection.
+Role: You are a security engineer implementing OWASP [category]:2021.
 
 Context:
 - Node 18, TypeScript, Express, PostgreSQL (pg library)
-- Feature: User search endpoint
-- Threat: T4 - SQL injection via search query parameter
-
-Architecture:
-- Endpoint: GET /api/users/search?q=<query>
-- Table: users (id, email, name)
-- Max results: 50
-- Authentication: Required (JWT)
-
-Security Requirements (from threat model):
-1. Use parameterized queries only (no string concatenation)
-2. Validate query parameter with Zod:
-   - Only alphanumeric, space, dash, underscore, @ allowed
-   - Max length: 100 characters
-   - Trim whitespace
-3. Generic error messages (never expose SQL or schema)
-4. Log blocked injection attempts for monitoring
-5. Rate limit: 60 requests per minute per user
+- Feature: [from Phase 1 requirements]
+- Architecture: [from Phase 1 design — data model, API endpoints]
+- Threats to mitigate: [T1-Tn from Phase 1 threat model]
 
 Task:
-Implement searchUsers(query: string, userId: string) function.
+Implement the feature following the architecture design from Phase 1.
+Apply security controls for each identified threat.
 
-Security Checklist:
-□ Parameterized query with $1 placeholder
-□ Zod validation with character allowlist
-□ Length limit enforced (≤100 chars)
-□ Generic error on validation failure
-□ Injection attempts logged
-□ Rate limiting applied to endpoint
-□ Tests include SQL injection payloads
+Requirements:
+1. **Parameterized Queries**
+   - Use pg query with $1, $2 placeholders (never string concatenation)
+   - Validation: All queries use parameterized placeholders
+
+2. **Input Validation**
+   - Zod schemas with character allowlists
+   - Max length enforcement on all string inputs
+   - Validation: All user input validated before processing
+
+3. **Authorization Controls**
+   - Deny-by-default: verify ownership on every mutation
+   - Generic error messages (no schema/data leaks)
+   - Validation: Non-owners receive 403 with generic message
+
+4. **Audit Logging**
+   - Log all security-relevant operations
+   - Redact PII (email → domain only)
+   - Validation: Audit trail exists for every mutation
+
+5. **Test Coverage**
+   - Unit tests with attack payloads (SQL injection, IDOR)
+   - Coverage ≥ 80% overall, 100% on security functions
+   - Validation: All attack vectors tested and blocked
+
+Output:
+Complete TypeScript implementation with:
+- Feature code (parameterized queries, Zod validation)
+- Jest test suite (including attack vector tests)
+- Security comments referencing threat IDs
 ```
 
-### Generated Secure Code
+</div>
+
+<details>
+<summary style="cursor: pointer; color: #fcd34d; font-weight: 600; padding: 8px 0;">Example: Generated secure implementation (A03 injection prevention)</summary>
 
 ```typescript
 import { z } from 'zod';
 import { Client } from 'pg';
-import rateLimit from 'express-rate-limit';
 
 // Zod validation schema (T4: Injection prevention)
 const searchQuerySchema = z.string()
   .trim()
   .max(100, 'Search query too long')
-  .regex(/^[a-zA-Z0-9 _\-@]*$/, 'Invalid characters in search query');
+  .regex(/^[a-zA-Z0-9 _\-@]*$/, 'Invalid characters');
 
 /**
  * SECURITY: OWASP A03 - Injection Prevention
  * Threat: T4 - SQL injection via search parameter
- *
- * Controls:
- * - Parameterized query ($1 placeholder)
- * - Zod validation with character allowlist
- * - Length limit (100 chars)
- * - Generic error messages
- * - Security logging
+ * Controls: Parameterized query, Zod validation, generic errors
  */
 export async function searchUsers(query: string, userId: string) {
-  // Validate input (defense in depth)
-  let validated: string;
-  try {
-    validated = searchQuerySchema.parse(query);
-  } catch (err) {
-    // Log potential injection attempt
-    logger.security('search_validation_failed', {
-      userId,
-      query: query.substring(0, 50),  // Truncate for logging
-      error: err.message
-    });
+  const validated = searchQuerySchema.parse(query);
 
-    // Generic error (no schema/validation leaks)
-    throw new ValidationError('Invalid search query');
-  }
-
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL
-  });
-
-  await client.connect();
-
-  try {
-    // Parameterized query prevents injection (T4)
-    const sql = 'SELECT id, email, name FROM users WHERE email ILIKE $1 OR name ILIKE $1 LIMIT 50';
-    const res = await client.query(sql, [`%${validated}%`]);
-
-    return res.rows;
-  } catch (err) {
-    // Log error server-side (detailed)
-    logger.error('search_query_failed', {
-      userId,
-      error: err.message,
-      stack: err.stack
-    });
-
-    // Generic error client-side (no SQL/schema leaks)
-    throw new Error('Search failed');
-  } finally {
-    await client.end();
-  }
+  const sql = 'SELECT id, email, name FROM users WHERE email ILIKE $1 LIMIT 50';
+  const res = await client.query(sql, [`%${validated}%`]);
+  return res.rows;
 }
-
-// Rate limiting middleware (T8: DoS prevention)
-export const searchRateLimiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minute
-  max: 60,  // 60 requests per minute
-  keyGenerator: (req) => req.user.id,  // Per-user limiting
-  handler: (req, res) => {
-    logger.security('rate_limit_exceeded', {
-      userId: req.user.id,
-      endpoint: '/api/users/search'
-    });
-    res.status(429).json({ error: 'Too many requests' });
-  }
-});
-
-// Express route
-app.get('/api/users/search',
-  authenticateJWT,  // Ensure authenticated
-  searchRateLimiter,  // Apply rate limit
-  async (req, res) => {
-    try {
-      const results = await searchUsers(req.query.q as string, req.user.id);
-      res.json({ users: results });
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        res.status(400).json({ error: err.message });
-      } else {
-        res.status(500).json({ error: 'An error occurred' });
-      }
-    }
-  }
-);
 ```
+
+</details>
 
 ---
 
-## Incremental Development Pattern
+## Step 2: Incremental Development
 
-Build features incrementally with validation at each step:
+Build features incrementally — validate at each step before proceeding.
 
 ```mermaid
 sequenceDiagram
@@ -336,453 +153,185 @@ sequenceDiagram
     participant Agent as AI Agent
     participant Tests as Local Tests
 
-    Dev->>Agent: Step 1: Implement basic function
+    Dev->>Agent: Step 1: Basic function
     Agent->>Dev: Code v1
     Dev->>Tests: npm test
-    Tests-->>Dev: Pass
+    Tests-->>Dev: Pass ✓
 
     Dev->>Agent: Step 2: Add security controls
-    Agent->>Dev: Code v2 (with validation, auth)
+    Agent->>Dev: Code v2 (validation, auth)
     Dev->>Tests: npm test && npm run lint
-    Tests-->>Dev: Pass
+    Tests-->>Dev: Pass ✓
 
-    Dev->>Agent: Step 3: Add error handling
-    Agent->>Dev: Code v3 (generic errors)
+    Dev->>Agent: Step 3: Add error handling + logging
+    Agent->>Dev: Code v3 (generic errors, audit)
     Dev->>Tests: npm test
-    Tests-->>Dev: Pass
+    Tests-->>Dev: Pass ✓
 
-    Dev->>Agent: Step 4: Generate security tests
-    Agent->>Dev: Test suite (attack vectors)
-    Dev->>Tests: npm test
-    Tests-->>Dev: All pass
-
-    Dev->>Dev: Commit with AI label
+    Dev->>Agent: Step 4: Generate attack vector tests
+    Agent->>Dev: Test suite
+    Dev->>Tests: npm test --coverage
+    Tests-->>Dev: All pass, ≥80% coverage ✓
 ```
 
-### Incremental Steps Example
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(245, 158, 11, 0.3);">
+<div style="font-size: 12px; color: #fcd34d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Attack Vector Tests</div>
 
-**Step 1: Basic Implementation**
-```markdown
-Implement basic createShare() function that:
-- Accepts documentId, ownerId, email, permission
-- Inserts into document_shares table
-- Returns share ID
+```
+Role: You are a security test engineer writing OWASP attack vector tests.
 
-No security yet, just working implementation.
+Context:
+- Feature: [feature name]
+- OWASP Categories: [A01, A03, etc. from Phase 1]
+- Implementation: [paste code from Step 1]
+- Threats: [T1-Tn from Phase 1 threat model]
+
+Task:
+Generate comprehensive Jest test suite covering all identified
+threats with actual attack payloads.
+
+Requirements:
+1. **Access Control Tests (A01)**
+   - Unauthorized user attempts blocked
+   - IDOR attacks return generic errors
+   - Privilege escalation prevented
+   - Validation: Each threat ID has at least one test
+
+2. **Injection Tests (A03)**
+   - SQL injection payloads: ' OR '1'='1, ; DROP TABLE, UNION SELECT
+   - Command injection payloads: ; cat /etc/passwd, && rm -rf
+   - All payloads return 400 with generic message
+   - Validation: ≥5 injection payloads tested
+
+3. **Logging Tests (A09)**
+   - Security events logged on blocked attacks
+   - PII redacted in log entries
+   - Audit trail exists for all mutations
+   - Validation: Every security event verified in logs
+
+Output:
+Jest test file with describe blocks per OWASP category,
+attack payloads as test data, assertion on generic error messages.
 ```
 
-**Step 2: Add Authorization**
-```markdown
-Add OWASP A01 access control:
-- Verify ownerId matches document owner
-- Throw UnauthorizedError if not owner
-- Use generic error message
-```
+</div>
 
-**Step 3: Add Input Validation**
-```markdown
-Add OWASP A03 injection prevention:
-- Zod schema for email and permission
-- Character allowlist for email
-- Parameterized query for INSERT
-```
-
-**Step 4: Add Audit Logging**
-```markdown
-Add OWASP A09 logging:
-- Log share creation to audit table
-- Include userId, IP, timestamp
-- Redact PII (email domain only)
-```
-
-**Step 5: Generate Tests**
-```markdown
-Generate Jest tests including:
-- Valid share creation (authorized owner)
-- Unauthorized attempt (non-owner blocked)
-- Invalid email (validation fails)
-- SQL injection attempt (blocked)
-- Audit log verification
-```
-
----
-
-## Local Testing (ESLint + Jest)
-
-Before committing, run local quality gates:
-
-### ESLint Security Rules
-
-```javascript
-// .eslintrc.cjs
-module.exports = {
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:security/recommended'
-  ],
-  plugins: ['security'],
-  rules: {
-    // Complexity fitness function
-    'complexity': ['error', 10],
-    'max-lines-per-function': ['error', 50],
-
-    // Security rules
-    'security/detect-sql-injection': 'error',
-    'security/detect-non-literal-regexp': 'warn',
-    'security/detect-unsafe-regex': 'error',
-    'security/detect-buffer-noassert': 'error',
-    'security/detect-possible-timing-attacks': 'warn'
-  }
-};
-```
-
-Run: `npm run lint`
-
-### Jest Unit Tests
+<details>
+<summary style="cursor: pointer; color: #fcd34d; font-weight: 600; padding: 8px 0;">Example: Attack vector test suite</summary>
 
 ```typescript
-// createShare.test.ts
+describe('Document Sharing - Attack Vector Tests', () => {
+  describe('[A01] Access Control', () => {
+    it('should block IDOR attack (T6)', async () => {
+      const response = await request(app)
+        .post('/api/documents/doc-victim-123/shares')
+        .set('Authorization', `Bearer ${attackerToken}`)
+        .send({ email: 'accomplice@evil.com', permission: 'admin' });
 
-import { createShare } from './shares';
-import { UnauthorizedError, ValidationError } from './errors';
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Access denied');
+      expect(response.body.error).not.toContain('not owner');
+    });
+  });
 
-describe('createShare - OWASP A01, A03, A09', () => {
-  describe('Authorization (A01)', () => {
-    it('should allow owner to create share', async () => {
-      const share = await createShare('doc-123', 'owner-456', {
-        email: 'user@example.com',
-        permission: 'read'
+  describe('[A03] Injection', () => {
+    const payloads = [
+      "'; DROP TABLE users--",
+      "' OR '1'='1",
+      "' UNION SELECT * FROM users--",
+    ];
+
+    payloads.forEach(payload => {
+      it(`should block: ${payload}`, async () => {
+        const response = await request(app)
+          .post('/api/documents/doc-123/shares')
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ email: payload, permission: 'read' });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('Invalid input');
       });
-
-      expect(share.id).toBeDefined();
-      expect(share.permission).toBe('read');
-    });
-
-    it('should block non-owner from creating share (T3, T9)', async () => {
-      await expect(
-        createShare('doc-123', 'attacker-789', {
-          email: 'user@example.com',
-          permission: 'read'
-        })
-      ).rejects.toThrow(UnauthorizedError);
-
-      // Verify generic error message (T7)
-      await expect(
-        createShare('doc-123', 'attacker-789', { ... })
-      ).rejects.toThrow('Access denied');  // Not "not owner" or "document not found"
     });
   });
 
-  describe('Injection Prevention (A03)', () => {
-    it('should block SQL injection in email (T4)', async () => {
-      const maliciousEmail = "test@example.com'; DROP TABLE users--";
-
-      await expect(
-        createShare('doc-123', 'owner-456', {
-          email: maliciousEmail,
-          permission: 'read'
-        })
-      ).rejects.toThrow(ValidationError);
-    });
-
-    it('should block excessively long input (T4)', async () => {
-      const longEmail = 'a'.repeat(256) + '@example.com';
-
-      await expect(
-        createShare('doc-123', 'owner-456', {
-          email: longEmail,
-          permission: 'read'
-        })
-      ).rejects.toThrow(ValidationError);
-    });
-
-    it('should block invalid characters in email (T4)', async () => {
-      const invalidEmail = 'test<script>alert(1)</script>@example.com';
-
-      await expect(
-        createShare('doc-123', 'owner-456', {
-          email: invalidEmail,
-          permission: 'read'
-        })
-      ).rejects.toThrow(ValidationError);
-    });
-  });
-
-  describe('Audit Logging (A09)', () => {
+  describe('[A09] Audit Logging', () => {
     it('should log share creation (T5)', async () => {
-      const share = await createShare('doc-123', 'owner-456', {
-        email: 'user@example.com',
-        permission: 'read'
-      });
+      const response = await request(app)
+        .post('/api/documents/doc-123/shares')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ email: 'user@example.com', permission: 'read' });
 
-      // Verify audit log entry exists
-      const auditLog = await getAuditLog(share.id);
-      expect(auditLog.action).toBe('created');
-      expect(auditLog.user_id).toBe('owner-456');
+      const auditLog = await db.query(
+        'SELECT * FROM share_audit_log WHERE share_id = $1',
+        [response.body.id]
+      );
+      expect(auditLog.rows[0].action).toBe('created');
     });
   });
 });
 ```
 
-Run: `npm test`
+</details>
 
-**Coverage threshold** (in `jest.config.ts`):
-```typescript
-export default {
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
-    },
-    './src/security/': {  // Security-critical code
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100
-    }
-  }
-};
+---
+
+## Step 3: Local Quality Gates
+
+Before committing, run all local checks:
+
+```bash
+npm run lint        # ESLint: 0 errors, complexity ≤ 10
+npm test           # Jest: all pass, coverage ≥ 80%
+npm audit          # 0 high/critical vulnerabilities
 ```
 
 ---
 
-## Documentation Requirements
-
-### Inline Security Comments
-
-Document security decisions in code:
-
-```typescript
-/**
- * SECURITY: OWASP A01 - Broken Access Control
- * Threat: T3, T9 - Permission escalation, re-sharing prevention
- *
- * Design Decision: Only document owner can create shares
- *
- * Rationale:
- * - Prevents recipients from re-sharing (cascade of permissions)
- * - Simplifies permission model (single source of authority)
- * - Aligns with principle of least privilege
- *
- * Trade-offs:
- * - Users cannot delegate sharing (UX limitation)
- * - Alternative considered: "can_reshare" flag (rejected: too complex)
- *
- * Reference: Phase 1 threat model (T9)
- * Decided by: [Your Name]
- * Date: 2025-10-10
- */
-export async function createShare(documentId, requesterId, data) {
-  // Verify requester is document owner
-  const doc = await getDocument(documentId);
-
-  if (doc.owner_id !== requesterId) {
-    throw new UnauthorizedError('Access denied');
-  }
-
-  // Proceed with share creation...
-}
-```
-
-### Architecture Decision Records (ADRs)
-
-For significant design choices, create ADRs:
-
-```markdown
-# ADR-001: Use UUID for Share IDs (IDOR Prevention)
-
-## Status: Accepted
-
-## Context
-Document sharing feature needs to prevent IDOR attacks (T6 from threat model).
-
-Sequential IDs (1, 2, 3...) allow attackers to enumerate shares:
-- GET /api/shares/1
-- GET /api/shares/2
-- etc.
-
-## Decision
-Use UUIDv4 for share IDs instead of auto-increment integers.
-
-## Consequences
-Positive:
-- Non-sequential IDs prevent enumeration attacks
-- 128-bit space makes brute force infeasible
-- PostgreSQL has native UUID support (gen_random_uuid())
-
-Negative:
-- Slightly larger storage (16 bytes vs 4 bytes for int)
-- Cannot infer creation order from ID alone
-
-## Alternatives Considered
-1. Sequential IDs + authorization check
-   - Rejected: Defense in depth requires non-guessable IDs
-2. Obfuscated IDs (hashids)
-   - Rejected: UUIDs are standard and well-supported
-
-## OWASP Category
-A01 - Broken Access Control
-
-## References
-- Phase 1 threat model (T6)
-- OWASP Cheat Sheet: [Access Control](https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html)
-```
-
----
-
-## Commit Guidelines
-
-### Commit Message Format
+## Step 4: Commit with AI Disclosure
 
 ```bash
 git commit -m "feat(shares): Implement secure document sharing
 
-Security Controls:
-- [A01] Authorization check (owner-only sharing)
-- [A03] Parameterized queries, Zod validation
-- [A09] Audit logging for compliance
-
-Threats Mitigated:
-- T3: Permission escalation prevention
-- T4: SQL injection blocked
-- T5: Audit trail created
-- T6: IDOR protection via UUIDs
-- T7: Generic error messages
-- T9: Re-sharing prevented
-
+Security Controls: [A01] auth checks, [A03] parameterized queries, [A09] audit logging
+Threats Mitigated: T3, T4, T5, T6, T7, T9
 Tests: 95% coverage, all attack vectors tested
 
-🤖 AI-assisted with GitHub Copilot using OWASP A01/A03/A09 prompt packs
-Refs: #42"
-```
-
-### AI Disclosure Labels
-
-Label all AI-assisted commits:
-
-```bash
-🤖 AI-assisted with [Agent Name] using [Prompt Pack]
-```
-
-Examples:
-- `🤖 AI-assisted with GitHub Copilot using OWASP A03 prompt pack`
-- `🤖 AI-assisted with Claude Code for refactoring + test generation`
-- `🤖 AI-assisted with ChatGPT Canvas (incremental implementation)`
-
----
-
-## Integration with Fitness Functions
-
-Ensure implementation meets fitness function criteria:
-
-### Complexity Check
-
-```bash
-# Run ESLint complexity rule
-npm run lint
-
-# If failure:
-# Function 'createShare' has complexity 12, exceeding limit of 10.
-# Refactor: Extract authorization check into separate function
-```
-
-### Test Coverage Check
-
-```bash
-# Run Jest with coverage
-npm test -- --coverage
-
-# Verify thresholds met:
-# ✓ Branches: 92% (≥80% required)
-# ✓ Functions: 95% (≥80% required)
-# ✓ Lines: 94% (≥80% required)
-```
-
-### Security Scan (Local)
-
-```bash
-# Run npm audit
-npm audit --audit-level=high
-
-# Should show: 0 high or critical vulnerabilities
+🤖 AI-assisted with [Agent] using OWASP A01/A03/A09 prompt packs"
 ```
 
 ---
 
-## Handoff to Phase 3
+## Phase Handoff → Phase 3
 
-After local tests pass, hand off to Phase 3 (Verification):
+<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
 
-```markdown
+```
 ===== PHASE 2 → PHASE 3 HANDOFF =====
 
-Feature: Document Sharing
+Feature: [Feature name]
 
 Implementation Complete:
-- Files: src/shares/createShare.ts, src/shares/routes.ts
-- Tests: src/shares/__tests__/createShare.test.ts
-- Coverage: 95%
+- Files: [list implementation + test files]
+- Coverage: [percentage]
 
-OWASP Categories Implemented:
-- A01: Authorization checks (owner-only sharing)
-- A03: Parameterized queries, Zod validation
-- A09: Audit logging
-
-Threats Mitigated:
-✅ T1: JWT validation (middleware)
-✅ T3: Immutable permissions
-✅ T4: SQL injection prevention
-✅ T5: Audit trail
-✅ T6: UUID IDs, authorization checks
-✅ T7: Generic error messages
-✅ T8: Rate limiting (60/min)
-✅ T9: Owner-only sharing
+OWASP Categories Implemented: [A01, A03, etc.]
+Threats Mitigated: [T1-Tn with status]
 
 Local Tests:
-✅ ESLint: Pass (no security warnings)
-✅ Jest: 95% coverage, 42 tests pass
-✅ npm audit: 0 high/critical vulnerabilities
+✅ ESLint: Pass
+✅ Jest: [X] tests pass, [Y]% coverage
+✅ npm audit: 0 high/critical
 
-Next: Run CodeQL and Snyk scans in CI (Phase 3)
+Next: CodeQL + Snyk scans in CI (Phase 3)
 
 ===== END HANDOFF =====
 ```
 
----
-
-## Best Practices
-
-### Do's
-- Use OWASP prompt packs for every security-related task
-- Test incrementally (don't wait until end)
-- Document security decisions inline
-- Label AI-assisted commits
-- Run local tests before committing
-- Apply fitness function checks continuously
-
-### Don'ts
-- Skip threat-to-code mapping (implement without design)
-- Accept AI code without understanding it (Rule 2: Trust but Verify)
-- Commit untested code
-- Forget AI disclosure labels
-- Ignore ESLint/Jest failures ("I'll fix later")
-- Mix multiple features in one commit
+</div>
 
 ---
 
-## Next Steps
-
-**[Proceed to Phase 3: Verification →](phase3-verification)**
-
-With implementation complete and local tests passing, move to comprehensive security scanning and fitness function validation.
-
----
-
-**Further Reading**:
-- [Copilot Guide](../agents/copilot) - GitHub Copilot integration
-- [ChatGPT Guide](../agents/chatgpt) - ChatGPT structured development
-- [Claude Guide](../agents/claude) - Claude Code for refactoring
-- [Golden Rules](../governance/vibe-golden-rules) - AI development governance
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
+  <a href="/docs/sdlc/phase1-design" style="color: #93c5fd; font-size: 14px; text-decoration: none;">← Phase 1: Design</a>
+  <a href="/docs/sdlc/phase3-verification" style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 3: Verification →</a>
+</div>

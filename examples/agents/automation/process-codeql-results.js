@@ -1199,40 +1199,42 @@ async function processFindings(findings) {
       // Map to OWASP
       const owaspInfo = mapToOWASP(groupedFinding.ruleId);
       if (!owaspInfo) {
-        log('WARN', `Skipping ${groupedFinding.ruleId} (no OWASP mapping)`);
-        results.skipped++;
-        continue;
+        log('WARN', `No OWASP mapping for rule ${groupedFinding.ruleId} — creating issue with generic template`);
       }
 
       // Count by OWASP
-      results.by_owasp[owaspInfo.key] = (results.by_owasp[owaspInfo.key] || 0) + 1;
+      if (owaspInfo) {
+        results.by_owasp[owaspInfo.key] = (results.by_owasp[owaspInfo.key] || 0) + 1;
+      }
 
-      log('INFO', `Processing grouped finding: ${groupedFinding.ruleId} (${owaspInfo.key}) - ${groupedFinding.occurrences.length} occurrence(s)`);
+      log('INFO', `Processing grouped finding: ${groupedFinding.ruleId} (${owaspInfo?.key || 'unmapped'}) - ${groupedFinding.occurrences.length} occurrence(s)`);
 
       // Fetch prompts
       const prompts = {
-        owaspKey: owaspInfo.key,
-        owaspCategory: owaspInfo.name,
-        owaspFile: owaspInfo.prompt_file,
+        owaspKey: owaspInfo?.key || 'unmapped',
+        owaspCategory: owaspInfo?.name || `Security Finding (${groupedFinding.ruleId})`,
+        owaspFile: owaspInfo?.prompt_file || null,
         owaspPrompts: [],
         maintainabilityPrompts: [],
         threatModelPrompts: []
       };
 
       // Fetch OWASP prompt (now as array for nested collapsible structure)
-      const owaspContent = await fetchPrompt('owasp', owaspInfo.prompt_file);
-      if (owaspContent) {
-        prompts.owaspPrompts.push({
-          filename: owaspInfo.prompt_file,
-          content: owaspContent
-        });
+      if (owaspInfo?.prompt_file) {
+        const owaspContent = await fetchPrompt('owasp', owaspInfo.prompt_file);
+        if (owaspContent) {
+          prompts.owaspPrompts.push({
+            filename: owaspInfo.prompt_file,
+            content: owaspContent
+          });
+        }
       }
 
       // Detect and fetch maintainability prompts (use first occurrence as representative)
       const maintainabilityFiles = detectMaintainabilityConcerns(groupedFinding);
 
       // Add mapped maintainability prompts from OWASP category
-      if (owaspInfo.maintainability) {
+      if (owaspInfo?.maintainability) {
         for (const aspect of owaspInfo.maintainability) {
           const file = `${aspect}.md`;
           if (!maintainabilityFiles.includes(file)) {

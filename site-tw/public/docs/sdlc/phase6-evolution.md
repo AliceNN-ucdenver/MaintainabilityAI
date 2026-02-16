@@ -2,309 +2,273 @@
 
 <div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4); border: 1px solid rgba(244, 114, 182, 0.3);">
   <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">6️⃣</div>
+    <div style="font-size: 56px;">6&#xFE0F;&#x20E3;</div>
     <div>
       <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Evolution</h2>
-      <div style="font-size: 16px; color: #fce7f3; margin-top: 8px;">Continuous Improvement & Learning</div>
+      <div style="font-size: 16px; color: #fce7f3; margin-top: 8px;">Metrics, Iteration & Continuous Improvement</div>
     </div>
   </div>
-  <div style="color: #fce7f3; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> Collect metrics, manage technical debt, refine prompts, and continuously improve the development process.
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
-      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Metrics</div>
-      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Tech Debt</div>
-      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Prompt Refinement</div>
-      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Dependencies</div>
-      <div style="text-align: center; color: #fce7f3; font-size: 13px; font-weight: 600;">Retrospectives</div>
-    </div>
+  <div style="color: #fce7f3; font-size: 15px; line-height: 1.7;">
+    Collect metrics, refine prompt packs, manage technical debt, update fitness functions, and feed learnings back into Phase 1 for the next feature cycle.
   </div>
 </div>
 
-## Metrics Collection
+## Phase Overview
 
 ```mermaid
 flowchart LR
     A[Production] --> B[Collect Metrics]
     B --> C[Analyze Patterns]
-    C --> D[Identify Improvements]
-    D --> E[Update Prompts]
-    D --> F[Refine Fitness Functions]
-    D --> G[Reduce Tech Debt]
-    E --> H[Phase 1: Next Feature]
-    F --> H
-    G --> H
+    C --> D[Refine Prompts]
+    C --> E[Update Fitness Functions]
+    C --> F[Reduce Tech Debt]
+    D --> G[Phase 1: Next Feature]
+    E --> G
+    F --> G
 ```
 
----
-
-## Key Metrics Dashboard
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 32px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Security Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-      • Vulnerability remediation time<br/>
-      • Security scan pass rate<br/>
-      • Attack prevention rate<br/>
-      • Incident count
-    </div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Cadence</div>
+    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Weekly + Quarterly</div>
   </div>
-
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 32px; margin-bottom: 12px;">✨</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Quality Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-      • Defect density<br/>
-      • Test coverage<br/>
-      • Fitness function compliance<br/>
-      • Code complexity
-    </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Participants</div>
+    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Full Team</div>
   </div>
-
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Efficiency Metrics</h3>
-    <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-      • Time to delivery<br/>
-      • AI acceptance rate<br/>
-      • Prompt reuse rate<br/>
-      • Cycle time
-    </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Outputs</div>
+    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Updated prompts, thresholds, dependency upgrades</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Goal</div>
+    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Continuous improvement across all phases</div>
   </div>
 </div>
 
 ---
 
-## Prompt Library Iteration
+## Step 1: Metrics Collection
 
-### Tracking Prompt Effectiveness
+Track three categories of metrics from production:
 
-```markdown
-# Prompt Effectiveness Log
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
 
-## A01: Broken Access Control Prompt (v3)
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Security Metrics</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Vulnerability remediation time<br/>
+    Security scan pass rate<br/>
+    Attack prevention rate<br/>
+    Incident count (target: 0)
+  </div>
+</div>
 
-**Usage Stats**:
-- Used: 15 times
-- First-try success: 13/15 (87%)
-- Failures: 2 (both missing rate limiting)
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
+  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Quality Metrics</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Defect density<br/>
+    Test coverage trend<br/>
+    Fitness function compliance<br/>
+    Code complexity trend
+  </div>
+</div>
 
-**Improvements for v4**:
-- Add explicit rate limiting requirement
-- Include example of rate limiting middleware
-- Add checklist item for rate limit tests
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Efficiency Metrics</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Time to delivery<br/>
+    AI acceptance rate<br/>
+    Prompt reuse rate<br/>
+    Cycle time
+  </div>
+</div>
 
-**Updated**: 2025-10-10
-**Version**: v4
-**Success Rate**: Projected 95%
-```
-
-### Version Control for Prompts
-
-```bash
-/prompts
-  /owasp
-    /A01_broken_access_control.md  # v4 (latest)
-    /archive
-      /A01_v3.md
-      /A01_v2.md
-  /team
-    /secure-file-upload.md  # Team-specific
-    /api-authentication.md
-```
-
----
-
-## Technical Debt Management
-
-### "Upgrade All The Things" Kata
-
-```markdown
-Role: Technical Debt Engineer
-
-Task: Automated dependency upgrade workflow
-
-Process:
-1. Run `npm outdated` to identify packages >3 months old
-2. For each package:
-   a. Check CVEs (Snyk)
-   b. Review changelog for breaking changes
-   c. Upgrade if patch/minor version
-   d. Flag major versions for human review
-3. Run tests after each upgrade
-4. Revert if tests fail
-5. Generate upgrade report
-
-Weekly Schedule:
-- Monday: Scan for outdated dependencies
-- Tuesday: Upgrade patch versions
-- Wednesday: Upgrade minor versions (with review)
-- Thursday: Test upgrades
-- Friday: Deploy if all tests pass
-```
-
-### Technical Debt Backlog
-
-```markdown
-| ID | Type | Description | OWASP | Priority | Age |
-|----|------|-------------|-------|----------|-----|
-| TD-001 | Security | Add MFA to authentication | A07 | High | 2 weeks |
-| TD-002 | Complexity | Refactor `processPayment` (complexity 15) | - | Medium | 1 month |
-| TD-003 | Dependency | Upgrade `express` 4.x → 5.x | A06 | Medium | 3 months |
-| TD-004 | Coverage | Add tests to `legacy-auth` module | - | Low | 6 months |
-```
+</div>
 
 ---
 
-## Fitness Function Refinement
+## Step 2: Prompt Library Iteration
 
-### Adjusting Thresholds
+Refine prompts based on success/failure patterns.
 
-```javascript
-// Monthly review: Are fitness functions too strict or too loose?
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
+<div style="font-size: 12px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Prompt Refinement</div>
 
-// Before:
-complexity: { max: 10 }  // 15% of PRs fail
+```
+Role: You are a prompt engineer improving OWASP security prompts.
 
-// After analysis: Reduce false positives
-complexity: { max: 12 }  // 5% of PRs fail
+Context:
+- Prompt pack: [A01/A03/etc. current version]
+- Usage stats: [X] uses, [Y]% first-try success rate
+- Common failures: [list failure patterns]
+- Example failures: [paste 2-3 failed outputs]
 
-// Before:
-coverage: { threshold: 80 }  // All PRs pass
+Task:
+Analyze failure patterns and produce an improved version of the
+prompt pack that addresses the identified gaps.
 
-// After analysis: Increase rigor
-coverage: { threshold: 85 }  // Maintain quality
+Requirements:
+1. **Failure Analysis**
+   - Identify root cause of each failure pattern
+   - Categorize: missing requirement, ambiguous instruction, or missing example
+   - Validation: Each failure mapped to a specific prompt gap
+
+2. **Prompt Improvement**
+   - Add missing requirements or examples
+   - Clarify ambiguous instructions
+   - Validation: Improved prompt addresses all failure patterns
+
+3. **Version Control**
+   - Archive current version, increment version number
+   - Document changes in changelog
+   - Validation: New version tested against previous failures
+
+Output:
+Updated prompt pack (vN+1) with changelog and projected success rate.
 ```
 
-### Adding New Fitness Functions
+</div>
+
+<details>
+<summary style="cursor: pointer; color: #f9a8d4; font-weight: 600; padding: 8px 0;">Example: Prompt improvement cycle</summary>
 
 ```markdown
-New Fitness Function: API Response Time
+## A03 Injection Prevention Prompt
 
-Rationale:
-- Recent production incidents related to slow queries
-- No automated check for performance regressions
+### v2 → v3 Changelog
+- Added: Explicit max length requirement (was missing → caused 20% of failures)
+- Added: Example of z.string().max(100)
+- Clarified: "parameterized queries" → "pg $1 placeholders, never string concat"
 
-Implementation:
-```javascript
-// scripts/fitness-functions.js
-
-async function checkPerformance() {
-  const performanceTests = await runPerformanceTests();
-
-  const p95Threshold = 200; // ms
-  const slowEndpoints = performanceTests.filter(t => t.p95 > p95Threshold);
-
-  if (slowEndpoints.length > 0) {
-    console.error(`❌ Performance fitness function: FAIL`);
-    console.error(`Slow endpoints (p95 > ${p95Threshold}ms):`, slowEndpoints);
-    return false;
-  }
-
-  console.log('✅ Performance fitness function: PASS');
-  return true;
-}
-```
-
-Enforcement: CI blocks merge if p95 > 200ms
-```
-
----
-
-## Continuous Improvement Examples
-
-### Example 1: Prompt Improvement Cycle
-
-**Week 1**: Use A03 injection prompt (v2)
-- Success rate: 80%
-- Common failure: Missing length limits
-
-**Week 2**: Update prompt to v3
-- Add explicit: "Enforce max length 100 chars"
-- Add example: `z.string().max(100)`
-
-**Week 3**: Use A03 injection prompt (v3)
-- Success rate: 95%
+### Results
+- v2: 80% first-try success (15 uses)
+- v3: 95% first-try success (20 uses)
 - Improvement: +15%
+```
 
-**Action**: Promote v3 to standard, archive v2
-
----
-
-### Example 2: Security Metric → Process Change
-
-**Month 1 Metrics**:
-- SQL injection attempts blocked: 250/month
-- Source: User search endpoint
-
-**Analysis**:
-- High attack rate indicates endpoint is targeted
-- Existing controls working (all attempts blocked)
-- Opportunity: Add extra layer (WAF)
-
-**Action**:
-- Deploy Web Application Firewall
-- Add specific rule for SQL injection patterns
-- Monitor for reduction in attempts
-
-**Month 2 Metrics**:
-- SQL injection attempts blocked: 50/month (80% reduction)
-- WAF blocked 200 attempts before reaching app
-
-**Outcome**: Defense-in-depth validated, update SDLC to include WAF config
+</details>
 
 ---
 
-## Evolution Planning
+## Step 3: Dependency Management
 
-### Quarterly Reviews
+Keep dependencies fresh (< 3 months old) to prevent A06 vulnerabilities.
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
+<div style="font-size: 12px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Dependency Upgrade</div>
+
+```
+Role: You are a technical debt engineer managing dependency freshness.
+
+Context:
+- Project: Node.js / TypeScript
+- Outdated packages: [paste npm outdated output]
+- Known CVEs: [paste Snyk findings]
+- Fitness function threshold: dependencies < 3 months old
+
+Task:
+Plan and execute a safe dependency upgrade cycle.
+
+Requirements:
+1. **Triage**
+   - Categorize: patch (auto-upgrade), minor (review changelog), major (human review)
+   - Check CVEs for each outdated package
+   - Validation: All packages categorized with risk level
+
+2. **Upgrade Execution**
+   - Upgrade patch/minor versions, run tests after each
+   - Flag major versions with breaking change assessment
+   - Validation: All tests pass after each upgrade
+
+3. **Verification**
+   - Run full fitness function suite
+   - Confirm 0 high/critical Snyk findings
+   - Validation: Fitness function compliance restored
+
+Output:
+Upgrade report with packages updated, tests passed, and remaining items.
+```
+
+</div>
+
+**Weekly schedule**: Monday scan → Tuesday patch upgrades → Wednesday minor upgrades → Thursday test → Friday deploy.
+
+---
+
+## Step 4: Fitness Function Refinement
+
+Adjust thresholds based on team data:
 
 ```markdown
-## Q4 2025 Evolution Review
+| Fitness Function | Current Threshold | PR Failure Rate | Adjustment |
+|-----------------|-------------------|-----------------|------------|
+| Complexity      | ≤ 10              | 15%             | Consider ≤ 12 |
+| Coverage        | ≥ 80%             | 2%              | Consider ≥ 85% |
+| Dependencies    | < 3 months        | 8%              | Keep as-is |
+| Performance     | < 200ms p95       | 1%              | Keep as-is |
+| Security        | 0 high/critical   | 0%              | Keep as-is |
+```
+
+**Rule**: If a fitness function fails >10% of PRs, it may be too strict. If it fails 0%, it may be too lenient. Review quarterly.
+
+---
+
+## Step 5: Quarterly Review
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
+
+```markdown
+## Q[X] Evolution Review
 
 ### What Worked Well
-✅ OWASP prompt packs reduced security findings by 60%
-✅ Fitness functions caught complexity regressions early
-✅ Multi-agent workflows improved large refactoring speed
+✅ [list successes — e.g., prompt packs reduced findings by X%]
 
 ### What Needs Improvement
-❌ Dependency upgrades still manual (time-consuming)
-❌ Some prompts too generic (need domain-specific versions)
-❌ Test coverage dips on legacy modules
+❌ [list gaps — e.g., dependency upgrades still manual]
 
-### Actions for Q1 2026
-1. Automate dependency upgrades (weekly schedule)
-2. Create domain-specific prompts (payments, auth)
-3. Target 90% coverage on legacy modules
-4. Add performance fitness function to CI
+### Actions for Next Quarter
+1. [specific action + owner + target metric]
+2. [specific action + owner + target metric]
+3. [specific action + owner + target metric]
 
 ### Metrics to Track
-- Dependency age (target: <2 months average)
-- Prompt first-try success rate (target: >90%)
-- Legacy module coverage (target: 90%)
+- Dependency age (target: < 2 months average)
+- Prompt first-try success rate (target: > 90%)
+- Security scan pass rate (target: 100%)
 ```
 
----
-
-## Best Practices
-
-**Do's**:
-- Review metrics monthly
-- Update prompts based on failures
-- Address technical debt incrementally
-- Celebrate improvements with team
-- Share learnings across organization
-
-**Don'ts**:
-- Let dependencies age >3 months
-- Ignore patterns in security metrics
-- Keep ineffective prompts
-- Accumulate technical debt without plan
-- Skip retrospectives
+</div>
 
 ---
 
-**[Return to Phase 1: Design →](phase1-design)** (Complete the cycle!)
+## Phase Handoff → Phase 1
+
+<div style="background: rgba(236, 72, 153, 0.1); border-left: 4px solid #ec4899; border-radius: 8px; padding: 24px; margin: 24px 0;">
+
+```
+===== PHASE 6 → PHASE 1 HANDOFF (CYCLE COMPLETE) =====
+
+Evolution Cycle Complete:
+✅ Metrics collected and analyzed
+✅ Prompt packs updated to v[X]
+✅ Dependencies upgraded (all < 3 months)
+✅ Fitness function thresholds reviewed
+✅ Technical debt items prioritized
+
+Improvements Applied:
+- [list prompt/threshold/process changes]
+
+Next: Begin Phase 1 for next feature with updated tooling.
+
+===== END HANDOFF =====
+```
+
+</div>
+
+---
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
+  <a href="/docs/sdlc/phase5-deployment" style="color: #6ee7b7; font-size: 14px; text-decoration: none;">← Phase 5: Deployment</a>
+  <a href="/docs/sdlc/phase1-design" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 1: Design → (Complete the cycle!)</a>
+</div>

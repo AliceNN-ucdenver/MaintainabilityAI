@@ -314,7 +314,7 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
 
 2. **Use Prompt Packs as Specs**:
    - All security requirements are in `/prompts/owasp/*.md`
-   - Follow Role → Context → Requirements → Task → Checklist pattern
+   - Follow RCTRO pattern: Role → Context → Task → Requirements → Output
    - Tests validate that security controls work
 
 3. **Test Coverage**: All 10 OWASP categories have test files

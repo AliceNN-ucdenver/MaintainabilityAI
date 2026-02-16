@@ -1,0 +1,51 @@
+name: "CI"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: "Build & Test"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+{{SETUP_STEPS}}
+
+      - name: Install dependencies
+        run: |
+          {{INSTALL_CMD}}
+
+{{ENV_SETUP}}
+{{LINT_STEP}}
+      - name: Run tests
+        id: tests
+        shell: bash
+        run: |
+          set -o pipefail
+          {{TEST_CMD}}
+        continue-on-error: true
+
+      - name: Create or update failure issue
+        if: steps.lint.outcome == 'failure' || steps.tests.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            {{FAILURE_SCRIPT}}
+
+      - name: Close failure issue on success
+        if: steps.lint.outcome != 'failure' && steps.tests.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            {{CLOSE_SCRIPT}}
+
+      - name: Fail workflow if lint or tests failed
+        if: steps.lint.outcome == 'failure' || steps.tests.outcome == 'failure'
+        run: exit 1

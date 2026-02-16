@@ -177,7 +177,7 @@
 <div style="text-align: center; margin-bottom: 32px;">
   <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
   <h3 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Production-Ready AI Prompts</h3>
-  <p style="color: #94a3b8; font-size: 16px; margin: 0;">All prompt packs follow the proven <strong style="color: #c7d2fe;">Role → Context → Requirements → Task → Checklist</strong> pattern</p>
+  <p style="color: #94a3b8; font-size: 16px; margin: 0;">All prompt packs follow the proven <strong style="color: #c7d2fe;">RCTRO: Role → Context → Task → Requirements → Output</strong> pattern</p>
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">

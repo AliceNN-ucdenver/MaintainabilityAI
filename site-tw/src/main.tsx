@@ -43,9 +43,6 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="agenda.html" element={<WorkshopPage />} />
           <Route path="agenda" element={<WorkshopPage />} />
-          <Route path="services.html" element={<MarkdownPage path="/docs/services.md" />} />
-          <Route path="services" element={<MarkdownPage path="/docs/services.md" />} />
-
           {/* Docs routes */}
           <Route path="docs/*" element={<MarkdownPage />} />
 

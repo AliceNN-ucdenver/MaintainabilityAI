@@ -2,19 +2,14 @@
 
 <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(30, 64, 175, 0.4); border: 1px solid rgba(59, 130, 246, 0.3);">
   <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">1️⃣</div>
+    <div style="font-size: 56px;">1&#xFE0F;&#x20E3;</div>
     <div>
       <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Design Intent</h2>
-      <div style="font-size: 16px; color: #bfdbfe; margin-top: 8px;">Requirements Gathering & Threat Modeling</div>
+      <div style="font-size: 16px; color: #bfdbfe; margin-top: 8px;">Requirements, Threat Modeling & Architecture</div>
     </div>
   </div>
-  <div style="color: #dbeafe; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-    <strong style="color: #f1f5f9;">Purpose:</strong> Define requirements, identify threats, design secure architecture, and establish fitness functions before writing code.
-  </div>
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px;">
-    <div style="color: #dbeafe; font-size: 14px; line-height: 1.8;">
-      This phase transforms user stories into security-aware technical specifications using threat modeling, OWASP mapping, and evolutionary architecture principles.
-    </div>
+  <div style="color: #dbeafe; font-size: 15px; line-height: 1.7;">
+    Define requirements, identify threats via STRIDE, map to OWASP categories, design secure architecture, and establish fitness functions — all before writing code.
   </div>
 </div>
 
@@ -22,37 +17,32 @@
 
 ```mermaid
 flowchart LR
-    A[User Story] --> B[Requirements Analysis]
-    B --> C[Threat Modeling]
+    A[User Story] --> B[Requirements]
+    B --> C[STRIDE Threat Model]
     C --> D[OWASP Mapping]
-    D --> E[Architecture Design]
+    D --> E[Architecture]
     E --> F[Fitness Functions]
-    F --> G[Design Review]
-    G -->|Approved| H[Phase 2: Implementation]
+    F --> G{Design Review}
+    G -->|Approved| H[Phase 2]
     G -->|Rejected| B
 ```
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Duration</div>
-    <div style="font-size: 24px; color: #f1f5f9; font-weight: 700;">1-4 hours</div>
-    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Feature-dependent</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Duration</div>
+    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">1-4 hours</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Primary Agents</div>
-    <div style="font-size: 18px; color: #f1f5f9; font-weight: 700;">ChatGPT, Claude</div>
-    <div style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">Threat modeling & architecture</div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Agents</div>
+    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">ChatGPT, Claude</div>
   </div>
-</div>
-
-<div style="background: rgba(30, 64, 175, 0.1); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
-  <div style="font-weight: 700; color: #93c5fd; margin-bottom: 12px; font-size: 15px;">📋 Phase Outputs</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
-    ✓ Requirements document<br/>
-    ✓ Threat model (STRIDE analysis)<br/>
-    ✓ OWASP category mapping<br/>
-    ✓ Architecture design with security controls<br/>
-    ✓ Fitness function definitions
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Outputs</div>
+    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Threat model, OWASP map, architecture, fitness functions</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Security Gate</div>
+    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Threat coverage >95%, all STRIDE categories addressed</div>
   </div>
 </div>
 
@@ -60,47 +50,54 @@ flowchart LR
 
 ## Step 1: Requirements Analysis
 
-### Inputs
-- User story or feature request
-- Business requirements
-- Acceptance criteria
+Extract structured requirements from a user story. Use the RCTRO prompt below.
 
-### Process
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
+<div style="font-size: 12px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Requirements Elicitation</div>
 
-Use **ChatGPT** for structured requirements elicitation:
+```
+Role: You are a senior product analyst extracting security-aware requirements.
 
-```markdown
-Role: You are a senior product analyst.
+Context:
+- Feature request or user story provided below
+- Tech stack: Node 18, TypeScript, PostgreSQL
+- Must comply with OWASP Top 10
 
-Feature Request:
-[Paste user story or feature description]
+Task:
+Extract and organize functional, non-functional, and security requirements
+from the feature request. Identify applicable OWASP categories.
 
-Task: Extract and organize requirements.
+Requirements:
+1. **Functional Requirements**
+   - Enumerate all user-facing behaviors (FR1, FR2, ...)
+   - Include acceptance criteria for each
+   - Validation: All behaviors from the user story are captured
 
-Output Format:
-## Functional Requirements
-- FR1: [Requirement]
-- FR2: [Requirement]
+2. **Non-Functional Requirements**
+   - Performance targets (response time, throughput)
+   - Availability and scalability expectations
+   - Validation: Each NFR has a measurable threshold
 
-## Non-Functional Requirements
-- NFR1: Performance (response time <200ms)
-- NFR2: Security (OWASP Top 10 compliance)
-- NFR3: Maintainability (cyclomatic complexity <10)
+3. **Security Requirements**
+   - Map to specific OWASP categories (A01-A10)
+   - Identify data classification (PII, credentials, etc.)
+   - Identify auth/authz needs
+   - Validation: At least one OWASP category identified
 
-## Security Requirements (Preliminary)
-- Which OWASP categories likely apply?
-- What data is being processed (PII, credentials, etc.)?
-- What authentication/authorization is needed?
+4. **Scope Boundary**
+   - Explicitly list what is out of scope
+   - Validation: No ambiguity in scope
 
-## Acceptance Criteria
-- AC1: [Criterion]
-- AC2: [Criterion]
-
-## Out of Scope
-- What is explicitly NOT included?
+Output:
+Structured markdown with sections: Functional Requirements,
+Non-Functional Requirements, Security Requirements,
+Acceptance Criteria, Out of Scope.
 ```
 
-### Example Output
+</div>
+
+<details>
+<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Document Sharing requirements output</summary>
 
 ```markdown
 Feature: User document sharing
@@ -112,8 +109,8 @@ Feature: User document sharing
 - FR4: Shared users receive email notification
 
 ## Non-Functional Requirements
-- NFR1: Share operation completes in <500ms
-- NFR2: Support 10,000 shares per day
+- NFR1: Share operation < 500ms
+- NFR2: Support 10,000 shares/day
 - NFR3: 99.9% uptime
 
 ## Security Requirements
@@ -129,688 +126,335 @@ Feature: User document sharing
 - AC4: Revocation removes access immediately
 
 ## Out of Scope
-- Public sharing (external users)
-- Time-limited shares
-- Folder-level sharing
+- Public sharing, time-limited shares, folder-level sharing
 ```
+
+</details>
 
 ---
 
-## Step 2: Threat Modeling
+## Step 2: STRIDE Threat Modeling
 
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); border-radius: 12px; padding: 28px; margin: 24px 0; box-shadow: 0 6px 24px rgba(124, 58, 237, 0.3); border: 1px solid rgba(167, 139, 250, 0.3);">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-    <div style="font-size: 40px;">🛡️</div>
-    <h3 style="margin: 0; font-size: 24px; color: #f1f5f9; font-weight: 700;">STRIDE Methodology</h3>
-  </div>
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
-    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
-      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Spoofing</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
-      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Tampering</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
-      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Repudiation</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
-      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Info Disclosure</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
-      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">DoS</div>
-    </div>
-    <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px; text-align: center;">
-      <div style="font-size: 13px; color: #e9d5ff; font-weight: 600;">Privilege Escalation</div>
-    </div>
-  </div>
-</div>
+Systematically identify threats across all six STRIDE categories.
 
-### STRIDE Methodology
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(124, 58, 237, 0.3);">
+<div style="font-size: 12px; color: #d8b4fe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — STRIDE Threat Model</div>
 
-Use **ChatGPT** to systematically identify threats:
-
-```markdown
+```
 Role: You are a security threat modeler using STRIDE methodology.
 
-Feature: [Paste feature description from Step 1]
-
 Context:
+- Feature: [paste requirements from Step 1]
 - Tech Stack: Node 18, TypeScript, Express, PostgreSQL
 - Authentication: JWT tokens
 - Authorization: RBAC (owner, admin, user roles)
 
-Task: Perform STRIDE threat analysis.
+Task:
+Perform STRIDE threat analysis. For each of the 6 categories
+(Spoofing, Tampering, Repudiation, Information Disclosure,
+Denial of Service, Elevation of Privilege), identify specific threats.
 
-For each STRIDE category, identify specific threats:
+Requirements:
+1. **Threat Identification**
+   - At least one threat per STRIDE category
+   - Each threat has a unique ID (T1, T2, ...)
+   - Validation: All 6 STRIDE categories covered
 
-## Spoofing
-- Could an attacker impersonate another user to share/access documents?
+2. **Risk Assessment**
+   - Rate each threat: High / Medium / Low
+   - Map each threat to an OWASP Top 10 category
+   - Validation: Every threat has risk + OWASP mapping
 
-## Tampering
-- Could an attacker modify share permissions or document content?
+3. **Mitigation Strategy**
+   - Specific technical mitigation for each threat
+   - Reference OWASP prompt packs where applicable
+   - Validation: No threat left without mitigation
 
-## Repudiation
-- Could a user deny they shared a document?
-
-## Information Disclosure
-- Could an attacker access documents they shouldn't?
-
-## Denial of Service
-- Could sharing be abused to exhaust resources?
-
-## Elevation of Privilege
-- Could a recipient gain owner-level permissions?
-
-For each threat:
-1. Describe the threat scenario
-2. Rate risk (High/Medium/Low)
-3. Map to OWASP Top 10 category
-4. Suggest mitigation
+Output:
+Structured threat model with format per threat:
+- ID, Category, Scenario, Risk, OWASP mapping, Mitigation
 ```
 
-### Threat Model Output
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 16px 0;">
+  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Spoofing</div>
+  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Tampering</div>
+  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Repudiation</div>
+  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Info Disclosure</div>
+  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">DoS</div>
+  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Privilege Escalation</div>
+</div>
+
+<details>
+<summary style="cursor: pointer; color: #d8b4fe; font-weight: 600; padding: 8px 0;">Example: Document Sharing threat model output</summary>
 
 ```markdown
 ## STRIDE Threat Model: Document Sharing
 
-### Spoofing Threats
-**T1: User impersonation during share creation**
-- Scenario: Attacker forges JWT token to share documents as another user
-- Risk: HIGH
-- OWASP: A07 (Authentication Failures)
-- Mitigation: Validate JWT signature, check token expiration, verify issuer
+### Spoofing
+**T1: JWT token forgery** — Risk: HIGH — OWASP: A07
+Mitigation: Validate JWT signature, check expiration, verify issuer
 
-**T2: Email address spoofing**
-- Scenario: Attacker shares document to email they don't control
-- Risk: MEDIUM
-- OWASP: A03 (Injection), A04 (Insecure Design)
-- Mitigation: Validate email format, require recipient confirmation
+**T2: Email address spoofing** — Risk: MEDIUM — OWASP: A03, A04
+Mitigation: Validate email format, require recipient confirmation
 
-### Tampering Threats
-**T3: Permission escalation after share**
-- Scenario: Recipient modifies their own permissions from read to admin
-- Risk: HIGH
-- OWASP: A01 (Broken Access Control)
-- Mitigation: Immutable share permissions, only owner can modify
+### Tampering
+**T3: Permission escalation after share** — Risk: HIGH — OWASP: A01
+Mitigation: Immutable permissions, only owner can modify
 
-**T4: SQL injection in share parameters**
-- Scenario: Attacker injects SQL in email or permission fields
-- Risk: HIGH
-- OWASP: A03 (Injection)
-- Mitigation: Parameterized queries, input validation with Zod
+**T4: SQL injection in share parameters** — Risk: HIGH — OWASP: A03
+Mitigation: Parameterized queries, Zod validation
 
-### Repudiation Threats
-**T5: No audit trail of share actions**
-- Scenario: User shares sensitive document then denies it
-- Risk: MEDIUM
-- OWASP: A09 (Logging/Monitoring Failures)
-- Mitigation: Comprehensive audit logging, immutable logs
+### Repudiation
+**T5: No audit trail** — Risk: MEDIUM — OWASP: A09
+Mitigation: Comprehensive audit logging, immutable logs
 
-### Information Disclosure Threats
-**T6: IDOR - Access other users' shares**
-- Scenario: Attacker enumerates share IDs to access unrelated shares
-- Risk: HIGH
-- OWASP: A01 (Broken Access Control)
-- Mitigation: Authorization checks on every operation, non-sequential IDs
+### Information Disclosure
+**T6: IDOR on share IDs** — Risk: HIGH — OWASP: A01
+Mitigation: Authorization checks, non-sequential UUIDs
 
-**T7: Share notification leaks document metadata**
-- Scenario: Email notification reveals document title/content to unauthorized user
-- Risk: MEDIUM
-- OWASP: A01 (Broken Access Control)
-- Mitigation: Generic notification, require login to view details
+**T7: Metadata leaks in notifications** — Risk: MEDIUM — OWASP: A01
+Mitigation: Generic notifications, require login for details
 
-### Denial of Service Threats
-**T8: Share flooding**
-- Scenario: Attacker creates millions of shares to exhaust database
-- Risk: MEDIUM
-- OWASP: A04 (Insecure Design)
-- Mitigation: Rate limiting (10 shares per minute per user)
+### Denial of Service
+**T8: Share flooding** — Risk: MEDIUM — OWASP: A04
+Mitigation: Rate limiting (10/min per user)
 
-### Elevation of Privilege Threats
-**T9: Recipient grants shares to others**
-- Scenario: Read-only recipient shares document with additional users
-- Risk: MEDIUM
-- OWASP: A01 (Broken Access Control)
-- Mitigation: Only owner can share, prevent re-sharing
+### Elevation of Privilege
+**T9: Recipient re-shares documents** — Risk: MEDIUM — OWASP: A01
+Mitigation: Owner-only sharing, prevent re-sharing
 ```
+
+</details>
 
 ---
 
 ## Step 3: OWASP Category Mapping
 
-Map identified threats to OWASP prompt packs:
+Map threats to specific OWASP prompt packs for Phase 2 implementation.
 
-```markdown
-Feature: Document Sharing
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
-Applicable OWASP Categories:
+| OWASP Category | Threats | Prompt Pack | Key Controls |
+|---|---|---|---|
+| A01: Broken Access Control | T3, T6, T7, T9 | [A01 Pack](/docs/prompts/owasp/A01_broken_access_control) | Ownership verification, deny-by-default, RBAC |
+| A03: Injection | T2, T4 | [A03 Pack](/docs/prompts/owasp/A03_injection) | Parameterized queries, Zod validation |
+| A07: Authentication Failures | T1 | [A07 Pack](/docs/prompts/owasp/A07_authn_failures) | JWT validation, token expiration |
+| A09: Logging/Monitoring | T5 | [A09 Pack](/docs/prompts/owasp/A09_logging_monitoring) | Audit logging, security event tracking |
 
-1. **A01: Broken Access Control**
-   - Threats: T3, T6, T7, T9
-   - Prompt Pack: /prompts/owasp/A01_broken_access_control.md
-   - Controls: Ownership verification, deny-by-default, RBAC
-
-2. **A03: Injection**
-   - Threats: T4
-   - Prompt Pack: /prompts/owasp/A03_injection.md
-   - Controls: Parameterized queries, Zod validation
-
-3. **A07: Authentication Failures**
-   - Threats: T1
-   - Prompt Pack: /prompts/owasp/A07_authn_failures.md
-   - Controls: JWT validation, token expiration
-
-4. **A09: Logging/Monitoring Failures**
-   - Threats: T5
-   - Prompt Pack: /prompts/owasp/A09_logging_monitoring.md
-   - Controls: Audit logging, security event tracking
-
-Priority: High (4 OWASP categories, 9 threats identified)
-```
+</div>
 
 ---
 
 ## Step 4: Architecture Design
 
-Use **Claude** to design secure architecture:
+Design the secure architecture addressing all identified threats.
 
-```markdown
-Role: You are a senior software architect.
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(16, 185, 129, 0.3);">
+<div style="font-size: 12px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Secure Architecture</div>
 
-Inputs:
-- Requirements: [From Step 1]
-- Threat Model: [From Step 2]
+```
+Role: You are a senior software architect designing a secure system.
+
+Context:
+- Requirements: [from Step 1]
+- Threat Model: [9 threats from Step 2]
 - OWASP Categories: A01, A03, A07, A09
+- Stack: Node 18, TypeScript, Express, PostgreSQL (pg library)
+- Existing tables: users, documents (cannot modify)
+- Stateless auth via JWT
 
-Task: Design secure architecture for document sharing feature.
+Task:
+Design secure architecture that addresses all identified threats
+while meeting functional and non-functional requirements.
 
-Include:
-1. Data model (database schema)
-2. API endpoints (REST)
-3. Security controls (per threat)
-4. Authorization flow diagram
-5. Error handling strategy
+Requirements:
+1. **Data Model**
+   - SQL schema for new tables
+   - Non-sequential IDs (UUIDs) to prevent IDOR
+   - Audit log table for repudiation defense
+   - Validation: Schema addresses T5, T6
 
-Constraints:
-- Existing tables: users, documents (cannot modify schema)
-- Must use PostgreSQL with pg library
-- RESTful API design
-- Stateless (JWT authentication)
+2. **API Design**
+   - RESTful endpoints with clear authorization rules
+   - Rate limiting on write operations
+   - Validation: Each endpoint maps to specific threats
 
-Security Requirements:
-- Address all 9 threats from threat model
-- Follow OWASP best practices for A01, A03, A07, A09
-- Deny-by-default access control
-- Generic error messages
+3. **Security Controls**
+   - One control per identified threat (T1-T9)
+   - Parameterized queries only (no string concat)
+   - Generic error messages (no schema leaks)
+   - Validation: All 9 threats have mapped controls
+
+4. **Authorization Flow**
+   - Mermaid sequence diagram showing auth flow
+   - Deny-by-default: verify ownership on every operation
+   - Validation: Flow covers happy path + rejection
+
+Output:
+Architecture document with: SQL schema, API endpoints table,
+security controls mapping (threat → control → code pattern),
+authorization sequence diagram, error handling strategy.
 ```
 
-### Architecture Output
+</div>
 
-```markdown
-## Document Sharing Architecture
-
-### Data Model
+<details>
+<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Architecture output — Data Model</summary>
 
 ```sql
--- New table: document_shares
 CREATE TABLE document_shares (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- Non-sequential to prevent IDOR (T6)
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   owner_id UUID NOT NULL REFERENCES users(id),
   shared_with_email VARCHAR(255) NOT NULL,
   permission VARCHAR(10) NOT NULL CHECK (permission IN ('read', 'write', 'admin')),
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  revoked_at TIMESTAMP,  -- NULL = active, non-NULL = revoked
-  created_by_ip INET,  -- For audit trail (T5)
-  UNIQUE(document_id, shared_with_email),  -- Prevent duplicate shares
-  INDEX idx_shares_document (document_id),
-  INDEX idx_shares_email (shared_with_email)
+  revoked_at TIMESTAMP,
+  UNIQUE(document_id, shared_with_email)
 );
 
--- Audit log table
 CREATE TABLE share_audit_log (
   id SERIAL PRIMARY KEY,
   share_id UUID REFERENCES document_shares(id),
-  action VARCHAR(20) NOT NULL,  -- 'created', 'revoked', 'accessed'
+  action VARCHAR(20) NOT NULL,
   user_id UUID REFERENCES users(id),
   ip_address INET,
   timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-  metadata JSONB  -- Additional context
+  metadata JSONB
 );
 ```
 
-### API Endpoints
+</details>
 
-```
-POST   /api/documents/:documentId/shares       Create share (T1,T3,T4,T6)
-GET    /api/documents/:documentId/shares       List shares for document (T6)
-DELETE /api/documents/:documentId/shares/:id   Revoke share (T3,T6,T9)
-GET    /api/shares/received                    List shares user received (T6,T7)
-```
+<details>
+<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Architecture output — Security Controls Mapping</summary>
 
-### Security Controls Mapping
+| Threat | Control | Pattern |
+|---|---|---|
+| T1: JWT forgery | Validate signature + expiration | `jwt.verify(token, secret)` |
+| T3: Permission escalation | Immutable permissions, owner-only | Check `owner_id` before mutation |
+| T4: SQL injection | Parameterized queries + Zod | `$1, $2` placeholders, `z.string().email()` |
+| T5: No audit trail | Log all share operations | Insert to `share_audit_log` on every action |
+| T6: IDOR | UUID IDs + authorization check | Verify requester is owner OR recipient |
+| T7: Metadata leaks | Generic error messages | Map error types to safe messages |
+| T8: Share flooding | Rate limiting | `express-rate-limit` at 10/min per user |
+| T9: Re-sharing | Owner-only sharing | Reject if `requester !== owner` |
 
-**T1 (JWT Forgery)**:
-```typescript
-// Middleware: Validate JWT on every request
-function authenticateJWT(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;  // { id, email, role }
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-}
-```
-
-**T3 (Permission Escalation)**:
-```typescript
-// Immutable permissions: only owner can create/modify
-async function createShare(documentId, ownerId, email, permission) {
-  // Verify requester is document owner
-  const doc = await db.query(
-    'SELECT owner_id FROM documents WHERE id = $1',
-    [documentId]
-  );
-
-  if (doc.rows[0].owner_id !== ownerId) {
-    throw new UnauthorizedError('Only owner can share');  // Generic error (T7)
-  }
-
-  // Permission is set once, cannot be modified later
-  // To change: revoke old share, create new share
-}
-```
-
-**T4 (SQL Injection)**:
-```typescript
-// Parameterized queries + Zod validation
-const shareSchema = z.object({
-  email: z.string().email().max(255),
-  permission: z.enum(['read', 'write', 'admin'])
-});
-
-async function createShare(documentId, ownerId, data) {
-  const validated = shareSchema.parse(data);  // Throws if invalid
-
-  const result = await db.query(
-    'INSERT INTO document_shares (document_id, owner_id, shared_with_email, permission) VALUES ($1, $2, $3, $4) RETURNING id',
-    [documentId, ownerId, validated.email, validated.permission]
-  );
-
-  return result.rows[0];
-}
-```
-
-**T5 (No Audit Trail)**:
-```typescript
-// Log all share operations
-async function auditShareAction(shareId, action, userId, ip) {
-  await db.query(
-    'INSERT INTO share_audit_log (share_id, action, user_id, ip_address, metadata) VALUES ($1, $2, $3, $4, $5)',
-    [shareId, action, userId, ip, { timestamp: new Date() }]
-  );
-}
-```
-
-**T6 (IDOR)**:
-```typescript
-// UUID IDs (non-sequential) + Authorization check
-async function getShare(shareId, requesterId) {
-  const share = await db.query(
-    'SELECT * FROM document_shares WHERE id = $1',
-    [shareId]
-  );
-
-  if (!share.rows.length) {
-    throw new NotFoundError('Share not found');  // Generic error
-  }
-
-  // Verify requester is owner OR recipient
-  const isOwner = share.rows[0].owner_id === requesterId;
-  const isRecipient = share.rows[0].shared_with_email === requesterEmail;
-
-  if (!isOwner && !isRecipient) {
-    throw new UnauthorizedError('Access denied');  // Generic error (T7)
-  }
-
-  return share.rows[0];
-}
-```
-
-**T8 (Share Flooding)**:
-```typescript
-// Rate limiting: 10 shares per minute per user
-import rateLimit from 'express-rate-limit';
-
-const shareLimiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minute
-  max: 10,
-  message: 'Too many shares, try again later',
-  keyGenerator: (req) => req.user.id  // Per-user limiting
-});
-
-app.post('/api/documents/:documentId/shares', shareLimiter, createShareHandler);
-```
-
-**T9 (Permission Escalation via Re-sharing)**:
-```typescript
-// Only document owner can share (prevent re-sharing)
-async function createShare(documentId, requesterId, ...) {
-  const doc = await db.query(
-    'SELECT owner_id FROM documents WHERE id = $1',
-    [documentId]
-  );
-
-  if (doc.rows[0].owner_id !== requesterId) {
-    // Requester is not owner (even if they have a share)
-    throw new UnauthorizedError('Only owner can share');
-  }
-
-  // Proceed with share creation
-}
-```
-
-### Authorization Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant API
-    participant AuthMiddleware
-    participant ShareService
-    participant Database
-    participant AuditLog
-
-    User->>API: POST /documents/123/shares
-    API->>AuthMiddleware: Validate JWT
-    AuthMiddleware-->>API: User authenticated (userId)
-
-    API->>ShareService: createShare(123, userId, email, permission)
-    ShareService->>Database: SELECT owner_id FROM documents WHERE id = 123
-    Database-->>ShareService: owner_id
-
-    alt User is owner
-        ShareService->>Database: Validate email with Zod
-        ShareService->>Database: INSERT INTO document_shares (parameterized)
-        Database-->>ShareService: share created (UUID)
-        ShareService->>AuditLog: Log share creation
-        ShareService-->>API: Success
-        API-->>User: 201 Created
-    else User is not owner
-        ShareService-->>API: UnauthorizedError
-        API-->>User: 403 Forbidden (generic message)
-    end
-```
-
-### Error Handling Strategy
-
-```typescript
-// Generic errors prevent information disclosure (T7)
-const errorMessages = {
-  UnauthorizedError: 'Access denied',  // Never say "not owner" vs "document not found"
-  NotFoundError: 'Resource not found',
-  ValidationError: 'Invalid input',
-  RateLimitError: 'Too many requests'
-};
-
-function errorHandler(err, req, res, next) {
-  // Log detailed error server-side
-  logger.error('Error', { error: err.message, stack: err.stack, user: req.user?.id });
-
-  // Return generic error to client
-  const status = err.statusCode || 500;
-  const message = errorMessages[err.constructor.name] || 'An error occurred';
-
-  res.status(status).json({ error: message });
-}
-```
-```
+</details>
 
 ---
 
 ## Step 5: Fitness Function Definitions
 
-Define architectural fitness functions that will be enforced in Phase 3:
+Define automated quality gates enforced in Phase 3.
 
-```markdown
-## Fitness Functions: Document Sharing
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
 
-### 1. Complexity Fitness Function
-**Goal**: Maintain code simplicity
-- Cyclomatic complexity ≤ 10 per function
-- Function length ≤ 50 lines
-- File size ≤ 300 lines
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Complexity</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Cyclomatic complexity ≤ 10 per function<br/>
+    Function length ≤ 50 lines<br/>
+    <span style="color: #94a3b8;">Enforced via: ESLint + CI</span>
+  </div>
+</div>
 
-**Implementation**: ESLint complexity rule
-**Enforcement**: Pre-commit hook + CI
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Security</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Zero high/critical CodeQL + Snyk findings<br/>
+    All STRIDE threats (T1-T9) mitigated<br/>
+    <span style="color: #94a3b8;">Enforced via: CodeQL + Snyk in CI</span>
+  </div>
+</div>
 
-### 2. Security Fitness Function
-**Goal**: Zero high-severity findings
-- CodeQL: No high/critical issues
-- Snyk: No high/critical vulnerabilities
-- All OWASP threats (T1-T9) mitigated
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
+  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Test Coverage</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Overall ≥ 80%, security functions 100%<br/>
+    All threats have attack vector tests<br/>
+    <span style="color: #94a3b8;">Enforced via: Jest thresholds in CI</span>
+  </div>
+</div>
 
-**Implementation**: CodeQL + Snyk scans
-**Enforcement**: CI blocks merge on failure
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #a855f7;">
+  <div style="font-size: 15px; font-weight: 700; color: #d8b4fe; margin-bottom: 8px;">Dependencies</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    All deps < 3 months old, zero known CVEs<br/>
+    Security patches within 7 days<br/>
+    <span style="color: #94a3b8;">Enforced via: Snyk monitor + npm outdated</span>
+  </div>
+</div>
 
-### 3. Test Coverage Fitness Function
-**Goal**: Comprehensive testing
-- Overall coverage ≥ 80%
-- Security-critical functions: 100% coverage
-- All 9 threats have attack vector tests
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #10b981;">
+  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Performance</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    Write ops < 200ms (p95)<br/>
+    Read ops < 100ms (p95)<br/>
+    <span style="color: #94a3b8;">Enforced via: Performance tests in CI</span>
+  </div>
+</div>
 
-**Implementation**: Jest coverage thresholds
-**Enforcement**: CI blocks merge if coverage drops
+</div>
 
-### 4. Dependency Freshness Fitness Function
-**Goal**: Keep dependencies current
-- All dependencies < 3 months old
-- Zero known CVEs in dependencies
-- Security patches applied within 7 days
-
-**Implementation**: Snyk monitor + npm outdated
-**Enforcement**: Weekly automated PR for updates
-
-### 5. Performance Fitness Function
-**Goal**: Fast response times
-- Share creation: < 200ms (p95)
-- Share listing: < 100ms (p95)
-- No N+1 query problems
-
-**Implementation**: Performance tests in Jest
-**Enforcement**: CI fails if regression > 20%
-```
-
-See [/docs/maintainability/fitness-functions](../maintainability/fitness-functions) for implementation details.
+See [Fitness Functions guide](/docs/maintainability/fitness-functions) for implementation details.
 
 ---
 
-## Step 6: Design Review
+## Step 6: Design Review Checklist
 
-### Checklist
+Before proceeding to Phase 2, verify all gates pass:
 
-Before proceeding to Phase 2, verify:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div style="color: #cbd5e1; font-size: 14px; line-height: 2.2;">
 
-#### Requirements Coverage
-- [ ] All functional requirements have corresponding implementation plan
+- [ ] All functional requirements have implementation plan
 - [ ] Non-functional requirements have measurable criteria
-- [ ] Security requirements mapped to OWASP categories
-
-#### Threat Model Completeness
-- [ ] All STRIDE categories analyzed
-- [ ] Each threat has risk rating
-- [ ] Each threat mapped to OWASP category
-- [ ] Each threat has mitigation strategy
-
-#### Architecture Quality
-- [ ] Data model supports all requirements
-- [ ] API design follows RESTful principles
-- [ ] Security controls address all threats
+- [ ] All 6 STRIDE categories analyzed
+- [ ] Every threat has risk rating + OWASP mapping + mitigation
+- [ ] Architecture addresses all identified threats
+- [ ] API design follows RESTful principles with authorization rules
 - [ ] Error handling prevents information disclosure
-- [ ] Authorization flow documented
+- [ ] Fitness functions defined with measurable thresholds
+- [ ] OWASP prompt packs selected for Phase 2
 
-#### Fitness Functions
-- [ ] Fitness functions defined for complexity, security, coverage, dependencies, performance
-- [ ] Each function has measurable threshold
-- [ ] Enforcement mechanism specified (ESLint, CodeQL, Jest, etc.)
-
-#### OWASP Compliance
-- [ ] All applicable OWASP categories identified
-- [ ] Prompt packs selected for Phase 2
-- [ ] Security controls mapped to categories
+</div>
+</div>
 
 ---
 
-## Outputs to Phase 2
+## Phase Handoff → Phase 2
 
-Hand off these artifacts to Phase 2 (Implementation):
+<div style="background: rgba(30, 64, 175, 0.1); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
 
-```markdown
+```
 ===== PHASE 1 → PHASE 2 HANDOFF =====
 
-Feature: Document Sharing
+Feature: [Feature name]
 
-OWASP Prompt Packs to Use:
-- /prompts/owasp/A01_broken_access_control.md
-- /prompts/owasp/A03_injection.md
-- /prompts/owasp/A07_authn_failures.md
-- /prompts/owasp/A09_logging_monitoring.md
+OWASP Prompt Packs:
+- /prompts/owasp/[applicable packs]
 
 Threats to Mitigate:
-- T1: JWT validation
-- T3: Immutable permissions
-- T4: Parameterized queries
-- T5: Audit logging
-- T6: Authorization checks
-- T7: Generic errors
-- T8: Rate limiting
-- T9: Owner-only sharing
+- [T1-Tn with one-line mitigation each]
 
 Architecture Reference:
-- Data model: See design doc section "Data Model"
-- API endpoints: POST/GET/DELETE /documents/:id/shares
-- Security controls: See "Security Controls Mapping"
+- Data model, API endpoints, security controls
 
 Fitness Functions:
-- Complexity ≤ 10
-- Coverage ≥ 80%
-- CodeQL/Snyk clean
-- Performance < 200ms
-
-Success Criteria:
-- All 9 threats mitigated
-- All fitness functions pass
-- Implementation matches architecture design
+- Complexity ≤ 10, Coverage ≥ 80%
+- CodeQL/Snyk clean, Performance < 200ms
 
 ===== END HANDOFF =====
 ```
 
----
-
-## Real-World Example
-
-See the complete [A03 Injection example](/examples/owasp/A03_injection/) for:
-- Threat model identifying SQL injection vectors
-- Architecture design with parameterized queries
-- Fitness functions enforcing security
+</div>
 
 ---
 
-## Best Practices
-
-### Do's
-- Involve security expertise early (threat modeling)
-- Map every threat to specific OWASP category
-- Design security controls before writing code
-- Define measurable fitness functions
-- Document architecture decisions and rationale
-
-### Don'ts
-- Skip threat modeling ("we'll secure it later")
-- Generic threats without specific mitigations
-- Vague security requirements ("make it secure")
-- Missing fitness functions (no automated enforcement)
-- Rush to implementation without design approval
-
----
-
-## Tools and Templates
-
-### Threat Modeling Template
-
-Use this ChatGPT prompt template:
-
-```markdown
-Role: Security Threat Modeler
-
-Feature: [Feature name and description]
-
-Context:
-- Tech Stack: [Node, TypeScript, etc.]
-- Data Handled: [PII, credentials, etc.]
-- Users: [Roles and permissions]
-
-Perform STRIDE analysis:
-1. Spoofing: [Threats]
-2. Tampering: [Threats]
-3. Repudiation: [Threats]
-4. Information Disclosure: [Threats]
-5. Denial of Service: [Threats]
-6. Elevation of Privilege: [Threats]
-
-For each threat:
-- ID: T[number]
-- Scenario: [Description]
-- Risk: High/Medium/Low
-- OWASP: [Category]
-- Mitigation: [Strategy]
-
-Output as structured JSON.
-```
-
-### Architecture Design Template
-
-Use this Claude prompt template:
-
-```markdown
-Role: Software Architect
-
-Inputs:
-- Requirements: [From requirements doc]
-- Threat Model: [From STRIDE analysis]
-- OWASP Categories: [A01, A03, etc.]
-
-Design:
-1. Data Model (SQL schema)
-2. API Endpoints (REST)
-3. Security Controls (map to threats)
-4. Authorization Flow (Mermaid diagram)
-5. Error Handling (prevent info disclosure)
-
-Constraints:
-- [Tech stack]
-- [Existing systems]
-- [Performance requirements]
-
-Output architecture that addresses all threats.
-```
-
----
-
-## Next Steps
-
-**[Proceed to Phase 2: Implementation →](phase2-implementation)**
-
-With design complete, use OWASP prompt packs to generate secure code that implements the architecture and mitigates all identified threats.
-
----
-
-**Further Reading**:
-- [Evolutionary Architecture](../maintainability/evolutionary-architecture)
-- [Fitness Functions](../maintainability/fitness-functions)
-- [OWASP Insecure Design](https://owasp.org/Top10/A04_2021-Insecure_Design/)
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
+  <span style="color: #94a3b8; font-size: 14px;">Further reading: <a href="/docs/maintainability/evolutionary-architecture" style="color: #93c5fd;">Evolutionary Architecture</a> · <a href="/docs/maintainability/fitness-functions" style="color: #93c5fd;">Fitness Functions</a></span>
+  <a href="/docs/sdlc/phase2-implementation" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 2: Implementation →</a>
+</div>

@@ -1,0 +1,173 @@
+{
+  "name": "maintainabilityai",
+  "displayName": "MaintainabilityAI",
+  "description": "Security-first RCTRO issue creation for AI-assisted feature development",
+  "version": "0.1.0",
+  "publisher": "maintainabilityai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AliceNN-ucdenver/MaintainabilityAI"
+  },
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "security",
+    "owasp",
+    "ai",
+    "github-issues",
+    "sdlc"
+  ],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "icon": "assets/icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "command": "maintainabilityai.scaffoldRepo",
+        "title": "Scaffold SDLC Structure",
+        "category": "MaintainabilityAI",
+        "icon": {
+          "light": "assets/cheshire-light.svg",
+          "dark": "assets/cheshire-dark.svg"
+        }
+      },
+      {
+        "command": "maintainabilityai.createIssue",
+        "title": "Issue Management",
+        "category": "MaintainabilityAI",
+        "icon": {
+          "light": "assets/cheshire-light.svg",
+          "dark": "assets/cheshire-dark.svg"
+        }
+      },
+      {
+        "command": "maintainabilityai.browsePromptPacks",
+        "title": "Prompt Packs",
+        "category": "MaintainabilityAI"
+      },
+      {
+        "command": "maintainabilityai.configureSecrets",
+        "title": "Repository Secrets",
+        "category": "MaintainabilityAI"
+      },
+      {
+        "command": "maintainabilityai.openScorecard",
+        "title": "Security Scorecard",
+        "category": "MaintainabilityAI"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "maintainabilityai",
+          "title": "MaintainabilityAI",
+          "icon": "assets/cheshire-activity-dark.svg"
+        }
+      ]
+    },
+    "views": {
+      "maintainabilityai": [
+        {
+          "id": "maintainabilityai.actions",
+          "name": "The Cheshire Cat",
+          "type": "tree"
+        }
+      ]
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "maintainabilityai.createIssue",
+          "group": "navigation",
+          "when": "editorFocus"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "maintainabilityai.scaffoldRepo"
+        },
+        {
+          "command": "maintainabilityai.createIssue"
+        },
+        {
+          "command": "maintainabilityai.browsePromptPacks"
+        },
+        {
+          "command": "maintainabilityai.configureSecrets"
+        },
+        {
+          "command": "maintainabilityai.openScorecard"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MaintainabilityAI",
+      "properties": {
+        "maintainabilityai.llm.provider": {
+          "type": "string",
+          "enum": [
+            "vscode-lm",
+            "claude",
+            "openai"
+          ],
+          "default": "vscode-lm",
+          "description": "LLM provider for RCTRO prompt generation"
+        },
+        "maintainabilityai.llm.claudeApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key (required if provider is 'claude')"
+        },
+        "maintainabilityai.llm.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key (required if provider is 'openai')"
+        },
+        "maintainabilityai.llm.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model override (e.g., claude-sonnet-4-5-20250929, gpt-4o)"
+        },
+        "maintainabilityai.github.defaultLabels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "maintainabilityai",
+            "rctro-feature"
+          ],
+          "description": "Default labels applied to every created issue"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "lint": "eslint src --ext ts",
+    "test": "vitest run",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.93.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@octokit/rest": "^21.0.0",
+    "openai": "^4.68.0"
+  }
+}

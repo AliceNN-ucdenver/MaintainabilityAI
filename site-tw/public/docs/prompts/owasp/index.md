@@ -54,7 +54,7 @@
   <div style="text-align: center; color: #f1f5f9;">
     <div style="font-size: 48px; margin-bottom: 16px;">🛡️</div>
     <div style="font-size: 28px; font-weight: 700; margin-bottom: 12px;">Security-First AI Development</div>
-    <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 24px;">Every prompt pack includes Role → Context → Requirements → Task → Checklist</div>
+    <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 24px;">Every prompt pack follows RCTRO: Role → Context → Task → Requirements → Output</div>
     <div style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
       <div>
         <div style="font-size: 24px; font-weight: 700; color: #ef4444;">10</div>
@@ -167,22 +167,22 @@ flowchart LR
 
 ## 🛠️ Prompt Pack Structure
 
-Each prompt pack follows the **5-component security-first pattern**:
+Each prompt pack follows the **RCTRO security-first pattern**:
 
 ```markdown
 1. Role: Define the security engineer persona and OWASP category
 2. Context: Tech stack, constraints, threat model
-3. Requirements: Specific security controls to implement
-4. Task: Step-by-step implementation instructions
-5. Checklist: Validation criteria for human review
+3. Task: Clear action — what to analyze, refactor, or implement
+4. Requirements: Specific security controls with validation checkboxes
+5. Output: Complete deliverables — file paths and executable code
 ```
 
 **Why this structure works**:
 - **Role** sets the security mindset for the AI
 - **Context** prevents AI from making wrong assumptions about your stack
-- **Requirements** embed OWASP controls directly into generated code
-- **Task** provides concrete, actionable steps
-- **Checklist** guides human review (trust but verify)
+- **Task** provides a concrete, actionable starting point
+- **Requirements** embed OWASP controls directly into generated code with validation criteria
+- **Output** ensures complete, executable deliverables (not conceptual advice)
 
 ---
 
@@ -190,7 +190,7 @@ Each prompt pack follows the **5-component security-first pattern**:
 
 **New to OWASP?** Recommended learning path:
 
-1. **[Workshop Part 2: Security-First Prompting](/docs/workshop/part2-security-prompting)** — Learn the 5-component pattern
+1. **[Workshop Part 2: Security-First Prompting](/docs/workshop/part2-security-prompting)** — Learn the RCTRO pattern
 2. **[Workshop Part 3: Live Remediation](/docs/workshop/part3-live-remediation)** — Fix A03 SQL injection hands-on
 3. **[A03: Injection](A03_injection)** → **[A01: Broken Access Control](A01_broken_access_control)** → **[A07: Authentication Failures](A07_authn_failures)**
 
