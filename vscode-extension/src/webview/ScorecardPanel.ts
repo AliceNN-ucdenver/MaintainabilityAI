@@ -203,7 +203,7 @@ export class ScorecardPanel {
     const commands: Record<string, string> = {
       Jest: 'npx jest --coverage',
       Vitest: 'npx vitest run --coverage',
-      Mocha: 'npx c8 mocha',
+      Mocha: 'npx c8 mocha --exit',
     };
 
     const pkgCommands: Record<string, string> = {

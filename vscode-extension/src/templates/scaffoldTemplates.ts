@@ -262,7 +262,7 @@ function getStackCommands(stack: TechStack): {
     testCov = `${runner} vitest run --coverage`;
   } else if (testing === 'mocha') {
     const runner = pm === 'pnpm' ? 'pnpm exec' : pm === 'yarn' ? 'yarn' : 'npx';
-    testJson = `if [ -f package.json ]; then ${runner} mocha --reporter json 2>&1 | tee test-output.txt; fi`;
+    testJson = `if [ -f package.json ]; then ${runner} mocha --exit --reporter json 2>&1 | tee test-output.txt; fi`;
   }
 
   return {
