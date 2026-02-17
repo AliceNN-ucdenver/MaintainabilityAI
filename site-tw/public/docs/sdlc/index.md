@@ -108,21 +108,95 @@ This framework operationalizes that insight:
 
 </div>
 
+<!-- Lightbox styles -->
+<style>
+.cheshire-lightbox {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+.cheshire-lightbox:target {
+  display: flex;
+}
+.cheshire-lightbox img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.5);
+  border: 2px solid #a78bfa;
+}
+.cheshire-lightbox .lightbox-close {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  color: #c4b5fd;
+  font-size: 36px;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1;
+}
+.cheshire-lightbox .lightbox-close:hover {
+  color: #f1f5f9;
+}
+.cheshire-thumb {
+  width: 100%;
+  border-radius: 8px;
+  margin-top: 16px;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.9;
+}
+.cheshire-thumb:hover {
+  opacity: 1;
+  border-color: #a78bfa;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+}
+</style>
+
+<!-- Lightbox overlays -->
+<div id="lb-scaffold" class="cheshire-lightbox">
+  <a href="#_" class="lightbox-close">&times;</a>
+  <img src="../../images/cheshire-scaffold.png" alt="SDLC Scaffolding — full view" />
+</div>
+<div id="lb-feature" class="cheshire-lightbox">
+  <a href="#_" class="lightbox-close">&times;</a>
+  <img src="../../images/cheshire-feature.png" alt="Issue Management — full view" />
+</div>
+<div id="lb-dashboard" class="cheshire-lightbox">
+  <a href="#_" class="lightbox-close">&times;</a>
+  <img src="../../images/cheshire-dashboard.png" alt="Security Scorecard — full view" />
+</div>
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 32px;">
 
 <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #a78bfa;">
   <h4 style="color: #c4b5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">SDLC Scaffolding</h4>
   <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">One command sets up your entire security-first pipeline: CLAUDE.md agent instructions, CodeQL workflows, fitness function automation, PR templates with AI disclosure, and OWASP prompt packs — all tailored to your detected tech stack.</p>
+  <a href="#lb-scaffold"><img src="../../images/cheshire-scaffold.png" alt="SDLC Scaffolding" class="cheshire-thumb" /></a>
+  <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
 </div>
 
 <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #818cf8;">
   <h4 style="color: #a5b4fc; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Issue Management</h4>
   <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Describe a feature in plain text and Cheshire generates a complete RCTRO-formatted GitHub issue with collapsible prompt pack guidance, auto-created labels, and implementation zones for both Claude and Copilot.</p>
+  <a href="#lb-feature"><img src="../../images/cheshire-feature.png" alt="Issue Management" class="cheshire-thumb" /></a>
+  <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
 </div>
 
 <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #6366f1;">
   <h4 style="color: #93c5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Security Scorecard</h4>
   <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Browse 23 bundled prompt packs across OWASP, Maintainability, and STRIDE categories. Configure repository secrets for agent workflows. Monitor your project's security posture from the Cheshire activity bar. Humans manage technical debt issue creation, dependency updates, code coverage improvements, and other governance tasks directly from the scorecard.</p>
+  <a href="#lb-dashboard"><img src="../../images/cheshire-dashboard.png" alt="Security Scorecard" class="cheshire-thumb" /></a>
+  <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
 </div>
 
 </div>
