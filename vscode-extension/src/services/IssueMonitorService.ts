@@ -124,7 +124,8 @@ export class IssueMonitorService implements vscode.Disposable {
           this._onPrDetected.fire(pr);
         } else if (
           previousPr.checksStatus !== pr.checksStatus ||
-          previousPr.state !== pr.state
+          previousPr.state !== pr.state ||
+          previousPr.draft !== pr.draft
         ) {
           this._onPrStatusChanged.fire(pr);
         }

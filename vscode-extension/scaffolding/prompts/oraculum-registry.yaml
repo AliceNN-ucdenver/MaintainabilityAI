@@ -1,0 +1,32 @@
+# Oraculum Prompt Pack Registry
+# Controls UI display order, descriptions, and domain grouping.
+# Each pack's id matches its filename (without .md extension) in this directory.
+# The 'default' pack is always included in every review (required: true).
+# Custom packs not listed here are auto-discovered and shown as 'custom' domain.
+
+packs:
+  - id: default
+    name: Default
+    description: "Full BAR artifact inventory and 4-pillar governance review baseline"
+    domain: general
+    required: true
+
+  - id: architecture
+    name: Architecture
+    description: "CALM model drift detection, ADR compliance, fitness functions, quality attributes"
+    domain: architecture
+
+  - id: information-risk
+    name: Information Risk
+    description: "Data classification compliance, PII tracing, VISM vendor mapping, privacy impact"
+    domain: information-risk
+
+  - id: operations
+    name: Operations
+    description: "Service mapping verification, runbook accuracy, SLA targets, observability audit"
+    domain: operations
+
+  - id: application-security
+    name: Application Security
+    description: "OWASP Top 10 patterns, threat model compliance, dependency vulnerabilities, secrets audit"
+    domain: security

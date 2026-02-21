@@ -52,6 +52,7 @@ interface LinkedPullRequest {
   branch: string;
   checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
   mergeable: boolean;
+  draft: boolean;
 }
 
 type ViewMode = 'hub' | 'create' | 'manage';

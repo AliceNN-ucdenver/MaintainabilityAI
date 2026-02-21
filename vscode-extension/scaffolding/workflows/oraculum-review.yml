@@ -1,0 +1,239 @@
+name: "Oraculum Architecture Review"
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  architecture-review:
+    name: "Architecture Review"
+    if: >-
+      github.event.issue.state == 'open' &&
+      contains(github.event.issue.labels.*.name, 'oraculum-review') &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+
+    steps:
+      # Step 1: Checkout the mesh repo at workspace root (claude-code-action needs a git repo here)
+      - name: Checkout mesh repo
+        uses: actions/checkout@v4
+
+      # Step 2: Parse the issue body for BAR path and repo list
+      - name: Parse review configuration
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body;
+            const match = body.match(/```oraculum\n([\s\S]*?)```/);
+            if (!match) {
+              core.setFailed('No oraculum config block found in issue body');
+              return;
+            }
+            const lines = match[1].trim().split('\n');
+            const config = {};
+            let currentKey = '';
+            let currentList = [];
+            for (const line of lines) {
+              const kvMatch = line.match(/^(\w[\w_]*):\s*(.+)?$/);
+              if (kvMatch) {
+                if (currentKey && currentList.length) {
+                  config[currentKey] = currentList;
+                  currentList = [];
+                }
+                currentKey = kvMatch[1];
+                if (kvMatch[2]) config[currentKey] = kvMatch[2].trim();
+              }
+              const listMatch = line.match(/^\s+-\s+(.+)/);
+              if (listMatch) currentList.push(listMatch[1].trim());
+            }
+            if (currentKey && currentList.length) config[currentKey] = currentList;
+
+            core.setOutput('bar_path', config.bar_path || '');
+            core.setOutput('repos', JSON.stringify(config.repos || []));
+            core.setOutput('scope', JSON.stringify(config.scope || ['architecture', 'security', 'risk', 'operations']));
+
+            // Support both prompt_packs (new multi-select) and prompt_pack (legacy single-select)
+            const packs = config.prompt_packs || (config.prompt_pack ? [config.prompt_pack] : ['default']);
+            core.setOutput('prompt_packs', JSON.stringify(packs));
+
+            // Build list of pack file references for Claude's prompt
+            const packFiles = packs.map(p => `- \`.caterpillar/prompts/${p}.md\``).join('\n');
+            core.setOutput('prompt_pack_files', packFiles);
+
+            // Extract app name from bar_path (last directory component)
+            const barPath = config.bar_path || '';
+            const appName = barPath.split('/').filter(Boolean).pop() || 'unknown';
+            core.setOutput('app_name', appName);
+
+      # Step 3: Clone each code repository into repos/ (continues on individual failures)
+      - name: Checkout code repositories
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repos = JSON.parse('${{ steps.parse.outputs.repos }}');
+            const failed = [];
+            for (const raw of repos) {
+              // Normalize: strip full URL prefix if present (e.g. https://github.com/owner/repo → owner/repo)
+              const repo = raw.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+              const repoName = repo.split('/').pop();
+              try {
+                await exec.exec('git', [
+                  'clone',
+                  '--depth', '1',
+                  `https://x-access-token:${process.env.GITHUB_TOKEN}@github.com/${repo}.git`,
+                  `repos/${repoName}`
+                ]);
+                core.info(`Cloned ${repo} → repos/${repoName}`);
+              } catch (err) {
+                core.warning(`Failed to clone ${repo}: ${err.message}`);
+                failed.push(repo);
+              }
+            }
+            if (failed.length > 0) {
+              core.warning(`Could not clone ${failed.length} repo(s): ${failed.join(', ')}`);
+            }
+            if (failed.length === repos.length) {
+              core.setFailed('All repository clones failed');
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 4: Configure git for Claude's commits
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # Step 5: Run Claude Code — analyze and write artifacts
+      - name: Run architecture review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: true
+          prompt: |
+            # Oraculum Architecture Review
+
+            ## Workspace
+            - Mesh repo (this repo): checked out at workspace root
+            - BAR location: `${{ steps.parse.outputs.bar_path }}/`
+            - Code repos: `repos/` (each subdirectory is a cloned component repository)
+            - Review scope: ${{ steps.parse.outputs.scope }}
+            - Issue number: ${{ github.event.issue.number }}
+            - App name: ${{ steps.parse.outputs.app_name }}
+
+            ## Instructions
+            Read and follow ALL of the following prompt pack files in order:
+            ${{ steps.parse.outputs.prompt_pack_files }}
+
+            Read each prompt pack file, then perform the analysis it describes.
+
+            ## Output
+            After completing the analysis, you MUST perform these steps using Bash:
+
+            1. **Write the report** to `${{ steps.parse.outputs.bar_path }}/reports/review-${{ github.event.issue.number }}.md`
+            2. **Update reviews.yaml** — append a review record to `${{ steps.parse.outputs.bar_path }}/reviews.yaml` with the computed drift score and finding counts (create the file if it doesn't exist)
+            3. **Create a branch and commit** (the PR will be created automatically by the workflow):
+               ```bash
+               git checkout -b fix/issue-${{ github.event.issue.number }}
+               git add ${{ steps.parse.outputs.bar_path }}/
+               git commit -m "Oraculum Review: ${{ steps.parse.outputs.app_name }} #${{ github.event.issue.number }}"
+               git push origin fix/issue-${{ github.event.issue.number }}
+               ```
+
+          claude_args: |
+            --allowedTools "Read,Write,Glob,Grep,Bash"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 6: Create the PR (using workflow GITHUB_TOKEN which has PR write permission)
+      - name: Create pull request
+        if: success()
+        id: create-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const appName = '${{ steps.parse.outputs.app_name }}';
+            const branch = `fix/issue-${issueNumber}`;
+
+            // Check if the branch was pushed by Claude
+            try {
+              await github.rest.repos.getBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch,
+              });
+            } catch {
+              core.warning(`Branch ${branch} not found — Claude may not have pushed it. Skipping PR creation.`);
+              return;
+            }
+
+            // Create the PR
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Oraculum Review: ${appName} #${issueNumber}`,
+              body: `Closes #${issueNumber}\n\nGenerated by Oraculum architecture review workflow.`,
+              head: branch,
+              base: 'main',
+            });
+            core.info(`Created PR #${pr.number}: ${pr.html_url}`);
+            core.setOutput('pr_url', pr.html_url);
+            core.setOutput('pr_number', pr.number);
+
+      # Step 7: Post summary comment on the issue
+      - name: Post review summary
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issueNumber = context.payload.issue.number;
+            const barPath = '${{ steps.parse.outputs.bar_path }}';
+            const prUrl = '${{ steps.create-pr.outputs.pr_url }}' || '';
+
+            // Find the report file Claude wrote
+            const reportsDir = `${barPath}/reports`;
+            let summary = '## Review Summary\n\nReview artifacts have been created.';
+            try {
+              const files = fs.readdirSync(reportsDir).filter(f => f.includes(`-${issueNumber}.md`));
+              if (files.length > 0) {
+                const report = fs.readFileSync(`${reportsDir}/${files[0]}`, 'utf8');
+                // Extract the summary table from the report
+                const tableMatch = report.match(/\|.*Pillar.*\|[\s\S]*?\n\n/);
+                if (tableMatch) {
+                  summary = `## Review Summary\n\n${tableMatch[0].trim()}`;
+                }
+              }
+            } catch { /* report not found — use default summary */ }
+
+            if (prUrl) {
+              summary += `\n\n**PR**: ${prUrl}`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: summary,
+            });
+
+      # Step 8: Label issue with review result
+      - name: Label review complete
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              labels: ['review-complete']
+            });

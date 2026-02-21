@@ -4,6 +4,7 @@ interface ActionItem {
   label: string;
   command: string;
   icon: string;
+  args?: unknown[];
 }
 
 const ACTIONS: ActionItem[] = [
@@ -31,6 +32,7 @@ const ACTIONS: ActionItem[] = [
     label: 'Repository Secrets',
     command: 'maintainabilityai.configureSecrets',
     icon: 'lock',
+    args: ['workspace'],
   },
 ];
 
@@ -41,6 +43,7 @@ class ActionTreeItem extends vscode.TreeItem {
     this.command = {
       command: action.command,
       title: action.label,
+      arguments: action.args,
     };
   }
 }

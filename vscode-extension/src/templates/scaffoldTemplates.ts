@@ -333,3 +333,23 @@ export function generatePromptHashGenerator(extensionPath: string): string {
 export function generateProcessCodeqlResults(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'scripts', 'process-codeql-results.js');
 }
+
+// ============================================================================
+// Oraculum Templates
+// ============================================================================
+
+export function generateOraculumWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'oraculum-review.yml');
+}
+
+export function generateOraculumDefaultPrompt(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'prompts', 'oraculum-default.md');
+}
+
+export function generateOraculumPromptPack(extensionPath: string, packId: string): string {
+  return readScaffoldFile(extensionPath, 'prompts', `oraculum-${packId}.md`);
+}
+
+export function generateOraculumRegistry(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'prompts', 'oraculum-registry.yaml');
+}

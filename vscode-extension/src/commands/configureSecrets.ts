@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { GitHubService } from '../services/GitHubService';
+import { MeshService } from '../services/MeshService';
 import { requireTool } from '../services/PrerequisiteChecker';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 interface SecretItem extends vscode.QuickPickItem {
   id: string;
@@ -29,7 +34,40 @@ const SECRETS: SecretItem[] = [
   },
 ];
 
-export async function configureSecretsCommand() {
+/**
+ * Detect the governance mesh repo (owner/repo) from the configured mesh path.
+ * Uses git remote origin URL, same pattern as OracularPanel.detectMeshRepo().
+ */
+async function detectGovernanceRepo(): Promise<{ owner: string; repo: string } | null> {
+  const meshPath = MeshService.getMeshPath();
+  if (!meshPath) { return null; }
+
+  try {
+    const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
+    const url = stdout.trim();
+    const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+    if (match) {
+      return { owner: match[1], repo: match[2] };
+    }
+  } catch {
+    // No git remote — mesh is local only
+  }
+  return null;
+}
+
+/**
+ * Detect the workspace repo (owner/repo) from the open folder's git remote.
+ */
+async function detectWorkspaceRepo(): Promise<{ owner: string; repo: string } | null> {
+  const github = new GitHubService();
+  const repoInfo = await github.detectRepo();
+  if (!repoInfo) { return null; }
+  return { owner: repoInfo.owner, repo: repoInfo.repo };
+}
+
+export type SecretsTarget = 'governance' | 'workspace';
+
+export async function configureSecretsCommand(target?: SecretsTarget) {
   // gh CLI is required for setting repo secrets
   if (!(await requireTool('gh'))) {
     return;
@@ -37,20 +75,73 @@ export async function configureSecretsCommand() {
 
   const github = new GitHubService();
 
-  // Detect current repo
-  const repoInfo = await github.detectRepo();
-  if (!repoInfo) {
-    vscode.window.showErrorMessage(
-      'No GitHub repository detected. Open a workspace with a GitHub remote first.'
-    );
-    return;
+  // Resolve the target repo based on context
+  let repo: { owner: string; repo: string } | null = null;
+  let repoLabel: string;
+
+  if (target === 'governance') {
+    repo = await detectGovernanceRepo();
+    repoLabel = 'Governance Mesh';
+    if (!repo) {
+      vscode.window.showErrorMessage(
+        'No governance mesh repo detected. Configure a mesh path (with a GitHub remote) in Settings first.'
+      );
+      return;
+    }
+  } else if (target === 'workspace') {
+    repo = await detectWorkspaceRepo();
+    repoLabel = 'Workspace';
+    if (!repo) {
+      vscode.window.showErrorMessage(
+        'No GitHub repository detected. Open a workspace with a GitHub remote first.'
+      );
+      return;
+    }
+  } else {
+    // No target specified — detect both and let the user pick
+    const govRepo = await detectGovernanceRepo();
+    const wsRepo = await detectWorkspaceRepo();
+
+    const choices: { label: string; description: string; value: SecretsTarget; repo: { owner: string; repo: string } }[] = [];
+    if (govRepo) {
+      choices.push({
+        label: `$(telescope) Governance Mesh — ${govRepo.owner}/${govRepo.repo}`,
+        description: 'Oraculum review workflows',
+        value: 'governance',
+        repo: govRepo,
+      });
+    }
+    if (wsRepo) {
+      choices.push({
+        label: `$(folder) Workspace — ${wsRepo.owner}/${wsRepo.repo}`,
+        description: 'CI/CD and app workflows',
+        value: 'workspace',
+        repo: wsRepo,
+      });
+    }
+
+    if (choices.length === 0) {
+      vscode.window.showErrorMessage(
+        'No GitHub repositories detected. Open a workspace or configure a mesh path with a GitHub remote.'
+      );
+      return;
+    }
+
+    const picked = await vscode.window.showQuickPick(choices, {
+      placeHolder: 'Which repository should receive the secrets?',
+      title: 'MaintainabilityAI — Select Target Repository',
+    });
+    if (!picked) { return; }
+
+    repo = picked.repo;
+    repoLabel = picked.value === 'governance' ? 'Governance Mesh' : 'Workspace';
   }
 
   // Let user pick which secrets to configure
   const selected = await vscode.window.showQuickPick(SECRETS, {
     canPickMany: true,
-    placeHolder: `Select secrets to configure for ${repoInfo.owner}/${repoInfo.repo}`,
-    title: 'MaintainabilityAI — Configure Repository Secrets',
+    placeHolder: `Select secrets to configure for ${repo.owner}/${repo.repo}`,
+    title: `$(lock) ${repoLabel} Secrets — ${repo.owner}/${repo.repo}`,
   });
 
   if (!selected || selected.length === 0) {
@@ -76,6 +167,7 @@ export async function configureSecretsCommand() {
         ],
         {
           placeHolder: `${secret.label}: Found key in VS Code settings. Use it or enter a new one?`,
+          title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
         }
       );
 
@@ -90,9 +182,10 @@ export async function configureSecretsCommand() {
 
     if (!apiKey) {
       apiKey = await vscode.window.showInputBox({
-        prompt: `Enter your ${secret.label}`,
+        prompt: `Enter your ${secret.label} → ${repo.owner}/${repo.repo}`,
         placeHolder: secret.prefix ? `${secret.prefix}api3-...` : 'Paste your API key here',
         password: true,
+        title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
         validateInput: (value) => {
           if (!value || value.trim().length === 0) {
             return 'API key cannot be empty';
@@ -117,6 +210,7 @@ export async function configureSecretsCommand() {
       ],
       {
         placeHolder: `Also save ${secret.label} to VS Code settings for local LLM use?`,
+        title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
       }
     );
 
@@ -129,13 +223,13 @@ export async function configureSecretsCommand() {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Setting ${secret.envName} on ${repoInfo.owner}/${repoInfo.repo}...`,
+          title: `Setting ${secret.envName} on ${repo.owner}/${repo.repo}...`,
           cancellable: false,
         },
         async () => {
           await github.setRepoSecret(
-            repoInfo.owner,
-            repoInfo.repo,
+            repo.owner,
+            repo.repo,
             secret.envName,
             apiKey
           );
@@ -152,8 +246,7 @@ export async function configureSecretsCommand() {
 
   if (configured > 0) {
     vscode.window.showInformationMessage(
-      `Configured ${configured} secret(s) on ${repoInfo.owner}/${repoInfo.repo}. ` +
-      'The alice-remediation workflow can now use these keys.'
+      `$(lock) Configured ${configured} secret(s) on ${repo.owner}/${repo.repo}.`
     );
   }
 }

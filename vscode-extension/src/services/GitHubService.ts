@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Octokit } from '@octokit/rest';
-import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment, LinkedPullRequest, GitHubIssueListItem, WorkflowRunSummary } from '../types';
+import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment, LinkedPullRequest, GitHubIssueListItem, WorkflowRunSummary, OrgRepo, ActiveReviewInfo } from '../types';
 import { IssueBodyBuilder } from './IssueBodyBuilder';
 
 export class GitHubService {
@@ -73,6 +73,35 @@ export class GitHubService {
       owner: request.repo.owner,
       repo: request.repo.repo,
       title: request.title,
+      body,
+      labels,
+    });
+
+    return {
+      url: issue.html_url,
+      number: issue.number,
+      title: issue.title,
+    };
+  }
+
+  /**
+   * Create a simple issue with raw title/body/labels on any repo.
+   * Unlike createIssue(), this is not RCTRO-specific.
+   */
+  async createIssueRaw(
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+    labels: string[]
+  ): Promise<IssueCreationResult> {
+    const client = await this.getClient();
+    await this.ensureLabels(client, owner, repo, labels);
+
+    const { data: issue } = await client.rest.issues.create({
+      owner,
+      repo,
+      title,
       body,
       labels,
     });
@@ -241,6 +270,7 @@ export class GitHubService {
           branch: pr.head.ref,
           checksStatus,
           mergeable,
+          draft: pr.draft ?? false,
         });
       }
       return results;
@@ -281,6 +311,37 @@ export class GitHubService {
     }
   }
 
+  async addIssueLabels(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    labels: string[]
+  ): Promise<void> {
+    const client = await this.getClient();
+    await this.ensureLabels(client, owner, repo, labels);
+    await client.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      labels,
+    });
+  }
+
+  async assignIssue(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    assignees: string[]
+  ): Promise<void> {
+    const client = await this.getClient();
+    await client.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      assignees,
+    });
+  }
+
   async getIssueLabels(
     owner: string,
     repo: string,
@@ -296,6 +357,53 @@ export class GitHubService {
       return data.map(l => l.name);
     } catch {
       return [];
+    }
+  }
+
+  async updateIssueBody(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    body: string
+  ): Promise<void> {
+    const client = await this.getClient();
+    await client.rest.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body,
+    });
+  }
+
+  async closeIssue(
+    owner: string,
+    repo: string,
+    issueNumber: number
+  ): Promise<void> {
+    const client = await this.getClient();
+    await client.rest.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      state: 'closed',
+    });
+  }
+
+  async getIssueBody(
+    owner: string,
+    repo: string,
+    issueNumber: number
+  ): Promise<{ body: string | null; title: string | null }> {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.rest.issues.get({
+        owner,
+        repo,
+        issue_number: issueNumber,
+      });
+      return { body: data.body || null, title: data.title || null };
+    } catch {
+      return { body: null, title: null };
     }
   }
 
@@ -331,9 +439,9 @@ export class GitHubService {
     };
   }
 
-  async listIssues(owner: string, repo: string, page = 1, perPage = 30): Promise<{ issues: GitHubIssueListItem[]; hasMore: boolean }> {
+  async listIssues(owner: string, repo: string, page = 1, perPage = 30, labels?: string): Promise<{ issues: GitHubIssueListItem[]; hasMore: boolean }> {
     const client = await this.getClient();
-    const { data } = await client.rest.issues.listForRepo({
+    const params: Parameters<typeof client.rest.issues.listForRepo>[0] = {
       owner,
       repo,
       state: 'open',
@@ -341,7 +449,9 @@ export class GitHubService {
       direction: 'desc',
       per_page: perPage,
       page,
-    });
+    };
+    if (labels) { params.labels = labels; }
+    const { data } = await client.rest.issues.listForRepo(params);
 
     const issues: GitHubIssueListItem[] = data
       .filter(item => !item.pull_request)
@@ -362,6 +472,89 @@ export class GitHubService {
       }));
 
     return { issues, hasMore: data.length === perPage };
+  }
+
+  // ============================================================================
+  // Open Review PRs (Oraculum)
+  // ============================================================================
+
+  async getOpenReviewPrs(
+    owner: string,
+    repo: string
+  ): Promise<{ number: number; title: string; url: string }[]> {
+    const client = await this.getClient();
+    try {
+      const { data: pulls } = await client.rest.pulls.list({
+        owner,
+        repo,
+        state: 'open',
+        per_page: 50,
+      });
+
+      return pulls
+        .filter(pr =>
+          /^fix\/issue-\d+$/.test(pr.head.ref) ||
+          pr.title.toLowerCase().includes('oraculum review')
+        )
+        .map(pr => ({
+          number: pr.number,
+          title: pr.title,
+          url: pr.html_url,
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  // ============================================================================
+  // Active Review Detection (Oraculum)
+  // ============================================================================
+
+  async getActiveReviewForBar(
+    owner: string,
+    repo: string,
+    barName: string
+  ): Promise<ActiveReviewInfo | null> {
+    try {
+      const { issues } = await this.listIssues(owner, repo, 1, 10, 'oraculum-review');
+      const barLower = barName.toLowerCase();
+      const issue = issues.find(i => i.title.toLowerCase().includes(barLower));
+      if (!issue) { return null; }
+
+      // Detect agent from comments
+      let agent: 'claude' | 'copilot' | 'unknown' = 'unknown';
+      try {
+        const comments = await this.getIssueComments(owner, repo, issue.number);
+        for (const c of comments) {
+          const body = c.body.toLowerCase();
+          if (body.includes('@claude')) { agent = 'claude'; break; }
+          if (body.includes('@copilot')) { agent = 'copilot'; break; }
+        }
+        if (agent === 'unknown' && issue.assignee) {
+          if (issue.assignee.toLowerCase().includes('copilot')) { agent = 'copilot'; }
+        }
+      } catch { /* best effort */ }
+
+      // Check for linked PR
+      let pr: ActiveReviewInfo['pr'];
+      try {
+        const prs = await this.getLinkedPullRequests(owner, repo, issue.number);
+        if (prs.length > 0) {
+          const linked = prs[0];
+          pr = { number: linked.number, url: linked.url, title: linked.title, draft: linked.draft };
+        }
+      } catch { /* best effort */ }
+
+      return {
+        issueNumber: issue.number,
+        issueUrl: issue.url,
+        title: issue.title,
+        agent,
+        pr,
+      };
+    } catch {
+      return null;
+    }
   }
 
   // ============================================================================
@@ -413,6 +606,123 @@ export class GitHubService {
       return counts;
     } catch {
       return null;
+    }
+  }
+
+  // ============================================================================
+  // GitHub User/Org Detection
+  // ============================================================================
+
+  async getAuthenticatedUser(): Promise<{ login: string; orgs: string[] }> {
+    // Request read:org scope to see all org memberships (not just public)
+    const session = await vscode.authentication.getSession('github', ['repo', 'read:org'], {
+      createIfNone: false,
+      silent: true,
+    }) ?? await vscode.authentication.getSession('github', ['repo', 'read:org'], {
+      createIfNone: true,
+    });
+    const orgClient = new Octokit({ auth: session.accessToken });
+
+    const { data: user } = await orgClient.rest.users.getAuthenticated();
+    const login = user.login;
+
+    let orgs: string[] = [];
+    try {
+      const allOrgs: string[] = [];
+      let page = 1;
+      while (true) {
+        const { data: orgList } = await orgClient.rest.orgs.listForAuthenticatedUser({
+          per_page: 100,
+          page,
+        });
+        if (orgList.length === 0) { break; }
+        allOrgs.push(...orgList.map(o => o.login));
+        if (orgList.length < 100) { break; }
+        page++;
+      }
+      orgs = allOrgs;
+    } catch { /* ignore if org listing fails */ }
+
+    return { login, orgs };
+  }
+
+  // ============================================================================
+  // Org Scanner Methods (Phase 2)
+  // ============================================================================
+
+  async listOrgRepos(org: string): Promise<OrgRepo[]> {
+    const client = await this.getClient();
+    const repos: OrgRepo[] = [];
+    let page = 1;
+
+    while (true) {
+      try {
+        // Try org endpoint first, fall back to user repos
+        let data: Array<{
+          name: string; full_name: string; description: string | null;
+          language: string | null; html_url: string; default_branch: string;
+          updated_at: string; topics?: string[]; archived: boolean; fork: boolean;
+        }>;
+
+        try {
+          const response = await client.rest.repos.listForOrg({
+            org,
+            type: 'sources',
+            sort: 'updated',
+            per_page: 100,
+            page,
+          });
+          data = response.data;
+        } catch {
+          // If org listing fails (e.g., personal account), try user repos
+          const response = await client.rest.repos.listForUser({
+            username: org,
+            type: 'owner',
+            sort: 'updated',
+            per_page: 100,
+            page,
+          });
+          data = response.data;
+        }
+
+        if (data.length === 0) { break; }
+
+        for (const repo of data) {
+          if (repo.archived || repo.fork) { continue; }
+          repos.push({
+            name: repo.name,
+            fullName: repo.full_name,
+            description: repo.description || '',
+            language: repo.language,
+            url: repo.html_url,
+            defaultBranch: repo.default_branch,
+            updatedAt: repo.updated_at,
+            topics: repo.topics || [],
+            readme: '',
+            isArchived: repo.archived,
+            isFork: repo.fork,
+          });
+        }
+
+        if (data.length < 100) { break; }
+        page++;
+      } catch {
+        break;
+      }
+    }
+
+    return repos;
+  }
+
+  async getRepoReadme(owner: string, repo: string): Promise<string> {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.rest.repos.getReadme({ owner, repo });
+      const content = Buffer.from(data.content, 'base64').toString('utf8');
+      // Truncate to ~2000 chars to fit within LLM context
+      return content.length > 2000 ? content.slice(0, 2000) + '\n...(truncated)' : content;
+    } catch {
+      return '';
     }
   }
 
