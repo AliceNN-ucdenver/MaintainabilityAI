@@ -476,6 +476,33 @@ export class MeshService {
     return { platformCount: 1, barCount: 3 };
   }
 
+  /**
+   * Create a sample IMDB Lite platform with a single BAR representing a 3-tier
+   * web application (React + Express API + MongoDB).
+   * Overwrites any existing IMDB Lite platform so the latest templates are always used.
+   */
+  scaffoldImdbLitePlatform(meshPath: string): { platformCount: number; barCount: number } {
+    // Remove existing sample platform if present
+    const existingSlug = 'imdb-lite';
+    const existingDir = path.join(meshPath, 'platforms', existingSlug);
+    if (fs.existsSync(existingDir)) {
+      fs.rmSync(existingDir, { recursive: true, force: true });
+      this.unregisterPlatformFromMesh(meshPath, 'PLT-IMDB');
+    }
+
+    const { id: platformId, slug } = this.addPlatform(meshPath, 'IMDB Lite', 'IMDB', '');
+
+    const barsDir = path.join(meshPath, 'platforms', slug, 'bars');
+    const portfolio = this.readPortfolioConfig(meshPath);
+    const portfolioId = portfolio?.id || 'PF-UNKNOWN';
+
+    this.barService.scaffoldImdbLiteSampleBar(
+      barsDir, 'IMDB Lite Application', 'APP-IMDB-001', portfolioId, platformId, 'medium'
+    );
+
+    return { platformCount: 1, barCount: 1 };
+  }
+
   // ==========================================================================
   // Oraculum (architecture review) provisioning
   // ==========================================================================

@@ -615,7 +615,7 @@ function renderCompletePhase() {
         <button id="btn-sync-repo" class="btn-secondary">Sync Repo</button>
         ${state.linkedPr ? `<button id="btn-open-pr" class="btn-secondary">Open PR in Browser</button>` : ''}
         <button id="btn-open-issue" class="btn-secondary">Open Issue in Browser</button>
-        <button id="btn-new-issue" class="btn-secondary">Back to Issues</button>
+        <button id="btn-new-issue" class="btn-secondary">Back to Rabbit Hole</button>
       </div>
     </div>
   `;
@@ -1045,10 +1045,16 @@ function setViewMode(mode: ViewMode) {
   const existingBack = document.getElementById('back-to-hub-link');
 
   if (mode === 'hub') {
-    // Hide sidebar phase list, keep title visible
-    if (phaseList) { phaseList.style.display = 'none'; }
+    // Hide entire sidebar in hub mode (full-page layout like Oraculum)
+    if (sidebar) { sidebar.style.display = 'none'; }
     if (existingBack) { existingBack.remove(); }
+    const appEl = document.querySelector('.app') as HTMLElement;
+    if (appEl) { appEl.style.gridTemplateColumns = '1fr'; }
   } else {
+    // Show sidebar in create/manage modes
+    if (sidebar) { sidebar.style.display = ''; }
+    const appEl = document.querySelector('.app') as HTMLElement;
+    if (appEl) { appEl.style.gridTemplateColumns = '200px 1fr'; }
     if (phaseList) { phaseList.style.display = ''; }
 
     // Show/hide phase items based on mode
@@ -1068,11 +1074,11 @@ function setViewMode(mode: ViewMode) {
       }
     });
 
-    // Add "Back to Issues" link if not present
+    // Add "Back to Rabbit Hole" link if not present
     if (!document.getElementById('back-to-hub-link') && sidebar) {
       const link = document.createElement('a');
       link.id = 'back-to-hub-link';
-      link.textContent = '\u2190 Back to Issues';
+      link.textContent = '\u2190 Back to Rabbit Hole';
       link.addEventListener('click', () => goToHub());
       sidebar.insertBefore(link, phaseList);
     }
@@ -1089,52 +1095,42 @@ function goToHub() {
 
 function renderIssueListHub() {
   contentEl.innerHTML = `
-    <div class="hub-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        ${CHESHIRE_SVG}
+    <div class="hub-layout">
+      <div class="hub-header">
         <div>
-          <h2 style="margin: 0;">Issues</h2>
-          <p style="color: var(--text-secondary); font-size: 12px; margin: 2px 0 0;">
+          <h2 style="margin-bottom: 4px;">&#x1F407; Rabbit Hole</h2>
+          <span style="color: var(--text-secondary); font-size: 12px;">
             ${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'No repository detected'}
-          </p>
+          </span>
         </div>
+        <button id="btn-refresh" class="btn-secondary" title="Refresh" style="padding: 6px 10px; font-size: 14px;">&#x21BB;</button>
       </div>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button id="btn-refresh" class="btn-secondary" title="Refresh issues" style="padding: 6px 10px; font-size: 14px; line-height: 1;">&#x21BB;</button>
-        <button id="btn-create-new" class="btn-primary">+ Create New Issue</button>
+
+      <div id="issue-list">
+        ${state.hubIssues.length === 0
+          ? `<div class="hub-empty">
+              ${state.isLoading
+                ? '<div class="spinner"></div><p>Loading issues...</p>'
+                : '<p>No open issues found.</p><p style="font-size: 12px; color: var(--text-secondary);">Create features from the Security Scorecard.</p>'}
+            </div>`
+          : state.hubIssues.map(renderIssueRow).join('')
+        }
       </div>
-    </div>
 
-    <div id="issue-list">
-      ${state.hubIssues.length === 0
-        ? `<div class="hub-empty">
-            ${state.isLoading
-              ? '<div class="spinner"></div><p>Loading issues...</p>'
-              : '<p>No open issues found.</p><p style="font-size: 12px;">Create a new issue to get started.</p>'}
-          </div>`
-        : state.hubIssues.map(renderIssueRow).join('')
-      }
-    </div>
+      ${state.hubHasMore ? `<div style="text-align: center; padding: 12px;">
+        <button id="btn-load-more" class="btn-secondary">Load More</button>
+      </div>` : ''}
 
-    ${state.hubHasMore ? `<div style="text-align: center; padding: 12px;">
-      <button id="btn-load-more" class="btn-secondary">Load More Issues</button>
-    </div>` : ''}
-
-    <div id="loading" class="loading">
-      <div class="spinner"></div>
-      <span>Loading issues...</span>
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <span>Loading issues...</span>
+      </div>
     </div>
   `;
 
   document.getElementById('btn-refresh')?.addEventListener('click', () => {
     state.hubPage = 1;
     vscode.postMessage({ type: 'loadIssues', page: 1 });
-  });
-
-  document.getElementById('btn-create-new')?.addEventListener('click', () => {
-    resetIssueState();
-    setViewMode('create');
-    goToPhase('input');
   });
 
   document.getElementById('btn-load-more')?.addEventListener('click', () => {

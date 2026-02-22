@@ -14,9 +14,10 @@
 | **Looking Glass** | The Looking Glass | Portfolio dashboard, BAR management, CALM diagramming, policy viewer | Complete |
 | **Oraculum** | The Oracle (Caterpillar) | Automated architecture review via GitHub Issues + Claude/Copilot | Complete |
 | **Absolem** | Absolem the Caterpillar | Multi-turn CALM refinement agent — "Who are you?" | Design |
-| **Issue Creator** | — | Feature issue creation with RCTRO prompts + prompt packs | Complete |
-| **Scorecard** | — | Repository health scorecard | Complete |
+| **Rabbit Hole** | — | Issue management & agent monitoring; feature creation via Scorecard's "Create Feature" button | Complete |
+| **Scorecard** | — | Repository health scorecard + "Create Feature" entry point | Complete |
 | **Governance Tree** | — | Sidebar tree view of governance artifacts | Complete |
+| **White Rabbit** | White Rabbit | Component scaffolding: ScaffoldPanel → Rabbit Hole with BAR context | Design |
 
 ---
 
@@ -28,7 +29,7 @@
 |-------|------|-------------|
 | Looking Glass | `LookingGlassPanel.ts` / `lookingGlass.ts` | Primary dashboard — portfolio grid, BAR detail, CALM diagrams, policies, settings |
 | Oraculum | `OracularPanel.ts` / `oraculum.ts` | Architecture review hub — create/assign/monitor/results workflow |
-| Issue Creator | `IssueCreatorPanel.ts` / `issueCreator.ts` | Feature issue creation with template selection + RCTRO generation |
+| Rabbit Hole | `IssueCreatorPanel.ts` / `main.ts` | Issue hub, feature creation (RCTRO), agent assignment & monitoring |
 | Scorecard | `ScorecardPanel.ts` / `scorecard.ts` | Repository health metrics |
 
 ### Services
@@ -67,6 +68,7 @@
 | [`governance-calm.md`](governance-calm.md) | **Complete** | CALM 1.2 as canonical DSL for all four architectural views + decorators |
 | [`governance-diagram-req.md`](governance-diagram-req.md) | **Complete** | Looking Glass design surface — ReactFlow, ELK layout, CALM read/write, PNG export |
 | [`governance-absolem.md`](governance-absolem.md) | **Design** | Absolem multi-turn CALM refinement agent |
+| [`governance-whiterabbit.md`](governance-whiterabbit.md) | **Design** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
 
 ---
 
@@ -95,7 +97,9 @@
 - Review metrics saved to reviews.yaml with drift scoring
 - Active review banner with 30-second polling and auto-refresh
 
-### Issue Creator
+### Rabbit Hole (formerly Issue Creator)
+- Full-page issue hub (no sidebar in hub mode, matching Oraculum pattern)
+- Feature creation via Security Scorecard's "Create Feature" button (🐇)
 - Template-based feature issues (API endpoint, auth, data pipeline, frontend)
 - RCTRO prompt generation (Role/Context/Task/Requirements/Output) via LLM
 - Multi-category prompt pack selection (OWASP, Maintainability, STRIDE)
@@ -106,3 +110,4 @@
 - Repository scaffolding (CI workflows, CodeQL, fitness functions)
 - Secrets configuration (API keys via `gh secret set`)
 - Prompt pack browser
+- White Rabbit: "Create New" repo → ScaffoldPanel → Rabbit Hole with CALM + ADRs + threat model + scaffold prompt pack → Scorecard

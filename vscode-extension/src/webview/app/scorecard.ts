@@ -167,6 +167,7 @@ function render() {
       </div>
     </div>
 
+    ${renderCreateFeatureBanner()}
     ${renderPmatBanner(d)}
     ${renderGradeCard(d)}
     ${renderMetricsGrid(d)}
@@ -180,6 +181,22 @@ function render() {
   attachActions();
   attachPmatInstall();
   attachMetricActions();
+  attachCreateFeature();
+}
+
+function renderCreateFeatureBanner(): string {
+  return `
+    <div class="create-feature-banner">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 18px;">&#x1F407;</span>
+        <div>
+          <strong>Create Feature</strong>
+          <span class="text-muted" style="margin-left: 8px; font-size: 12px; color: var(--text-secondary);">Define a new feature with AI-generated implementation prompts</span>
+        </div>
+      </div>
+      <button id="btn-create-feature" class="btn-primary">Create Feature</button>
+    </div>
+  `;
 }
 
 function renderGradeCard(d: ScorecardData): string {
@@ -411,6 +428,12 @@ function attachActions() {
     if (d?.repo) {
       vscode.postMessage({ type: 'openUrl', url: `https://github.com/${d.repo.owner}/${d.repo.repo}` });
     }
+  });
+}
+
+function attachCreateFeature() {
+  document.getElementById('btn-create-feature')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'createFeature' });
   });
 }
 

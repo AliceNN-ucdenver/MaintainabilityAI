@@ -305,7 +305,13 @@ export class GitSyncService {
     for (const [filePath, status] of Object.entries(dirtyFiles)) {
       // Find which BAR this file belongs to
       for (const { bar, relPath } of barRelPaths) {
-        if (!filePath.startsWith(relPath + '/') && filePath !== relPath) {
+        // Check if the dirty file is inside the BAR directory
+        const fileInsideBar = filePath.startsWith(relPath + '/') || filePath === relPath;
+        // Also check if the BAR is inside an untracked parent directory
+        // (git reports untracked dirs as a single entry, e.g. "platforms/imdb-lite/")
+        const barInsideFile = filePath.endsWith('/') && relPath.startsWith(filePath);
+
+        if (!fileInsideBar && !barInsideFile) {
           continue;
         }
 
@@ -319,16 +325,20 @@ export class GitSyncService {
         barStatus.dirtyFileCount++;
 
         // Determine which pillar this file belongs to
-        const fileRelToBar = filePath.substring(relPath.length + 1); // e.g., "security/threat-model.yaml"
-        const firstDir = fileRelToBar.split('/')[0];
-        const pillarKey = PILLAR_DIR_MAP[firstDir];
+        if (fileInsideBar) {
+          const fileRelToBar = filePath.substring(relPath.length + 1); // e.g., "security/threat-model.yaml"
+          const firstDir = fileRelToBar.split('/')[0];
+          const pillarKey = PILLAR_DIR_MAP[firstDir];
 
-        if (pillarKey) {
-          const pillar = barStatus.pillarStatus[pillarKey];
-          pillar.isDirty = true;
-          pillar.dirtyFileCount++;
-          pillar.dirtyFiles.push(fileRelToBar);
+          if (pillarKey) {
+            const pillar = barStatus.pillarStatus[pillarKey];
+            pillar.isDirty = true;
+            pillar.dirtyFileCount++;
+            pillar.dirtyFiles.push(fileRelToBar);
+          }
         }
+        // When the BAR is inside an untracked parent, we can't determine
+        // per-pillar status (git only reports the parent directory)
 
         break; // File belongs to at most one BAR
       }

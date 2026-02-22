@@ -2,8 +2,8 @@
 // Vanilla TypeScript, IIFE pattern for browser context inside VS Code
 
 import mermaid from 'mermaid';
-import { renderArchitectureDetail, attachArchitectureEvents, getArchitectureStyles } from './pillars/architecturePillar';
-import type { AdrRecord, CalmDataPayload } from './pillars/architecturePillar';
+import { renderArchitectureDetail, attachArchitectureEvents, attachAbsolemEvents, getArchitectureStyles } from './pillars/architecturePillar';
+import type { AdrRecord, AbsolemState, CalmDataPayload } from './pillars/architecturePillar';
 import { mountDiagramCanvas, unmountDiagramCanvas, updateDiagramCanvasProps, isDiagramCanvasMounted } from './reactflow/ReactBridge';
 import type { CalmArchitecture } from './reactflow/CalmAdapter';
 import type { DiagramLayout } from './reactflow/LayoutTypes';
@@ -353,6 +353,12 @@ const state = {
   settingsPreferredModel: '',
   settingsDriftWeights: { critical: 15, high: 5, medium: 2, low: 1 } as { critical: number; high: number; medium: number; low: number },
   settingsReinitConfirmStep: 0,  // 0=default, 1=warning shown
+  // Absolem — multi-turn CALM refinement agent
+  absolemOpen: false,
+  absolemMessages: [] as { role: 'user' | 'assistant'; content: string }[],
+  absolemStreaming: '',
+  absolemStatus: 'idle' as 'idle' | 'thinking' | 'reviewing-patches',
+  absolemPatches: null as { patches: { op: string; target: string; field?: string; value?: unknown }[]; description: string } | null,
 };
 
 const rootEl = document.getElementById('looking-glass-root')!;
@@ -4249,6 +4255,13 @@ function renderActivePillarDetail(barPath: string): string {
         state.adrEditingId,
         state.adrForm,
         barPath,
+        {
+          open: state.absolemOpen,
+          messages: state.absolemMessages,
+          streaming: state.absolemStreaming,
+          status: state.absolemStatus,
+          patches: state.absolemPatches,
+        } as AbsolemState,
       );
       break;
     case 'security':
@@ -5785,6 +5798,50 @@ function attachEventHandlers() {
       () => state.adrEditingId,
       () => state.adrForm,
     );
+
+    // Absolem toggle button (always when architecture pillar is active)
+    document.getElementById('btn-absolem-toggle')?.addEventListener('click', () => {
+      state.absolemOpen = !state.absolemOpen;
+      if (!state.absolemOpen) {
+        const barPath = state.currentBar?.path;
+        if (barPath) {
+          vscode.postMessage({ type: 'absolemClose', barPath });
+        }
+        state.absolemMessages = [];
+        state.absolemStreaming = '';
+        state.absolemStatus = 'idle';
+        state.absolemPatches = null;
+      }
+      render();
+    });
+
+    // Absolem chat events (when panel is open)
+    if (state.absolemOpen) {
+      attachAbsolemEvents(
+        vscode,
+        () => ({
+          open: state.absolemOpen,
+          messages: state.absolemMessages,
+          streaming: state.absolemStreaming,
+          status: state.absolemStatus,
+          patches: state.absolemPatches,
+        }),
+        () => {
+          state.absolemOpen = false;
+          state.absolemMessages = [];
+          state.absolemStreaming = '';
+          state.absolemStatus = 'idle';
+          state.absolemPatches = null;
+          render();
+        },
+        (userMsg: string) => {
+          state.absolemMessages.push({ role: 'user', content: userMsg });
+          state.absolemStatus = 'thinking';
+          state.absolemStreaming = '';
+          render();
+        },
+      );
+    }
   }
 
   if (state.activePillar === 'security') {
@@ -6382,7 +6439,9 @@ window.addEventListener('message', (event) => {
       // Only reset threat model if we're loading a fresh BAR (not after threat model generation)
       // When generating, barDetail arrives first (to refresh pillar scores), then threatModelGenerated follows
       if (!state.threatModelGenerating) {
-        state.threatModel = null;
+        // Load saved threat model from disk if available
+        const saved = (message as Record<string, unknown>).savedThreatModel as ThreatModelResult | null | undefined;
+        state.threatModel = saved || null;
         state.threatModelProgress = '';
         state.threatModelProgressPct = 0;
       }
@@ -6398,6 +6457,12 @@ window.addEventListener('message', (event) => {
         if (!state.topFindingsLoading) {
           state.topFindingsSummary = null;
         }
+        // Reset Absolem
+        state.absolemOpen = false;
+        state.absolemMessages = [];
+        state.absolemStreaming = '';
+        state.absolemStatus = 'idle';
+        state.absolemPatches = null;
       }
       state.isLoading = false;
       state.errorMessage = '';
@@ -6901,6 +6966,82 @@ window.addEventListener('message', (event) => {
       if (Array.isArray(errors) && errors.length > 0) {
         console.warn('CALM validation:', errors);
       }
+      break;
+    }
+
+    // Absolem — multi-turn CALM refinement agent
+    case 'absolemChunk': {
+      const acBarPath = (message as Record<string, unknown>).barPath as string;
+      if (state.currentBar?.path !== acBarPath) { break; }
+
+      const chunk = (message as Record<string, unknown>).chunk as string;
+      const done = (message as Record<string, unknown>).done as boolean;
+
+      if (done) {
+        if (state.absolemStreaming) {
+          state.absolemMessages.push({ role: 'assistant', content: state.absolemStreaming });
+          state.absolemStreaming = '';
+        }
+        state.absolemStatus = 'idle';
+        render();
+      } else {
+        state.absolemStatus = 'thinking';
+        state.absolemStreaming += chunk;
+
+        // Incremental DOM update for streaming text
+        const streamEl = document.getElementById('absolem-streaming-text');
+        if (streamEl) {
+          streamEl.innerHTML = escapeHtml(state.absolemStreaming) + '<span class="absolem-cursor">|</span>';
+          const messagesEl = document.getElementById('absolem-messages');
+          if (messagesEl) { messagesEl.scrollTop = messagesEl.scrollHeight; }
+        } else {
+          render();
+        }
+      }
+      break;
+    }
+
+    case 'absolemPatches': {
+      const apBarPath = (message as Record<string, unknown>).barPath as string;
+      if (state.currentBar?.path !== apBarPath) { break; }
+
+      state.absolemPatches = {
+        patches: (message as Record<string, unknown>).patches as { op: string; target: string; field?: string; value?: unknown }[],
+        description: (message as Record<string, unknown>).description as string,
+      };
+      state.absolemStatus = 'reviewing-patches';
+      render();
+      break;
+    }
+
+    case 'absolemPatchesApplied': {
+      const ppBarPath = (message as Record<string, unknown>).barPath as string;
+      if (state.currentBar?.path !== ppBarPath) { break; }
+
+      state.absolemPatches = null;
+      state.absolemStatus = 'idle';
+      const valErrors = (message as Record<string, unknown>).validationErrors as { severity: string; message: string }[];
+      const errorCount = valErrors.filter(e => e.severity === 'error').length;
+      const warnCount = valErrors.filter(e => e.severity === 'warning').length;
+      const resultMsg = errorCount > 0
+        ? `Patches applied. Validation found ${errorCount} error(s) and ${warnCount} warning(s). Would you like me to help fix them?`
+        : `Patches applied successfully.${warnCount > 0 ? ` ${warnCount} warning(s) to review.` : ' No validation issues.'} Would you like to continue refining?`;
+      state.absolemMessages.push({ role: 'assistant', content: resultMsg });
+      render();
+      break;
+    }
+
+    case 'absolemError': {
+      const aeBarPath = (message as Record<string, unknown>).barPath as string;
+      if (state.currentBar?.path !== aeBarPath) { break; }
+
+      state.absolemStatus = 'idle';
+      state.absolemStreaming = '';
+      state.absolemMessages.push({
+        role: 'assistant',
+        content: `Error: ${(message as Record<string, unknown>).message as string}`,
+      });
+      render();
       break;
     }
 

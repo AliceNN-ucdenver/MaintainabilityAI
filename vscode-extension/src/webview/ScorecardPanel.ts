@@ -104,6 +104,9 @@ export class ScorecardPanel {
       case 'improveDeps':
         this.onImproveDeps();
         break;
+      case 'createFeature':
+        IssueCreatorPanel.createOrShow(this.context, '');
+        break;
     }
   }
 
@@ -543,6 +546,19 @@ export class ScorecardPanel {
     .history-score { font-weight: 600; min-width: 50px; }
     .history-grade { font-weight: 700; min-width: 20px; }
     .history-date { color: var(--text-secondary); }
+
+    /* Create Feature Banner */
+    .create-feature-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(124, 58, 237, 0.06);
+      border-left: 3px solid var(--accent);
+    }
 
     /* Empty state */
     .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }

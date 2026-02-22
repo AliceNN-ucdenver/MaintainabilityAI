@@ -56,6 +56,100 @@ function readThreatModelInput(barPath: string): ThreatModelInput | null {
 }
 
 // ============================================================================
+// YAML Reader — parse saved threat-model.yaml back into ThreatEntry[]
+// ============================================================================
+
+/**
+ * Parse the threat-model.yaml written by writeThreatModelYaml().
+ * Uses line-by-line parsing since the format is known and controlled.
+ */
+function parseThreatModelYaml(content: string): ThreatEntry[] {
+  const threats: ThreatEntry[] = [];
+  const lines = content.split('\n');
+
+  let current: Partial<ThreatEntry> | null = null;
+  let collectingArray: 'mitigations' | 'none' = 'none';
+
+  for (const line of lines) {
+    // New threat entry
+    if (/^\s+-\s+id:\s+(.+)/.test(line)) {
+      if (current?.id) { threats.push(finalizeThreat(current)); }
+      current = { id: line.match(/id:\s+(.+)/)?.[1]?.trim() || '' };
+      collectingArray = 'none';
+      continue;
+    }
+
+    if (!current) { continue; }
+
+    // Simple key: value fields
+    const kv = line.match(/^\s{4}(\w[\w_]*):\s+(.+)/);
+    if (kv) {
+      const [, key, rawVal] = kv;
+      const val = rawVal.replace(/^["']|["']$/g, '').trim();
+
+      switch (key) {
+        case 'category': current.category = val as ThreatEntry['category']; break;
+        case 'target': current.target = val; break;
+        case 'target_name': current.targetName = val; break;
+        case 'data_classification': current.dataClassification = val; break;
+        case 'description': current.description = val; break;
+        case 'attack_vector': current.attackVector = val; break;
+        case 'impact': current.impact = val as ThreatEntry['impact']; break;
+        case 'likelihood': current.likelihood = val as ThreatEntry['likelihood']; break;
+        case 'control_effectiveness': current.controlEffectiveness = val as ThreatEntry['controlEffectiveness']; break;
+        case 'residual_risk': current.residualRisk = val as ThreatEntry['residualRisk']; break;
+        case 'existing_controls': current.existingControls = parseInlineArray(rawVal); break;
+        case 'nist_references': current.nistReferences = parseInlineArray(rawVal); break;
+        case 'recommended_mitigations': collectingArray = 'mitigations'; current.recommendedMitigations = []; break;
+      }
+      continue;
+    }
+
+    // Array items (recommended_mitigations list entries)
+    if (collectingArray === 'mitigations') {
+      const item = line.match(/^\s{6}-\s+(.+)/);
+      if (item) {
+        current.recommendedMitigations = current.recommendedMitigations || [];
+        current.recommendedMitigations.push(item[1].replace(/^["']|["']$/g, '').trim());
+      } else if (line.trim() && !/^\s*#/.test(line) && !/^\s{6}/.test(line)) {
+        collectingArray = 'none';
+      }
+    }
+  }
+
+  // Push last threat
+  if (current?.id) { threats.push(finalizeThreat(current)); }
+
+  return threats;
+}
+
+/** Parse inline YAML array like ["val1", "val2"] */
+function parseInlineArray(raw: string): string[] {
+  const match = raw.match(/\[([^\]]*)\]/);
+  if (!match) { return []; }
+  return match[1].split(',').map(s => s.replace(/^[\s"']+|[\s"']+$/g, '')).filter(Boolean);
+}
+
+function finalizeThreat(partial: Partial<ThreatEntry>): ThreatEntry {
+  return {
+    id: partial.id || 'THR-???',
+    category: partial.category || 'spoofing',
+    target: partial.target || '',
+    targetName: partial.targetName || '',
+    dataClassification: partial.dataClassification || '',
+    description: partial.description || '',
+    attackVector: partial.attackVector || '',
+    impact: partial.impact || 'medium',
+    likelihood: partial.likelihood || 'medium',
+    existingControls: partial.existingControls || [],
+    controlEffectiveness: partial.controlEffectiveness || 'none',
+    residualRisk: partial.residualRisk || 'medium',
+    recommendedMitigations: partial.recommendedMitigations || [],
+    nistReferences: partial.nistReferences || [],
+  };
+}
+
+// ============================================================================
 // Mermaid Diagram Sanitizer
 // ============================================================================
 
@@ -541,6 +635,49 @@ export class ThreatModelService {
     }
 
     fs.writeFileSync(threatModelPath, lines.join('\n'), 'utf-8');
+  }
+
+  /**
+   * Read a previously generated threat model from disk (threat-model.yaml).
+   * Parses the YAML written by writeThreatModelYaml() and rebuilds the summary.
+   * Returns null if no saved data exists or the file can't be parsed.
+   */
+  static readSavedThreatModel(barPath: string): ThreatModelResult | null {
+    const yamlPath = path.join(barPath, 'security', 'threat-model.yaml');
+    if (!fs.existsSync(yamlPath)) { return null; }
+
+    try {
+      const content = fs.readFileSync(yamlPath, 'utf-8');
+      const threats = parseThreatModelYaml(content);
+      if (threats.length === 0) { return null; }
+
+      // Rebuild summary from parsed threats
+      const byCategory: Record<string, number> = {};
+      const byRisk: Record<string, number> = {};
+      let unmitigatedCount = 0;
+      for (const t of threats) {
+        byCategory[t.category] = (byCategory[t.category] || 0) + 1;
+        byRisk[t.residualRisk] = (byRisk[t.residualRisk] || 0) + 1;
+        if (t.controlEffectiveness === 'none') { unmitigatedCount++; }
+      }
+
+      // Read saved Mermaid diagram if available
+      let mermaidDiagram = '';
+      const mdPath = path.join(barPath, 'security', 'threat-model.md');
+      if (fs.existsSync(mdPath)) {
+        const md = fs.readFileSync(mdPath, 'utf-8');
+        const match = md.match(/```mermaid\n([\s\S]*?)```/);
+        if (match?.[1]?.trim()) { mermaidDiagram = match[1].trim(); }
+      }
+
+      return {
+        threats,
+        summary: { totalThreats: threats.length, byCategory, byRisk, unmitigatedCount },
+        mermaidDiagram,
+      };
+    } catch {
+      return null;
+    }
   }
 
   private writeThreatDiagramMd(barPath: string, mermaidDiagram: string): void {

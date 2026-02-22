@@ -43,6 +43,10 @@ import {
   generateSampleClaimsAdr002,
   generateSamplePolicyAdminAdr002,
   generateSampleFraudAdr002,
+  generateSampleImdbLiteArch,
+  generateImdbLiteDecorator,
+  generateImdbLiteMongoAdr,
+  generateImdbLiteJwtRbacAdr,
 } from '../templates/meshTemplates';
 
 export class BarService {
@@ -290,6 +294,26 @@ export class BarService {
       decorator: generateSampleCalmDecorator(),
     }, [
       { rel: 'architecture/ADRs/002-ml-model-serving-feature-store.md', content: generateSampleFraudAdr002() },
+    ]);
+  }
+
+  /**
+   * Scaffold a sample BAR for IMDB Lite (3-tier web app: React + Express API + MongoDB).
+   */
+  scaffoldImdbLiteSampleBar(
+    parentDir: string,
+    name: string,
+    appId: string,
+    portfolioId: string,
+    platformId: string,
+    criticality: Criticality
+  ): string {
+    return this.writeSampleBar(parentDir, name, appId, portfolioId, platformId, criticality, {
+      arch: generateSampleImdbLiteArch(),
+      decorator: generateImdbLiteDecorator(),
+    }, [
+      { rel: 'architecture/ADRs/002-mongodb-document-store.md', content: generateImdbLiteMongoAdr() },
+      { rel: 'architecture/ADRs/003-jwt-rbac-authentication.md', content: generateImdbLiteJwtRbacAdr() },
     ]);
   }
 

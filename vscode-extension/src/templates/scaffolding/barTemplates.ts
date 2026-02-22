@@ -312,6 +312,118 @@ effort: 2
 `;
 }
 
+// -- IMDB Lite ADRs --
+
+export function generateImdbLiteMongoAdr(): string {
+  return `# ADR-002: MongoDB Document Store for Movie Data
+
+## Status
+
+accepted
+
+## Date
+
+${new Date().toISOString().split('T')[0]}
+
+## Deciders
+
+IMDB Lite Engineering Lead, Data Architect
+
+## Context
+
+The IMDB Lite application needs a data store for movies, actors, characters, and user reviews. Movies contain nested cast arrays (actors playing characters), varying metadata fields, and poster image URLs. A relational model would require many join tables (movies, actors, characters, movie_cast, reviews) with complex queries for common operations like "get movie with full cast."
+
+## Decision
+
+Use MongoDB with Mongoose ODM. Movies are stored as self-contained documents with embedded actor/character arrays. Reviews are stored as separate documents referencing movies via ObjectId, enabling independent pagination and moderation. User accounts are a separate collection with bcrypt-hashed credentials.
+
+## Consequences
+
+Positive: Flexible schema accommodates varying movie metadata without migrations. Embedded cast arrays make single-document reads fast for the primary use case (movie detail page). Mongoose provides schema validation at the application layer. Natural fit for a read-heavy, public data workload.
+
+Negative: No multi-document ACID transactions (acceptable for this use case — movie data is not financially sensitive). Must handle eventual consistency for aggregate rating calculations. Denormalized actor data across movie documents requires update fan-out when actor profiles change.
+
+## Alternatives
+
+1. PostgreSQL with JSONB — considered but adds ORM complexity for a document-oriented data model
+2. DynamoDB — rejected due to vendor lock-in and complex query patterns for search
+3. SQLite — too limited for concurrent access in a multi-user web application
+
+## References
+
+- IMDB Lite architecture: architecture/bar.arch.json
+- ADR-001: Initial Architecture for IMDB Lite Application
+
+## Characteristics
+
+reversibility: 2
+cost: 4
+risk: 3
+complexity: 3
+effort: 3
+
+## Links
+
+- depends-on: ADR-001
+`;
+}
+
+export function generateImdbLiteJwtRbacAdr(): string {
+  return `# ADR-003: JWT with Inline RBAC for Authentication and Authorization
+
+## Status
+
+accepted
+
+## Date
+
+${new Date().toISOString().split('T')[0]}
+
+## Deciders
+
+IMDB Lite Engineering Lead, Security Architect
+
+## Context
+
+The application needs authentication (who is the user?) and authorization (what can they do?). Three user tiers exist: anonymous viewers who can browse movies, authenticated reviewers who can post reviews, and administrators who manage the movie catalog. Options considered: external identity provider (Auth0/Cognito), session-based authentication with cookies, or JWT with role-based access control.
+
+## Decision
+
+Implement JWT bearer tokens issued by the Movie API. Three roles are defined: \`viewer\` (default anonymous read access), \`reviewer\` (authenticated users who can post reviews and ratings), and \`admin\` (content administrators who can create/edit/delete movies, actors, and characters). Roles are stored as claims in the JWT payload and validated by Express middleware on each request. Passwords are hashed with bcrypt (cost factor 12).
+
+## Consequences
+
+Positive: Stateless authentication eliminates the need for a session store. JWT claims carry role information, enabling middleware-based RBAC without database lookups on every request. Simple implementation appropriate for a lightweight application. Clear separation of concerns between authentication (JWT issuance) and authorization (middleware role checks).
+
+Negative: Token revocation requires short expiration windows plus refresh token rotation. JWT payload size increases slightly with role claims. Would need to migrate to an external identity provider (Auth0, Cognito) if the application scales to production with social login or SSO requirements.
+
+## Alternatives
+
+1. Auth0/Cognito — rejected as over-engineered for a lite application; adds external dependency and cost
+2. Session-based with Redis — considered but adds infrastructure (Redis) for session storage
+3. OAuth2 + OIDC — full specification is heavyweight for three simple roles
+
+## References
+
+- IMDB Lite architecture: architecture/bar.arch.json
+- ADR-001: Initial Architecture for IMDB Lite Application
+- ADR-002: MongoDB Document Store for Movie Data
+
+## Characteristics
+
+reversibility: 2
+cost: 4
+risk: 3
+complexity: 3
+effort: 3
+
+## Links
+
+- depends-on: ADR-001
+- related: ADR-002
+`;
+}
+
 export function generateFitnessFunctions(): string {
   return `# Architecture Fitness Functions
 # Automated quality gates for this application

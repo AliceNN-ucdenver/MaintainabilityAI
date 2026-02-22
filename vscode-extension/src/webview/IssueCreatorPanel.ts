@@ -42,7 +42,7 @@ export class IssueCreatorPanel {
 
     if (IssueCreatorPanel.currentPanel) {
       IssueCreatorPanel.currentPanel.panel.reveal(column);
-      if (initialDescription) {
+      if (initialDescription !== undefined) {
         IssueCreatorPanel.currentPanel.postMessage({ type: 'prefillDescription', description: initialDescription, packs: initialPacks });
       }
       return;
@@ -50,7 +50,7 @@ export class IssueCreatorPanel {
 
     const panel = vscode.window.createWebviewPanel(
       IssueCreatorPanel.viewType,
-      'MaintainabilityAI — Issues',
+      'MaintainabilityAI — Rabbit Hole',
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -207,7 +207,7 @@ export class IssueCreatorPanel {
     }
 
     // Pre-fill description if opened with initial content (e.g. from scorecard)
-    if (this.pendingDescription) {
+    if (this.pendingDescription !== undefined) {
       this.postMessage({ type: 'prefillDescription', description: this.pendingDescription, packs: this.pendingPacks });
       this.pendingDescription = undefined;
       this.pendingPacks = undefined;
@@ -665,7 +665,7 @@ export class IssueCreatorPanel {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https://avatars.githubusercontent.com https://github.com https://user-images.githubusercontent.com;">
-  <title>MaintainabilityAI — Issues</title>
+  <title>MaintainabilityAI — Rabbit Hole</title>
   <style>
     :root {
       --bg-primary: var(--vscode-editor-background);
@@ -958,6 +958,7 @@ export class IssueCreatorPanel {
     .issue-meta { margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .issue-label { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-right: 2px; }
     .issue-time { text-align: right; flex-shrink: 0; font-size: 11px; color: var(--text-secondary); }
+    .hub-layout { padding: 0; max-width: 800px; }
     .hub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .hub-header h2 { margin-bottom: 4px; }
     .hub-empty { text-align: center; padding: 40px; color: var(--text-secondary); }
@@ -968,7 +969,7 @@ export class IssueCreatorPanel {
 <body>
   <div class="app">
     <nav class="phase-sidebar">
-      <h2>MaintainabilityAI</h2>
+      <h2>Rabbit Hole</h2>
       <ol class="phase-list" id="phaseList">
         <li class="phase-item active" data-phase="input"><span class="phase-num">1</span><span>Input & Generate</span></li>
         <li class="phase-item pending" data-phase="review"><span class="phase-num">2</span><span>Review RCTRO</span></li>

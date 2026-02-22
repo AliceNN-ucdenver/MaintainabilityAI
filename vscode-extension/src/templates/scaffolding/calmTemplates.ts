@@ -706,3 +706,237 @@ export function generateSampleCalmDecorator(): string {
     },
   }, null, 2);
 }
+
+// --------------------------------------------------------------------------
+// Sample data: IMDB Lite (3-tier web app — React + Express API + MongoDB)
+// --------------------------------------------------------------------------
+
+export function generateSampleImdbLiteArch(): string {
+  return JSON.stringify({
+    $schema: 'https://calm.finos.org/release/1.2/meta/core.json',
+    nodes: [
+      // ---- Context-level actors ----
+      {
+        'unique-id': 'movie-fan',
+        'node-type': 'actor',
+        name: 'Movie Fan',
+        description: 'End user who browses the movie catalog, reads reviews, and submits their own ratings and reviews.',
+      },
+      {
+        'unique-id': 'content-admin',
+        'node-type': 'actor',
+        name: 'Content Administrator',
+        description: 'Privileged user who manages the movie catalog, actor profiles, and character mappings.',
+      },
+      // ---- System-of-interest ----
+      {
+        'unique-id': 'imdb-lite',
+        'node-type': 'system',
+        name: 'IMDB Lite',
+        description: 'Lightweight movie database application for browsing films, managing cast information, and posting user reviews.',
+        'data-classification': 'Public',
+      },
+      // ---- Logical-level services ----
+      {
+        'unique-id': 'react-frontend',
+        'node-type': 'service',
+        name: 'React Frontend',
+        description: 'Single-page React application serving the movie catalog UI, search, and review submission forms.',
+        interfaces: [{ 'unique-id': 'frontend-http', host: 'localhost', port: 3000 }],
+      },
+      {
+        'unique-id': 'movie-api',
+        'node-type': 'service',
+        name: 'Movie API',
+        description: 'Express REST API providing CRUD endpoints for movies, actors, characters, and reviews with JWT authentication and RBAC authorization.',
+        interfaces: [{ 'unique-id': 'api-http', host: 'localhost', port: 8080 }],
+      },
+      {
+        'unique-id': 'mongodb',
+        'node-type': 'database',
+        name: 'MongoDB',
+        description: 'Document database storing movies as self-contained documents with embedded cast arrays. Reviews reference movies via ObjectId.',
+        interfaces: [{ 'unique-id': 'mongo-conn', host: 'localhost', port: 27017, database: 'imdb_lite' }],
+      },
+      // ---- External systems ----
+      {
+        'unique-id': 'image-cdn',
+        'node-type': 'system',
+        name: 'Image CDN',
+        description: 'External CDN for movie poster images and actor headshots.',
+      },
+      {
+        'unique-id': 'email-service',
+        'node-type': 'system',
+        name: 'Email Service',
+        description: 'Transactional email provider for account verification and password reset notifications.',
+      },
+    ],
+    relationships: [
+      // ---- Context-level: actor interactions ----
+      {
+        'unique-id': 'fan-uses-app',
+        description: 'Movie fan browses catalog, reads reviews, and submits ratings.',
+        'relationship-type': { interacts: { actor: 'movie-fan', nodes: ['imdb-lite'] } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'admin-manages-content',
+        description: 'Content administrator manages movies, actors, and characters via admin dashboard.',
+        'relationship-type': { interacts: { actor: 'content-admin', nodes: ['imdb-lite'] } },
+        protocol: 'HTTPS',
+      },
+      // ---- Context-level: external connects ----
+      {
+        'unique-id': 'app-to-cdn',
+        description: 'IMDB Lite loads movie poster images from the external CDN.',
+        'relationship-type': { connects: { source: { node: 'imdb-lite' }, destination: { node: 'image-cdn' } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'app-to-email',
+        description: 'IMDB Lite sends account verification and password reset emails.',
+        'relationship-type': { connects: { source: { node: 'imdb-lite' }, destination: { node: 'email-service' } } },
+        protocol: 'SMTP',
+      },
+      // ---- Logical-level: composition ----
+      { 'unique-id': 'system-composed-of-frontend', description: 'IMDB Lite composed of React Frontend.', 'relationship-type': { 'composed-of': { container: 'imdb-lite', nodes: ['react-frontend'] } } },
+      { 'unique-id': 'system-composed-of-api', description: 'IMDB Lite composed of Movie API.', 'relationship-type': { 'composed-of': { container: 'imdb-lite', nodes: ['movie-api'] } } },
+      { 'unique-id': 'system-composed-of-db', description: 'IMDB Lite composed of MongoDB.', 'relationship-type': { 'composed-of': { container: 'imdb-lite', nodes: ['mongodb'] } } },
+      // ---- Logical-level: internal connects ----
+      {
+        'unique-id': 'frontend-to-api',
+        description: 'React frontend calls Movie API for all data operations.',
+        'relationship-type': { connects: { source: { node: 'react-frontend' }, destination: { node: 'movie-api', interfaces: ['api-http'] } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'api-to-mongo',
+        description: 'Movie API reads and writes movie, cast, and review data to MongoDB.',
+        'relationship-type': { connects: { source: { node: 'movie-api' }, destination: { node: 'mongodb', interfaces: ['mongo-conn'] } } },
+        protocol: 'mongodb',
+      },
+    ],
+    flows: [
+      {
+        'unique-id': 'browse-and-review',
+        name: 'Browse & Review Movies',
+        description: 'Movie fan browses the catalog, views movie details with poster images, and submits a review.',
+        steps: [
+          { 'step-number': 1, 'source-node': 'movie-fan', 'destination-node': 'react-frontend', description: 'Browse movie catalog' },
+          { 'step-number': 2, 'source-node': 'react-frontend', 'destination-node': 'movie-api', description: 'GET /movies, GET /movies/:id' },
+          { 'step-number': 3, 'source-node': 'movie-api', 'destination-node': 'mongodb', description: 'Query movie documents' },
+          { 'step-number': 4, 'source-node': 'react-frontend', 'destination-node': 'image-cdn', description: 'Load movie poster image' },
+          { 'step-number': 5, 'source-node': 'movie-fan', 'destination-node': 'react-frontend', description: 'Submit review (requires authentication)' },
+          { 'step-number': 6, 'source-node': 'react-frontend', 'destination-node': 'movie-api', description: 'POST /reviews (JWT required)' },
+          { 'step-number': 7, 'source-node': 'movie-api', 'destination-node': 'mongodb', description: 'Validate JWT + reviewer role, write review document' },
+        ],
+      },
+      {
+        'unique-id': 'add-movie-with-cast',
+        name: 'Add Movie with Cast',
+        description: 'Content administrator adds a new movie and links actors and characters to it.',
+        steps: [
+          { 'step-number': 1, 'source-node': 'content-admin', 'destination-node': 'react-frontend', description: 'Open admin dashboard' },
+          { 'step-number': 2, 'source-node': 'react-frontend', 'destination-node': 'movie-api', description: 'POST /movies (JWT + admin role required)' },
+          { 'step-number': 3, 'source-node': 'movie-api', 'destination-node': 'mongodb', description: 'Validate JWT + RBAC (admin), create movie document' },
+          { 'step-number': 4, 'source-node': 'content-admin', 'destination-node': 'react-frontend', description: 'Add actors and characters to movie' },
+          { 'step-number': 5, 'source-node': 'react-frontend', 'destination-node': 'movie-api', description: 'POST /movies/:id/cast' },
+          { 'step-number': 6, 'source-node': 'movie-api', 'destination-node': 'mongodb', description: 'Update movie with cast references' },
+        ],
+      },
+    ],
+    decorators: [
+      {
+        $ref: 'decorators/capability-model.json',
+        mappings: {
+          'imdb-lite': {
+            capabilities: [
+              'content-management/movie-catalog/movie-search',
+              'content-management/movie-catalog/movie-detail',
+              'content-management/cast-management/actor-profiles',
+              'content-management/cast-management/character-mapping',
+              'user-engagement/reviews-ratings/user-reviews',
+              'user-engagement/reviews-ratings/rating-aggregation',
+              'user-engagement/user-accounts/authentication',
+              'user-engagement/user-accounts/user-profiles',
+            ],
+          },
+        },
+      },
+    ],
+    controls: {
+      'identification-authentication': {
+        description: 'NIST IA-2: JWT bearer tokens issued by the API. Passwords hashed with bcrypt (cost 12).',
+        requirements: [{ 'control-requirement-url': 'https://bar.example.com/standards/nist/ia-2-identification-auth.json', 'control-config-url': 'https://bar.example.com/imdb-lite/controls/auth-config.json' }],
+      },
+      'access-control': {
+        description: 'NIST AC-6: Role-based access control with three roles — viewer (anonymous read), reviewer (authenticated, can post reviews), admin (content management).',
+        requirements: [{ 'control-requirement-url': 'https://bar.example.com/standards/nist/ac-6-least-privilege.json', 'control-config-url': 'https://bar.example.com/imdb-lite/controls/rbac-config.json' }],
+      },
+      'boundary-protection': {
+        description: 'NIST SC-7: CORS allowlist, rate limiting (100 req/min), helmet security headers.',
+        requirements: [{ 'control-requirement-url': 'https://bar.example.com/standards/nist/sc-7-boundary-protection.json', 'control-config-url': 'https://bar.example.com/imdb-lite/controls/boundary-config.json' }],
+      },
+      'audit-events': {
+        description: 'NIST AU-2: Structured JSON logging for all API requests, authentication events, and authorization failures.',
+        requirements: [{ 'control-requirement-url': 'https://bar.example.com/standards/nist/au-2-audit-events.json', 'control-config-url': 'https://bar.example.com/imdb-lite/controls/audit-config.json' }],
+      },
+      'cryptographic-protection': {
+        description: 'NIST SC-13: HTTPS (TLS 1.2+) for all traffic, bcrypt (cost 12) for password hashing, JWT signed with RS256.',
+        requirements: [{ 'control-requirement-url': 'https://bar.example.com/standards/nist/sc-13-cryptographic-protection.json', 'control-config-url': 'https://bar.example.com/imdb-lite/controls/crypto-config.json' }],
+      },
+    },
+  }, null, 2);
+}
+
+export function generateImdbLiteDecorator(): string {
+  return JSON.stringify({
+    $schema: 'https://calm.finos.org/release/1.2/meta/decorator.json',
+    $id: 'https://bar.example.com/imdb-lite/capability-map.decorator.json',
+    'unique-id': 'imdb-lite-capability-map',
+    name: 'IMDB Lite Capability Map',
+    description: 'Business capability hierarchy for the IMDB Lite movie database application.',
+    'decorator-type': 'business-capability',
+    definitions: {
+      'content-management': {
+        level: 'L1', name: 'Content Management', description: 'Movie catalog and cast data management.',
+        children: {
+          'movie-catalog': {
+            level: 'L2', name: 'Movie Catalog', description: 'Movie browsing, search, and detail views.',
+            children: {
+              'movie-search': { level: 'L3', name: 'Movie Search', description: 'Full-text and filtered search across the movie catalog.' },
+              'movie-detail': { level: 'L3', name: 'Movie Detail', description: 'Individual movie pages with poster, synopsis, cast, and reviews.' },
+            },
+          },
+          'cast-management': {
+            level: 'L2', name: 'Cast Management', description: 'Actor and character data management for movies.',
+            children: {
+              'actor-profiles': { level: 'L3', name: 'Actor Profiles', description: 'Actor biographical data and filmography.' },
+              'character-mapping': { level: 'L3', name: 'Character Mapping', description: 'Linking actors to characters within specific movies.' },
+            },
+          },
+        },
+      },
+      'user-engagement': {
+        level: 'L1', name: 'User Engagement', description: 'User interaction, reviews, and account management.',
+        children: {
+          'reviews-ratings': {
+            level: 'L2', name: 'Reviews & Ratings', description: 'User-generated reviews and aggregate ratings.',
+            children: {
+              'user-reviews': { level: 'L3', name: 'User Reviews', description: 'Authenticated users can submit text reviews for movies.' },
+              'rating-aggregation': { level: 'L3', name: 'Rating Aggregation', description: 'Computed average ratings from individual user scores.' },
+            },
+          },
+          'user-accounts': {
+            level: 'L2', name: 'User Accounts', description: 'User registration, authentication, and profile management.',
+            children: {
+              authentication: { level: 'L3', name: 'Authentication', description: 'JWT-based login with bcrypt password hashing.' },
+              'user-profiles': { level: 'L3', name: 'User Profiles', description: 'User profile data and review history.' },
+            },
+          },
+        },
+      },
+    },
+  }, null, 2);
+}

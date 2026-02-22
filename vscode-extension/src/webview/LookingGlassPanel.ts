@@ -4,6 +4,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type {
+  AbsolemCommand,
   ArchitectureDsl,
   CapabilityModelType,
   BarSummary,
@@ -25,6 +26,7 @@ import { readCalmArchitectureData, readLayoutFile, writeLayoutFile } from '../se
 import { applyPatch as applyCalmPatch, type CalmPatch } from '../services/CalmWriteService';
 import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
+import { AbsolemService } from '../services/AbsolemService';
 import { generateArchetype, type ArchetypeId } from '../templates/scaffolding/archetypeTemplates';
 
 const execFileAsync = promisify(execFile);
@@ -41,6 +43,7 @@ export class LookingGlassPanel {
   private readonly gitSyncService: GitSyncService;
   private readonly capabilityModelService: CapabilityModelService;
   private readonly calmFileWatcher: CalmFileWatcher;
+  private readonly absolemService: AbsolemService;
   private disposables: vscode.Disposable[] = [];
   private lastDrilledBarPath: string | undefined;
   private lastDrilledBarName: string | undefined;
@@ -99,6 +102,7 @@ export class LookingGlassPanel {
     this.gitSyncService = new GitSyncService();
     this.capabilityModelService = new CapabilityModelService();
     this.calmFileWatcher = new CalmFileWatcher();
+    this.absolemService = new AbsolemService();
 
     // Start watching *.arch.json for external changes
     this.calmFileWatcher.start((filePath) => {
@@ -343,6 +347,27 @@ export class LookingGlassPanel {
 
       case 'saveDriftWeights':
         this.onSaveDriftWeights(message.weights);
+        break;
+
+      // Absolem — multi-turn CALM refinement agent
+      case 'absolemStart':
+        this.onAbsolemStart(message.barPath, message.command).catch(() => {});
+        break;
+
+      case 'absolemSend':
+        this.onAbsolemSend(message.barPath, message.message).catch(() => {});
+        break;
+
+      case 'absolemAcceptPatches':
+        this.onAbsolemAcceptPatches(message.barPath, message.patches as CalmPatch[]);
+        break;
+
+      case 'absolemRejectPatches':
+        this.onAbsolemRejectPatches(message.barPath);
+        break;
+
+      case 'absolemClose':
+        this.onAbsolemClose(message.barPath);
         break;
 
       case 'openUrl':
@@ -722,7 +747,10 @@ export class LookingGlassPanel {
         logical: readLayoutFile(barPath, 'logical'),
       };
 
-      this.postMessage({ type: 'barDetail', bar, decisions, repoTree, diagrams, adrs, calmData, layouts });
+      // Saved threat model (if previously generated)
+      const savedThreatModel = ThreatModelService.readSavedThreatModel(barPath);
+
+      this.postMessage({ type: 'barDetail', bar, decisions, repoTree, diagrams, adrs, calmData, layouts, savedThreatModel });
       // Refresh git status for sync indicators
       if (summary) {
         this.sendGitStatus(meshPath, summary.allBars);
@@ -1046,10 +1074,18 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       return;
     }
 
-    this.postMessage({ type: 'loading', active: true, message: 'Creating sample platform...' });
+    const choice = await vscode.window.showQuickPick([
+      { label: 'Insurance Operations', description: '3 BARs: Claims, Policy Admin, Fraud Detection', value: 'insurance' },
+      { label: 'IMDB Lite', description: '3-tier web app: React + Express API + MongoDB', value: 'imdb-lite' },
+    ], { placeHolder: 'Select a sample platform template' });
+    if (!choice) { return; }
+
+    this.postMessage({ type: 'loading', active: true, message: `Creating ${choice.label}...` });
 
     try {
-      const result = this.meshService.scaffoldSamplePlatform(meshPath);
+      const result = choice.value === 'imdb-lite'
+        ? this.meshService.scaffoldImdbLitePlatform(meshPath)
+        : this.meshService.scaffoldSamplePlatform(meshPath);
       this.postMessage({
         type: 'samplePlatformCreated',
         platformCount: result.platformCount,
@@ -1813,6 +1849,130 @@ Policy file: ${filename}
     this.meshService.saveDriftWeights(meshPath, weights);
     this.postMessage({ type: 'driftWeightsSaved' });
     this.postMessage({ type: 'info', message: 'Drift weights saved to mesh.yaml. Sync your mesh to push changes.' });
+  }
+
+  // --------------------------------------------------------------------------
+  // Absolem — Multi-Turn CALM Refinement Agent
+  // --------------------------------------------------------------------------
+
+  private buildAbsolemChunkCallback(barPath: string): (chunk: string, done: boolean) => void {
+    return (chunk: string, done: boolean) => {
+      this.postMessage({ type: 'absolemChunk', barPath, chunk, done });
+
+      if (done) {
+        const conv = this.absolemService.getConversation(barPath);
+        if (conv) {
+          const msgs = conv.messages;
+          const lastAssistant = [...msgs].reverse().find(m => m.role === 'assistant');
+          if (lastAssistant) {
+            const result = this.absolemService.extractPatches(lastAssistant.content);
+            if (result) {
+              this.postMessage({
+                type: 'absolemPatches',
+                barPath,
+                patches: result.patches,
+                description: result.description,
+              });
+            }
+          }
+        }
+      }
+    };
+  }
+
+  private async onAbsolemStart(barPath: string, command: AbsolemCommand): Promise<void> {
+    // Read CALM data
+    const calmData = readCalmArchitectureData(barPath);
+    if (!calmData) {
+      this.postMessage({ type: 'absolemError', barPath, message: 'No CALM architecture data found (bar.arch.json).' });
+      return;
+    }
+
+    // Read latest review report (for drift-analysis)
+    let reviewReport: string | null = null;
+    if (command === 'drift-analysis') {
+      const reviews = this.barService.readReviews(barPath);
+      if (reviews && reviews.length > 0) {
+        const latest = reviews[reviews.length - 1];
+        const reportPath = path.join(barPath, 'reports', `review-${latest.issueNumber}.md`);
+        if (fs.existsSync(reportPath)) {
+          try { reviewReport = fs.readFileSync(reportPath, 'utf8'); } catch { /* best effort */ }
+        }
+      }
+      if (!reviewReport) {
+        this.postMessage({ type: 'absolemError', barPath, message: 'No review reports found. Run an Oraculum review first, then try drift analysis.' });
+        return;
+      }
+    }
+
+    // Run validation (for validate command)
+    let validationErrors: import('../services/CalmValidator').CalmValidationError[] | null = null;
+    if (command === 'validate') {
+      validationErrors = validateCalm(calmData as Record<string, unknown>);
+    }
+
+    try {
+      await this.absolemService.startConversation(
+        barPath, command, calmData, reviewReport, validationErrors,
+        this.buildAbsolemChunkCallback(barPath),
+      );
+    } catch (err) {
+      this.postMessage({
+        type: 'absolemError',
+        barPath,
+        message: `Failed to start Absolem: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+
+  private async onAbsolemSend(barPath: string, userMessage: string): Promise<void> {
+    try {
+      await this.absolemService.sendMessage(
+        barPath, userMessage,
+        this.buildAbsolemChunkCallback(barPath),
+      );
+    } catch (err) {
+      this.postMessage({
+        type: 'absolemError',
+        barPath,
+        message: `Absolem error: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+
+  private onAbsolemAcceptPatches(barPath: string, patches: CalmPatch[]): void {
+    try {
+      const archFile = path.join(barPath, 'architecture', 'bar.arch.json');
+      const contentHash = applyCalmPatch(archFile, patches);
+
+      if (contentHash) {
+        this.calmFileWatcher.markWritten(archFile, contentHash);
+
+        const raw = fs.readFileSync(archFile, 'utf-8');
+        const data = JSON.parse(raw);
+        const errors = validateCalm(data);
+
+        this.postMessage({ type: 'absolemPatchesApplied', barPath, validationErrors: errors });
+        this.postMessage({ type: 'calmDataUpdated', calmData: data });
+      }
+    } catch (err) {
+      this.postMessage({
+        type: 'absolemError',
+        barPath,
+        message: `Failed to apply patches: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+
+  private onAbsolemRejectPatches(barPath: string): void {
+    const conv = this.absolemService.getConversation(barPath);
+    if (conv) {
+      // Conversation continues — patches just aren't applied
+    }
+  }
+
+  private onAbsolemClose(barPath: string): void {
+    this.absolemService.clearConversation(barPath);
   }
 
   private async detectMeshRepo(meshPath: string): Promise<void> {

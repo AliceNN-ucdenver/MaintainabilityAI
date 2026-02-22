@@ -384,7 +384,8 @@ export type ScorecardWebviewMessage =
   | { type: 'refreshDeps' }
   | { type: 'runCoverage' }
   | { type: 'improveCoverage' }
-  | { type: 'improveDeps' };
+  | { type: 'improveDeps' }
+  | { type: 'createFeature' };
 
 export type ScorecardExtensionMessage =
   | { type: 'scorecardData'; data: ScorecardData }
@@ -839,6 +840,21 @@ export type OracularExtensionMessage =
   | { type: 'startCreateFlow'; barPath: string; bar: BarSummary; repos: string[] };
 
 // ============================================================================
+// Absolem — Multi-Turn CALM Refinement Agent
+// ============================================================================
+
+export type AbsolemCommand = 'drift-analysis' | 'add-components' | 'validate' | 'freeform';
+
+export interface CalmPatch {
+  op: 'addNode' | 'removeNode' | 'addRelationship' | 'removeRelationship'
+    | 'updateField' | 'setControl' | 'removeControl' | 'setCapabilities'
+    | 'setInterfaces' | 'updateComposedOf';
+  target: string;
+  field?: string;
+  value?: unknown;
+}
+
+// ============================================================================
 // Looking Glass Message Protocol
 // ============================================================================
 
@@ -901,11 +917,17 @@ export type LookingGlassWebviewMessage =
   | { type: 'saveIssueTemplate'; content: string }
   | { type: 'reinitializeMesh' }
   | { type: 'loadDriftWeights' }
-  | { type: 'saveDriftWeights'; weights: DriftWeights };
+  | { type: 'saveDriftWeights'; weights: DriftWeights }
+  // Absolem — multi-turn CALM refinement agent
+  | { type: 'absolemStart'; barPath: string; command: AbsolemCommand }
+  | { type: 'absolemSend'; barPath: string; message: string }
+  | { type: 'absolemAcceptPatches'; barPath: string; patches: CalmPatch[] }
+  | { type: 'absolemRejectPatches'; barPath: string }
+  | { type: 'absolemClose'; barPath: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary }
-  | { type: 'barDetail'; bar: BarSummary; decisions: GovernanceDecision[]; repoTree: string[]; diagrams?: MermaidDiagrams; adrs?: AdrRecord[]; calmData?: object | null; layouts?: { context: object | null; logical: object | null } }
+  | { type: 'barDetail'; bar: BarSummary; decisions: GovernanceDecision[]; repoTree: string[]; diagrams?: MermaidDiagrams; adrs?: AdrRecord[]; calmData?: object | null; layouts?: { context: object | null; logical: object | null }; savedThreatModel?: ThreatModelResult | null }
   | { type: 'meshInitialized'; path: string; repoUrl?: string }
   | { type: 'platformAdded'; id: string; name: string }
   | { type: 'barScaffolded'; id: string; name: string; path: string }
@@ -960,4 +982,9 @@ export type LookingGlassExtensionMessage =
   | { type: 'driftWeightsSaved' }
   // Phase 2 — CALM editing
   | { type: 'calmDataUpdated'; calmData: object }
-  | { type: 'calmValidationErrors'; errors: { severity: 'error' | 'warning' | 'info'; message: string; path: string; nodeId?: string }[] };
+  | { type: 'calmValidationErrors'; errors: { severity: 'error' | 'warning' | 'info'; message: string; path: string; nodeId?: string }[] }
+  // Absolem — multi-turn CALM refinement agent
+  | { type: 'absolemChunk'; barPath: string; chunk: string; done: boolean }
+  | { type: 'absolemPatches'; barPath: string; patches: CalmPatch[]; description: string }
+  | { type: 'absolemPatchesApplied'; barPath: string; validationErrors: { severity: 'error' | 'warning' | 'info'; message: string; path: string; nodeId?: string }[] }
+  | { type: 'absolemError'; barPath: string; message: string };
