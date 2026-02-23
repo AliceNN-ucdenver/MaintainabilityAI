@@ -146,6 +146,32 @@ export function generateAliceRemediationWorkflow(extensionPath: string): string 
   return readScaffoldFile(extensionPath, 'workflows', 'alice-remediation.yml');
 }
 
+export function generateCopilotSetupSteps(stack: TechStack, extensionPath: string): string {
+  const cmds = getStackCommands(stack);
+  let yml = readScaffoldFile(extensionPath, 'workflows', 'copilot-setup-steps.yml');
+
+  // getStackCommands() returns setup strings with 6-space indent (for nested workflow YAML).
+  // copilot-setup-steps.yml uses 2-space indent under `steps:`, so strip the extra 4 spaces.
+  const setup = cmds.setup.replace(/^      /gm, '  ');
+  yml = yml.replace(/\{\{SETUP_STEPS\}\}/g, setup);
+  yml = yml.replace(/\{\{INSTALL_CMD\}\}/g, cmds.install);
+
+  // Add extra setup for test frameworks that download binaries at runtime
+  const testing = stack.testing?.toLowerCase() || '';
+  let extra = '';
+  if (testing === 'mocha' || testing === 'jest') {
+    // Pre-download MongoMemoryServer binary if mongodb-memory-server is a dependency
+    extra += '  - name: Pre-cache MongoDB binary (for MongoMemoryServer)\n';
+    extra += '    run: |\n';
+    extra += '      if grep -q "mongodb-memory-server" package.json 2>/dev/null; then\n';
+    extra += '        npx mongodb-memory-server --download-only 2>/dev/null || true\n';
+    extra += '      fi\n';
+    extra += '    continue-on-error: true\n';
+  }
+  yml = yml.replace(/\{\{EXTRA_SETUP\}\}/g, extra);
+  return yml;
+}
+
 export function generateCodeqlWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'codeql.yml');
 }
@@ -344,6 +370,10 @@ export function generateOraculumWorkflow(extensionPath: string): string {
 
 export function generateOraculumDefaultPrompt(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'prompts', 'oraculum-default.md');
+}
+
+export function generateScaffoldPromptPack(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'prompts', 'cheshire-scaffold-default.md');
 }
 
 export function generateOraculumPromptPack(extensionPath: string, packId: string): string {

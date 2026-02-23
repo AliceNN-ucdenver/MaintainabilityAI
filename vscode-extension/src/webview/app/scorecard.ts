@@ -79,6 +79,23 @@ const state = {
   trends: {} as Record<string, TrendDirection>,
   packageManager: 'Unknown',
   testing: 'Unknown',
+  // Settings
+  view: 'scorecard' as 'scorecard' | 'settings',
+  settingsAliceWorkflowExists: null as boolean | null,
+  availableModels: [] as { id: string; family: string; name: string; vendor: string }[],
+  settingsPreferredModel: '',
+  // Workspace folders
+  workspaceFolders: [] as { name: string; path: string }[],
+  selectedFolder: '',
+  // Active Rabbit Hole issue
+  activeIssue: null as {
+    number: number; url: string; phase: string; status: string; repo: string;
+    title?: string;
+    agent?: 'claude' | 'copilot' | 'unknown';
+    pr?: { number: number; url: string; title: string; draft: boolean };
+  } | null,
+  // Repo sync status
+  syncStatus: null as { behind: number; ahead: number; branch: string } | null,
 };
 
 const rootEl = document.getElementById('scorecard-root')!;
@@ -107,6 +124,13 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
 // ============================================================================
 
 function render() {
+  // Settings view takes over completely
+  if (state.view === 'settings') {
+    rootEl.innerHTML = renderSettingsView();
+    attachSettingsEvents();
+    return;
+  }
+
   if (state.isLoading && !state.data) {
     rootEl.innerHTML = `
       <div class="scorecard-header">
@@ -117,12 +141,16 @@ function render() {
             <p>${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'Detecting repository...'}</p>
           </div>
         </div>
+        <div class="header-right">
+          <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
+        </div>
       </div>
       <div class="loading-overlay">
         <div class="spinner"></div>
         <p>${escapeHtml(state.loadingMessage)}</p>
       </div>
     `;
+    attachSettingsGear();
     return;
   }
 
@@ -137,12 +165,14 @@ function render() {
           </div>
         </div>
         <div class="header-right">
+          <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
           <button id="btn-refresh" class="btn-secondary btn-icon" title="Refresh">&#x21BB;</button>
         </div>
       </div>
       <div class="error-msg">${escapeHtml(state.errorMessage)}</div>
     `;
     attachRefresh();
+    attachSettingsGear();
     return;
   }
 
@@ -162,11 +192,15 @@ function render() {
         </div>
       </div>
       <div class="header-right">
+        ${renderFolderDropdown()}
         <span class="last-refreshed">${formatTimestamp(d.lastRefreshed)}</span>
+        <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
         <button id="btn-refresh" class="btn-secondary btn-icon" title="Refresh" ${state.isLoading ? 'disabled' : ''}>&#x21BB;</button>
       </div>
     </div>
 
+    ${renderActiveIssueCard()}
+    ${renderSyncBanner()}
     ${renderCreateFeatureBanner()}
     ${renderPmatBanner(d)}
     ${renderGradeCard(d)}
@@ -182,6 +216,70 @@ function render() {
   attachPmatInstall();
   attachMetricActions();
   attachCreateFeature();
+  attachSyncBanner();
+  attachFolderSelect();
+  attachActiveIssue();
+  attachSettingsGear();
+}
+
+function renderFolderDropdown(): string {
+  if (state.workspaceFolders.length < 2) { return ''; }
+  const options = state.workspaceFolders.map(f =>
+    `<option value="${escapeHtml(f.path)}" ${f.path === state.selectedFolder ? 'selected' : ''}>${escapeHtml(f.name)}</option>`
+  ).join('');
+  return `<select id="folder-select" class="folder-select" title="Workspace folder">${options}</select>`;
+}
+
+function renderActiveIssueCard(): string {
+  const issue = state.activeIssue;
+  if (!issue) { return ''; }
+
+  // Determine agent label
+  const agentLabel = issue.agent === 'claude' ? 'Claude'
+    : issue.agent === 'copilot' ? 'Copilot'
+    : 'Agent';
+
+  // Determine status text
+  const statusText = issue.pr
+    ? (issue.pr.draft ? `<strong>${agentLabel}</strong> is working on this` : `<strong>${agentLabel}</strong> PR ready for review`)
+    : `<strong>${agentLabel}</strong> is working on this`;
+
+  // PR link
+  let prHtml = '';
+  if (issue.pr) {
+    const draftBadge = issue.pr.draft ? ' <span class="active-issue-draft-badge">Draft</span>' : '';
+    prHtml = `<span style="margin-left: 12px;">PR <a href="#" class="active-issue-link" data-url="${escapeAttr(issue.pr.url)}">#${issue.pr.number}</a>${draftBadge}</span>`;
+  }
+
+  return `
+    <div class="active-issue-card">
+      <span class="active-issue-pulse"></span>
+      <span style="font-size: 13px;">${statusText}</span>
+      <span class="active-issue-links">
+        Issue <a href="#" class="active-issue-link" data-url="${escapeAttr(issue.url)}">#${issue.number}</a>
+        ${prHtml}
+      </span>
+    </div>
+  `;
+}
+
+function renderSyncBanner(): string {
+  const sync = state.syncStatus;
+  if (!sync || sync.behind === 0) { return ''; }
+  return `
+    <div class="sync-banner">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 16px;">&#x1F504;</span>
+        <div>
+          <strong>Out of sync</strong>
+          <span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">
+            <code>${escapeHtml(sync.branch)}</code> is ${sync.behind} commit${sync.behind !== 1 ? 's' : ''} behind remote
+          </span>
+        </div>
+      </div>
+      <button id="btn-sync-repo" class="btn-primary" style="padding: 4px 14px; font-size: 12px;">Pull Changes</button>
+    </div>
+  `;
 }
 
 function renderCreateFeatureBanner(): string {
@@ -403,6 +501,144 @@ function renderQuickActions(repoUrl: string): string {
 }
 
 // ============================================================================
+// Settings View
+// ============================================================================
+
+function renderSettingsView(): string {
+  const repoLabel = state.repo
+    ? `${state.repo.owner}/${state.repo.repo}`
+    : state.data?.repo
+    ? `${state.data.repo.owner}/${state.data.repo.repo}`
+    : 'No repository detected';
+
+  return `
+    <div class="scorecard-header">
+      <div class="header-left">
+        ${CHESHIRE_SVG}
+        <div>
+          <h1>Security Scorecard</h1>
+          <p>${escapeHtml(repoLabel)}</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="btn-settings-gear" class="settings-gear" title="Back to Scorecard" style="color: var(--accent);">&#x2699;</button>
+      </div>
+    </div>
+    <div class="settings-panel">
+      <div class="settings-header">
+        <button id="btn-back-from-settings" class="btn-ghost">&larr; Back to Scorecard</button>
+        <h2>Settings</h2>
+      </div>
+      ${renderSettingsAliceWorkflow()}
+      ${renderSettingsLlmModel()}
+    </div>
+  `;
+}
+
+function renderSettingsAliceWorkflow(): string {
+  const statusLabel = state.settingsAliceWorkflowExists === null
+    ? '<span class="status-badge checking">Checking\u2026</span>'
+    : state.settingsAliceWorkflowExists
+    ? '<span class="status-badge deployed">Deployed</span>'
+    : '<span class="status-badge not-deployed">Not Deployed</span>';
+
+  const buttonLabel = state.settingsAliceWorkflowExists ? 'Redeploy Workflow' : 'Deploy Workflow';
+  const buttonClass = state.settingsAliceWorkflowExists ? 'btn-secondary' : 'btn-primary';
+
+  return `
+    <div class="settings-section">
+      <h3>Alice Remediation Workflow</h3>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+        The <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">alice-remediation.yml</code> GitHub Action enables AI-powered issue remediation.
+        Comment <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">@claude</code> on an issue to trigger analysis and implementation.
+      </p>
+      <div class="settings-row">
+        <div class="settings-label">Status</div>
+        <div>${statusLabel}</div>
+      </div>
+      <div class="settings-row" style="justify-content: flex-start;">
+        <button id="btn-deploy-alice" class="${buttonClass}">${buttonLabel}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSettingsLlmModel(): string {
+  const models = state.availableModels;
+  const current = state.settingsPreferredModel || 'gpt-4o';
+
+  let options = '';
+  if (models.length > 0) {
+    const seen = new Set<string>();
+    for (const m of models) {
+      if (!seen.has(m.family)) {
+        seen.add(m.family);
+        const selected = m.family === current ? ' selected' : '';
+        options += `<option value="${escapeHtml(m.family)}"${selected}>${escapeHtml(m.name)} (${escapeHtml(m.vendor)})</option>`;
+      }
+    }
+  } else {
+    const fallbacks = ['gpt-4o', 'gpt-4', 'codex', 'claude-sonnet'];
+    options = fallbacks.map(f =>
+      `<option value="${f}"${f === current ? ' selected' : ''}>${f}</option>`
+    ).join('');
+  }
+
+  return `
+    <div class="settings-section">
+      <h3>LLM Model</h3>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+        Preferred VS Code Language Model for AI-assisted features like issue generation, threat modeling, and coverage analysis.
+      </p>
+      <div class="settings-row">
+        <div class="settings-label">Preferred Model</div>
+        <select id="settings-model-select" class="settings-select">${options}</select>
+      </div>
+      <div class="settings-row" style="justify-content: flex-start;">
+        <button id="btn-save-model-pref" class="btn-primary">Save Preference</button>
+      </div>
+    </div>
+  `;
+}
+
+function attachSettingsGear() {
+  document.getElementById('btn-settings-gear')?.addEventListener('click', () => {
+    state.view = 'settings';
+    state.settingsAliceWorkflowExists = null;
+    vscode.postMessage({ type: 'checkAliceWorkflowStatus' });
+    vscode.postMessage({ type: 'listModels' });
+    render();
+  });
+}
+
+function attachSettingsEvents() {
+  // Back to scorecard
+  document.getElementById('btn-back-from-settings')?.addEventListener('click', () => {
+    state.view = 'scorecard';
+    render();
+  });
+
+  // Gear button on settings page toggles back
+  document.getElementById('btn-settings-gear')?.addEventListener('click', () => {
+    state.view = 'scorecard';
+    render();
+  });
+
+  // Deploy alice-remediation workflow
+  document.getElementById('btn-deploy-alice')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'deployAliceWorkflow' });
+  });
+
+  // Save model preference
+  document.getElementById('btn-save-model-pref')?.addEventListener('click', () => {
+    const select = document.getElementById('settings-model-select') as HTMLSelectElement;
+    if (select) {
+      vscode.postMessage({ type: 'savePreferredModel', family: select.value });
+    }
+  });
+}
+
+// ============================================================================
 // Event Handlers
 // ============================================================================
 
@@ -434,6 +670,41 @@ function attachActions() {
 function attachCreateFeature() {
   document.getElementById('btn-create-feature')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'createFeature' });
+  });
+}
+
+function attachSyncBanner() {
+  document.getElementById('btn-sync-repo')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Pulling...'; }
+    vscode.postMessage({ type: 'syncRepo' });
+  });
+}
+
+function attachFolderSelect() {
+  const select = document.getElementById('folder-select') as HTMLSelectElement | null;
+  select?.addEventListener('change', () => {
+    state.selectedFolder = select.value;
+    vscode.postMessage({ type: 'switchFolder', folderPath: select.value });
+  });
+}
+
+function attachActiveIssue() {
+  // Issue link — open in browser
+  document.querySelectorAll('.active-issue-link').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = (el as HTMLElement).dataset.url;
+      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
+    });
+  });
+  // PR link — open in browser
+  document.querySelectorAll('.active-issue-pr-link').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = (el as HTMLElement).dataset.url;
+      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
+    });
   });
 }
 
@@ -469,6 +740,10 @@ function trendIndicator(direction: TrendDirection): string {
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function formatTimestamp(iso: string): string {
@@ -536,6 +811,54 @@ window.addEventListener('message', (event) => {
     case 'techStackInfo':
       state.packageManager = message.packageManager;
       state.testing = message.testing;
+      break;
+
+    // Settings messages
+    case 'aliceWorkflowStatus':
+      state.settingsAliceWorkflowExists = message.exists;
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'aliceWorkflowDeployed':
+      state.settingsAliceWorkflowExists = true;
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'availableModels':
+      state.availableModels = message.models;
+      if (!state.settingsPreferredModel) {
+        state.settingsPreferredModel = message.defaultFamily || 'gpt-4o';
+      }
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'preferredModelSaved':
+      state.settingsPreferredModel = message.family;
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'workspaceFolders':
+      state.workspaceFolders = message.folders;
+      if (message.selectedPath) {
+        state.selectedFolder = message.selectedPath;
+      } else if (!state.selectedFolder && message.folders.length > 0) {
+        state.selectedFolder = message.folders[0].path;
+      }
+      render();
+      break;
+
+    case 'activeIssueUpdate':
+      state.activeIssue = message.issue;
+      render();
+      break;
+
+    case 'syncStatus':
+      state.syncStatus = { behind: message.behind, ahead: message.ahead, branch: message.branch };
+      render();
+      break;
+
+    case 'repoSynced':
+      // syncStatus will be updated by the subsequent syncStatus message
       break;
   }
 });

@@ -51,10 +51,28 @@ export class OpenAiProvider implements LlmProvider {
   }
 
   private parseRctroResponse(text: string): RctroPrompt {
-    const cleaned = text.replace(/^```(?:json)?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim();
+    // Strategy 1: extract from ```json ... ``` code fence
+    let jsonStr: string | undefined;
+    const fenceMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n\s*```/);
+    if (fenceMatch) {
+      jsonStr = fenceMatch[1].trim();
+    }
+
+    // Strategy 2: find the outermost { ... } brace pair
+    if (!jsonStr) {
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = text.substring(firstBrace, lastBrace + 1);
+      }
+    }
+
+    if (!jsonStr) {
+      throw new Error(`Failed to parse LLM response as RCTRO JSON — no JSON found. Raw response:\n${text.substring(0, 500)}`);
+    }
 
     try {
-      const parsed = JSON.parse(cleaned);
+      const parsed = JSON.parse(jsonStr);
       return {
         title: parsed.title || undefined,
         role: parsed.role || '',
@@ -69,8 +87,8 @@ export class OpenAiProvider implements LlmProvider {
           : [],
         output: parsed.output || '',
       };
-    } catch {
-      throw new Error(`Failed to parse LLM response as RCTRO JSON. Raw response:\n${text.substring(0, 500)}`);
+    } catch (err) {
+      throw new Error(`Failed to parse LLM response as RCTRO JSON. Error: ${err instanceof Error ? err.message : String(err)}\nRaw response:\n${text.substring(0, 500)}`);
     }
   }
 }

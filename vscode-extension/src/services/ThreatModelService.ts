@@ -515,11 +515,23 @@ export class ThreatModelService {
   }
 
   private parseResponse(text: string): { threats: ThreatEntry[]; llmDiagram: string } {
-    // Strip markdown code fences if present
-    const cleaned = text
-      .replace(/^```(?:json)?\s*\n?/m, '')
-      .replace(/\n?```\s*$/m, '')
-      .trim();
+    // Extract JSON from the response — LLMs often wrap in code fences or add preamble/postamble
+    let jsonStr = text;
+
+    // Strategy 1: extract from ```json ... ``` code fence
+    const fenceMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n\s*```/);
+    if (fenceMatch) {
+      jsonStr = fenceMatch[1];
+    } else {
+      // Strategy 2: find the outermost { ... } brace pair
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = text.substring(firstBrace, lastBrace + 1);
+      }
+    }
+
+    jsonStr = jsonStr.trim();
 
     let parsed: {
       threats: Array<{
@@ -542,7 +554,7 @@ export class ThreatModelService {
     };
 
     try {
-      parsed = JSON.parse(cleaned);
+      parsed = JSON.parse(jsonStr);
     } catch {
       throw new Error(`Failed to parse AI threat model response as JSON. Raw response:\n${text.substring(0, 500)}`);
     }

@@ -93,7 +93,7 @@ export interface IssueCreationRequest {
 
 export interface PromptPackContent {
   id: string;
-  category: 'owasp' | 'maintainability' | 'threat-modeling';
+  category: 'owasp' | 'maintainability' | 'threat-modeling' | 'default';
   name: string;
   filename: string;
   content: string;
@@ -242,6 +242,15 @@ export interface IssueTemplate {
 // Scaffold Types
 // ============================================================================
 
+export interface ComponentScaffoldContext {
+  barPath: string;
+  barName: string;
+  repoUrl: string;
+  repoName: string;               // Just the repo name portion (e.g. "my-service")
+  description: string;            // Pre-built markdown with all BAR context
+  packs: PromptPackSelection;     // Pre-selected prompt packs for Rabbit Hole
+}
+
 export interface ScaffoldOptions {
   includeClaudeMd: boolean;
   includeCopilotMd: boolean;
@@ -385,7 +394,14 @@ export type ScorecardWebviewMessage =
   | { type: 'runCoverage' }
   | { type: 'improveCoverage' }
   | { type: 'improveDeps' }
-  | { type: 'createFeature' };
+  | { type: 'createFeature' }
+  | { type: 'checkAliceWorkflowStatus' }
+  | { type: 'deployAliceWorkflow' }
+  | { type: 'listModels' }
+  | { type: 'savePreferredModel'; family: string }
+  | { type: 'switchFolder'; folderPath: string }
+  | { type: 'checkSync' }
+  | { type: 'syncRepo' };
 
 export type ScorecardExtensionMessage =
   | { type: 'scorecardData'; data: ScorecardData }
@@ -394,7 +410,15 @@ export type ScorecardExtensionMessage =
   | { type: 'repoDetected'; repo: RepoInfo }
   | { type: 'pmatStatusUpdate'; installed: boolean }
   | { type: 'historyData'; history: ScorecardSnapshot[]; trends: Record<string, TrendDirection> }
-  | { type: 'techStackInfo'; packageManager: string; testing: string };
+  | { type: 'techStackInfo'; packageManager: string; testing: string }
+  | { type: 'aliceWorkflowStatus'; exists: boolean }
+  | { type: 'aliceWorkflowDeployed' }
+  | { type: 'availableModels'; models: { id: string; family: string; name: string; vendor: string }[]; defaultFamily: string }
+  | { type: 'preferredModelSaved'; family: string }
+  | { type: 'workspaceFolders'; folders: { name: string; path: string }[] }
+  | { type: 'activeIssueUpdate'; issue: { number: number; url: string; phase: string; status: string; repo: string } | null }
+  | { type: 'syncStatus'; behind: number; ahead: number; branch: string }
+  | { type: 'repoSynced' };
 
 // ============================================================================
 // Governance Mesh Types (Looking Glass)
@@ -895,6 +919,7 @@ export type LookingGlassWebviewMessage =
   | { type: 'switchCapabilityModel'; modelType: CapabilityModelType }
   | { type: 'uploadCustomModel'; jsonContent: string }
   | { type: 'openRepoInContext'; repoUrl: string; barPath: string }
+  | { type: 'scaffoldComponent'; repoUrl: string; barPath: string }
   | { type: 'loadPolicies' }
   | { type: 'savePolicy'; filename: string; content: string }
   | { type: 'lookupNistControl'; controlId: string }
@@ -923,10 +948,14 @@ export type LookingGlassWebviewMessage =
   | { type: 'absolemSend'; barPath: string; message: string }
   | { type: 'absolemAcceptPatches'; barPath: string; patches: CalmPatch[] }
   | { type: 'absolemRejectPatches'; barPath: string }
-  | { type: 'absolemClose'; barPath: string };
+  | { type: 'absolemClose'; barPath: string }
+  // CALM component implementation
+  | { type: 'getCalmComponents'; barPath: string }
+  | { type: 'implementComponent'; barPath: string; componentId: string; repoName: string; componentName: string; componentType: string; componentDescription: string }
+  | { type: 'saveWorkspace'; name: string };
 
 export type LookingGlassExtensionMessage =
-  | { type: 'portfolioData'; data: PortfolioSummary }
+  | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
   | { type: 'barDetail'; bar: BarSummary; decisions: GovernanceDecision[]; repoTree: string[]; diagrams?: MermaidDiagrams; adrs?: AdrRecord[]; calmData?: object | null; layouts?: { context: object | null; logical: object | null }; savedThreatModel?: ThreatModelResult | null }
   | { type: 'meshInitialized'; path: string; repoUrl?: string }
   | { type: 'platformAdded'; id: string; name: string }
@@ -947,6 +976,7 @@ export type LookingGlassExtensionMessage =
   | { type: 'availableModels'; models: { id: string; family: string; name: string; vendor: string }[]; defaultFamily: string }
   | { type: 'threatModelProgress'; step: string; progress: number }
   | { type: 'threatModelGenerated'; result: ThreatModelResult }
+  | { type: 'threatModelFailed' }
   | { type: 'threatModelExported'; filePath: string }
   | { type: 'adrList'; adrs: AdrRecord[] }
   | { type: 'adrSaved'; adr: AdrRecord }
@@ -987,4 +1017,6 @@ export type LookingGlassExtensionMessage =
   | { type: 'absolemChunk'; barPath: string; chunk: string; done: boolean }
   | { type: 'absolemPatches'; barPath: string; patches: CalmPatch[]; description: string }
   | { type: 'absolemPatchesApplied'; barPath: string; validationErrors: { severity: 'error' | 'warning' | 'info'; message: string; path: string; nodeId?: string }[] }
-  | { type: 'absolemError'; barPath: string; message: string };
+  | { type: 'absolemError'; barPath: string; message: string }
+  // CALM component picker
+  | { type: 'calmComponents'; components: { id: string; name: string; type: string; description: string; suggestedRepo: string }[] };

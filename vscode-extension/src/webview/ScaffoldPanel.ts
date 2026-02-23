@@ -19,8 +19,11 @@ import {
   generatePromptHashGenerator,
   generateProcessCodeqlResults,
   generateRepoMetadata,
+  generateCopilotSetupSteps,
 } from '../templates/scaffoldTemplates';
 import { readRepoMetadata } from '../services/RepoMetadata';
+import type { ComponentScaffoldContext } from '../types';
+import { IssueCreatorPanel } from './IssueCreatorPanel';
 
 const execFileAsync = promisify(execFile);
 
@@ -30,9 +33,11 @@ export class ScaffoldPanel {
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionPath: string;
+  private readonly extensionContext: vscode.ExtensionContext;
+  private componentContext?: ComponentScaffoldContext;
   private disposables: vscode.Disposable[] = [];
 
-  public static createOrShow(context: vscode.ExtensionContext) {
+  public static createOrShow(context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -52,14 +57,43 @@ export class ScaffoldPanel {
       }
     );
 
-    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context);
+    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, componentContext);
   }
 
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
+  /**
+   * Re-attach to a webview panel that survived an extension host restart
+   * (e.g. after updateWorkspaceFolders converts single → multi-root).
+   */
+  public static revive(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
+    console.log('[Scaffold] revive called — re-attaching to surviving panel');
+    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, undefined, true);
+  }
+
+  private static readonly COMPONENT_CTX_KEY = 'maintainabilityai.scaffoldComponentContext';
+
+  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext, reviving = false) {
     this.panel = panel;
     this.extensionPath = context.extensionPath;
+    this.extensionContext = context;
 
-    this.panel.webview.html = this.getHtml();
+    console.log('[Scaffold] constructor: reviving=%s, componentContext=%s, workspaceState=%s',
+      reviving,
+      componentContext ? 'provided' : 'none',
+      context.workspaceState.get(ScaffoldPanel.COMPONENT_CTX_KEY) ? 'persisted' : 'empty');
+
+    // Use provided context, or restore from workspace state (survives extension host restart
+    // triggered by updateWorkspaceFolders converting single-folder to multi-root)
+    this.componentContext = componentContext
+      || context.workspaceState.get<ComponentScaffoldContext>(ScaffoldPanel.COMPONENT_CTX_KEY);
+
+    // Persist for survival across extension host restarts
+    if (this.componentContext) {
+      context.workspaceState.update(ScaffoldPanel.COMPONENT_CTX_KEY, this.componentContext);
+      console.log('[Scaffold] componentContext set: barName=%s, repoUrl=%s', this.componentContext.barName, this.componentContext.repoUrl);
+    } else {
+      console.log('[Scaffold] componentContext is NULL — createComponentFeature will be a no-op');
+    }
+
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
       (msg) => this.handleMessage(msg),
@@ -67,11 +101,29 @@ export class ScaffoldPanel {
       this.disposables
     );
 
+    if (reviving) {
+      console.log('[Scaffold] reviving — skipping HTML reset, message handler re-attached');
+      return;
+    }
+
+    this.panel.webview.html = this.getHtml();
+
     // Send initial state and detect stack if workspace is available
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     this.send({ type: 'init', workspaceRoot });
     if (workspaceRoot) {
       this.detectStackForFolder(workspaceRoot);
+    }
+
+    // Notify webview of component mode if BAR context provided
+    if (this.componentContext) {
+      this.send({
+        type: 'componentMode',
+        barName: this.componentContext.barName,
+        repoUrl: this.componentContext.repoUrl,
+        repoName: this.componentContext.repoName,
+        homeDir: process.env.HOME || process.env.USERPROFILE || '',
+      });
     }
   }
 
@@ -80,6 +132,7 @@ export class ScaffoldPanel {
   }
 
   private async handleMessage(msg: Record<string, unknown>) {
+    console.log('[Scaffold] handleMessage: type=%s', msg.type);
     switch (msg.type) {
       case 'pickFolder': {
         const picked = await vscode.window.showOpenDialog({
@@ -100,7 +153,68 @@ export class ScaffoldPanel {
       case 'openFolder': {
         const folderPath = msg.path as string;
         if (folderPath) {
-          await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(folderPath));
+          // Add to current workspace as an additional root — preserves all open tabs
+          const folderUri = vscode.Uri.file(folderPath);
+          const insertIndex = vscode.workspace.workspaceFolders?.length || 0;
+          vscode.workspace.updateWorkspaceFolders(insertIndex, 0, { uri: folderUri });
+        }
+        break;
+      }
+
+      case 'createComponentFeature': {
+        console.log('[Scaffold] createComponentFeature: componentContext=%s', this.componentContext ? 'YES' : 'NULL');
+        if (this.componentContext) {
+          const sc = msg.stackConfig as { language: string; testing: string; packageManager: string } | undefined;
+          const stack = sc ? this.buildStackFromConfig(sc) : undefined;
+          const folderPath = (msg.folder || '') as string;
+
+          // Always persist intent — activate() reads this after extension host restart
+          // (updateWorkspaceFolders single→multi-root restarts the extension host)
+          const pending = {
+            description: this.componentContext.description,
+            packs: this.componentContext.packs,
+            repoUrl: this.componentContext.repoUrl,
+            stack,
+          };
+          console.log('[Scaffold] persisting pendingIssueCreation: repoUrl=%s', this.componentContext.repoUrl);
+          await this.extensionContext.globalState.update('maintainabilityai.pendingIssueCreation', pending);
+
+          // Add the scaffolded folder to workspace if needed.
+          // If this converts single→multi-root, the extension host will restart
+          // and activate() will pick up pendingIssueCreation to open the Rabbit Hole.
+          let willRestart = false;
+          if (folderPath) {
+            const folderUri = vscode.Uri.file(folderPath);
+            const alreadyInWorkspace = (vscode.workspace.workspaceFolders || []).some(
+              f => f.uri.fsPath === folderUri.fsPath
+            );
+            if (!alreadyInWorkspace) {
+              const wasSingleRoot = (vscode.workspace.workspaceFolders?.length || 0) <= 1;
+              console.log('[Scaffold] adding folder to workspace: %s (wasSingleRoot=%s)', folderPath, wasSingleRoot);
+              const insertIndex = vscode.workspace.workspaceFolders?.length || 0;
+              vscode.workspace.updateWorkspaceFolders(insertIndex, 0, { uri: folderUri });
+              if (wasSingleRoot) {
+                // Extension host will restart — activate() handles the rest
+                console.log('[Scaffold] single→multi-root transition — expecting restart, activate() will open Rabbit Hole');
+                willRestart = true;
+              }
+            }
+          }
+
+          if (!willRestart) {
+            // No restart expected — open the Rabbit Hole directly and clear pending state
+            console.log('[Scaffold] opening IssueCreatorPanel directly: repoUrl=%s', this.componentContext.repoUrl);
+            await this.extensionContext.globalState.update('maintainabilityai.pendingIssueCreation', undefined);
+            IssueCreatorPanel.createOrShow(
+              this.extensionContext,
+              this.componentContext.description,
+              this.componentContext.packs,
+              this.componentContext.repoUrl,
+              stack,
+            );
+          }
+        } else {
+          console.error('[Scaffold] createComponentFeature BLOCKED — no componentContext!');
         }
         break;
       }
@@ -259,6 +373,10 @@ export class ScaffoldPanel {
       }
     }
 
+    if (selectedIds.has('copilot-setup')) {
+      filesToCreate.push({ relativePath: '.github/copilot-setup-steps.yml', content: generateCopilotSetupSteps(stack, this.extensionPath) });
+    }
+
     // Always write repo-metadata.yml
     filesToCreate.push({ relativePath: '.github/repo-metadata.yml', content: generateRepoMetadata(stack) });
 
@@ -320,6 +438,10 @@ export class ScaffoldPanel {
         }
         const { stdout } = await execFileAsync('gh', ghArgs, { cwd: workspaceRoot });
         const repoUrl = stdout.trim();
+
+        // Enable GitHub Actions write permissions (required for agents to push branches/PRs)
+        await this.enableWorkflowPermissions(config.repoName, workspaceRoot);
+
         this.send({ type: 'step', id: 'github', status: 'done', message: repoUrl, url: repoUrl });
       } catch (err: unknown) {
         const errMsg = this.extractError(err);
@@ -344,6 +466,10 @@ export class ScaffoldPanel {
 
             await execFileAsync('git', ['push', '-u', 'origin', 'main'], { cwd: workspaceRoot });
             const repoUrl = `https://github.com/${fullRepo}`;
+
+            // Enable GitHub Actions write permissions
+            await this.enableWorkflowPermissions(fullRepo, workspaceRoot);
+
             this.send({ type: 'step', id: 'github', status: 'done', message: `Pushed to existing: ${repoUrl}`, url: repoUrl });
           } catch (pushErr: unknown) {
             const pushMsg = this.extractError(pushErr);
@@ -432,6 +558,25 @@ export class ScaffoldPanel {
     this.send({ type: 'complete', folder: workspaceRoot });
   }
 
+  private async enableWorkflowPermissions(repoFullName: string, cwd: string) {
+    // Ensure the repo name includes owner
+    let fullName = repoFullName;
+    if (!fullName.includes('/')) {
+      try {
+        const { stdout } = await execFileAsync('gh', ['api', 'user', '-q', '.login'], { cwd });
+        fullName = `${stdout.trim()}/${repoFullName}`;
+      } catch { return; } // non-fatal
+    }
+    try {
+      await execFileAsync('gh', [
+        'api', `repos/${fullName}/actions/permissions/workflow`,
+        '-X', 'PUT',
+        '-f', 'default_workflow_permissions=write',
+        '-F', 'can_approve_pull_request_reviews=true',
+      ], { cwd, timeout: 30_000 });
+    } catch { /* non-fatal — user can enable manually in repo settings */ }
+  }
+
   private extractError(err: unknown): string {
     // execFile errors have stderr with the actual useful message from gh/git
     const e = err as { stderr?: string; message?: string };
@@ -446,6 +591,8 @@ export class ScaffoldPanel {
 
   private dispose() {
     ScaffoldPanel.currentPanel = undefined;
+    // Clear persisted component context
+    this.extensionContext.workspaceState.update(ScaffoldPanel.COMPONENT_CTX_KEY, undefined);
     this.panel.dispose();
     while (this.disposables.length) {
       const d = this.disposables.pop();
@@ -869,6 +1016,7 @@ export class ScaffoldPanel {
   <div id="repoUrlLine" style="margin-top: 8px; display: none;"></div>
   <div class="actions">
     <button id="openFolderBtn">Open Folder in VS Code</button>
+    <button id="createComponentFeatureBtn" style="display: none; background: rgba(124, 58, 237, 0.15); border: 1px solid #a855f7; color: #c084fc; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">&#x1F407; Create Component Feature</button>
   </div>
 </div>
 
@@ -885,6 +1033,7 @@ const FILES = [
   { id: 'pr-template', label: 'PR Template', desc: '.github/PULL_REQUEST_TEMPLATE.md', checked: true },
   { id: 'security', label: 'Security Policy', desc: '.github/SECURITY.md', checked: true },
   { id: 'prompt-packs', label: 'Prompt Packs', desc: 'prompts/owasp/ — 10 OWASP packs', checked: false },
+  { id: 'copilot-setup', label: 'Copilot Agent Setup', desc: '.github/copilot-setup-steps.yml — Pre-install deps before agent firewall', checked: true },
 ];
 
 const STEPS = [
@@ -898,6 +1047,7 @@ const STEPS = [
 
 let selectedFolder = '';
 let repoUrl = '';
+let isComponentMode = false;
 
 // Render file checkboxes
 const fileGrid = document.getElementById('fileGrid');
@@ -993,6 +1143,19 @@ document.getElementById('runBtn').addEventListener('click', () => {
 // Open folder
 document.getElementById('openFolderBtn').addEventListener('click', () => {
   vscode.postMessage({ type: 'openFolder', path: selectedFolder });
+});
+
+// Create Component Feature (White Rabbit flow)
+document.getElementById('createComponentFeatureBtn')?.addEventListener('click', () => {
+  vscode.postMessage({
+    type: 'createComponentFeature',
+    folder: selectedFolder,
+    stackConfig: {
+      language: document.getElementById('langSelect').value,
+      testing: document.getElementById('testSelect').value,
+      packageManager: document.getElementById('pmSelect').value,
+    },
+  });
 });
 
 function updateRunBtn() {
@@ -1110,15 +1273,51 @@ window.addEventListener('message', (event) => {
       break;
     }
 
-    case 'complete':
+    case 'componentMode':
+      isComponentMode = true;
+      if (msg.repoName) {
+        // Pre-fill target folder to HOME/repoName
+        const homeDir = msg.homeDir || '';
+        if (homeDir) {
+          const sep = homeDir.includes('\\\\') ? '\\\\' : '/';
+          selectedFolder = homeDir + sep + msg.repoName;
+          const folderDisplay = document.getElementById('folderDisplay');
+          if (folderDisplay) {
+            folderDisplay.textContent = selectedFolder;
+            folderDisplay.classList.remove('empty');
+          }
+        }
+        // Pre-fill repo name
+        const repoNameInput = document.getElementById('repoName');
+        if (repoNameInput) { repoNameInput.value = msg.repoName; }
+        // Auto-check "Create a GitHub repository" and show options
+        const repoToggle = document.getElementById('createRepoToggle');
+        if (repoToggle && !repoToggle.checked) {
+          repoToggle.checked = true;
+          const repoOpts = document.getElementById('repoOptions');
+          if (repoOpts) { repoOpts.classList.remove('hidden'); }
+        }
+        updateRunBtn();
+      }
+      break;
+
+    case 'complete': {
       document.getElementById('progressPanel').querySelector('.progress-header').textContent = 'Scaffolding complete';
-      document.getElementById('completeBanner').classList.add('active');
+      const banner = document.getElementById('completeBanner');
+      banner.classList.add('active');
       if (repoUrl) {
         const urlLine = document.getElementById('repoUrlLine');
         urlLine.style.display = 'block';
         urlLine.innerHTML = 'Repository: <span class="repo-link">' + repoUrl + '</span>';
       }
+      if (isComponentMode) {
+        const featureBtn = document.getElementById('createComponentFeatureBtn');
+        if (featureBtn) { featureBtn.style.display = ''; }
+      }
+      // Auto-scroll to completion banner so user sees the action buttons
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
       break;
+    }
   }
 });
 </script>

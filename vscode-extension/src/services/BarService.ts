@@ -47,6 +47,7 @@ import {
   generateImdbLiteDecorator,
   generateImdbLiteMongoAdr,
   generateImdbLiteJwtRbacAdr,
+  generateImdbLiteMongoMemoryServerAdr,
 } from '../templates/meshTemplates';
 
 export class BarService {
@@ -314,6 +315,7 @@ export class BarService {
     }, [
       { rel: 'architecture/ADRs/002-mongodb-document-store.md', content: generateImdbLiteMongoAdr() },
       { rel: 'architecture/ADRs/003-jwt-rbac-authentication.md', content: generateImdbLiteJwtRbacAdr() },
+      { rel: 'architecture/ADRs/004-mongodb-memory-server-testing.md', content: generateImdbLiteMongoMemoryServerAdr() },
     ]);
   }
 
@@ -412,10 +414,11 @@ export class BarService {
       content = content.replace('repos: []', `repos:\n${reposList}`);
     } else {
       const lines = content.split('\n');
+      let reposLineIdx = -1;
       let lastRepoLineIdx = -1;
       let inReposSection = false;
       for (let i = 0; i < lines.length; i++) {
-        if (/^\s*repos:/.test(lines[i])) { inReposSection = true; continue; }
+        if (/^\s*repos:/.test(lines[i])) { reposLineIdx = i; inReposSection = true; continue; }
         if (inReposSection) {
           if (/^\s*-\s+/.test(lines[i])) {
             lastRepoLineIdx = i;
@@ -424,11 +427,15 @@ export class BarService {
           }
         }
       }
+      const newLines = newUrls.map(u => `    - "${u}"`);
       if (lastRepoLineIdx >= 0) {
-        const newLines = newUrls.map(u => `    - "${u}"`);
+        // Append after last existing repo item
         lines.splice(lastRepoLineIdx + 1, 0, ...newLines);
-        content = lines.join('\n');
+      } else if (reposLineIdx >= 0) {
+        // repos: exists but is empty (no items) — insert right after the repos: line
+        lines.splice(reposLineIdx + 1, 0, ...newLines);
       }
+      content = lines.join('\n');
     }
 
     fs.writeFileSync(yamlPath, content, 'utf8');

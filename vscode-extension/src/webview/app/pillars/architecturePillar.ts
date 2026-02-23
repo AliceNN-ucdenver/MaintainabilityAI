@@ -3,7 +3,7 @@
 // Renders CALM Architecture Views with tabbed mermaid diagrams + ADR management
 // ============================================================================
 
-import { escapeHtml, escapeAttr } from './shared';
+import { escapeHtml, escapeAttr, renderMarkdown } from './shared';
 import type { VsCodeApi } from './shared';
 
 // Absolem state passed from lookingGlass.ts
@@ -441,7 +441,7 @@ function renderAbsolemPanel(absolemState: AbsolemState, barPath: string): string
       return `
         <div class="absolem-bubble">
           <span class="absolem-avatar">&#x1F41B;</span>
-          <div class="absolem-bubble-content">${escapeHtml(m.content)}</div>
+          <div class="absolem-bubble-content absolem-md">${renderMarkdown(m.content)}</div>
         </div>`;
     }
     return `
@@ -453,7 +453,7 @@ function renderAbsolemPanel(absolemState: AbsolemState, barPath: string): string
   const streamingHtml = absolemState.status === 'thinking' ? `
     <div class="absolem-bubble">
       <span class="absolem-avatar">&#x1F41B;</span>
-      <div class="absolem-bubble-content absolem-streaming" id="absolem-streaming-text">${escapeHtml(absolemState.streaming)}<span class="absolem-cursor">|</span></div>
+      <div class="absolem-bubble-content absolem-streaming absolem-md" id="absolem-streaming-text">${renderMarkdown(absolemState.streaming)}<span class="absolem-cursor">|</span></div>
     </div>` : '';
 
   const patchesHtml = absolemState.patches ? renderPatchesCard(absolemState.patches, barPath) : '';
@@ -966,6 +966,45 @@ export function getArchitectureStyles(): string {
     .patch-update { color: var(--warning); }
     .absolem-patches-actions {
       display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
+    }
+
+    /* Absolem markdown rendered content */
+    .absolem-md { white-space: normal; }
+    .absolem-md h3, .absolem-md h4, .absolem-md h5 {
+      font-size: 12px; font-weight: 700; color: var(--text); margin: 6px 0 2px;
+    }
+    .absolem-md h3 { font-size: 13px; }
+    .absolem-md strong { font-weight: 700; }
+    .absolem-md em { font-style: italic; }
+    .absolem-md del { text-decoration: line-through; opacity: 0.7; }
+    .absolem-md code {
+      background: var(--surface); padding: 1px 5px; border-radius: 3px;
+      font-family: var(--font-mono, monospace); font-size: 11px;
+    }
+    .absolem-md pre {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; margin: 6px 0; overflow-x: auto;
+    }
+    .absolem-md pre code {
+      background: none; padding: 0; font-size: 11px; line-height: 1.4;
+    }
+    .absolem-md a { color: var(--accent); text-decoration: none; }
+    .absolem-md a:hover { text-decoration: underline; }
+    .absolem-md table {
+      border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 11px;
+    }
+    .absolem-md th, .absolem-md td {
+      border: 1px solid var(--border); padding: 4px 8px; text-align: left;
+    }
+    .absolem-md th {
+      background: var(--surface); font-weight: 700; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .absolem-md blockquote {
+      margin: 4px 0; padding: 0;
+    }
+    .absolem-md hr {
+      border: none; border-top: 1px solid var(--border); margin: 6px 0;
     }
   `;
 }

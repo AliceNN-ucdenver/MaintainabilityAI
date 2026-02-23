@@ -4,6 +4,7 @@
 import mermaid from 'mermaid';
 import { renderArchitectureDetail, attachArchitectureEvents, attachAbsolemEvents, getArchitectureStyles } from './pillars/architecturePillar';
 import type { AdrRecord, AbsolemState, CalmDataPayload } from './pillars/architecturePillar';
+import { renderMarkdown } from './pillars/shared';
 import { mountDiagramCanvas, unmountDiagramCanvas, updateDiagramCanvasProps, isDiagramCanvasMounted } from './reactflow/ReactBridge';
 import type { CalmArchitecture } from './reactflow/CalmAdapter';
 import type { DiagramLayout } from './reactflow/LayoutTypes';
@@ -331,6 +332,8 @@ const state = {
   policyGenerating: null as string | null,  // filename being generated
   policyGenerateStep: '',
   policyGenerateProgress: 0,
+  // Open workspace folder names (for highlighting active repos)
+  openWorkspaceFolders: [] as string[],
   // Repo picker modal state
   repoPickerModal: null as {
     mode: 'scan' | 'add-to-bar';
@@ -340,8 +343,9 @@ const state = {
     repos: OrgRepo[];
     selectedRepoNames: Set<string>;
     searchQuery: string;
-    activeTab: 'browse' | 'urls';
+    activeTab: 'browse' | 'urls' | 'create-new';
     pastedUrls: string;
+    createNewRepoUrl: string;
     loading: boolean;
     error: string;
   } | null,
@@ -359,6 +363,13 @@ const state = {
   absolemStreaming: '',
   absolemStatus: 'idle' as 'idle' | 'thinking' | 'reviewing-patches',
   absolemPatches: null as { patches: { op: string; target: string; field?: string; value?: unknown }[]; description: string } | null,
+  // CALM component picker (Implement based on architecture)
+  componentPicker: null as {
+    barPath: string;
+    components: { id: string; name: string; type: string; description: string; suggestedRepo: string }[];
+    selectedId: string;
+    repoName: string;
+  } | null,
 };
 
 const rootEl = document.getElementById('looking-glass-root')!;
@@ -2377,11 +2388,27 @@ function getStyles(): string {
         transition: background 0.15s;
       }
       .linked-repo-row:hover { background: var(--surface-raised); }
+      .linked-repo-active { border-color: var(--accent); background: rgba(124, 58, 237, 0.06); }
+      .linked-repo-active:hover { background: rgba(124, 58, 237, 0.1); }
       .linked-repo-icon { font-size: 16px; color: var(--text-dim); flex-shrink: 0; }
       .linked-repo-name { font-size: 12px; color: var(--text); font-weight: 500; }
       .linked-repo-url { font-size: 10px; color: var(--text-muted); }
       .linked-repo-chevron { color: var(--text-dim); font-size: 12px; }
+      .linked-repo-badge {
+        font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+        padding: 2px 8px; border-radius: 10px;
+        background: rgba(124, 58, 237, 0.15); color: var(--accent);
+      }
       .linked-repos-empty { font-size: 11px; color: var(--text-dim); font-style: italic; padding: 8px 0; }
+
+      /* Component Picker (Implement based on architecture) */
+      .component-picker { padding: 16px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; background: var(--surface); }
+      .component-picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 13px; }
+      .component-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+      .component-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+      .component-row:hover { border-color: var(--accent); }
+      .component-row.selected { border-color: var(--accent); background: rgba(124, 58, 237, 0.06); }
+      .component-type-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; background: var(--surface-alt, var(--surface-raised)); color: var(--text-muted); flex-shrink: 0; }
 
       /* Application lens platform drill-down breadcrumb */
       .app-lens-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 12px; }
@@ -3133,10 +3160,14 @@ function renderRepoPickerModal(): string {
     : 0;
   const totalSelected = m.selectedRepoNames.size + pastedUrlCount;
 
+  const createNewTab = m.mode === 'add-to-bar'
+    ? `<button class="repo-picker-tab${m.activeTab === 'create-new' ? ' active' : ''}" data-picker-tab="create-new">Create New</button>`
+    : '';
   const tabs = `
     <div class="repo-picker-tabs">
       <button class="repo-picker-tab${m.activeTab === 'browse' ? ' active' : ''}" data-picker-tab="browse">Browse Org</button>
       <button class="repo-picker-tab${m.activeTab === 'urls' ? ' active' : ''}" data-picker-tab="urls">Add URLs</button>
+      ${createNewTab}
     </div>`;
 
   let body = '';
@@ -3185,6 +3216,39 @@ function renderRepoPickerModal(): string {
         body = search + `<div class="repo-picker-list">${items}</div>`;
       }
     }
+  } else if (m.activeTab === 'create-new') {
+    const repoNameVal = m.createNewRepoUrl.trim();
+    const validName = /^[a-zA-Z0-9._-]+$/.test(repoNameVal) && repoNameVal.length > 0;
+    const previewUrl = validName ? `https://github.com/${escapeHtml(m.org)}/${escapeHtml(repoNameVal)}` : `https://github.com/${escapeHtml(m.org)}/&lt;name&gt;`;
+    body = `
+      <div class="repo-picker-urls-container" style="padding: 16px;">
+        <label style="font-size: 12px; font-weight: 500; margin-bottom: 8px; display: block;">Organization</label>
+        <div style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt, var(--surface)); color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">${escapeHtml(m.org || 'unknown')}</div>
+        <label style="font-size: 12px; font-weight: 500; margin-bottom: 8px; display: block;">Repository Name</label>
+        <input type="text" id="create-new-repo-name" placeholder="new-component" value="${escapeAttr(repoNameVal)}" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 13px;" />
+        <div class="repo-picker-urls-hint" style="margin-top: 8px;">Will create <code style="font-size: 11px; padding: 1px 4px; background: var(--surface-alt, var(--surface)); border-radius: 3px;">${previewUrl}</code></div>
+      </div>`;
+
+    // Override CTA for create-new tab
+    const ctaDisabled = !validName ? 'disabled' : '';
+    const ctaText = 'Add &amp; Scaffold';
+    return `
+      <div class="repo-picker-backdrop" id="repo-picker-backdrop"></div>
+      <div class="repo-picker-modal">
+        <div class="repo-picker-header">
+          <h3>${title}</h3>
+          <button class="repo-picker-close" id="repo-picker-close">&times;</button>
+        </div>
+        ${tabs}
+        ${body}
+        <div class="repo-picker-footer">
+          <span class="repo-picker-count"></span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-secondary" id="repo-picker-cancel">Cancel</button>
+            <button class="btn-primary" id="repo-picker-add-scaffold" ${ctaDisabled}>${ctaText}</button>
+          </div>
+        </div>
+      </div>`;
   } else {
     body = `
       <div class="repo-picker-urls-container">
@@ -3834,14 +3898,19 @@ function renderLinkedRepos(repos: string[], barPath: string): string {
       displayName = parts[parts.length - 1] || url;
     } catch { /* use full url */ }
 
+    // Check if this repo matches an open workspace folder
+    const isOpen = state.openWorkspaceFolders.some(f => f === displayName || f.endsWith('/' + displayName) || f.endsWith('\\' + displayName));
+    const activeClass = isOpen ? ' linked-repo-active' : '';
+    const activeLabel = isOpen ? '<span class="linked-repo-badge">open</span>' : '<span class="linked-repo-chevron">&rsaquo;</span>';
+
     return `
-      <div class="linked-repo-row" data-repo-url="${escapeAttr(url)}" data-bar-path="${escapeAttr(barPath)}">
+      <div class="linked-repo-row${activeClass}" data-repo-url="${escapeAttr(url)}" data-bar-path="${escapeAttr(barPath)}">
         <span class="linked-repo-icon">&#128193;</span>
         <div style="flex: 1; min-width: 0;">
           <div class="linked-repo-name">${escapeHtml(displayName)}</div>
           <div class="linked-repo-url">${escapeHtml(url)}</div>
         </div>
-        <span class="linked-repo-chevron">&rsaquo;</span>
+        ${activeLabel}
       </div>
     `;
   }).join('');
@@ -3853,6 +3922,50 @@ function renderLinkedRepos(repos: string[], barPath: string): string {
     </div>
     <div class="linked-repos">${rows}</div>
   `;
+}
+
+function renderComponentPicker(barPath: string): string {
+  const cp = state.componentPicker;
+  if (!cp || cp.barPath !== barPath) { return ''; }
+  if (cp.components.length === 0) {
+    return `
+      <div class="component-picker">
+        <div class="component-picker-header">
+          <span style="font-weight: 600;">Select Component to Implement</span>
+          <button class="btn-ghost btn-sm" id="component-picker-cancel">&times;</button>
+        </div>
+        <div style="padding: 16px; color: var(--text-muted); font-size: 12px;">No implementable components found in architecture.</div>
+      </div>`;
+  }
+  const org = state.portfolio?.portfolio?.org || state.detectedOrg || '';
+  const previewUrl = cp.repoName ? `https://github.com/${escapeHtml(org)}/${escapeHtml(cp.repoName)}` : '';
+  return `
+    <div class="component-picker">
+      <div class="component-picker-header">
+        <span style="font-weight: 600;">Select Component to Implement</span>
+        <button class="btn-ghost btn-sm" id="component-picker-cancel">&times;</button>
+      </div>
+      <div class="component-list">
+        ${cp.components.map(c => `
+          <div class="component-row${c.id === cp.selectedId ? ' selected' : ''}" data-component-id="${escapeAttr(c.id)}" data-suggested-repo="${escapeAttr(c.suggestedRepo)}">
+            <span class="component-type-badge">${escapeHtml(c.type)}</span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 500; font-size: 13px;">${escapeHtml(c.name)}</div>
+              ${c.description ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(c.description)}</div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top: 12px;">
+        <label style="font-size: 12px; font-weight: 500; display: block; margin-bottom: 4px;">Repository name</label>
+        <input type="text" id="component-repo-name" value="${escapeAttr(cp.repoName)}" style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 13px;" />
+        ${previewUrl ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;"><code style="font-size: 10px; padding: 1px 4px; background: var(--surface-alt, var(--surface)); border-radius: 3px;">${previewUrl}</code></div>` : ''}
+      </div>
+      <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn-secondary btn-sm" id="component-picker-cancel-btn">Cancel</button>
+        <button class="btn-primary btn-sm" id="component-picker-scaffold"${!cp.repoName ? ' disabled' : ''}>\u{1F407} Down the Rabbit Hole</button>
+      </div>
+    </div>`;
 }
 
 // ============================================================================
@@ -4152,6 +4265,16 @@ function renderBarDetail(): string {
     ${renderActivePillarDetail(bar.path)}
 
     ${renderLinkedRepos(bar.repos || [], bar.path)}
+
+    ${state.calmData ? `
+    <div class="white-rabbit-row" style="margin-bottom: 16px;">
+      <button class="btn-ghost" id="btn-white-rabbit" data-bar-path="${escapeAttr(bar.path)}" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; width: 100%; border: 1px dashed var(--border); border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text-muted);">
+        <span style="font-size: 16px;">&#x1F407;</span>
+        <span>Implement based on architecture</span>
+      </button>
+    </div>
+    ${renderComponentPicker(bar.path)}
+    ` : ''}
 
     ${state.currentRepoTree.length > 0 ? `
       <div class="section-header">Repository Structure</div>
@@ -5399,6 +5522,7 @@ function attachEventHandlers() {
         searchQuery: '',
         activeTab: 'browse',
         pastedUrls: '',
+        createNewRepoUrl: '',
         loading: true,
         error: '',
       };
@@ -6194,6 +6318,8 @@ function attachEventHandlers() {
   // ---------- Linked Repo Clicks ----------
   document.querySelectorAll('.linked-repo-row').forEach(row => {
     row.addEventListener('click', () => {
+      // Skip if this repo is already open in the workspace
+      if ((row as HTMLElement).classList.contains('linked-repo-active')) { return; }
       const repoUrl = (row as HTMLElement).dataset.repoUrl;
       const barPath = (row as HTMLElement).dataset.barPath;
       if (repoUrl && barPath) {
@@ -6219,11 +6345,13 @@ function attachEventHandlers() {
   // Tab switching
   document.querySelectorAll('.repo-picker-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      const tabName = (tab as HTMLElement).dataset.pickerTab as 'browse' | 'urls';
+      const tabName = (tab as HTMLElement).dataset.pickerTab as 'browse' | 'urls' | 'create-new';
       if (state.repoPickerModal && tabName) {
         // Save textarea content before switching tabs
         const textarea = document.getElementById('repo-picker-urls-textarea') as HTMLTextAreaElement | null;
         if (textarea) { state.repoPickerModal.pastedUrls = textarea.value; }
+        const createNewInput = document.getElementById('create-new-repo-url') as HTMLInputElement | null;
+        if (createNewInput) { state.repoPickerModal.createNewRepoUrl = createNewInput.value; }
         state.repoPickerModal.activeTab = tabName;
         render();
       }
@@ -6331,6 +6459,7 @@ function attachEventHandlers() {
       searchQuery: '',
       activeTab: 'browse',
       pastedUrls: '',
+      createNewRepoUrl: '',
       loading: !!org,
       error: org ? '' : 'No organization detected. Use the "Add URLs" tab to paste repository URLs manually.',
     };
@@ -6338,6 +6467,115 @@ function attachEventHandlers() {
     if (org) {
       vscode.postMessage({ type: 'loadOrgRepos', org });
     }
+  });
+
+  // White Rabbit button — opens component picker from CALM architecture
+  document.getElementById('btn-white-rabbit')?.addEventListener('click', () => {
+    const barPath = (document.getElementById('btn-white-rabbit') as HTMLElement)?.dataset.barPath;
+    if (!barPath) { return; }
+    // Request CALM components from extension host
+    vscode.postMessage({ type: 'getCalmComponents', barPath });
+  });
+
+  // "Add & Scaffold" button in Create New tab
+  document.getElementById('repo-picker-add-scaffold')?.addEventListener('click', () => {
+    const m = state.repoPickerModal;
+    if (!m || !m.barPath) { return; }
+
+    // Read the repo name and build the full URL from org + name
+    const input = document.getElementById('create-new-repo-name') as HTMLInputElement | null;
+    const repoName = (input?.value || m.createNewRepoUrl).trim();
+    if (!/^[a-zA-Z0-9._-]+$/.test(repoName)) { return; }
+
+    const repoUrl = `https://github.com/${m.org}/${repoName}`;
+    const barPath = m.barPath;
+    state.repoPickerModal = null;
+    render();
+
+    // Add repo URL to BAR, then trigger scaffold with BAR context
+    vscode.postMessage({ type: 'addReposToBar', barPath, repoUrls: [repoUrl] });
+    vscode.postMessage({ type: 'scaffoldComponent', repoUrl, barPath });
+  });
+
+  // Create New repo name input — live update state
+  const createNewInput = document.getElementById('create-new-repo-name') as HTMLInputElement | null;
+  if (createNewInput) {
+    createNewInput.addEventListener('input', () => {
+      if (state.repoPickerModal) {
+        state.repoPickerModal.createNewRepoUrl = createNewInput.value;
+        // Update button disabled state based on valid repo name
+        const btn = document.getElementById('repo-picker-add-scaffold') as HTMLButtonElement | null;
+        if (btn) {
+          const val = createNewInput.value.trim();
+          btn.disabled = !/^[a-zA-Z0-9._-]+$/.test(val) || val.length === 0;
+        }
+      }
+    });
+  }
+
+  // Component picker — select a component row
+  document.querySelectorAll('.component-row').forEach(row => {
+    row.addEventListener('click', () => {
+      if (!state.componentPicker) { return; }
+      const el = row as HTMLElement;
+      state.componentPicker.selectedId = el.dataset.componentId || '';
+      state.componentPicker.repoName = el.dataset.suggestedRepo || '';
+      render();
+    });
+  });
+
+  // Component picker — repo name input
+  const compRepoInput = document.getElementById('component-repo-name') as HTMLInputElement | null;
+  if (compRepoInput) {
+    compRepoInput.addEventListener('input', () => {
+      if (state.componentPicker) {
+        state.componentPicker.repoName = compRepoInput.value.trim();
+        const btn = document.getElementById('component-picker-scaffold') as HTMLButtonElement | null;
+        if (btn) { btn.disabled = !compRepoInput.value.trim(); }
+      }
+    });
+  }
+
+  // Component picker — scaffold button
+  document.getElementById('component-picker-scaffold')?.addEventListener('click', () => {
+    const cp = state.componentPicker;
+    if (!cp || !cp.repoName) { return; }
+    const selected = cp.components.find(c => c.id === cp.selectedId);
+    const org = state.portfolio?.portfolio?.org || state.detectedOrg || '';
+    const repoUrl = org ? `https://github.com/${org}/${cp.repoName}` : cp.repoName;
+
+    console.log(`[component-scaffold] org="${org}" barPath="${cp.barPath}" repoUrl="${repoUrl}"`);
+
+    // 1. Add repo to app.yaml first (same proven path as +Add)
+    if (cp.barPath) {
+      console.log(`[component-scaffold] sending addReposToBar`);
+      vscode.postMessage({ type: 'addReposToBar', barPath: cp.barPath, repoUrls: [repoUrl] });
+    } else {
+      console.warn(`[component-scaffold] SKIPPED addReposToBar — barPath is empty`);
+    }
+
+    // 2. Then transition to scaffold, scoped to this component
+    vscode.postMessage({
+      type: 'implementComponent',
+      barPath: cp.barPath,
+      componentId: cp.selectedId,
+      repoName: cp.repoName,
+      componentName: selected?.name || cp.repoName,
+      componentType: selected?.type || 'service',
+      componentDescription: selected?.description || '',
+    });
+    state.componentPicker = null;
+    render();
+  });
+
+  // Component picker — cancel
+  document.getElementById('component-picker-cancel')?.addEventListener('click', () => {
+    state.componentPicker = null;
+    render();
+  });
+  document.getElementById('component-picker-cancel-btn')?.addEventListener('click', () => {
+    state.componentPicker = null;
+    render();
   });
 }
 
@@ -6411,6 +6649,10 @@ window.addEventListener('message', (event) => {
   switch (message.type) {
     case 'portfolioData': {
       state.portfolio = message.data as PortfolioSummary;
+      // Capture open workspace folder names for repo highlighting
+      if (Array.isArray(message.workspaceFolders)) {
+        state.openWorkspaceFolders = message.workspaceFolders as string[];
+      }
       // Extract capability model if present
       if (state.portfolio?.capabilityModel) {
         state.capabilityModel = state.portfolio.capabilityModel as CapabilityModelSummary;
@@ -6544,6 +6786,15 @@ window.addEventListener('message', (event) => {
       state.threatModelProgress = '';
       state.threatModelProgressPct = 0;
       // Keep security pillar open to show results
+      state.activePillar = 'security';
+      render();
+      break;
+    }
+
+    case 'threatModelFailed': {
+      state.threatModelGenerating = false;
+      state.threatModelProgress = '';
+      state.threatModelProgressPct = 0;
       state.activePillar = 'security';
       render();
       break;
@@ -6907,6 +7158,17 @@ window.addEventListener('message', (event) => {
       if (state.view === 'settings') { render(); }
       break;
     }
+    case 'calmComponents': {
+      const components = (message as Record<string, unknown>).components as { id: string; name: string; type: string; description: string; suggestedRepo: string }[];
+      state.componentPicker = {
+        barPath: state.currentBar?.path || '',
+        components: components || [],
+        selectedId: components?.[0]?.id || '',
+        repoName: components?.[0]?.suggestedRepo || '',
+      };
+      render();
+      break;
+    }
     case 'calmDataUpdated': {
       // External file change — replace in-memory CALM data and update the diagram
       const updatedCalm = (message as Record<string, unknown>).calmData;
@@ -6991,7 +7253,7 @@ window.addEventListener('message', (event) => {
         // Incremental DOM update for streaming text
         const streamEl = document.getElementById('absolem-streaming-text');
         if (streamEl) {
-          streamEl.innerHTML = escapeHtml(state.absolemStreaming) + '<span class="absolem-cursor">|</span>';
+          streamEl.innerHTML = renderMarkdown(state.absolemStreaming) + '<span class="absolem-cursor">|</span>';
           const messagesEl = document.getElementById('absolem-messages');
           if (messagesEl) { messagesEl.scrollTop = messagesEl.scrollHeight; }
         } else {

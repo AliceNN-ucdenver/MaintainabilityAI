@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import type { IssueCreationRequest, PromptPackContent, RctroPrompt } from '../types';
 
+const BODY_SAFE_LIMIT = 60_000; // leave headroom below GitHub's 65,536 char limit
+const MAX_PACK_CONTENT_CHARS = 8_000; // per-pack content cap
+
 export class IssueBodyBuilder {
   build(request: IssueCreationRequest): string {
     const { title, rctroPrompt, packContents, labels } = request;
@@ -25,6 +28,14 @@ ${this.renderRctro(rctroPrompt)}
 ---
 
 `;
+
+    // Add default pack (always included) as a collapsible section
+    const defaultPacks = packContents.filter(p => p.category === 'default');
+    if (defaultPacks.length > 0) {
+      body += this.renderCollapsibleSection(
+        '🛡️', 'Security-First Baseline (Always Included)', defaultPacks, '📋'
+      );
+    }
 
     // Add collapsible prompt pack sections (mirrors process-codeql-results.js format)
     const owaspPacks = packContents.filter(p => p.category === 'owasp');
@@ -70,7 +81,7 @@ After reviewing the plan: \`@claude approved\`
 `;
 
     // Metadata (collapsed)
-    body += `
+    const metadataBlock = `
 <details>
 <summary>📊 Additional Metadata</summary>
 
@@ -82,6 +93,14 @@ After reviewing the plan: \`@claude approved\`
 
 </details>
 `;
+
+    // Truncate body if it would exceed GitHub's limit
+    if (body.length + metadataBlock.length > BODY_SAFE_LIMIT) {
+      body = body.slice(0, BODY_SAFE_LIMIT - metadataBlock.length - 200);
+      body += '\n\n> **Note:** Prompt pack content was truncated to stay within GitHub\'s 65 KB issue body limit.\n';
+    }
+
+    body += metadataBlock;
 
     return body;
   }
@@ -120,11 +139,15 @@ After reviewing the plan: \`@claude approved\`
 `;
 
     for (const pack of packs) {
+      let content = pack.content;
+      if (content.length > MAX_PACK_CONTENT_CHARS) {
+        content = content.slice(0, MAX_PACK_CONTENT_CHARS) + '\n\n*... (truncated)*';
+      }
       section += `
 <details>
 <summary>${innerIcon} <strong>${pack.name}</strong></summary>
 
-${pack.content}
+${content}
 
 </details>
 

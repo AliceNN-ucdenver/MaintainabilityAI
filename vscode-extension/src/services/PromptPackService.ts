@@ -152,6 +152,14 @@ export class PromptPackService {
     return related;
   }
 
+  getDefaultPackContent(): string {
+    const defaultPath = path.join(this.packsDir, 'default.md');
+    if (fs.existsSync(defaultPath)) {
+      return fs.readFileSync(defaultPath, 'utf8');
+    }
+    return '';
+  }
+
   getMappings(): PromptMappings {
     return this.mappings;
   }

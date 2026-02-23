@@ -17,7 +17,7 @@
 | **Rabbit Hole** | — | Issue management & agent monitoring; feature creation via Scorecard's "Create Feature" button | Complete |
 | **Scorecard** | — | Repository health scorecard + "Create Feature" entry point | Complete |
 | **Governance Tree** | — | Sidebar tree view of governance artifacts | Complete |
-| **White Rabbit** | White Rabbit | Component scaffolding: ScaffoldPanel → Rabbit Hole with BAR context | Design |
+| **White Rabbit** | White Rabbit | Component scaffolding: ScaffoldPanel → Rabbit Hole with BAR context | In Progress |
 
 ---
 
@@ -68,7 +68,7 @@
 | [`governance-calm.md`](governance-calm.md) | **Complete** | CALM 1.2 as canonical DSL for all four architectural views + decorators |
 | [`governance-diagram-req.md`](governance-diagram-req.md) | **Complete** | Looking Glass design surface — ReactFlow, ELK layout, CALM read/write, PNG export |
 | [`governance-absolem.md`](governance-absolem.md) | **Design** | Absolem multi-turn CALM refinement agent |
-| [`governance-whiterabbit.md`](governance-whiterabbit.md) | **Design** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
+| [`governance-whiterabbit.md`](governance-whiterabbit.md) | **In Progress** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
 
 ---
 

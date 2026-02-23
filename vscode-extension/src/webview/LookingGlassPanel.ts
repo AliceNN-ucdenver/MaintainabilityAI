@@ -10,7 +10,9 @@ import type {
   BarSummary,
   LookingGlassWebviewMessage,
   LookingGlassExtensionMessage,
+  ComponentScaffoldContext,
   Criticality,
+  PromptPackSelection,
   RecommendedPlatform,
   DriftWeights,
 } from '../types';
@@ -28,6 +30,8 @@ import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
 import { generateArchetype, type ArchetypeId } from '../templates/scaffolding/archetypeTemplates';
+import { generateScaffoldPromptPack } from '../templates/scaffoldTemplates';
+import { ScaffoldPanel } from './ScaffoldPanel';
 
 const execFileAsync = promisify(execFile);
 
@@ -272,6 +276,10 @@ export class LookingGlassPanel {
         await this.onOpenRepoInContext(message.repoUrl, message.barPath);
         break;
 
+      case 'scaffoldComponent':
+        await this.onScaffoldComponent(message.repoUrl, message.barPath);
+        break;
+
       case 'loadPolicies':
         await this.onLoadPolicies();
         break;
@@ -370,6 +378,18 @@ export class LookingGlassPanel {
         this.onAbsolemClose(message.barPath);
         break;
 
+      case 'getCalmComponents':
+        await this.onGetCalmComponents(message.barPath);
+        break;
+
+      case 'implementComponent':
+        await this.onImplementComponent(message.barPath, message.componentId, message.repoName, message.componentName, message.componentType, message.componentDescription);
+        break;
+
+      case 'saveWorkspace':
+        this.saveWorkspaceFile(message.name);
+        break;
+
       case 'openUrl':
         vscode.env.openExternal(vscode.Uri.parse(message.url));
         break;
@@ -415,7 +435,9 @@ export class LookingGlassPanel {
         this.postMessage({ type: 'error', message: 'Failed to read mesh.yaml' });
         return;
       }
-      this.postMessage({ type: 'portfolioData', data: summary });
+      // Include open workspace folder names so webview can highlight active repos
+      const workspaceFolders = (vscode.workspace.workspaceFolders || []).map(f => f.name);
+      this.postMessage({ type: 'portfolioData', data: summary, workspaceFolders });
       // Fetch git status for sync indicators
       this.sendGitStatus(meshPath, summary.allBars);
     } catch (err) {
@@ -1204,6 +1226,9 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       // THEN send the threat model result so it arrives after barDetail
       this.postMessage({ type: 'threatModelGenerated', result });
     } catch (err) {
+      console.error('[ThreatModel] Generation failed:', err);
+      // Reset generating state so the webview doesn't stay stuck on progress bar
+      this.postMessage({ type: 'threatModelFailed' });
       this.postMessage({
         type: 'error',
         message: `Threat model generation failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -1343,12 +1368,15 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
   }
 
   private async onAddReposToBar(barPath: string, repoUrls: string[]) {
+    console.log(`[addReposToBar] barPath="${barPath}" repoUrls=${JSON.stringify(repoUrls)}`);
     try {
       const count = this.barService.addRepos(barPath, repoUrls);
+      console.log(`[addReposToBar] addRepos returned count=${count}`);
       this.postMessage({ type: 'reposAddedToBar', barPath, count });
       // Refresh the BAR detail to show the new repos
       await this.onDrillIntoBar(barPath);
     } catch (err) {
+      console.error(`[addReposToBar] error:`, err);
       this.postMessage({
         type: 'error',
         message: `Failed to add repos: ${err instanceof Error ? err.message : String(err)}`,
@@ -1499,7 +1527,8 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
         // Refresh portfolio data + git status after pull (files may have changed)
         const summary = this.meshService.buildPortfolioSummary(meshPath);
         if (summary) {
-          this.postMessage({ type: 'portfolioData', data: summary });
+          const wsFolders = (vscode.workspace.workspaceFolders || []).map(f => f.name);
+          this.postMessage({ type: 'portfolioData', data: summary, workspaceFolders: wsFolders });
           await this.sendGitStatus(meshPath, summary.allBars);
         }
 
@@ -1552,64 +1581,321 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
   }
 
-  private async onOpenRepoInContext(repoUrl: string, _barPath: string) {
+  private async onOpenRepoInContext(repoUrl: string, barPath: string) {
     // Extract repo name from URL (e.g., https://github.com/org/repo-name → repo-name)
     let repoName = repoUrl;
     try {
       repoName = repoUrl.replace(/\.git$/, '').split('/').pop() || repoUrl;
     } catch { /* use full url */ }
 
-    // Check if repo exists locally
-    let localPath: string | null = null;
+    // Check if already in workspace
+    const workspaceFolders = vscode.workspace.workspaceFolders || [];
+    const existing = workspaceFolders.find(f => f.uri.fsPath.endsWith(repoName));
+    if (existing) { return; } // Already open in workspace
 
+    // Search for the repo locally
+    const localPath = this.findLocalRepo(repoName, repoUrl);
+
+    if (localPath) {
+      // Add to current workspace instead of opening a new window
+      vscode.workspace.updateWorkspaceFolders(workspaceFolders.length, 0,
+        { uri: vscode.Uri.file(localPath) });
+      this.refreshWorkspaceFolders();
+      this.ensureNamedWorkspace(this.lastDrilledBarName);
+    } else {
+      // Repo not found locally — offer clone, open local, or scaffold
+      const action = await vscode.window.showInformationMessage(
+        `Repository "${repoName}" not found locally.`,
+        'Clone & Add',
+        'Open Local Folder',
+        '\u{1F407} Scaffold',
+      );
+      if (action === 'Clone & Add') {
+        const defaultDir = this.getDefaultCloneDir();
+        const folders = await vscode.window.showOpenDialog({
+          canSelectFolders: true, canSelectFiles: false, canSelectMany: false,
+          openLabel: 'Clone here (select parent folder)',
+          ...(defaultDir ? { defaultUri: vscode.Uri.file(defaultDir) } : {}),
+        });
+        if (!folders?.[0]) { return; }
+        const parentDir = folders[0].fsPath;
+        try {
+          this.postMessage({ type: 'loading', active: true, message: `Cloning ${repoName}...` });
+          await this.cloneRepo(repoUrl, parentDir);
+          const clonedPath = path.join(parentDir, repoName);
+          const current = vscode.workspace.workspaceFolders || [];
+          vscode.workspace.updateWorkspaceFolders(current.length, 0,
+            { uri: vscode.Uri.file(clonedPath) });
+          this.refreshWorkspaceFolders();
+          this.ensureNamedWorkspace(this.lastDrilledBarName);
+        } catch (err) {
+          this.postMessage({ type: 'error', message: `Clone failed: ${err instanceof Error ? err.message : String(err)}` });
+        } finally {
+          this.postMessage({ type: 'loading', active: false });
+        }
+      } else if (action === 'Open Local Folder') {
+        const picked = await vscode.window.showOpenDialog({
+          canSelectFolders: true, canSelectFiles: false, canSelectMany: false,
+          openLabel: `Select "${repoName}" folder`,
+          ...(this.getDefaultCloneDir() ? { defaultUri: vscode.Uri.file(this.getDefaultCloneDir()!) } : {}),
+        });
+        if (picked?.[0]) {
+          const current = vscode.workspace.workspaceFolders || [];
+          vscode.workspace.updateWorkspaceFolders(current.length, 0, { uri: picked[0] });
+          this.refreshWorkspaceFolders();
+          this.ensureNamedWorkspace(this.lastDrilledBarName);
+        }
+      } else if (action === '\u{1F407} Scaffold') {
+        await this.onScaffoldComponent(repoUrl, barPath);
+      }
+    }
+  }
+
+  private findLocalRepo(repoName: string, repoUrl: string): string | null {
     // 1. Check workspace folders
     const workspaceFolders = vscode.workspace.workspaceFolders || [];
     for (const folder of workspaceFolders) {
       if (folder.uri.fsPath.endsWith(repoName)) {
-        localPath = folder.uri.fsPath;
-        break;
+        return folder.uri.fsPath;
       }
-      // Check as subfolder of workspace
       const subPath = path.join(folder.uri.fsPath, repoName);
       if (fs.existsSync(subPath)) {
-        localPath = subPath;
-        break;
+        return subPath;
       }
     }
-
     // 2. Check sibling directories of mesh root
-    if (!localPath) {
-      const meshPath = MeshService.getMeshPath();
-      if (meshPath) {
-        const parentDir = path.dirname(meshPath);
-        const siblingPath = path.join(parentDir, repoName);
-        if (fs.existsSync(siblingPath)) {
-          localPath = siblingPath;
-        }
+    const meshPath = MeshService.getMeshPath();
+    if (meshPath) {
+      const parentDir = path.dirname(meshPath);
+      const siblingPath = path.join(parentDir, repoName);
+      if (fs.existsSync(siblingPath)) {
+        return siblingPath;
       }
     }
+    // 3. Check if URL is itself a local path
+    if (fs.existsSync(repoUrl)) {
+      return repoUrl;
+    }
+    return null;
+  }
 
-    // 3. Check if the URL is already a local path
-    if (!localPath && fs.existsSync(repoUrl)) {
-      localPath = repoUrl;
+  private async cloneRepo(repoUrl: string, parentDir: string): Promise<void> {
+    await execFileAsync('git', ['clone', repoUrl], { cwd: parentDir, timeout: 120000 });
+  }
+
+  private getDefaultCloneDir(): string | null {
+    const meshPath = MeshService.getMeshPath();
+    if (meshPath) { return path.dirname(meshPath); }
+    const first = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (first) { return path.dirname(first); }
+    return null;
+  }
+
+  private refreshWorkspaceFolders() {
+    // Re-send to webview so linked repos update their "open" badges
+    if (this.panel.visible) {
+      this.loadPortfolio();
+    }
+  }
+
+  private ensureNamedWorkspace(barName?: string) {
+    // If workspace already has a .code-workspace file, skip
+    if (vscode.workspace.workspaceFile && vscode.workspace.workspaceFile.scheme === 'file') { return; }
+
+    // Derive name from BAR, mesh portfolio, or fallback
+    const meshPath = MeshService.getMeshPath();
+    let name = barName || 'maintainabilityai';
+    if (!barName && meshPath) {
+      try {
+        const summary = this.meshService.buildPortfolioSummary(meshPath);
+        if (summary?.portfolio?.name) { name = summary.portfolio.name; }
+      } catch { /* best effort */ }
     }
 
-    if (localPath) {
-      // Open the repo folder in a new window, then open Scorecard
-      const uri = vscode.Uri.file(localPath);
-      await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: true });
-      // Note: Scorecard will auto-detect the repo when the new window activates
+    // Workspace folder updates may not propagate synchronously — wait for the
+    // onDidChangeWorkspaceFolders event before checking folder count & saving.
+    const disposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      disposable.dispose();
+      const folders = vscode.workspace.workspaceFolders || [];
+      if (folders.length >= 2) {
+        this.saveWorkspaceFile(name);
+      }
+    });
+
+    // Fallback: if folders are already updated, save immediately
+    const folders = vscode.workspace.workspaceFolders || [];
+    if (folders.length >= 2) {
+      disposable.dispose();
+      this.saveWorkspaceFile(name);
+    }
+  }
+
+  private saveWorkspaceFile(name: string) {
+    const folders = (vscode.workspace.workspaceFolders || []).map(f => ({
+      path: f.uri.fsPath,
+    }));
+    const workspaceConfig = { folders, settings: {} };
+    const meshPath = MeshService.getMeshPath();
+    const dir = meshPath ? path.dirname(meshPath) : (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
+    if (!dir) { return; }
+    const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+    const wsFile = path.join(dir, `${safeName}.code-workspace`);
+    try {
+      fs.writeFileSync(wsFile, JSON.stringify(workspaceConfig, null, 2), 'utf-8');
+      // Don't auto-open — just save the file so the workspace is named.
+    } catch {
+      // Non-fatal — workspace stays untitled but user can save manually
+    }
+  }
+
+  // ==========================================================================
+  // CALM Component Picker
+  // ==========================================================================
+
+  private async onGetCalmComponents(barPath: string) {
+    const calmData = readCalmArchitectureData(barPath);
+    if (!calmData) {
+      this.postMessage({ type: 'calmComponents', components: [] });
+      return;
+    }
+    const arch = calmData as { nodes: { 'unique-id': string; 'node-type': string; name: string; description?: string }[]; relationships: { 'relationship-type': { 'composed-of'?: { container: string; nodes: string[] } } }[] };
+    // Find composed-of children (the implementable components)
+    const composedOfNodes = arch.relationships
+      .filter(r => r['relationship-type']['composed-of'])
+      .flatMap(r => r['relationship-type']['composed-of']!.nodes);
+
+    // Use composed-of children if available, otherwise all non-actor nodes
+    const componentNodes = composedOfNodes.length > 0
+      ? arch.nodes.filter(n => composedOfNodes.includes(n['unique-id']))
+      : arch.nodes.filter(n => n['node-type'] !== 'actor');
+
+    const components = componentNodes.map(n => ({
+      id: n['unique-id'],
+      name: n.name,
+      type: n['node-type'],
+      description: n.description || '',
+      suggestedRepo: n.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    }));
+    this.postMessage({ type: 'calmComponents', components });
+  }
+
+  private async onImplementComponent(
+    barPath: string,
+    _componentId: string,
+    repoName: string,
+    componentName: string,
+    componentType: string,
+    componentDescription: string,
+  ) {
+    // Repo is already added to app.yaml by the webview (via addReposToBar message).
+    // Here we just build the URL and transition to scaffold, scoped to this component.
+    let org = '';
+    const meshPath = MeshService.getMeshPath();
+    if (meshPath) {
+      try {
+        const summary = this.meshService.buildPortfolioSummary(meshPath);
+        org = summary?.portfolio?.org || '';
+      } catch { /* best effort */ }
+    }
+    if (!org) {
+      try {
+        const manifest = this.barService.readManifest(barPath);
+        const existingRepo = (manifest?.repos || [])[0] || '';
+        const match = existingRepo.match(/github\.com[/:]([\w.-]+)\//);
+        if (match) { org = match[1]; }
+      } catch { /* best effort */ }
+    }
+    const repoUrl = org ? `https://github.com/${org}/${repoName}` : repoName;
+
+    await this.onScaffoldComponent(repoUrl, barPath, { name: componentName, type: componentType, description: componentDescription });
+  }
+
+  // ==========================================================================
+  // White Rabbit — Component Scaffolding
+  // ==========================================================================
+
+  private async onScaffoldComponent(repoUrl: string, barPath: string, component?: { name: string; type: string; description: string }) {
+    try {
+      const context = await this.buildScaffoldDescription(repoUrl, barPath, component);
+      ScaffoldPanel.createOrShow(this.context, context);
+    } catch (err) {
+      this.postMessage({
+        type: 'error',
+        message: `Failed to build scaffold context: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+
+  private async buildScaffoldDescription(repoUrl: string, barPath: string, component?: { name: string; type: string; description: string }): Promise<ComponentScaffoldContext> {
+    // 1. BAR name
+    const manifest = this.barService.readManifest(barPath);
+    const barName = manifest?.name || path.basename(barPath);
+
+    // 2. Repo name from URL
+    const parsed = GitHubService.parseRepoUrl(repoUrl);
+    const repoName = parsed?.repo || repoUrl.replace(/\.git$/, '').split('/').pop() || repoUrl;
+
+    // 3. CALM architecture data (truncated)
+    let calmSection = '';
+    const calmData = readCalmArchitectureData(barPath);
+    if (calmData) {
+      let calmStr = JSON.stringify(calmData, null, 2);
+      if (calmStr.length > 5000) { calmStr = calmStr.slice(0, 5000) + '\n... (truncated)'; }
+      calmSection = `\n### Architecture (CALM)\n\`\`\`json\n${calmStr}\n\`\`\`\n`;
+    }
+
+    // 4. ADR summaries
+    let adrSection = '';
+    const adrs = this.barService.listAdrs(barPath);
+    if (adrs.length > 0) {
+      const lines = adrs.map(a => `- ${a.id}: ${a.title} (${a.status}) — ${a.decision?.slice(0, 120) || 'No decision recorded'}`);
+      adrSection = `\n### Architecture Decision Records\n${lines.join('\n')}\n`;
+    }
+
+    // 5. Threat model summary from YAML
+    let threatSection = '';
+    const threatYamlPath = path.join(barPath, 'security', 'threat-model.yaml');
+    if (fs.existsSync(threatYamlPath)) {
+      try {
+        const raw = fs.readFileSync(threatYamlPath, 'utf-8');
+        // Include a truncated summary
+        const summary = raw.length > 3000 ? raw.slice(0, 3000) + '\n... (truncated)' : raw;
+        threatSection = `\n### Threat Model\n\`\`\`yaml\n${summary}\n\`\`\`\n`;
+      } catch { /* best effort */ }
+    }
+
+    // 6. Scaffold prompt pack
+    let scaffoldGuidelines = '';
+    try {
+      const packContent = generateScaffoldPromptPack(this.context.extensionPath);
+      scaffoldGuidelines = `\n### Scaffold Guidelines\n${packContent}\n`;
+    } catch { /* best effort */ }
+
+    // Build the description — scoped to the selected component when available
+    let componentHeader: string;
+    if (component) {
+      componentHeader = `## Component: ${component.name} (${component.type}) — ${barName}
+
+**Repository**: \`${repoName}\`
+${component.description ? `\n${component.description}\n` : ''}
+Scaffold **only this component** following the architecture below. Do not implement other components in the architecture — focus exclusively on \`${component.name}\`.`;
     } else {
-      // Repo not found locally — open Scaffold Panel (Cheshire Cat)
-      const action = await vscode.window.showInformationMessage(
-        `Repository "${repoName}" not found locally. Open Scaffold Panel to set up SDLC structure?`,
-        'Open Scaffold',
-        'Cancel',
-      );
-      if (action === 'Open Scaffold') {
-        vscode.commands.executeCommand('maintainabilityai.scaffoldRepo');
-      }
+      componentHeader = `## Component: ${repoName} — ${barName}
+
+Scaffold a new implementation of this component following the architecture below.`;
     }
+
+    const description = `${componentHeader}
+${calmSection}${adrSection}${threatSection}${scaffoldGuidelines}`;
+
+    // Start with no packs pre-selected — user picks what they need (max 5)
+    const packs: PromptPackSelection = {
+      owasp: [],
+      maintainability: [],
+      threatModeling: [],
+    };
+
+    return { barPath, barName, repoUrl, repoName, description, packs };
   }
 
   // ==========================================================================

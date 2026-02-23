@@ -45,16 +45,17 @@ export class ScorecardService {
     private readonly pmatService: PmatService
   ) {}
 
-  async collectAll(repo: RepoInfo | null): Promise<ScorecardData> {
+  async collectAll(repo: RepoInfo | null, workspaceRoot?: string): Promise<ScorecardData> {
+    const root = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const pmatInstalled = await this.pmatService.isInstalled();
 
     const [security, deps, coverage, complexity, techDebt, cicd, owaspIssues] =
       await Promise.allSettled([
         repo ? this.collectSecurityCompliance(repo) : Promise.resolve(this.unknownMetric('Security Compliance', 'No repository detected')),
-        this.collectDependencyFreshness(pmatInstalled),
-        this.collectTestCoverage(),
-        this.collectComplexity(pmatInstalled),
-        this.collectTechnicalDebt(pmatInstalled),
+        this.collectDependencyFreshness(pmatInstalled, root),
+        this.collectTestCoverage(root),
+        this.collectComplexity(pmatInstalled, root),
+        this.collectTechnicalDebt(pmatInstalled, root),
         repo ? this.collectCiCdHealth(repo) : Promise.resolve(this.unknownMetric('CI/CD Health', 'No repository detected')),
         repo ? this.collectOwaspIssues(repo) : Promise.resolve([]),
       ]);
@@ -77,7 +78,7 @@ export class ScorecardService {
       grade: this.computeGrade(compositeScore),
       compositeScore,
       metrics,
-      sdlcCompleteness: this.collectSdlcCompleteness(),
+      sdlcCompleteness: this.collectSdlcCompleteness(root),
       owaspIssues: this.extractOwaspResult(owaspIssues),
       pmatInstalled,
       repo,
@@ -132,8 +133,7 @@ export class ScorecardService {
   // Dependency Freshness
   // --------------------------------------------------------------------------
 
-  private async collectDependencyFreshness(_pmatInstalled: boolean): Promise<MetricResult> {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  private async collectDependencyFreshness(_pmatInstalled: boolean, workspaceRoot?: string): Promise<MetricResult> {
     if (!workspaceRoot) {
       return this.unknownMetric('Dependency Freshness', 'No workspace open');
     }
@@ -228,8 +228,7 @@ export class ScorecardService {
   // Test Coverage
   // --------------------------------------------------------------------------
 
-  private async collectTestCoverage(): Promise<MetricResult> {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  private async collectTestCoverage(workspaceRoot?: string): Promise<MetricResult> {
     if (!workspaceRoot) {
       return this.unknownMetric('Test Coverage', 'No workspace open');
     }
@@ -338,8 +337,8 @@ export class ScorecardService {
     return this.lastOutdatedDeps;
   }
 
-  getCoverageBreakdown(threshold = 80): CoverageFileDetail[] {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  getCoverageBreakdown(threshold = 80, workspaceRoot?: string): CoverageFileDetail[] {
+    workspaceRoot = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) { return []; }
 
     // Try Istanbul first
@@ -447,8 +446,7 @@ export class ScorecardService {
   // Complexity (pmat or local report fallback)
   // --------------------------------------------------------------------------
 
-  private async collectComplexity(pmatInstalled: boolean): Promise<MetricResult> {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  private async collectComplexity(pmatInstalled: boolean, workspaceRoot?: string): Promise<MetricResult> {
     if (!workspaceRoot) {
       return this.unknownMetric('Cyclomatic Complexity', 'No workspace open');
     }
@@ -504,12 +502,10 @@ export class ScorecardService {
   // Technical Debt (pmat only)
   // --------------------------------------------------------------------------
 
-  private async collectTechnicalDebt(pmatInstalled: boolean): Promise<MetricResult> {
+  private async collectTechnicalDebt(pmatInstalled: boolean, workspaceRoot?: string): Promise<MetricResult> {
     if (!pmatInstalled) {
       return this.unknownMetric('Technical Debt', 'Install pmat for debt analysis');
     }
-
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) {
       return this.unknownMetric('Technical Debt', 'No workspace open');
     }
@@ -574,8 +570,8 @@ export class ScorecardService {
   // SDLC Completeness (synchronous, local filesystem)
   // --------------------------------------------------------------------------
 
-  collectSdlcCompleteness(): SdlcCompletenessItem[] {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  collectSdlcCompleteness(workspaceRoot?: string): SdlcCompletenessItem[] {
+    workspaceRoot = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) { return []; }
 
     return SDLC_FILES.map(f => ({

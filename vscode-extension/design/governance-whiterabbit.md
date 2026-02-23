@@ -708,19 +708,19 @@ The banner shows:
 | Step | Status | Description |
 |------|--------|-------------|
 | Design document | **Complete** | This document — `governance-whiterabbit.md` |
-| Default scaffold prompt pack | Pending | `scaffolding/prompts/cheshire-scaffold-default.md` |
-| Types & messages | Pending | `ComponentScaffoldContext`, `scaffoldComponent` message |
-| `parseRepoUrl()` utility | Pending | Centralize URL parsing in GitHubService |
-| `generateScaffoldPromptPack()` | Pending | Pack loader in scaffoldTemplates.ts |
-| LookingGlassPanel handlers | Pending | `buildScaffoldDescription()`, modified dialog, `scaffoldComponent` |
-| White Rabbit button | Pending | Button below Linked Repos in BAR detail |
-| "Create New" tab | Pending | 3rd tab in repo picker modal |
-| ScaffoldPanel component flow | Pending | Accept context, completion transition button |
-| Copilot fix (Rabbit Hole) | Pending | `assignIssue` instead of `@copilot` comment |
-| Advanced Prompt Packs toggle | Pending | Collapsible pack selection in component mode |
+| Default scaffold prompt pack | **Complete** | `scaffolding/prompts/cheshire-scaffold-default.md` |
+| Types & messages | **Complete** | `ComponentScaffoldContext`, `scaffoldComponent` message |
+| `parseRepoUrl()` utility | **Complete** | Centralize URL parsing in GitHubService |
+| `generateScaffoldPromptPack()` | **Complete** | Pack loader in scaffoldTemplates.ts |
+| LookingGlassPanel handlers | **Complete** | `buildScaffoldDescription()`, modified dialog, `scaffoldComponent` |
+| White Rabbit button | **Complete** | Button below Linked Repos in BAR detail |
+| "Create New" tab | **Complete** | 3rd tab in repo picker modal |
+| ScaffoldPanel component flow | **Complete** | Accept context, completion transition button |
+| Copilot fix (Rabbit Hole) | **Complete** | `assignIssue` instead of `@copilot` comment |
+| Advanced Prompt Packs toggle | **Complete** | Collapsible pack selection in component mode |
 | Rabbit Hole rename | **Complete** | Sidebar "Rabbit Hole", hub redesign, "Create Feature" on Scorecard |
-| Post-assignment transition | Pending | Open repo folder + Scorecard in code mode |
-| Update governance-mesh.md | Pending | Capability table, design docs, status |
+| Post-assignment transition | Deferred | Open repo folder + Scorecard in code mode (cross-window coordination) |
+| Update governance-mesh.md | **Complete** | Capability table, design docs, status |
 | Build verification | Pending | `node esbuild.js --production` — clean build |
 
 ---

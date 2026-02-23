@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import type { WebviewMessage, ExtensionMessage, RctroPrompt, RepoInfo, AgentAssignment, PromptPackSelection } from '../types';
+import * as fs from 'fs';
+import * as path from 'path';
+import type { WebviewMessage, ExtensionMessage, RctroPrompt, RepoInfo, AgentAssignment, PromptPackSelection, TechStack } from '../types';
 import { LlmService } from '../services/llm/LlmService';
 import { GitHubService } from '../services/GitHubService';
 import { PromptPackService } from '../services/PromptPackService';
@@ -16,7 +18,14 @@ export class IssueCreatorPanel {
   public static currentPanel: IssueCreatorPanel | undefined;
   private static readonly viewType = 'maintainabilityai.issueCreator';
 
+  // Static event: broadcasts issue progress so other panels (e.g. Scorecard) can observe
+  private static readonly _onProgress = new vscode.EventEmitter<{
+    number: number; url: string; phase: string; status: string; repo: string;
+  } | null>();
+  static readonly onDidUpdateProgress = IssueCreatorPanel._onProgress.event;
+
   private readonly panel: vscode.WebviewPanel;
+  private readonly context: vscode.ExtensionContext;
   private readonly extensionPath: string;
   private readonly llmService: LlmService;
   private readonly githubService: GitHubService;
@@ -35,6 +44,8 @@ export class IssueCreatorPanel {
     context: vscode.ExtensionContext,
     initialDescription?: string,
     initialPacks?: { owasp: string[]; maintainability: string[]; threatModeling: string[] },
+    repoUrl?: string,
+    stackOverride?: TechStack,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -42,6 +53,20 @@ export class IssueCreatorPanel {
 
     if (IssueCreatorPanel.currentPanel) {
       IssueCreatorPanel.currentPanel.panel.reveal(column);
+      // Set repo from URL if provided (component mode)
+      if (repoUrl) {
+        const parsed = GitHubService.parseRepoUrl(repoUrl);
+        if (parsed) {
+          const repo: RepoInfo = { owner: parsed.owner, repo: parsed.repo, defaultBranch: 'main', remoteUrl: repoUrl };
+          IssueCreatorPanel.currentPanel.currentRepo = repo;
+          IssueCreatorPanel.currentPanel.postMessage({ type: 'repoDetected', repo });
+        }
+      }
+      // Set stack override if provided (component mode — folder may not be open)
+      if (stackOverride) {
+        IssueCreatorPanel.currentPanel.pendingStackOverride = stackOverride;
+        IssueCreatorPanel.currentPanel.postMessage({ type: 'stackDetected', stack: stackOverride });
+      }
       if (initialDescription !== undefined) {
         IssueCreatorPanel.currentPanel.postMessage({ type: 'prefillDescription', description: initialDescription, packs: initialPacks });
       }
@@ -61,21 +86,28 @@ export class IssueCreatorPanel {
       }
     );
 
-    IssueCreatorPanel.currentPanel = new IssueCreatorPanel(panel, context, initialDescription, initialPacks);
+    IssueCreatorPanel.currentPanel = new IssueCreatorPanel(panel, context, initialDescription, initialPacks, repoUrl, stackOverride);
   }
 
   private pendingDescription: string | undefined;
   private pendingPacks: { owasp: string[]; maintainability: string[]; threatModeling: string[] } | undefined;
+  private pendingRepoUrl: string | undefined;
+  private pendingStackOverride: TechStack | undefined;
 
   private constructor(
     panel: vscode.WebviewPanel,
     context: vscode.ExtensionContext,
     initialDescription?: string,
     initialPacks?: { owasp: string[]; maintainability: string[]; threatModeling: string[] },
+    repoUrl?: string,
+    stackOverride?: TechStack,
   ) {
     this.pendingDescription = initialDescription;
     this.pendingPacks = initialPacks;
+    this.pendingRepoUrl = repoUrl;
+    this.pendingStackOverride = stackOverride;
     this.panel = panel;
+    this.context = context;
     this.extensionPath = context.extensionPath;
     this.llmService = new LlmService();
     this.githubService = new GitHubService();
@@ -195,15 +227,34 @@ export class IssueCreatorPanel {
 
   private async onReady() {
     this.onLoadPromptPacks();
-    await this.onDetectStack();
+    // Use stack override from component mode if provided, otherwise detect from workspace
+    if (this.pendingStackOverride) {
+      this.postMessage({ type: 'stackDetected', stack: this.pendingStackOverride });
+    } else {
+      await this.onDetectStack();
+    }
     await this.onListModels();
 
-    const repo = await this.githubService.detectRepo();
-    if (repo) {
-      this.currentRepo = repo;
-      this.postMessage({ type: 'repoDetected', repo });
-      // Auto-load issues for the hub landing page
-      await this.onLoadIssues(1);
+    // Use repo URL from component mode if provided, otherwise detect from workspace
+    console.log('[RabbitHole] onReady: pendingRepoUrl=%s', this.pendingRepoUrl || 'none');
+    if (this.pendingRepoUrl) {
+      const parsed = GitHubService.parseRepoUrl(this.pendingRepoUrl);
+      console.log('[RabbitHole] parsed repoUrl: owner=%s, repo=%s', parsed?.owner, parsed?.repo);
+      if (parsed) {
+        this.currentRepo = { owner: parsed.owner, repo: parsed.repo, defaultBranch: 'main', remoteUrl: this.pendingRepoUrl };
+        this.postMessage({ type: 'repoDetected', repo: this.currentRepo });
+      }
+      this.pendingRepoUrl = undefined;
+    } else {
+      console.log('[RabbitHole] no pendingRepoUrl — falling back to detectRepo from workspace');
+      const repo = await this.githubService.detectRepo();
+      console.log('[RabbitHole] detectRepo result: %s', repo ? `${repo.owner}/${repo.repo}` : 'null');
+      if (repo) {
+        this.currentRepo = repo;
+        this.postMessage({ type: 'repoDetected', repo });
+        // Auto-load issues for the hub landing page
+        await this.onLoadIssues(1);
+      }
     }
 
     // Pre-fill description if opened with initial content (e.g. from scorecard)
@@ -237,8 +288,12 @@ export class IssueCreatorPanel {
     try {
       this.lastSelectedPacks = message.packs;
       const packContents = this.promptPackService.getSelectedPackContents(message.packs);
-      const contentStrings = packContents.map(p => p.content);
-      const detected = await this.techStackDetector.detect();
+      const defaultContent = this.promptPackService.getDefaultPackContent();
+      const contentStrings = [
+        ...(defaultContent ? [defaultContent] : []),
+        ...packContents.map(p => p.content),
+      ];
+      const detected = this.pendingStackOverride || await this.techStackDetector.detect();
       const stack = message.stackOverrides
         ? { ...detected, ...message.stackOverrides }
         : detected;
@@ -303,7 +358,7 @@ export class IssueCreatorPanel {
     this.postMessage({ type: 'phaseUpdate', phase: 'submit', status: 'active', message: 'Creating issue...' });
 
     try {
-      const repo = await this.githubService.detectRepo();
+      const repo = this.currentRepo || await this.githubService.detectRepo();
       if (!repo) {
         throw new Error('Could not detect GitHub repository. Open a folder with a Git remote pointing to GitHub.');
       }
@@ -319,6 +374,18 @@ export class IssueCreatorPanel {
       };
 
       const packContents = this.promptPackService.getSelectedPackContents(selection);
+
+      // Always include the default pack (Security-First Baseline)
+      const defaultContent = this.promptPackService.getDefaultPackContent();
+      if (defaultContent) {
+        packContents.unshift({
+          id: 'default',
+          category: 'default',
+          name: 'Security-First Baseline',
+          filename: 'default.md',
+          content: defaultContent,
+        });
+      }
 
       const request = {
         title: message.title,
@@ -344,6 +411,7 @@ export class IssueCreatorPanel {
 
       this.postMessage({ type: 'phaseUpdate', phase: 'submit', status: 'completed' });
       this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'active' });
+      this.emitProgress('assign', 'active');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.postMessage({ type: 'error', message: errorMessage });
@@ -368,6 +436,8 @@ export class IssueCreatorPanel {
     if (agent === 'skip') {
       this.postMessage({ type: 'agentAssigned', agent: 'skip' });
       this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'completed' });
+      this.emitProgress('assign', 'completed');
+      this.switchToScorecard();
       return;
     }
 
@@ -399,6 +469,9 @@ export class IssueCreatorPanel {
           commentUrl: result.url,
         });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'completed' });
+        this.emitProgress('monitor', 'active');
+        this.onStartMonitoring();
+        this.switchToScorecard();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.postMessage({ type: 'error', message: `Failed to assign: ${msg}` });
@@ -409,21 +482,111 @@ export class IssueCreatorPanel {
 
     if (agent === 'copilot') {
       try {
-        // Post @copilot mention to trigger Copilot Coding Agent
+        // Assign Copilot as issue assignee — this triggers the Copilot coding agent
+        await this.githubService.assignIssue(
+          this.currentRepo.owner,
+          this.currentRepo.repo,
+          this.currentIssueNumber,
+          ['copilot-swe-agent[bot]'],
+        );
+        // Post context comment (no @copilot prefix — assignment triggers the agent)
         await this.githubService.createIssueComment(
           this.currentRepo.owner,
           this.currentRepo.repo,
           this.currentIssueNumber,
-          '@copilot Please implement this feature following the RCTRO prompt and security guidelines above.'
+          'Please implement this feature following the RCTRO prompt and security guidelines above.'
         );
         this.postMessage({ type: 'agentAssigned', agent: 'copilot' });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'completed' });
+        this.emitProgress('monitor', 'active');
+        this.onStartMonitoring();
+        this.switchToScorecard();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.postMessage({ type: 'error', message: `Failed to assign Copilot: ${msg}` });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'error', message: msg });
       }
     }
+  }
+
+  /** Offer to add the repo folder to the workspace, then open the Security Scorecard. */
+  private async switchToScorecard() {
+    const repoName = this.currentRepo?.repo;
+    if (repoName) {
+      const folders = vscode.workspace.workspaceFolders || [];
+      const alreadyOpen = folders.some(f =>
+        f.name === repoName || f.uri.fsPath.endsWith(`/${repoName}`) || f.uri.fsPath.endsWith(`\\${repoName}`)
+      );
+
+      if (!alreadyOpen) {
+        // Try to find the repo locally before asking
+        const localPath = this.findRepoLocally(repoName);
+
+        if (localPath) {
+          const action = await vscode.window.showInformationMessage(
+            `Found "${repoName}" at ${localPath}. Add to workspace for Security Scorecard monitoring?`,
+            'Add to Workspace',
+            'Skip',
+          );
+          if (action === 'Add to Workspace') {
+            const insertIdx = vscode.workspace.workspaceFolders?.length || 0;
+            vscode.workspace.updateWorkspaceFolders(insertIdx, 0, { uri: vscode.Uri.file(localPath) });
+          }
+        } else {
+          const action = await vscode.window.showInformationMessage(
+            `"${repoName}" not found locally. Locate it so the Security Scorecard can monitor it?`,
+            'Browse...',
+            'Skip',
+          );
+          if (action === 'Browse...') {
+            const picked = await vscode.window.showOpenDialog({
+              canSelectFolders: true, canSelectFiles: false, canSelectMany: false,
+              openLabel: `Select "${repoName}" folder`,
+              ...(this.getDefaultSearchDir() ? { defaultUri: vscode.Uri.file(this.getDefaultSearchDir()!) } : {}),
+            });
+            if (picked?.[0]) {
+              const insertIdx = vscode.workspace.workspaceFolders?.length || 0;
+              vscode.workspace.updateWorkspaceFolders(insertIdx, 0, { uri: picked[0] });
+            }
+          }
+        }
+      }
+    }
+
+    // Give the workspace time to settle after folder changes before opening scorecard
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Reveal the scorecard — monitoring continues in the background
+    vscode.commands.executeCommand('maintainabilityai.openScorecard');
+    if (this.panel.visible) {
+      this.panel.reveal(vscode.ViewColumn.Beside, true);
+    }
+  }
+
+  /** Search workspace folders and sibling directories for a repo by name. */
+  private findRepoLocally(repoName: string): string | null {
+    const folders = vscode.workspace.workspaceFolders || [];
+    // Check inside each workspace folder
+    for (const folder of folders) {
+      const sub = path.join(folder.uri.fsPath, repoName);
+      if (fs.existsSync(sub) && fs.statSync(sub).isDirectory()) { return sub; }
+    }
+    // Check sibling directories of workspace folders
+    for (const folder of folders) {
+      const parent = path.dirname(folder.uri.fsPath);
+      const sibling = path.join(parent, repoName);
+      if (fs.existsSync(sibling) && fs.statSync(sibling).isDirectory()) { return sibling; }
+    }
+    return null;
+  }
+
+  /** Get a sensible default directory for the folder picker. */
+  private getDefaultSearchDir(): string | null {
+    const folders = vscode.workspace.workspaceFolders;
+    if (folders && folders.length > 0) {
+      return path.dirname(folders[0].uri.fsPath);
+    }
+    return null;
   }
 
   private async onApproveAgent(agent?: 'claude' | 'copilot') {
@@ -433,7 +596,7 @@ export class IssueCreatorPanel {
     }
 
     const commentBody = agent === 'copilot'
-      ? '@copilot approved — proceed with implementation.'
+      ? 'Approved — proceed with implementation.'
       : '@claude approved';
 
     try {
@@ -456,8 +619,8 @@ export class IssueCreatorPanel {
       return;
     }
 
-    const handle = agent === 'copilot' ? '@copilot' : '@claude';
-    const commentBody = `${handle} Please revise the plan based on this feedback:\n\n${feedback}`;
+    const handle = agent === 'copilot' ? 'Copilot' : '@claude';
+    const commentBody = `${handle}: Please revise the plan based on this feedback:\n\n${feedback}`;
 
     try {
       await this.githubService.createIssueComment(
@@ -487,6 +650,7 @@ export class IssueCreatorPanel {
       this.currentRepo
     );
     this.postMessage({ type: 'phaseUpdate', phase: 'monitor', status: 'active' });
+    this.emitProgress('monitor', 'active');
   }
 
   // ============================================================================
@@ -613,6 +777,22 @@ export class IssueCreatorPanel {
     this.currentIssueUrl = undefined;
     this.currentRctro = undefined;
     this.lastSelectedPacks = undefined;
+    IssueCreatorPanel._onProgress.fire(null);
+  }
+
+  private emitProgress(phase: string, status: string) {
+    if (this.currentIssueNumber && this.currentRepo) {
+      const issueInfo = {
+        number: this.currentIssueNumber,
+        url: this.currentIssueUrl || '',
+        phase,
+        status,
+        repo: `${this.currentRepo.owner}/${this.currentRepo.repo}`,
+      };
+      IssueCreatorPanel._onProgress.fire(issueInfo);
+      // Persist so the Scorecard can pick it up even if opened later
+      this.context.workspaceState.update('maintainabilityai.activeIssue', issueInfo);
+    }
   }
 
   private onLoadPromptPacks() {
@@ -833,6 +1013,19 @@ export class IssueCreatorPanel {
     .category-group h4 { font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--accent); }
     .checkbox-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 12px; }
     .checkbox-item input[type="checkbox"] { accent-color: var(--accent); }
+    .default-pack-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .default-pack-badge {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      padding: 2px 6px; border-radius: 3px;
+      background: rgba(34, 197, 94, 0.15); color: #22c55e;
+      letter-spacing: 0.5px;
+    }
+    .default-pack-desc {
+      font-size: 12px; color: var(--text-secondary);
+      padding: 8px 10px; border-radius: 4px;
+      background: var(--surface-alt); border: 1px solid var(--border);
+      line-height: 1.5;
+    }
     .stack-display {
       background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;
       padding: 8px 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.6;
@@ -975,8 +1168,6 @@ export class IssueCreatorPanel {
         <li class="phase-item pending" data-phase="review"><span class="phase-num">2</span><span>Review RCTRO</span></li>
         <li class="phase-item pending" data-phase="submit"><span class="phase-num">3</span><span>Submit to GitHub</span></li>
         <li class="phase-item pending" data-phase="assign"><span class="phase-num">4</span><span>Assign Agent</span></li>
-        <li class="phase-item pending" data-phase="monitor"><span class="phase-num">5</span><span>Monitor Progress</span></li>
-        <li class="phase-item pending" data-phase="complete"><span class="phase-num">6</span><span>Complete</span></li>
       </ol>
       <div id="repo-info" class="sidebar-repo"></div>
     </nav>

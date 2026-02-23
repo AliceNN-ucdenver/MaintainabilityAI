@@ -16,7 +16,7 @@ const vscode = acquireVsCodeApi();
 // Types (mirrored from extension types — can't import in browser context)
 // ============================================================================
 
-type Phase = 'input' | 'review' | 'submit' | 'assign' | 'monitor' | 'complete';
+type Phase = 'input' | 'review' | 'submit' | 'assign';
 
 interface PromptPackInfo {
   id: string;
@@ -73,7 +73,7 @@ interface GitHubIssueListItem {
 // State
 // ============================================================================
 
-const PHASE_ORDER: Phase[] = ['input', 'review', 'submit', 'assign', 'monitor', 'complete'];
+const PHASE_ORDER: Phase[] = ['input', 'review', 'submit', 'assign'];
 
 const state = {
   currentPhase: 'input' as Phase,
@@ -96,6 +96,7 @@ const state = {
   assignedAgent: null as 'claude' | 'copilot' | null,
   availableModels: [] as { id: string; family: string; name: string; vendor: string; version: string; maxInputTokens: number }[],
   selectedModelFamily: 'codex',
+  isComponentMode: false,
   viewMode: 'hub' as ViewMode,
   hubIssues: [] as GitHubIssueListItem[],
   hubHasMore: false,
@@ -124,43 +125,6 @@ const CHESHIRE_SVG = `<svg width="48" height="48" viewBox="0 0 128 128" fill="no
   <path d="M104 96 L114 100 L114 110 Q114 116 104 120 Q94 116 94 110 L94 100 Z" fill="#a855f7" opacity="0.8"/>
   <path d="M100 106 L103 109 L109 103" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
-
-// Sample requirements for the "Load Sample Requirements" button
-const SAMPLE_REQUIREMENTS = `Build a Node.js/Express REST API server with the following requirements:
-
-1. In-Memory User Database — Create a module that stores users in an array with save, find, findOne, remove, and update methods. Use crypto.randomBytes for generating user IDs. Pre-seed one default user for Basic auth testing.
-
-2. Environment Configuration — Use a UNIQUE_KEY environment variable (loaded from .env via dotenv). Include .env in .gitignore.
-
-3. Signup & Signin Routes
-   - POST /signup: Register a new user (username + password), store via the in-memory DB, hash passwords with bcrypt.
-   - POST /signin: Authenticate user, return a signed JWT token on success.
-
-4. Movies CRUD Route (/movies) — Each method MUST return a JSON response using a getJSONObjectForMovieRequirement(req) helper that includes headers from the request, query string from the request, and env set to process.env.UNIQUE_KEY. The exact responses are:
-   - GET: { status: 200, message: "GET movies", headers: <req.headers>, query: <req.query>, env: <UNIQUE_KEY> }
-   - POST: { status: 200, message: "movie saved", headers: <req.headers>, query: <req.query>, env: <UNIQUE_KEY> }
-   - PUT (JWT auth required): { status: 200, message: "movie updated", headers: <req.headers>, query: <req.query>, env: <UNIQUE_KEY> }
-   - DELETE (Basic auth required): { status: 200, message: "movie deleted", headers: <req.headers>, query: <req.query>, env: <UNIQUE_KEY> }
-   - All other methods (e.g. PATCH): 405 { message: "HTTP method not supported" }
-
-5. Authentication Strategies
-   - JWT Strategy (passport-jwt): Verify token from Authorization header for PUT /movies.
-   - Basic Strategy (passport-http): Verify username/password against in-memory DB for DELETE /movies. Can use environment variables or the pre-seeded user.
-
-6. Testing — Create tests covering:
-   - Valid GET, POST, PUT, DELETE requests on /movies
-   - PUT without JWT token (should fail 401)
-   - DELETE without Basic auth / with wrong password (should fail 401)
-   - Signin → retrieve JWT → use token for PUT (chained test)
-   - Unsupported HTTP method returns 405
-
-7. Postman Collection — Generate a Postman v2.1 JSON collection file named after the repository. Include:
-   - A request for each endpoint: POST /signup, POST /signin, GET /movies, POST /movies, PUT /movies, DELETE /movies, PATCH /movies (unsupported)
-   - Test scripts on each request that assert status codes and response body structure
-   - A signin test script that saves the JWT token to a collection variable: pm.collectionVariables.set("jwt_token", pm.response.json().token)
-   - PUT /movies request uses Bearer {{jwt_token}} in the Authorization header
-   - DELETE /movies request uses Basic auth with the pre-seeded user credentials
-   - Include both passing and failing test scenarios (e.g. PUT without token, DELETE with wrong password)`;
 
 // ============================================================================
 // Phase Navigation
@@ -191,8 +155,6 @@ function goToPhase(phase: Phase) {
     case 'review': renderReviewPhase(); break;
     case 'submit': renderSubmitPhase(); break;
     case 'assign': renderAssignPhase(); break;
-    case 'monitor': renderMonitorPhase(); break;
-    case 'complete': renderCompletePhase(); break;
   }
 }
 
@@ -249,29 +211,44 @@ function renderInputPhase() {
     </div>
 
     <div style="margin-top: 16px;">
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <label for="description">Feature Description</label>
-        <button id="btn-sample-req" class="btn-link" style="font-size: 11px;">Load Sample Requirements</button>
-      </div>
+      <label for="description">Feature Description</label>
       <textarea id="description" style="min-height: 120px;" placeholder="Describe the feature you want to build. Be specific about functionality, user interactions, and any security considerations..."></textarea>
     </div>
 
-    <h3>Prompt Pack Categories</h3>
-    <div class="two-col">
-      <div>
-        <div class="category-group">
-          <h4>OWASP Top 10</h4>
-          <div id="owasp-packs"></div>
-        </div>
-        <div class="category-group">
-          <h4>Maintainability</h4>
-          <div id="maint-packs"></div>
-        </div>
+    <div style="margin-top: 16px;">
+      <div class="default-pack-header">
+        <span class="default-pack-badge">ALWAYS INCLUDED</span>
+        <span style="font-weight: 500;">Default Pack &mdash; Security-First Baseline</span>
       </div>
-      <div>
-        <div class="category-group">
-          <h4>Threat Model (STRIDE)</h4>
-          <div id="stride-packs"></div>
+      <div class="default-pack-desc">
+        OWASP Top 10 awareness, DRY principle, fitness functions, secure defaults, structured error handling, security-focused tests.
+      </div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+        <input type="checkbox" id="advanced-packs-checkbox" />
+        <span style="font-weight: 500;">Custom Packs</span>
+        <span id="pack-counter" style="font-size: 11px; color: var(--text-secondary);">(0 / 5 selected)</span>
+      </label>
+    </div>
+    <div id="pack-section-collapsible" style="display: none;">
+      <div class="two-col">
+        <div>
+          <div class="category-group">
+            <h4>OWASP Top 10</h4>
+            <div id="owasp-packs"></div>
+          </div>
+          <div class="category-group">
+            <h4>Maintainability</h4>
+            <div id="maint-packs"></div>
+          </div>
+        </div>
+        <div>
+          <div class="category-group">
+            <h4>Threat Model (STRIDE)</h4>
+            <div id="stride-packs"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -290,6 +267,15 @@ function renderInputPhase() {
   // Populate packs
   if (state.allPacks.length > 0) {
     renderPromptPacks(state.allPacks);
+  }
+
+  // Advanced Prompt Packs toggle
+  const advToggle = document.getElementById('advanced-packs-checkbox') as HTMLInputElement | null;
+  if (advToggle) {
+    advToggle.addEventListener('change', () => {
+      const section = document.getElementById('pack-section-collapsible');
+      if (section) { section.style.display = advToggle.checked ? '' : 'none'; }
+    });
   }
 
   // Populate dropdowns + display from detected stack
@@ -325,13 +311,6 @@ function renderInputPhase() {
     if (templateEl.value) {
       vscode.postMessage({ type: 'selectTemplate', templateId: templateEl.value });
     }
-  });
-
-  // Sample requirements button
-  document.getElementById('btn-sample-req')!.addEventListener('click', () => {
-    const textarea = document.getElementById('description') as HTMLTextAreaElement;
-    textarea.value = SAMPLE_REQUIREMENTS;
-    textarea.focus();
   });
 
   // Generate button
@@ -528,502 +507,16 @@ function renderAssignPhase() {
   });
 }
 
-// ============================================================================
-// Phase 5: Monitor Progress
-// ============================================================================
+// Monitor/Complete phases removed — monitoring happens on the Security Scorecard.
 
-function renderMonitorPhase() {
-  contentEl.innerHTML = `
-    <div class="monitor-header">
-      <h2 style="margin-bottom: 0;">Monitoring Issue #${state.issueNumber}</h2>
-      <a id="monitor-issue-link" style="cursor: pointer;">Open in browser</a>
-      <div class="polling-badge"><div class="polling-dot"></div> Polling for updates</div>
-    </div>
-
-    <div id="pr-banner-area"></div>
-
-    <div id="agent-status" class="agent-status" style="display: none;">
-      <span id="agent-status-icon"></span>
-      <span id="agent-status-text"></span>
-    </div>
-
-    <div class="timeline" id="timeline">
-      <div class="timeline-empty" id="timeline-empty">
-        Waiting for agent to respond...<br>
-        Comments will appear here as the agent analyzes and implements your feature.
-      </div>
-    </div>
-
-    <div style="margin-top: 16px; display: flex; gap: 8px;">
-      <button id="btn-stop-monitoring" class="btn-secondary">Stop Monitoring</button>
-      <button id="btn-go-complete" class="btn-primary" style="display: none;">Continue to Summary</button>
-    </div>
-
-    <div id="error" class="error-msg"></div>
-  `;
-
-  document.getElementById('monitor-issue-link')!.addEventListener('click', () => {
-    if (state.issueUrl) { vscode.postMessage({ type: 'openUrl', url: state.issueUrl }); }
-  });
-
-  document.getElementById('btn-stop-monitoring')!.addEventListener('click', () => {
-    vscode.postMessage({ type: 'stopMonitoring' });
-    goToPhase('complete');
-  });
-
-  document.getElementById('btn-go-complete')!.addEventListener('click', () => {
-    vscode.postMessage({ type: 'stopMonitoring' });
-    goToPhase('complete');
-  });
-
-  // Render existing comments if any
-  if (state.comments.length > 0) {
-    updateTimeline(state.comments);
-  }
-
-  // Render existing PR if any
-  if (state.linkedPr) {
-    showPrBanner(state.linkedPr);
-  }
-
-  // Start monitoring
-  vscode.postMessage({ type: 'startMonitoring' });
-}
-
-// ============================================================================
-// Phase 6: Complete
-// ============================================================================
-
-function renderCompletePhase() {
-  vscode.postMessage({ type: 'stopMonitoring' });
-
-  const prSection = state.linkedPr ? `
-    <p>Pull Request: <a id="complete-pr-link" style="color: var(--accent); cursor: pointer;">#${state.linkedPr.number} — ${escapeHtml(state.linkedPr.title)}</a></p>
-    <p style="font-size: 12px;">Branch: <code>${escapeHtml(state.linkedPr.branch)}</code></p>
-  ` : '';
-
-  contentEl.innerHTML = `
-    <div class="complete-card">
-      <div class="cheshire-header">
-        ${CHESHIRE_SVG}
-        <h2>The Cheshire Cat grins.</h2>
-      </div>
-      <p>Issue <a id="complete-issue-link" style="color: var(--accent); cursor: pointer;">#${state.issueNumber}</a> has been created and assigned.</p>
-      ${prSection}
-      <div class="complete-actions">
-        ${state.linkedPr ? `<button id="btn-checkout" class="btn-primary">Checkout Branch Locally</button>` : ''}
-        <button id="btn-sync-repo" class="btn-secondary">Sync Repo</button>
-        ${state.linkedPr ? `<button id="btn-open-pr" class="btn-secondary">Open PR in Browser</button>` : ''}
-        <button id="btn-open-issue" class="btn-secondary">Open Issue in Browser</button>
-        <button id="btn-new-issue" class="btn-secondary">Back to Rabbit Hole</button>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('complete-issue-link')?.addEventListener('click', () => {
-    if (state.issueUrl) { vscode.postMessage({ type: 'openUrl', url: state.issueUrl }); }
-  });
-
-  document.getElementById('complete-pr-link')?.addEventListener('click', () => {
-    if (state.linkedPr) { vscode.postMessage({ type: 'openUrl', url: state.linkedPr.url }); }
-  });
-
-  document.getElementById('btn-checkout')?.addEventListener('click', () => {
-    if (state.linkedPr) { vscode.postMessage({ type: 'checkoutBranch', branch: state.linkedPr.branch }); }
-  });
-
-  document.getElementById('btn-sync-repo')?.addEventListener('click', () => {
-    const btn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
-    if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
-    vscode.postMessage({ type: 'syncRepo' });
-  });
-
-  document.getElementById('btn-open-pr')?.addEventListener('click', () => {
-    if (state.linkedPr) { vscode.postMessage({ type: 'openUrl', url: state.linkedPr.url }); }
-  });
-
-  document.getElementById('btn-open-issue')?.addEventListener('click', () => {
-    if (state.issueUrl) { vscode.postMessage({ type: 'openUrl', url: state.issueUrl }); }
-  });
-
-  document.getElementById('btn-new-issue')?.addEventListener('click', () => {
-    goToHub();
-  });
-}
-
-// ============================================================================
-// Timeline Rendering (Monitor phase)
-// ============================================================================
-
-/**
- * Determine whether the issue is awaiting human approval.
- * Labels are the authoritative signal from the alice-remediation workflow:
- *   - `remediation-planning`     → plan posted, awaiting approval
- *   - `remediation-in-progress`  → approved, implementation running
- *   - `remediation-complete`     → implementation done, PR created
- *
- * Gap handling: between the user posting approval and Phase 2 starting
- * (~30-60s), `remediation-planning` is still present but a human approval
- * comment exists. In this case we return false so the UI shows
- * "Approval sent" instead of the approve/replan banner.
- *
- * Falls back to comment text parsing when no remediation labels are present.
- */
-function detectNeedsApproval(comments: IssueComment[]): boolean {
-  const labels = state.labels;
-  const hasPlanning = labels.includes('remediation-planning');
-  const hasInProgress = labels.includes('remediation-in-progress');
-  const hasComplete = labels.includes('remediation-complete');
-
-  // Labels are definitive if they exist
-  if (hasComplete || hasInProgress) { return false; }
-  if (hasPlanning) {
-    // Gap handling: label says planning, but check if a human already approved
-    const hasHumanApproval = comments.some(c =>
-      !c.isBot && isApprovalGiven(c.body.toLowerCase())
-    );
-    return !hasHumanApproval;
-  }
-
-  // Fallback: walk comments to detect approval state via text parsing
-  let needsApproval = false;
-  for (const comment of comments) {
-    const lower = comment.body.toLowerCase();
-    if (comment.isBot && isAwaitingApproval(comment.body)) {
-      needsApproval = true;
-    } else if (needsApproval && isApprovalGiven(lower)) {
-      needsApproval = false;
-    } else {
-      const commentComplete = comment.isBot && (
-        lower.includes('implementation complete') ||
-        lower.includes('implementation is complete') ||
-        lower.includes('all changes have been committed') ||
-        lower.includes('opened a pull request') ||
-        lower.includes('created a pull request') ||
-        lower.includes('create pr')
-      );
-      if (commentComplete) {
-        needsApproval = false;
-      }
-    }
-  }
-  return needsApproval;
-}
-
-function updateTimeline(comments: IssueComment[]) {
-  const timeline = document.getElementById('timeline');
-  if (!timeline) { return; }
-
-  const empty = document.getElementById('timeline-empty');
-  if (empty && comments.length > 0) { empty.remove(); }
-
-  // Clear and re-render all comments
-  timeline.querySelectorAll('.timeline-card').forEach(el => el.remove());
-  // Remove any previous approve banner
-  document.getElementById('approve-banner')?.remove();
-
-  for (const comment of comments) {
-    const card = document.createElement('div');
-    card.className = `timeline-card${comment.isBot ? ' bot' : ''}`;
-    const wasEdited = comment.updatedAt && comment.updatedAt !== comment.createdAt;
-    card.innerHTML = `
-      <div class="timeline-header">
-        ${comment.authorAvatarUrl ? `<img class="timeline-avatar" src="${escapeAttr(comment.authorAvatarUrl)}" alt="${escapeAttr(comment.author)}" />` : ''}
-        <strong>${escapeHtml(comment.author)}</strong>
-        ${comment.isBot ? '<span class="bot-badge">bot</span>' : ''}
-        ${wasEdited ? '<span class="edited-badge">updated</span>' : ''}
-        <span class="timeline-time">${formatTimestamp(wasEdited ? comment.updatedAt : comment.createdAt)}</span>
-      </div>
-      <div class="timeline-body">${renderMarkdown(comment.body)}</div>
-    `;
-    timeline.appendChild(card);
-  }
-
-  // Determine phase from labels first, then fall back to comment parsing
-  const needsApproval = detectNeedsApproval(comments);
-
-  // Update agent status indicator
-  updateAgentStatus(comments, needsApproval);
-
-  // Show approve/replan banner only if the latest approval request hasn't been answered
-  if (needsApproval) {
-    const agentName = state.assignedAgent === 'copilot' ? 'Copilot' : 'Claude';
-    const banner = document.createElement('div');
-    banner.id = 'approve-banner';
-    banner.className = 'approve-banner';
-    banner.innerHTML = `
-      <span>${agentName} has a plan ready for your review.</span>
-      <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button id="btn-approve" class="btn-success" style="padding: 6px 20px;">Approve Plan</button>
-        <button id="btn-replan" class="btn-secondary" style="padding: 6px 20px;">Request Changes</button>
-      </div>
-      <div id="replan-area" style="display: none; margin-top: 10px;">
-        <textarea id="replan-feedback" style="min-height: 60px; width: 100%;" placeholder="Describe what should be changed in the plan..."></textarea>
-        <div style="margin-top: 6px; display: flex; gap: 8px;">
-          <button id="btn-send-replan" class="btn-primary" style="padding: 6px 16px;">Send Feedback</button>
-          <button id="btn-cancel-replan" class="btn-secondary" style="padding: 6px 16px;">Cancel</button>
-        </div>
-      </div>
-    `;
-    timeline.parentElement!.insertBefore(banner, timeline.nextSibling);
-
-    document.getElementById('btn-approve')!.addEventListener('click', () => {
-      vscode.postMessage({ type: 'approveAgent', agent: state.assignedAgent || 'claude' });
-      banner.innerHTML = '<span>Approval sent — waiting for implementation to start...</span>';
-      banner.classList.add('approved');
-    });
-
-    document.getElementById('btn-replan')!.addEventListener('click', () => {
-      document.getElementById('replan-area')!.style.display = 'block';
-      (document.getElementById('replan-feedback') as HTMLTextAreaElement).focus();
-    });
-
-    document.getElementById('btn-cancel-replan')!.addEventListener('click', () => {
-      document.getElementById('replan-area')!.style.display = 'none';
-    });
-
-    document.getElementById('btn-send-replan')!.addEventListener('click', () => {
-      const feedback = (document.getElementById('replan-feedback') as HTMLTextAreaElement).value.trim();
-      if (!feedback) { return; }
-      vscode.postMessage({
-        type: 'replanAgent',
-        feedback,
-        agent: state.assignedAgent || 'claude',
-      });
-      banner.innerHTML = `<span>Feedback sent — agent will revise the plan...</span>`;
-      banner.classList.add('approved');
-    });
-  }
-
-  timeline.scrollTop = timeline.scrollHeight;
-}
-
-function updateAgentStatus(comments: IssueComment[], needsApproval: boolean) {
-  const statusEl = document.getElementById('agent-status');
-  const iconEl = document.getElementById('agent-status-icon');
-  const textEl = document.getElementById('agent-status-text');
-  if (!statusEl || !iconEl || !textEl) { return; }
-
-  if (comments.length === 0) {
-    statusEl.style.display = 'none';
-    return;
-  }
-
-  const labels = state.labels;
-  const hasPlanning = labels.includes('remediation-planning');
-  const hasInProgress = labels.includes('remediation-in-progress');
-  const hasComplete = labels.includes('remediation-complete');
-
-  // Determine status from the latest bot comment
-  const lastBot = [...comments].reverse().find(c => c.isBot);
-  const lastAny = comments[comments.length - 1];
-  let status = 'analyzing';
-  let icon = '&#x1F50D;'; // magnifying glass
-  let text = 'Agent is analyzing the issue...';
-
-  if (lastBot) {
-    const lower = lastBot.body.toLowerCase();
-
-    const isComplete = hasComplete ||
-      lower.includes('implementation complete') ||
-      lower.includes('implementation is complete') ||
-      lower.includes('all changes have been committed') ||
-      lower.includes('opened a pull request') ||
-      lower.includes('created a pull request') ||
-      lower.includes('create pr');
-
-    if (needsApproval) {
-      status = 'awaiting-approval';
-      icon = '&#x1F4CB;'; // clipboard
-      text = 'Plan ready — waiting for your approval';
-    } else if (hasPlanning && !needsApproval) {
-      // Gap: planning label present but user already approved — waiting for Phase 2
-      status = 'approval-sent';
-      icon = '&#x23F3;'; // hourglass
-      text = 'Approval sent — waiting for implementation to start...';
-    } else if (hasInProgress) {
-      // Label is authoritative — implementation is running, ignore comment text
-      // that mentions "create PR" as a future plan step
-      if (lower.includes('running tests') || lower.includes('npm test') || lower.includes('test coverage')) {
-        status = 'testing';
-        icon = '&#x1F9EA;'; // test tube
-        text = 'Agent is running tests...';
-      } else {
-        status = 'implementing';
-        icon = '&#x1F528;'; // hammer
-        text = 'Agent is implementing...';
-      }
-    } else if (isComplete) {
-      status = 'complete';
-      icon = '&#x2705;'; // check
-      text = 'Implementation complete';
-      if (lower.includes('pull request') || hasComplete) {
-        text = 'Implementation complete — PR created';
-      }
-    } else if (lower.includes('running tests') || lower.includes('npm test') || lower.includes('test coverage')) {
-      status = 'testing';
-      icon = '&#x1F9EA;'; // test tube
-      text = 'Agent is running tests...';
-    } else if (lower.includes('starting implementation') || lower.includes('beginning implementation') || lower.includes('implementing') || lower.includes('creating files') || lower.includes('writing code')) {
-      status = 'implementing';
-      icon = '&#x1F528;'; // hammer
-      text = 'Agent is implementing...';
-    } else if (lower.includes('plan') || lower.includes('analysis') || lower.includes('approach')) {
-      status = 'planning';
-      icon = '&#x1F4CB;'; // clipboard
-      text = 'Agent is creating a plan...';
-    } else {
-      status = 'working';
-      icon = '&#x1F916;'; // robot
-      text = 'Agent is working...';
-    }
-  }
-
-  // Check if the last comment is an edited bot comment (still in progress)
-  if (lastAny?.isBot && lastAny.updatedAt !== lastAny.createdAt && status !== 'complete' && status !== 'awaiting-approval') {
-    text += ' (comment being updated live)';
-  }
-
-  statusEl.style.display = 'flex';
-  statusEl.className = `agent-status status-${status}`;
-  iconEl.innerHTML = icon;
-  textEl.textContent = text;
-
-  // Show "Continue to Summary" button when complete
-  const completeBtn = document.getElementById('btn-go-complete');
-  if (completeBtn && status === 'complete') {
-    completeBtn.style.display = 'inline-block';
-  }
-}
-
-function isAwaitingApproval(body: string): boolean {
-  const lower = body.toLowerCase();
-  return (
-    lower.includes('ready for approval') ||
-    lower.includes('approve to proceed') ||
-    lower.includes('approval to proceed') ||
-    lower.includes('awaiting approval') ||
-    lower.includes('waiting for approval') ||
-    lower.includes('once approved') ||
-    (lower.includes('reply with') && lower.includes('approved')) ||
-    (lower.includes('@claude approved') && lower.includes('next steps'))
-  );
-}
-
-function isApprovalGiven(lowerBody: string): boolean {
-  return (
-    lowerBody.includes('@claude approved') ||
-    lowerBody.includes('@copilot approved') ||
-    (lowerBody.includes('approved') && lowerBody.includes('plan')) ||
-    lowerBody.includes('starting implementation') ||
-    lowerBody.includes('beginning implementation') ||
-    lowerBody.includes('implementing the plan')
-  );
-}
-
-function renderMarkdown(text: string): string {
-  let html = escapeHtml(text);
-
-  // Code blocks (``` ... ```) — must come before inline code
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _lang, code) =>
-    `<pre><code>${code.trim()}</code></pre>`
-  );
-
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Images (before links to avoid conflict)
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%;" />');
-
-  // HTML img tags (already escaped, unescape them)
-  // After escapeHtml, <img src="..." /> becomes &lt;img src=&quot;...&quot; /&gt;
-  // Use .*? (not [^&]) so it matches through &quot; entities in attributes
-  html = html.replace(/&lt;img\s+(.*?)\/?\s*&gt;/gi, (_m, attrs) => {
-    const clean = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-    // Only allow src from trusted domains
-    const srcMatch = clean.match(/src\s*=\s*"(https:\/\/(?:github\.com|[^"]*\.githubusercontent\.com)[^"]*)"/i);
-    if (!srcMatch) { return ''; }
-    return `<img ${clean} style="max-width: 100%;" />`;
-  });
-
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: var(--accent);">$1</a>');
-
-  // Headers (### → h4, ## → h3, # → h2)
-  html = html.replace(/^#### (.+)$/gm, '<h5 style="margin: 8px 0 4px;">$1</h5>');
-  html = html.replace(/^### (.+)$/gm, '<h4 style="margin: 8px 0 4px;">$1</h4>');
-  html = html.replace(/^## (.+)$/gm, '<h3 style="margin: 8px 0 4px;">$1</h3>');
-  html = html.replace(/^# (.+)$/gm, '<h3 style="margin: 10px 0 4px;">$1</h3>');
-
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // Italic
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-  // Strikethrough
-  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-
-  // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid var(--border); margin: 8px 0;" />');
-
-  // Checkboxes
-  html = html.replace(/^- \[x\] (.+)$/gm, '<div style="margin: 2px 0;">&#9745; $1</div>');
-  html = html.replace(/^- \[ \] (.+)$/gm, '<div style="margin: 2px 0;">&#9744; $1</div>');
-
-  // Unordered list items
-  html = html.replace(/^- (.+)$/gm, '<div style="margin: 2px 0; padding-left: 12px;">&bull; $1</div>');
-
-  // Ordered list items
-  html = html.replace(/^(\d+)\. (.+)$/gm, '<div style="margin: 2px 0; padding-left: 12px;">$1. $2</div>');
-
-  // Blockquotes
-  html = html.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left: 3px solid var(--border); padding-left: 10px; color: var(--text-secondary); margin: 4px 0;">$1</blockquote>');
-
-  // Line breaks (preserve double newlines as paragraph breaks)
-  html = html.replace(/\n\n/g, '<br><br>');
-  html = html.replace(/\n/g, '<br>');
-
-  return html;
-}
-
-function showPrBanner(pr: LinkedPullRequest) {
-  const area = document.getElementById('pr-banner-area');
-  if (!area) { return; }
-
-  area.innerHTML = `
-    <div class="pr-banner">
-      <h4>Pull Request #${pr.number}: ${escapeHtml(pr.title)}</h4>
-      <div class="pr-meta">
-        <span class="checks-dot checks-${pr.checksStatus}"></span>
-        Checks: ${pr.checksStatus} | State: ${pr.state} | Branch: <code>${escapeHtml(pr.branch)}</code>
-      </div>
-      <div class="pr-actions">
-        <button id="pr-checkout-btn" class="btn-primary" style="padding: 4px 12px; font-size: 12px;">Checkout Branch</button>
-        <button id="pr-open-btn" class="btn-secondary" style="padding: 4px 12px; font-size: 12px;">Open in Browser</button>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('pr-checkout-btn')!.addEventListener('click', () => {
-    vscode.postMessage({ type: 'checkoutBranch', branch: pr.branch });
-  });
-
-  document.getElementById('pr-open-btn')!.addEventListener('click', () => {
-    vscode.postMessage({ type: 'openUrl', url: pr.url });
-  });
-
-  // Show "Continue to Summary" button
-  const goBtn = document.getElementById('btn-go-complete');
-  if (goBtn) { goBtn.style.display = ''; }
-}
+// Monitor, Complete, and Timeline phases removed — monitoring lives on the Security Scorecard.
 
 // ============================================================================
 // Issue List Hub
 // ============================================================================
 
 const CREATE_PHASES: Phase[] = ['input', 'review', 'submit'];
-const MANAGE_PHASES: Phase[] = ['assign', 'monitor', 'complete'];
+const MANAGE_PHASES: Phase[] = ['assign'];
 
 function resetIssueState() {
   state.rctro = null;
@@ -1036,6 +529,7 @@ function resetIssueState() {
   state.errorMessage = '';
   state.workflowWarning = false;
   state.assignedAgent = null;
+  state.isComponentMode = false;
 }
 
 function setViewMode(mode: ViewMode) {
@@ -1203,15 +697,14 @@ function renderPromptPacks(packs: PromptPackInfo[]) {
   if (owaspEl) { owaspEl.innerHTML = owasp.map(p => checkbox(p)).join(''); }
   if (maintEl) { maintEl.innerHTML = maint.map(p => checkbox(p)).join(''); }
   if (strideEl) { strideEl.innerHTML = stride.map(p => checkbox(p)).join(''); }
+
+  attachPackLimitListeners();
+  enforcePackLimit();
 }
 
-// DRY principle and fitness functions are always pre-checked
-const DEFAULT_CHECKED_PACKS = new Set(['dry-principle', 'fitness-functions']);
-
 function checkbox(pack: PromptPackInfo): string {
-  const checked = DEFAULT_CHECKED_PACKS.has(pack.id) ? ' checked' : '';
   return `<div class="checkbox-item">
-    <input type="checkbox" id="pack-${pack.id}" data-category="${pack.category}" value="${pack.id}"${checked} />
+    <input type="checkbox" id="pack-${pack.id}" data-category="${pack.category}" value="${pack.id}" />
     <label for="pack-${pack.id}">${pack.name}</label>
   </div>`;
 }
@@ -1235,10 +728,50 @@ function setSelectedPacks(packs: { owasp: string[]; maintainability: string[]; t
     cb.checked = false;
   });
   const allIds = [...packs.owasp, ...packs.maintainability, ...packs.threatModeling];
-  for (const id of allIds) {
+  // Respect the pack limit — only check up to MAX_PROMPT_PACKS
+  const limited = allIds.slice(0, MAX_PROMPT_PACKS);
+  for (const id of limited) {
     const cb = document.getElementById(`pack-${id}`) as HTMLInputElement | null;
     if (cb) { cb.checked = true; }
   }
+  enforcePackLimit();
+}
+
+const MAX_PROMPT_PACKS = 5;
+
+/** Count checked pack checkboxes, update counter, and disable/enable accordingly. */
+function enforcePackLimit() {
+  const allPackCbs = document.querySelectorAll<HTMLInputElement>('#pack-section-collapsible input[type="checkbox"]');
+  let count = 0;
+  allPackCbs.forEach(cb => { if (cb.checked) { count++; } });
+
+  // Update counter text
+  const counter = document.getElementById('pack-counter');
+  if (counter) {
+    counter.textContent = `(${count} / ${MAX_PROMPT_PACKS} selected)`;
+    counter.style.color = count >= MAX_PROMPT_PACKS ? 'var(--text-warning, #e5a00d)' : 'var(--text-secondary)';
+  }
+
+  // Disable unchecked boxes when at limit
+  allPackCbs.forEach(cb => {
+    if (!cb.checked) {
+      cb.disabled = count >= MAX_PROMPT_PACKS;
+    } else {
+      cb.disabled = false;
+    }
+  });
+}
+
+/** Attach change listeners to all pack checkboxes for limit enforcement. */
+function attachPackLimitListeners() {
+  const container = document.getElementById('pack-section-collapsible');
+  if (!container) { return; }
+  container.addEventListener('change', (e) => {
+    const target = e.target as HTMLInputElement;
+    if (target.type === 'checkbox' && target.dataset.category) {
+      enforcePackLimit();
+    }
+  });
 }
 
 function populateModelDropdown(
@@ -1578,13 +1111,26 @@ window.addEventListener('message', (event) => {
     case 'prefillDescription': {
       // Switch to create mode and render the input phase so the textarea exists
       resetIssueState();
+      // Detect component mode when pre-populated with packs (White Rabbit flow)
+      if (message.packs) { state.isComponentMode = true; }
       setViewMode('create');
       goToPhase('input');
       // Now the textarea is rendered — set its value
       const prefillEl = document.getElementById('description') as HTMLTextAreaElement | null;
       if (prefillEl) { prefillEl.value = message.description; }
-      // Pre-select prompt packs if provided
-      if (message.packs) { setSelectedPacks(message.packs); }
+      // Pre-select prompt packs if provided and auto-expand Custom section
+      if (message.packs) {
+        setSelectedPacks(message.packs);
+        const hasCustomPacks = [...message.packs.owasp, ...message.packs.maintainability, ...message.packs.threatModeling].length > 0;
+        if (hasCustomPacks) {
+          const advToggle = document.getElementById('advanced-packs-checkbox') as HTMLInputElement | null;
+          if (advToggle) {
+            advToggle.checked = true;
+            const section = document.getElementById('pack-section-collapsible');
+            if (section) { section.style.display = ''; }
+          }
+        }
+      }
       break;
     }
 
@@ -1601,12 +1147,12 @@ window.addEventListener('message', (event) => {
     }
 
     case 'agentAssigned':
-      if (message.agent === 'skip') {
-        goToPhase('complete');
-      } else {
-        state.assignedAgent = message.agent as 'claude' | 'copilot';
-        goToPhase('monitor');
-      }
+      // Agent assigned — extension host switches to the Security Scorecard.
+      // Mark assign phase complete in the sidebar; no further phases here.
+      state.assignedAgent = message.agent as 'claude' | 'copilot' | null;
+      document.querySelectorAll('.phase-item').forEach(el => {
+        el.className = 'phase-item completed';
+      });
       break;
 
     case 'workflowNotFound':
@@ -1617,33 +1163,18 @@ window.addEventListener('message', (event) => {
 
     case 'commentsUpdated':
       state.comments = message.comments;
-      if (state.currentPhase === 'monitor') {
-        updateTimeline(message.comments);
-      }
       break;
 
     case 'prDetected':
       state.linkedPr = message.pr;
-      if (state.currentPhase === 'monitor') {
-        showPrBanner(message.pr);
-      }
       break;
 
     case 'prStatusUpdated':
       state.linkedPr = message.pr;
-      if (state.currentPhase === 'monitor') {
-        showPrBanner(message.pr);
-      }
-      if (message.pr.state === 'merged') {
-        goToPhase('complete');
-      }
       break;
 
     case 'labelsUpdated':
       state.labels = message.labels;
-      if (state.currentPhase === 'monitor') {
-        updateTimeline(state.comments);
-      }
       break;
 
     case 'branchCheckedOut':

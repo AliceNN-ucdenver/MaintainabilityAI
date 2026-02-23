@@ -4,6 +4,16 @@ import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment,
 import { IssueBodyBuilder } from './IssueBodyBuilder';
 
 export class GitHubService {
+  /**
+   * Parse a GitHub URL into { owner, repo } or return null.
+   * Handles https://github.com/org/repo, git@github.com:org/repo.git, etc.
+   */
+  static parseRepoUrl(url: string): { owner: string; repo: string } | null {
+    const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+    if (!match) { return null; }
+    return { owner: match[1], repo: match[2] };
+  }
+
   private octokit: Octokit | null = null;
   private bodyBuilder = new IssueBodyBuilder();
 
@@ -38,6 +48,31 @@ export class GitHubService {
       return null;
     }
 
+    return this.parseGitRepo(repo);
+  }
+
+  async detectRepoForFolder(folderPath: string): Promise<RepoInfo | null> {
+    const gitExtension = vscode.extensions.getExtension('vscode.git');
+    if (!gitExtension) {
+      return null;
+    }
+
+    const git = gitExtension.isActive
+      ? gitExtension.exports
+      : await gitExtension.activate();
+
+    const api = git.getAPI(1);
+    const repo = api.repositories.find((r: { rootUri: vscode.Uri }) => r.rootUri.fsPath === folderPath)
+      || api.repositories[0];
+    if (!repo) {
+      return null;
+    }
+
+    return this.parseGitRepo(repo);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private parseGitRepo(repo: any): RepoInfo | null {
     const remotes = repo.state.remotes;
     const origin = remotes.find((r: { name: string }) => r.name === 'origin') || remotes[0];
     if (!origin) {
@@ -252,11 +287,15 @@ export class GitHubService {
         per_page: 30,
       });
 
+      const issueRef = `#${issueNumber}`;
       const linked = pulls.filter(pr =>
         pr.head.ref === expectedBranch ||
-        pr.body?.includes(`#${issueNumber}`) ||
-        pr.body?.includes(`fixes #${issueNumber}`) ||
-        pr.body?.includes(`closes #${issueNumber}`)
+        pr.head.ref.includes(`issue-${issueNumber}`) ||
+        pr.body?.includes(issueRef) ||
+        pr.body?.includes(`fixes ${issueRef}`) ||
+        pr.body?.includes(`closes ${issueRef}`) ||
+        pr.body?.includes(`resolves ${issueRef}`) ||
+        pr.title?.includes(issueRef)
       );
 
       const results: LinkedPullRequest[] = [];

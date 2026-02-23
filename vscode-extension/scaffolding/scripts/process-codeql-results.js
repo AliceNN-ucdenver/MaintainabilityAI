@@ -155,13 +155,19 @@ function parseSARIFResults(sarifPath) {
       const location = result.locations?.[0]?.physicalLocation;
       if (!location) { continue; }
       const rule = run.tool?.driver?.rules?.find(r => r.id === result.ruleId);
+      // Prefer the numeric security-severity score (matches GitHub UI)
+      // over result.level (warning/error/note) which is too coarse
+      const secScore = parseFloat(rule?.properties?.['security-severity'] || '');
+      const severity = !isNaN(secScore)
+        ? numericToSeverity(secScore)
+        : (mappings.severity_mapping[result.level] || 'medium');
       vulnerabilities.push({
         ruleId: result.ruleId,
         ruleName: rule?.shortDescription?.text || result.ruleId,
         ruleHelp: rule?.help?.text || '',
         message: result.message?.text || '',
         level: result.level || 'warning',
-        severity: mappings.severity_mapping[result.level] || 'medium',
+        severity,
         filePath: location.artifactLocation?.uri || 'unknown',
         startLine: location.region?.startLine || 1,
         endLine: location.region?.endLine || location.region?.startLine || 1,
@@ -199,6 +205,13 @@ function groupFindingsByRuleAndFile(findings) {
     });
   }
   return Array.from(groups.values());
+}
+
+function numericToSeverity(score) {
+  if (score >= 9.0) { return 'critical'; }
+  if (score >= 7.0) { return 'high'; }
+  if (score >= 4.0) { return 'medium'; }
+  return 'low';
 }
 
 function meetsSeverityThreshold(severity) {
