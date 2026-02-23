@@ -201,7 +201,19 @@ This framework operationalizes that insight:
 
 </div>
 
-<div style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; margin-top: 32px; text-align: center; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);">
+<div style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); border-radius: 12px; padding: 24px; margin-top: 32px; text-align: center; box-shadow: 0 6px 24px rgba(37, 99, 235, 0.4);">
+  <p style="color: #f0f9ff; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+    🔮 Watch Absolem in Action
+  </p>
+  <p style="color: #dbeafe; font-size: 15px; margin: 0 0 16px 0;">
+    See the full workflow: architecture modeling → governance mesh → agent implementation
+  </p>
+  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/IQBSUl4fVuixSqbnhTmnci1FARvl--dRjKlk4_7rdgymNC0?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=fPKk8g" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #93c5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+    ▶️ Watch the Demo
+  </a>
+</div>
+
+<div style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; margin-top: 16px; text-align: center; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);">
   <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
     🎥 Watch Cheshire in Action
   </p>
