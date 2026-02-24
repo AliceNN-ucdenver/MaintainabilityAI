@@ -88,22 +88,22 @@ This framework operationalizes that insight:
 </div>
 </div>
 
-## 😸 Cheshire — The VSCode Extension
+## 😸 MaintainabilityAI — The VSCode Extension
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 1px solid rgba(139, 92, 246, 0.3);">
 
-<div style="display: flex; align-items: center; gap: 32px; flex-wrap: wrap;">
+<div style="display: flex; align-items: center; gap: 32px; flex-wrap: wrap; margin-bottom: 32px;">
 
 <div style="flex-shrink: 0; text-align: center;">
   <img src="../../images/cheshire.png" alt="Cheshire Cat — The SDLC Guide" style="width: 140px; height: 140px; border-radius: 16px; border: 2px solid #a78bfa; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);" />
 </div>
 
 <div style="flex: 1; min-width: 280px;">
-  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">The Cheshire Cat guides you through the SDLC</div>
+  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Two panels. One mission. Ship secure code.</div>
   <div style="font-size: 15px; color: #cbd5e1; line-height: 1.7; margin-bottom: 16px;">
-    A <strong style="color: #c4b5fd;">prototype VSCode extension</strong> that brings the MaintainabilityAI framework directly into your editor. Describe what you want to build — the Cat generates structured RCTRO specifications with OWASP security controls, STRIDE threat analysis, and maintainability patterns.
+    A <strong style="color: #c4b5fd;">VSCode extension</strong> that brings the MaintainabilityAI framework directly into your editor. The <strong style="color: #93c5fd;">Looking Glass</strong> governs your portfolio — architecture, scoring, and AI-assisted analysis. The <strong style="color: #c4b5fd;">Cheshire Cat</strong> secures your code — scaffolding, scorecards, and agent-driven remediation.
   </div>
-  <div style="display: inline-block; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid rgba(139, 92, 246, 0.3);">Prototype — v0.1.0</div>
+  <div style="display: inline-block; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid rgba(139, 92, 246, 0.3);">v0.1.4</div>
 </div>
 
 </div>
@@ -175,8 +175,87 @@ This framework operationalizes that insight:
   <a href="#_" class="lightbox-close">&times;</a>
   <img src="../../images/cheshire-dashboard.png" alt="Security Scorecard — full view" />
 </div>
+<div id="lb-governance" class="cheshire-lightbox">
+  <a href="#_" class="lightbox-close">&times;</a>
+  <img src="../../images/looking-glass-governance.png" alt="Governance Mesh — full view" />
+</div>
+<div id="lb-calm" class="cheshire-lightbox">
+  <a href="#_" class="lightbox-close">&times;</a>
+  <img src="../../images/looking-glass-calm.png" alt="CALM Architecture Diagram — full view" />
+</div>
+<div id="lb-absolem" class="cheshire-lightbox">
+  <a href="#_" class="lightbox-close">&times;</a>
+  <img src="../../images/looking-glass-absolem.png" alt="Absolem AI Assistant — full view" />
+</div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 32px;">
+<!-- ═══════════════════════════════════════════════ -->
+<!-- LOOKING GLASS — Governance & Architecture      -->
+<!-- ═══════════════════════════════════════════════ -->
+
+<div style="margin-bottom: 12px;">
+  <div style="font-size: 20px; font-weight: 700; color: #93c5fd; margin-bottom: 4px;">🪞 The Looking Glass — Governance & Architecture</div>
+  <div style="font-size: 14px; color: #94a3b8;">The mirror that shows you what your organization really looks like.</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 6px 24px rgba(37, 99, 235, 0.4);">
+  <p style="color: #f0f9ff; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+    🔮 Watch Absolem in Action
+  </p>
+  <p style="color: #dbeafe; font-size: 15px; margin: 0 0 16px 0;">
+    See the full workflow: architecture modeling → governance mesh → AI-assisted analysis
+  </p>
+  <a href="https://youtu.be/Ua_4Msx2DYQ" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #93c5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+    ▶️ Watch the Demo
+  </a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
+
+<div style="background: rgba(59, 130, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
+  <h4 style="color: #93c5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Governance Mesh & Scoring</h4>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Portfolio → Platform → BAR hierarchy with live governance scoring across four pillars: Architecture, Security, Information Risk, and Operations. Track score history with sparklines, manage ADRs, and sync to git — all from a single dashboard.</p>
+  <a href="#lb-governance"><img src="../../images/looking-glass-governance.png" alt="Governance Mesh" class="cheshire-thumb" /></a>
+  <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #2563eb;">
+  <h4 style="color: #60a5fa; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">CALM Architecture Diagrams</h4>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Interactive ReactFlow canvas with ELK.js auto-layout, custom node types for services, databases, actors, and networks. Drag-and-drop palette, inline editing, container collapse, and PNG export. Start from Three-Tier, Event-Driven, or Data Pipeline archetypes.</p>
+  <a href="#lb-calm"><img src="../../images/looking-glass-calm.png" alt="CALM Diagrams" class="cheshire-thumb" /></a>
+  <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #1d4ed8;">
+  <h4 style="color: #818cf8; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Absolem — AI Governance Assistant</h4>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">A floating chat assistant with 7 commands: drift analysis, component creation, CALM validation, gap analysis, ADR suggestions, image-to-CALM conversion, and freeform architecture questions. Generates structured patches you can preview, accept, or reject.</p>
+  <a href="#lb-absolem"><img src="../../images/looking-glass-absolem.png" alt="Absolem Chat" class="cheshire-thumb" /></a>
+  <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
+</div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- CHESHIRE CAT — Code & Security                 -->
+<!-- ═══════════════════════════════════════════════ -->
+
+<div style="margin-top: 40px; margin-bottom: 12px;">
+  <div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 4px;">😸 The Cheshire Cat — Code & Security</div>
+  <div style="font-size: 14px; color: #94a3b8;">The grin that stays with your repo long after the session ends.</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);">
+  <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+    🎥 Watch Cheshire in Action
+  </p>
+  <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px 0;">
+    See the full workflow: feature description → RCTRO generation → GitHub issue → agent implementation
+  </p>
+  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/IQAs4vpIObTOQ75l8bjm9DSGASlETl6xn6YIm7I1dRQPhE4?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=fbcbN8" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #c4b5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+    ▶️ Watch the Demo
+  </a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
 
 <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #a78bfa;">
   <h4 style="color: #c4b5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">SDLC Scaffolding</h4>
@@ -194,35 +273,11 @@ This framework operationalizes that insight:
 
 <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 24px; border-left: 4px solid #6366f1;">
   <h4 style="color: #93c5fd; margin: 0 0 8px 0; font-size: 16px; font-weight: 700;">Security Scorecard</h4>
-  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Browse 23 bundled prompt packs across OWASP, Maintainability, and STRIDE categories. Configure repository secrets for agent workflows. Monitor your project's security posture from the Cheshire activity bar. Humans manage technical debt issue creation, dependency updates, code coverage improvements, and other governance tasks directly from the scorecard.</p>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0;">Six fitness functions score every repo: security compliance, dependency freshness, test coverage, cyclomatic complexity, technical debt, and CI/CD health. Action buttons on every tile let you create remediation issues directly from the dashboard.</p>
   <a href="#lb-dashboard"><img src="../../images/cheshire-dashboard.png" alt="Security Scorecard" class="cheshire-thumb" /></a>
   <div style="text-align: center; margin-top: 6px;"><span style="color: #94a3b8; font-size: 11px;">Click to enlarge</span></div>
 </div>
 
-</div>
-
-<div style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); border-radius: 12px; padding: 24px; margin-top: 32px; text-align: center; box-shadow: 0 6px 24px rgba(37, 99, 235, 0.4);">
-  <p style="color: #f0f9ff; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
-    🔮 Watch Absolem in Action
-  </p>
-  <p style="color: #dbeafe; font-size: 15px; margin: 0 0 16px 0;">
-    See the full workflow: architecture modeling → governance mesh → agent implementation
-  </p>
-  <a href="https://youtu.be/Ua_4Msx2DYQ" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #93c5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
-    ▶️ Watch the Demo
-  </a>
-</div>
-
-<div style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); border-radius: 12px; padding: 24px; margin-top: 16px; text-align: center; box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);">
-  <p style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
-    🎥 Watch Cheshire in Action
-  </p>
-  <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px 0;">
-    See the full workflow: feature description → RCTRO generation → GitHub issue → agent implementation
-  </p>
-  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/IQAs4vpIObTOQ75l8bjm9DSGASlETl6xn6YIm7I1dRQPhE4?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=fbcbN8" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #c4b5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
-    ▶️ Watch the Demo
-  </a>
 </div>
 
 <div style="margin-top: 24px; text-align: center;">
