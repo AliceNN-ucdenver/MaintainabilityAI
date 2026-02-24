@@ -1,6 +1,6 @@
 # Cheshire: Governance Mesh Extension — Status & Roadmap
 
-**Version:** February 23, 2026
+**Version:** February 24, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 ---
@@ -71,6 +71,8 @@
 | [`governance-diagram-req.md`](governance-diagram-req.md) | **Complete** | Looking Glass design surface — ReactFlow, ELK layout, CALM read/write, PNG export |
 | [`governance-absolem.md`](governance-absolem.md) | **1.0.0 Complete** | Absolem multi-turn AI governance assistant — 7 commands, image-to-CALM, gap analysis, ADR suggestions |
 | [`governance-whiterabbit.md`](governance-whiterabbit.md) | **Complete** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
+| [`governance-repo-to-calm.md`](governance-repo-to-calm.md) | **Designed — Not Started** | Absolem "Scan Repo" command — scan a GitHub repo via gh CLI, propose incremental CALM patches |
+| [`governance-reuse.md`](governance-reuse.md) | **Designed — Not Started** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts |
 
 ---
 
@@ -323,6 +325,7 @@
 - [x] Image-to-CALM — generate `bar.arch.json` from architecture diagram images via VS Code `LanguageModelDataPart` API (no external API key needed)
 - [x] CALM artifact preview card — structured breakdown of nodes/relationships/flows with "Open in Editor" and "Apply to bar.arch.json" buttons
 - [x] `replaceFull` patch operation — complete architecture replacement with automatic layout file cleanup for fresh auto-layout
+- [ ] **Repo-to-CALM** — Absolem "Scan Repo" command (8th command chip). User pastes a GitHub repo URL, Absolem scans key files via `gh` CLI (package manifests, Docker configs, source structure, CI workflows), compares against existing CALM, and proposes incremental `addNode`/`addRelationship`/`updateNode` patches. Never removes existing nodes. Enables bottom-up governance: derive architecture from running code. → see [design spec](governance-repo-to-calm.md)
 - [ ] Risk scoring from code metrics — feed pmat/CodeQL data into information risk assessments
 
 ### Cross-BAR Analysis
@@ -485,6 +488,32 @@ BAR-to-code implementation workflow. Details: [White Rabbit spec](governance-whi
 
 ---
 
+## Phase 5 — Codebase Health & Refactoring
+
+Structural improvements to the extension codebase itself. Full analysis: [governance-reuse.md](governance-reuse.md).
+
+### Critical Deduplication
+- [ ] Extract shared utilities (`getNonce` ×4, `escapeHtml` ×5, `formatTimestamp` ×3) into `src/utils/`
+- [ ] Consolidate `execFileAsync` wrapper (8 copies across services) into a single `src/utils/exec.ts`
+- [ ] Unify panel infrastructure — extract `BasePanel<TWebviewMsg, TExtMsg>` generic from 5 panels (createOrShow, dispose, postMessage, getHtmlContent)
+
+### Module Decomposition
+- [ ] Split `src/types/index.ts` (1,079 LOC) into ~8 domain files (mesh, bar, calm, absolem, oraculum, scorecard, github, shared)
+- [ ] Decompose `lookingGlass.ts` (~8,000 LOC) into feature modules (portfolio, barDetail, absolem, diagram, settings, etc.)
+- [ ] Extract shared CSS/theme system — centralize CSS variables, eliminate per-panel duplication
+
+### Cross-Cutting Concerns
+- [ ] Centralized error handling — replace 93 ad-hoc try-catch blocks with consistent `Logger` service
+- [ ] Extract `ConfigService` — single source for settings, API keys, mesh config reads
+- [ ] Standardize VS Code LLM usage — align VsCodeLmProvider patterns across services
+
+### Build & Packaging
+- [ ] Add `--watch` mode to esbuild for development
+- [ ] Clean stale `.vsix` artifacts from version control
+- [ ] Resolve `--no-dependencies` publish flag (missing declared dependencies)
+
+---
+
 ## Future Directions — Research-Backed (February 2026)
 
 Sourced from 2025-2026 industry research across architecture-as-code, AI agent evolution, supply chain security, platform engineering, and developer experience.
@@ -526,7 +555,6 @@ Sourced from 2025-2026 industry research across architecture-as-code, AI agent e
 - [ ] Import from existing governance tools (Archer, ServiceNow GRC)
 - [ ] Export mesh structure as Mermaid/PlantUML diagrams
 - [ ] Remote BAR resolution — support BARs stored as separate GitHub repos (not just monorepo subdirectories)
-- [ ] Standardize VS Code LLM usage — align VsCodeLmProvider (Issue Creator) with OrgScanner patterns: add multi-family fallback chain, streaming progress, consistent default model family, and uniform model listing properties
 - [ ] Threat model diff — compare before/after threat models when controls change
 - [ ] Threat model review workflow — assign threats to owners, track remediation status
 - [ ] CALM controls validation — verify declared controls against actual implementation evidence
