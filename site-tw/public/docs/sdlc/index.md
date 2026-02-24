@@ -111,7 +111,6 @@ This framework operationalizes that insight:
 <!-- Lightbox styles -->
 <style>
 .cheshire-lightbox {
-  display: none;
   position: fixed;
   top: 0;
   left: 0;
@@ -119,12 +118,19 @@ This framework operationalizes that insight:
   height: 100%;
   background: rgba(0, 0, 0, 0.85);
   z-index: 9999;
+  display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 .cheshire-lightbox:target {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 .cheshire-lightbox img {
   max-width: 90vw;
