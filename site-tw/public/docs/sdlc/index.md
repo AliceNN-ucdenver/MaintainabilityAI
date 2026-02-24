@@ -208,7 +208,7 @@ This framework operationalizes that insight:
   <p style="color: #dbeafe; font-size: 15px; margin: 0 0 16px 0;">
     See the full workflow: architecture modeling → governance mesh → agent implementation
   </p>
-  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/IQBSUl4fVuixSqbnhTmnci1FARvl--dRjKlk4_7rdgymNC0?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=fPKk8g" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #93c5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+  <a href="https://youtu.be/Ua_4Msx2DYQ" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #93c5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
     ▶️ Watch the Demo
   </a>
 </div>
