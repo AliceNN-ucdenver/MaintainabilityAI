@@ -2,13 +2,14 @@
 // Receives compact patches from the webview (via CalmMutator) and performs targeted JSON mutations
 
 import * as fs from 'fs';
+import * as path from 'path';
 import * as crypto from 'crypto';
 
 // Mirror the CalmPatch type from the webview (browser-side)
 export interface CalmPatch {
   op: 'addNode' | 'removeNode' | 'addRelationship' | 'removeRelationship'
     | 'updateField' | 'setControl' | 'removeControl' | 'setCapabilities' | 'setInterfaces'
-    | 'updateComposedOf';
+    | 'updateComposedOf' | 'replaceFull';
   target: string;
   field?: string;
   value?: unknown;
@@ -20,16 +21,30 @@ export interface CalmPatch {
  * Returns null if no changes were made.
  */
 export function applyPatch(filePath: string, patches: CalmPatch[]): string | null {
+  // For replaceFull, create the file if it doesn't exist or has invalid JSON
+  const isReplaceFull = patches.length === 1 && patches[0].op === 'replaceFull';
+
   if (!fs.existsSync(filePath)) {
-    return null;
+    if (isReplaceFull) {
+      // Create parent directory if needed
+      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+      if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+    } else {
+      return null;
+    }
   }
 
-  const original = fs.readFileSync(filePath, 'utf-8');
+  const original = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(original);
   } catch {
-    return null;
+    if (isReplaceFull) {
+      // Empty or invalid JSON — replaceFull will overwrite entirely
+      data = {};
+    } else {
+      return null;
+    }
   }
 
   const nodes = data.nodes as Record<string, unknown>[];
@@ -187,6 +202,25 @@ export function applyPatch(filePath: string, patches: CalmPatch[]): string | nul
               'composed-of': { container: containerId, nodes: newNodeIds },
             },
           });
+        }
+        break;
+      }
+
+      case 'replaceFull': {
+        // Replace the entire CALM architecture with the provided value
+        if (patch.value && typeof patch.value === 'object') {
+          const fullContent = JSON.stringify(patch.value, null, 2) + '\n';
+          if (fullContent !== original) {
+            fs.writeFileSync(filePath, fullContent, 'utf-8');
+            // Delete stale layout files so the new architecture gets a fresh auto-layout
+            const archDir = path.dirname(filePath);
+            for (const layoutFile of ['context.layout.json', 'logical.layout.json']) {
+              const lp = path.join(archDir, layoutFile);
+              if (fs.existsSync(lp)) { try { fs.unlinkSync(lp); } catch { /* best effort */ } }
+            }
+            return computeHash(fullContent);
+          }
+          return null;
         }
         break;
       }

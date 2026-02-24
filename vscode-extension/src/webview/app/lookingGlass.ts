@@ -2,7 +2,9 @@
 // Vanilla TypeScript, IIFE pattern for browser context inside VS Code
 
 import mermaid from 'mermaid';
-import { renderArchitectureDetail, attachArchitectureEvents, attachAbsolemEvents, getArchitectureStyles } from './pillars/architecturePillar';
+import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
+import type { AgentStatusInfo } from './agentStatus';
+import { renderArchitectureDetail, attachArchitectureEvents, getArchitectureStyles } from './pillars/architecturePillar';
 import type { AdrRecord, AbsolemState, CalmDataPayload } from './pillars/architecturePillar';
 import { renderMarkdown } from './pillars/shared';
 import { mountDiagramCanvas, unmountDiagramCanvas, updateDiagramCanvasProps, isDiagramCanvasMounted } from './reactflow/ReactBridge';
@@ -57,7 +59,19 @@ interface PillarArtifact {
   path: string;
   present: boolean;
   nonEmpty: boolean;
+  qualityScore: number;
 }
+
+interface GovernanceScoreSnapshot {
+  timestamp: string;
+  composite: number;
+  architecture: number;
+  security: number;
+  information_risk: number;
+  operations: number;
+}
+
+type GovernanceTrend = 'improving' | 'stable' | 'declining' | 'new';
 
 interface GovernancePillarScore {
   pillar: string;
@@ -118,6 +132,14 @@ interface BarSummary {
   path: string;
   reviews?: ReviewRecord[];
   latestDriftScore?: number;
+  scoreHistory?: GovernanceScoreSnapshot[];
+  scoreTrend?: GovernanceTrend;
+  pillarTrends?: {
+    architecture: GovernanceTrend;
+    security: GovernanceTrend;
+    infoRisk: GovernanceTrend;
+    operations: GovernanceTrend;
+  };
 }
 
 interface PlatformSummary {
@@ -294,6 +316,8 @@ const state = {
   activePillar: null as 'architecture' | 'security' | 'information-risk' | 'operations' | null,
   // Active review state
   activeReview: null as ActiveReviewInfo | null,
+  // Unified agent status
+  agentStatus: null as AgentStatusInfo | null,
   // Top findings summary state
   topFindingsLoading: false,
   topFindingsProgress: '',
@@ -332,6 +356,10 @@ const state = {
   policyGenerating: null as string | null,  // filename being generated
   policyGenerateStep: '',
   policyGenerateProgress: 0,
+  // Governance score history
+  scoreHistory: [] as GovernanceScoreSnapshot[],
+  scoreTrend: 'new' as GovernanceTrend,
+  pillarTrends: null as { architecture: GovernanceTrend; security: GovernanceTrend; infoRisk: GovernanceTrend; operations: GovernanceTrend } | null,
   // Open workspace folder names (for highlighting active repos)
   openWorkspaceFolders: [] as string[],
   // Repo picker modal state
@@ -1843,57 +1871,209 @@ function getStyles(): string {
       /* ---- Pillar Detail: Architecture (ADR + Diagrams) ---- */
       ${getArchitectureStyles()}
 
+      /* ---- Absolem FAB + Chat Overlay ---- */
+      .absolem-fab {
+        position: fixed; bottom: 24px; right: 24px;
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--accent); color: white; font-size: 26px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 1000;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .absolem-fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      }
+      .absolem-overlay {
+        position: fixed; bottom: 24px; right: 24px;
+        width: 420px; max-height: 600px;
+        border-radius: 12px;
+        background: var(--surface); border: 1px solid var(--border);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        z-index: 1000;
+        display: flex; flex-direction: column; overflow: hidden;
+        animation: absolem-overlay-appear 0.2s ease-out;
+      }
+      @keyframes absolem-overlay-appear {
+        from { opacity: 0; transform: translateY(16px) scale(0.95); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .absolem-overlay-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 12px 16px; background: var(--surface-raised, var(--surface));
+        border-bottom: 1px solid var(--border);
+        font-size: 13px; font-weight: 600; color: var(--text);
+      }
+      .absolem-close-btn {
+        background: none; border: none; color: var(--text-muted); cursor: pointer;
+        font-size: 16px; padding: 2px 6px; line-height: 1; border-radius: 4px;
+        transition: background 0.15s, color 0.15s;
+      }
+      .absolem-close-btn:hover { color: var(--text); background: var(--bg); }
+
+      .absolem-messages {
+        flex: 1; min-height: 0;
+        max-height: 440px; overflow-y: auto; padding: 12px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+
+      .absolem-bubble { display: flex; gap: 8px; align-items: flex-start; }
+      .absolem-avatar { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+      .absolem-bubble-content {
+        background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 8px 12px; font-size: 12px; color: var(--text); line-height: 1.5;
+        max-width: 85%; white-space: pre-wrap;
+      }
+
+      .user-bubble { display: flex; justify-content: flex-end; }
+      .user-bubble-content {
+        background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 8px;
+        padding: 8px 12px; font-size: 12px; color: var(--text); line-height: 1.5;
+        max-width: 85%; white-space: pre-wrap;
+      }
+
+      .absolem-streaming .absolem-cursor { animation: absolem-blink 0.7s step-end infinite; }
+      @keyframes absolem-blink { 50% { opacity: 0; } }
+
+      .absolem-chips {
+        display: flex; flex-direction: column; gap: 6px; margin-top: 8px; margin-left: 26px;
+      }
+      .absolem-chip {
+        background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
+        padding: 6px 14px; font-size: 11px; color: var(--text); cursor: pointer;
+        text-align: left; transition: border-color 0.15s, background 0.15s;
+      }
+      .absolem-chip:hover { border-color: var(--accent); background: var(--accent-bg); }
+
+      .absolem-input {
+        display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border);
+        align-items: center;
+      }
+      .absolem-input input {
+        flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+        color: var(--text); font-size: 12px; padding: 6px 10px; font-family: inherit; outline: none;
+      }
+      .absolem-input input:focus { border-color: var(--accent); }
+
+      .absolem-attach-btn {
+        background: none; border: 1px solid var(--border); border-radius: 6px;
+        padding: 4px 8px; cursor: pointer; font-size: 14px; line-height: 1;
+        color: var(--text-muted); transition: border-color 0.15s, color 0.15s;
+      }
+      .absolem-attach-btn:hover { border-color: var(--accent); color: var(--accent); }
+      .absolem-attach-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .absolem-patches {
+        background: var(--surface); border: 2px solid var(--accent); border-radius: 8px;
+        padding: 12px 14px; margin-top: 10px;
+        box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 99,102,241), 0.15);
+        animation: absolem-patches-appear 0.3s ease-out;
+      }
+      @keyframes absolem-patches-appear {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .absolem-patches-header {
+        font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 8px;
+      }
+      .patch-item { font-size: 11px; font-family: var(--font-mono, monospace); padding: 3px 0; color: var(--text); }
+      .patch-add { color: var(--passing); }
+      .patch-remove { color: var(--failing); }
+      .patch-update { color: var(--text); }
+      .absolem-patches-actions {
+        display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;
+      }
+      .absolem-patches-actions .btn-primary {
+        padding: 6px 16px; font-size: 12px; font-weight: 600;
+      }
+
+      /* CALM artifact preview */
+      .absolem-artifact {
+        border-color: var(--accent);
+      }
+      .calm-preview-summary {
+        font-size: 12px; color: var(--text-muted); margin-bottom: 10px;
+        padding-bottom: 8px; border-bottom: 1px solid var(--border);
+      }
+      .calm-preview-sections {
+        max-height: 320px; overflow-y: auto; margin-bottom: 4px;
+      }
+      .calm-preview-section {
+        margin-bottom: 4px;
+      }
+      .calm-preview-section summary {
+        font-size: 11px; font-weight: 600; color: var(--text); cursor: pointer;
+        padding: 4px 0; user-select: none;
+      }
+      .calm-preview-section summary:hover { color: var(--accent); }
+      .calm-preview-list {
+        padding: 4px 0 4px 8px;
+      }
+      .calm-preview-item {
+        font-size: 11px; padding: 2px 0; color: var(--text);
+        display: flex; align-items: center; gap: 6px;
+      }
+      .calm-preview-item strong { font-weight: 600; }
+      .calm-preview-type {
+        font-size: 10px; color: var(--text-muted);
+        background: var(--bg); padding: 1px 6px; border-radius: 3px;
+      }
+      .calm-preview-json {
+        font-size: 10px; font-family: var(--font-mono, monospace);
+        background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+        padding: 8px; max-height: 200px; overflow: auto; white-space: pre;
+        color: var(--text-muted); line-height: 1.5;
+      }
+
+      /* Absolem markdown rendered content */
+      .absolem-md { white-space: normal; }
+      .absolem-md h3, .absolem-md h4, .absolem-md h5 {
+        font-size: 12px; font-weight: 700; color: var(--text); margin: 6px 0 2px;
+      }
+      .absolem-md h3 { font-size: 13px; }
+      .absolem-md strong { font-weight: 700; }
+      .absolem-md em { font-style: italic; }
+      .absolem-md del { text-decoration: line-through; opacity: 0.7; }
+      .absolem-md code {
+        background: var(--surface); padding: 1px 5px; border-radius: 3px;
+        font-family: var(--font-mono, monospace); font-size: 11px;
+      }
+      .absolem-md pre {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+        padding: 8px 10px; margin: 6px 0; overflow-x: auto;
+      }
+      .absolem-md pre code {
+        background: none; padding: 0; font-size: 11px; line-height: 1.4;
+      }
+      .absolem-md a { color: var(--accent); text-decoration: none; }
+      .absolem-md a:hover { text-decoration: underline; }
+      .absolem-md table {
+        border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 11px;
+      }
+      .absolem-md th, .absolem-md td {
+        border: 1px solid var(--border); padding: 4px 8px; text-align: left;
+      }
+      .absolem-md th {
+        background: var(--surface); font-weight: 700; font-size: 10px;
+        text-transform: uppercase; letter-spacing: 0.3px;
+      }
+      .absolem-md blockquote {
+        margin: 4px 0; padding: 0;
+      }
+      .absolem-md hr {
+        border: none; border-top: 1px solid var(--border); margin: 6px 0;
+      }
+
       /* ---- Pillar Detail: Security (Threat Model) ---- */
       ${getSecurityStyles()}
 
       /* ---- Pillar Detail: Info Risk ---- */
       ${getInfoRiskStyles()}
 
-      /* ---- Active Review Banner ---- */
-      .active-review-banner {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid rgba(124, 58, 237, 0.3);
-        border-left: 3px solid #7c3aed;
-        background: rgba(124, 58, 237, 0.06);
-        margin-bottom: 10px;
-        font-size: 13px;
-      }
-      .review-pulse {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #7c3aed;
-        flex-shrink: 0;
-        animation: pulse-glow 2s ease-in-out infinite;
-      }
-      @keyframes pulse-glow {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
-        50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(124, 58, 237, 0); }
-      }
-      .review-banner-text { font-size: 13px; }
-      .review-banner-links { font-size: 12px; color: var(--vscode-descriptionForeground); margin-left: auto; }
-      .active-review-link {
-        color: var(--vscode-textLink-foreground);
-        cursor: pointer;
-        text-decoration: none;
-        font-weight: 600;
-      }
-      .active-review-link:hover { text-decoration: underline; }
-      .review-draft-badge {
-        display: inline-block;
-        padding: 1px 6px;
-        border-radius: 10px;
-        font-size: 10px;
-        font-weight: 600;
-        background: rgba(234, 179, 8, 0.15);
-        color: #eab308;
-        border: 1px solid rgba(234, 179, 8, 0.3);
-        vertical-align: middle;
-      }
+      /* ---- Agent Status (shared component) ---- */
+      ${getAgentStatusStyles()}
 
       /* ---- Design Drift Indicator ---- */
       .drift-indicator, .drift-indicator-compact {
@@ -1952,6 +2132,34 @@ function getStyles(): string {
         height: 100%;
       }
       .drift-btn-group { display: flex; gap: 4px; flex-shrink: 0; }
+
+      /* Trend arrows */
+      .trend-arrow { font-size: 14px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+      .trend-up { color: var(--passing); }
+      .trend-down { color: var(--failing); }
+      .trend-stable { color: var(--vscode-descriptionForeground); }
+
+      /* Governance score history */
+      .governance-history-section {
+        display: flex; flex-direction: column;
+        padding: 8px 14px; border-radius: 8px;
+        border: 1px solid var(--vscode-panel-border);
+        margin-top: 12px;
+      }
+      .governance-history-header {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .governance-history-score-section {
+        display: flex; align-items: center; gap: 10px;
+      }
+      .governance-sparkline { width: 100%; height: 36px; margin-top: 6px; }
+      .governance-sparkline svg { width: 100%; height: 100%; }
+
+      /* Artifact quality indicator */
+      .artifact-quality {
+        font-family: var(--vscode-editor-font-family, monospace);
+        font-size: 10px; color: var(--vscode-descriptionForeground); margin-left: auto;
+      }
       .top-findings-panel {
         margin-top: 8px;
         padding: 8px 10px;
@@ -4010,38 +4218,7 @@ function attachDriftListeners() {
   });
 }
 
-function attachActiveReviewListeners() {
-  document.querySelectorAll('.active-review-link').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      const url = (el as HTMLElement).getAttribute('data-url');
-      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
-    });
-  });
-}
-
-function renderActiveReviewBanner(): string {
-  const review = state.activeReview;
-  if (!review) { return ''; }
-
-  const agentLabel = review.agent === 'claude' ? 'Claude' : review.agent === 'copilot' ? 'Copilot' : 'Agent';
-  let prHtml = '';
-  if (review.pr) {
-    const draftBadge = review.pr.draft ? '<span class="review-draft-badge">Draft</span>' : '';
-    prHtml = `<span style="margin-left: 12px;">PR <a class="active-review-link" data-url="${escapeAttr(review.pr.url)}">#${review.pr.number}</a> ${draftBadge}</span>`;
-  }
-
-  return `
-    <div class="active-review-banner">
-      <span class="review-pulse"></span>
-      <span class="review-banner-text"><strong>${escapeHtml(agentLabel)}</strong> is reviewing this application</span>
-      <span class="review-banner-links">
-        Issue <a class="active-review-link" data-url="${escapeAttr(review.issueUrl)}">#${review.issueNumber}</a>
-        ${prHtml}
-      </span>
-    </div>
-  `;
-}
+// attachActiveReviewListeners + renderActiveReviewBanner removed — replaced by shared agentStatus.ts
 
 function renderSparklineSvg(reviews: ReviewRecord[]): string {
   if (reviews.length < 2) { return ''; }
@@ -4125,6 +4302,79 @@ function renderDriftIndicator(bar: BarSummary): string {
   `;
 }
 
+// ============================================================================
+// Governance Score History
+// ============================================================================
+
+function trendArrow(trend: GovernanceTrend): string {
+  switch (trend) {
+    case 'improving': return '<span class="trend-arrow trend-up" title="Improving">&#8593;</span>';
+    case 'declining': return '<span class="trend-arrow trend-down" title="Declining">&#8595;</span>';
+    case 'stable':    return '<span class="trend-arrow trend-stable" title="Stable">&#8594;</span>';
+    case 'new':       return '';
+  }
+}
+
+function renderGovernanceScoreSparkline(history: GovernanceScoreSnapshot[]): string {
+  if (history.length < 2) { return ''; }
+
+  const w = 200;
+  const h = 36;
+  const pad = 4;
+  const plotW = w - pad * 2;
+  const plotH = h - pad * 2;
+
+  const points = history.map((s, i) => {
+    const x = pad + (i / (history.length - 1)) * plotW;
+    const y = pad + plotH - (s.composite / 100) * plotH;
+    return { x, y, score: s.composite };
+  });
+
+  const linePoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const latestScore = history[history.length - 1].composite;
+  const strokeColor = latestScore >= 75 ? '#22c55e' : latestScore >= 50 ? '#eab308' : '#ef4444';
+  const fillColor = latestScore >= 75 ? 'rgba(34,197,94,0.1)' : latestScore >= 50 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)';
+  const areaPoints = linePoints + ` ${(pad + plotW).toFixed(1)},${(pad + plotH).toFixed(1)} ${pad.toFixed(1)},${(pad + plotH).toFixed(1)}`;
+
+  const dots = points.map((p, i) => {
+    const r = i === points.length - 1 ? 3 : 1.5;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${strokeColor}" />`;
+  }).join('');
+
+  return `
+    <div class="governance-sparkline">
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <polygon points="${areaPoints}" fill="${fillColor}" />
+        <polyline points="${linePoints}" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+        ${dots}
+      </svg>
+    </div>
+  `;
+}
+
+function renderGovernanceHistoryIndicator(): string {
+  const history = state.scoreHistory;
+  if (!history || history.length === 0) { return ''; }
+
+  const latest = history[history.length - 1];
+  const colorClass = latest.composite >= 75 ? 'drift-green' : latest.composite >= 50 ? 'drift-yellow' : 'drift-red';
+
+  return `
+    <div class="governance-history-section">
+      <div class="governance-history-header">
+        <div class="governance-history-score-section">
+          <span class="drift-score-ring ${colorClass}">${latest.composite}</span>
+          <div class="drift-info">
+            <span class="drift-label">Score History ${trendArrow(state.scoreTrend)}</span>
+            <span class="drift-meta">${history.length} snapshot${history.length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
+      ${renderGovernanceScoreSparkline(history)}
+    </div>
+  `;
+}
+
 function renderTopFindingsPanel(): string {
   // Loading state
   if (state.topFindingsLoading) {
@@ -4202,7 +4452,7 @@ function renderBarDetail(): string {
   return `
     ${state.errorMessage ? `<div class="error-msg">${escapeHtml(state.errorMessage)}</div>` : ''}
     ${renderGitSyncBanner()}
-    <div id="active-review-area">${renderActiveReviewBanner()}</div>
+    <div id="active-review-area">${renderAgentStatus(state.agentStatus)}</div>
     <div class="breadcrumb">
       <a id="breadcrumb-portfolio">${escapeHtml(orgName)}</a>
       <span class="sep">&rsaquo;</span>
@@ -4242,6 +4492,7 @@ function renderBarDetail(): string {
       <div id="drift-indicator-area">${renderDriftIndicator(bar)}</div>
       <div class="bar-detail-score">
         ${renderScoreRing(bar.compositeScore, 80, 10)}
+        ${trendArrow(state.scoreTrend)}
       </div>
     </div>
 
@@ -4262,6 +4513,11 @@ function renderBarDetail(): string {
       ${renderPillarCard('Operations', bar.operations)}
     </div>
 
+    ${state.scoreHistory.length > 1 ? `
+      <div class="section-header">Score History</div>
+      ${renderGovernanceHistoryIndicator()}
+    ` : ''}
+
     ${renderActivePillarDetail(bar.path)}
 
     ${renderLinkedRepos(bar.repos || [], bar.path)}
@@ -4272,6 +4528,15 @@ function renderBarDetail(): string {
         <span style="font-size: 16px;">&#x1F407;</span>
         <span>Implement based on architecture</span>
       </button>
+      <div style="margin-top: 6px; padding: 0 4px; font-size: 10px; color: var(--text-dim); line-height: 1.6;">
+        Passes 6 artifacts to scaffold:
+        <span style="opacity: 0.7;">Architecture Context</span> &middot;
+        <span style="opacity: 0.7;">ADRs (accepted)</span> &middot;
+        <span style="opacity: 0.7;">Threat Model</span> &middot;
+        <span style="opacity: 0.7;">Linked Repos</span> &middot;
+        <span style="opacity: 0.7;">Scaffold Guidelines</span> &middot;
+        <span style="opacity: 0.7;">Prompt Packs</span>
+      </div>
     </div>
     ${renderComponentPicker(bar.path)}
     ` : ''}
@@ -4287,7 +4552,378 @@ function renderBarDetail(): string {
       <div class="section-header">Decisions</div>
       ${renderDecisionsTable(state.currentDecisions)}
     ` : ''}
+
+    ${renderAbsolemFloating(bar.path)}
   `;
+}
+
+// ============================================================================
+// Absolem — Floating Chat Widget
+// ============================================================================
+
+function renderAbsolemFloating(barPath: string): string {
+  const isOpen = state.absolemOpen;
+
+  // Collapsed state — show floating action button (FAB)
+  if (!isOpen) {
+    return `
+      <div class="absolem-fab" id="btn-absolem-expand" data-bar-path="${escapeAttr(barPath)}" title="Open Absolem — AI Governance Assistant">
+        &#x1F41B;
+      </div>
+    `;
+  }
+
+  const messagesHtml = state.absolemMessages.map(m => {
+    if (m.role === 'assistant') {
+      // Strip calm-patches code fences and any orphaned heading preceding them
+      const displayContent = m.content
+        .replace(/\n*(?:#{1,4}\s+[^\n]+\n+)?```calm-patches\s*\n[\s\S]*?```/g, '')
+        .replace(/\n*(?:#{1,4}\s+[^\n]+)?\s*$/, '')
+        .trim();
+      return `
+        <div class="absolem-bubble">
+          <span class="absolem-avatar">&#x1F41B;</span>
+          <div class="absolem-bubble-content absolem-md">${renderMarkdown(displayContent)}</div>
+        </div>`;
+    }
+    return `
+      <div class="user-bubble">
+        <div class="user-bubble-content">${escapeHtml(m.content)}</div>
+      </div>`;
+  }).join('');
+
+  const streamingHtml = state.absolemStatus === 'thinking' ? `
+    <div class="absolem-bubble">
+      <span class="absolem-avatar">&#x1F41B;</span>
+      <div class="absolem-bubble-content absolem-streaming absolem-md" id="absolem-streaming-text">${renderMarkdown(state.absolemStreaming)}<span class="absolem-cursor">|</span></div>
+    </div>` : '';
+
+  const patchesHtml = state.absolemPatches ? renderAbsolemPatchesCard(state.absolemPatches, barPath) : '';
+
+  const chipsHtml = state.absolemMessages.length === 0 && state.absolemStatus === 'idle' ? `
+    <div class="absolem-greeting">
+      <div class="absolem-bubble">
+        <span class="absolem-avatar">&#x1F41B;</span>
+        <div class="absolem-bubble-content">Who... are... you?<br/>I am Absolem, the governance caterpillar. I can help refine your architecture, analyze governance gaps, and more.</div>
+      </div>
+      <div class="absolem-chips">
+        <button class="absolem-chip" data-absolem-cmd="drift-analysis" data-bar-path="${escapeAttr(barPath)}">Update CALM from drift analysis</button>
+        <button class="absolem-chip" data-absolem-cmd="add-components" data-bar-path="${escapeAttr(barPath)}">Add missing nodes or relationships</button>
+        <button class="absolem-chip" data-absolem-cmd="validate" data-bar-path="${escapeAttr(barPath)}">Review CALM validation issues</button>
+        <button class="absolem-chip" data-absolem-cmd="gap-analysis" data-bar-path="${escapeAttr(barPath)}">Analyze governance gaps across all pillars</button>
+        <button class="absolem-chip" data-absolem-cmd="suggest-adr" data-bar-path="${escapeAttr(barPath)}">Suggest new ADRs from architecture</button>
+        <button class="absolem-chip" data-absolem-cmd="image-to-calm" data-bar-path="${escapeAttr(barPath)}">Generate CALM from architecture diagram</button>
+        <button class="absolem-chip" data-absolem-cmd="freeform" data-bar-path="${escapeAttr(barPath)}">Ask me anything about this architecture</button>
+      </div>
+    </div>` : '';
+
+  const inputDisabled = state.absolemStatus === 'thinking' ? 'disabled' : '';
+
+  return `
+    <div class="absolem-overlay" id="absolem-floating">
+      <div class="absolem-overlay-header">
+        <span>&#x1F41B; Absolem</span>
+        <button class="absolem-close-btn" id="btn-absolem-collapse" data-bar-path="${escapeAttr(barPath)}" title="Close">&#x2715;</button>
+      </div>
+      <div class="absolem-messages" id="absolem-messages">
+        ${chipsHtml}
+        ${messagesHtml}
+        ${streamingHtml}
+        ${patchesHtml}
+      </div>
+      <div class="absolem-input">
+        <button class="absolem-attach-btn" id="btn-absolem-attach" data-bar-path="${escapeAttr(barPath)}" title="Attach architecture diagram" ${inputDisabled}>&#x1F4CE;</button>
+        <input type="text" id="absolem-input-field"
+          placeholder="${state.absolemMessages.length === 0 ? 'Or type a question...' : 'Type a message...'}" ${inputDisabled}
+          data-bar-path="${escapeAttr(barPath)}" />
+        <button class="btn-primary btn-sm" id="btn-absolem-send"
+          data-bar-path="${escapeAttr(barPath)}" ${inputDisabled}>Send</button>
+      </div>
+      <input type="file" id="absolem-file-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" />
+    </div>
+  `;
+}
+
+function renderAbsolemPatchesCard(
+  patchSet: { patches: { op: string; target: string; field?: string; value?: unknown }[]; description: string },
+  barPath: string,
+): string {
+  // Check if this is a replaceFull with previewable content
+  const replaceFullPatch = patchSet.patches.find(p => p.op === 'replaceFull' && p.value && typeof p.value === 'object');
+
+  if (replaceFullPatch) {
+    const v = replaceFullPatch.value as Record<string, unknown>;
+    const nodeCount = Array.isArray(v.nodes) ? v.nodes.length : 0;
+    const relCount = Array.isArray(v.relationships) ? v.relationships.length : 0;
+    const flowCount = Array.isArray(v.flows) ? v.flows.length : 0;
+    const nodes = (Array.isArray(v.nodes) ? v.nodes : []) as Record<string, unknown>[];
+    const rels = (Array.isArray(v.relationships) ? v.relationships : []) as Record<string, unknown>[];
+    const flows = (Array.isArray(v.flows) ? v.flows : []) as Record<string, unknown>[];
+
+    // Build a human-readable summary
+    const nodeSummary = nodes.map(n => {
+      const icon = n['node-type'] === 'actor' ? '&#x1F464;'
+        : n['node-type'] === 'database' ? '&#x1F4BE;'
+        : n['node-type'] === 'network' ? '&#x1F310;'
+        : n['node-type'] === 'service' ? '&#x2699;'
+        : '&#x1F4E6;';
+      return `<div class="calm-preview-item">${icon} <strong>${escapeHtml(String(n.name || n['unique-id'] || ''))}</strong> <span class="calm-preview-type">${escapeHtml(String(n['node-type'] || ''))}</span></div>`;
+    }).join('');
+
+    const relSummary = rels.slice(0, 8).map(r => {
+      const rt = r['relationship-type'] as string | Record<string, unknown>;
+      let label = '';
+      if (typeof rt === 'string') {
+        if (rt === 'connects') {
+          const src = (r as Record<string, unknown>).source as Record<string, unknown> | undefined;
+          const dst = (r as Record<string, unknown>).destination as Record<string, unknown> | undefined;
+          label = `${src?.node || '?'} &rarr; ${dst?.node || '?'}`;
+        } else {
+          label = escapeHtml(String(r['unique-id'] || ''));
+        }
+      } else if (rt && typeof rt === 'object') {
+        if ('connects' in rt) {
+          const c = rt.connects as Record<string, unknown>;
+          const src = c.source as Record<string, unknown> | undefined;
+          const dst = c.destination as Record<string, unknown> | undefined;
+          label = `${src?.node || '?'} &rarr; ${dst?.node || '?'}`;
+        } else if ('interacts' in rt) {
+          const ia = rt.interacts as Record<string, unknown>;
+          label = `${ia.actor || '?'} interacts`;
+        } else if ('composed-of' in rt) {
+          const co = rt['composed-of'] as Record<string, unknown>;
+          label = `${co.container || '?'} composed-of`;
+        } else {
+          label = escapeHtml(String(r['unique-id'] || ''));
+        }
+      } else {
+        label = escapeHtml(String(r['unique-id'] || ''));
+      }
+      return `<div class="calm-preview-item">&#x1F517; ${label}</div>`;
+    }).join('') + (rels.length > 8 ? `<div class="calm-preview-item" style="opacity:0.6;">...and ${rels.length - 8} more</div>` : '');
+
+    const flowSummary = flows.map(f => {
+      const tCount = Array.isArray(f.transitions) ? f.transitions.length : 0;
+      return `<div class="calm-preview-item">&#x27A1; <strong>${escapeHtml(String(f.name || f['unique-id'] || ''))}</strong> <span class="calm-preview-type">${tCount} steps</span></div>`;
+    }).join('');
+
+    return `
+    <div class="absolem-patches absolem-artifact" id="absolem-patches-card">
+      <div class="absolem-patches-header">Generated CALM Architecture</div>
+      <div class="calm-preview-summary">${nodeCount} nodes &middot; ${relCount} relationships &middot; ${flowCount} flows</div>
+
+      <div class="calm-preview-sections">
+        <details class="calm-preview-section" open>
+          <summary>Nodes (${nodeCount})</summary>
+          <div class="calm-preview-list">${nodeSummary}</div>
+        </details>
+        <details class="calm-preview-section">
+          <summary>Relationships (${relCount})</summary>
+          <div class="calm-preview-list">${relSummary}</div>
+        </details>
+        <details class="calm-preview-section">
+          <summary>Flows (${flowCount})</summary>
+          <div class="calm-preview-list">${flowSummary}</div>
+        </details>
+        <details class="calm-preview-section">
+          <summary>Raw JSON</summary>
+          <pre class="calm-preview-json">${escapeHtml(JSON.stringify(replaceFullPatch.value, null, 2))}</pre>
+        </details>
+      </div>
+
+      <div class="absolem-patches-actions">
+        <button class="btn-ghost btn-sm" id="btn-absolem-open-editor"
+          data-bar-path="${escapeAttr(barPath)}" title="Preview in VS Code editor">Open in Editor</button>
+        <button class="btn-secondary btn-sm" id="btn-absolem-reject"
+          data-bar-path="${escapeAttr(barPath)}">Skip</button>
+        <button class="btn-primary btn-sm" id="btn-absolem-accept"
+          data-bar-path="${escapeAttr(barPath)}">Apply to bar.arch.json</button>
+      </div>
+    </div>`;
+  }
+
+  // Non-replaceFull patches — show compact list
+  const patchLines = patchSet.patches.map(p => {
+    const opClass = p.op.startsWith('add') ? 'patch-add'
+      : p.op.startsWith('remove') ? 'patch-remove'
+      : 'patch-update';
+    const opLabel = p.op.startsWith('add') ? '+'
+      : p.op.startsWith('remove') ? '\u2212'
+      : '~';
+    return `<div class="patch-item ${opClass}">${opLabel} ${escapeHtml(p.op)}: ${escapeHtml(p.target)}</div>`;
+  }).join('');
+
+  return `
+    <div class="absolem-patches" id="absolem-patches-card">
+      <div class="absolem-patches-header">Proposed Changes</div>
+      ${patchLines}
+      <div class="absolem-patches-actions">
+        <button class="btn-secondary btn-sm" id="btn-absolem-reject"
+          data-bar-path="${escapeAttr(barPath)}">Skip</button>
+        <button class="btn-primary btn-sm" id="btn-absolem-accept"
+          data-bar-path="${escapeAttr(barPath)}">Apply to bar.arch.json</button>
+      </div>
+    </div>`;
+}
+
+function attachAbsolemFloatingEvents(): void {
+  // Expand from collapsed
+  document.getElementById('btn-absolem-expand')?.addEventListener('click', () => {
+    state.absolemOpen = true;
+    render();
+  });
+
+  // Collapse from expanded
+  document.getElementById('btn-absolem-collapse')?.addEventListener('click', () => {
+    state.absolemOpen = false;
+    const barPath = (document.getElementById('btn-absolem-collapse') as HTMLElement)?.dataset.barPath;
+    if (barPath) {
+      vscode.postMessage({ type: 'absolemClose', barPath });
+    }
+    state.absolemMessages = [];
+    state.absolemStreaming = '';
+    state.absolemStatus = 'idle';
+    state.absolemPatches = null;
+    render();
+  });
+
+  // Command chips
+  document.querySelectorAll('.absolem-chip[data-absolem-cmd]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const el = chip as HTMLElement;
+      const cmd = el.dataset.absolemCmd;
+      const barPath = el.dataset.barPath;
+      if (!cmd || !barPath) { return; }
+
+      // Image-to-CALM triggers file picker
+      if (cmd === 'image-to-calm') {
+        const fileInput = document.getElementById('absolem-file-input') as HTMLInputElement;
+        if (fileInput) { fileInput.click(); }
+        return;
+      }
+
+      if (cmd !== 'freeform') {
+        const cmdLabels: Record<string, string> = {
+          'drift-analysis': 'Update CALM from drift analysis',
+          'add-components': 'Add missing nodes or relationships',
+          'validate': 'Review CALM validation issues',
+          'gap-analysis': 'Analyze governance gaps across all pillars',
+          'suggest-adr': 'Suggest new ADRs from architecture',
+        };
+        state.absolemMessages.push({ role: 'user', content: cmdLabels[cmd] || cmd });
+        state.absolemStatus = 'thinking';
+        state.absolemStreaming = '';
+        render();
+      }
+      vscode.postMessage({ type: 'absolemStart', barPath, command: cmd });
+    });
+  });
+
+  // Send button
+  document.getElementById('btn-absolem-send')?.addEventListener('click', () => {
+    sendAbsolemChatMessage();
+  });
+
+  // Enter key on input
+  document.getElementById('absolem-input-field')?.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') {
+      sendAbsolemChatMessage();
+    }
+  });
+
+  // Accept patches
+  document.getElementById('btn-absolem-accept')?.addEventListener('click', () => {
+    const barPath = (document.getElementById('btn-absolem-accept') as HTMLElement)?.dataset.barPath;
+    if (barPath && state.absolemPatches) {
+      vscode.postMessage({
+        type: 'absolemAcceptPatches',
+        barPath,
+        patches: state.absolemPatches.patches,
+      });
+    }
+  });
+
+  // Reject patches
+  document.getElementById('btn-absolem-reject')?.addEventListener('click', () => {
+    const barPath = (document.getElementById('btn-absolem-reject') as HTMLElement)?.dataset.barPath;
+    if (barPath) {
+      state.absolemPatches = null;
+      state.absolemStatus = 'idle';
+      state.absolemMessages.push({ role: 'assistant', content: 'Patches skipped. Feel free to ask for different changes or start fresh.' });
+      vscode.postMessage({ type: 'absolemRejectPatches', barPath });
+      render();
+    }
+  });
+
+  // Open in Editor — preview generated CALM in a VS Code editor tab
+  document.getElementById('btn-absolem-open-editor')?.addEventListener('click', () => {
+    const barPath = (document.getElementById('btn-absolem-open-editor') as HTMLElement)?.dataset.barPath;
+    if (barPath && state.absolemPatches) {
+      const replaceFullPatch = state.absolemPatches.patches.find(p => p.op === 'replaceFull');
+      if (replaceFullPatch && replaceFullPatch.value) {
+        vscode.postMessage({
+          type: 'absolemPreviewJson',
+          barPath,
+          json: JSON.stringify(replaceFullPatch.value, null, 2),
+        });
+      }
+    }
+  });
+
+  // Attach image button
+  document.getElementById('btn-absolem-attach')?.addEventListener('click', () => {
+    const fileInput = document.getElementById('absolem-file-input') as HTMLInputElement;
+    if (fileInput) { fileInput.click(); }
+  });
+
+  // File input change — read image as base64
+  document.getElementById('absolem-file-input')?.addEventListener('change', (e) => {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) { return; }
+    const file = input.files[0];
+    const barPath = state.currentBar?.path;
+    if (!barPath) { return; }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      // Extract base64 data and mime type from data URL
+      const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+      if (!match) { return; }
+      const mimeType = match[1];
+      const imageBase64 = match[2];
+
+      state.absolemMessages.push({ role: 'user', content: `[Attached: ${file.name}]` });
+      state.absolemStatus = 'thinking';
+      state.absolemStreaming = '';
+      render();
+
+      vscode.postMessage({ type: 'absolemImageStart', barPath, imageBase64, mimeType });
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be attached again
+    input.value = '';
+  });
+
+  // Auto-scroll messages container
+  const messagesEl = document.getElementById('absolem-messages');
+  if (messagesEl) {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+}
+
+function sendAbsolemChatMessage(): void {
+  const input = document.getElementById('absolem-input-field') as HTMLInputElement;
+  if (!input || !input.value.trim()) { return; }
+  const barPath = input.dataset.barPath;
+  if (!barPath) { return; }
+  const text = input.value.trim();
+  input.value = '';
+  state.absolemMessages.push({ role: 'user', content: text });
+  state.absolemStatus = 'thinking';
+  state.absolemStreaming = '';
+  render();
+  vscode.postMessage({ type: 'absolemSend', barPath, message: text });
 }
 
 function renderAppYamlEditor(bar: BarSummary): string {
@@ -4378,13 +5014,6 @@ function renderActivePillarDetail(barPath: string): string {
         state.adrEditingId,
         state.adrForm,
         barPath,
-        {
-          open: state.absolemOpen,
-          messages: state.absolemMessages,
-          streaming: state.absolemStreaming,
-          status: state.absolemStatus,
-          patches: state.absolemPatches,
-        } as AbsolemState,
       );
       break;
     case 'security':
@@ -4498,11 +5127,20 @@ function renderPillarCard(title: string, pillar: GovernancePillarScore): string 
     const icon = present === total ? '&#10003;' : present > 0 ? '&#9679;' : '&#10007;';
     const countText = total > 1 ? `${present}/${total}` : (present > 0 ? '' : '');
 
+    // Quality indicator for populated artifacts
+    const avgQuality = members.length > 0
+      ? Math.round(members.reduce((sum, a) => sum + (a.qualityScore || 0), 0) / members.length)
+      : 0;
+    const qualityText = present > 0 && avgQuality > 0
+      ? `<span class="artifact-quality" title="Content quality">${avgQuality}%</span>`
+      : '';
+
     return `
       <div class="artifact-group">
         <span class="artifact-group-icon ${iconClass}">${icon}</span>
         <span class="artifact-group-label">${escapeHtml(g.group)}</span>
         ${countText ? `<span class="artifact-group-count">${countText}</span>` : ''}
+        ${qualityText}
       </div>
     `;
   }).join('');
@@ -4524,6 +5162,11 @@ function renderPillarCard(title: string, pillar: GovernancePillarScore): string 
     }
   }
 
+  // Trend arrow for this pillar
+  const trendKey = pillarKey === 'information-risk' ? 'infoRisk' : pillarKey;
+  const pillarTrendVal = state.pillarTrends ? (state.pillarTrends as Record<string, GovernanceTrend>)[trendKey] : undefined;
+  const pillarTrendHtml = pillarTrendVal ? trendArrow(pillarTrendVal) : '';
+
   return `
     <div class="pillar-card ${isActive ? 'active' : ''}" data-pillar="${escapeAttr(pillarKey)}">
       <div class="pillar-card-header">
@@ -4531,7 +5174,10 @@ function renderPillarCard(title: string, pillar: GovernancePillarScore): string 
           <h3 style="color: ${statusColor};">${escapeHtml(title)}</h3>
           ${syncBadge}
         </div>
-        ${renderScoreRing(pillar.score, 48, 5)}
+        <div style="display: flex; align-items: center; gap: 4px;">
+          ${renderScoreRing(pillar.score, 48, 5)}
+          ${pillarTrendHtml}
+        </div>
       </div>
       <div class="pillar-artifacts">
         ${groupRows}
@@ -5830,7 +6476,7 @@ function attachEventHandlers() {
   });
 
   attachDriftListeners();
-  attachActiveReviewListeners();
+  attachAgentStatusListeners((msg) => vscode.postMessage(msg));
 
   // App.yaml editor events
   document.getElementById('btn-edit-app-yaml')?.addEventListener('click', () => {
@@ -5923,49 +6569,6 @@ function attachEventHandlers() {
       () => state.adrForm,
     );
 
-    // Absolem toggle button (always when architecture pillar is active)
-    document.getElementById('btn-absolem-toggle')?.addEventListener('click', () => {
-      state.absolemOpen = !state.absolemOpen;
-      if (!state.absolemOpen) {
-        const barPath = state.currentBar?.path;
-        if (barPath) {
-          vscode.postMessage({ type: 'absolemClose', barPath });
-        }
-        state.absolemMessages = [];
-        state.absolemStreaming = '';
-        state.absolemStatus = 'idle';
-        state.absolemPatches = null;
-      }
-      render();
-    });
-
-    // Absolem chat events (when panel is open)
-    if (state.absolemOpen) {
-      attachAbsolemEvents(
-        vscode,
-        () => ({
-          open: state.absolemOpen,
-          messages: state.absolemMessages,
-          streaming: state.absolemStreaming,
-          status: state.absolemStatus,
-          patches: state.absolemPatches,
-        }),
-        () => {
-          state.absolemOpen = false;
-          state.absolemMessages = [];
-          state.absolemStreaming = '';
-          state.absolemStatus = 'idle';
-          state.absolemPatches = null;
-          render();
-        },
-        (userMsg: string) => {
-          state.absolemMessages.push({ role: 'user', content: userMsg });
-          state.absolemStatus = 'thinking';
-          state.absolemStreaming = '';
-          render();
-        },
-      );
-    }
   }
 
   if (state.activePillar === 'security') {
@@ -5989,6 +6592,9 @@ function attachEventHandlers() {
   if (state.activePillar === 'operations') {
     attachOperationsEvents();
   }
+
+  // ---------- Absolem Floating Chat ----------
+  attachAbsolemFloatingEvents();
 
   // ---------- Diagram Fullscreen ----------
   // Mermaid diagrams fullscreen
@@ -6696,6 +7302,7 @@ window.addEventListener('message', (event) => {
         state.appYamlEditing = false;
         state.appYamlForm = null;
         state.activeReview = null;
+        state.agentStatus = null;
         if (!state.topFindingsLoading) {
           state.topFindingsSummary = null;
         }
@@ -6706,6 +7313,12 @@ window.addEventListener('message', (event) => {
         state.absolemStatus = 'idle';
         state.absolemPatches = null;
       }
+      // Populate governance score history and trends
+      const barData = message.bar as BarSummary;
+      state.scoreHistory = barData.scoreHistory || [];
+      state.scoreTrend = barData.scoreTrend || 'new';
+      state.pillarTrends = barData.pillarTrends || null;
+
       state.isLoading = false;
       state.errorMessage = '';
       state.view = 'bar-detail';
@@ -6716,14 +7329,22 @@ window.addEventListener('message', (event) => {
     case 'activeReview': {
       const reviewBarPath = (message as Record<string, unknown>).barPath as string;
       const review = (message as Record<string, unknown>).review as ActiveReviewInfo | null;
-      // Only update if we're still looking at this BAR
       if (state.currentBar?.path === reviewBarPath) {
         state.activeReview = review;
-        // Targeted DOM update for active review area
+      }
+      break;
+    }
+
+    case 'agentStatusUpdate': {
+      const statusBarPath = (message as Record<string, unknown>).barPath as string;
+      const status = (message as Record<string, unknown>).status as AgentStatusInfo | null;
+      if (state.currentBar?.path === statusBarPath) {
+        state.agentStatus = status;
+        // Targeted DOM update for agent status area
         const reviewArea = document.getElementById('active-review-area');
         if (reviewArea) {
-          reviewArea.innerHTML = renderActiveReviewBanner();
-          attachActiveReviewListeners();
+          reviewArea.innerHTML = renderAgentStatus(state.agentStatus);
+          attachAgentStatusListeners((msg) => vscode.postMessage(msg));
         }
       }
       break;
@@ -7250,12 +7871,28 @@ window.addEventListener('message', (event) => {
         state.absolemStatus = 'thinking';
         state.absolemStreaming += chunk;
 
-        // Incremental DOM update for streaming text
+        // Incremental DOM update for streaming text — hide calm-patches fence from display
         const streamEl = document.getElementById('absolem-streaming-text');
         if (streamEl) {
-          streamEl.innerHTML = renderMarkdown(state.absolemStreaming) + '<span class="absolem-cursor">|</span>';
-          const messagesEl = document.getElementById('absolem-messages');
-          if (messagesEl) { messagesEl.scrollTop = messagesEl.scrollHeight; }
+          // Check if we're inside a calm-patches fence (still streaming JSON)
+          const insideFence = /```calm-patches\s*\n/.test(state.absolemStreaming) && !/```calm-patches\s*\n[\s\S]*?```/.test(state.absolemStreaming);
+          // Strip completed fences, in-progress fences, and orphaned headings before them
+          const streamDisplay = state.absolemStreaming
+            .replace(/\n*(?:#{1,4}\s+[^\n]+\n+)?```calm-patches\s*\n[\s\S]*?```/g, '')
+            .replace(/\n*(?:#{1,4}\s+[^\n]+\n+)?```calm-patches\s*\n[\s\S]*$/g, '')
+            .replace(/\n*(?:#{1,4}\s+[^\n]+)?\s*$/, '')
+            .trim();
+          if (insideFence) {
+            // While JSON is streaming in, show a progress indicator instead of raw JSON
+            streamEl.innerHTML = renderMarkdown(streamDisplay) + '<div style="margin-top: 8px; font-size: 11px; color: var(--text-muted);">Generating CALM architecture...</div>';
+          } else {
+            streamEl.innerHTML = renderMarkdown(streamDisplay) + '<span class="absolem-cursor">|</span>';
+          }
+          // Only auto-scroll if we're not inside the fence (don't fight user scrolling during JSON generation)
+          if (!insideFence) {
+            const messagesEl = document.getElementById('absolem-messages');
+            if (messagesEl) { messagesEl.scrollTop = messagesEl.scrollHeight; }
+          }
         } else {
           render();
         }
@@ -7273,6 +7910,11 @@ window.addEventListener('message', (event) => {
       };
       state.absolemStatus = 'reviewing-patches';
       render();
+      // Auto-scroll to the patches card so the user sees the action buttons
+      requestAnimationFrame(() => {
+        const patchesCard = document.getElementById('absolem-patches-card');
+        if (patchesCard) { patchesCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      });
       break;
     }
 

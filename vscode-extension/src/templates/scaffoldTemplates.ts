@@ -160,11 +160,13 @@ export function generateCopilotSetupSteps(stack: TechStack, extensionPath: strin
   const testing = stack.testing?.toLowerCase() || '';
   let extra = '';
   if (testing === 'mocha' || testing === 'jest') {
-    // Pre-download MongoMemoryServer binary if mongodb-memory-server is a dependency
+    // Pre-download MongoMemoryServer binary if mongodb-memory-server is a dependency.
+    // This runs BEFORE the firewall, so the binary download from fastdl.mongodb.org works.
+    // Uses the actual MongoBinary API to trigger the download (no CLI --download-only flag exists).
     extra += '  - name: Pre-cache MongoDB binary (for MongoMemoryServer)\n';
     extra += '    run: |\n';
     extra += '      if grep -q "mongodb-memory-server" package.json 2>/dev/null; then\n';
-    extra += '        npx mongodb-memory-server --download-only 2>/dev/null || true\n';
+    extra += '        node -e "const { MongoBinary } = require(\'mongodb-memory-server-core\'); MongoBinary.getPath({}).then(p => console.log(\'MongoDB binary cached at:\', p)).catch(e => console.error(\'Download failed:\', e.message))"\n';
     extra += '      fi\n';
     extra += '    continue-on-error: true\n';
   }
@@ -353,11 +355,11 @@ export function generatePromptMappings(extensionPath: string): string {
 }
 
 export function generatePromptHashGenerator(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'scripts', 'generate-prompt-hashes.js');
+  return readScaffoldFile(extensionPath, 'scripts', 'generate-prompt-hashes.cjs');
 }
 
 export function generateProcessCodeqlResults(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'scripts', 'process-codeql-results.js');
+  return readScaffoldFile(extensionPath, 'scripts', 'process-codeql-results.cjs');
 }
 
 // ============================================================================

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -15,10 +16,12 @@ import type {
   PromptPackSelection,
   RecommendedPlatform,
   DriftWeights,
+  WhiteRabbitBreadcrumb,
 } from '../types';
 import { MeshService } from '../services/MeshService';
 import { BarService } from '../services/BarService';
 import { GitHubService } from '../services/GitHubService';
+import { AgentStatusService } from '../services/AgentStatusService';
 import { OrgScannerService } from '../services/OrgScannerService';
 import { ThreatModelService, exportThreatModelCsv } from '../services/ThreatModelService';
 import { GitSyncService } from '../services/GitSyncService';
@@ -44,6 +47,7 @@ export class LookingGlassPanel {
   private readonly meshService: MeshService;
   private readonly barService: BarService;
   private readonly githubService: GitHubService;
+  private readonly agentStatusService: AgentStatusService;
   private readonly gitSyncService: GitSyncService;
   private readonly capabilityModelService: CapabilityModelService;
   private readonly calmFileWatcher: CalmFileWatcher;
@@ -103,6 +107,7 @@ export class LookingGlassPanel {
     this.meshService = new MeshService();
     this.barService = new BarService();
     this.githubService = new GitHubService();
+    this.agentStatusService = new AgentStatusService(this.githubService);
     this.gitSyncService = new GitSyncService();
     this.capabilityModelService = new CapabilityModelService();
     this.calmFileWatcher = new CalmFileWatcher();
@@ -376,6 +381,14 @@ export class LookingGlassPanel {
 
       case 'absolemClose':
         this.onAbsolemClose(message.barPath);
+        break;
+
+      case 'absolemImageStart':
+        this.onAbsolemImageStart(message.barPath, message.imageBase64, message.mimeType).catch(() => {});
+        break;
+
+      case 'absolemPreviewJson':
+        this.onAbsolemPreviewJson(message.json);
         break;
 
       case 'getCalmComponents':
@@ -782,10 +795,17 @@ export class LookingGlassPanel {
         const review = this.pendingActiveReview;
         this.pendingActiveReview = undefined;
         this.postMessage({ type: 'activeReview', barPath, review });
+        // Also convert to AgentStatusInfo for the new component
+        this.postMessage({ type: 'agentStatusUpdate', barPath, status: {
+          phase: 'implementing' as const,
+          agent: review.agent,
+          issue: { number: review.issueNumber, url: review.issueUrl, title: review.title },
+          pr: review.pr ? { ...review.pr, checksStatus: 'unknown' as const, mergeable: false, state: 'open' as const, reviewRequested: false } : undefined,
+        }});
         this.lastActiveReviewState = true;
         this.startActiveReviewPolling(barPath, bar.name);
       } else {
-        // Fire-and-forget: detect active review for this BAR
+        // Fire-and-forget: detect agent status for this BAR
         this.onLoadActiveReview(barPath, bar.name).catch(() => { /* best effort */ });
       }
     } catch (err) {
@@ -800,49 +820,56 @@ export class LookingGlassPanel {
 
   private async onLoadActiveReview(barPath: string, barName?: string) {
     try {
-      const meshPath = MeshService.getMeshPath();
-      if (!meshPath) { return; }
+      if (!this.meshRepoInfo) {
+        // Detect mesh repo from git remote if not already cached
+        const meshPath = MeshService.getMeshPath();
+        if (!meshPath) { return; }
+        const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
+        const url = stdout.trim();
+        const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+        if (!match) { return; }
+        this.meshRepoInfo = { owner: match[1], repo: match[2] };
+      }
 
-      // Detect mesh repo from git remote
-      const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
-      const url = stdout.trim();
-      const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-      if (!match) { return; }
-
-      const [, owner, repo] = match;
-      // Use the app display name (from app.yaml) — issue titles use this, not the directory name
       const searchName = barName || path.basename(barPath);
       this.lastDrilledBarName = searchName;
-      const review = await this.githubService.getActiveReviewForBar(owner, repo, searchName);
 
-      this.postMessage({ type: 'activeReview', barPath, review });
+      const status = await this.agentStatusService.detectForBar(
+        this.meshRepoInfo.owner, this.meshRepoInfo.repo, searchName
+      );
 
-      // Manage polling: start if active review found, stop if not
-      if (review) {
+      // Send unified agent status
+      this.postMessage({ type: 'agentStatusUpdate', barPath, status });
+      // Also send legacy activeReview for any code still using it
+      this.postMessage({ type: 'activeReview', barPath, review: status ? {
+        issueNumber: status.issue.number,
+        issueUrl: status.issue.url,
+        title: status.issue.title,
+        agent: status.agent,
+        pr: status.pr ? { number: status.pr.number, url: status.pr.url, title: status.pr.title, draft: status.pr.draft } : undefined,
+      } : null });
+
+      // Manage polling
+      if (status) {
         this.lastActiveReviewState = true;
         this.startActiveReviewPolling(barPath, searchName);
       } else {
-        // If we previously had an active review and now it's gone, refresh BAR
         if (this.lastActiveReviewState) {
           this.lastActiveReviewState = false;
           this.stopActiveReviewPolling();
-          // Review just completed — refresh BAR to pick up new artifacts
           await this.onDrillIntoBar(barPath);
         } else {
           this.stopActiveReviewPolling();
         }
       }
     } catch {
-      // best effort — don't block on active review fetch failures
+      // best effort
     }
   }
 
   private startActiveReviewPolling(barPath: string, barName: string) {
-    // Don't create duplicate timers
     if (this.activeReviewPollTimer) { return; }
-
     this.activeReviewPollTimer = setInterval(async () => {
-      // Only poll if we're still looking at this BAR
       if (this.lastDrilledBarPath !== barPath) {
         this.stopActiveReviewPolling();
         return;
@@ -850,7 +877,7 @@ export class LookingGlassPanel {
       try {
         await this.onLoadActiveReview(barPath, barName);
       } catch { /* best effort */ }
-    }, 30_000); // 30 seconds
+    }, 30_000);
   }
 
   private stopActiveReviewPolling() {
@@ -1781,14 +1808,14 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
 
   private async onImplementComponent(
     barPath: string,
-    _componentId: string,
+    componentId: string,
     repoName: string,
     componentName: string,
     componentType: string,
     componentDescription: string,
   ) {
     // Repo is already added to app.yaml by the webview (via addReposToBar message).
-    // Here we just build the URL and transition to scaffold, scoped to this component.
+    // Build the repo URL from org detection.
     let org = '';
     const meshPath = MeshService.getMeshPath();
     if (meshPath) {
@@ -1807,12 +1834,74 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
     const repoUrl = org ? `https://github.com/${org}/${repoName}` : repoName;
 
-    await this.onScaffoldComponent(repoUrl, barPath, { name: componentName, type: componentType, description: componentDescription });
-  }
+    // Build the scaffold context while we still have access to the governance mesh
+    let componentContext: ComponentScaffoldContext;
+    try {
+      componentContext = await this.buildScaffoldDescription(repoUrl, barPath, {
+        id: componentId, name: componentName, type: componentType, description: componentDescription,
+      });
+    } catch (err) {
+      this.postMessage({
+        type: 'error',
+        message: `Failed to build scaffold context: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return;
+    }
 
-  // ==========================================================================
-  // White Rabbit — Component Scaffolding
-  // ==========================================================================
+    // Use the BAR name for the workspace folder (e.g. "IMDB Lite Application")
+    const barName = componentContext.barName;
+    const safeFolderName = barName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || repoName;
+
+    // Prompt user to pick the parent directory for the workspace
+    const defaultDir = path.join(os.homedir(), 'projects');
+    if (!fs.existsSync(defaultDir)) {
+      try { fs.mkdirSync(defaultDir, { recursive: true }); } catch { /* best effort */ }
+    }
+    const folders = await vscode.window.showOpenDialog({
+      canSelectFolders: true,
+      canSelectFiles: false,
+      canSelectMany: false,
+      openLabel: `Select parent folder for "${safeFolderName}"`,
+      defaultUri: vscode.Uri.file(fs.existsSync(defaultDir) ? defaultDir : os.homedir()),
+    });
+    if (!folders?.[0]) { return; } // User cancelled
+
+    // Create the BAR-named workspace folder
+    const targetFolder = path.join(folders[0].fsPath, safeFolderName);
+    if (!fs.existsSync(targetFolder)) {
+      fs.mkdirSync(targetFolder, { recursive: true });
+    }
+
+    // Create a .code-workspace file so VS Code remembers this as a named workspace
+    const wsFileName = safeFolderName.replace(/\s+/g, '-').toLowerCase();
+    const wsFilePath = path.join(targetFolder, `${wsFileName}.code-workspace`);
+    if (!fs.existsSync(wsFilePath)) {
+      const wsConfig = {
+        folders: [{ path: '.' }],
+        settings: {},
+      };
+      fs.writeFileSync(wsFilePath, JSON.stringify(wsConfig, null, 2), 'utf-8');
+    }
+
+    // Check if we're already in the target workspace (e.g. implementing a second component).
+    // If so, open ScaffoldPanel directly — calling vscode.openFolder on the same workspace
+    // is a no-op, so the breadcrumb would never be consumed by activate().
+    const currentWsFolders = vscode.workspace.workspaceFolders || [];
+    const alreadyInWorkspace =
+      vscode.workspace.workspaceFile?.fsPath === wsFilePath ||
+      currentWsFolders.some(f => f.uri.fsPath === targetFolder);
+
+    if (alreadyInWorkspace) {
+      ScaffoldPanel.createOrShow(this.context, componentContext);
+    } else {
+      // Write breadcrumb to globalState so activate() can resume after workspace switch
+      const breadcrumb: WhiteRabbitBreadcrumb = { targetFolder, componentContext };
+      await this.context.globalState.update('maintainabilityai.whiteRabbitBreadcrumb', breadcrumb);
+
+      // Open the workspace file — this gives VS Code a named workspace
+      await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(wsFilePath));
+    }
+  }
 
   private async onScaffoldComponent(repoUrl: string, barPath: string, component?: { name: string; type: string; description: string }) {
     try {
@@ -1826,8 +1915,8 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
   }
 
-  private async buildScaffoldDescription(repoUrl: string, barPath: string, component?: { name: string; type: string; description: string }): Promise<ComponentScaffoldContext> {
-    // 1. BAR name
+  private async buildScaffoldDescription(repoUrl: string, barPath: string, component?: { id?: string; name: string; type: string; description: string }): Promise<ComponentScaffoldContext> {
+    // 1. BAR name & manifest
     const manifest = this.barService.readManifest(barPath);
     const barName = manifest?.name || path.basename(barPath);
 
@@ -1835,36 +1924,50 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     const parsed = GitHubService.parseRepoUrl(repoUrl);
     const repoName = parsed?.repo || repoUrl.replace(/\.git$/, '').split('/').pop() || repoUrl;
 
-    // 3. CALM architecture data (truncated)
+    // 3. Architecture context — compressed to component scope when available
     let calmSection = '';
     const calmData = readCalmArchitectureData(barPath);
-    if (calmData) {
+    if (calmData && component?.id) {
+      calmSection = LookingGlassPanel.compressCalmForComponent(calmData, component.id, manifest);
+    } else if (calmData) {
+      // Whole-BAR scaffold: full JSON (truncated)
       let calmStr = JSON.stringify(calmData, null, 2);
       if (calmStr.length > 5000) { calmStr = calmStr.slice(0, 5000) + '\n... (truncated)'; }
       calmSection = `\n### Architecture (CALM)\n\`\`\`json\n${calmStr}\n\`\`\`\n`;
     }
 
-    // 4. ADR summaries
+    // 4. ADR summaries — accepted only (these are the decisions in force)
     let adrSection = '';
-    const adrs = this.barService.listAdrs(barPath);
+    const adrs = this.barService.listAdrs(barPath).filter(a => a.status === 'accepted');
     if (adrs.length > 0) {
-      const lines = adrs.map(a => `- ${a.id}: ${a.title} (${a.status}) — ${a.decision?.slice(0, 120) || 'No decision recorded'}`);
-      adrSection = `\n### Architecture Decision Records\n${lines.join('\n')}\n`;
+      const lines = adrs.map(a => `- **${a.id}**: ${a.title} — ${a.decision?.slice(0, 120) || 'No decision recorded'}`);
+      adrSection = `\n### Architecture Decision Records (Accepted)\n${lines.join('\n')}\n`;
     }
 
-    // 5. Threat model summary from YAML
+    // 5. Threat model — scoped to component when available
     let threatSection = '';
-    const threatYamlPath = path.join(barPath, 'security', 'threat-model.yaml');
-    if (fs.existsSync(threatYamlPath)) {
-      try {
-        const raw = fs.readFileSync(threatYamlPath, 'utf-8');
-        // Include a truncated summary
-        const summary = raw.length > 3000 ? raw.slice(0, 3000) + '\n... (truncated)' : raw;
-        threatSection = `\n### Threat Model\n\`\`\`yaml\n${summary}\n\`\`\`\n`;
-      } catch { /* best effort */ }
+    if (component?.id) {
+      threatSection = LookingGlassPanel.compressThreatModelForComponent(barPath, component.id, component.name);
+    } else {
+      const threatYamlPath = path.join(barPath, 'security', 'threat-model.yaml');
+      if (fs.existsSync(threatYamlPath)) {
+        try {
+          const raw = fs.readFileSync(threatYamlPath, 'utf-8');
+          const summary = raw.length > 3000 ? raw.slice(0, 3000) + '\n... (truncated)' : raw;
+          threatSection = `\n### Threat Model\n\`\`\`yaml\n${summary}\n\`\`\`\n`;
+        } catch { /* best effort */ }
+      }
     }
 
-    // 6. Scaffold prompt pack
+    // 6. Linked repos from app.yaml
+    let reposSection = '';
+    const repos = manifest?.repos || [];
+    if (repos.length > 0) {
+      const lines = repos.map(r => `- ${r}`);
+      reposSection = `\n### Linked Repositories\n${lines.join('\n')}\n`;
+    }
+
+    // 7. Scaffold prompt pack
     let scaffoldGuidelines = '';
     try {
       const packContent = generateScaffoldPromptPack(this.context.extensionPath);
@@ -1886,7 +1989,7 @@ Scaffold a new implementation of this component following the architecture below
     }
 
     const description = `${componentHeader}
-${calmSection}${adrSection}${threatSection}${scaffoldGuidelines}`;
+${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`;
 
     // Start with no packs pre-selected — user picks what they need (max 5)
     const packs: PromptPackSelection = {
@@ -1896,6 +1999,151 @@ ${calmSection}${adrSection}${threatSection}${scaffoldGuidelines}`;
     };
 
     return { barPath, barName, repoUrl, repoName, description, packs };
+  }
+
+  // --------------------------------------------------------------------------
+  // Scaffold context compression helpers
+  // --------------------------------------------------------------------------
+
+  /**
+   * Compress CALM architecture JSON to focused markdown for a single component.
+   * Extracts: service info, interfaces, connections in/out, related flows, controls, repos.
+   */
+  private static compressCalmForComponent(
+    calmData: object,
+    componentId: string,
+    manifest: import('../types').AppManifest | null,
+  ): string {
+    const arch = calmData as {
+      nodes: { 'unique-id': string; 'node-type': string; name: string; description?: string; 'data-classification'?: string; interfaces?: { 'unique-id': string; [k: string]: unknown }[]; controls?: Record<string, { description: string }> }[];
+      relationships: { 'unique-id': string; description?: string; protocol?: string; 'relationship-type': { connects?: { source: { node: string }; destination: { node: string } }; interacts?: { actor: string; nodes: string[] }; 'composed-of'?: { container: string; nodes: string[] } }; controls?: Record<string, { description: string }> }[];
+      flows?: { 'unique-id': string; name: string; description?: string; transitions: { 'relationship-unique-id': string; 'sequence-number': number; summary: string }[] }[];
+      controls?: Record<string, { description: string }>;
+    };
+
+    const node = arch.nodes.find(n => n['unique-id'] === componentId);
+    if (!node) { return ''; }
+
+    const lines: string[] = ['\n### Architecture Context'];
+
+    // Service summary
+    const classif = node['data-classification'] ? ` [${node['data-classification']}]` : '';
+    lines.push(`\n**Service**: ${node.name} (${node['node-type']})${classif}`);
+    if (node.description) { lines.push(node.description); }
+
+    // Interfaces on this node
+    if (node.interfaces && node.interfaces.length > 0) {
+      lines.push('\n**Interfaces**:');
+      for (const iface of node.interfaces) {
+        lines.push(`- \`${iface['unique-id']}\``);
+      }
+    }
+
+    // Build a lookup of node IDs → names
+    const nodeName = (id: string) => arch.nodes.find(n => n['unique-id'] === id)?.name || id;
+
+    // Connections where this component is source or destination
+    const connectsIn: string[] = [];
+    const connectsOut: string[] = [];
+    const relatedRelIds = new Set<string>();
+
+    for (const rel of arch.relationships) {
+      const rt = rel['relationship-type'];
+      if (rt.connects) {
+        if (rt.connects.destination.node === componentId) {
+          connectsIn.push(`- \u2190 ${nodeName(rt.connects.source.node)} (${rel.protocol || '?'}): ${rel.description || ''}`);
+          relatedRelIds.add(rel['unique-id']);
+        }
+        if (rt.connects.source.node === componentId) {
+          connectsOut.push(`- \u2192 ${nodeName(rt.connects.destination.node)} (${rel.protocol || '?'}): ${rel.description || ''}`);
+          relatedRelIds.add(rel['unique-id']);
+        }
+      }
+      if (rt.interacts?.nodes?.includes(componentId)) {
+        connectsIn.push(`- \u2190 ${nodeName(rt.interacts.actor)} (${rel.protocol || '?'}): ${rel.description || ''}`);
+        relatedRelIds.add(rel['unique-id']);
+      }
+    }
+    if (connectsIn.length > 0) { lines.push('\n**Connections In**:'); lines.push(...connectsIn); }
+    if (connectsOut.length > 0) { lines.push('\n**Connections Out**:'); lines.push(...connectsOut); }
+
+    // Flows that reference this component's relationships
+    if (arch.flows) {
+      const relatedFlows = arch.flows.filter(f =>
+        f.transitions.some(t => relatedRelIds.has(t['relationship-unique-id'])),
+      );
+      if (relatedFlows.length > 0) {
+        lines.push('\n**Flows**:');
+        for (const flow of relatedFlows) {
+          lines.push(`- **${flow.name}** — ${flow.description || ''}`);
+          for (const t of flow.transitions) {
+            if (relatedRelIds.has(t['relationship-unique-id'])) {
+              lines.push(`  ${t['sequence-number']}. ${t.summary}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Controls — collect from root, node, and related relationships
+    const controlEntries: { id: string; desc: string }[] = [];
+    const addControls = (ctls?: Record<string, { description: string }>) => {
+      if (!ctls) { return; }
+      for (const [id, ctl] of Object.entries(ctls)) {
+        if (!controlEntries.some(c => c.id === id)) {
+          controlEntries.push({ id, desc: ctl.description });
+        }
+      }
+    };
+    addControls(arch.controls);
+    addControls(node.controls);
+    for (const rel of arch.relationships) {
+      if (relatedRelIds.has(rel['unique-id'])) { addControls(rel.controls); }
+    }
+    if (controlEntries.length > 0) {
+      lines.push('\n**Controls**:');
+      for (const c of controlEntries) {
+        lines.push(`- \`${c.id}\`: ${c.desc}`);
+      }
+    }
+
+    // Linked repos from app.yaml
+    const repos = manifest?.repos || [];
+    if (repos.length > 0) {
+      lines.push('\n**Sibling Repos**:');
+      for (const r of repos) { lines.push(`- ${r}`); }
+    }
+
+    return lines.join('\n') + '\n';
+  }
+
+  /**
+   * Extract threat model entries relevant to a specific CALM component.
+   * Matches on threat.target (CALM unique-id) or threat.targetName (display name).
+   */
+  private static compressThreatModelForComponent(barPath: string, componentId: string, componentName: string): string {
+    const result = ThreatModelService.readSavedThreatModel(barPath);
+    if (!result || result.threats.length === 0) { return ''; }
+
+    // Match threats targeting this component by CALM id or display name (case-insensitive)
+    const nameLower = componentName.toLowerCase();
+    const relevant = result.threats.filter(t =>
+      t.target === componentId ||
+      t.targetName?.toLowerCase() === nameLower ||
+      t.target?.toLowerCase().includes(componentId.toLowerCase()),
+    );
+
+    if (relevant.length === 0) { return ''; }
+
+    const lines: string[] = ['\n### Threat Model (Component-Scoped)'];
+    for (const t of relevant) {
+      lines.push(`- **${t.id}** [${t.category}] — ${t.description}`);
+      lines.push(`  Impact: ${t.impact} | Likelihood: ${t.likelihood} | Residual: ${t.residualRisk}`);
+      if (t.recommendedMitigations.length > 0) {
+        lines.push(`  Mitigations: ${t.recommendedMitigations.join('; ')}`);
+      }
+    }
+    return lines.join('\n') + '\n';
   }
 
   // ==========================================================================
@@ -2197,6 +2445,44 @@ Policy file: ${filename}
       validationErrors = validateCalm(calmData as Record<string, unknown>);
     }
 
+    // Gap analysis — enrich review context with all pillar artifacts
+    if (command === 'gap-analysis') {
+      const pillarScores = this.barService.scorePillars(barPath);
+      const adrs = this.barService.readAdrs(barPath);
+      const lines: string[] = ['## Governance Artifact Status\n'];
+      for (const [pillarKey, pillar] of Object.entries(pillarScores)) {
+        const p = pillar as { score: number; artifacts: { label: string; present: boolean; nonEmpty: boolean }[] };
+        lines.push(`### ${pillarKey} (${p.score}%)`);
+        for (const a of p.artifacts) {
+          const status = a.present ? (a.nonEmpty ? 'present' : 'empty') : 'MISSING';
+          lines.push(`- ${a.label}: ${status}`);
+        }
+      }
+      if (adrs.length > 0) {
+        lines.push('\n### ADRs');
+        for (const adr of adrs) {
+          lines.push(`- ${adr.id} [${adr.status}]: ${adr.title}`);
+        }
+      }
+      reviewReport = lines.join('\n');
+    }
+
+    // ADR suggestion — inject existing ADRs as context
+    if (command === 'suggest-adr') {
+      const adrs = this.barService.readAdrs(barPath);
+      const lines: string[] = ['## Existing ADRs\n'];
+      if (adrs.length === 0) {
+        lines.push('No ADRs documented yet.');
+      } else {
+        for (const adr of adrs) {
+          lines.push(`### ${adr.id} [${adr.status}]: ${adr.title}`);
+          lines.push(`Context: ${adr.context?.substring(0, 200) || '(none)'}`);
+          lines.push(`Decision: ${adr.decision?.substring(0, 200) || '(none)'}\n`);
+        }
+      }
+      reviewReport = lines.join('\n');
+    }
+
     try {
       await this.absolemService.startConversation(
         barPath, command, calmData, reviewReport, validationErrors,
@@ -2259,6 +2545,31 @@ Policy file: ${filename}
 
   private onAbsolemClose(barPath: string): void {
     this.absolemService.clearConversation(barPath);
+  }
+
+  private async onAbsolemImageStart(barPath: string, imageBase64: string, mimeType: string): Promise<void> {
+    try {
+      // Convert base64 to Uint8Array
+      const binaryString = Buffer.from(imageBase64, 'base64');
+      const imageData = new Uint8Array(binaryString);
+
+      await this.absolemService.startImageConversation(
+        barPath, imageData, mimeType,
+        this.buildAbsolemChunkCallback(barPath),
+      );
+    } catch (err) {
+      this.postMessage({
+        type: 'absolemError',
+        barPath,
+        message: `Image analysis failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+
+  private onAbsolemPreviewJson(json: string): void {
+    vscode.workspace.openTextDocument({ content: json, language: 'json' }).then(doc => {
+      vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside, preview: true });
+    });
   }
 
   private async detectMeshRepo(meshPath: string): Promise<void> {

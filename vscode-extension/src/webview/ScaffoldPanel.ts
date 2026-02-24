@@ -44,6 +44,17 @@ export class ScaffoldPanel {
 
     if (ScaffoldPanel.currentPanel) {
       ScaffoldPanel.currentPanel.panel.reveal(column);
+      // Update component context if a new one was provided (e.g. implementing a second component)
+      if (componentContext) {
+        ScaffoldPanel.currentPanel.componentContext = componentContext;
+        ScaffoldPanel.currentPanel.send({
+          type: 'componentMode',
+          barName: componentContext.barName,
+          repoUrl: componentContext.repoUrl,
+          repoName: componentContext.repoName,
+          homeDir: process.env.HOME || process.env.USERPROFILE || '',
+        });
+      }
       return;
     }
 
@@ -60,39 +71,11 @@ export class ScaffoldPanel {
     ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, componentContext);
   }
 
-  /**
-   * Re-attach to a webview panel that survived an extension host restart
-   * (e.g. after updateWorkspaceFolders converts single → multi-root).
-   */
-  public static revive(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
-    console.log('[Scaffold] revive called — re-attaching to surviving panel');
-    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, undefined, true);
-  }
-
-  private static readonly COMPONENT_CTX_KEY = 'maintainabilityai.scaffoldComponentContext';
-
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext, reviving = false) {
+  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext) {
     this.panel = panel;
     this.extensionPath = context.extensionPath;
     this.extensionContext = context;
-
-    console.log('[Scaffold] constructor: reviving=%s, componentContext=%s, workspaceState=%s',
-      reviving,
-      componentContext ? 'provided' : 'none',
-      context.workspaceState.get(ScaffoldPanel.COMPONENT_CTX_KEY) ? 'persisted' : 'empty');
-
-    // Use provided context, or restore from workspace state (survives extension host restart
-    // triggered by updateWorkspaceFolders converting single-folder to multi-root)
-    this.componentContext = componentContext
-      || context.workspaceState.get<ComponentScaffoldContext>(ScaffoldPanel.COMPONENT_CTX_KEY);
-
-    // Persist for survival across extension host restarts
-    if (this.componentContext) {
-      context.workspaceState.update(ScaffoldPanel.COMPONENT_CTX_KEY, this.componentContext);
-      console.log('[Scaffold] componentContext set: barName=%s, repoUrl=%s', this.componentContext.barName, this.componentContext.repoUrl);
-    } else {
-      console.log('[Scaffold] componentContext is NULL — createComponentFeature will be a no-op');
-    }
+    this.componentContext = componentContext;
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage(
@@ -100,11 +83,6 @@ export class ScaffoldPanel {
       null,
       this.disposables
     );
-
-    if (reviving) {
-      console.log('[Scaffold] reviving — skipping HTML reset, message handler re-attached');
-      return;
-    }
 
     this.panel.webview.html = this.getHtml();
 
@@ -132,7 +110,6 @@ export class ScaffoldPanel {
   }
 
   private async handleMessage(msg: Record<string, unknown>) {
-    console.log('[Scaffold] handleMessage: type=%s', msg.type);
     switch (msg.type) {
       case 'pickFolder': {
         const picked = await vscode.window.showOpenDialog({
@@ -162,59 +139,32 @@ export class ScaffoldPanel {
       }
 
       case 'createComponentFeature': {
-        console.log('[Scaffold] createComponentFeature: componentContext=%s', this.componentContext ? 'YES' : 'NULL');
         if (this.componentContext) {
           const sc = msg.stackConfig as { language: string; testing: string; packageManager: string } | undefined;
           const stack = sc ? this.buildStackFromConfig(sc) : undefined;
+
+          // Add the scaffolded folder to workspace if not already present.
+          // In the White Rabbit flow the folder IS the workspace (opened before scaffold),
+          // so this is a no-op. For direct scaffold usage it ensures the folder is visible.
           const folderPath = (msg.folder || '') as string;
-
-          // Always persist intent — activate() reads this after extension host restart
-          // (updateWorkspaceFolders single→multi-root restarts the extension host)
-          const pending = {
-            description: this.componentContext.description,
-            packs: this.componentContext.packs,
-            repoUrl: this.componentContext.repoUrl,
-            stack,
-          };
-          console.log('[Scaffold] persisting pendingIssueCreation: repoUrl=%s', this.componentContext.repoUrl);
-          await this.extensionContext.globalState.update('maintainabilityai.pendingIssueCreation', pending);
-
-          // Add the scaffolded folder to workspace if needed.
-          // If this converts single→multi-root, the extension host will restart
-          // and activate() will pick up pendingIssueCreation to open the Rabbit Hole.
-          let willRestart = false;
           if (folderPath) {
             const folderUri = vscode.Uri.file(folderPath);
             const alreadyInWorkspace = (vscode.workspace.workspaceFolders || []).some(
               f => f.uri.fsPath === folderUri.fsPath
             );
             if (!alreadyInWorkspace) {
-              const wasSingleRoot = (vscode.workspace.workspaceFolders?.length || 0) <= 1;
-              console.log('[Scaffold] adding folder to workspace: %s (wasSingleRoot=%s)', folderPath, wasSingleRoot);
               const insertIndex = vscode.workspace.workspaceFolders?.length || 0;
               vscode.workspace.updateWorkspaceFolders(insertIndex, 0, { uri: folderUri });
-              if (wasSingleRoot) {
-                // Extension host will restart — activate() handles the rest
-                console.log('[Scaffold] single→multi-root transition — expecting restart, activate() will open Rabbit Hole');
-                willRestart = true;
-              }
             }
           }
 
-          if (!willRestart) {
-            // No restart expected — open the Rabbit Hole directly and clear pending state
-            console.log('[Scaffold] opening IssueCreatorPanel directly: repoUrl=%s', this.componentContext.repoUrl);
-            await this.extensionContext.globalState.update('maintainabilityai.pendingIssueCreation', undefined);
-            IssueCreatorPanel.createOrShow(
-              this.extensionContext,
-              this.componentContext.description,
-              this.componentContext.packs,
-              this.componentContext.repoUrl,
-              stack,
-            );
-          }
-        } else {
-          console.error('[Scaffold] createComponentFeature BLOCKED — no componentContext!');
+          IssueCreatorPanel.createOrShow(
+            this.extensionContext,
+            this.componentContext.description,
+            this.componentContext.packs,
+            this.componentContext.repoUrl,
+            stack,
+          );
         }
         break;
       }
@@ -344,9 +294,9 @@ export class ScaffoldPanel {
     if (selectedIds.has('codeql-to-issues')) {
       filesToCreate.push({ relativePath: '.github/workflows/codeql-to-issues.yml', content: generateCodeqlToIssuesWorkflow(this.extensionPath) });
       filesToCreate.push({ relativePath: '.github/workflows/validate-prompt-hashes.yml', content: generateValidatePromptHashesWorkflow(this.extensionPath) });
-      filesToCreate.push({ relativePath: 'automation/process-codeql-results.js', content: generateProcessCodeqlResults(this.extensionPath) });
+      filesToCreate.push({ relativePath: 'automation/process-codeql-results.cjs', content: generateProcessCodeqlResults(this.extensionPath) });
       filesToCreate.push({ relativePath: 'automation/prompt-mappings.json', content: generatePromptMappings(this.extensionPath) });
-      filesToCreate.push({ relativePath: 'automation/generate-prompt-hashes.js', content: generatePromptHashGenerator(this.extensionPath) });
+      filesToCreate.push({ relativePath: 'automation/generate-prompt-hashes.cjs', content: generatePromptHashGenerator(this.extensionPath) });
       // Empty hash manifest — user runs generate-prompt-hashes.js after adding prompt packs
       filesToCreate.push({ relativePath: 'automation/prompt-hashes.json', content: JSON.stringify({ _metadata: { generator: 'generate-prompt-hashes.js', algorithm: 'SHA-256' }, owasp: {} }, null, 2) + '\n' });
     }
@@ -591,8 +541,6 @@ export class ScaffoldPanel {
 
   private dispose() {
     ScaffoldPanel.currentPanel = undefined;
-    // Clear persisted component context
-    this.extensionContext.workspaceState.update(ScaffoldPanel.COMPONENT_CTX_KEY, undefined);
     this.panel.dispose();
     while (this.disposables.length) {
       const d = this.disposables.pop();

@@ -172,6 +172,7 @@ export interface LinkedPullRequest {
   checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
   mergeable: boolean;
   draft: boolean;
+  reviewRequested: boolean;
 }
 
 // ============================================================================
@@ -251,6 +252,38 @@ export interface ComponentScaffoldContext {
   packs: PromptPackSelection;     // Pre-selected prompt packs for Rabbit Hole
 }
 
+/** Persisted to globalState before workspace switch so activate() can resume the flow. */
+export interface WhiteRabbitBreadcrumb {
+  targetFolder: string;
+  componentContext: ComponentScaffoldContext;
+}
+
+// ============================================================================
+// Unified Agent Status Types
+// ============================================================================
+
+export type AgentStatusPhase =
+  | 'awaiting-approval'
+  | 'planning'
+  | 'plan-review'
+  | 'implementing'
+  | 'pr-review'
+  | 'pr-checks-failing'
+  | 'complete';
+
+export interface AgentStatusInfo {
+  phase: AgentStatusPhase;
+  agent: 'claude' | 'copilot' | 'unknown';
+  issue: { number: number; url: string; title: string };
+  pr?: {
+    number: number; url: string; title: string;
+    draft: boolean; checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
+    mergeable: boolean; state: 'open' | 'closed' | 'merged';
+    reviewRequested: boolean;
+  };
+  workflowRun?: { name: string; url: string };
+}
+
 export interface ScaffoldOptions {
   includeClaudeMd: boolean;
   includeCopilotMd: boolean;
@@ -287,7 +320,7 @@ export interface MetricResult {
 
 export interface WorkflowRunSummary {
   name: string;
-  status: 'success' | 'failure' | 'pending' | 'unknown';
+  status: 'success' | 'failure' | 'pending' | 'waiting' | 'unknown';
   conclusion: string | null;
   url: string;
   updatedAt: string;
@@ -416,7 +449,7 @@ export type ScorecardExtensionMessage =
   | { type: 'availableModels'; models: { id: string; family: string; name: string; vendor: string }[]; defaultFamily: string }
   | { type: 'preferredModelSaved'; family: string }
   | { type: 'workspaceFolders'; folders: { name: string; path: string }[] }
-  | { type: 'activeIssueUpdate'; issue: { number: number; url: string; phase: string; status: string; repo: string } | null }
+  | { type: 'agentStatusUpdate'; status: AgentStatusInfo | null }
   | { type: 'syncStatus'; behind: number; ahead: number; branch: string }
   | { type: 'repoSynced' };
 
@@ -540,6 +573,7 @@ export interface PillarArtifact {
   path: string;              // Relative path within BAR
   present: boolean;
   nonEmpty: boolean;
+  qualityScore: number;      // 0-100, content quality assessment
 }
 
 export interface GovernancePillarScore {
@@ -577,6 +611,14 @@ export interface BarSummary {
   path: string;              // Filesystem path to BAR root
   reviews?: ReviewRecord[];         // Review history for design drift
   latestDriftScore?: number;       // Latest review drift score (shortcut)
+  scoreHistory?: GovernanceScoreSnapshot[];  // Governance score over time
+  scoreTrend?: GovernanceTrend;              // Composite trend direction
+  pillarTrends?: {
+    architecture: GovernanceTrend;
+    security: GovernanceTrend;
+    infoRisk: GovernanceTrend;
+    operations: GovernanceTrend;
+  };
 }
 
 export interface PlatformSummary {
@@ -610,6 +652,17 @@ export interface MeshScoringConfig {
   warningThreshold: number;  // default 50
   driftWeights?: DriftWeights;
 }
+
+export interface GovernanceScoreSnapshot {
+  timestamp: string;         // ISO 8601
+  composite: number;         // 0-100
+  architecture: number;
+  security: number;
+  information_risk: number;
+  operations: number;
+}
+
+export type GovernanceTrend = 'improving' | 'stable' | 'declining' | 'new';
 
 export interface MermaidDiagrams {
   sequence?: string;     // Mermaid sequenceDiagram from bar.arch.json flows
@@ -867,12 +920,13 @@ export type OracularExtensionMessage =
 // Absolem — Multi-Turn CALM Refinement Agent
 // ============================================================================
 
-export type AbsolemCommand = 'drift-analysis' | 'add-components' | 'validate' | 'freeform';
+export type AbsolemCommand = 'drift-analysis' | 'add-components' | 'validate' | 'freeform'
+  | 'gap-analysis' | 'suggest-adr' | 'image-to-calm';
 
 export interface CalmPatch {
   op: 'addNode' | 'removeNode' | 'addRelationship' | 'removeRelationship'
     | 'updateField' | 'setControl' | 'removeControl' | 'setCapabilities'
-    | 'setInterfaces' | 'updateComposedOf';
+    | 'setInterfaces' | 'updateComposedOf' | 'replaceFull';
   target: string;
   field?: string;
   value?: unknown;
@@ -949,6 +1003,8 @@ export type LookingGlassWebviewMessage =
   | { type: 'absolemAcceptPatches'; barPath: string; patches: CalmPatch[] }
   | { type: 'absolemRejectPatches'; barPath: string }
   | { type: 'absolemClose'; barPath: string }
+  | { type: 'absolemImageStart'; barPath: string; imageBase64: string; mimeType: string }
+  | { type: 'absolemPreviewJson'; barPath: string; json: string }
   // CALM component implementation
   | { type: 'getCalmComponents'; barPath: string }
   | { type: 'implementComponent'; barPath: string; componentId: string; repoName: string; componentName: string; componentType: string; componentDescription: string }
@@ -998,6 +1054,7 @@ export type LookingGlassExtensionMessage =
   | { type: 'policyBaselineGenerated'; filename: string }
   // Oraculum integration — active review detection
   | { type: 'activeReview'; barPath: string; review: ActiveReviewInfo | null }
+  | { type: 'agentStatusUpdate'; barPath: string; status: AgentStatusInfo | null }
   // Top findings summary (LLM-powered)
   | { type: 'topFindingsProgress'; barPath: string; step: string; progress: number }
   | { type: 'topFindingsSummary'; barPath: string; summary: TopFindingsSummary | null }

@@ -3,7 +3,7 @@
 // Renders CALM Architecture Views with tabbed mermaid diagrams + ADR management
 // ============================================================================
 
-import { escapeHtml, escapeAttr, renderMarkdown } from './shared';
+import { escapeHtml, escapeAttr } from './shared';
 import type { VsCodeApi } from './shared';
 
 // Absolem state passed from lookingGlass.ts
@@ -66,9 +66,8 @@ export function renderArchitectureDetail(
   adrEditingId: string | null,
   adrForm: Partial<AdrRecord> | null,
   barPath: string,
-  absolemState?: AbsolemState,
 ): string {
-  const diagramSection = renderDiagramSection(calmData, mermaidDiagrams, activeTab, barPath, absolemState);
+  const diagramSection = renderDiagramSection(calmData, mermaidDiagrams, activeTab, barPath);
   const adrSection = renderAdrSection(adrs, adrEditingId, adrForm, barPath);
 
   return `${diagramSection}${adrSection}`;
@@ -79,7 +78,6 @@ function renderDiagramSection(
   mermaidDiagrams: ArchitectureDiagrams | null,
   activeTab: string,
   barPath: string,
-  absolemState?: AbsolemState,
 ): string {
   const hasCalmData = !!calmData;
   const hasMermaid = mermaidDiagrams && (mermaidDiagrams.sequence || mermaidDiagrams.capability);
@@ -166,16 +164,8 @@ function renderDiagramSection(
     `;
   }
 
-  const absolemPanel = absolemState ? renderAbsolemPanel(absolemState, barPath) : '';
-
   return `
-    <div class="section-subheader" style="display: flex; align-items: center; justify-content: space-between;">
-      <span>Architecture Views</span>
-      <button class="absolem-toggle-btn" id="btn-absolem-toggle"
-        data-bar-path="${escapeAttr(barPath)}"
-        title="Open Absolem — AI Architecture Refinement">&#x1F41B;</button>
-    </div>
-    ${absolemPanel}
+    <div class="section-subheader">Architecture Views</div>
     <div class="arch-views">
       <div class="arch-tabs">${tabBar}</div>
       ${diagramContent}
@@ -427,190 +417,6 @@ function renderLinksEditor(links: AdrLink[] | undefined, allAdrs: AdrRecord[], e
 function truncate(text: string, max: number): string {
   if (!text) { return ''; }
   return text.length > max ? text.slice(0, max) + '...' : text;
-}
-
-// ============================================================================
-// Absolem — Chat Panel
-// ============================================================================
-
-function renderAbsolemPanel(absolemState: AbsolemState, barPath: string): string {
-  if (!absolemState.open) { return ''; }
-
-  const messagesHtml = absolemState.messages.map(m => {
-    if (m.role === 'assistant') {
-      return `
-        <div class="absolem-bubble">
-          <span class="absolem-avatar">&#x1F41B;</span>
-          <div class="absolem-bubble-content absolem-md">${renderMarkdown(m.content)}</div>
-        </div>`;
-    }
-    return `
-      <div class="user-bubble">
-        <div class="user-bubble-content">${escapeHtml(m.content)}</div>
-      </div>`;
-  }).join('');
-
-  const streamingHtml = absolemState.status === 'thinking' ? `
-    <div class="absolem-bubble">
-      <span class="absolem-avatar">&#x1F41B;</span>
-      <div class="absolem-bubble-content absolem-streaming absolem-md" id="absolem-streaming-text">${renderMarkdown(absolemState.streaming)}<span class="absolem-cursor">|</span></div>
-    </div>` : '';
-
-  const patchesHtml = absolemState.patches ? renderPatchesCard(absolemState.patches, barPath) : '';
-
-  const chipsHtml = absolemState.messages.length === 0 && absolemState.status === 'idle' ? `
-    <div class="absolem-greeting">
-      <div class="absolem-bubble">
-        <span class="absolem-avatar">&#x1F41B;</span>
-        <div class="absolem-bubble-content">Who... are... you?<br/>I can help refine your architecture. What would you like to explore?</div>
-      </div>
-      <div class="absolem-chips">
-        <button class="absolem-chip" data-absolem-cmd="drift-analysis" data-bar-path="${escapeAttr(barPath)}">Update CALM from drift analysis</button>
-        <button class="absolem-chip" data-absolem-cmd="add-components" data-bar-path="${escapeAttr(barPath)}">Add missing nodes or relationships</button>
-        <button class="absolem-chip" data-absolem-cmd="validate" data-bar-path="${escapeAttr(barPath)}">Review CALM validation issues</button>
-        <button class="absolem-chip" data-absolem-cmd="freeform" data-bar-path="${escapeAttr(barPath)}">Ask me anything about this architecture</button>
-      </div>
-    </div>` : '';
-
-  const inputDisabled = absolemState.status === 'thinking' ? 'disabled' : '';
-
-  return `
-    <div class="absolem-panel" id="absolem-panel">
-      <div class="absolem-header">
-        <span>&#x1F41B; Absolem</span>
-        <button class="absolem-close-btn" id="btn-absolem-close" data-bar-path="${escapeAttr(barPath)}" title="Close">&times;</button>
-      </div>
-      <div class="absolem-messages" id="absolem-messages">
-        ${chipsHtml}
-        ${messagesHtml}
-        ${streamingHtml}
-        ${patchesHtml}
-      </div>
-      <div class="absolem-input">
-        <input type="text" id="absolem-input-field"
-          placeholder="${absolemState.messages.length === 0 ? 'Or type a question...' : 'Type a message...'}" ${inputDisabled}
-          data-bar-path="${escapeAttr(barPath)}" />
-        <button class="btn-primary btn-sm" id="btn-absolem-send"
-          data-bar-path="${escapeAttr(barPath)}" ${inputDisabled}>Send</button>
-      </div>
-    </div>`;
-}
-
-function renderPatchesCard(
-  patchSet: { patches: { op: string; target: string; field?: string; value?: unknown }[]; description: string },
-  barPath: string,
-): string {
-  const patchLines = patchSet.patches.map(p => {
-    const opClass = p.op.startsWith('add') ? 'patch-add'
-      : p.op.startsWith('remove') ? 'patch-remove'
-      : 'patch-update';
-    const opLabel = p.op.startsWith('add') ? '+'
-      : p.op.startsWith('remove') ? '\u2212'
-      : '~';
-    return `<div class="patch-item ${opClass}">${opLabel} ${escapeHtml(p.op)}: ${escapeHtml(p.target)}</div>`;
-  }).join('');
-
-  return `
-    <div class="absolem-patches">
-      <div class="absolem-patches-header">Proposed Changes</div>
-      ${patchLines}
-      <div class="absolem-patches-actions">
-        <button class="btn-primary btn-sm" id="btn-absolem-accept"
-          data-bar-path="${escapeAttr(barPath)}">Accept All</button>
-        <button class="btn-secondary btn-sm" id="btn-absolem-reject"
-          data-bar-path="${escapeAttr(barPath)}">Skip</button>
-      </div>
-    </div>`;
-}
-
-// ============================================================================
-// Absolem Events
-// ============================================================================
-
-export function attachAbsolemEvents(
-  vscode: VsCodeApi,
-  getAbsolemState: () => AbsolemState,
-  onClose: () => void,
-  onUserMessage: (message: string) => void,
-): void {
-  // Close button
-  document.getElementById('btn-absolem-close')?.addEventListener('click', () => {
-    const barPath = (document.getElementById('btn-absolem-close') as HTMLElement)?.dataset.barPath;
-    if (barPath) {
-      vscode.postMessage({ type: 'absolemClose', barPath });
-      onClose();
-    }
-  });
-
-  // Quick-action chips
-  document.querySelectorAll('.absolem-chip[data-absolem-cmd]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const el = chip as HTMLElement;
-      const cmd = el.dataset.absolemCmd;
-      const barPath = el.dataset.barPath;
-      if (cmd && barPath) {
-        if (cmd !== 'freeform') {
-          const cmdLabels: Record<string, string> = {
-            'drift-analysis': 'Update CALM from drift analysis',
-            'add-components': 'Add missing nodes or relationships',
-            'validate': 'Review CALM validation issues',
-          };
-          onUserMessage(cmdLabels[cmd] || cmd);
-        }
-        vscode.postMessage({ type: 'absolemStart', barPath, command: cmd });
-      }
-    });
-  });
-
-  // Send button
-  document.getElementById('btn-absolem-send')?.addEventListener('click', () => {
-    sendAbsolemMessage(vscode, onUserMessage);
-  });
-
-  // Enter key on input
-  document.getElementById('absolem-input-field')?.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') {
-      sendAbsolemMessage(vscode, onUserMessage);
-    }
-  });
-
-  // Accept patches
-  document.getElementById('btn-absolem-accept')?.addEventListener('click', () => {
-    const barPath = (document.getElementById('btn-absolem-accept') as HTMLElement)?.dataset.barPath;
-    const state = getAbsolemState();
-    if (barPath && state.patches) {
-      vscode.postMessage({
-        type: 'absolemAcceptPatches',
-        barPath,
-        patches: state.patches.patches,
-      });
-    }
-  });
-
-  // Reject patches
-  document.getElementById('btn-absolem-reject')?.addEventListener('click', () => {
-    const barPath = (document.getElementById('btn-absolem-reject') as HTMLElement)?.dataset.barPath;
-    if (barPath) {
-      vscode.postMessage({ type: 'absolemRejectPatches', barPath });
-    }
-  });
-
-  // Auto-scroll messages container
-  const messagesEl = document.getElementById('absolem-messages');
-  if (messagesEl) {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-}
-
-function sendAbsolemMessage(vscode: VsCodeApi, onUserMessage: (msg: string) => void): void {
-  const input = document.getElementById('absolem-input-field') as HTMLInputElement;
-  if (!input || !input.value.trim()) { return; }
-  const barPath = input.dataset.barPath;
-  if (!barPath) { return; }
-  const text = input.value.trim();
-  input.value = '';
-  onUserMessage(text);
-  vscode.postMessage({ type: 'absolemSend', barPath, message: text });
 }
 
 // ============================================================================
@@ -885,126 +691,6 @@ export function getArchitectureStyles(): string {
     .adr-link-add select {
       background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
       color: var(--text); font-size: 11px; padding: 4px 8px;
-    }
-
-    /* Absolem — Chat Panel */
-    .absolem-toggle-btn {
-      background: none; border: 1px solid var(--border); border-radius: 6px;
-      padding: 4px 8px; cursor: pointer; font-size: 16px; line-height: 1;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .absolem-toggle-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
-
-    .absolem-panel {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      margin: 12px 0; overflow: hidden;
-    }
-    .absolem-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 12px; background: var(--surface-raised, var(--surface));
-      border-bottom: 1px solid var(--border);
-      font-size: 13px; font-weight: 600; color: var(--text);
-    }
-    .absolem-close-btn {
-      background: none; border: none; color: var(--text-muted); cursor: pointer;
-      font-size: 16px; padding: 0 4px; line-height: 1;
-    }
-    .absolem-close-btn:hover { color: var(--text); }
-
-    .absolem-messages {
-      max-height: 400px; overflow-y: auto; padding: 12px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-
-    .absolem-bubble { display: flex; gap: 8px; align-items: flex-start; }
-    .absolem-avatar { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
-    .absolem-bubble-content {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-      padding: 8px 12px; font-size: 12px; color: var(--text); line-height: 1.5;
-      max-width: 85%; white-space: pre-wrap;
-    }
-
-    .user-bubble { display: flex; justify-content: flex-end; }
-    .user-bubble-content {
-      background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 8px;
-      padding: 8px 12px; font-size: 12px; color: var(--text); line-height: 1.5;
-      max-width: 85%; white-space: pre-wrap;
-    }
-
-    .absolem-streaming .absolem-cursor { animation: absolem-blink 0.7s step-end infinite; }
-    @keyframes absolem-blink { 50% { opacity: 0; } }
-
-    .absolem-chips {
-      display: flex; flex-direction: column; gap: 6px; margin-top: 8px; margin-left: 26px;
-    }
-    .absolem-chip {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
-      padding: 6px 14px; font-size: 11px; color: var(--text); cursor: pointer;
-      text-align: left; transition: border-color 0.15s, background 0.15s;
-    }
-    .absolem-chip:hover { border-color: var(--accent); background: var(--accent-bg); }
-
-    .absolem-input {
-      display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border);
-    }
-    .absolem-input input {
-      flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text); font-size: 12px; padding: 6px 10px; font-family: inherit; outline: none;
-    }
-    .absolem-input input:focus { border-color: var(--accent); }
-
-    .absolem-patches {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 12px; margin-top: 8px;
-    }
-    .absolem-patches-header {
-      font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px;
-    }
-    .patch-item { font-size: 11px; font-family: var(--font-mono, monospace); padding: 2px 0; }
-    .patch-add { color: var(--passing); }
-    .patch-remove { color: var(--failing); }
-    .patch-update { color: var(--warning); }
-    .absolem-patches-actions {
-      display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
-    }
-
-    /* Absolem markdown rendered content */
-    .absolem-md { white-space: normal; }
-    .absolem-md h3, .absolem-md h4, .absolem-md h5 {
-      font-size: 12px; font-weight: 700; color: var(--text); margin: 6px 0 2px;
-    }
-    .absolem-md h3 { font-size: 13px; }
-    .absolem-md strong { font-weight: 700; }
-    .absolem-md em { font-style: italic; }
-    .absolem-md del { text-decoration: line-through; opacity: 0.7; }
-    .absolem-md code {
-      background: var(--surface); padding: 1px 5px; border-radius: 3px;
-      font-family: var(--font-mono, monospace); font-size: 11px;
-    }
-    .absolem-md pre {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-      padding: 8px 10px; margin: 6px 0; overflow-x: auto;
-    }
-    .absolem-md pre code {
-      background: none; padding: 0; font-size: 11px; line-height: 1.4;
-    }
-    .absolem-md a { color: var(--accent); text-decoration: none; }
-    .absolem-md a:hover { text-decoration: underline; }
-    .absolem-md table {
-      border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 11px;
-    }
-    .absolem-md th, .absolem-md td {
-      border: 1px solid var(--border); padding: 4px 8px; text-align: left;
-    }
-    .absolem-md th {
-      background: var(--surface); font-weight: 700; font-size: 10px;
-      text-transform: uppercase; letter-spacing: 0.3px;
-    }
-    .absolem-md blockquote {
-      margin: 4px 0; padding: 0;
-    }
-    .absolem-md hr {
-      border: none; border-top: 1px solid var(--border); margin: 6px 0;
     }
   `;
 }

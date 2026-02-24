@@ -236,19 +236,15 @@ export class IssueCreatorPanel {
     await this.onListModels();
 
     // Use repo URL from component mode if provided, otherwise detect from workspace
-    console.log('[RabbitHole] onReady: pendingRepoUrl=%s', this.pendingRepoUrl || 'none');
     if (this.pendingRepoUrl) {
       const parsed = GitHubService.parseRepoUrl(this.pendingRepoUrl);
-      console.log('[RabbitHole] parsed repoUrl: owner=%s, repo=%s', parsed?.owner, parsed?.repo);
       if (parsed) {
         this.currentRepo = { owner: parsed.owner, repo: parsed.repo, defaultBranch: 'main', remoteUrl: this.pendingRepoUrl };
         this.postMessage({ type: 'repoDetected', repo: this.currentRepo });
       }
       this.pendingRepoUrl = undefined;
     } else {
-      console.log('[RabbitHole] no pendingRepoUrl — falling back to detectRepo from workspace');
       const repo = await this.githubService.detectRepo();
-      console.log('[RabbitHole] detectRepo result: %s', repo ? `${repo.owner}/${repo.repo}` : 'null');
       if (repo) {
         this.currentRepo = repo;
         this.postMessage({ type: 'repoDetected', repo });
@@ -457,6 +453,14 @@ export class IssueCreatorPanel {
       const commentBody = `@claude Please analyze this feature request and provide an implementation plan following the RCTRO prompt and security guidelines above.`;
 
       try {
+        // Add remediation label so AgentStatusService detects this as an active agent issue
+        await this.githubService.addIssueLabels(
+          this.currentRepo.owner,
+          this.currentRepo.repo,
+          this.currentIssueNumber,
+          ['rctro-feature', 'remediation-planning'],
+        );
+
         const result = await this.githubService.createIssueComment(
           this.currentRepo.owner,
           this.currentRepo.repo,
@@ -556,11 +560,26 @@ export class IssueCreatorPanel {
     // Give the workspace time to settle after folder changes before opening scorecard
     await new Promise(resolve => setTimeout(resolve, 1500));
 
+    // Find the folder path for this repo so the scorecard auto-selects it
+    const repoFolderPath = this.findRepoFolderPath(repoName);
+
     // Reveal the scorecard — monitoring continues in the background
-    vscode.commands.executeCommand('maintainabilityai.openScorecard');
+    vscode.commands.executeCommand('maintainabilityai.openScorecard', repoFolderPath);
     if (this.panel.visible) {
       this.panel.reveal(vscode.ViewColumn.Beside, true);
     }
+  }
+
+  /** Find the workspace folder path for a repo by name. */
+  private findRepoFolderPath(repoName: string | undefined): string | undefined {
+    if (!repoName) { return undefined; }
+    const folders = vscode.workspace.workspaceFolders || [];
+    const match = folders.find(f =>
+      f.name === repoName ||
+      f.uri.fsPath.endsWith(`/${repoName}`) ||
+      f.uri.fsPath.endsWith(`\\${repoName}`)
+    );
+    return match?.uri.fsPath;
   }
 
   /** Search workspace folders and sibling directories for a repo by name. */

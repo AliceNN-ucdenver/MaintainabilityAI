@@ -310,6 +310,7 @@ export class GitHubService {
           checksStatus,
           mergeable,
           draft: pr.draft ?? false,
+          reviewRequested: (pr.requested_reviewers?.length ?? 0) > 0,
         });
       }
       return results;
@@ -786,6 +787,7 @@ export class GitHubService {
             name,
             status: run.conclusion === 'success' ? 'success'
                   : run.conclusion === 'failure' ? 'failure'
+                  : run.status === 'waiting' || run.conclusion === 'action_required' ? 'waiting'
                   : run.status === 'in_progress' || run.status === 'queued' ? 'pending'
                   : 'unknown',
             conclusion: run.conclusion,
@@ -795,6 +797,42 @@ export class GitHubService {
         }
       }
       return Array.from(latestByName.values());
+    } catch {
+      return [];
+    }
+  }
+
+  async getWaitingWorkflowRuns(
+    owner: string,
+    repo: string
+  ): Promise<{ name: string; url: string; runId: number }[]> {
+    const client = await this.getClient();
+    try {
+      // Check for both 'waiting' (environment protection) and 'action_required' (first-time approval)
+      const [waiting, actionRequired] = await Promise.all([
+        client.rest.actions.listWorkflowRunsForRepo({
+          owner, repo,
+          status: 'waiting' as Parameters<typeof client.rest.actions.listWorkflowRunsForRepo>[0]['status'],
+          per_page: 10,
+        }),
+        client.rest.actions.listWorkflowRunsForRepo({
+          owner, repo,
+          status: 'action_required' as Parameters<typeof client.rest.actions.listWorkflowRunsForRepo>[0]['status'],
+          per_page: 10,
+        }),
+      ]);
+      const allRuns = [...waiting.data.workflow_runs, ...actionRequired.data.workflow_runs];
+      // Deduplicate by run ID
+      const seen = new Set<number>();
+      return allRuns.filter(run => {
+        if (seen.has(run.id)) { return false; }
+        seen.add(run.id);
+        return true;
+      }).map(run => ({
+        name: run.name || 'Unknown',
+        url: run.html_url,
+        runId: run.id,
+      }));
     } catch {
       return [];
     }

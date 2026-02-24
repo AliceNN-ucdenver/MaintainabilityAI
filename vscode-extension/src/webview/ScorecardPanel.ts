@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData } from '../types';
 import { GitHubService } from '../services/GitHubService';
+import { AgentStatusService } from '../services/AgentStatusService';
 import { PromptPackService } from '../services/PromptPackService';
 import { PmatService } from '../services/PmatService';
 import { ScorecardService } from '../services/ScorecardService';
@@ -22,6 +23,7 @@ export class ScorecardPanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly context: vscode.ExtensionContext;
   private readonly githubService: GitHubService;
+  private readonly agentStatusService: AgentStatusService;
   private readonly pmatService: PmatService;
   private readonly scorecardService: ScorecardService;
   private readonly historyService: ScorecardHistoryService;
@@ -34,13 +36,17 @@ export class ScorecardPanel {
   private selectedFolderPath: string | undefined;
   private pollTimer: ReturnType<typeof setInterval> | undefined;
 
-  public static createOrShow(context: vscode.ExtensionContext) {
+  public static createOrShow(context: vscode.ExtensionContext, folderPath?: string) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
     if (ScorecardPanel.currentPanel) {
       ScorecardPanel.currentPanel.panel.reveal(column);
+      // Switch to the requested folder if provided
+      if (folderPath) {
+        ScorecardPanel.currentPanel.onSwitchFolder(folderPath);
+      }
       return;
     }
 
@@ -57,13 +63,16 @@ export class ScorecardPanel {
       }
     );
 
-    ScorecardPanel.currentPanel = new ScorecardPanel(panel, context);
+    const inst = new ScorecardPanel(panel, context);
+    if (folderPath) { inst.selectedFolderPath = folderPath; }
+    ScorecardPanel.currentPanel = inst;
   }
 
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
     this.panel = panel;
     this.context = context;
     this.githubService = new GitHubService();
+    this.agentStatusService = new AgentStatusService(this.githubService);
     this.pmatService = new PmatService();
     const promptPackService = new PromptPackService(context.extensionPath);
     this.scorecardService = new ScorecardService(this.githubService, promptPackService, this.pmatService);
@@ -79,13 +88,6 @@ export class ScorecardPanel {
     );
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
-
-    // Subscribe to Rabbit Hole issue progress
-    this.disposables.push(
-      IssueCreatorPanel.onDidUpdateProgress(update => {
-        this.postMessage({ type: 'activeIssueUpdate', issue: update });
-      })
-    );
 
     // Update folder dropdown when workspace folders change
     this.disposables.push(
@@ -155,59 +157,32 @@ export class ScorecardPanel {
   }
 
   private async onReady() {
-    // Try to auto-select the folder matching an active issue (e.g. just assigned via Rabbit Hole)
-    const activeIssue = this.context.workspaceState.get<{ repo?: string; number?: number }>('maintainabilityai.activeIssue');
-    const targetRepoName = activeIssue?.repo?.split('/').pop(); // "owner/repo" → "repo"
     const folders = vscode.workspace.workspaceFolders || [];
 
-    console.log(`[Scorecard] onReady: activeIssue=${JSON.stringify(activeIssue)}, targetRepoName=${targetRepoName}, folders=${folders.map(f => f.name).join(', ')}`);
-
-    if (targetRepoName && folders.length > 1) {
-      const match = folders.find(f =>
-        f.name === targetRepoName ||
-        f.uri.fsPath.endsWith(`/${targetRepoName}`) ||
-        f.uri.fsPath.endsWith(`\\${targetRepoName}`)
-      );
-      if (match) {
-        this.selectedFolderPath = match.uri.fsPath;
-        console.log(`[Scorecard] matched folder: ${match.uri.fsPath}`);
-      }
-    }
-
     if (!this.selectedFolderPath) {
-      this.selectedFolderPath = folders[0]?.uri.fsPath;
+      // Prefer the first folder that is a git repo (skip workspace containers)
+      const gitFolder = folders.find(f => {
+        try { return fs.existsSync(path.join(f.uri.fsPath, '.git')); }
+        catch { return false; }
+      });
+      this.selectedFolderPath = gitFolder?.uri.fsPath || folders[0]?.uri.fsPath;
     }
 
-    console.log(`[Scorecard] selectedFolderPath=${this.selectedFolderPath}`);
     this.sendWorkspaceFolders(this.selectedFolderPath);
 
     if (this.selectedFolderPath) {
       const repo = await this.githubService.detectRepoForFolder(this.selectedFolderPath);
-      console.log(`[Scorecard] detectRepoForFolder result: ${JSON.stringify(repo)}`);
       if (repo) {
         this.currentRepo = repo;
         this.postMessage({ type: 'repoDetected', repo });
       }
     } else {
       const repo = await this.githubService.detectRepo();
-      console.log(`[Scorecard] detectRepo fallback result: ${JSON.stringify(repo)}`);
       if (repo) {
         this.currentRepo = repo;
         this.postMessage({ type: 'repoDetected', repo });
       }
     }
-
-    // Fallback: if git detection failed but we have an active issue with repo info, use that
-    if (!this.currentRepo && activeIssue?.repo) {
-      const parts = activeIssue.repo.split('/');
-      if (parts.length === 2) {
-        this.currentRepo = { owner: parts[0], repo: parts[1], defaultBranch: 'main', remoteUrl: '' };
-        this.postMessage({ type: 'repoDetected', repo: this.currentRepo });
-        console.log(`[Scorecard] using activeIssue fallback for repo: ${activeIssue.repo}`);
-      }
-    }
-
-    console.log(`[Scorecard] currentRepo=${this.currentRepo ? `${this.currentRepo.owner}/${this.currentRepo.repo}` : 'null'}`);
 
     const stack = await this.techStackDetector.detect();
     this.detectedPackageManager = stack.packageManager;
@@ -221,18 +196,9 @@ export class ScorecardPanel {
     await this.onRefresh();
     this.onCheckSync();
 
-    // Send persisted active issue immediately so banner shows before GitHub query completes
-    if (activeIssue && activeIssue.repo) {
-      console.log(`[Scorecard] sending persisted activeIssueUpdate: issue #${activeIssue.number}`);
-      this.postMessage({ type: 'activeIssueUpdate', issue: activeIssue });
-    }
-
-    // Query GitHub for latest issue/PR state, then poll every 30s
+    // Query GitHub for agent status, then poll every 30s
     if (this.currentRepo) {
-      console.log(`[Scorecard] calling checkForActiveIssues`);
       this.checkForActiveIssues();
-    } else {
-      console.log(`[Scorecard] skipping checkForActiveIssues — no currentRepo`);
     }
     this.startPolling();
   }
@@ -248,16 +214,25 @@ export class ScorecardPanel {
   }
 
   private sendWorkspaceFolders(selectedPath?: string) {
-    const folders = (vscode.workspace.workspaceFolders || []).map(f => ({
-      name: f.name,
-      path: f.uri.fsPath,
-    }));
+    // Filter out workspace-container folders (e.g. the White Rabbit workspace root
+    // that only contains a .code-workspace file and no git repo).
+    const folders = (vscode.workspace.workspaceFolders || [])
+      .filter(f => {
+        try {
+          return fs.existsSync(path.join(f.uri.fsPath, '.git'));
+        } catch { return true; } // If we can't check, include it
+      })
+      .map(f => ({
+        name: f.name,
+        path: f.uri.fsPath,
+      }));
     this.postMessage({ type: 'workspaceFolders', folders, ...(selectedPath ? { selectedPath } : {}) });
   }
 
   private async onSwitchFolder(folderPath: string) {
     this.selectedFolderPath = folderPath;
     this.postMessage({ type: 'loading', active: true, message: 'Switching workspace...' });
+    this.sendWorkspaceFolders(folderPath);
 
     const repo = await this.githubService.detectRepoForFolder(folderPath);
     this.currentRepo = repo || undefined;
@@ -266,6 +241,12 @@ export class ScorecardPanel {
     }
 
     await this.onRefresh();
+
+    // Immediately check agent status and sync for the new folder
+    if (this.currentRepo) {
+      this.checkForActiveIssues();
+    }
+    this.onCheckSync();
   }
 
   private async onCheckSync() {
@@ -309,76 +290,15 @@ export class ScorecardPanel {
     }
   }
 
-  /** Query GitHub for open issues with an agent assignee (copilot or claude). */
+  /** Query GitHub for agent status (issues, PRs, workflow approval). */
   private async checkForActiveIssues() {
-    if (!this.currentRepo) {
-      console.log(`[Scorecard] checkForActiveIssues: skipped — no currentRepo`);
-      return;
-    }
+    if (!this.currentRepo) { return; }
     try {
-      console.log(`[Scorecard] checkForActiveIssues: querying ${this.currentRepo.owner}/${this.currentRepo.repo}`);
-      const { issues } = await this.githubService.listIssues(
-        this.currentRepo.owner, this.currentRepo.repo, 1, 10
+      const status = await this.agentStatusService.detectForRepo(
+        this.currentRepo.owner, this.currentRepo.repo
       );
-      console.log(`[Scorecard] checkForActiveIssues: ${issues.length} issues, assignees: ${issues.map(i => `#${i.number}=${i.assignee || 'none'}`).join(', ')}`);
-      // Look for issues assigned to an AI agent or being handled by a remediation workflow
-      const agentIssue = issues.find(i => {
-        const assignee = i.assignee?.toLowerCase() || '';
-        const labelNames = (i.labels || []).map(l => l.name.toLowerCase());
-        return (
-          assignee.includes('copilot') ||
-          assignee.includes('claude') ||
-          labelNames.some(l => l.includes('copilot') || l.includes('claude')) ||
-          labelNames.some(l => l === 'remediation-planning' || l === 'remediation-in-progress')
-        );
-      });
-      console.log(`[Scorecard] checkForActiveIssues: agentIssue=${agentIssue ? `#${agentIssue.number} assignee=${agentIssue.assignee} labels=${(agentIssue.labels||[]).map(l=>l.name).join(',')}` : 'none'}`);
-
-      if (agentIssue) {
-        // Detect agent type from assignee, labels, or remediation workflow labels
-        let agent: 'claude' | 'copilot' | 'unknown' = 'unknown';
-        const assigneeLower = agentIssue.assignee?.toLowerCase() || '';
-        const labelNames = (agentIssue.labels || []).map(l => l.name.toLowerCase());
-        if (assigneeLower.includes('copilot') || labelNames.some(l => l.includes('copilot'))) { agent = 'copilot'; }
-        else if (assigneeLower.includes('claude') || labelNames.some(l => l.includes('claude') || l.startsWith('remediation-'))) { agent = 'claude'; }
-
-        // Determine phase from remediation labels
-        let phase = 'agent working';
-        if (labelNames.includes('remediation-planning')) { phase = 'planning'; }
-        else if (labelNames.includes('remediation-in-progress')) { phase = 'implementing'; }
-        else if (labelNames.includes('remediation-complete')) { phase = 'complete'; }
-
-        // Check for linked PR (prefer open PRs, ignore closed/merged)
-        let pr: { number: number; url: string; title: string; draft: boolean } | undefined;
-        try {
-          const prs = await this.githubService.getLinkedPullRequests(
-            this.currentRepo.owner, this.currentRepo.repo, agentIssue.number
-          );
-          const openPr = prs.find(p => p.state === 'open');
-          if (openPr) {
-            pr = { number: openPr.number, url: openPr.url, title: openPr.title, draft: openPr.draft };
-          }
-        } catch { /* best effort */ }
-
-        const issueInfo = {
-          number: agentIssue.number,
-          url: agentIssue.url,
-          title: agentIssue.title,
-          agent,
-          phase,
-          status: 'active' as const,
-          repo: `${this.currentRepo.owner}/${this.currentRepo.repo}`,
-          pr,
-        };
-        this.postMessage({ type: 'activeIssueUpdate', issue: issueInfo });
-        this.context.workspaceState.update('maintainabilityai.activeIssue', issueInfo);
-      } else {
-        // No active agent issue — clear the banner
-        this.postMessage({ type: 'activeIssueUpdate', issue: null });
-        this.context.workspaceState.update('maintainabilityai.activeIssue', undefined);
-      }
-    } catch (err) {
-      console.error(`[Scorecard] checkForActiveIssues error:`, err);
+      this.postMessage({ type: 'agentStatusUpdate', status });
+    } catch {
       // Best effort — don't block scorecard load
     }
   }
@@ -457,26 +377,128 @@ export class ScorecardPanel {
   }
 
   private onRunCoverage() {
-    const commands: Record<string, string> = {
-      Jest: 'npx jest --coverage',
-      Vitest: 'npx vitest run --coverage',
-      Mocha: 'npx c8 mocha --exit',
-    };
-
-    const pkgCommands: Record<string, string> = {
-      npm: 'npm test -- --coverage',
-      yarn: 'yarn test --coverage',
-      pnpm: 'pnpm test -- --coverage',
-      bun: 'bun test --coverage',
-      pip: 'python -m pytest --cov',
-      uv: 'uv run pytest --cov',
-      poetry: 'poetry run pytest --cov',
-      pipenv: 'pipenv run pytest --cov',
-    };
-
-    // Prefer test-framework-specific command, fall back to package-manager-based
-    const cmd = commands[this.detectedTesting] || pkgCommands[this.detectedPackageManager] || 'npm test -- --coverage';
+    const workspaceRoot = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const cmd = this.detectCoverageCommand(workspaceRoot);
     this.runInTerminalThenRefresh('Run Coverage', cmd);
+  }
+
+  /**
+   * Read package.json / pyproject.toml to determine the best coverage command.
+   * Priority:
+   *   1. Existing script named "test:coverage" or "coverage" in package.json
+   *   2. Coverage tool in devDependencies (nyc, c8, jest, vitest, pytest-cov)
+   *   3. Fallback based on detected test framework / package manager
+   */
+  private detectCoverageCommand(workspaceRoot?: string): string {
+    if (!workspaceRoot) { return 'npm test -- --coverage'; }
+
+    // ── Python projects ──
+    const pyprojectPath = path.join(workspaceRoot, 'pyproject.toml');
+    const setupCfgPath = path.join(workspaceRoot, 'setup.cfg');
+    const requirementsPath = path.join(workspaceRoot, 'requirements.txt');
+    const hasPyproject = fs.existsSync(pyprojectPath);
+    const hasSetupCfg = fs.existsSync(setupCfgPath);
+    const hasRequirements = fs.existsSync(requirementsPath);
+
+    if (hasPyproject || hasSetupCfg) {
+      // Detect runner from pyproject.toml
+      if (hasPyproject) {
+        try {
+          const pyContent = fs.readFileSync(pyprojectPath, 'utf-8');
+          // Check for poetry
+          if (pyContent.includes('[tool.poetry]')) {
+            return 'poetry run pytest --cov --cov-report=json --cov-report=term';
+          }
+          // Check for pytest-cov config
+          if (pyContent.includes('pytest-cov') || pyContent.includes('[tool.pytest')) {
+            return 'python -m pytest --cov --cov-report=json --cov-report=term';
+          }
+        } catch { /* fall through */ }
+      }
+      // Generic Python
+      return 'python -m pytest --cov --cov-report=json --cov-report=term';
+    }
+
+    if (hasRequirements) {
+      try {
+        const reqContent = fs.readFileSync(requirementsPath, 'utf-8');
+        if (reqContent.includes('pytest-cov') || reqContent.includes('coverage')) {
+          return 'python -m pytest --cov --cov-report=json --cov-report=term';
+        }
+      } catch { /* fall through */ }
+    }
+
+    // ── Node.js / TypeScript projects ──
+    const pkgPath = path.join(workspaceRoot, 'package.json');
+    if (!fs.existsSync(pkgPath)) { return 'npm test -- --coverage'; }
+
+    let pkg: { scripts?: Record<string, string>; devDependencies?: Record<string, string>; dependencies?: Record<string, string> };
+    try {
+      pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    } catch {
+      return 'npm test -- --coverage';
+    }
+
+    const scripts = pkg.scripts || {};
+    const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+    // 1. Prefer existing coverage script
+    if (scripts['test:coverage']) {
+      const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
+      return `${runner} run test:coverage`;
+    }
+    if (scripts['coverage']) {
+      const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
+      return `${runner} run coverage`;
+    }
+
+    // 2. Detect from devDependencies — pick the coverage tool that's actually installed
+    const hasNyc = !!allDeps['nyc'];
+    const hasC8 = !!allDeps['c8'];
+    const hasJest = !!allDeps['jest'];
+    const hasVitest = !!allDeps['vitest'];
+    const hasMocha = !!allDeps['mocha'];
+
+    // jest and vitest have built-in coverage
+    if (hasJest) {
+      return 'npx jest --coverage --coverageReporters=json-summary --coverageReporters=text';
+    }
+    if (hasVitest) {
+      return 'npx vitest run --coverage';
+    }
+    // mocha needs an external coverage tool
+    if (hasMocha && hasNyc) {
+      return 'npx nyc --reporter=json-summary --reporter=text mocha --recursive --exit';
+    }
+    if (hasMocha && hasC8) {
+      return 'npx c8 --reporter=json-summary --reporter=text mocha --recursive --exit';
+    }
+    if (hasMocha) {
+      // No coverage tool installed — use c8 (zero-config V8 coverage)
+      return 'npx c8 --reporter=json-summary --reporter=text mocha --recursive --exit';
+    }
+    // Standalone nyc or c8 with npm test
+    if (hasNyc) {
+      const testCmd = scripts['test'] || 'echo "no test script"';
+      return `npx nyc --reporter=json-summary --reporter=text ${testCmd}`;
+    }
+    if (hasC8) {
+      const testCmd = scripts['test'] || 'echo "no test script"';
+      return `npx c8 --reporter=json-summary --reporter=text ${testCmd}`;
+    }
+
+    // 3. Fallback based on detected package manager
+    const pmFallbacks: Record<string, string> = {
+      pip: 'python -m pytest --cov --cov-report=json --cov-report=term',
+      uv: 'uv run pytest --cov --cov-report=json --cov-report=term',
+      poetry: 'poetry run pytest --cov --cov-report=json --cov-report=term',
+      pipenv: 'pipenv run pytest --cov --cov-report=json --cov-report=term',
+    };
+    if (pmFallbacks[this.detectedPackageManager]) {
+      return pmFallbacks[this.detectedPackageManager];
+    }
+
+    return 'npm test -- --coverage';
   }
 
   private runInTerminalThenRefresh(name: string, cmd: string) {
@@ -1022,44 +1044,7 @@ export class ScorecardPanel {
     }
     .folder-select:focus { outline: none; border-color: var(--accent); }
 
-    /* Active Issue Card */
-    .active-issue-card {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(124, 58, 237, 0.3);
-      border-left: 3px solid #7c3aed;
-      background: rgba(124, 58, 237, 0.06);
-      margin-bottom: 16px;
-      font-size: 13px;
-    }
-    .active-issue-pulse {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #7c3aed; flex-shrink: 0;
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
-      50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(124, 58, 237, 0); }
-    }
-    .active-issue-links {
-      font-size: 12px;
-      color: var(--vscode-descriptionForeground, var(--text-secondary));
-      margin-left: auto;
-      white-space: nowrap;
-    }
-    .active-issue-link {
-      color: var(--vscode-textLink-foreground, var(--accent, #a855f7));
-      cursor: pointer; text-decoration: none; font-weight: 600;
-    }
-    .active-issue-link:hover { text-decoration: underline; }
-    .active-issue-draft-badge {
-      display: inline-block; padding: 1px 6px; border-radius: 10px;
-      font-size: 10px; font-weight: 600;
-      background: rgba(234, 179, 8, 0.15); color: #eab308;
-    }
+    /* Agent Status — styles injected from shared agentStatus.ts via JS import */
   </style>
 </head>
 <body>

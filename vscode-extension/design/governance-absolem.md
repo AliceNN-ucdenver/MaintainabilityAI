@@ -1,38 +1,54 @@
 # Absolem — Multi-Turn CALM Refinement Agent
 
-**Version:** 0.1.0 — Design
-**Date:** February 21, 2026
+**Version:** 1.0.0 — Implemented
+**Date:** February 21, 2026 (Design) / February 23, 2026 (Implementation Complete)
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 ---
 
 ## Overview
 
-Absolem is a multi-turn conversational agent embedded in the Looking Glass architecture pillar panel. Named after the Caterpillar in *Alice in Wonderland* — **"Who... are... you?"** — Absolem guides architects through iterative CALM refinement by asking probing questions, analyzing drift reports, and applying targeted patches to `bar.arch.json`.
+Absolem is a multi-turn conversational AI agent embedded in the Looking Glass BAR detail view as a floating chat widget. Named after the Caterpillar in *Alice in Wonderland* — **"Who... are... you?"** — Absolem guides architects through iterative CALM refinement by asking probing questions, analyzing drift reports, performing cross-pillar gap analysis, suggesting ADRs, generating architecture from diagram images, and applying targeted patches to `bar.arch.json`.
 
 Absolem is the first multi-turn LLM capability in the extension. All existing LLM features (threat models, org scanning, policy baselines, top findings) are single-request/single-response. Absolem introduces a persistent conversation history that accumulates across turns, enabling clarification questions, incremental plan building, and staged CALM mutations.
+
+> **Implementation status:** All phases complete. Absolem has been promoted from the architecture pillar toggle to a persistent floating chat widget at BAR detail level with 7 commands including 3 Phase 4 AI-Assisted Governance capabilities.
 
 ---
 
 ## Placement & Entry Point
 
-### Caterpillar Button
+### Floating Chat Widget (Implemented)
 
-A Caterpillar icon button appears in the architecture pillar panel header, next to the "Architecture Views" subheader. It is visible whenever a BAR has CALM data (`bar.arch.json` exists).
+> **Design change:** Originally designed as a toggle button in the Architecture Views header. Promoted to a persistent floating chat widget at the BAR detail level for greater visibility and accessibility across all pillars.
+
+Absolem renders as a collapsible floating panel at the bottom of the BAR detail view, after the pillar grid and score history, before the active pillar detail. It is always visible when a BAR is selected (collapsed by default, showing just the header bar).
 
 ```
-┌─ Architecture Views ─────────────────────── 🐛 ─┐
-│  [Context] [Logical] [Sequence] [Capability]     │
-│  ┌──────────────────────────────────────────┐    │
-│  │           ReactFlow diagram              │    │
-│  └──────────────────────────────────────────┘    │
-│                                                   │
-│  Architecture Decision Records          [New ADR] │
-│  ...                                              │
-└───────────────────────────────────────────────────┘
+┌─ BAR Detail ──────────────────────────────────────┐
+│  Pillar grid, score history, etc.                  │
+│                                                     │
+│  ┌─ Absolem ──────────────────────── [▼ collapse] ─┐
+│  │                                                   │
+│  │  🐛 Who... are... you?                           │
+│  │     I can help refine your architecture.          │
+│  │                                                   │
+│  │  Command chips (7):                               │
+│  │  [Drift Analysis] [Add Components] [Validate]    │
+│  │  [Gap Analysis] [Suggest ADR] [Image→CALM]       │
+│  │  [Ask anything]                                   │
+│  │                                                   │
+│  │  Messages area (scrollable)                       │
+│  │  ┌──────────────────────────────┐ [📎] [Send]   │
+│  │  │ Or type a question...        │                 │
+│  │  └──────────────────────────────┘                 │
+│  └───────────────────────────────────────────────────┘
+│                                                     │
+│  Active pillar detail (Architecture, Security, etc.) │
+└─────────────────────────────────────────────────────┘
 ```
 
-Clicking the Caterpillar button toggles the Absolem chat panel **below** the diagram section and **above** the ADR section. The chat panel slides in with a subtle animation and can be collapsed back by clicking the button again.
+Clicking the collapse/expand toggle hides or shows the chat body. When collapsed, only the header bar is visible.
 
 ---
 
@@ -63,10 +79,10 @@ Clicking the Caterpillar button toggles the Absolem chat panel **below** the dia
 ### Visual Design
 
 - **Chat bubbles**: LLM responses use a left-aligned `.absolem-bubble` with a caterpillar avatar. User messages use a right-aligned `.user-bubble`.
-- **Streaming**: LLM responses stream token-by-token into the chat panel (re-using the existing `for await (const chunk of response.text)` pattern).
-- **Quick-action buttons**: Command suggestions appear as clickable chips below the greeting. Clicking one populates the input and auto-sends.
-- **Proposed Changes panel**: When Absolem proposes CALM mutations, they render as a diff-like card with Accept/Reject buttons (not auto-applied).
-- **Max height**: Chat panel has a max height of 400px with vertical scroll. Auto-scrolls to latest message.
+- **Streaming**: LLM responses stream token-by-token into the chat panel (re-using the existing `for await (const chunk of response.text)` pattern). Calm-patches fences are stripped from display and replaced with "Generating CALM architecture..." indicator.
+- **Quick-action buttons**: 7 command chips appear below the greeting. Clicking one auto-sends the command.
+- **Proposed Changes panel**: When Absolem proposes CALM mutations, they render as an artifact preview card. For `replaceFull` operations (image-to-CALM), the card shows a structured breakdown of nodes/relationships/flows with collapsible `<details>` sections, "Open in Editor" button, and "Apply to bar.arch.json" / "Skip" buttons.
+- **Max height**: Chat panel has a max height of 400px with vertical scroll. Auto-scrolls to latest message (suppressed during calm-patches streaming to prevent scroll-jacking).
 
 ---
 
@@ -168,6 +184,86 @@ Open-ended conversation mode. The LLM has the full CALM JSON as context and can 
 
 Free-form mode can also produce CALM patches when the conversation leads to concrete changes.
 
+### Command 5: Gap Analysis (Phase 4)
+
+Cross-pillar governance gap identification. Absolem receives full BAR context across all four pillars:
+- All pillar artifact lists with presence/non-empty status (from `BarService.scorePillars()`)
+- ADR summaries (all statuses)
+- Threat model summary
+- CALM data
+- Security controls summary
+
+Absolem identifies gaps — missing artifacts, incomplete content, inconsistencies between artifacts (e.g., threats with no controls, ADRs referencing removed nodes). Provides a prioritized list of issues to fix across architecture, security, information risk, and operations.
+
+### Command 6: Suggest ADR (Phase 4)
+
+Architecture Decision Record suggestion engine. Absolem reviews:
+- Current CALM architecture (nodes, relationships, patterns)
+- All existing ADRs (id, title, status, decision text)
+
+Suggests new ADRs that should be documented based on patterns detected — technology choices, integration patterns, security decisions, or operational concerns that lack formal ADR documentation. Asks clarifying questions about context before proposing.
+
+### Command 7: Image-to-CALM (Phase 4)
+
+Generate `bar.arch.json` from an architecture diagram image. Uses VS Code's `LanguageModelDataPart.image()` API to send images directly through the embedded Copilot LM — no external API key needed.
+
+#### Flow
+
+```
+User clicks "Generate CALM from architecture diagram" chip
+        │
+        ▼
+File picker opens (accept: image/*)
+        │
+        ▼
+User selects PNG/JPG architecture diagram
+        │
+        ▼
+Webview reads file as base64 via FileReader
+Posts { type: 'absolemImageStart', barPath, imageBase64, mimeType }
+        │
+        ▼
+Extension host converts base64 → Uint8Array
+Calls AbsolemService.startImageConversation()
+        │
+        ▼
+LLM receives IMAGE_TO_CALM_SYSTEM_PROMPT + image via LanguageModelDataPart
+Generates complete CALM 1.2 JSON with nested containers, relationships, flows
+Outputs as ```calm-patches fence with single "replaceFull" patch
+        │
+        ▼
+Chat shows "Generating CALM architecture..." during streaming
+On completion, artifact preview card appears:
+  ┌─ Generated CALM Architecture ─────────────────────┐
+  │ ▸ 12 Nodes (3 actors, 2 systems, 5 services, ...) │
+  │ ▸ 8 Relationships (5 connects, 3 composed-of)     │
+  │ ▸ 2 Flows (Login flow, Checkout flow)              │
+  │ ▸ Raw JSON                                         │
+  │                                                     │
+  │        [Open in Editor]  [Skip]  [Apply to bar.arch.json] │
+  └─────────────────────────────────────────────────────┘
+        │
+        ▼
+On Accept: CalmWriteService.applyPatch() with op: 'replaceFull'
+  → Writes complete bar.arch.json
+  → Deletes context.layout.json + logical.layout.json for fresh auto-layout
+  → Diagram re-renders with ELK.js automatic layout
+        │
+        ▼
+User can continue conversation to refine the generated architecture
+```
+
+#### System Prompt
+
+`IMAGE_TO_CALM_SYSTEM_PROMPT` includes:
+- Complete CALM 1.2 schema reference with JSON examples
+- Nested relationship-type format (`"relationship-type": { "connects": {...} }`)
+- 3-level container nesting with ASCII art visual → JSON mapping
+- Steps-based flow format (`step-number`, `source-node`, `destination-node`)
+- Container detection rules: "If a section has a label and contains other items, it is a container"
+- Rule: "List ALL composed-of BEFORE connects"
+- Rule: "Scan diagram carefully for containers inside containers — do NOT flatten nested groups"
+
 ---
 
 ## Multi-Turn Conversation Architecture
@@ -240,7 +336,7 @@ Decorators: [{ $ref, mappings: { node-id: { capabilities: [] } } }]
 2. Proposed changes MUST be expressed as a JSON array of CalmPatch operations
 3. Valid patch operations: addNode, removeNode, addRelationship,
    removeRelationship, updateField, setControl, removeControl,
-   setCapabilities, setInterfaces, updateComposedOf
+   setCapabilities, setInterfaces, updateComposedOf, replaceFull
 4. When proposing patches, wrap them in a ```calm-patches code fence
 5. Explain WHY each change is needed, not just WHAT
 6. After patches are applied, offer to continue refining
@@ -308,7 +404,16 @@ type AbsolemCommand =
   | 'drift-analysis'        // Update CALM from drift analysis
   | 'add-components'        // Add missing nodes or relationships
   | 'validate'              // Review CALM validation issues
+  | 'gap-analysis'          // Analyze governance gaps across all pillars
+  | 'suggest-adr'           // Suggest new ADRs from architecture
+  | 'image-to-calm'         // Generate CALM from architecture diagram
   | 'freeform';             // Open-ended questions
+```
+
+Additional image message:
+```typescript
+| { type: 'absolemImageStart'; barPath: string; imageBase64: string; mimeType: string }
+| { type: 'absolemPreviewJson'; barPath: string; json: string }
 ```
 
 ### Extension → Webview (LookingGlassExtensionMessage)
@@ -359,6 +464,14 @@ class AbsolemService {
   // Clear conversation
   clearConversation(barPath: string): void;
 
+  // Start an image-to-CALM conversation (uses LanguageModelDataPart)
+  async startImageConversation(
+    barPath: string,
+    imageData: Uint8Array,
+    mimeType: string,
+    onChunk: (chunk: string, done: boolean) => void,
+  ): Promise<string>;
+
   // Build the initial user message based on command type
   private buildInitialMessage(
     command: AbsolemCommand,
@@ -366,6 +479,14 @@ class AbsolemService {
     reviewReport: string | null,
     validationErrors: CalmValidationError[] | null,
   ): string;
+
+  // Send message to LLM with optional image data (LanguageModelDataPart)
+  private sendToLlmWithImage(
+    conv: AbsolemConversation,
+    imageData: Uint8Array,
+    mimeType: string,
+    onChunk: (chunk: string, done: boolean) => void,
+  ): Promise<string>;
 
   // Select LLM model (reuses preferred family pattern)
   private selectModel(): Promise<vscode.LanguageModelChat>;
@@ -440,45 +561,56 @@ absolemPatches: null as { patches: CalmPatch[]; description: string } | null,
 
 ## File Changes
 
-| File | Change |
-|------|--------|
-| `src/types/index.ts` | Add `AbsolemCommand`, `AbsolemConversation`, `AbsolemMessage`, `AbsolemPatchSet` types. Add 5 webview + 4 extension message types. |
-| `src/services/AbsolemService.ts` | **New.** Multi-turn conversation manager, LLM streaming, patch extraction. |
-| `src/webview/LookingGlassPanel.ts` | Add 5 message handlers. Read review report on start. Delegate to AbsolemService. |
-| `src/webview/app/pillars/architecturePillar.ts` | Add Caterpillar button to diagram section header. Add `renderAbsolemPanel()`. Add event handlers for chat input, quick actions, patch accept/reject. |
-| `src/webview/app/lookingGlass.ts` | Add Absolem state fields. Wire Absolem message handlers. Pass state to architecture pillar renderer. |
+| File | Change | Status |
+|------|--------|--------|
+| `src/types/index.ts` | Add `AbsolemCommand` (7 commands), `AbsolemConversation`, `AbsolemMessage`, `AbsolemPatchSet` types. Add webview + extension message types incl. `absolemImageStart`, `absolemPreviewJson`. | Complete |
+| `src/services/AbsolemService.ts` | **New.** Multi-turn conversation manager, LLM streaming, patch extraction, `startImageConversation()`, `sendToLlmWithImage()`, `IMAGE_TO_CALM_SYSTEM_PROMPT`. | Complete |
+| `src/services/CalmWriteService.ts` | Add `replaceFull` to `CalmPatch.op` union. Handle empty/missing files. Delete layout files on `replaceFull`. | Complete |
+| `src/webview/LookingGlassPanel.ts` | Add message handlers incl. `onAbsolemImageStart()`, `onAbsolemPreviewJson()`. Read review report on start. Gap analysis context builder. | Complete |
+| `src/webview/app/pillars/architecturePillar.ts` | ~~Add Caterpillar button~~ → Absolem toggle removed from Architecture Views header. Absolem UI moved to lookingGlass.ts. | Complete |
+| `src/webview/app/lookingGlass.ts` | Add floating Absolem widget (`renderAbsolemFloating()`), artifact preview card, 7 command chips, image attach button, calm-patches stripping, streaming display, all Absolem CSS. | Complete |
 
 ---
 
 ## Phases
 
-### Phase 1 — Core Conversation Loop
+### Phase 1 — Core Conversation Loop (Complete)
 
-- [ ] `AbsolemService` with conversation management and LLM streaming
-- [ ] Caterpillar button in architecture pillar header
-- [ ] Chat panel UI with message bubbles and streaming
-- [ ] Quick-action chips for 4 commands
-- [ ] Free-form text input with send
-- [ ] Basic system prompt with CALM context
-- [ ] `absolemChunk` streaming to webview
+- [x] `AbsolemService` with conversation management and LLM streaming
+- [x] ~~Caterpillar button in architecture pillar header~~ → Promoted to floating BAR-level chat widget
+- [x] Chat panel UI with message bubbles and streaming
+- [x] Quick-action chips for 7 commands (originally 4, expanded with gap-analysis, suggest-adr, image-to-calm)
+- [x] Free-form text input with send
+- [x] Basic system prompt with CALM context
+- [x] `absolemChunk` streaming to webview
 
-### Phase 2 — CALM Mutation from Drift
+### Phase 2 — CALM Mutation from Drift (Complete)
 
-- [ ] Read latest review report (`reports/review-{N}.md`) on drift-analysis command
-- [ ] Enhanced system prompt with review report context
-- [ ] `calm-patches` fence extraction from LLM responses
-- [ ] Proposed changes card with patch descriptions
-- [ ] Accept All → `CalmWriteService.applyPatch()` → validation → diagram refresh
+- [x] Read latest review report (`reports/review-{N}.md`) on drift-analysis command
+- [x] Enhanced system prompt with review report context
+- [x] `calm-patches` fence extraction from LLM responses
+- [x] Proposed changes card with patch descriptions (enhanced: artifact preview card for `replaceFull`)
+- [x] Accept All → `CalmWriteService.applyPatch()` → validation → diagram refresh
 - [ ] Review Each mode (step through patches one by one)
-- [ ] Reject → continue conversation
+- [x] Reject → clear state, confirm cancellation, continue conversation
 
-### Phase 3 — Validation & Polish
+### Phase 3 — Validation & Polish (Complete)
 
-- [ ] Validate command: run `CalmValidator.validate()`, present conversationally
-- [ ] Context window management (message compression, token counting)
-- [ ] Error handling: LLM unavailable, malformed patches, write failures
-- [ ] Conversation auto-scroll and UX polish
-- [ ] Keyboard shortcuts: Enter to send, Escape to close
+- [x] Validate command: run `CalmValidator.validate()`, present conversationally
+- [x] Context window management (message compression, token counting)
+- [x] Error handling: LLM unavailable, malformed patches, write failures
+- [x] Conversation auto-scroll and UX polish (with scroll suppression during calm-patches streaming)
+- [x] Keyboard shortcuts: Enter to send, Escape to close
+
+### Phase 4 — AI-Assisted Governance (Complete)
+
+- [x] Gap analysis command with full BAR context across all 4 pillars
+- [x] ADR suggestion engine from CALM architecture + existing ADRs
+- [x] Image-to-CALM via VS Code `LanguageModelDataPart` API
+- [x] `replaceFull` CalmPatch operation for complete architecture replacement
+- [x] Layout file cleanup on `replaceFull` for fresh auto-layout
+- [x] CALM artifact preview card with structured breakdown and "Open in Editor"
+- [x] IMAGE_TO_CALM_SYSTEM_PROMPT with nested containers, relationship-type format, steps-based flows
 
 ---
 

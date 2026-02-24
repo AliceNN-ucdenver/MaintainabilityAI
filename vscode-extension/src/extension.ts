@@ -11,7 +11,7 @@ import { checkPrerequisitesOnActivation } from './services/PrerequisiteChecker';
 import { ActionsTreeProvider } from './views/ActionsTreeProvider';
 import { GovernanceTreeProvider } from './views/GovernanceTreeProvider';
 import { ScaffoldPanel } from './webview/ScaffoldPanel';
-import { IssueCreatorPanel } from './webview/IssueCreatorPanel';
+import type { WhiteRabbitBreadcrumb } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
   // Check for required CLI tools (gh, git) — non-blocking warning
@@ -25,41 +25,18 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('maintainabilityai.actions', actionsProvider)
   );
 
-  // Re-attach scaffold panel if it survived an extension host restart
-  // (e.g. updateWorkspaceFolders converting single-folder → multi-root)
-  context.subscriptions.push(
-    vscode.window.registerWebviewPanelSerializer('maintainabilityai.scaffold', {
-      async deserializeWebviewPanel(panel: vscode.WebviewPanel) {
-        ScaffoldPanel.revive(panel, context);
-      },
-    })
+  // Recover from workspace switch after White Rabbit "Down the Rabbit Hole".
+  // LookingGlassPanel writes a breadcrumb to globalState before calling
+  // vscode.openFolder, which restarts the extension host. We pick it up here
+  // and auto-open ScaffoldPanel in the new workspace.
+  const breadcrumb = context.globalState.get<WhiteRabbitBreadcrumb>(
+    'maintainabilityai.whiteRabbitBreadcrumb',
   );
-
-  // Recover from extension host restart after scaffold → "Create Component Feature"
-  // (updateWorkspaceFolders single→multi-root restarts the extension host)
-  const pending = context.globalState.get<{
-    description: string;
-    packs: import('./types').PromptPackSelection;
-    repoUrl: string;
-    stack?: import('./types').TechStack;
-  }>('maintainabilityai.pendingIssueCreation');
-  if (pending) {
-    console.log('[activate] recovering pendingIssueCreation: repoUrl=%s, hasPacks=%s, hasDescription=%s',
-      pending.repoUrl, !!pending.packs, !!pending.description);
-    context.globalState.update('maintainabilityai.pendingIssueCreation', undefined);
-    // Delay to let the workspace settle after restart
+  if (breadcrumb) {
+    context.globalState.update('maintainabilityai.whiteRabbitBreadcrumb', undefined);
     setTimeout(() => {
-      console.log('[activate] opening IssueCreatorPanel from pending state');
-      IssueCreatorPanel.createOrShow(
-        context,
-        pending.description,
-        pending.packs,
-        pending.repoUrl,
-        pending.stack,
-      );
+      ScaffoldPanel.createOrShow(context, breadcrumb.componentContext);
     }, 1000);
-  } else {
-    console.log('[activate] no pendingIssueCreation in workspace state');
   }
 
   context.subscriptions.push(
@@ -81,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
     ),
     vscode.commands.registerCommand(
       'maintainabilityai.openScorecard',
-      () => openScorecardCommand(context)
+      (folderPath?: string) => openScorecardCommand(context, folderPath)
     ),
     vscode.commands.registerCommand(
       'maintainabilityai.lookingGlass',

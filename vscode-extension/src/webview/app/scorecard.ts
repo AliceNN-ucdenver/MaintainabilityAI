@@ -1,4 +1,6 @@
 // Scorecard webview frontend — renders Security Scorecard dashboard
+import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
+import type { AgentStatusInfo } from './agentStatus';
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
@@ -87,13 +89,8 @@ const state = {
   // Workspace folders
   workspaceFolders: [] as { name: string; path: string }[],
   selectedFolder: '',
-  // Active Rabbit Hole issue
-  activeIssue: null as {
-    number: number; url: string; phase: string; status: string; repo: string;
-    title?: string;
-    agent?: 'claude' | 'copilot' | 'unknown';
-    pr?: { number: number; url: string; title: string; draft: boolean };
-  } | null,
+  // Unified agent status (replaces activeIssue)
+  agentStatus: null as AgentStatusInfo | null,
   // Repo sync status
   syncStatus: null as { behind: number; ahead: number; branch: string } | null,
 };
@@ -118,6 +115,13 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
   <path d="M104 96 L114 100 L114 110 Q114 116 104 120 Q94 116 94 110 L94 100 Z" fill="#a855f7" opacity="0.8"/>
   <path d="M100 106 L103 109 L109 103" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
+
+// Inject shared agent status CSS once
+(function injectAgentStatusStyles() {
+  const style = document.createElement('style');
+  style.textContent = getAgentStatusStyles();
+  document.head.appendChild(style);
+})();
 
 // ============================================================================
 // Rendering
@@ -199,7 +203,7 @@ function render() {
       </div>
     </div>
 
-    ${renderActiveIssueCard()}
+    ${renderAgentStatus(state.agentStatus)}
     ${renderSyncBanner()}
     ${renderCreateFeatureBanner()}
     ${renderPmatBanner(d)}
@@ -218,7 +222,7 @@ function render() {
   attachCreateFeature();
   attachSyncBanner();
   attachFolderSelect();
-  attachActiveIssue();
+  attachAgentStatusListeners((msg) => vscode.postMessage(msg));
   attachSettingsGear();
 }
 
@@ -230,38 +234,7 @@ function renderFolderDropdown(): string {
   return `<select id="folder-select" class="folder-select" title="Workspace folder">${options}</select>`;
 }
 
-function renderActiveIssueCard(): string {
-  const issue = state.activeIssue;
-  if (!issue) { return ''; }
-
-  // Determine agent label
-  const agentLabel = issue.agent === 'claude' ? 'Claude'
-    : issue.agent === 'copilot' ? 'Copilot'
-    : 'Agent';
-
-  // Determine status text
-  const statusText = issue.pr
-    ? (issue.pr.draft ? `<strong>${agentLabel}</strong> is working on this` : `<strong>${agentLabel}</strong> PR ready for review`)
-    : `<strong>${agentLabel}</strong> is working on this`;
-
-  // PR link
-  let prHtml = '';
-  if (issue.pr) {
-    const draftBadge = issue.pr.draft ? ' <span class="active-issue-draft-badge">Draft</span>' : '';
-    prHtml = `<span style="margin-left: 12px;">PR <a href="#" class="active-issue-link" data-url="${escapeAttr(issue.pr.url)}">#${issue.pr.number}</a>${draftBadge}</span>`;
-  }
-
-  return `
-    <div class="active-issue-card">
-      <span class="active-issue-pulse"></span>
-      <span style="font-size: 13px;">${statusText}</span>
-      <span class="active-issue-links">
-        Issue <a href="#" class="active-issue-link" data-url="${escapeAttr(issue.url)}">#${issue.number}</a>
-        ${prHtml}
-      </span>
-    </div>
-  `;
-}
+// renderActiveIssueCard removed — replaced by shared renderAgentStatus() from agentStatus.ts
 
 function renderSyncBanner(): string {
   const sync = state.syncStatus;
@@ -689,24 +662,7 @@ function attachFolderSelect() {
   });
 }
 
-function attachActiveIssue() {
-  // Issue link — open in browser
-  document.querySelectorAll('.active-issue-link').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      const url = (el as HTMLElement).dataset.url;
-      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
-    });
-  });
-  // PR link — open in browser
-  document.querySelectorAll('.active-issue-pr-link').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      const url = (el as HTMLElement).dataset.url;
-      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
-    });
-  });
-}
+// attachActiveIssue removed — replaced by attachAgentStatusListeners() from agentStatus.ts
 
 function attachMetricActions() {
   document.querySelectorAll('.btn-metric-action').forEach(btn => {
@@ -847,8 +803,8 @@ window.addEventListener('message', (event) => {
       render();
       break;
 
-    case 'activeIssueUpdate':
-      state.activeIssue = message.issue;
+    case 'agentStatusUpdate':
+      state.agentStatus = (message as { type: 'agentStatusUpdate'; status: AgentStatusInfo | null }).status;
       render();
       break;
 

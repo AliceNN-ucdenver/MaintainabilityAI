@@ -103,6 +103,171 @@ function isSubstantive(filePath: string): boolean {
   }
 }
 
+// ============================================================================
+// Content quality assessment per artifact type
+// ============================================================================
+
+/** Required top-level keys per artifact label (for YAML files). */
+const YAML_REQUIRED_KEYS: Record<string, string[]> = {
+  'Threat Model':           ['threats'],
+  'Security Controls':      ['controls'],
+  'Vulnerability Tracking': ['vulnerabilities'],
+  'Compliance Checklist':   ['checklist'],
+  'Fitness Functions':      ['functions'],
+  'Quality Attributes':     ['scenarios'],
+  'Data Classification':    ['data_elements'],
+  'VISM':                   ['assets'],
+  'Privacy Impact':         ['assessment'],
+  'Service Mapping':        ['services'],
+  'SLA Definitions':        ['sla'],
+  'Incident Response':      ['escalation'],
+};
+
+const MARKDOWN_ARTIFACTS = new Set([
+  'Conceptual View', 'Logical View', 'Context View', 'Sequence View',
+  'Risk Assessment', 'Runbook',
+]);
+
+const JSON_ARTIFACTS: Record<string, string> = {
+  'Architecture (CALM)':          'nodes',
+  'Capability Decorator (CALM)':  'definitions',
+};
+
+const DIRECTORY_ARTIFACTS = new Set(['ADRs']);
+
+function assessYamlQuality(filePath: string, requiredKeys: string[]): number {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n');
+    const nonCommentLines = lines.filter(l => l.trim() && !l.trimStart().startsWith('#'));
+    if (nonCommentLines.length === 0) { return 0; }
+
+    let score = 0;
+
+    // +30 for valid structure (has key: value lines)
+    if (nonCommentLines.some(l => /^\s*\S+:/.test(l))) { score += 30; }
+
+    // +30 for required top-level keys present
+    if (requiredKeys.length > 0) {
+      const keysPresent = requiredKeys.filter(key =>
+        nonCommentLines.some(l => new RegExp(`^\\s*${key}:`).test(l))
+      );
+      score += Math.round(30 * (keysPresent.length / requiredKeys.length));
+    } else {
+      score += 15; // No required keys defined — give partial credit
+    }
+
+    // +40 scaled by list entries (lines matching "  - ")
+    const listEntries = nonCommentLines.filter(l => /^\s+-\s+/.test(l)).length;
+    score += Math.min(40, listEntries * 10);
+
+    return Math.min(100, score);
+  } catch {
+    return 0;
+  }
+}
+
+function assessMarkdownQuality(filePath: string): number {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n');
+    let score = 0;
+
+    const headings = lines.filter(l => /^#+\s/.test(l)).length;
+    if (headings >= 2) { score += 30; }
+    else if (headings >= 1) { score += 15; }
+
+    const bodyLines = lines.filter(l => !l.trimStart().startsWith('#') && l.trim());
+    const wordCount = bodyLines.join(' ').split(/\s+/).filter(Boolean).length;
+    if (wordCount > 300) { score += 50; }
+    else if (wordCount > 100) { score += 30; }
+    else if (wordCount > 30) { score += 15; }
+
+    if (lines.some(l => /\|.*\|.*\|/.test(l)) || lines.some(l => /^\s*[-*]\s+/.test(l))) {
+      score += 20;
+    }
+
+    return Math.min(100, score);
+  } catch {
+    return 0;
+  }
+}
+
+function assessJsonQuality(filePath: string, requiredArrayKey?: string): number {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(content);
+    let score = 40; // Valid JSON parse
+
+    if (requiredArrayKey && parsed && typeof parsed === 'object') {
+      const arr = parsed[requiredArrayKey];
+      if (Array.isArray(arr)) {
+        score += 30;
+        score += Math.min(30, arr.length * 10);
+      }
+    } else if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+      score += 30;
+    }
+
+    return Math.min(100, score);
+  } catch {
+    return 0;
+  }
+}
+
+function assessDirectoryQuality(dirPath: string): number {
+  try {
+    const entries = fs.readdirSync(dirPath).filter(f => !f.startsWith('.'));
+    if (entries.length === 0) { return 0; }
+
+    let totalQuality = 0;
+    let count = 0;
+
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry);
+      try {
+        const stat = fs.statSync(entryPath);
+        if (stat.isFile()) {
+          count++;
+          if (entry.endsWith('.md')) {
+            totalQuality += assessMarkdownQuality(entryPath);
+          } else if (entry.endsWith('.yaml') || entry.endsWith('.yml')) {
+            totalQuality += assessYamlQuality(entryPath, []);
+          } else if (entry.endsWith('.json')) {
+            totalQuality += assessJsonQuality(entryPath);
+          } else {
+            totalQuality += stat.size > 0 ? 50 : 0;
+          }
+        }
+      } catch { /* skip unreadable entries */ }
+    }
+
+    return count > 0 ? Math.round(totalQuality / count) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function assessArtifactQuality(filePath: string, label: string): number {
+  if (YAML_REQUIRED_KEYS[label]) {
+    return assessYamlQuality(filePath, YAML_REQUIRED_KEYS[label]);
+  }
+  if (MARKDOWN_ARTIFACTS.has(label)) {
+    return assessMarkdownQuality(filePath);
+  }
+  if (JSON_ARTIFACTS[label] !== undefined) {
+    return assessJsonQuality(filePath, JSON_ARTIFACTS[label]);
+  }
+  if (DIRECTORY_ARTIFACTS.has(label)) {
+    return assessDirectoryQuality(filePath);
+  }
+  try {
+    return fs.statSync(filePath).size > 0 ? 50 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function scoreArtifacts(
   barPath: string,
   definitions: { label: string; path: string }[]
@@ -111,11 +276,13 @@ function scoreArtifacts(
     const fullPath = path.join(barPath, def.path);
     const present = isNonEmpty(fullPath);
     const nonEmpty = present && isSubstantive(fullPath);
+    const qualityScore = present ? assessArtifactQuality(fullPath, def.label) : 0;
     return {
       label: def.label,
       path: def.path,
       present,
       nonEmpty,
+      qualityScore,
     };
   });
 }
@@ -143,8 +310,18 @@ export class GovernanceScorer {
     const definitions = this.getDefinitions(pillar, barPath);
     const artifacts = scoreArtifacts(barPath, definitions);
     const total = artifacts.length;
-    const present = artifacts.filter(a => a.present).length;
-    const score = total > 0 ? Math.round((present / total) * 100) : 0;
+
+    if (total === 0) {
+      return { pillar, score: 0, status: 'failing', artifacts };
+    }
+
+    // Blended formula: present = base 60%, quality bonus up to 40%
+    const artifactScores = artifacts.map(a =>
+      a.present ? 60 + (a.qualityScore * 0.4) : 0
+    );
+    const score = Math.round(
+      artifactScores.reduce((sum, s) => sum + s, 0) / total
+    );
 
     return {
       pillar,

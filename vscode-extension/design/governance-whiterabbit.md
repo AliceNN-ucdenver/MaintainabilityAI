@@ -1,7 +1,7 @@
 # White Rabbit — BAR Component Scaffolding & Implementation
 
-**Version:** 0.1.0 — Design
-**Date:** February 21, 2026
+**Version:** 1.0.0 — Implemented
+**Date:** February 21, 2026 (Design) / February 23, 2026 (Implementation Complete)
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 ---
@@ -720,8 +720,8 @@ The banner shows:
 | Advanced Prompt Packs toggle | **Complete** | Collapsible pack selection in component mode |
 | Rabbit Hole rename | **Complete** | Sidebar "Rabbit Hole", hub redesign, "Create Feature" on Scorecard |
 | Post-assignment transition | Deferred | Open repo folder + Scorecard in code mode (cross-window coordination) |
-| Update governance-mesh.md | **Complete** | Capability table, design docs, status |
-| Build verification | Pending | `node esbuild.js --production` — clean build |
+| Update governance-mesh.md | **Complete** | Capability table, design docs, status (consolidated to `design/governance-mesh.md`) |
+| Build verification | **Complete** | `node esbuild.js --production` — clean build verified |
 
 ---
 

@@ -421,6 +421,40 @@ function parseSARIFResults(sarifPath) {
   for (const run of sarif.runs || []) {
     const tool = run.tool?.driver?.name || 'CodeQL';
     const toolVersion = run.tool?.driver?.semanticVersion || run.tool?.driver?.version || 'unknown';
+    const rulesCount = run.tool?.driver?.rules?.length || 0;
+    log('INFO', `SARIF run: tool=${tool} v${toolVersion} | rules defined: ${rulesCount} | results: ${(run.results || []).length}`);
+
+    // Dump available rule IDs for debugging
+    if (rulesCount > 0) {
+      const ruleIds = run.tool.driver.rules.map(r => r.id);
+      log('INFO', `  Available rule IDs: ${ruleIds.join(', ')}`);
+      const sampleRule = run.tool.driver.rules[0];
+      log('INFO', `  Sample rule structure: ${JSON.stringify({ id: sampleRule.id, properties: sampleRule.properties, hasShortDesc: !!sampleRule.shortDescription }, null, 0).substring(0, 400)}`);
+    } else {
+      log('WARN', '  No rules array in SARIF — security-severity scores will be unavailable');
+      const extensions = run.tool?.extensions || [];
+      if (extensions.length > 0) {
+        log('INFO', `  Found ${extensions.length} tool extension(s) — checking for rules there`);
+        for (const ext of extensions) {
+          const extRules = ext.rules || [];
+          if (extRules.length > 0) {
+            log('INFO', `    Extension "${ext.name}": ${extRules.length} rules`);
+            const sample = extRules[0];
+            log('INFO', `    Sample: ${JSON.stringify({ id: sample.id, properties: sample.properties }, null, 0).substring(0, 400)}`);
+          }
+        }
+      }
+    }
+
+    // Build a lookup that checks both driver.rules AND extensions.rules
+    const ruleIndex = new Map();
+    for (const r of run.tool?.driver?.rules || []) { ruleIndex.set(r.id, r); }
+    for (const ext of run.tool?.extensions || []) {
+      for (const r of ext.rules || []) { ruleIndex.set(r.id, r); }
+    }
+    if (ruleIndex.size > 0 && rulesCount === 0) {
+      log('INFO', `  Built rule index from extensions: ${ruleIndex.size} rules`);
+    }
 
     for (const result of run.results || []) {
       try {
@@ -450,10 +484,26 @@ function parseSARIFResults(sarifPath) {
           codeSnippet = extractCodeSnippet(filePath, startLine, endLine, 2);
         }
 
-        // Get rule details
-        const rule = run.tool?.driver?.rules?.find(r => r.id === ruleId);
+        // Get rule details — check both driver.rules and extensions.rules
+        const rule = ruleIndex.get(ruleId) || null;
         const ruleName = rule?.shortDescription?.text || rule?.name || ruleId;
         const ruleHelp = rule?.help?.text || rule?.fullDescription?.text || '';
+
+        // Severity: prefer the numeric security-severity score from CodeQL rule properties.
+        // This matches what GitHub's Code Scanning UI displays.
+        // Only fall back to SARIF level mapping when no numeric score is available.
+        const secScore = parseFloat(rule?.properties?.['security-severity'] || '');
+        const numericSev = !isNaN(secScore) ? numericToSeverity(secScore) : null;
+        const severity = numericSev || (mappings.severity_mapping[level] || 'medium');
+
+        // Detailed logging for debugging severity classification
+        log('INFO', `  Rule: ${ruleId} | Level: ${level} | security-severity: ${isNaN(secScore) ? '(none)' : secScore} | Resolved: ${severity} | File: ${filePath}`);
+        if (rule) {
+          log('INFO', `    Rule tags: ${(rule.properties?.tags || []).join(', ') || '(none)'}`);
+          log('INFO', `    Rule precision: ${rule.properties?.precision || '(none)'} | kind: ${rule.properties?.kind || '(none)'}`);
+        } else {
+          log('WARN', `    Rule "${ruleId}" NOT found in driver.rules or extensions — no severity score available`);
+        }
 
         vulnerabilities.push({
           ruleId,
@@ -461,7 +511,8 @@ function parseSARIFResults(sarifPath) {
           ruleHelp,
           message,
           level,
-          severity: mappings.severity_mapping[level] || 'medium',
+          severity,
+          securityScore: isNaN(secScore) ? null : secScore,
           filePath,
           startLine,
           endLine,
@@ -942,6 +993,16 @@ function shouldExcludePath(filePath) {
 // ============================================================================
 // SEVERITY FILTERING
 // ============================================================================
+
+/**
+ * Map numeric security-severity score to severity label (CVSS bands)
+ */
+function numericToSeverity(score) {
+  if (score >= 9.0) { return 'critical'; }
+  if (score >= 7.0) { return 'high'; }
+  if (score >= 4.0) { return 'medium'; }
+  return 'low';
+}
 
 /**
  * Check if vulnerability meets severity threshold
