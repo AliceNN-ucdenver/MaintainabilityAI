@@ -1888,7 +1888,7 @@ function getStyles(): string {
       }
       .absolem-overlay {
         position: fixed; bottom: 24px; right: 24px;
-        width: 420px; max-height: 600px;
+        width: 560px; max-height: 80vh;
         border-radius: 12px;
         background: var(--surface); border: 1px solid var(--border);
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
@@ -1915,7 +1915,7 @@ function getStyles(): string {
 
       .absolem-messages {
         flex: 1; min-height: 0;
-        max-height: 440px; overflow-y: auto; padding: 12px;
+        max-height: calc(80vh - 120px); overflow-y: auto; padding: 12px;
         display: flex; flex-direction: column; gap: 8px;
       }
 

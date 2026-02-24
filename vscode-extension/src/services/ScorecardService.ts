@@ -233,11 +233,21 @@ export class ScorecardService {
       return this.unknownMetric('Test Coverage', 'No workspace open');
     }
 
-    // Try Istanbul/Jest json-summary first
-    const summaryPath = path.join(workspaceRoot, 'coverage', 'coverage-summary.json');
-    if (fs.existsSync(summaryPath)) {
-      return this.parseIstanbulSummary(summaryPath);
+    // Try Istanbul/Jest/nyc json-summary in common locations
+    const candidates = [
+      path.join(workspaceRoot, 'coverage', 'coverage-summary.json'),
+      path.join(workspaceRoot, '.nyc_output', 'coverage-summary.json'),
+      path.join(workspaceRoot, 'coverage-summary.json'),
+    ];
+    for (const summaryPath of candidates) {
+      if (fs.existsSync(summaryPath)) {
+        return this.parseIstanbulSummary(summaryPath);
+      }
     }
+
+    // Try Python pytest-cov JSON (coverage.json)
+    const pytestResult = this.parsePytestCoverage(workspaceRoot);
+    if (pytestResult) { return pytestResult; }
 
     // Try V8 raw coverage (c8/Node --experimental-vm-modules)
     const v8Result = this.parseV8Coverage(workspaceRoot);
@@ -273,6 +283,40 @@ export class ScorecardService {
     } catch {
       return this.unknownMetric('Test Coverage', 'Failed to parse coverage report');
     }
+  }
+
+  private parsePytestCoverage(workspaceRoot: string): MetricResult | null {
+    // pytest-cov --cov-report=json writes coverage.json with { totals: { percent_covered, ... }, files: { ... } }
+    const candidates = [
+      path.join(workspaceRoot, 'coverage.json'),
+      path.join(workspaceRoot, 'coverage', 'coverage.json'),
+    ];
+    for (const covPath of candidates) {
+      if (!fs.existsSync(covPath)) { continue; }
+      try {
+        const data = JSON.parse(fs.readFileSync(covPath, 'utf-8'));
+        const totals = data.totals;
+        if (!totals || totals.percent_covered == null) { continue; }
+
+        const pct = totals.percent_covered;
+        const score = Math.round(pct);
+        const parts = [`${pct.toFixed(1)}% lines`];
+        if (totals.covered_branches != null && totals.num_branches) {
+          const branchPct = (totals.covered_branches / totals.num_branches) * 100;
+          parts.push(`${branchPct.toFixed(1)}% branches`);
+        }
+
+        return {
+          status: this.scoreToStatus(score, 80, 60),
+          label: 'Test Coverage',
+          value: parts[0],
+          score,
+          details: parts.length > 1 ? parts.slice(1).join(', ') : `${totals.covered_lines ?? '?'}/${totals.num_statements ?? '?'} statements (pytest-cov)`,
+          lastUpdated: new Date().toISOString(),
+        };
+      } catch { /* try next */ }
+    }
+    return null;
   }
 
   private parseV8Coverage(workspaceRoot: string): MetricResult | null {
@@ -341,14 +385,54 @@ export class ScorecardService {
     workspaceRoot = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) { return []; }
 
-    // Try Istanbul first
-    const summaryPath = path.join(workspaceRoot, 'coverage', 'coverage-summary.json');
-    if (fs.existsSync(summaryPath)) {
-      return this.getIstanbulBreakdown(summaryPath, workspaceRoot, threshold);
+    // Try Istanbul/nyc json-summary in common locations
+    const candidates = [
+      path.join(workspaceRoot, 'coverage', 'coverage-summary.json'),
+      path.join(workspaceRoot, '.nyc_output', 'coverage-summary.json'),
+      path.join(workspaceRoot, 'coverage-summary.json'),
+    ];
+    for (const summaryPath of candidates) {
+      if (fs.existsSync(summaryPath)) {
+        return this.getIstanbulBreakdown(summaryPath, workspaceRoot, threshold);
+      }
     }
+
+    // Try Python pytest-cov
+    const pytestBreakdown = this.getPytestBreakdown(workspaceRoot, threshold);
+    if (pytestBreakdown.length > 0) { return pytestBreakdown; }
 
     // Try V8
     return this.getV8Breakdown(workspaceRoot, threshold);
+  }
+
+  private getPytestBreakdown(workspaceRoot: string, threshold: number): CoverageFileDetail[] {
+    const candidates = [
+      path.join(workspaceRoot, 'coverage.json'),
+      path.join(workspaceRoot, 'coverage', 'coverage.json'),
+    ];
+    for (const covPath of candidates) {
+      if (!fs.existsSync(covPath)) { continue; }
+      try {
+        const data = JSON.parse(fs.readFileSync(covPath, 'utf-8'));
+        if (!data.files) { continue; }
+        const details: CoverageFileDetail[] = [];
+        for (const [filePath, entry] of Object.entries(data.files)) {
+          const e = entry as { summary?: { percent_covered?: number; covered_lines?: number; num_statements?: number } };
+          const pct = e.summary?.percent_covered ?? 100;
+          if (pct < threshold) {
+            details.push({
+              filePath,
+              linePct: Math.round(pct * 10) / 10,
+              branchPct: 0,
+              functionPct: 0,
+              uncoveredFunctions: [],
+            });
+          }
+        }
+        return details.sort((a, b) => a.linePct - b.linePct);
+      } catch { /* try next */ }
+    }
+    return [];
   }
 
   private getIstanbulBreakdown(filePath: string, workspaceRoot: string, threshold: number): CoverageFileDetail[] {

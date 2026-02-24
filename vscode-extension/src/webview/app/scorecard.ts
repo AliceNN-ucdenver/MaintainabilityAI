@@ -144,8 +144,6 @@ function render() {
             <h1>Security Scorecard</h1>
             <p>${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'Detecting repository...'}</p>
           </div>
-        </div>
-        <div class="header-right">
           <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
         </div>
       </div>
@@ -167,9 +165,9 @@ function render() {
             <h1>Security Scorecard</h1>
             <p>${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'No repository detected'}</p>
           </div>
+          <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
         </div>
         <div class="header-right">
-          <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
           <button id="btn-refresh" class="btn-secondary btn-icon" title="Refresh">&#x21BB;</button>
         </div>
       </div>
@@ -194,11 +192,11 @@ function render() {
           <h1>Security Scorecard</h1>
           <p>${escapeHtml(repoLabel)}</p>
         </div>
+        <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
       </div>
       <div class="header-right">
         ${renderFolderDropdown()}
         <span class="last-refreshed">${formatTimestamp(d.lastRefreshed)}</span>
-        <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
         <button id="btn-refresh" class="btn-secondary btn-icon" title="Refresh" ${state.isLoading ? 'disabled' : ''}>&#x21BB;</button>
       </div>
     </div>
@@ -359,6 +357,8 @@ function getMetricActions(metricKey: string): MetricAction[] {
       return repo
         ? [{ label: 'View Actions', messageType: 'openUrl', url: `https://github.com/${repo.owner}/${repo.repo}/actions` }]
         : [];
+    case 'complexity':
+      return [{ label: 'Reduce Complexity', messageType: 'reduceComplexity' }];
     case 'technicalDebt':
       return [{ label: 'Address Tech Debt', messageType: 'addressTechDebt' }];
     default:
@@ -492,8 +492,6 @@ function renderSettingsView(): string {
           <h1>Security Scorecard</h1>
           <p>${escapeHtml(repoLabel)}</p>
         </div>
-      </div>
-      <div class="header-right">
         <button id="btn-settings-gear" class="settings-gear" title="Back to Scorecard" style="color: var(--accent);">&#x2699;</button>
       </div>
     </div>

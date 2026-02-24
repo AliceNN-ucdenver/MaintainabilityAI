@@ -485,6 +485,36 @@ BAR-to-code implementation workflow. Details: [White Rabbit spec](governance-whi
 
 ---
 
+## Future Directions — Research-Backed (February 2026)
+
+Sourced from 2025-2026 industry research across architecture-as-code, AI agent evolution, supply chain security, platform engineering, and developer experience.
+
+### Tier 1 — High ROI, Builds on Existing Capabilities
+
+- [ ] **Governance CI/CD Gates** — Extract `GovernanceScorer` to a standalone GitHub Action that runs pillar-level governance checks on every PR, blocking merges when scores drop below configured thresholds. Extends existing `alice-remediation` workflow pattern; failing governance checks auto-trigger remediation issues. Analogous to Terraform Sentinel/OPA but for architecture governance.
+- [ ] **Predictive Architecture Health** — Time-series regression on existing `GovernanceScoreSnapshot` data to forecast when a BAR will breach governance thresholds (e.g., "BAR X will fall below 75% in ~45 days at current trend"). Converts governance from reactive to proactive. Existing trend data (`GovernanceTrend`, `ScorecardSnapshot`) plus simple linear regression.
+- [ ] **Architecture Pattern Detection** — Graph algorithms on CALM topology to automatically detect patterns (event-driven, saga, CQRS, BFF) and anti-patterns (God service, circular dependencies, shared databases). Configurable rule engine with scoring per BAR. `CalmTransformer` already builds the node/relationship graph needed for traversal.
+- [ ] **Governance Leaderboard & Gamification** — Portfolio-level dashboards showing BAR scores as a leaderboard with achievement badges (first ADR, all pillars green, 5 consecutive passing reviews) and guided "governance quests" that turn gaps into actionable tasks. Existing `GovernanceScoreSnapshot` and `GovernanceTrend` are the data layer. Addresses the adoption problem that kills governance initiatives.
+
+### Tier 2 — Significant Impact, Moderate Effort
+
+- [ ] **Blast Radius Analysis** — Analyze CALM `connects` relationships, shared capability mappings, and repo-level dependency graphs to compute change blast radius across the portfolio. Answers: "If Service A goes down, which business capabilities and BARs are affected?" Existing CALM topology, `CapabilityModelSummary.capabilityToBarMap`, and `ReviewFinding` severity data provide the foundation. Visualize on ReactFlow.
+- [ ] **SBOM + SLSA Supply Chain Integration** — Generate SBOMs from linked repos (via syft/cdxgen), compute transitive dependency risk scores, and track SLSA provenance levels as a governance dimension. SBOMs mandated by regulation (US CISA 2025, EU CRA). `ScorecardService.collectDependencyFreshness()` already checks deps; extend to SBOM completeness and SLSA level scoring. Alice remediation workflow auto-creates issues for findings.
+- [ ] **IaC-to-CALM Reverse Engineering** — Parse Terraform state files, CloudFormation templates, or Kubernetes manifests to auto-generate CALM architecture models. Solves the cold start problem: import existing infrastructure topology instead of manually modeling in CALM. Absolem's `image-to-calm` pipeline is the template; extend with IaC parsers.
+- [ ] **Multi-Agent Review Board** — Run Claude and Copilot independently on the same review scope, then synthesize findings via a third "arbiter" agent. Flag disagreements as high-confidence signals. `AgentAssignment` type already supports both agents; `IssueMonitorService` already polls comments. Extends Oraculum to parallel dispatch.
+- [ ] **Agent Memory Across Reviews** — Persist learnings from each Oraculum review (accepted vs. rejected findings, false positive patterns, implemented recommendations) to build BAR-specific and portfolio-level agent memory that improves future review quality. `ReviewRecord[]` and `LinkedPullRequest` state already track outcomes.
+
+### Tier 3 — Game-Changers, Larger Investment
+
+- [ ] **Architecture Knowledge Graph (GraphRAG)** — Build a semantic knowledge graph from CALM models, ADRs, review findings, threat models, and capability mappings. Power cross-portfolio reasoning in Absolem: "Which services handle PII and have declining security scores?" CALM JSON is already a graph structure; combine with `ReviewRecord` time-series and `CapabilityModelSummary` relationships.
+- [ ] **Runtime Architecture Validation** — Import OpenTelemetry trace data to compare actual runtime communication graph against the CALM model. Surface "production drift" where deployed behavior diverges from documented design. CALM `connects` relationships declare expected topology; OTel traces prove or disprove it. Extends the drift analysis concept from code to production.
+- [ ] **Architecture Standards Interoperability** — Bidirectional bridge between CALM and ArchiMate Open Exchange Format / C4 Structurizr DSL. Removes the biggest adoption barrier ("we already use ArchiMate"). `CalmTransformer` already converts to Mermaid/ReactFlow; extend with ArchiMate XML and C4 DSL mappers.
+- [ ] **Backstage IDP Plugin** — Package the portfolio-level governance view as a Backstage plugin. Map Backstage catalog entities to CALM BARs and display pillar scores. Reaches the ~89% of platform engineering teams using Backstage. `PortfolioSummary` and `BarSummary` already aggregate the data needed.
+- [ ] **FinOps Cost Attribution per BAR** — Integrate cloud cost data (AWS Cost Explorer / Azure Cost Management / GCP Billing) to attribute infrastructure costs to BARs. Combine governance scores with cost data: "This BAR scores 45 governance AND costs $12K/month — should we prune it?" Maps to `AppManifest.strategy` (REAP rationalization) and `BarSummary.criticality`.
+- [ ] **CALM-to-OpenAPI Bridge** — Generate OpenAPI specification stubs from CALM service nodes (interfaces, protocols, connects relationships), and import existing OpenAPI specs to enrich CALM models. White Rabbit scaffolding could include generated OpenAPI stubs in new component repos.
+
+---
+
 ## Ideas / Backlog (Unprioritized)
 
 - [ ] Governance maturity model visualization (levels 1-5 per pillar)

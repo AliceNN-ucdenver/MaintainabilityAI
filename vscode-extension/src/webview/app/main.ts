@@ -163,8 +163,10 @@ function goToPhase(phase: Phase) {
 // ============================================================================
 
 function renderInputPhase() {
+  const repoHint = state.repo ? `<span class="repo-hint" style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;">${state.repo.owner}/${state.repo.repo}</span>` : '';
+
   contentEl.innerHTML = `
-    <h2>Describe Your Feature</h2>
+    <h2>Describe Your Feature${repoHint}</h2>
 
     <div class="two-col">
       <div>
@@ -344,12 +346,14 @@ function renderInputPhase() {
 function renderReviewPhase() {
   state.showFeedback = false;
 
+  const reviewRepoHint = state.repo ? `<span class="repo-hint" style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;">${state.repo.owner}/${state.repo.repo}</span>` : '';
+
   contentEl.innerHTML = `
-    <h2>Review Generated RCTRO</h2>
+    <h2>Review Generated RCTRO${reviewRepoHint}</h2>
     <div class="rctro-preview" id="rctro-preview">${escapeHtml(state.rctroMarkdown)}</div>
 
     <div class="review-actions">
-      <button id="btn-accept" class="btn-success">Accept</button>
+      <button id="btn-accept" class="btn-success">Accept &amp; Create Issue on GitHub</button>
       <button id="btn-request-changes" class="btn-secondary">Request Changes</button>
       <button id="btn-cancel-review" class="btn-secondary" style="margin-left: auto;">Cancel</button>
       <span class="iteration-badge" id="iteration-badge">${state.iterationCount > 1 ? `Round ${state.iterationCount}` : ''}</span>
@@ -1099,6 +1103,19 @@ window.addEventListener('message', (event) => {
     case 'repoDetected':
       state.repo = message.repo;
       repoInfoEl.textContent = `${message.repo.owner}/${message.repo.repo}`;
+      // Update the h2 repo hint if currently on input or review phase
+      { const h2 = contentEl.querySelector('h2');
+        if (h2) {
+          let existing = h2.querySelector('.repo-hint');
+          if (!existing) {
+            existing = document.createElement('span');
+            existing.className = 'repo-hint';
+            (existing as HTMLElement).style.cssText = 'font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;';
+            h2.appendChild(existing);
+          }
+          existing.textContent = `${message.repo.owner}/${message.repo.repo}`;
+        }
+      }
       break;
 
     case 'templateLoaded':

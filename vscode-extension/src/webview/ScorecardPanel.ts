@@ -117,6 +117,9 @@ export class ScorecardPanel {
       case 'addressTechDebt':
         this.onAddressTechDebt();
         break;
+      case 'reduceComplexity':
+        await this.onReduceComplexity();
+        break;
       case 'refreshDeps':
         this.onRefreshDeps();
         break;
@@ -130,7 +133,7 @@ export class ScorecardPanel {
         this.onImproveDeps();
         break;
       case 'createFeature':
-        IssueCreatorPanel.createOrShow(this.context, '');
+        IssueCreatorPanel.createOrShow(this.context, '', undefined, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
         break;
       case 'checkAliceWorkflowStatus':
         await this.onCheckAliceWorkflowStatus();
@@ -442,14 +445,20 @@ export class ScorecardPanel {
     const scripts = pkg.scripts || {};
     const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
 
-    // 1. Prefer existing coverage script
+    // 1. Prefer existing coverage script — append nyc/c8 report step to ensure json-summary is generated
     if (scripts['test:coverage']) {
       const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
-      return `${runner} run test:coverage`;
+      const base = `${runner} run test:coverage`;
+      if (allDeps['nyc']) { return `${base} && npx nyc report --report-dir=coverage --reporter=json-summary`; }
+      if (allDeps['c8']) { return `${base} && npx c8 report -o coverage --reporter=json-summary`; }
+      return base;
     }
     if (scripts['coverage']) {
       const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
-      return `${runner} run coverage`;
+      const base = `${runner} run coverage`;
+      if (allDeps['nyc']) { return `${base} && npx nyc report --report-dir=coverage --reporter=json-summary`; }
+      if (allDeps['c8']) { return `${base} && npx c8 report -o coverage --reporter=json-summary`; }
+      return base;
     }
 
     // 2. Detect from devDependencies — pick the coverage tool that's actually installed
@@ -464,27 +473,27 @@ export class ScorecardPanel {
       return 'npx jest --coverage --coverageReporters=json-summary --coverageReporters=text';
     }
     if (hasVitest) {
-      return 'npx vitest run --coverage';
+      return 'npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=coverage';
     }
     // mocha needs an external coverage tool
     if (hasMocha && hasNyc) {
-      return 'npx nyc --reporter=json-summary --reporter=text mocha --recursive --exit';
+      return 'npx nyc --report-dir=coverage --reporter=json-summary --reporter=text mocha --recursive --exit';
     }
     if (hasMocha && hasC8) {
-      return 'npx c8 --reporter=json-summary --reporter=text mocha --recursive --exit';
+      return 'npx c8 -o coverage --reporter=json-summary --reporter=text mocha --recursive --exit';
     }
     if (hasMocha) {
       // No coverage tool installed — use c8 (zero-config V8 coverage)
-      return 'npx c8 --reporter=json-summary --reporter=text mocha --recursive --exit';
+      return 'npx c8 -o coverage --reporter=json-summary --reporter=text mocha --recursive --exit';
     }
     // Standalone nyc or c8 with npm test
     if (hasNyc) {
       const testCmd = scripts['test'] || 'echo "no test script"';
-      return `npx nyc --reporter=json-summary --reporter=text ${testCmd}`;
+      return `npx nyc --report-dir=coverage --reporter=json-summary --reporter=text ${testCmd}`;
     }
     if (hasC8) {
       const testCmd = scripts['test'] || 'echo "no test script"';
-      return `npx c8 --reporter=json-summary --reporter=text ${testCmd}`;
+      return `npx c8 -o coverage --reporter=json-summary --reporter=text ${testCmd}`;
     }
 
     // 3. Fallback based on detected package manager
@@ -498,11 +507,15 @@ export class ScorecardPanel {
       return pmFallbacks[this.detectedPackageManager];
     }
 
+    // Last resort — pass --coverage and hope the runner supports it
+    if (allDeps['nyc']) { return `npx nyc --report-dir=coverage --reporter=json-summary --reporter=text npm test`; }
+    if (allDeps['c8']) { return `npx c8 -o coverage --reporter=json-summary --reporter=text npm test`; }
     return 'npm test -- --coverage';
   }
 
   private runInTerminalThenRefresh(name: string, cmd: string) {
-    const terminal = vscode.window.createTerminal({ name });
+    const cwd = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const terminal = vscode.window.createTerminal({ name, cwd });
     terminal.show();
     terminal.sendText(cmd);
 
@@ -547,7 +560,7 @@ export class ScorecardPanel {
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), coveragePacks);
+    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), coveragePacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
   }
 
   private onImproveDeps() {
@@ -578,7 +591,47 @@ export class ScorecardPanel {
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), depPacks);
+    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), depPacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
+  }
+
+  private async onReduceComplexity() {
+    const workspaceRoot = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) {
+      vscode.window.showWarningMessage('No workspace open.');
+      return;
+    }
+
+    const result = await this.pmatService.analyzeComplexity(workspaceRoot);
+    if (!result || result.hotspots.length === 0) {
+      vscode.window.showInformationMessage('No complexity hotspots found — all functions are within threshold.');
+      return;
+    }
+
+    const lines: string[] = [];
+    const statusWord = result.maxComplexity <= 10 ? 'Good' : result.maxComplexity <= 15 ? 'Moderate' : result.maxComplexity <= 20 ? 'High' : 'Critical';
+    lines.push('## Cyclomatic Complexity — Reduce Hotspots\n');
+    lines.push(`**${statusWord}** — max complexity **${result.maxComplexity}** across ${result.totalFunctions} functions.`);
+    lines.push(`Target: all functions ≤ 10 cyclomatic complexity.\n`);
+    lines.push(`${result.hotspots.length} function(s) exceed the threshold:\n`);
+    lines.push('| File | Function | Complexity |');
+    lines.push('|------|----------|-----------|');
+    for (const h of result.hotspots) {
+      lines.push(`| \`${h.file}\` | \`${h.function}\` | ${h.complexity} |`);
+    }
+    lines.push('');
+    lines.push('### Refactoring Guidance');
+    lines.push('- Extract helper functions to break down large conditional blocks');
+    lines.push('- Replace nested if/else chains with early returns or guard clauses');
+    lines.push('- Use strategy or command patterns for complex switch statements');
+    lines.push('- Consider decomposing functions with more than one responsibility');
+
+    const complexityPacks = {
+      owasp: [] as string[],
+      maintainability: ['complexity-reduction', 'fitness-functions'],
+      threatModeling: [] as string[],
+    };
+
+    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), complexityPacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
   }
 
   private async onAddressTechDebt() {
@@ -616,7 +669,7 @@ export class ScorecardPanel {
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), techDebtPacks);
+    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), techDebtPacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
   }
 
   // ---------------------------------------------------------------------------

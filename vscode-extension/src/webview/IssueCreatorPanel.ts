@@ -46,6 +46,7 @@ export class IssueCreatorPanel {
     initialPacks?: { owasp: string[]; maintainability: string[]; threatModeling: string[] },
     repoUrl?: string,
     stackOverride?: TechStack,
+    folderPath?: string,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -53,6 +54,10 @@ export class IssueCreatorPanel {
 
     if (IssueCreatorPanel.currentPanel) {
       IssueCreatorPanel.currentPanel.panel.reveal(column);
+      // Update folder context if provided (scorecard mode — use selected folder)
+      if (folderPath) {
+        IssueCreatorPanel.currentPanel.folderPath = folderPath;
+      }
       // Set repo from URL if provided (component mode)
       if (repoUrl) {
         const parsed = GitHubService.parseRepoUrl(repoUrl);
@@ -61,6 +66,13 @@ export class IssueCreatorPanel {
           IssueCreatorPanel.currentPanel.currentRepo = repo;
           IssueCreatorPanel.currentPanel.postMessage({ type: 'repoDetected', repo });
         }
+      }
+      // Re-detect stack for the correct folder when reusing panel
+      if (folderPath && !stackOverride) {
+        void IssueCreatorPanel.currentPanel.techStackDetector.detect(folderPath).then(stack => {
+          const metadata = readRepoMetadata(folderPath);
+          IssueCreatorPanel.currentPanel?.postMessage({ type: 'stackDetected', stack, metadata: metadata || undefined });
+        });
       }
       // Set stack override if provided (component mode — folder may not be open)
       if (stackOverride) {
@@ -86,13 +98,14 @@ export class IssueCreatorPanel {
       }
     );
 
-    IssueCreatorPanel.currentPanel = new IssueCreatorPanel(panel, context, initialDescription, initialPacks, repoUrl, stackOverride);
+    IssueCreatorPanel.currentPanel = new IssueCreatorPanel(panel, context, initialDescription, initialPacks, repoUrl, stackOverride, folderPath);
   }
 
   private pendingDescription: string | undefined;
   private pendingPacks: { owasp: string[]; maintainability: string[]; threatModeling: string[] } | undefined;
   private pendingRepoUrl: string | undefined;
   private pendingStackOverride: TechStack | undefined;
+  private folderPath: string | undefined;
 
   private constructor(
     panel: vscode.WebviewPanel,
@@ -101,11 +114,13 @@ export class IssueCreatorPanel {
     initialPacks?: { owasp: string[]; maintainability: string[]; threatModeling: string[] },
     repoUrl?: string,
     stackOverride?: TechStack,
+    folderPath?: string,
   ) {
     this.pendingDescription = initialDescription;
     this.pendingPacks = initialPacks;
     this.pendingRepoUrl = repoUrl;
     this.pendingStackOverride = stackOverride;
+    this.folderPath = folderPath;
     this.panel = panel;
     this.context = context;
     this.extensionPath = context.extensionPath;
@@ -244,7 +259,9 @@ export class IssueCreatorPanel {
       }
       this.pendingRepoUrl = undefined;
     } else {
-      const repo = await this.githubService.detectRepo();
+      const repo = this.folderPath
+        ? await this.githubService.detectRepoForFolder(this.folderPath)
+        : await this.githubService.detectRepo();
       if (repo) {
         this.currentRepo = repo;
         this.postMessage({ type: 'repoDetected', repo });
@@ -289,7 +306,7 @@ export class IssueCreatorPanel {
         ...(defaultContent ? [defaultContent] : []),
         ...packContents.map(p => p.content),
       ];
-      const detected = this.pendingStackOverride || await this.techStackDetector.detect();
+      const detected = this.pendingStackOverride || await this.techStackDetector.detect(this.folderPath);
       const stack = message.stackOverrides
         ? { ...detected, ...message.stackOverrides }
         : detected;
@@ -321,7 +338,7 @@ export class IssueCreatorPanel {
     this.postMessage({ type: 'loading', active: true });
 
     try {
-      const stack = await this.techStackDetector.detect();
+      const stack = await this.techStackDetector.detect(this.folderPath);
 
       const rctro = await this.llmService.generateRctro(
         message.feedback,
@@ -360,7 +377,7 @@ export class IssueCreatorPanel {
       }
 
       this.currentRepo = repo;
-      const stack = await this.techStackDetector.detect();
+      const stack = await this.techStackDetector.detect(this.folderPath);
 
       // Use the packs that were selected during generation
       const selection = this.lastSelectedPacks || {
@@ -735,14 +752,14 @@ export class IssueCreatorPanel {
   // ============================================================================
 
   private async onDetectStack() {
-    const stack = await this.techStackDetector.detect();
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const metadata = workspaceRoot ? readRepoMetadata(workspaceRoot) : null;
+    const root = this.folderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const stack = await this.techStackDetector.detect(root);
+    const metadata = root ? readRepoMetadata(root) : null;
     this.postMessage({ type: 'stackDetected', stack, metadata: metadata || undefined });
   }
 
   private onSaveMetadata(message: Extract<WebviewMessage, { type: 'saveMetadata' }>) {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const workspaceRoot = this.folderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) { return; }
     try {
       const existing = readRepoMetadata(workspaceRoot);

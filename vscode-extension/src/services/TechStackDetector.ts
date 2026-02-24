@@ -57,8 +57,8 @@ const VALIDATION_DEPS: Record<string, string> = {
 };
 
 export class TechStackDetector {
-  async detect(): Promise<TechStack> {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  async detect(folderPath?: string): Promise<TechStack> {
+    const workspaceRoot = folderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     const stack: TechStack = {
       language: 'Unknown',
