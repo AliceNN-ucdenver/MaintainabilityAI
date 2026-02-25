@@ -23,16 +23,27 @@ vscode-extension/
 │   ├── governance-diagram-req.md  # Diagram requirements
 │   ├── governance-whiterabbit.md  # White Rabbit bridge design
 │   └── demo-script-30min.md       # Demo walkthrough
-├── prompt-packs/                  # RCTRO prompt packs (bundled with extension)
-│   ├── owasp/                     # 10 OWASP Top 10 packs (A01–A10)
-│   ├── maintainability/           # 7 maintainability packs
-│   ├── threat-modeling/           # 6 STRIDE packs
-│   ├── mappings.json              # Pack ↔ pillar mapping
-│   └── default.md                 # Default pack
+├── prompt-packs/                  # All prompt packs (bundled with extension)
+│   ├── rabbit-hole/               # Code repo issue packs
+│   │   ├── owasp/                 # 10 OWASP Top 10 packs (A01–A10)
+│   │   ├── maintainability/       # 7 maintainability packs
+│   │   ├── threat-modeling/       # 6 STRIDE packs
+│   │   ├── default.md             # Security-first baseline
+│   │   ├── scaffold.md            # Cheshire scaffold prompt
+│   │   └── mappings.json          # CodeQL → OWASP cross-refs
+│   ├── looking-glass/             # Governance mesh review packs
+│   │   ├── default.md             # 4-pillar review baseline
+│   │   ├── architecture.md        # Architecture review
+│   │   ├── application-security.md # Security review
+│   │   ├── information-risk.md    # Risk review
+│   │   ├── operations.md          # Operations review
+│   │   └── registry.yaml          # Pack metadata + ordering
+│   └── templates/                 # Issue body templates ({{TOKEN}} replacement)
+│       ├── rabbit-hole-issue.md   # Feature issue template
+│       └── oraculum-issue.md      # Review issue template
 ├── code-templates/                # Templates scaffolded into user repos
 │   ├── scripts/                   # CI scripts (cjs/js)
-│   ├── workflows/                 # GitHub Actions workflows (8 files)
-│   └── prompts/                   # Oraculum review prompts + registry
+│   └── workflows/                 # GitHub Actions workflows (8 files)
 ├── src/
 │   ├── extension.ts               # Main entry point (75 LOC, clean)
 │   ├── commands/                  # Command handlers (8 files, 336 LOC)
@@ -56,14 +67,12 @@ vscode-extension/
 │   │   ├── GitSyncService.ts      #  375 LOC — singleton ✓ git status, per-BAR sync
 │   │   ├── GovernanceScorer.ts    #  361 LOC — pillar artifact scoring
 │   │   ├── OrgScannerService.ts   #  321 LOC — GitHub org scanning
-│   │   ├── ReviewService.ts       #  304 LOC — review formatting
 │   │   ├── CapabilityModelService.ts # 303 LOC — capability model YAML I/O
 │   │   ├── CalmWriteService.ts    #  279 LOC — JSON patch application
 │   │   ├── PmatService.ts         #  258 LOC — exec wrapper for pmat tool
 │   │   ├── AgentStatusService.ts  #  232 LOC — agent status from comments
 │   │   ├── TechStackDetector.ts   #  225 LOC — language/framework detection
-│   │   ├── PromptPackService.ts   #  209 LOC — singleton ✓ cached prompt packs
-│   │   ├── IssueBodyBuilder.ts    #  182 LOC — issue template formatting
+│   │   ├── PromptPackService.ts   #  ~700 LOC — singleton ✓ unified prompt packs (rabbit-hole + looking-glass), issue builders, override resolution, repo seeding
 │   │   ├── CalmValidator.ts       #  179 LOC — JSON schema validation
 │   │   ├── IssueMonitorService.ts #  153 LOC — issue polling + events
 │   │   ├── PrerequisiteChecker.ts #  124 LOC — gh/git tool check
@@ -166,7 +175,7 @@ vscode-extension/
 
 ---
 
-## Codebase Snapshot (Post Phase 7)
+## Codebase Snapshot (Post Phase 8.2)
 
 | Metric | Before (Phase 0) | Current (Phase 7 Complete) |
 |--------|-------------------|----------------------------|
@@ -796,6 +805,23 @@ vscode-extension/scaffolding/    → code-templates/          # Physical CI/CD t
 - [x] Updated `BarService.ts` — 1 static import
 - [x] Clean build verified
 
+### 8.2 Unified Prompt Pack Service — Consolidate PromptPackService + ReviewService ✅
+
+Full design and implementation details: [governance-prompt-packs.md](governance-prompt-packs.md)
+
+- [x] Restructured `prompt-packs/` into `rabbit-hole/` and `looking-glass/` subdirectories (13 git mv operations)
+- [x] Created `{{TOKEN}}` issue body templates: `templates/rabbit-hole-issue.md`, `templates/oraculum-issue.md`
+- [x] Expanded `PromptPackService` (209 → ~700 LOC) — unified domain-aware scanning, override resolution, issue builders, repo seeding
+- [x] Added `PackDomain`, `PackCategory` types to `types/prompts.ts`; unified `PromptPackInfo` across both domains
+- [x] Absorbed `ReviewService` methods (loadFromRegistry, discoverCustomPacks, loadFromFiles, buildIssueBody)
+- [x] Absorbed `IssueBodyBuilder` methods (build, generateLabels, renderCollapsibleSection, renderRctro)
+- [x] Updated 6 consumers: `GitHubService`, `OracularPanel`, `LookingGlassPanel`, `ScaffoldPanel`, `MeshService`, `codeRepoTemplates`
+- [x] Deleted `IssueBodyBuilder.ts` (182 LOC), `ReviewService.ts` (304 LOC), `code-templates/prompts/` directory
+- [x] Scaffold checkbox defaults to checked, includes all 3 pack categories
+- [x] "Refresh Prompts" button in Looking Glass Settings (force-reseed `.caterpillar/prompts/`)
+- [x] Git sync banner shows uncommitted changes with "Commit All" button
+- [x] Clean build + type check verified
+
 ---
 
 ### 8.2 Remaining Service Duplication (Pending)
@@ -957,14 +983,15 @@ The webview `types.ts` is a **manual mirror** of server-side types. Every type c
 ### 8.8 Priority Ranking & Progress
 
 - [x] **8.1 Templates rename** (`scaffolding/` → `mesh/`, root → `code-templates/`) — Small effort, High impact (clarity)
-- [ ] **8.2 Shared webview types** (eliminate mirror in `app/types.ts`) — Medium effort, High impact (prevents drift)
-- [ ] **8.3a Extract renderIssueRow + renderFolderDropdown** — Small effort, Medium impact (DRY)
-- [ ] **8.3b configureSecrets → SecretsService** — Small effort, Medium impact (architecture)
-- [ ] **8.4 YAML parsing utility** — Medium effort, Medium impact (DRY)
-- [ ] **8.5 LookingGlassPanel extraction** (onInitMesh, policy baseline) — Medium effort, Medium impact (readability)
-- [ ] **8.6 CSS import standardization** — Small effort, Low impact (consistency)
-- [ ] **8.7 Tree provider base class** — Small effort, Low impact (DRY)
-- [ ] **8.8 MeshService + BarService singletons** — Small effort, Low impact (only 2 sites each)
+- [x] **8.2 Unified PromptPackService** (consolidate ReviewService + IssueBodyBuilder, restructure prompt-packs/, {{TOKEN}} templates) — Medium effort, High impact (eliminates 486 LOC of dead code, unifies two systems)
+- [ ] **8.3 Shared webview types** (eliminate mirror in `app/types.ts`) — Medium effort, High impact (prevents drift)
+- [ ] **8.4 Extract renderIssueRow + renderFolderDropdown** — Small effort, Medium impact (DRY)
+- [ ] **8.5 configureSecrets → SecretsService** — Small effort, Medium impact (architecture)
+- [ ] **8.6 YAML parsing utility** — Medium effort, Medium impact (DRY)
+- [ ] **8.7 LookingGlassPanel extraction** (onInitMesh, policy baseline) — Medium effort, Medium impact (readability)
+- [ ] **8.8 CSS import standardization** — Small effort, Low impact (consistency)
+- [ ] **8.9 Tree provider base class** — Small effort, Low impact (DRY)
+- [ ] **8.10 MeshService + BarService singletons** — Small effort, Low impact (only 2 sites each)
 
 ---
 

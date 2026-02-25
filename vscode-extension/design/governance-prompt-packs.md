@@ -1,6 +1,6 @@
 # Governance Prompt Packs — Unified Design
 
-> **Status**: Design
+> **Status**: Complete
 > **Phase**: 8.x (from governance-reuse.md audit)
 > **Goal**: Consolidate all prompt pack content, issue body templates, and pack services into a single `PromptPackService` with consistent patterns across Rabbit Hole and Looking Glass.
 
@@ -754,67 +754,73 @@ The only surviving method from `ReviewService` — moves to `GitHubService` as a
 
 ## 8. Implementation Phases
 
-### Phase 1: Move Files + Create Templates
-- [ ] Create `prompt-packs/rabbit-hole/` subdirectory
-- [ ] `git mv prompt-packs/owasp/ prompt-packs/rabbit-hole/owasp/`
-- [ ] `git mv prompt-packs/maintainability/ prompt-packs/rabbit-hole/maintainability/`
-- [ ] `git mv prompt-packs/threat-modeling/ prompt-packs/rabbit-hole/threat-modeling/`
-- [ ] `git mv prompt-packs/default.md prompt-packs/rabbit-hole/default.md`
-- [ ] `git mv prompt-packs/mappings.json prompt-packs/rabbit-hole/mappings.json`
-- [ ] Create `prompt-packs/looking-glass/` subdirectory
-- [ ] `git mv` all 7 `code-templates/prompts/` files to `prompt-packs/looking-glass/` (strip `oraculum-` prefix)
-- [ ] `git mv code-templates/prompts/cheshire-scaffold-default.md prompt-packs/rabbit-hole/scaffold.md`
-- [ ] Delete `code-templates/prompts/` directory
-- [ ] Create `prompt-packs/templates/rabbit-hole-issue.md` (extracted from `IssueBodyBuilder`)
-- [ ] Create `prompt-packs/templates/oraculum-issue.md` (extracted from `ReviewService`)
-- [ ] Update `.vscodeignore` if needed
+### Phase 1: Move Files + Create Templates ✅
+- [x] Create `prompt-packs/rabbit-hole/` subdirectory
+- [x] `git mv prompt-packs/owasp/ prompt-packs/rabbit-hole/owasp/`
+- [x] `git mv prompt-packs/maintainability/ prompt-packs/rabbit-hole/maintainability/`
+- [x] `git mv prompt-packs/threat-modeling/ prompt-packs/rabbit-hole/threat-modeling/`
+- [x] `git mv prompt-packs/default.md prompt-packs/rabbit-hole/default.md`
+- [x] `git mv prompt-packs/mappings.json prompt-packs/rabbit-hole/mappings.json`
+- [x] Create `prompt-packs/looking-glass/` subdirectory
+- [x] `git mv` all 7 `code-templates/prompts/` files to `prompt-packs/looking-glass/` (strip `oraculum-` prefix)
+- [x] `git mv code-templates/prompts/cheshire-scaffold-default.md prompt-packs/rabbit-hole/scaffold.md`
+- [x] Delete `code-templates/prompts/` directory
+- [x] Create `prompt-packs/templates/rabbit-hole-issue.md` (extracted from `IssueBodyBuilder`)
+- [x] Create `prompt-packs/templates/oraculum-issue.md` (extracted from `ReviewService`)
+- [x] `.vscodeignore` — no change needed
 
-### Phase 2: Expand PromptPackService
-- [ ] Expand `PromptPackInfo` in `types/prompts.ts` — add `packDomain`, `description`, `required`, `available` fields; widen `category` union to include `'governance'` (see §4.3)
-- [ ] Add `PackDomain` type export to `types/prompts.ts`
-- [ ] Delete local `PromptPackInfo` interface from `ReviewService.ts` (consumers switch to `types/prompts.ts`)
-- [ ] Add `meshPath`, `codeRepoRoot`, `templateCache` fields to service
-- [ ] Add `setMeshPath()`, `setCodeRepoRoot()` methods
-- [ ] Add `getEffectivePack()` / `getEffectivePacks()` with override resolution
-- [ ] Move registry scanning from `ReviewService` (`loadFromRegistry`, `discoverCustomPacks`, `loadFromFiles`)
-- [ ] Add `loadTemplate()` and `renderTemplate()` private methods
-- [ ] Add `renderPackFileRefs()` — the new shared pack file reference renderer
-- [ ] Add `renderPackSections()` — shared collapsible `<details>` renderer
-- [ ] Add `renderRctro()` — moved from `IssueBodyBuilder`
-- [ ] Add `renderMetadata()` — shared metadata block renderer
-- [ ] Add `getScaffoldPackContent()` — reads `rabbit-hole/scaffold.md`
-- [ ] Add `getScaffoldFiles()` — returns all rabbit-hole packs for code repo scaffolding
-- [ ] Add `seedMeshPrompts()` — copies looking-glass packs to mesh `.caterpillar/prompts/`
+### Phase 2: Expand PromptPackService ✅
+- [x] Expand `PromptPackInfo` in `types/prompts.ts` — add `packDomain`, `description`, `required`, `available` fields; widen `category` union to include `'governance'` (see §4.3)
+- [x] Add `PackDomain` type export to `types/prompts.ts`
+- [x] Delete local `PromptPackInfo` interface from `ReviewService.ts` (consumers switch to `types/prompts.ts`)
+- [x] Add `meshPath`, `codeRepoRoot`, `templateCache` fields to service
+- [x] Add `setMeshPath()`, `setCodeRepoRoot()` methods
+- [x] Add `getEffectivePack()` / `getEffectivePacks()` with override resolution
+- [x] Move registry scanning from `ReviewService` (`loadFromRegistry`, `discoverCustomPacks`, `loadFromFiles`)
+- [x] Add `loadTemplate()` and `renderTemplate()` private methods
+- [x] Add `renderPackFileRefs()` — the new shared pack file reference renderer
+- [x] Add `renderPackSections()` — shared collapsible `<details>` renderer
+- [x] Add `renderRctro()` — moved from `IssueBodyBuilder`
+- [x] Add `renderMetadata()` — shared metadata block renderer
+- [x] Add `getScaffoldPackContent()` — reads `rabbit-hole/scaffold.md`
+- [x] Add `getScaffoldFiles()` — returns all rabbit-hole packs for code repo scaffolding
+- [x] Add `seedMeshPrompts(meshPath, force?)` — copies looking-glass packs to mesh `.caterpillar/prompts/` (force=true overwrites existing)
 
-### Phase 3: Issue Builders on Service
-- [ ] Add `buildRabbitHoleIssue()` — loads template, renders tokens, handles truncation
-- [ ] Add `buildOraculumIssue()` — loads template, renders tokens
-- [ ] Add `generateLabels()` — moved from `IssueBodyBuilder`
-- [ ] Move `hasReviewFindings()` to `GitHubService`
+### Phase 3: Issue Builders on Service ✅
+- [x] Add `buildRabbitHoleIssue()` — loads template, renders tokens, handles truncation
+- [x] Add `buildOraculumIssue()` — loads template, renders tokens
+- [x] Add `generateLabels()` — moved from `IssueBodyBuilder`
+- [x] `hasReviewFindings()` — was defined but never called; deleted with `ReviewService.ts`
 
-### Phase 4: Update Consumers
-- [ ] `GitHubService` — use `promptPackService` instead of `IssueBodyBuilder`
-- [ ] `OracularPanel` — use `promptPackService` instead of `ReviewService`
-- [ ] `LookingGlassPanel` mesh init — `promptPackService.seedMeshPrompts()` + slimmed `writeOraculumWorkflow()`
-- [ ] `LookingGlassPanel` scaffold from BAR — `promptPackService.getScaffoldPackContent()`
-- [ ] `ScaffoldPanel` — `promptPackService.getScaffoldFiles()`, update checkbox description
-- [ ] `MeshService.writeOraculumWorkflow()` — remove prompt-writing block, keep workflow YAML only
-- [ ] `codeRepoTemplates.ts` — delete 4 oraculum/scaffold wrapper functions
+### Phase 4: Update Consumers ✅
+- [x] `GitHubService` — use `promptPackService` instead of `IssueBodyBuilder`
+- [x] `OracularPanel` — use `promptPackService` instead of `ReviewService`
+- [x] `LookingGlassPanel` mesh init — `promptPackService.seedMeshPrompts()` + slimmed `writeOraculumWorkflow()` (both call sites: line 605 + 2622)
+- [x] `LookingGlassPanel` scaffold from BAR — `promptPackService.getScaffoldPackContent()`
+- [x] `ScaffoldPanel` — `promptPackService.getScaffoldFiles()`, checkbox `checked: true`, desc updated to include all 3 categories
+- [x] `MeshService.writeOraculumWorkflow()` — removed prompt-writing block, keeps workflow YAML only
+- [x] `codeRepoTemplates.ts` — deleted 4 oraculum/scaffold wrapper functions
 
-### Phase 5: Delete Dead Code
-- [ ] Delete `src/services/IssueBodyBuilder.ts`
-- [ ] Delete `src/services/ReviewService.ts`
-- [ ] Verify no remaining imports reference deleted files
+### Phase 5: Delete Dead Code ✅
+- [x] Delete `src/services/IssueBodyBuilder.ts` (182 lines)
+- [x] Delete `src/services/ReviewService.ts` (304 lines)
+- [x] Verified no remaining imports reference deleted files
 
-### Phase 6: Build + Verify
-- [ ] `node esbuild.js --production` — clean build
+### Phase 6: Build + Verify ✅
+- [x] `node esbuild.js --production` — clean build
+- [x] `npx tsc --noEmit` — clean type check (fixed `types/webview.ts` `promptPacksLoaded` to use unified `PromptPackInfo[]`)
 - [ ] F5 launch → Rabbit Hole: create issue with OWASP packs → verify pack file refs + collapsible content
 - [ ] F5 launch → Looking Glass: create Oraculum review → verify pack file refs + collapsible content
 - [ ] F5 launch → Looking Glass: init mesh → verify packs seeded to `.caterpillar/prompts/`
+- [ ] F5 launch → Looking Glass: Settings → Refresh Prompts → verify force-reseed
 - [ ] F5 launch → Scaffold: scaffold with prompt packs → verify all 3 categories copied
 - [ ] F5 launch → Scaffold: scaffold without prompt packs → verify Rabbit Hole issue still works (bundled fallback)
 - [ ] Edit a mesh pack → verify override is used in next review issue
 - [ ] Browse prompt packs command → verify still works
+
+### Post-Implementation Enhancements
+- [x] **Refresh Prompts** — Settings button in Looking Glass to force-reseed `.caterpillar/prompts/` without reinitializing mesh (`seedMeshPrompts(meshPath, true)`)
+- [x] **Git sync banner — uncommitted changes** — Banner now shows dirty file count with "Commit All" button (stacks with ahead/behind banners)
 
 ---
 
@@ -853,4 +859,6 @@ The only surviving method from `ReviewService` — moves to `GitHubService` as a
 - `src/webview/OracularPanel.ts` (use service instead of ReviewService)
 - `src/webview/LookingGlassPanel.ts` (use service for scaffold + mesh init at both call sites)
 - `src/webview/ScaffoldPanel.ts` (use service for scaffold files, update label)
+- `src/types/webview.ts` (updated `promptPacksLoaded` to use unified `PromptPackInfo[]`, added `commitMesh` + `refreshPromptPacks` message types)
+- `src/webview/app/views/barDetail.ts` (git sync banner shows uncommitted changes + Commit All button)
 - `src/extension.ts` (no change — already initializes service)

@@ -1,5 +1,7 @@
 # CALM as the DSL for the BAR Architecture Folder
 
+> **Status**: Complete — CALM 1.2 adopted as canonical DSL (February 2026)
+
 ## The Question
 
 Can CALM (Common Architecture Language Model) serve as the domain-specific language that generates the four architectural views referenced in the BAR's `architecture/` folder: **context**, **logical**, **sequence**, and **conceptual** diagrams? And specifically, how should hierarchical business capabilities (L1, L2, L3) be modeled: through CALM's metadata or its decorators mechanism?

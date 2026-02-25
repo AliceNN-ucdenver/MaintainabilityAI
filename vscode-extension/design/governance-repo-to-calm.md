@@ -1,5 +1,7 @@
 # Absolem Feature: Repo-to-CALM Patch
 
+> **Status**: Complete — Implemented (February 2026)
+
 > *"Who are you?" said the Caterpillar — but this time, it already knows.*
 
 Absolem scans an existing GitHub repository and proposes incremental CALM architecture patches based on what it finds in the code. Not a full replacement — a **patch** that adds what's missing to the BAR's existing architecture.

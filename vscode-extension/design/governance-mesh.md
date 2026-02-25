@@ -1,7 +1,9 @@
 # Cheshire: Governance Mesh Extension — Status & Roadmap
 
-**Version:** February 24, 2026
+**Version:** February 25, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
+
+> **All design documents complete.** Eight companion specs cover the full architecture — see [Design Documents](#design-documents) for status and links. This file is the master roadmap and completed work log.
 
 ---
 
@@ -41,7 +43,7 @@
 | `AbsolemService` | Multi-turn AI conversation, LLM streaming, patch extraction, image-to-CALM |
 | `GitHubService` | GitHub API (issues, labels, comments, PRs, workflow checks, secrets) |
 | `GitSyncService` | Git operations (status, add, commit, push, pull) |
-| `ReviewService` | Oraculum issue body building, prompt pack embedding |
+| `PromptPackService` | Unified prompt pack management — scanning, content loading, override resolution, issue body building, repo seeding (both Rabbit Hole + Looking Glass) |
 | `ThreatModelService` | LLM-powered threat model generation from BAR artifacts |
 | `OrgScannerService` | LLM-powered organization scanning and platform recommendation |
 | `CalmTransformer` | CALM JSON to Mermaid diagram conversion |
@@ -59,7 +61,7 @@
 - **mesh.yaml** — portfolio identity, scoring config, drift weights
 - **app.yaml** — per-BAR application metadata (name, criticality, repos, lifecycle)
 - **reviews.yaml** — per-BAR review history (issue URL, agent, drift score, pillar findings)
-- **Prompt packs** — `.caterpillar/prompts/` with YAML registry + markdown domain packs
+- **Prompt packs** — bundled under `prompt-packs/{rabbit-hole,looking-glass}/`, overridable at `.cheshire/prompts/` (code repos) and `.caterpillar/prompts/` (governance mesh)
 
 ---
 
@@ -69,11 +71,12 @@
 |----------|--------|-------|
 | [`governance-catepillar.md`](governance-catepillar.md) | **1.0.0 Complete** | Oraculum architecture review — issue creation, multi-repo checkout, prompt packs, drift scoring, settings |
 | [`governance-calm.md`](governance-calm.md) | **Complete** | CALM 1.2 as canonical DSL for all four architectural views + decorators |
-| [`governance-diagram-req.md`](governance-diagram-req.md) | **Complete** | Looking Glass design surface — ReactFlow, ELK layout, CALM read/write, PNG export |
+| [`governance-diagram-req.md`](governance-diagram-req.md) | **Phase 2 Complete; Phases 3-4 roadmap** | Looking Glass design surface — ReactFlow, ELK layout, CALM read/write, bidirectional editing, archetypes, PNG export. Future: sequence generation, component diagrams, governance integration |
 | [`governance-absolem.md`](governance-absolem.md) | **1.0.0 Complete** | Absolem multi-turn AI governance assistant — 7 commands, image-to-CALM, gap analysis, ADR suggestions |
 | [`governance-whiterabbit.md`](governance-whiterabbit.md) | **Complete** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
 | [`governance-repo-to-calm.md`](governance-repo-to-calm.md) | **Complete** | Absolem "Scan Repo" command — scan a GitHub repo via gh CLI, propose incremental CALM patches |
-| [`governance-reuse.md`](governance-reuse.md) | **Complete (All 7 Phases)** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts, service singletons, shared git utils, HTML helpers |
+| [`governance-reuse.md`](governance-reuse.md) | **Complete (Phases 1-7 + 8.1-8.2)** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts, service singletons, shared git utils, unified PromptPackService |
+| [`governance-prompt-packs.md`](governance-prompt-packs.md) | **Complete** | Unified PromptPackService — consolidate Rabbit Hole + Looking Glass prompt packs, issue body templates, override resolution, repo seeding |
 
 ---
 
@@ -90,7 +93,7 @@
 - Enterprise Architecture lens with capability model navigation
 - Org scanner (LLM-powered platform recommendations from GitHub org)
 - Sample platform scaffolding (Insurance Operations with 3 CALM BARs)
-- Settings gear: workflow deploy, issue template editor, LLM model preference, drift weights, mesh reinitialize
+- Settings gear: workflow deploy, prompt pack refresh, LLM model preference, mesh secrets, drift weights, mesh reinitialize
 
 ### Absolem AI Governance Assistant
 - Floating chat widget at bottom of BAR detail view (collapsible, always visible when BAR selected)
@@ -199,6 +202,30 @@
 - [x] Property panel Controls sub-view — architecture-level controls list editor with add/edit/remove via `setControl`/`removeControl` patches → see [design surface spec](governance-diagram-req.md) D28
 - [x] Edge Target Interface dropdown — select destination interface on `connects` relationships → see [design surface spec](governance-diagram-req.md) D30
 - [x] CapabilityModel prop wiring — Business lens capability model passed through to diagram canvas for the CapabilitiesEditor tree picker → see [design surface spec](governance-diagram-req.md) D27
+#### Design Surface — Remaining Phase 2
+- [ ] Auto-export setting (`cheshire.autoExport`) — PNG export on every CALM write
+- [ ] SVG export as secondary format
+- [ ] Command palette triggers for Export and Re-layout
+- [ ] Context-to-logical drill-down (double-click container to navigate)
+
+#### Design Surface — Phase 3: Sequence Generation & Component Diagrams
+> Full spec: [governance-diagram-req.md](governance-diagram-req.md) §11 Phase 3
+
+- [ ] Flow metadata editing on logical diagram relationships via property panel
+- [ ] Sequence diagram generation from flow metadata via Mermaid (derived from logical, not separately authored)
+- [ ] Component diagram support (C4 Level 3) with new `ComponentNode` type
+- [ ] Multiple named sequence export (per-flow `.mermaid` and `.png` files)
+
+#### Design Surface — Phase 4: Governance Integration
+> Full spec: [governance-diagram-req.md](governance-diagram-req.md) §11 Phase 4
+
+- [ ] Fitness function checks on CALM write-back (structural, completeness, naming rules)
+- [ ] Inline violation warnings on canvas (yellow/red badges on affected nodes)
+- [ ] PR trigger cascade awareness notifications
+- [ ] Governance health surfaced in Looking Glass dashboard (continuous contextual signals, replaces removed Grin command — see D16)
+- [ ] Cross-diagram consistency validation (threat model references match logical diagram nodes)
+
+#### Other
 - [ ] Timeline support for architectural transition modeling
 
 ### Scoring Improvements
@@ -240,7 +267,7 @@
 - [x] OracularPanel — 6-phase webview wizard (Select BAR → Configure → Submit → Assign Agent → Monitor → Results)
 - [x] GitHub Action workflow template (`oraculum-review.yml`) — triggers on `oraculum-review` label, multi-repo checkout, Claude Code analysis
 - [x] Default 4-pillar prompt pack (`oraculum-default.md`) — architecture drift, security, risk, operations analysis
-- [x] ReviewService — issue body builder with structured ```oraculum YAML block, prompt pack loader
+- [x] ~~ReviewService~~ → absorbed into `PromptPackService` — issue body builder with structured ```oraculum YAML block, prompt pack loader
 - [x] Mesh repo detection — parses `git remote get-url origin` on mesh directory for GitHub owner/repo
 - [x] Workflow existence check — detects if `oraculum-review.yml` exists on the mesh repo via GitHub API
 - [x] One-click workflow provisioning — writes workflow + prompt pack, commits, pushes to mesh repo
@@ -254,7 +281,7 @@
 - [ ] Results view with severity summary table
 - [ ] Review status badges on BAR cards in Looking Glass dashboard
 - [ ] Scheduled reviews (cron-based issue creation)
-- [ ] Additional prompt packs (critical, security-focused)
+- [x] Unified prompt pack system — consolidated `PromptPackService` with `rabbit-hole` + `looking-glass` domains, `{{TOKEN}}` issue templates, override resolution, force-refresh from Settings
 
 ### CI/CD Integration
 - [x] CodeQL SARIF processor (`process-codeql-results.cjs`) — parses SARIF output, extracts security-severity from extension rules, maps to OWASP categories, creates GitHub issues for findings above threshold
@@ -276,6 +303,7 @@
 - [x] One-click sync (stage + commit + push) from BAR detail view
 - [x] Git status refresh after write operations (threat model, ADR, app.yaml)
 - [x] Push-to-remote banner with one-click push (detects no-upstream and ahead-of-remote states)
+- [x] Uncommitted changes banner — dirty file count with one-click "Commit All" button (stacks with ahead/behind banners)
 - [ ] Auto-commit on scaffold — commit new BAR/platform files with conventional commit message
 - [ ] Branch-per-BAR workflow — create feature branches for BAR changes
 - [ ] PR creation for governance updates — open PRs when scoring artifacts change
@@ -404,14 +432,14 @@ Automated architecture drift detection. Design: [Caterpillar spec](governance-ca
 
 **Implementation (extension):**
 - `OracularPanel` — 6-phase webview wizard mirroring the Cheshire Cat issue creator pattern
-- `ReviewService` — issue body builder (structured ```oraculum YAML), prompt pack scanner
+- ~~`ReviewService`~~ → absorbed into `PromptPackService` — issue body builder (structured ```oraculum YAML), prompt pack scanner
 - `GitHubService` extensions — `createIssueRaw()`, `addIssueLabels()` for two-step assign flow
 - GitHub Action workflow template (`oraculum-review.yml`) + default prompt pack (`oraculum-default.md`)
 - Workflow existence check + one-click provisioning (write → commit → push)
 - `initMesh` enhanced with workflow provisioning step + ANTHROPIC_API_KEY secret configuration
 - Looking Glass "Review" button on BAR detail page opens Oraculum pre-populated
 - Command: `maintainabilityai.oraculum` with optional `barPath` parameter
-- New files: `OracularPanel.ts`, `oraculum.ts` (webview), `oraculum.ts` (command), `ReviewService.ts`
+- New files: `OracularPanel.ts`, `oraculum.ts` (webview), `oraculum.ts` (command) (`ReviewService.ts` — deleted, absorbed into `PromptPackService`)
 - Modified: `types/index.ts`, `GitHubService.ts`, `MeshService.ts`, `scaffoldTemplates.ts`, `LookingGlassPanel.ts`, `lookingGlass.ts`, `extension.ts`, `package.json`, `esbuild.js`
 
 ### Design Surface — Phase 2g: Complete Property Panel (February 2026)
@@ -555,6 +583,39 @@ Final phase of codebase health work. Eliminated service instantiation duplicatio
 
 **New files:** `src/utils/git.ts`, `src/webview/app/components/html.ts`
 **Modified files:** `PromptPackService.ts`, `GitHubService.ts`, `GitSyncService.ts`, `SecretsService.ts`, `extension.ts`, `LookingGlassPanel.ts`, `ScorecardPanel.ts`, `IssueCreatorPanel.ts`, `OracularPanel.ts`, `configureSecrets.ts`, `browsePromptPacks.ts`, `scorecard.ts`, `lookingGlass.ts`
+
+### Unified Prompt Pack System (February 2026)
+
+Consolidated two disconnected prompt pack systems into a single `PromptPackService`. Design: [governance-prompt-packs.md](governance-prompt-packs.md).
+
+**Directory restructure (13 git mv operations):**
+- `prompt-packs/{owasp,maintainability,threat-modeling,default.md,mappings.json}` → `prompt-packs/rabbit-hole/`
+- `code-templates/prompts/oraculum-*.md` → `prompt-packs/looking-glass/` (stripped `oraculum-` prefix)
+- `code-templates/prompts/cheshire-scaffold-default.md` → `prompt-packs/rabbit-hole/scaffold.md`
+- `code-templates/prompts/` directory deleted
+
+**PromptPackService expansion (209 → ~700 lines):**
+- Domain-aware pack scanning: `getAllPacks('rabbit-hole' | 'looking-glass')`
+- Override resolution: local repo file → bundled fallback (consistent across both domains)
+- `{{TOKEN}}` template engine with extracted `.md` issue body templates
+- `buildRabbitHoleIssue()` / `buildOraculumIssue()` — absorbed from `IssueBodyBuilder` / `ReviewService`
+- `seedMeshPrompts(meshPath, force?)` — idempotent seeding to `.caterpillar/prompts/`, force mode for refresh
+- `getScaffoldFiles()` — returns all 3 categories (owasp, maintainability, threat-modeling) + default + mappings for `.cheshire/prompts/`
+
+**Consumer updates:**
+- `GitHubService` — uses `promptPackService` instead of `IssueBodyBuilder`
+- `OracularPanel` — uses `promptPackService` instead of `ReviewService`
+- `LookingGlassPanel` — `seedMeshPrompts()` at both init sites, scaffold uses `getScaffoldPackContent()`
+- `ScaffoldPanel` — all 3 prompt pack categories, checkbox defaults to checked
+- `MeshService.writeOraculumWorkflow()` — slimmed to workflow YAML only
+
+**UX enhancements:**
+- "Refresh Prompts" button in Looking Glass Settings — force-reseeds `.caterpillar/prompts/` without full mesh reinit
+- Git sync banner shows uncommitted changes count with "Commit All" button (stacks with ahead/behind banners)
+
+**Deleted:** `IssueBodyBuilder.ts` (182 lines), `ReviewService.ts` (304 lines), `code-templates/prompts/` (7 files)
+**Created:** `prompt-packs/templates/rabbit-hole-issue.md`, `prompt-packs/templates/oraculum-issue.md`
+**Modified:** `PromptPackService.ts`, `GitHubService.ts`, `OracularPanel.ts`, `LookingGlassPanel.ts`, `ScaffoldPanel.ts`, `MeshService.ts`, `codeRepoTemplates.ts`, `types/prompts.ts`, `types/webview.ts`, `lookingGlass.ts`, `barDetail.ts`
 
 ---
 
