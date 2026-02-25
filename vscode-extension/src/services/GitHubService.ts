@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Octokit } from '@octokit/rest';
 import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment, LinkedPullRequest, GitHubIssueListItem, WorkflowRunSummary, OrgRepo, ActiveReviewInfo } from '../types';
 import { IssueBodyBuilder } from './IssueBodyBuilder';
+import { toErrorMessage } from '../utils/errors';
 
 export class GitHubService {
   /**
@@ -54,7 +55,7 @@ export class GitHubService {
   async detectRepoForFolder(folderPath: string): Promise<RepoInfo | null> {
     const gitExtension = vscode.extensions.getExtension('vscode.git');
     if (!gitExtension) {
-      return null;
+      return this.detectRepoViaGitCli(folderPath);
     }
 
     const git = gitExtension.isActive
@@ -62,13 +63,37 @@ export class GitHubService {
       : await gitExtension.activate();
 
     const api = git.getAPI(1);
-    const repo = api.repositories.find((r: { rootUri: vscode.Uri }) => r.rootUri.fsPath === folderPath)
-      || api.repositories[0];
-    if (!repo) {
-      return null;
+    // Only match the specific folder — don't fall back to repositories[0]
+    const repo = api.repositories.find((r: { rootUri: vscode.Uri }) => r.rootUri.fsPath === folderPath);
+    if (repo) {
+      const parsed = this.parseGitRepo(repo);
+      if (parsed) { return parsed; }
     }
 
-    return this.parseGitRepo(repo);
+    // Fallback: git extension may not have indexed this folder yet (e.g. freshly cloned).
+    // Shell out to git directly.
+    return this.detectRepoViaGitCli(folderPath);
+  }
+
+  private async detectRepoViaGitCli(folderPath: string): Promise<RepoInfo | null> {
+    try {
+      const { execFileAsync } = await import('../utils/exec');
+      const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: folderPath, timeout: 5000 });
+      const url = stdout.trim();
+      const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+      if (!match) { return null; }
+
+      // Try to get the current branch name
+      let branch = 'main';
+      try {
+        const { stdout: branchOut } = await execFileAsync('git', ['branch', '--show-current'], { cwd: folderPath, timeout: 5000 });
+        if (branchOut.trim()) { branch = branchOut.trim(); }
+      } catch { /* use default */ }
+
+      return { owner: match[1], repo: match[2], defaultBranch: branch, remoteUrl: url };
+    } catch {
+      return null;
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,10 +224,7 @@ export class GitHubService {
     secretValue: string
   ): Promise<void> {
     // Use gh CLI to set the secret — it handles libsodium encryption internally
-    // This mirrors the approach in deploy-test.sh
-    const { execFile } = await import('child_process');
-    const { promisify } = await import('util');
-    const execFileAsync = promisify(execFile);
+    const { execFileAsync } = await import('../utils/exec');
 
     try {
       await execFileAsync('gh', [
@@ -211,7 +233,7 @@ export class GitHubService {
         '--body', secretValue,
       ]);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = toErrorMessage(err);
       if (message.includes('not found') || message.includes('ENOENT')) {
         throw new Error(
           'GitHub CLI (gh) is not installed. Install it from https://cli.github.com/ and run "gh auth login" first.'

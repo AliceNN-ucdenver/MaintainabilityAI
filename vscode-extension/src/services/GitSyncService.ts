@@ -5,8 +5,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import type {
   BarSummary,
   GitFileStatus,
@@ -14,8 +12,8 @@ import type {
   BarGitStatus,
   PillarGitStatus,
 } from '../types';
-
-const execFileAsync = promisify(execFile);
+import { execFileAsync } from '../utils/exec';
+import { toErrorMessage } from '../utils/errors';
 
 // Pillar directory prefixes within a BAR (mirrors GovernanceScorer)
 const PILLAR_DIR_MAP: Record<string, keyof BarGitStatus['pillarStatus']> = {
@@ -170,7 +168,7 @@ export class GitSyncService {
         await execFileAsync('git', pushArgs, { cwd: gitRoot, timeout: 30_000 });
         return { committed: true, pushed: true, message: 'Synced and pushed to remote.' };
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         return { committed: true, pushed: false, message: `Committed locally but push failed: ${msg}` };
       }
     }
@@ -194,7 +192,7 @@ export class GitSyncService {
       } catch (err) {
         // Rebase also failed — abort it to leave the repo clean
         try { await execFileAsync('git', ['rebase', '--abort'], { cwd: gitRoot }); } catch { /* already clean */ }
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         return { success: false, message: `Pull failed (branches diverged and rebase had conflicts): ${msg}` };
       }
     }

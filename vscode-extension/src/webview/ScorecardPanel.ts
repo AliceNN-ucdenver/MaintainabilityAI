@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData } from '../types';
+import { toErrorMessage } from '../utils/errors';
 import { GitHubService } from '../services/GitHubService';
 import { AgentStatusService } from '../services/AgentStatusService';
 import { PromptPackService } from '../services/PromptPackService';
@@ -11,24 +10,24 @@ import { PmatService } from '../services/PmatService';
 import { ScorecardService } from '../services/ScorecardService';
 import { ScorecardHistoryService } from '../services/ScorecardHistoryService';
 import { TechStackDetector } from '../services/TechStackDetector';
+import { FolderStateService } from '../services/FolderStateService';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
 import { generateAliceRemediationWorkflow } from '../templates/scaffoldTemplates';
+import { execFileAsync } from '../utils/exec';
+import { getNonce } from '../utils/getNonce';
+import { BasePanel } from './BasePanel';
+import { getSharedStyles } from './styles';
 
-const execFileAsync = promisify(execFile);
-
-export class ScorecardPanel {
+export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, ScorecardExtensionMessage> {
   public static currentPanel: ScorecardPanel | undefined;
   private static readonly viewType = 'maintainabilityai.scorecard';
 
-  private readonly panel: vscode.WebviewPanel;
-  private readonly context: vscode.ExtensionContext;
   private readonly githubService: GitHubService;
   private readonly agentStatusService: AgentStatusService;
   private readonly pmatService: PmatService;
   private readonly scorecardService: ScorecardService;
   private readonly historyService: ScorecardHistoryService;
   private readonly techStackDetector: TechStackDetector;
-  private disposables: vscode.Disposable[] = [];
   private currentRepo: RepoInfo | undefined;
   private lastData: ScorecardData | undefined;
   private detectedPackageManager = 'Unknown';
@@ -69,8 +68,7 @@ export class ScorecardPanel {
   }
 
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
-    this.panel = panel;
-    this.context = context;
+    super(panel, context);
     this.githubService = new GitHubService();
     this.agentStatusService = new AgentStatusService(this.githubService);
     this.pmatService = new PmatService();
@@ -79,25 +77,20 @@ export class ScorecardPanel {
     this.historyService = new ScorecardHistoryService(context.workspaceState);
     this.techStackDetector = new TechStackDetector();
 
-    this.panel.webview.html = this.getHtmlContent(panel.webview, context.extensionUri);
-
-    this.panel.webview.onDidReceiveMessage(
-      (msg: ScorecardWebviewMessage) => this.handleMessage(msg),
-      null,
-      this.disposables
-    );
-
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
-
     // Update folder dropdown when workspace folders change
     this.disposables.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
-        this.sendWorkspaceFolders();
+        this.sendWorkspaceFolders(this.selectedFolderPath);
+      }),
+      FolderStateService.getInstance().onDidChangeFolder(newFolder => {
+        if (newFolder !== this.selectedFolderPath) {
+          this.refreshForFolder(newFolder);
+        }
       })
     );
   }
 
-  private async handleMessage(message: ScorecardWebviewMessage) {
+  protected async handleMessage(message: ScorecardWebviewMessage) {
     switch (message.type) {
       case 'ready':
         await this.onReady();
@@ -110,6 +103,13 @@ export class ScorecardPanel {
         break;
       case 'runCommand':
         vscode.commands.executeCommand(message.command);
+        break;
+      case 'openScaffold':
+        // Pass the currently selected folder so scaffold targets the right repo
+        vscode.commands.executeCommand('maintainabilityai.scaffoldRepo', this.selectedFolderPath);
+        break;
+      case 'configureSecrets':
+        vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'workspace', this.selectedFolderPath);
         break;
       case 'installPmat':
         await this.onInstallPmat();
@@ -156,19 +156,22 @@ export class ScorecardPanel {
       case 'syncRepo':
         await this.onSyncRepo();
         break;
+      case 'pushRepo':
+        await this.onPushRepo();
+        break;
+      case 'commitAndPush':
+        await this.onCommitAndPush();
+        break;
     }
   }
 
   private async onReady() {
-    const folders = vscode.workspace.workspaceFolders || [];
-
     if (!this.selectedFolderPath) {
-      // Prefer the first folder that is a git repo (skip workspace containers)
-      const gitFolder = folders.find(f => {
-        try { return fs.existsSync(path.join(f.uri.fsPath, '.git')); }
-        catch { return false; }
-      });
-      this.selectedFolderPath = gitFolder?.uri.fsPath || folders[0]?.uri.fsPath;
+      this.selectedFolderPath = FolderStateService.getInstance().getSelectedFolder();
+    }
+    // Persist selection so other panels pick it up
+    if (this.selectedFolderPath) {
+      FolderStateService.getInstance().setSelectedFolder(this.selectedFolderPath);
     }
 
     this.sendWorkspaceFolders(this.selectedFolderPath);
@@ -232,7 +235,14 @@ export class ScorecardPanel {
     this.postMessage({ type: 'workspaceFolders', folders, ...(selectedPath ? { selectedPath } : {}) });
   }
 
+  /** Called by the webview dropdown — writes shared state then refreshes. */
   private async onSwitchFolder(folderPath: string) {
+    FolderStateService.getInstance().setSelectedFolder(folderPath);
+    await this.refreshForFolder(folderPath);
+  }
+
+  /** Called by FolderStateService event (external change) — does NOT write back. */
+  private async refreshForFolder(folderPath: string) {
     this.selectedFolderPath = folderPath;
     this.postMessage({ type: 'loading', active: true, message: 'Switching workspace...' });
     this.sendWorkspaceFolders(folderPath);
@@ -269,7 +279,13 @@ export class ScorecardPanel {
       const parts = revList.trim().split(/\s+/);
       const ahead = parseInt(parts[0] || '0', 10);
       const behind = parseInt(parts[1] || '0', 10);
-      this.postMessage({ type: 'syncStatus', behind, ahead, branch });
+      // Check for uncommitted changes (dirty working tree)
+      let dirty = false;
+      try {
+        const { stdout: status } = await execFileAsync('git', ['status', '--porcelain'], { cwd, timeout: 5000 });
+        dirty = status.trim().length > 0;
+      } catch { /* ignore */ }
+      this.postMessage({ type: 'syncStatus', behind, ahead, branch, dirty });
     } catch {
       // No remote tracking branch or git not available — silently ignore
     }
@@ -288,8 +304,44 @@ export class ScorecardPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Sync failed: ${err instanceof Error ? err.message : String(err)}. Try pulling manually.`,
+        message: `Sync failed: ${toErrorMessage(err)}. Try pulling manually.`,
       });
+    }
+  }
+
+  private async onPushRepo() {
+    const cwd = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!cwd) { return; }
+    try {
+      await execFileAsync('git', ['push'], { cwd, timeout: 30_000 });
+      this.postMessage({ type: 'repoSynced' });
+      await this.onCheckSync();
+    } catch (err) {
+      this.postMessage({
+        type: 'error',
+        message: `Push failed: ${toErrorMessage(err)}. Try pushing manually.`,
+      });
+    }
+  }
+
+  private async onCommitAndPush() {
+    const cwd = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!cwd) { return; }
+    try {
+      this.postMessage({ type: 'loading', active: true, message: 'Committing and pushing...' });
+      await execFileAsync('git', ['add', '-A'], { cwd, timeout: 10_000 });
+      await execFileAsync('git', ['commit', '-m', 'chore: add MaintainabilityAI scaffold files\n\nGenerated by MaintainabilityAI VS Code Extension'], { cwd, timeout: 10_000 });
+      await execFileAsync('git', ['push'], { cwd, timeout: 30_000 });
+      this.postMessage({ type: 'repoSynced' });
+      await this.onCheckSync();
+      await this.onRefresh();
+    } catch (err) {
+      this.postMessage({
+        type: 'error',
+        message: `Commit & push failed: ${toErrorMessage(err)}`,
+      });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
     }
   }
 
@@ -320,7 +372,7 @@ export class ScorecardPanel {
         trends: this.historyService.getAllTrends(),
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       this.postMessage({ type: 'error', message: msg });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -761,7 +813,7 @@ export class ScorecardPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to deploy workflow: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to deploy workflow: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -798,16 +850,12 @@ export class ScorecardPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to save model preference: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to save model preference: ${toErrorMessage(err)}`,
       });
     }
   }
 
-  private postMessage(message: ScorecardExtensionMessage) {
-    this.panel.webview.postMessage(message);
-  }
-
-  private getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  protected getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'scorecard.js')
     );
@@ -821,32 +869,8 @@ export class ScorecardPanel {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
   <title>MaintainabilityAI \u2014 Security Scorecard</title>
   <style>
-    :root {
-      --bg-primary: var(--vscode-editor-background);
-      --bg-secondary: var(--vscode-sideBar-background);
-      --bg-input: var(--vscode-input-background);
-      --border: var(--vscode-panel-border);
-      --text-primary: var(--vscode-editor-foreground);
-      --text-secondary: var(--vscode-descriptionForeground);
-      --accent: var(--vscode-button-background);
-      --accent-hover: var(--vscode-button-hoverBackground);
-      --accent-fg: var(--vscode-button-foreground);
-      --error: var(--vscode-errorForeground);
-      --success: #22c55e;
-      --running: #f59e0b;
-      --purple: #a855f7;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--text-primary);
-      background: var(--bg-primary);
-      padding: 24px 32px;
-      overflow-y: auto;
-    }
+    ${getSharedStyles()}
+    body { padding: 24px 32px; overflow-y: auto; }
 
     /* Header */
     .scorecard-header {
@@ -857,17 +881,6 @@ export class ScorecardPanel {
     .header-left p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
     .header-right { display: flex; align-items: center; gap: 8px; }
     .last-refreshed { font-size: 11px; color: var(--text-secondary); }
-
-    /* Buttons */
-    button {
-      padding: 8px 16px; border: none; border-radius: 4px;
-      font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s;
-    }
-    .btn-primary { background: var(--accent); color: var(--accent-fg); }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
-    .btn-secondary:hover { background: var(--bg-input); }
-    .btn-icon { padding: 6px 10px; font-size: 14px; line-height: 1; }
 
     /* Grade Card */
     .grade-card {
@@ -968,21 +981,8 @@ export class ScorecardPanel {
     /* Quick Actions */
     .quick-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
 
-    /* Loading */
-    .loading-overlay {
-      text-align: center; padding: 60px 20px; color: var(--text-secondary);
-    }
-    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; margin-bottom: 12px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .spinner { margin-bottom: 12px; }
     .skeleton { background: var(--bg-input); border-radius: 4px; animation: pulse 1.5s ease-in-out infinite; }
-
-    /* Error */
-    .error-msg {
-      color: var(--error); font-size: 12px; padding: 8px;
-      background: rgba(220, 38, 38, 0.1); border-radius: 4px; margin-bottom: 12px;
-    }
-    .error-msg:empty { display: none; }
 
     /* pmat install banner */
     .pmat-banner {
@@ -1107,22 +1107,11 @@ export class ScorecardPanel {
 </html>`;
   }
 
-  private dispose() {
+  protected onDispose(): void {
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = undefined; }
-    ScorecardPanel.currentPanel = undefined;
-    this.panel.dispose();
-    while (this.disposables.length) {
-      const d = this.disposables.pop();
-      d?.dispose();
-    }
   }
-}
 
-function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  protected clearCurrentPanel(): void {
+    ScorecardPanel.currentPanel = undefined;
   }
-  return result;
 }

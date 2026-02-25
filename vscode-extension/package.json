@@ -84,6 +84,12 @@
         "command": "maintainabilityai.oraculum",
         "title": "Oraculum \u2014 Architecture Review",
         "category": "MaintainabilityAI"
+      },
+      {
+        "command": "maintainabilityai.bugReport",
+        "title": "Report a Bug",
+        "category": "MaintainabilityAI",
+        "icon": "$(bug)"
       }
     ],
     "viewsContainers": {
@@ -138,6 +144,9 @@
         },
         {
           "command": "maintainabilityai.oraculum"
+        },
+        {
+          "command": "maintainabilityai.bugReport"
         }
       ]
     },

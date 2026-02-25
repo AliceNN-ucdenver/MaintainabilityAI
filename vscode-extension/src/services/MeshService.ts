@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { configService } from './ConfigService';
 import type {
   ArchitectureDsl,
   CapabilityModelType,
@@ -46,15 +46,13 @@ export class MeshService {
   // ==========================================================================
 
   static getMeshPath(): string | null {
-    const config = vscode.workspace.getConfiguration('maintainabilityai');
-    const meshPath = config.get<string>('mesh.path', '');
+    const meshPath = configService.meshPath;
     if (!meshPath || !fs.existsSync(meshPath)) { return null; }
     return meshPath;
   }
 
   static async setMeshPath(meshPath: string): Promise<void> {
-    const config = vscode.workspace.getConfiguration('maintainabilityai');
-    await config.update('mesh.path', meshPath, vscode.ConfigurationTarget.Global);
+    await configService.setMeshPath(meshPath);
   }
 
   // ==========================================================================

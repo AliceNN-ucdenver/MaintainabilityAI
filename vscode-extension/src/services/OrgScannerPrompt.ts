@@ -1,4 +1,4 @@
-import type { OrgRepo, ExistingStructureContext } from '../../types';
+import type { OrgRepo, ExistingStructureContext } from '../types';
 
 export function buildSystemPrompt(existingContext?: ExistingStructureContext): string {
   let prompt = `You are an enterprise architecture advisor. Your task is to analyze a GitHub organization's repositories and recommend how they should be organized into a governance structure.

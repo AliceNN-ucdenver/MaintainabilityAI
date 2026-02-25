@@ -1,71 +1,12 @@
 // Scorecard webview frontend — renders Security Scorecard dashboard
 import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
 import type { AgentStatusInfo } from './agentStatus';
-
-interface VsCodeApi {
-  postMessage(message: unknown): void;
-  getState(): unknown;
-  setState(state: unknown): void;
-}
+import { escapeHtml, escapeAttr, formatTimestamp } from './pillars/shared';
+import type { VsCodeApi, MetricStatus, HealthGrade, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection } from './types';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscode = acquireVsCodeApi();
-
-// ============================================================================
-// Types (mirrored from extension types)
-// ============================================================================
-
-type MetricStatus = 'green' | 'yellow' | 'red' | 'unknown' | 'loading';
-type HealthGrade = 'A' | 'B' | 'C' | 'D' | 'F' | '?';
-
-interface MetricResult {
-  status: MetricStatus;
-  label: string;
-  value: string;
-  score: number;
-  details?: string;
-  lastUpdated: string;
-}
-
-interface SdlcCompletenessItem {
-  label: string;
-  present: boolean;
-  path: string;
-}
-
-interface OwaspIssueSummary {
-  category: string;
-  displayName: string;
-  openCount: number;
-}
-
-interface ScorecardData {
-  grade: HealthGrade;
-  compositeScore: number;
-  metrics: {
-    securityCompliance: MetricResult;
-    dependencyFreshness: MetricResult;
-    testCoverage: MetricResult;
-    complexity: MetricResult;
-    technicalDebt: MetricResult;
-    cicdHealth: MetricResult;
-  };
-  sdlcCompleteness: SdlcCompletenessItem[];
-  owaspIssues: OwaspIssueSummary[];
-  pmatInstalled: boolean;
-  repo: { owner: string; repo: string } | null;
-  lastRefreshed: string;
-}
-
-interface ScorecardSnapshot {
-  timestamp: string;
-  compositeScore: number;
-  grade: HealthGrade;
-  metrics: Record<string, number>;
-}
-
-type TrendDirection = 'improving' | 'stable' | 'declining' | 'new';
 
 // ============================================================================
 // State
@@ -92,7 +33,7 @@ const state = {
   // Unified agent status (replaces activeIssue)
   agentStatus: null as AgentStatusInfo | null,
   // Repo sync status
-  syncStatus: null as { behind: number; ahead: number; branch: string } | null,
+  syncStatus: null as { behind: number; ahead: number; branch: string; dirty?: boolean } | null,
 };
 
 const rootEl = document.getElementById('scorecard-root')!;
@@ -236,21 +177,62 @@ function renderFolderDropdown(): string {
 
 function renderSyncBanner(): string {
   const sync = state.syncStatus;
-  if (!sync || sync.behind === 0) { return ''; }
-  return `
-    <div class="sync-banner">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 16px;">&#x1F504;</span>
-        <div>
-          <strong>Out of sync</strong>
-          <span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">
-            <code>${escapeHtml(sync.branch)}</code> is ${sync.behind} commit${sync.behind !== 1 ? 's' : ''} behind remote
-          </span>
+  if (!sync) { return ''; }
+
+  const parts: string[] = [];
+
+  if (sync.behind > 0) {
+    parts.push(`
+      <div class="sync-banner">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 16px;">&#x2B07;</span>
+          <div>
+            <strong>Behind remote</strong>
+            <span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">
+              <code>${escapeHtml(sync.branch)}</code> is ${sync.behind} commit${sync.behind !== 1 ? 's' : ''} behind
+            </span>
+          </div>
         </div>
+        <button id="btn-sync-repo" class="btn-primary" style="padding: 4px 14px; font-size: 12px;">Pull Changes</button>
       </div>
-      <button id="btn-sync-repo" class="btn-primary" style="padding: 4px 14px; font-size: 12px;">Pull Changes</button>
-    </div>
-  `;
+    `);
+  }
+
+  if (sync.ahead > 0) {
+    parts.push(`
+      <div class="sync-banner" style="border-left-color: var(--accent);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 16px;">&#x2B06;</span>
+          <div>
+            <strong>Ahead of remote</strong>
+            <span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">
+              <code>${escapeHtml(sync.branch)}</code> has ${sync.ahead} commit${sync.ahead !== 1 ? 's' : ''} to push
+            </span>
+          </div>
+        </div>
+        <button id="btn-push-repo" class="btn-primary" style="padding: 4px 14px; font-size: 12px;">Push Changes</button>
+      </div>
+    `);
+  }
+
+  if (sync.dirty) {
+    parts.push(`
+      <div class="sync-banner" style="border-left-color: var(--warning);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 16px;">&#x270F;</span>
+          <div>
+            <strong>Uncommitted changes</strong>
+            <span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">
+              Working tree has modified files that haven't been committed
+            </span>
+          </div>
+        </div>
+        <button id="btn-commit-push" class="btn-primary" style="padding: 4px 14px; font-size: 12px;">Commit &amp; Push</button>
+      </div>
+    `);
+  }
+
+  return parts.join('');
 }
 
 function renderCreateFeatureBanner(): string {
@@ -502,6 +484,7 @@ function renderSettingsView(): string {
       </div>
       ${renderSettingsAliceWorkflow()}
       ${renderSettingsLlmModel()}
+      ${renderSettingsSecrets()}
     </div>
   `;
 }
@@ -572,6 +555,22 @@ function renderSettingsLlmModel(): string {
   `;
 }
 
+function renderSettingsSecrets(): string {
+  const repoLabel = state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'selected repository';
+  return `
+    <div class="settings-section">
+      <h3>Repository Secrets</h3>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+        Configure API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) as GitHub repository secrets on <strong>${escapeHtml(repoLabel)}</strong>.
+        Required for AI-powered workflows like Alice Remediation.
+      </p>
+      <div class="settings-row" style="justify-content: flex-start;">
+        <button id="btn-configure-secrets" class="btn-primary">Configure Secrets</button>
+      </div>
+    </div>
+  `;
+}
+
 function attachSettingsGear() {
   document.getElementById('btn-settings-gear')?.addEventListener('click', () => {
     state.view = 'settings';
@@ -607,6 +606,11 @@ function attachSettingsEvents() {
       vscode.postMessage({ type: 'savePreferredModel', family: select.value });
     }
   });
+
+  // Configure repository secrets
+  document.getElementById('btn-configure-secrets')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'configureSecrets' });
+  });
 }
 
 // ============================================================================
@@ -627,7 +631,7 @@ function attachPmatInstall() {
 
 function attachActions() {
   document.getElementById('btn-scaffold')?.addEventListener('click', () => {
-    vscode.postMessage({ type: 'runCommand', command: 'maintainabilityai.scaffoldRepo' });
+    vscode.postMessage({ type: 'openScaffold' });
   });
 
   document.getElementById('btn-open-repo')?.addEventListener('click', () => {
@@ -649,6 +653,16 @@ function attachSyncBanner() {
     const btn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
     if (btn) { btn.disabled = true; btn.textContent = 'Pulling...'; }
     vscode.postMessage({ type: 'syncRepo' });
+  });
+  document.getElementById('btn-push-repo')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-push-repo') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Pushing...'; }
+    vscode.postMessage({ type: 'pushRepo' });
+  });
+  document.getElementById('btn-commit-push')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-commit-push') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Committing...'; }
+    vscode.postMessage({ type: 'commitAndPush' });
   });
 }
 
@@ -690,26 +704,6 @@ function trendIndicator(direction: TrendDirection): string {
     case 'stable': return '<span class="trend-stable" title="Stable">&#8212;</span>';
     case 'new': return '';
   }
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function escapeAttr(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) { return 'just now'; }
-  if (diffMin < 60) { return `${diffMin}m ago`; }
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) { return `${diffHr}h ago`; }
-  return d.toLocaleDateString();
 }
 
 // ============================================================================
@@ -807,7 +801,7 @@ window.addEventListener('message', (event) => {
       break;
 
     case 'syncStatus':
-      state.syncStatus = { behind: message.behind, ahead: message.ahead, branch: message.branch };
+      state.syncStatus = { behind: message.behind, ahead: message.ahead, branch: message.branch, dirty: message.dirty };
       render();
       break;
 

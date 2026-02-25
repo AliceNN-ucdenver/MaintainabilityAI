@@ -1,7 +1,7 @@
 // DiagramCanvas — main React component for the architecture diagram
 // Renders ReactFlow canvas with toolbar, minimap, and controls
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -46,25 +46,8 @@ import { NodePalette } from './NodePalette';
 import { InlineNameEditor } from './InlineNameEditor';
 import { PropertyPanel } from './PropertyPanel';
 
-// Capability model types (mirrors lookingGlass.ts definitions)
-export interface CapabilityNode {
-  key: string;
-  level: 'L1' | 'L2' | 'L3';
-  name: string;
-  description: string;
-  childCount: number;
-  barCount: number;
-  childKeys: string[];
-  parentKey: string | null;
-}
-
-export interface CapabilityModelSummary {
-  modelName: string;
-  modelType: string;
-  l1Capabilities: CapabilityNode[];
-  allNodes: Record<string, CapabilityNode>;
-  capabilityToBarMap: Record<string, string[]>;
-}
+import type { CapabilityNode, CapabilityModelSummary } from '../types';
+export type { CapabilityNode, CapabilityModelSummary };
 
 export interface DiagramCanvasProps {
   calmData: CalmArchitecture;
@@ -776,11 +759,59 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
   );
 }
 
-// Wrap with ReactFlowProvider (required for useReactFlow hook)
+// Error boundary — catches ReactFlow render crashes and shows a fallback
+class DiagramErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('DiagramCanvas crashed:', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      const v = getCssVars();
+      return (
+        <div style={{
+          width: '100%', height: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 12, padding: 32,
+          color: v.textMuted, fontFamily: 'inherit', fontSize: 13,
+        }}>
+          <div style={{ fontSize: 24 }}>Diagram failed to render</div>
+          <div style={{ maxWidth: 400, textAlign: 'center', opacity: 0.7 }}>
+            {this.state.error.message}
+          </div>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{
+              marginTop: 8, padding: '6px 16px', fontSize: 12,
+              background: v.surface, border: `1px solid ${v.border}`,
+              borderRadius: 4, color: v.text, cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Wrap with ReactFlowProvider (required for useReactFlow hook) + error boundary
 export function DiagramCanvas(props: DiagramCanvasProps) {
   return (
-    <ReactFlowProvider>
-      <DiagramCanvasInner {...props} />
-    </ReactFlowProvider>
+    <DiagramErrorBoundary>
+      <ReactFlowProvider>
+        <DiagramCanvasInner {...props} />
+      </ReactFlowProvider>
+    </DiagramErrorBoundary>
   );
 }

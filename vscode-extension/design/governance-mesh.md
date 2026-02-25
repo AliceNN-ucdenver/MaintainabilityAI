@@ -50,6 +50,7 @@
 | `CapabilityModelService` | Enterprise capability model management |
 | `IssueMonitorService` | Real-time GitHub issue polling (comments, labels, PR status) |
 | `AgentStatusService` | Agent activity tracking and status display |
+| `FolderStateService` | Cross-panel workspace folder persistence via `workspaceState` + EventEmitter |
 | `LlmService` | Multi-provider LLM abstraction (VS Code LM, Claude API, OpenAI) |
 
 ### DSL & Data
@@ -71,8 +72,8 @@
 | [`governance-diagram-req.md`](governance-diagram-req.md) | **Complete** | Looking Glass design surface — ReactFlow, ELK layout, CALM read/write, PNG export |
 | [`governance-absolem.md`](governance-absolem.md) | **1.0.0 Complete** | Absolem multi-turn AI governance assistant — 7 commands, image-to-CALM, gap analysis, ADR suggestions |
 | [`governance-whiterabbit.md`](governance-whiterabbit.md) | **Complete** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
-| [`governance-repo-to-calm.md`](governance-repo-to-calm.md) | **Designed — Not Started** | Absolem "Scan Repo" command — scan a GitHub repo via gh CLI, propose incremental CALM patches |
-| [`governance-reuse.md`](governance-reuse.md) | **Designed — Not Started** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts |
+| [`governance-repo-to-calm.md`](governance-repo-to-calm.md) | **Complete** | Absolem "Scan Repo" command — scan a GitHub repo via gh CLI, propose incremental CALM patches |
+| [`governance-reuse.md`](governance-reuse.md) | **Phase 6 Complete (Phase 7 pending)** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts |
 
 ---
 
@@ -124,7 +125,9 @@
 ### Supporting
 - Governance sidebar tree view
 - Repository scaffolding (CI workflows, CodeQL, fitness functions)
-- Secrets configuration (API keys via `gh secret set`)
+- Secrets configuration embedded in settings panels (Scorecard for workspace, Looking Glass for mesh) via `gh secret set`
+- Shared folder selection — `FolderStateService` persists selected workspace folder across Scorecard, Scaffold, Rabbit Hole, and Repo Secrets via `workspaceState`
+- Mesh repo label in Looking Glass header (grey secondary text, matches Scorecard repo label style)
 - Prompt pack browser
 - CodeQL SARIF processing with extension rule lookup, numeric severity scoring, OWASP mapping, GitHub issue creation
 - Prompt integrity verification (SHA-256 hash validation in CI)
@@ -325,7 +328,7 @@
 - [x] Image-to-CALM — generate `bar.arch.json` from architecture diagram images via VS Code `LanguageModelDataPart` API (no external API key needed)
 - [x] CALM artifact preview card — structured breakdown of nodes/relationships/flows with "Open in Editor" and "Apply to bar.arch.json" buttons
 - [x] `replaceFull` patch operation — complete architecture replacement with automatic layout file cleanup for fresh auto-layout
-- [ ] **Repo-to-CALM** — Absolem "Scan Repo" command (8th command chip). User pastes a GitHub repo URL, Absolem scans key files via `gh` CLI (package manifests, Docker configs, source structure, CI workflows), compares against existing CALM, and proposes incremental `addNode`/`addRelationship`/`updateNode` patches. Never removes existing nodes. Enables bottom-up governance: derive architecture from running code. → see [design spec](governance-repo-to-calm.md)
+- [x] **Repo-to-CALM** — Absolem "Scan Repo" command (8th command chip). User pastes a GitHub repo URL, Absolem scans key files via `gh` CLI (package manifests, Docker configs, source structure, CI workflows), compares against existing CALM, and proposes incremental `addNode`/`addRelationship`/`updateNode` patches. Never removes existing nodes. Enables bottom-up governance: derive architecture from running code. → see [design spec](governance-repo-to-calm.md)
 - [ ] Risk scoring from code metrics — feed pmat/CodeQL data into information risk assessments
 
 ### Cross-BAR Analysis
@@ -486,31 +489,93 @@ BAR-to-code implementation workflow. Details: [White Rabbit spec](governance-whi
 - Copilot assignment fix: `assignIssue(['copilot-swe-agent[bot]'])` instead of `@copilot` comment
 - Default scaffold prompt pack (`cheshire-scaffold-default.md`) with OWASP + STRIDE + maintainability checklists
 
+### Absolem "Scan Repo → CALM" (February 2026)
+
+8th command chip for Absolem — derives CALM architecture from live GitHub repos. Details: [Repo-to-CALM spec](governance-repo-to-calm.md).
+
+- `repo-to-calm` command chip with two-phase interaction (greeting → URL → scan → LLM → patches)
+- `scanRepository()` fetches repo file tree + key files via `gh api` (no clone, ephemeral/in-memory)
+- `fetchRepoTree()` / `fetchKeyFiles()` / `buildRepoContext()` helpers with 14 priority file patterns
+- `REPO_TO_CALM_SYSTEM_PROMPT` with CALM 1.2 schema reference + repo analysis instructions
+- `command` field added to `AbsolemConversation` for per-conversation command tracking
+- Works without existing `bar.arch.json` (passes empty CALM for greenfield)
+
+**Modified files:** `AbsolemService.ts`, `LookingGlassPanel.ts`, `absolem.ts`, `types/webview.ts`
+
+### Cross-Panel Folder Selection & Settings UX (February 2026)
+
+Shared workspace folder persistence across all code-repo panels, secrets moved to settings, mesh repo visibility.
+
+**FolderStateService:**
+- Singleton wrapping `context.workspaceState` with `EventEmitter` for cross-panel notification
+- `setSelectedFolder()` no-ops when value unchanged (prevents event loops)
+- `getSelectedFolder()` reads persisted state, falls back to first git folder
+- `getWorkspaceFolders()` returns workspace folders for dropdown rendering
+- Subscribed by ScorecardPanel, IssueCreatorPanel; consumed by createIssue, scaffoldRepo commands
+
+**Rabbit Hole folder dropdown:**
+- Folder dropdown in hub header (hidden in component mode or single-folder workspace)
+- `switchFolder` message triggers re-detection of repo, stack, and issue list
+- `workspaceFolders` message from backend populates dropdown and selected state
+
+**Secrets in settings panels (removed from sidebar):**
+- "Configure Secrets" button in Scorecard settings (targets selected folder's repo via `detectRepoForFolder`)
+- "Configure Mesh Secrets" button in Looking Glass settings (targets governance mesh repo)
+- Removed "Repository Secrets" entries from both `ActionsTreeProvider` and `GovernanceTreeProvider`
+
+**Mesh repo label:**
+- Looking Glass header shows `owner/repo` in grey secondary text under "Looking Glass" heading
+- Matches Scorecard's `header-left p` styling (`var(--text-secondary)`, 12px)
+- `meshRepoDetected` message sent from `LookingGlassPanel.detectMeshRepo()` to webview
+- Repo hint also shown in settings section headers (workflow, issue template, secrets)
+
+**New file:** `src/services/FolderStateService.ts`
+**Modified files:** `extension.ts`, `types/webview.ts`, `ScorecardPanel.ts`, `IssueCreatorPanel.ts`, `LookingGlassPanel.ts`, `main.ts`, `scorecard.ts`, `lookingGlass.ts`, `portfolio.ts`, `configureSecrets.ts`, `createIssue.ts`, `scaffoldRepo.ts`, `ActionsTreeProvider.ts`, `GovernanceTreeProvider.ts`
+
 ---
 
 ## Phase 5 — Codebase Health & Refactoring
 
 Structural improvements to the extension codebase itself. Full analysis: [governance-reuse.md](governance-reuse.md).
 
-### Critical Deduplication
-- [ ] Extract shared utilities (`getNonce` ×4, `escapeHtml` ×5, `formatTimestamp` ×3) into `src/utils/`
-- [ ] Consolidate `execFileAsync` wrapper (8 copies across services) into a single `src/utils/exec.ts`
-- [ ] Unify panel infrastructure — extract `BasePanel<TWebviewMsg, TExtMsg>` generic from 5 panels (createOrShow, dispose, postMessage, getHtmlContent)
+### Critical Deduplication (reuse Phase 1)
+- [x] Extract shared utilities (`getNonce` → `src/utils/getNonce.ts`, `escapeHtml`/`escapeAttr`/`formatTimestamp` → `pillars/shared.ts`)
+- [x] Consolidate `execFileAsync` wrapper (8 copies) → `src/utils/exec.ts`
+- [x] Move `OrgScannerPrompt.ts` from `llm/` to `services/` (alongside `OrgScannerService.ts`)
+- [x] Add `*.vsix` to `.gitignore`
+- [x] Consolidate webview type mirrors → `src/webview/app/types.ts` (56 types, ~240 lines removed)
 
-### Module Decomposition
-- [ ] Split `src/types/index.ts` (1,079 LOC) into ~8 domain files (mesh, bar, calm, absolem, oraculum, scorecard, github, shared)
-- [ ] Decompose `lookingGlass.ts` (~8,000 LOC) into feature modules (portfolio, barDetail, absolem, diagram, settings, etc.)
-- [ ] Extract shared CSS/theme system — centralize CSS variables, eliminate per-panel duplication
+### Panel Infrastructure (reuse Phase 2)
+- [x] Unify panel infrastructure — extract `BasePanel<TWebviewMsg, TExtMsg>` generic from 5 panels (createOrShow, dispose, postMessage, getHtmlContent). ~75-100 lines of duplicated boilerplate eliminated.
 
-### Cross-Cutting Concerns
-- [ ] Centralized error handling — replace 93 ad-hoc try-catch blocks with consistent `Logger` service
-- [ ] Extract `ConfigService` — single source for settings, API keys, mesh config reads
+### Cross-Cutting Concerns (reuse Phase 3)
+- [x] Centralized error handling — `Logger.ts` (OutputChannel + 500-entry circular buffer, 4 log levels) + `errors.ts` (`toErrorMessage`, `handleError`) + Bug Report status bar icon
+- [x] Extract `ConfigService` — cached typed getters for all `maintainabilityai.*` settings, auto-invalidates on config change
+- [x] Extract `SecretsService` — business logic separated from `configureSecrets.ts` command
+- [x] Migrated 68 `err instanceof Error ? err.message : String(err)` → `toErrorMessage(err)` across 9 files
 - [ ] Standardize VS Code LLM usage — align VsCodeLmProvider patterns across services
 
+### Shared CSS/Theme (reuse Phase 4)
+- [x] Extract shared CSS/theme system — `theme.ts` (CSS variables mapped to VS Code tokens), `components.ts` (reset, buttons, spinners, loading overlays), `index.ts` barrel
+- [x] Migrated all 5 panels to shared theme + components (ScaffoldPanel, ScorecardPanel, IssueCreatorPanel, OracularPanel, LookingGlassPanel)
+
+### Module Decomposition (reuse Phases 5-6)
+- [x] Split `src/types/index.ts` (1,079 LOC) into 5 domain files (`prompts.ts`, `github.ts`, `scorecard.ts`, `governance.ts`, `webview.ts`) + barrel re-export
+- [x] Decompose `lookingGlass.ts` (7,643 → 3,612 LOC, 53% reduction) into feature modules (`views/portfolio.ts`, `views/barDetail.ts`, `views/eaLenses.ts`, `views/policies.ts`, `components/absolem.ts`, `components/scoreRing.ts`, `components/pillarCard.ts`)
+- [x] Refactor `esbuild.js` with `webviewEntry()` config factory (115 → 75 LOC)
+- [x] Add try-catch error boundary to `extension.ts` activation
+- [x] Add React error boundary to `DiagramCanvas.tsx` with retry button
+
 ### Build & Packaging
+- [x] Clean stale `.vsix` artifacts from version control (added to `.gitignore`)
 - [ ] Add `--watch` mode to esbuild for development
-- [ ] Clean stale `.vsix` artifacts from version control
 - [ ] Resolve `--no-dependencies` publish flag (missing declared dependencies)
+
+### Remaining (reuse Phase 7 — on hold)
+- [ ] Create HTML component helper functions (button, card, badge, metricTile)
+- [ ] Evaluate service registry pattern
+- [ ] Consider shared git utilities extraction
+- [ ] Add prompt pack content caching in `PromptPackService`
 
 ---
 

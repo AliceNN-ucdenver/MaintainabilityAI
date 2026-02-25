@@ -1,83 +1,25 @@
 // Oraculum — Architecture Review webview frontend
 // Hub / Create / Manage pattern (mirrors Cheshire Cat IssueCreatorPanel)
 
-interface VsCodeApi {
-  postMessage(message: unknown): void;
-  getState(): unknown;
-  setState(state: unknown): void;
-}
+import { escapeHtml, escapeAttr, formatTimestamp } from './pillars/shared';
+import { themeStyles, componentStyles } from '../styles';
+import type { VsCodeApi, ReviewPillar, AgentAssignment, BarSummarySlim, PromptPackOption, IssueComment, GitHubIssueListItem, LinkedPullRequest } from './types';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscode = acquireVsCodeApi();
 
 // ============================================================================
-// Types (mirrored — can't import in browser context)
+// Types (local UI-only types)
 // ============================================================================
 
 type ViewMode = 'hub' | 'create' | 'manage';
 type CreatePhase = 'configure' | 'submit';
 type ManagePhase = 'assign' | 'monitor' | 'results';
 type Phase = CreatePhase | ManagePhase;
-type ReviewPillar = 'architecture' | 'security' | 'risk' | 'operations';
-type AgentAssignment = 'claude' | 'copilot' | 'skip';
 
 const CREATE_PHASES: CreatePhase[] = ['configure', 'submit'];
 const MANAGE_PHASES: ManagePhase[] = ['assign'];
-
-interface BarSummary {
-  id: string;
-  name: string;
-  platformId: string;
-  platformName: string;
-  criticality: string;
-  lifecycle: string;
-  compositeScore: number;
-  repos: string[];
-  path: string;
-}
-
-interface PromptPackOption {
-  id: string;
-  name: string;
-  description: string;
-  domain?: string;
-  required?: boolean;
-  available: boolean;
-}
-
-interface IssueComment {
-  id: number;
-  author: string;
-  authorAvatarUrl: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-  isBot: boolean;
-}
-
-interface GitHubIssueListItem {
-  number: number;
-  title: string;
-  state: 'open' | 'closed';
-  labels: { name: string; color: string }[];
-  assignee: string | null;
-  createdAt: string;
-  updatedAt: string;
-  commentsCount: number;
-  url: string;
-}
-
-interface LinkedPullRequest {
-  number: number;
-  title: string;
-  url: string;
-  state: 'open' | 'closed' | 'merged';
-  branch: string;
-  checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
-  mergeable: boolean;
-  draft: boolean;
-}
 
 // ============================================================================
 // State
@@ -97,7 +39,7 @@ const state = {
   meshBehind: 0,
   meshAhead: 0,
   // BAR (populated by startCreateFlow)
-  selectedBar: null as BarSummary | null,
+  selectedBar: null as BarSummarySlim | null,
   selectedBarRepos: [] as string[],
   selectedBarPath: '',
   // Configure
@@ -389,10 +331,10 @@ function renderAssignPhase(): string {
 
   return `
     <h2>Assign an AI Agent</h2>
-    <p style="color: var(--vscode-descriptionForeground); margin-bottom: 4px;">
+    <p style="color: var(--text-secondary); margin-bottom: 4px;">
       ${issueLink} is ready for review.
     </p>
-    <p style="color: var(--vscode-descriptionForeground); font-size: 12px; margin-bottom: 16px;">Choose who should perform this architecture review:</p>
+    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">Choose who should perform this architecture review:</p>
 
     <div class="agent-cards">
       <div class="agent-card" id="assign-claude">
@@ -434,7 +376,7 @@ function renderMonitorPhase(): string {
   return `
     <div class="monitor-header">
       <h2 style="margin-bottom: 0;">Monitoring Issue #${state.issueNumber}</h2>
-      <a id="monitor-issue-link" style="cursor: pointer; color: var(--vscode-textLink-foreground);">Open in browser</a>
+      <a id="monitor-issue-link" style="cursor: pointer; color: var(--vscode-textLink-foreground, var(--accent));">Open in browser</a>
       <div class="polling-badge"><div class="polling-dot"></div> Polling for updates</div>
     </div>
 
@@ -592,7 +534,7 @@ function updateTimeline(comments: IssueComment[]) {
         <button id="btn-replan" class="btn-secondary" style="padding: 6px 20px;">Request Changes</button>
       </div>
       <div id="replan-area" style="display: none; margin-top: 10px;">
-        <textarea id="replan-feedback" style="min-height: 60px; width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; padding: 8px; font-family: inherit;" placeholder="Describe what should be changed in the plan..."></textarea>
+        <textarea id="replan-feedback" style="min-height: 60px; width: 100%; background: var(--bg-input); color: var(--input-fg); border: 1px solid var(--input-border); border-radius: 4px; padding: 8px; font-family: inherit;" placeholder="Describe what should be changed in the plan..."></textarea>
         <div style="margin-top: 6px; display: flex; gap: 8px;">
           <button id="btn-send-replan" class="btn-primary" style="padding: 6px 16px;">Send Feedback</button>
           <button id="btn-cancel-replan" class="btn-secondary" style="padding: 6px 16px;">Cancel</button>
@@ -1204,16 +1146,6 @@ window.addEventListener('message', (event) => {
 // Helpers
 // ============================================================================
 
-function escapeHtml(s: string): string {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 function renderMarkdown(text: string): string {
   let html = escapeHtml(text);
 
@@ -1237,7 +1169,7 @@ function renderMarkdown(text: string): string {
   });
 
   // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: var(--vscode-textLink-foreground);">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: var(--vscode-textLink-foreground, var(--accent));">$1</a>');
 
   // Headers
   html = html.replace(/^#### (.+)$/gm, '<h5 style="margin: 8px 0 4px;">$1</h5>');
@@ -1255,7 +1187,7 @@ function renderMarkdown(text: string): string {
   html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
 
   // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid var(--vscode-panel-border); margin: 8px 0;" />');
+  html = html.replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid var(--border); margin: 8px 0;" />');
 
   // Checkboxes
   html = html.replace(/^- \[x\] (.+)$/gm, '<div style="margin: 2px 0;">&#9745; $1</div>');
@@ -1268,7 +1200,7 @@ function renderMarkdown(text: string): string {
   html = html.replace(/^(\d+)\. (.+)$/gm, '<div style="margin: 2px 0; padding-left: 12px;">$1. $2</div>');
 
   // Blockquotes
-  html = html.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left: 3px solid var(--vscode-panel-border); padding-left: 10px; color: var(--vscode-descriptionForeground); margin: 4px 0;">$1</blockquote>');
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left: 3px solid var(--border); padding-left: 10px; color: var(--text-secondary); margin: 4px 0;">$1</blockquote>');
 
   // Tables — detect consecutive lines starting with |
   html = html.replace(/((?:^\|.+\|$\n?)+)/gm, (tableBlock) => {
@@ -1306,34 +1238,12 @@ function renderMarkdown(text: string): string {
   return html;
 }
 
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) { return 'just now'; }
-  if (diffMins < 60) { return `${diffMins}m ago`; }
-  const diffHrs = Math.floor(diffMins / 60);
-  if (diffHrs < 24) { return `${diffHrs}h ago`; }
-  const diffDays = Math.floor(diffHrs / 24);
-  if (diffDays < 30) { return `${diffDays}d ago`; }
-  return d.toLocaleDateString();
-}
-
 // ============================================================================
 // Styles
 // ============================================================================
 
 const style = document.createElement('style');
-style.textContent = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
-  }
+style.textContent = themeStyles + componentStyles + `
 
   /* Layout: Hub (full page) */
   .hub-layout {
@@ -1352,7 +1262,7 @@ style.textContent = `
   .hub-empty {
     text-align: center;
     padding: 48px 24px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
   }
 
   /* Layout: Create / Manage (sidebar + content) */
@@ -1365,8 +1275,8 @@ style.textContent = `
   .phase-sidebar {
     width: 200px;
     min-width: 200px;
-    background: var(--vscode-sideBar-background);
-    border-right: 1px solid var(--vscode-panel-border);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
     padding: 16px 0;
     display: flex;
     flex-direction: column;
@@ -1377,7 +1287,7 @@ style.textContent = `
     align-items: center;
     gap: 8px;
     padding: 0 16px 12px;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    border-bottom: 1px solid var(--border);
     margin-bottom: 4px;
   }
 
@@ -1388,7 +1298,7 @@ style.textContent = `
     padding: 8px 16px;
     font-size: 12px;
     cursor: pointer;
-    color: var(--vscode-textLink-foreground);
+    color: var(--vscode-textLink-foreground, var(--accent));
     display: block;
     margin-bottom: 8px;
     text-decoration: none;
@@ -1417,14 +1327,14 @@ style.textContent = `
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
-    border: 2px solid var(--vscode-panel-border);
+    border: 2px solid var(--border);
     flex-shrink: 0;
   }
 
   .phase-step.active .step-num {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border-color: var(--vscode-button-background);
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
   }
 
   .phase-step.completed .step-num {
@@ -1450,7 +1360,7 @@ style.textContent = `
 
   .issue-row {
     padding: 12px 16px;
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--border);
     border-radius: 6px;
     cursor: pointer;
     display: flex;
@@ -1458,9 +1368,9 @@ style.textContent = `
     gap: 12px;
     transition: background 0.15s, border-color 0.15s;
   }
-  .issue-row:hover { background: var(--vscode-list-hoverBackground); border-color: var(--vscode-button-background); }
+  .issue-row:hover { background: var(--vscode-list-hoverBackground); border-color: var(--accent); }
 
-  .issue-number { font-size: 12px; color: var(--vscode-descriptionForeground); font-weight: 600; min-width: 40px; padding-top: 2px; }
+  .issue-number { font-size: 12px; color: var(--text-secondary); font-weight: 600; min-width: 40px; padding-top: 2px; }
   .issue-content { flex: 1; min-width: 0; }
   .issue-title { font-size: 13px; font-weight: 500; }
   .issue-meta { margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1481,8 +1391,8 @@ style.textContent = `
     border: 1px solid var(--vscode-inputValidation-warningBorder);
   }
   .workflow-banner.ok {
-    background: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border, #444);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
   }
 
   .workflow-warning {
@@ -1547,7 +1457,7 @@ style.textContent = `
     align-items: flex-start;
     gap: 8px;
     padding: 8px 10px;
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--border);
     border-radius: 4px;
     cursor: pointer;
     font-size: 13px;
@@ -1571,16 +1481,16 @@ style.textContent = `
     gap: 2px;
   }
   .pack-description {
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 
   .input-select, .input-textarea {
     width: 100%;
     padding: 8px 10px;
-    background: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border);
+    background: var(--bg-input);
+    color: var(--input-fg);
+    border: 1px solid var(--input-border);
     border-radius: 4px;
     font-family: inherit;
     font-size: 13px;
@@ -1593,35 +1503,15 @@ style.textContent = `
     gap: 8px;
     margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px solid var(--vscode-panel-border);
+    border-top: 1px solid var(--border);
   }
 
-  /* Buttons */
-  .btn-primary, .btn-secondary, .btn-success {
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .btn-primary {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-  }
-  .btn-primary:hover { background: var(--vscode-button-hoverBackground); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Oraculum button overrides (secondary uses VS Code secondary tokens) */
   .btn-secondary {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+    background: var(--accent-secondary-bg);
+    color: var(--accent-secondary-fg);
   }
   .btn-secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-  .btn-success {
-    background: #22c55e;
-    color: #fff;
-  }
-  .btn-success:hover { background: #16a34a; }
-  .btn-sm { padding: 4px 10px; font-size: 12px; }
 
   /* Cards */
   .success-card {
@@ -1641,23 +1531,23 @@ style.textContent = `
   }
   .agent-card {
     padding: 20px 16px;
-    border: 2px solid var(--vscode-panel-border);
+    border: 2px solid var(--border);
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
     transition: border-color 0.15s, background 0.15s;
   }
   .agent-card:hover {
-    border-color: var(--vscode-button-background);
+    border-color: var(--accent);
     background: rgba(124, 58, 237, 0.05);
   }
   .agent-card h4 { font-size: 14px; margin-bottom: 8px; }
-  .agent-card p { font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+  .agent-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
   .agent-card code {
     background: var(--vscode-textCodeBlock-background);
     padding: 1px 4px;
     border-radius: 3px;
-    font-family: var(--vscode-editor-font-family);
+    font-family: var(--font-mono);
     font-size: 11px;
   }
 
@@ -1679,7 +1569,7 @@ style.textContent = `
   /* Results report */
   .results-report {
     margin-top: 16px;
-    border: 1px solid var(--vscode-panel-border, #444);
+    border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
   }
@@ -1689,7 +1579,7 @@ style.textContent = `
     gap: 8px;
     padding: 10px 14px;
     background: var(--vscode-textBlockQuote-background);
-    border-bottom: 1px solid var(--vscode-panel-border, #444);
+    border-bottom: 1px solid var(--border);
     font-size: 13px;
   }
   .results-report-body {
@@ -1699,23 +1589,23 @@ style.textContent = `
     max-height: 600px;
     overflow-y: auto;
   }
-  .results-report-body h1 { font-size: 18px; margin: 16px 0 8px; border-bottom: 1px solid var(--vscode-panel-border, #444); padding-bottom: 4px; }
+  .results-report-body h1 { font-size: 18px; margin: 16px 0 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
   .results-report-body h2 { font-size: 16px; margin: 14px 0 6px; }
   .results-report-body h3 { font-size: 14px; margin: 12px 0 4px; }
   .results-report-body h4 { font-size: 13px; margin: 10px 0 4px; }
   .results-report-body ul, .results-report-body ol { padding-left: 20px; margin: 6px 0; }
   .results-report-body li { margin: 2px 0; }
   .results-report-body pre { background: var(--vscode-textCodeBlock-background); padding: 10px; border-radius: 4px; overflow-x: auto; margin: 8px 0; }
-  .results-report-body code { background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; font-family: var(--vscode-editor-font-family); font-size: 12px; }
+  .results-report-body code { background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; font-family: var(--font-mono); font-size: 12px; }
   .results-report-body pre code { background: none; padding: 0; }
-  .results-report-body blockquote { border-left: 3px solid var(--vscode-textBlockQuote-border); padding: 4px 12px; margin: 8px 0; color: var(--vscode-descriptionForeground); }
+  .results-report-body blockquote { border-left: 3px solid var(--vscode-textBlockQuote-border); padding: 4px 12px; margin: 8px 0; color: var(--text-secondary); }
   .results-report-body table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-  .results-report-body th, .results-report-body td { border: 1px solid var(--vscode-panel-border, #444); padding: 6px 10px; text-align: left; font-size: 12px; }
+  .results-report-body th, .results-report-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; font-size: 12px; }
   .results-report-body th { background: var(--vscode-textBlockQuote-background); font-weight: 600; }
 
   /* Links */
   .issue-link {
-    color: var(--vscode-textLink-foreground);
+    color: var(--vscode-textLink-foreground, var(--accent));
     text-decoration: none;
     font-weight: 600;
   }
@@ -1735,7 +1625,7 @@ style.textContent = `
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
     margin-left: auto;
   }
   .polling-dot {
@@ -1756,7 +1646,7 @@ style.textContent = `
     margin-bottom: 12px;
     font-size: 13px;
     font-weight: 500;
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--border);
   }
   .status-analyzing { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); }
   .status-planning { background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3); }
@@ -1779,15 +1669,15 @@ style.textContent = `
   .timeline-empty {
     text-align: center;
     padding: 32px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
   }
   .timeline-card {
     padding: 12px 16px;
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--border);
     border-radius: 6px;
   }
   .timeline-card.bot {
-    border-left: 3px solid var(--vscode-button-background);
+    border-left: 3px solid var(--accent);
     background: rgba(124, 58, 237, 0.03);
   }
   .timeline-header {
@@ -1805,8 +1695,8 @@ style.textContent = `
     font-size: 10px;
     padding: 1px 6px;
     border-radius: 8px;
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
+    background: var(--accent);
+    color: var(--accent-fg);
   }
   .edited-badge {
     font-size: 10px;
@@ -1816,7 +1706,7 @@ style.textContent = `
     color: var(--vscode-badge-foreground);
   }
   .timeline-time {
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
     margin-left: auto;
     font-size: 11px;
   }
@@ -1829,7 +1719,7 @@ style.textContent = `
     background: var(--vscode-textCodeBlock-background);
     padding: 1px 4px;
     border-radius: 3px;
-    font-family: var(--vscode-editor-font-family);
+    font-family: var(--font-mono);
     font-size: 12px;
   }
   .timeline-body pre {
@@ -1874,7 +1764,7 @@ style.textContent = `
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
   }
   .checks-dot {
     width: 8px; height: 8px;
@@ -1891,7 +1781,7 @@ style.textContent = `
     align-items: center;
     gap: 12px;
     padding: 32px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--text-secondary);
   }
 
   /* Mesh sync banner */
@@ -1905,7 +1795,7 @@ style.textContent = `
     border-radius: 6px;
     margin-bottom: 12px;
     font-size: 13px;
-    color: var(--vscode-foreground);
+    color: var(--text-primary);
   }
   .mesh-sync-banner .btn-sm {
     padding: 3px 10px;
@@ -1926,7 +1816,7 @@ style.textContent = `
   .loading-overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: var(--vscode-editor-background);
+    background: var(--bg-primary);
     opacity: 0.9;
     display: flex;
     flex-direction: column;
@@ -1936,17 +1826,9 @@ style.textContent = `
     z-index: 10;
   }
 
-  .spinner {
-    width: 28px;
-    height: 28px;
-    border: 3px solid var(--vscode-panel-border);
-    border-top-color: var(--vscode-button-background);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay .spinner { width: 28px; height: 28px; }
 
-  .text-muted { color: var(--vscode-descriptionForeground); font-size: 13px; }
+  .text-muted { color: var(--text-secondary); font-size: 13px; }
 `;
 document.head.appendChild(style);
 

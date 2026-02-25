@@ -37,73 +37,36 @@ const extensionConfig = {
   },
 };
 
-/** @type {import('esbuild').BuildOptions} */
-const webviewConfig = {
-  entryPoints: ['src/webview/app/main.ts'],
-  bundle: true,
-  outfile: 'dist/webview/main.js',
-  format: 'iife',
-  platform: 'browser',
-  target: 'es2020',
-  sourcemap: !production,
-  minify: production,
-};
+/** Create a browser IIFE config for a webview entry point. */
+function webviewEntry(entryPoint, outfile, extras = {}) {
+  return {
+    entryPoints: [entryPoint],
+    bundle: true,
+    outfile: `dist/webview/${outfile}`,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2020',
+    sourcemap: !production,
+    minify: production,
+    ...extras,
+  };
+}
 
-/** @type {import('esbuild').BuildOptions} */
-const scorecardWebviewConfig = {
-  entryPoints: ['src/webview/app/scorecard.ts'],
-  bundle: true,
-  outfile: 'dist/webview/scorecard.js',
-  format: 'iife',
-  platform: 'browser',
-  target: 'es2020',
-  sourcemap: !production,
-  minify: production,
-};
-
-/** @type {import('esbuild').BuildOptions} */
-const lookingGlassWebviewConfig = {
-  entryPoints: ['src/webview/app/lookingGlass.ts'],
-  bundle: true,
-  outfile: 'dist/webview/lookingGlass.js',
-  format: 'iife',
-  platform: 'browser',
-  target: 'es2020',
-  sourcemap: !production,
-  minify: production,
-  jsx: 'automatic',
-  plugins: [inlineCssPlugin],
-};
-
-/** @type {import('esbuild').BuildOptions} */
-const oraculumWebviewConfig = {
-  entryPoints: ['src/webview/app/oraculum.ts'],
-  bundle: true,
-  outfile: 'dist/webview/oraculum.js',
-  format: 'iife',
-  platform: 'browser',
-  target: 'es2020',
-  sourcemap: !production,
-  minify: production,
-};
+const configs = [
+  extensionConfig,
+  webviewEntry('src/webview/app/main.ts', 'main.js'),
+  webviewEntry('src/webview/app/scorecard.ts', 'scorecard.js'),
+  webviewEntry('src/webview/app/lookingGlass.ts', 'lookingGlass.js', { jsx: 'automatic', plugins: [inlineCssPlugin] }),
+  webviewEntry('src/webview/app/oraculum.ts', 'oraculum.js'),
+];
 
 async function main() {
   if (watch) {
-    const extCtx = await esbuild.context(extensionConfig);
-    const webCtx = await esbuild.context(webviewConfig);
-    const scorecardCtx = await esbuild.context(scorecardWebviewConfig);
-    const lookingGlassCtx = await esbuild.context(lookingGlassWebviewConfig);
-    const oraculumCtx = await esbuild.context(oraculumWebviewConfig);
-    await Promise.all([extCtx.watch(), webCtx.watch(), scorecardCtx.watch(), lookingGlassCtx.watch(), oraculumCtx.watch()]);
+    const contexts = await Promise.all(configs.map(c => esbuild.context(c)));
+    await Promise.all(contexts.map(ctx => ctx.watch()));
     console.log('Watching for changes...');
   } else {
-    await Promise.all([
-      esbuild.build(extensionConfig),
-      esbuild.build(webviewConfig),
-      esbuild.build(scorecardWebviewConfig),
-      esbuild.build(lookingGlassWebviewConfig),
-      esbuild.build(oraculumWebviewConfig),
-    ]);
+    await Promise.all(configs.map(c => esbuild.build(c)));
     console.log('Build complete.');
   }
 }

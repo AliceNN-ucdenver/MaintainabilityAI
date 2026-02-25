@@ -2,72 +2,19 @@
 // Communicates with extension via postMessage/onMessage
 // Phase-based wizard: Input → Review → Submit → Assign → Monitor → Complete
 
-interface VsCodeApi {
-  postMessage(message: unknown): void;
-  getState(): unknown;
-  setState(state: unknown): void;
-}
+import { escapeHtml, escapeAttr, formatTimestamp } from './pillars/shared';
+import type { VsCodeApi, PromptPackInfo, RctroPrompt, IssueComment, LinkedPullRequest, GitHubIssueListItem } from './types';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscode = acquireVsCodeApi();
 
 // ============================================================================
-// Types (mirrored from extension types — can't import in browser context)
+// Types (local UI-only types)
 // ============================================================================
 
 type Phase = 'input' | 'review' | 'submit' | 'assign';
-
-interface PromptPackInfo {
-  id: string;
-  category: string;
-  name: string;
-  filename: string;
-}
-
-interface RctroPrompt {
-  title?: string;
-  role: string;
-  context: string;
-  task: string;
-  requirements: { title: string; details: string[]; validation: string }[];
-  output: string;
-}
-
-interface IssueComment {
-  id: number;
-  author: string;
-  authorAvatarUrl: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-  isBot: boolean;
-}
-
-interface LinkedPullRequest {
-  number: number;
-  title: string;
-  url: string;
-  state: 'open' | 'closed' | 'merged';
-  branch: string;
-  checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
-  mergeable: boolean;
-  draft: boolean;
-}
-
 type ViewMode = 'hub' | 'create' | 'manage';
-
-interface GitHubIssueListItem {
-  number: number;
-  title: string;
-  state: 'open' | 'closed';
-  labels: { name: string; color: string }[];
-  assignee: string | null;
-  createdAt: string;
-  updatedAt: string;
-  commentsCount: number;
-  url: string;
-}
 
 // ============================================================================
 // State
@@ -101,6 +48,9 @@ const state = {
   hubIssues: [] as GitHubIssueListItem[],
   hubHasMore: false,
   hubPage: 1,
+  // Workspace folders (shared across panels)
+  workspaceFolders: [] as { name: string; path: string }[],
+  selectedFolder: '',
 };
 
 const contentEl = document.getElementById('phaseContent')!;
@@ -591,6 +541,23 @@ function goToHub() {
   renderIssueListHub();
 }
 
+function renderFolderDropdown(): string {
+  if (state.isComponentMode) { return ''; }
+  if (state.workspaceFolders.length < 2) { return ''; }
+  const options = state.workspaceFolders.map(f =>
+    `<option value="${escapeAttr(f.path)}" ${f.path === state.selectedFolder ? 'selected' : ''}>${escapeHtml(f.name)}</option>`
+  ).join('');
+  return `<select id="folder-select" class="folder-select" title="Workspace folder">${options}</select>`;
+}
+
+function attachFolderSelect() {
+  const select = document.getElementById('folder-select') as HTMLSelectElement | null;
+  select?.addEventListener('change', () => {
+    state.selectedFolder = select.value;
+    vscode.postMessage({ type: 'switchFolder', folderPath: select.value });
+  });
+}
+
 function renderIssueListHub() {
   contentEl.innerHTML = `
     <div class="hub-layout">
@@ -601,7 +568,10 @@ function renderIssueListHub() {
             ${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'No repository detected'}
           </span>
         </div>
-        <button id="btn-refresh" class="btn-secondary" title="Refresh" style="padding: 6px 10px; font-size: 14px;">&#x21BB;</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${renderFolderDropdown()}
+          <button id="btn-refresh" class="btn-secondary btn-sm">Refresh</button>
+        </div>
       </div>
 
       <div id="issue-list">
@@ -625,6 +595,8 @@ function renderIssueListHub() {
       </div>
     </div>
   `;
+
+  attachFolderSelect();
 
   document.getElementById('btn-refresh')?.addEventListener('click', () => {
     state.hubPage = 1;
@@ -1003,32 +975,8 @@ function hideError() {
   if (el) { el.textContent = ''; }
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escapeAttr(str: string): string {
-  return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
 function formatKey(key: string): string {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-}
-
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) { return 'just now'; }
-  if (diffMin < 60) { return `${diffMin}m ago`; }
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) { return `${diffHr}h ago`; }
-  return d.toLocaleDateString();
 }
 
 // ============================================================================
@@ -1116,6 +1064,17 @@ window.addEventListener('message', (event) => {
           existing.textContent = `${message.repo.owner}/${message.repo.repo}`;
         }
       }
+      break;
+
+    case 'workspaceFolders':
+      state.workspaceFolders = message.folders;
+      if (message.selectedPath) {
+        state.selectedFolder = message.selectedPath;
+      } else if (!state.selectedFolder && message.folders.length > 0) {
+        state.selectedFolder = message.folders[0].path;
+      }
+      // Re-render hub to show/update the folder dropdown
+      if (state.viewMode === 'hub') { renderIssueListHub(); }
       break;
 
     case 'templateLoaded':

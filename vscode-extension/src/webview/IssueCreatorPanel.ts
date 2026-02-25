@@ -1,20 +1,22 @@
 import * as vscode from 'vscode';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { WebviewMessage, ExtensionMessage, RctroPrompt, RepoInfo, AgentAssignment, PromptPackSelection, TechStack } from '../types';
+import { toErrorMessage } from '../utils/errors';
 import { LlmService } from '../services/llm/LlmService';
 import { GitHubService } from '../services/GitHubService';
 import { PromptPackService } from '../services/PromptPackService';
 import { TechStackDetector } from '../services/TechStackDetector';
 import { IssueMonitorService } from '../services/IssueMonitorService';
+import { FolderStateService } from '../services/FolderStateService';
 import { ISSUE_TEMPLATES } from '../templates/issueTemplates';
 import { readRepoMetadata, writeRepoMetadata, mergeMetadata } from '../services/RepoMetadata';
+import { execFileAsync } from '../utils/exec';
+import { getNonce } from '../utils/getNonce';
+import { BasePanel } from './BasePanel';
+import { getSharedStyles } from './styles';
 
-const execFileAsync = promisify(execFile);
-
-export class IssueCreatorPanel {
+export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessage> {
   public static currentPanel: IssueCreatorPanel | undefined;
   private static readonly viewType = 'maintainabilityai.issueCreator';
 
@@ -24,15 +26,11 @@ export class IssueCreatorPanel {
   } | null>();
   static readonly onDidUpdateProgress = IssueCreatorPanel._onProgress.event;
 
-  private readonly panel: vscode.WebviewPanel;
-  private readonly context: vscode.ExtensionContext;
-  private readonly extensionPath: string;
   private readonly llmService: LlmService;
   private readonly githubService: GitHubService;
   private readonly promptPackService: PromptPackService;
   private readonly techStackDetector: TechStackDetector;
   private readonly monitorService: IssueMonitorService;
-  private disposables: vscode.Disposable[] = [];
 
   private currentRctro: RctroPrompt | undefined;
   private currentIssueNumber: number | undefined;
@@ -116,17 +114,15 @@ export class IssueCreatorPanel {
     stackOverride?: TechStack,
     folderPath?: string,
   ) {
+    super(panel, context);
     this.pendingDescription = initialDescription;
     this.pendingPacks = initialPacks;
     this.pendingRepoUrl = repoUrl;
     this.pendingStackOverride = stackOverride;
     this.folderPath = folderPath;
-    this.panel = panel;
-    this.context = context;
-    this.extensionPath = context.extensionPath;
     this.llmService = new LlmService();
     this.githubService = new GitHubService();
-    this.promptPackService = new PromptPackService(this.extensionPath);
+    this.promptPackService = new PromptPackService(context.extensionPath);
     this.techStackDetector = new TechStackDetector();
     this.monitorService = new IssueMonitorService(this.githubService);
 
@@ -144,18 +140,29 @@ export class IssueCreatorPanel {
       this.postMessage({ type: 'labelsUpdated', labels });
     });
 
-    this.panel.webview.html = this.getHtmlContent(panel.webview, context.extensionUri);
-
-    this.panel.webview.onDidReceiveMessage(
-      (msg: WebviewMessage) => this.handleMessage(msg),
-      null,
-      this.disposables
+    // Sync folder selection across panels
+    this.disposables.push(
+      FolderStateService.getInstance().onDidChangeFolder(newFolder => {
+        if (newFolder !== this.folderPath) {
+          this.folderPath = newFolder;
+          this.sendWorkspaceFolders(newFolder);
+          void this.githubService.detectRepoForFolder(newFolder).then(repo => {
+            if (repo) {
+              this.currentRepo = repo;
+              this.postMessage({ type: 'repoDetected', repo });
+              void this.onLoadIssues(1);
+            }
+          });
+          void this.onDetectStack();
+        }
+      }),
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        this.sendWorkspaceFolders(this.folderPath);
+      })
     );
-
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
   }
 
-  private async handleMessage(message: WebviewMessage) {
+  protected async handleMessage(message: WebviewMessage) {
     switch (message.type) {
       case 'ready':
         await this.onReady();
@@ -233,6 +240,9 @@ export class IssueCreatorPanel {
       case 'backToHub':
         this.onBackToHub();
         break;
+      case 'switchFolder':
+        await this.onSwitchFolder((message as Extract<WebviewMessage, { type: 'switchFolder' }>).folderPath);
+        break;
     }
   }
 
@@ -241,6 +251,12 @@ export class IssueCreatorPanel {
   // ============================================================================
 
   private async onReady() {
+    // Resolve folder from shared state if not explicitly set
+    if (!this.folderPath) {
+      this.folderPath = FolderStateService.getInstance().getSelectedFolder();
+    }
+    this.sendWorkspaceFolders(this.folderPath);
+
     this.onLoadPromptPacks();
     // Use stack override from component mode if provided, otherwise detect from workspace
     if (this.pendingStackOverride) {
@@ -276,6 +292,32 @@ export class IssueCreatorPanel {
       this.pendingDescription = undefined;
       this.pendingPacks = undefined;
     }
+  }
+
+  private sendWorkspaceFolders(selectedPath?: string) {
+    const folders = FolderStateService.getInstance().getWorkspaceFolders();
+    this.postMessage({
+      type: 'workspaceFolders',
+      folders,
+      ...(selectedPath ? { selectedPath } : {}),
+    } as ExtensionMessage);
+  }
+
+  private async onSwitchFolder(folderPath: string) {
+    this.folderPath = folderPath;
+    FolderStateService.getInstance().setSelectedFolder(folderPath);
+    this.sendWorkspaceFolders(folderPath);
+
+    // Re-detect repo for the new folder
+    const repo = await this.githubService.detectRepoForFolder(folderPath);
+    if (repo) {
+      this.currentRepo = repo;
+      this.postMessage({ type: 'repoDetected', repo });
+      await this.onLoadIssues(1);
+    }
+
+    // Re-detect stack
+    await this.onDetectStack();
   }
 
   private async onListModels() {
@@ -327,7 +369,7 @@ export class IssueCreatorPanel {
         markdown: this.rctroToMarkdown(rctro),
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = toErrorMessage(err);
       this.postMessage({ type: 'error', message: errorMessage });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -355,7 +397,7 @@ export class IssueCreatorPanel {
         markdown: this.rctroToMarkdown(rctro),
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = toErrorMessage(err);
       this.postMessage({ type: 'error', message: errorMessage });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -426,7 +468,7 @@ export class IssueCreatorPanel {
       this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'active' });
       this.emitProgress('assign', 'active');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = toErrorMessage(err);
       this.postMessage({ type: 'error', message: errorMessage });
       this.postMessage({ type: 'phaseUpdate', phase: 'submit', status: 'error', message: errorMessage });
     } finally {
@@ -494,7 +536,7 @@ export class IssueCreatorPanel {
         this.onStartMonitoring();
         this.switchToScorecard();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         this.postMessage({ type: 'error', message: `Failed to assign: ${msg}` });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'error', message: msg });
         return;
@@ -523,7 +565,7 @@ export class IssueCreatorPanel {
         this.onStartMonitoring();
         this.switchToScorecard();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         this.postMessage({ type: 'error', message: `Failed to assign Copilot: ${msg}` });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'error', message: msg });
       }
@@ -644,7 +686,7 @@ export class IssueCreatorPanel {
       );
       this.postMessage({ type: 'phaseUpdate', phase: 'monitor', status: 'active', message: 'Plan approved — implementation starting...' });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       this.postMessage({ type: 'error', message: `Failed to approve: ${msg}` });
     }
   }
@@ -667,7 +709,7 @@ export class IssueCreatorPanel {
       );
       this.postMessage({ type: 'phaseUpdate', phase: 'monitor', status: 'active', message: 'Feedback sent — waiting for revised plan...' });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       this.postMessage({ type: 'error', message: `Failed to send feedback: ${msg}` });
     }
   }
@@ -706,7 +748,7 @@ export class IssueCreatorPanel {
       this.postMessage({ type: 'branchCheckedOut', branch });
       vscode.window.showInformationMessage(`Switched to branch: ${branch}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       if (msg.includes('uncommitted changes') || msg.includes('local changes')) {
         this.postMessage({
           type: 'error',
@@ -735,7 +777,7 @@ export class IssueCreatorPanel {
       this.postMessage({ type: 'repoSynced', message: 'Repository synced successfully.' });
       vscode.window.showInformationMessage('Repository synced with remote.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       if (msg.includes('uncommitted changes') || msg.includes('local changes')) {
         this.postMessage({
           type: 'error',
@@ -795,7 +837,7 @@ export class IssueCreatorPanel {
         page: page || 1,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       this.postMessage({ type: 'error', message: `Failed to load issues: ${msg}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -864,11 +906,7 @@ export class IssueCreatorPanel {
     return md;
   }
 
-  private postMessage(message: ExtensionMessage) {
-    this.panel.webview.postMessage(message);
-  }
-
-  private getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  protected getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'main.js')
     );
@@ -883,33 +921,8 @@ export class IssueCreatorPanel {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https://avatars.githubusercontent.com https://github.com https://user-images.githubusercontent.com;">
   <title>MaintainabilityAI — Rabbit Hole</title>
   <style>
-    :root {
-      --bg-primary: var(--vscode-editor-background);
-      --bg-secondary: var(--vscode-sideBar-background);
-      --bg-input: var(--vscode-input-background);
-      --border: var(--vscode-panel-border);
-      --text-primary: var(--vscode-editor-foreground);
-      --text-secondary: var(--vscode-descriptionForeground);
-      --accent: var(--vscode-button-background);
-      --accent-hover: var(--vscode-button-hoverBackground);
-      --accent-fg: var(--vscode-button-foreground);
-      --error: var(--vscode-errorForeground);
-      --success: #22c55e;
-      --running: #f59e0b;
-      --purple: #a855f7;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--text-primary);
-      background: var(--bg-primary);
-      padding: 0;
-      height: 100vh;
-      overflow: hidden;
-    }
+    ${getSharedStyles()}
+    body { padding: 0; height: 100vh; overflow: hidden; }
 
     .app {
       display: grid;
@@ -1019,30 +1032,11 @@ export class IssueCreatorPanel {
     }
     textarea:focus, input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 
-    button {
-      padding: 8px 16px; border: none; border-radius: 4px;
-      font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s;
-    }
-    .btn-primary { background: var(--accent); color: var(--accent-fg); }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
-    .btn-secondary:hover { background: var(--bg-input); }
-    .btn-success { background: var(--success); color: #fff; }
-    .btn-success:hover { background: #16a34a; }
-    .btn-link { background: none; border: none; color: var(--accent); cursor: pointer; padding: 2px 4px; font-size: 11px; text-decoration: underline; font-weight: 400; }
-    .btn-link:hover { color: var(--accent-hover); }
-
-    .error-msg {
-      color: var(--error); font-size: 12px; margin-top: 8px; padding: 8px;
-      background: rgba(220, 38, 38, 0.1); border-radius: 4px;
-    }
-    .error-msg:empty { display: none; }
+    .error-msg { margin-top: 8px; }
 
     .loading { display: none; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; margin-top: 8px; }
     .loading.active { display: flex; }
-    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .spinner { width: 14px; height: 14px; border-width: 2px; }
 
     /* === Phase-specific: Input === */
     .category-group { margin-bottom: 12px; }
@@ -1190,6 +1184,8 @@ export class IssueCreatorPanel {
     .hub-layout { padding: 0; max-width: 800px; }
     .hub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .hub-header h2 { margin-bottom: 4px; }
+    .folder-select { background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-size: 12px; padding: 3px 8px; max-width: 200px; font-family: var(--vscode-font-family); }
+    .folder-select:focus { outline: none; border-color: var(--accent); }
     .hub-empty { text-align: center; padding: 40px; color: var(--text-secondary); }
     #back-to-hub-link { padding: 8px 16px; font-size: 12px; cursor: pointer; color: var(--accent); }
     #back-to-hub-link:hover { text-decoration: underline; }
@@ -1216,22 +1212,11 @@ export class IssueCreatorPanel {
 </html>`;
   }
 
-  private dispose() {
+  protected onDispose(): void {
     this.monitorService.dispose();
-    IssueCreatorPanel.currentPanel = undefined;
-    this.panel.dispose();
-    while (this.disposables.length) {
-      const d = this.disposables.pop();
-      d?.dispose();
-    }
   }
-}
 
-function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  protected clearCurrentPanel(): void {
+    IssueCreatorPanel.currentPanel = undefined;
   }
-  return result;
 }

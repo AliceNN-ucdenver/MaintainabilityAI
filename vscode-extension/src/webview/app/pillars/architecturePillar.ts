@@ -5,6 +5,7 @@
 
 import { escapeHtml, escapeAttr } from './shared';
 import type { VsCodeApi } from './shared';
+import type { AdrLinkType, AdrLink, AdrCharacteristics, AdrRecord } from '../types';
 
 // Absolem state passed from lookingGlass.ts
 export interface AbsolemState {
@@ -24,36 +25,6 @@ export interface ArchitectureDiagrams {
 // Context and Logical are view projections of the same data.
 export type CalmDataPayload = object | null;
 
-export type AdrLinkType = 'supersedes' | 'depends-on' | 'related';
-
-export interface AdrLink {
-  type: AdrLinkType;
-  targetId: string;
-}
-
-export interface AdrCharacteristics {
-  reversibility: number;
-  cost: number;
-  risk: number;
-  complexity: number;
-  effort: number;
-}
-
-export interface AdrRecord {
-  id: string;
-  title: string;
-  status: 'proposed' | 'accepted' | 'deprecated' | 'superseded';
-  date: string;
-  deciders: string;
-  context: string;
-  decision: string;
-  consequences: string;
-  alternatives?: string;
-  references?: string;
-  links?: AdrLink[];
-  characteristics?: AdrCharacteristics;
-}
-
 // ============================================================================
 // Render
 // ============================================================================
@@ -66,9 +37,10 @@ export function renderArchitectureDetail(
   adrEditingId: string | null,
   adrForm: Partial<AdrRecord> | null,
   barPath: string,
+  diagramFullscreen?: boolean,
 ): string {
-  const diagramSection = renderDiagramSection(calmData, mermaidDiagrams, activeTab, barPath);
-  const adrSection = renderAdrSection(adrs, adrEditingId, adrForm, barPath);
+  const diagramSection = renderDiagramSection(calmData, mermaidDiagrams, activeTab, barPath, diagramFullscreen);
+  const adrSection = diagramFullscreen ? '' : renderAdrSection(adrs, adrEditingId, adrForm, barPath);
 
   return `${diagramSection}${adrSection}`;
 }
@@ -78,6 +50,7 @@ function renderDiagramSection(
   mermaidDiagrams: ArchitectureDiagrams | null,
   activeTab: string,
   barPath: string,
+  diagramFullscreen?: boolean,
 ): string {
   const hasCalmData = !!calmData;
   const hasMermaid = mermaidDiagrams && (mermaidDiagrams.sequence || mermaidDiagrams.capability);
@@ -133,10 +106,17 @@ function renderDiagramSection(
   const resolvedTab = tabs.find(t => t.key === activeTab) ? activeTab : tabs[0].key;
   const activeTabInfo = tabs.find(t => t.key === resolvedTab)!;
 
+  const fullscreenIcon = diagramFullscreen
+    ? '&#x2716;'   // ✖ close
+    : '&#x26F6;';  // ⛶ expand
+  const fullscreenTitle = diagramFullscreen ? 'Exit fullscreen' : 'Fullscreen';
+
   const tabBar = tabs.map(t => `
     <button class="arch-tab ${t.key === resolvedTab ? 'active' : ''}"
       data-diagram-tab="${t.key}">${escapeHtml(t.label)}</button>
-  `).join('');
+  `).join('')
+    + `<button id="diagram-fullscreen-toggle" class="arch-tab" title="${fullscreenTitle}"
+        style="margin-left: auto; font-size: 14px; padding: 4px 8px;">${fullscreenIcon}</button>`;
 
   // Render content based on tab renderer type
   let diagramContent: string;
@@ -165,8 +145,8 @@ function renderDiagramSection(
   }
 
   return `
-    <div class="section-subheader">Architecture Views</div>
-    <div class="arch-views">
+    ${diagramFullscreen ? '' : '<div class="section-subheader">Architecture Views</div>'}
+    <div class="arch-views${diagramFullscreen ? ' fullscreen' : ''}">
       <div class="arch-tabs">${tabBar}</div>
       ${diagramContent}
     </div>

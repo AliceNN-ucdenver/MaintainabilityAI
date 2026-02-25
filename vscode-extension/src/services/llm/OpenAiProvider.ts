@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import type { LlmProvider, RctroPrompt, TechStack } from '../../types';
 import { RCTRO_SYSTEM_PROMPT } from './LlmService';
 import { TechStackDetector } from '../TechStackDetector';
+import { toErrorMessage } from '../../utils/errors';
 
 export class OpenAiProvider implements LlmProvider {
   readonly name = 'OpenAI';
@@ -88,7 +89,7 @@ export class OpenAiProvider implements LlmProvider {
         output: parsed.output || '',
       };
     } catch (err) {
-      throw new Error(`Failed to parse LLM response as RCTRO JSON. Error: ${err instanceof Error ? err.message : String(err)}\nRaw response:\n${text.substring(0, 500)}`);
+      throw new Error(`Failed to parse LLM response as RCTRO JSON. Error: ${toErrorMessage(err)}\nRaw response:\n${text.substring(0, 500)}`);
     }
   }
 }

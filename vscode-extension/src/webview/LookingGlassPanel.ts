@@ -2,8 +2,6 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import type {
   AbsolemCommand,
   ArchitectureDsl,
@@ -35,15 +33,16 @@ import { AbsolemService } from '../services/AbsolemService';
 import { generateArchetype, type ArchetypeId } from '../templates/scaffolding/archetypeTemplates';
 import { generateScaffoldPromptPack } from '../templates/scaffoldTemplates';
 import { ScaffoldPanel } from './ScaffoldPanel';
+import { execFileAsync } from '../utils/exec';
+import { getNonce } from '../utils/getNonce';
+import { BasePanel } from './BasePanel';
+import { logger } from '../utils/Logger';
+import { toErrorMessage } from '../utils/errors';
 
-const execFileAsync = promisify(execFile);
-
-export class LookingGlassPanel {
+export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, LookingGlassExtensionMessage> {
   public static currentPanel: LookingGlassPanel | undefined;
   private static readonly viewType = 'maintainabilityai.lookingGlass';
 
-  private readonly panel: vscode.WebviewPanel;
-  private readonly context: vscode.ExtensionContext;
   private readonly meshService: MeshService;
   private readonly barService: BarService;
   private readonly githubService: GitHubService;
@@ -52,7 +51,6 @@ export class LookingGlassPanel {
   private readonly capabilityModelService: CapabilityModelService;
   private readonly calmFileWatcher: CalmFileWatcher;
   private readonly absolemService: AbsolemService;
-  private disposables: vscode.Disposable[] = [];
   private lastDrilledBarPath: string | undefined;
   private lastDrilledBarName: string | undefined;
   private activeReviewPollTimer: ReturnType<typeof setInterval> | undefined;
@@ -102,8 +100,7 @@ export class LookingGlassPanel {
   }
 
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
-    this.panel = panel;
-    this.context = context;
+    super(panel, context);
     this.meshService = new MeshService();
     this.barService = new BarService();
     this.githubService = new GitHubService();
@@ -117,23 +114,9 @@ export class LookingGlassPanel {
     this.calmFileWatcher.start((filePath) => {
       this.onExternalCalmFileChanged(filePath);
     });
-
-    this.panel.webview.html = this.getHtmlContent(panel.webview, context.extensionUri);
-
-    this.panel.webview.onDidReceiveMessage(
-      (msg: LookingGlassWebviewMessage) => this.handleMessage(msg),
-      null,
-      this.disposables
-    );
-
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
   }
 
-  private postMessage(msg: LookingGlassExtensionMessage) {
-    this.panel.webview.postMessage(msg);
-  }
-
-  private async handleMessage(message: LookingGlassWebviewMessage) {
+  protected async handleMessage(message: LookingGlassWebviewMessage) {
     switch (message.type) {
       case 'ready':
         await this.onReady();
@@ -281,6 +264,10 @@ export class LookingGlassPanel {
         await this.onOpenRepoInContext(message.repoUrl, message.barPath);
         break;
 
+      case 'openScorecard':
+        vscode.commands.executeCommand('maintainabilityai.openScorecard', message.folderPath);
+        break;
+
       case 'scaffoldComponent':
         await this.onScaffoldComponent(message.repoUrl, message.barPath);
         break;
@@ -360,6 +347,10 @@ export class LookingGlassPanel {
 
       case 'saveDriftWeights':
         this.onSaveDriftWeights(message.weights);
+        break;
+
+      case 'configureMeshSecrets':
+        vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'governance');
         break;
 
       // Absolem — multi-turn CALM refinement agent
@@ -448,15 +439,15 @@ export class LookingGlassPanel {
         this.postMessage({ type: 'error', message: 'Failed to read mesh.yaml' });
         return;
       }
-      // Include open workspace folder names so webview can highlight active repos
-      const workspaceFolders = (vscode.workspace.workspaceFolders || []).map(f => f.name);
+      // Include open workspace folder full paths so webview can highlight active repos + navigate to scorecard
+      const workspaceFolders = (vscode.workspace.workspaceFolders || []).map(f => f.uri.fsPath);
       this.postMessage({ type: 'portfolioData', data: summary, workspaceFolders });
       // Fetch git status for sync indicators
       this.sendGitStatus(meshPath, summary.allBars);
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Error scanning mesh: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Error scanning mesh: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -682,7 +673,7 @@ export class LookingGlassPanel {
       if (activeIdx >= 0) { markError(activeIdx); }
       this.postMessage({
         type: 'error',
-        message: `Failed to initialize mesh: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to initialize mesh: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -705,7 +696,7 @@ export class LookingGlassPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to add platform: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to add platform: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -737,7 +728,7 @@ export class LookingGlassPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to scaffold BAR: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to scaffold BAR: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -811,7 +802,7 @@ export class LookingGlassPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to load BAR: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to load BAR: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -1008,7 +999,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
         this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
       }
     } catch (err) {
-      this.postMessage({ type: 'error', message: `LLM request failed: ${err instanceof Error ? err.message : String(err)}` });
+      this.postMessage({ type: 'error', message: `LLM request failed: ${toErrorMessage(err)}` });
       this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
     }
   }
@@ -1017,7 +1008,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     try {
       writeLayoutFile(barPath, diagramType, layout as Parameters<typeof writeLayoutFile>[2]);
     } catch (err) {
-      console.error('Failed to save layout:', err);
+      logger.error('Failed to save layout', err);
     }
   }
 
@@ -1033,7 +1024,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to export PNG: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to export PNG: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1062,7 +1053,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to apply CALM mutation: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to apply CALM mutation: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1111,7 +1102,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to apply archetype: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to apply archetype: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1144,7 +1135,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to create sample platform: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to create sample platform: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -1165,7 +1156,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to update ${field}: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to update ${field}: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1179,7 +1170,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to update app.yaml: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to update app.yaml: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1191,7 +1182,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to list ADRs: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to list ADRs: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1206,7 +1197,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to create ADR: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to create ADR: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1221,7 +1212,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to update ADR: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to update ADR: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1235,7 +1226,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to delete ADR: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to delete ADR: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1253,12 +1244,12 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       // THEN send the threat model result so it arrives after barDetail
       this.postMessage({ type: 'threatModelGenerated', result });
     } catch (err) {
-      console.error('[ThreatModel] Generation failed:', err);
+      logger.error('[ThreatModel] Generation failed', err);
       // Reset generating state so the webview doesn't stay stuck on progress bar
       this.postMessage({ type: 'threatModelFailed' });
       this.postMessage({
         type: 'error',
-        message: `Threat model generation failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Threat model generation failed: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1286,7 +1277,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Export failed: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1321,7 +1312,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Org scan failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Org scan failed: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1349,7 +1340,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to load repos: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to load repos: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1389,24 +1380,24 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Org scan failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Org scan failed: ${toErrorMessage(err)}`,
       });
     }
   }
 
   private async onAddReposToBar(barPath: string, repoUrls: string[]) {
-    console.log(`[addReposToBar] barPath="${barPath}" repoUrls=${JSON.stringify(repoUrls)}`);
+    logger.info(`[addReposToBar] barPath="${barPath}" repoUrls=${JSON.stringify(repoUrls)}`);
     try {
       const count = this.barService.addRepos(barPath, repoUrls);
-      console.log(`[addReposToBar] addRepos returned count=${count}`);
+      logger.debug(`[addReposToBar] addRepos returned count=${count}`);
       this.postMessage({ type: 'reposAddedToBar', barPath, count });
       // Refresh the BAR detail to show the new repos
       await this.onDrillIntoBar(barPath);
     } catch (err) {
-      console.error(`[addReposToBar] error:`, err);
+      logger.error('[addReposToBar] error', err);
       this.postMessage({
         type: 'error',
-        message: `Failed to add repos: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to add repos: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -1447,7 +1438,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to apply org scan: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to apply org scan: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -1497,7 +1488,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       this.postMessage({
         type: 'syncError',
         barPath,
-        message: err instanceof Error ? err.message : String(err),
+        message: toErrorMessage(err),
       });
     }
   }
@@ -1528,7 +1519,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'pushError',
-        message: err instanceof Error ? err.message : String(err),
+        message: toErrorMessage(err),
       });
     }
   }
@@ -1554,7 +1545,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
         // Refresh portfolio data + git status after pull (files may have changed)
         const summary = this.meshService.buildPortfolioSummary(meshPath);
         if (summary) {
-          const wsFolders = (vscode.workspace.workspaceFolders || []).map(f => f.name);
+          const wsFolders = (vscode.workspace.workspaceFolders || []).map(f => f.uri.fsPath);
           this.postMessage({ type: 'portfolioData', data: summary, workspaceFolders: wsFolders });
           await this.sendGitStatus(meshPath, summary.allBars);
         }
@@ -1569,7 +1560,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'pullError',
-        message: err instanceof Error ? err.message : String(err),
+        message: toErrorMessage(err),
       });
     }
   }
@@ -1587,7 +1578,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       this.postMessage({ type: 'capabilityModelSwitched', modelType });
       await this.loadPortfolio();
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to switch model: ${err instanceof Error ? err.message : String(err)}` });
+      this.postMessage({ type: 'error', message: `Failed to switch model: ${toErrorMessage(err)}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
     }
@@ -1604,7 +1595,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       this.updateMeshYamlField(meshPath, 'capability_model', 'custom');
       await this.loadPortfolio();
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Invalid model JSON: ${err instanceof Error ? err.message : String(err)}` });
+      this.postMessage({ type: 'error', message: `Invalid model JSON: ${toErrorMessage(err)}` });
     }
   }
 
@@ -1655,8 +1646,10 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
             { uri: vscode.Uri.file(clonedPath) });
           this.refreshWorkspaceFolders();
           this.ensureNamedWorkspace(this.lastDrilledBarName);
+          // Auto-open the Security Scorecard for the cloned repo
+          vscode.commands.executeCommand('maintainabilityai.openScorecard', clonedPath);
         } catch (err) {
-          this.postMessage({ type: 'error', message: `Clone failed: ${err instanceof Error ? err.message : String(err)}` });
+          this.postMessage({ type: 'error', message: `Clone failed: ${toErrorMessage(err)}` });
         } finally {
           this.postMessage({ type: 'loading', active: false });
         }
@@ -1843,7 +1836,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to build scaffold context: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to build scaffold context: ${toErrorMessage(err)}`,
       });
       return;
     }
@@ -1910,7 +1903,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to build scaffold context: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to build scaffold context: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2164,7 +2157,7 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to load policies: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to load policies: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2186,7 +2179,7 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to save policy: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to save policy: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2208,7 +2201,7 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to create NIST catalog: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to create NIST catalog: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2329,7 +2322,7 @@ Policy file: ${filename}
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to generate baseline: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to generate baseline: ${toErrorMessage(err)}`,
       });
       this.postMessage({ type: 'policyBaselineGenerated', filename });
     }
@@ -2415,9 +2408,9 @@ Policy file: ${filename}
   }
 
   private async onAbsolemStart(barPath: string, command: AbsolemCommand): Promise<void> {
-    // Read CALM data
+    // Read CALM data (repo-to-calm can work without existing architecture)
     const calmData = readCalmArchitectureData(barPath);
-    if (!calmData) {
+    if (!calmData && command !== 'repo-to-calm') {
       this.postMessage({ type: 'absolemError', barPath, message: 'No CALM architecture data found (bar.arch.json).' });
       return;
     }
@@ -2485,14 +2478,14 @@ Policy file: ${filename}
 
     try {
       await this.absolemService.startConversation(
-        barPath, command, calmData, reviewReport, validationErrors,
+        barPath, command, calmData || { nodes: [], relationships: [] }, reviewReport, validationErrors,
         this.buildAbsolemChunkCallback(barPath),
       );
     } catch (err) {
       this.postMessage({
         type: 'absolemError',
         barPath,
-        message: `Failed to start Absolem: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to start Absolem: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2507,7 +2500,7 @@ Policy file: ${filename}
       this.postMessage({
         type: 'absolemError',
         barPath,
-        message: `Absolem error: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Absolem error: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2531,7 +2524,7 @@ Policy file: ${filename}
       this.postMessage({
         type: 'absolemError',
         barPath,
-        message: `Failed to apply patches: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to apply patches: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2561,7 +2554,7 @@ Policy file: ${filename}
       this.postMessage({
         type: 'absolemError',
         barPath,
-        message: `Image analysis failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Image analysis failed: ${toErrorMessage(err)}`,
       });
     }
   }
@@ -2579,6 +2572,7 @@ Policy file: ${filename}
       const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
       if (match) {
         this.meshRepoInfo = { owner: match[1], repo: match[2] };
+        this.postMessage({ type: 'meshRepoDetected', owner: match[1], repo: match[2] });
       }
     } catch { /* no git remote — mesh is local only */ }
   }
@@ -2645,7 +2639,7 @@ Policy file: ${filename}
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to provision workflow: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to provision workflow: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -2658,7 +2652,7 @@ Policy file: ${filename}
       await config.update('llm.preferredFamily', family, vscode.ConfigurationTarget.Global);
       this.postMessage({ type: 'preferredModelSaved', family });
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to save model preference: ${err instanceof Error ? err.message : String(err)}` });
+      this.postMessage({ type: 'error', message: `Failed to save model preference: ${toErrorMessage(err)}` });
     }
   }
 
@@ -2764,14 +2758,14 @@ body:
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Reinitialize failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Reinitialize failed: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
     }
   }
 
-  private getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  protected getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'lookingGlass.js')
     );
@@ -2794,23 +2788,12 @@ body:
 </html>`;
   }
 
-  private dispose() {
-    LookingGlassPanel.currentPanel = undefined;
+  protected onDispose(): void {
     this.stopActiveReviewPolling();
     this.calmFileWatcher.stop();
-    this.panel.dispose();
-    while (this.disposables.length) {
-      const d = this.disposables.pop();
-      if (d) { d.dispose(); }
-    }
   }
-}
 
-function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  protected clearCurrentPanel(): void {
+    LookingGlassPanel.currentPanel = undefined;
   }
-  return text;
 }

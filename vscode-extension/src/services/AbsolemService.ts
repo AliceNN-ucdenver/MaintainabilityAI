@@ -5,6 +5,9 @@ import * as vscode from 'vscode';
 import type { AbsolemCommand } from '../types';
 import type { CalmPatch } from './CalmWriteService';
 import type { CalmValidationError } from './CalmValidator';
+import { GitHubService } from './GitHubService';
+import { execFileAsync } from '../utils/exec';
+import { toErrorMessage } from '../utils/errors';
 
 interface AbsolemMessage {
   role: 'system' | 'user' | 'assistant';
@@ -13,6 +16,7 @@ interface AbsolemMessage {
 
 interface AbsolemConversation {
   barPath: string;
+  command: AbsolemCommand;
   messages: AbsolemMessage[];
 }
 
@@ -166,6 +170,109 @@ Decorators: [{ $ref, mappings: { node-id: { capabilities: [] } } }]
 
 {reviewContext}`;
 
+const REPO_TO_CALM_SYSTEM_PROMPT = `You are Absolem, the architecture refinement caterpillar. You analyze GitHub repository codebases and propose CALM (Common Architecture Language Model) architecture patches based on what you find in the code.
+
+## Your Task
+When given repository contents (file tree, package manifests, Docker configs, README, source structure), analyze the codebase and propose incremental CALM patches that ADD what's missing to the BAR's existing architecture. Do NOT remove existing nodes — the human decides what to deprecate.
+
+## What to Look For
+- **Services**: Express/Flask/Spring/Go HTTP servers, microservices, background workers
+- **Databases**: MongoDB, PostgreSQL, Redis, DynamoDB connections in code or config
+- **Message queues**: RabbitMQ, Kafka, SQS references
+- **External services**: Third-party API calls, OAuth providers, CDNs
+- **Infrastructure**: Docker containers, Kubernetes deployments, serverless functions
+- **API boundaries**: REST routes, GraphQL schemas, gRPC proto files
+- **Actors**: User types mentioned in README or auth code
+
+## CALM 1.2 Schema — CRITICAL: follow this exact JSON structure
+
+### Nodes
+\`\`\`json
+{
+  "unique-id": "my-service",
+  "node-type": "service",
+  "name": "My Service",
+  "description": "What it does",
+  "data-classification": "Internal",
+  "interfaces": [{ "unique-id": "my-http", "host": "localhost", "port": 8080 }]
+}
+\`\`\`
+Valid node-types: actor, system, service, database, network
+
+### Relationships — relationship-type is a NESTED OBJECT, not a string
+\`\`\`json
+{
+  "unique-id": "a-to-b",
+  "description": "A calls B",
+  "relationship-type": {
+    "connects": {
+      "source": { "node": "service-a" },
+      "destination": { "node": "service-b" }
+    }
+  },
+  "protocol": "HTTPS"
+}
+\`\`\`
+Three relationship types (nested under relationship-type):
+- \`connects\`: { source: { node }, destination: { node } } — draws an edge/line
+- \`interacts\`: { actor: "actor-id", nodes: ["system-id"] } — actor uses a system
+- \`composed-of\`: { container: "parent-id", nodes: ["child1", "child2"] } — visual containment
+
+IMPORTANT: Create a SEPARATE relationship for EACH connection.
+
+## Rules
+1. Compare what you find against the existing CALM architecture
+2. Only propose what's MISSING or needs UPDATING — don't duplicate existing nodes
+3. For existing nodes that match, note them but don't re-add
+4. Express all changes as a JSON array of CalmPatch operations in a \`\`\`calm-patches code fence
+5. Valid operations: addNode, addRelationship, updateField, replaceFull
+6. If the BAR has NO existing architecture, use replaceFull to create a complete CALM JSON
+7. Explain what you found and WHY each patch is needed
+
+## Current Architecture
+{calmJson}
+
+## Output Format
+1. Summarize what you found in the repository (services, databases, frameworks, APIs)
+2. List what's already in CALM vs what's missing
+3. You MUST output a \`\`\`calm-patches code fence containing a JSON array of patch operations. This is REQUIRED — without it, the UI cannot present accept/reject buttons.
+
+If the existing architecture is empty or minimal, use replaceFull:
+\`\`\`calm-patches
+[{"op": "replaceFull", "target": "architecture", "value": {"nodes": [...], "relationships": [...], "flows": [...]}}]
+\`\`\`
+
+If adding to existing architecture, use addNode/addRelationship:
+\`\`\`calm-patches
+[
+  {"op": "addNode", "target": "nodes", "value": {"unique-id": "my-db", "node-type": "database", "name": "PostgreSQL", "description": "Primary data store"}},
+  {"op": "addRelationship", "target": "relationships", "value": {"unique-id": "svc-to-db", "description": "Service queries DB", "relationship-type": {"connects": {"source": {"node": "my-service"}, "destination": {"node": "my-db"}}}, "protocol": "PostgreSQL"}}
+]
+\`\`\`
+
+IMPORTANT: Always include the calm-patches code fence. The analysis text alone is not enough — the patches are what gets applied to the architecture.`;
+
+const MAX_FILE_CONTENT_LENGTH = 4000;
+const REPO_SCAN_TIMEOUT = 30_000;
+
+/** Priority files to fetch from repos, in order of importance */
+const KEY_FILE_PATTERNS: { pattern: RegExp; maxMatches: number }[] = [
+  { pattern: /^package\.json$/, maxMatches: 1 },
+  { pattern: /^pyproject\.toml$/, maxMatches: 1 },
+  { pattern: /^pom\.xml$/, maxMatches: 1 },
+  { pattern: /^go\.mod$/, maxMatches: 1 },
+  { pattern: /^Cargo\.toml$/, maxMatches: 1 },
+  { pattern: /^requirements\.txt$/, maxMatches: 1 },
+  { pattern: /^docker-compose\.ya?ml$/, maxMatches: 1 },
+  { pattern: /^Dockerfile$/, maxMatches: 1 },
+  { pattern: /^Containerfile$/, maxMatches: 1 },
+  { pattern: /^README\.md$/i, maxMatches: 1 },
+  { pattern: /^\.github\/workflows\/[^/]+\.ya?ml$/, maxMatches: 3 },
+  { pattern: /^(k8s|helm|terraform|infra)\//, maxMatches: 3 },
+  { pattern: /^\.env\.example$/, maxMatches: 1 },
+  { pattern: /^(src|app|cmd|internal|lib)\/[^/]+\.(ts|js|py|go|java|rs)$/, maxMatches: 5 },
+];
+
 export class AbsolemService {
   private conversations: Map<string, AbsolemConversation> = new Map();
 
@@ -198,6 +305,7 @@ export class AbsolemService {
     // Create conversation
     const conv: AbsolemConversation = {
       barPath,
+      command,
       messages: [{ role: 'system', content: systemPrompt }],
     };
     this.conversations.set(barPath, conv);
@@ -205,6 +313,17 @@ export class AbsolemService {
     // For freeform, don't auto-send — wait for user input
     if (command === 'freeform') {
       return '';
+    }
+
+    // For repo-to-calm, use specialized prompt and post greeting — wait for URL
+    if (command === 'repo-to-calm') {
+      const repoPrompt = REPO_TO_CALM_SYSTEM_PROMPT.replace('{calmJson}', calmJson);
+      conv.messages = [{ role: 'system', content: repoPrompt }];
+      const greeting = 'Paste a GitHub repository URL and I\'ll analyze the codebase to propose CALM architecture patches.\n\nI\'ll look at: package manifests, source structure, Docker/k8s configs, CI/CD workflows, API routes, and README documentation.';
+      conv.messages.push({ role: 'assistant', content: greeting });
+      onChunk(greeting, false);
+      onChunk('', true);
+      return greeting;
     }
 
     // Build initial user message based on command
@@ -231,6 +350,11 @@ export class AbsolemService {
     const userTurns = conv.messages.filter(m => m.role === 'user').length;
     if (userTurns >= MAX_TURNS) {
       throw new Error('Conversation has reached the maximum number of turns. Please start a fresh conversation.');
+    }
+
+    // For repo-to-calm: if the message looks like a GitHub URL, trigger repo scan
+    if (conv.command === 'repo-to-calm' && this.looksLikeGitHubUrl(userMessage.trim())) {
+      return this.handleRepoToCalm(conv, userMessage.trim(), onChunk);
     }
 
     conv.messages.push({ role: 'user', content: userMessage });
@@ -272,6 +396,7 @@ export class AbsolemService {
 
     const conv: AbsolemConversation = {
       barPath,
+      command: 'image-to-calm',
       messages: [{ role: 'system', content: systemPrompt }],
     };
     this.conversations.set(barPath, conv);
@@ -380,6 +505,153 @@ export class AbsolemService {
     onChunk('', true);
 
     return text;
+  }
+
+  private looksLikeGitHubUrl(text: string): boolean {
+    return /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+/.test(text)
+      || /^git@github\.com:[\w.-]+\/[\w.-]+/.test(text);
+  }
+
+  private async handleRepoToCalm(
+    conv: AbsolemConversation,
+    repoUrl: string,
+    onChunk: (chunk: string, done: boolean) => void,
+  ): Promise<string> {
+    // Add the user's URL message
+    conv.messages.push({ role: 'user', content: repoUrl });
+
+    // Stream a scanning status
+    onChunk('Scanning repository...\n\n', false);
+
+    try {
+      const repoContext = await this.scanRepository(repoUrl);
+
+      // Add repo context as a system-injected user message
+      conv.messages.push({
+        role: 'user',
+        content: `Here are the repository contents I scanned. Analyze them and propose CALM patches:\n\n${repoContext}`,
+      });
+
+      // Send to LLM
+      return await this.sendToLlm(conv, onChunk);
+    } catch (err) {
+      const msg = `Failed to scan repository: ${toErrorMessage(err)}`;
+      conv.messages.push({ role: 'assistant', content: msg });
+      onChunk(msg, false);
+      onChunk('', true);
+      return msg;
+    }
+  }
+
+  private async scanRepository(repoUrl: string): Promise<string> {
+    const parsed = GitHubService.parseRepoUrl(repoUrl);
+    if (!parsed) {
+      throw new Error(`Invalid GitHub URL: ${repoUrl}. Expected format: https://github.com/owner/repo`);
+    }
+    const { owner, repo } = parsed;
+
+    // 1. Fetch file tree
+    const tree = await this.fetchRepoTree(owner, repo);
+
+    // 2. Fetch key files
+    const keyFiles = await this.fetchKeyFiles(owner, repo, tree);
+
+    // 3. Build context string
+    return this.buildRepoContext(repoUrl, tree, keyFiles);
+  }
+
+  private async fetchRepoTree(owner: string, repo: string): Promise<string[]> {
+    try {
+      const { stdout } = await execFileAsync('gh', [
+        'api', `repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,
+        '--jq', '.tree[].path',
+      ], { timeout: REPO_SCAN_TIMEOUT });
+      return stdout.trim().split('\n').filter(Boolean);
+    } catch (err) {
+      const msg = toErrorMessage(err);
+      if (msg.includes('ENOENT') || msg.includes('not found')) {
+        throw new Error('GitHub CLI (gh) is not installed. Install it from https://cli.github.com/ and run "gh auth login".');
+      }
+      if (msg.includes('404') || msg.includes('Not Found')) {
+        throw new Error(`Repository not found or no access: ${owner}/${repo}. Make sure you're authenticated with "gh auth login" and have read access.`);
+      }
+      throw err;
+    }
+  }
+
+  private async fetchKeyFiles(owner: string, repo: string, tree: string[]): Promise<Map<string, string>> {
+    const filesToFetch: string[] = [];
+
+    for (const { pattern, maxMatches } of KEY_FILE_PATTERNS) {
+      let count = 0;
+      for (const path of tree) {
+        if (count >= maxMatches) { break; }
+        if (pattern.test(path)) {
+          filesToFetch.push(path);
+          count++;
+        }
+      }
+    }
+
+    const results = new Map<string, string>();
+
+    // Fetch files in parallel (batches of 5)
+    for (let i = 0; i < filesToFetch.length; i += 5) {
+      const batch = filesToFetch.slice(i, i + 5);
+      const fetches = batch.map(async (filePath) => {
+        try {
+          const { stdout } = await execFileAsync('gh', [
+            'api', `repos/${owner}/${repo}/contents/${filePath}`,
+            '-H', 'Accept: application/vnd.github.raw+json',
+          ], { timeout: REPO_SCAN_TIMEOUT });
+
+          const content = stdout.length > MAX_FILE_CONTENT_LENGTH
+            ? stdout.slice(0, MAX_FILE_CONTENT_LENGTH) + '\n\n[...truncated]'
+            : stdout;
+          results.set(filePath, content);
+        } catch {
+          // Skip files that can't be fetched (binary, too large, etc.)
+        }
+      });
+      await Promise.all(fetches);
+    }
+
+    return results;
+  }
+
+  private buildRepoContext(repoUrl: string, tree: string[], keyFiles: Map<string, string>): string {
+    const lines: string[] = [];
+    lines.push(`## Repository: ${repoUrl}\n`);
+
+    // File tree (truncated for very large repos)
+    lines.push('### File Tree');
+    const maxTreeLines = 200;
+    if (tree.length <= maxTreeLines) {
+      lines.push('```');
+      lines.push(...tree);
+      lines.push('```');
+    } else {
+      lines.push(`(${tree.length} files — showing first ${maxTreeLines})`);
+      lines.push('```');
+      lines.push(...tree.slice(0, maxTreeLines));
+      lines.push('```');
+    }
+    lines.push('');
+
+    // Key file contents
+    for (const [filePath, content] of keyFiles) {
+      lines.push(`### ${filePath}`);
+      lines.push('```');
+      lines.push(content);
+      lines.push('```');
+      lines.push('');
+    }
+
+    if (keyFiles.size === 0) {
+      lines.push('*No recognized configuration files found in this repository.*');
+    }
+
+    return lines.join('\n');
   }
 
   private async selectModel(): Promise<vscode.LanguageModelChat> {

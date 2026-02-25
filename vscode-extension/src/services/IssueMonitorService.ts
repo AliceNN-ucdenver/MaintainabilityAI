@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { GitHubService } from './GitHubService';
+import { configService } from './ConfigService';
 import type { IssueComment, LinkedPullRequest, RepoInfo } from '../types';
 
 export interface MonitorState {
@@ -31,10 +32,7 @@ export class IssueMonitorService implements vscode.Disposable {
   readonly onDidUpdateLabels = this._onLabelsUpdated.event;
 
   constructor(private readonly githubService: GitHubService) {
-    const configInterval = vscode.workspace
-      .getConfiguration('maintainabilityai.monitor')
-      .get<number>('pollIntervalSeconds', 12);
-    this.pollIntervalMs = Math.max(5, Math.min(60, configInterval)) * 1000;
+    this.pollIntervalMs = configService.pollIntervalSeconds * 1000;
   }
 
   startMonitoring(issueNumber: number, issueUrl: string, repo: RepoInfo): void {

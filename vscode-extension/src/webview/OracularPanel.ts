@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { toErrorMessage } from '../utils/errors';
 import type {
   OracularWebviewMessage,
   OracularExtensionMessage,
@@ -12,30 +11,19 @@ import { GitHubService } from '../services/GitHubService';
 import { GitSyncService } from '../services/GitSyncService';
 import { IssueMonitorService } from '../services/IssueMonitorService';
 import { ReviewService } from '../services/ReviewService';
+import { execFileAsync } from '../utils/exec';
+import { getNonce } from '../utils/getNonce';
+import { BasePanel } from './BasePanel';
 
-const execFileAsync = promisify(execFile);
-
-function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
-}
-
-export class OracularPanel {
+export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExtensionMessage> {
   public static currentPanel: OracularPanel | undefined;
   private static readonly viewType = 'maintainabilityai.oraculum';
 
-  private readonly panel: vscode.WebviewPanel;
-  private readonly context: vscode.ExtensionContext;
   private readonly meshService: MeshService;
   private readonly githubService: GitHubService;
   private readonly gitSyncService: GitSyncService;
   private readonly monitorService: IssueMonitorService;
   private readonly reviewService: ReviewService;
-  private disposables: vscode.Disposable[] = [];
 
   private meshRepoInfo: RepoInfo | null = null;
   private currentIssueNumber: number | undefined;
@@ -78,8 +66,7 @@ export class OracularPanel {
     context: vscode.ExtensionContext,
     barPath?: string,
   ) {
-    this.panel = panel;
-    this.context = context;
+    super(panel, context);
     this.initialBarPath = barPath;
     this.meshService = new MeshService();
     this.githubService = new GitHubService();
@@ -103,23 +90,9 @@ export class OracularPanel {
     this.monitorService.onDidUpdateLabels(labels => {
       this.postMessage({ type: 'labelsUpdated', labels });
     });
-
-    this.panel.webview.html = this.getHtmlContent(panel.webview, context.extensionUri);
-
-    this.panel.webview.onDidReceiveMessage(
-      (msg: OracularWebviewMessage) => this.handleMessage(msg),
-      null,
-      this.disposables
-    );
-
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
   }
 
-  private postMessage(msg: OracularExtensionMessage) {
-    this.panel.webview.postMessage(msg);
-  }
-
-  private async handleMessage(message: OracularWebviewMessage) {
+  protected async handleMessage(message: OracularWebviewMessage) {
     switch (message.type) {
       case 'ready':
         await this.onReady();
@@ -233,7 +206,7 @@ export class OracularPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Error loading: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Error loading: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -298,7 +271,7 @@ export class OracularPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to load reviews: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to load reviews: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -465,7 +438,7 @@ export class OracularPanel {
       this.postMessage({ type: 'phaseUpdate', phase: 'submit', status: 'error', message: String(err) });
       this.postMessage({
         type: 'error',
-        message: `Failed to create review: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to create review: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -497,7 +470,7 @@ export class OracularPanel {
         this.postMessage({ type: 'agentAssigned', agent: 'skip' });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'completed' });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         this.postMessage({ type: 'error', message: `Failed to assign: ${msg}` });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'error', message: msg });
       } finally {
@@ -553,7 +526,7 @@ export class OracularPanel {
           this.meshRepoInfo
         );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         this.postMessage({ type: 'error', message: `Failed to assign: ${msg}` });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'error', message: msg });
       } finally {
@@ -598,7 +571,7 @@ export class OracularPanel {
           this.meshRepoInfo
         );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = toErrorMessage(err);
         this.postMessage({ type: 'error', message: `Failed to assign Copilot: ${msg}` });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'error', message: msg });
       } finally {
@@ -622,7 +595,7 @@ export class OracularPanel {
         `${mention} approved`
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       this.postMessage({ type: 'error', message: `Failed to send approval: ${msg}` });
     }
   }
@@ -642,7 +615,7 @@ export class OracularPanel {
         `${mention} Please revise the plan based on this feedback:\n\n${feedback}`
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = toErrorMessage(err);
       this.postMessage({ type: 'error', message: `Failed to send feedback: ${msg}` });
     }
   }
@@ -711,7 +684,7 @@ export class OracularPanel {
     } catch (err) {
       this.postMessage({
         type: 'error',
-        message: `Failed to provision workflow: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to provision workflow: ${toErrorMessage(err)}`,
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -761,7 +734,7 @@ export class OracularPanel {
     } catch (err) {
       this.postMessage({
         type: 'pullError',
-        message: err instanceof Error ? err.message : String(err),
+        message: toErrorMessage(err),
       });
     } finally {
       this.postMessage({ type: 'loading', active: false });
@@ -772,7 +745,7 @@ export class OracularPanel {
   // HTML + Lifecycle
   // ============================================================================
 
-  private getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  protected getHtmlContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'oraculum.js')
     );
@@ -795,12 +768,11 @@ export class OracularPanel {
 </html>`;
   }
 
-  private dispose() {
-    OracularPanel.currentPanel = undefined;
+  protected onDispose(): void {
     this.monitorService.dispose();
-    while (this.disposables.length) {
-      const d = this.disposables.pop();
-      if (d) { d.dispose(); }
-    }
+  }
+
+  protected clearCurrentPanel(): void {
+    OracularPanel.currentPanel = undefined;
   }
 }

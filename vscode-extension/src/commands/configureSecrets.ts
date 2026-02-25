@@ -1,74 +1,19 @@
 import * as vscode from 'vscode';
 import { GitHubService } from '../services/GitHubService';
-import { MeshService } from '../services/MeshService';
 import { requireTool } from '../services/PrerequisiteChecker';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import {
+  SECRETS,
+  detectGovernanceRepo,
+  detectWorkspaceRepo,
+  type SecretDefinition,
+  type SecretsTarget,
+} from '../services/SecretsService';
+import { handleError } from '../utils/errors';
+import { logger } from '../utils/Logger';
 
-const execFileAsync = promisify(execFile);
+export type { SecretsTarget };
 
-interface SecretItem extends vscode.QuickPickItem {
-  id: string;
-  envName: string;
-  settingKey?: string;
-  prefix?: string;
-}
-
-const SECRETS: SecretItem[] = [
-  {
-    id: 'anthropic',
-    envName: 'ANTHROPIC_API_KEY',
-    settingKey: 'maintainabilityai.llm.claudeApiKey',
-    prefix: 'sk-ant-',
-    label: 'Anthropic API Key',
-    description: 'ANTHROPIC_API_KEY — Required for Claude Code workflows',
-    picked: true,
-  },
-  {
-    id: 'openai',
-    envName: 'OPENAI_API_KEY',
-    settingKey: 'maintainabilityai.llm.openaiApiKey',
-    prefix: 'sk-',
-    label: 'OpenAI API Key',
-    description: 'OPENAI_API_KEY — For OpenAI-powered workflows',
-  },
-];
-
-/**
- * Detect the governance mesh repo (owner/repo) from the configured mesh path.
- * Uses git remote origin URL, same pattern as OracularPanel.detectMeshRepo().
- */
-async function detectGovernanceRepo(): Promise<{ owner: string; repo: string } | null> {
-  const meshPath = MeshService.getMeshPath();
-  if (!meshPath) { return null; }
-
-  try {
-    const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
-    const url = stdout.trim();
-    const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-    if (match) {
-      return { owner: match[1], repo: match[2] };
-    }
-  } catch {
-    // No git remote — mesh is local only
-  }
-  return null;
-}
-
-/**
- * Detect the workspace repo (owner/repo) from the open folder's git remote.
- */
-async function detectWorkspaceRepo(): Promise<{ owner: string; repo: string } | null> {
-  const github = new GitHubService();
-  const repoInfo = await github.detectRepo();
-  if (!repoInfo) { return null; }
-  return { owner: repoInfo.owner, repo: repoInfo.repo };
-}
-
-export type SecretsTarget = 'governance' | 'workspace';
-
-export async function configureSecretsCommand(target?: SecretsTarget) {
-  // gh CLI is required for setting repo secrets
+export async function configureSecretsCommand(target?: SecretsTarget, folderPath?: string) {
   if (!(await requireTool('gh'))) {
     return;
   }
@@ -84,16 +29,22 @@ export async function configureSecretsCommand(target?: SecretsTarget) {
     repoLabel = 'Governance Mesh';
     if (!repo) {
       vscode.window.showErrorMessage(
-        'No governance mesh repo detected. Configure a mesh path (with a GitHub remote) in Settings first.'
+        'No governance mesh repo detected. Configure a mesh path (with a GitHub remote) in Settings first.',
       );
       return;
     }
   } else if (target === 'workspace') {
-    repo = await detectWorkspaceRepo();
+    // Use the provided folder path for accurate repo detection
+    if (folderPath) {
+      const repoInfo = await github.detectRepoForFolder(folderPath);
+      repo = repoInfo ? { owner: repoInfo.owner, repo: repoInfo.repo } : null;
+    } else {
+      repo = await detectWorkspaceRepo();
+    }
     repoLabel = 'Workspace';
     if (!repo) {
       vscode.window.showErrorMessage(
-        'No GitHub repository detected. Open a workspace with a GitHub remote first.'
+        'No GitHub repository detected. Open a workspace with a GitHub remote first.',
       );
       return;
     }
@@ -122,7 +73,7 @@ export async function configureSecretsCommand(target?: SecretsTarget) {
 
     if (choices.length === 0) {
       vscode.window.showErrorMessage(
-        'No GitHub repositories detected. Open a workspace or configure a mesh path with a GitHub remote.'
+        'No GitHub repositories detected. Open a workspace or configure a mesh path with a GitHub remote.',
       );
       return;
     }
@@ -138,7 +89,14 @@ export async function configureSecretsCommand(target?: SecretsTarget) {
   }
 
   // Let user pick which secrets to configure
-  const selected = await vscode.window.showQuickPick(SECRETS, {
+  const pickItems = SECRETS.map(s => ({
+    ...s,
+    label: s.label,
+    description: s.description,
+    picked: s.picked,
+  }));
+
+  const selected = await vscode.window.showQuickPick(pickItems, {
     canPickMany: true,
     placeHolder: `Select secrets to configure for ${repo.owner}/${repo.repo}`,
     title: `$(lock) ${repoLabel} Secrets — ${repo.owner}/${repo.repo}`,
@@ -150,75 +108,12 @@ export async function configureSecretsCommand(target?: SecretsTarget) {
 
   let configured = 0;
 
-  for (const secret of selected) {
-    // Check if there's already a value in VS Code settings
-    const config = vscode.workspace.getConfiguration();
-    const existingValue = secret.settingKey
-      ? config.get<string>(secret.settingKey, '')
-      : '';
+  for (const secret of selected as (SecretDefinition & vscode.QuickPickItem)[]) {
+    const apiKey = await promptForKey(secret, repo);
+    if (!apiKey) { continue; }
 
-    let apiKey: string | undefined;
+    await promptSaveLocally(secret, apiKey, repo);
 
-    if (existingValue) {
-      const useExisting = await vscode.window.showQuickPick(
-        [
-          { label: 'Use existing key from settings', value: 'existing' },
-          { label: 'Enter a new key', value: 'new' },
-        ],
-        {
-          placeHolder: `${secret.label}: Found key in VS Code settings. Use it or enter a new one?`,
-          title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
-        }
-      );
-
-      if (!useExisting) {
-        continue;
-      }
-
-      if (useExisting.value === 'existing') {
-        apiKey = existingValue;
-      }
-    }
-
-    if (!apiKey) {
-      apiKey = await vscode.window.showInputBox({
-        prompt: `Enter your ${secret.label} → ${repo.owner}/${repo.repo}`,
-        placeHolder: secret.prefix ? `${secret.prefix}api3-...` : 'Paste your API key here',
-        password: true,
-        title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
-        validateInput: (value) => {
-          if (!value || value.trim().length === 0) {
-            return 'API key cannot be empty';
-          }
-          if (secret.prefix && !value.startsWith(secret.prefix)) {
-            return `Key should start with "${secret.prefix}"`;
-          }
-          return undefined;
-        },
-      });
-
-      if (!apiKey) {
-        continue;
-      }
-    }
-
-    // Also save to VS Code settings for local LLM use
-    const saveLocally = await vscode.window.showQuickPick(
-      [
-        { label: 'Yes — save to VS Code settings too', value: 'yes' },
-        { label: 'No — only set as repo secret', value: 'no' },
-      ],
-      {
-        placeHolder: `Also save ${secret.label} to VS Code settings for local LLM use?`,
-        title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
-      }
-    );
-
-    if (saveLocally?.value === 'yes' && secret.settingKey) {
-      await config.update(secret.settingKey, apiKey, vscode.ConfigurationTarget.Global);
-    }
-
-    // Set as GitHub repo secret
     try {
       await vscode.window.withProgress(
         {
@@ -227,26 +122,87 @@ export async function configureSecretsCommand(target?: SecretsTarget) {
           cancellable: false,
         },
         async () => {
-          await github.setRepoSecret(
-            repo.owner,
-            repo.repo,
-            secret.envName,
-            apiKey
-          );
-        }
+          await github.setRepoSecret(repo.owner, repo.repo, secret.envName, apiKey);
+        },
       );
       configured++;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      vscode.window.showErrorMessage(
-        `Failed to set ${secret.envName}: ${message}`
-      );
+      logger.info(`Set secret ${secret.envName} on ${repo.owner}/${repo.repo}`);
+    } catch (err) {
+      handleError(`Failed to set ${secret.envName}`, err, { showNotification: true });
     }
   }
 
   if (configured > 0) {
     vscode.window.showInformationMessage(
-      `$(lock) Configured ${configured} secret(s) on ${repo.owner}/${repo.repo}.`
+      `$(lock) Configured ${configured} secret(s) on ${repo.owner}/${repo.repo}.`,
     );
+  }
+}
+
+// ---- UI helpers (private to this command) ----
+
+async function promptForKey(
+  secret: SecretDefinition,
+  repo: { owner: string; repo: string },
+): Promise<string | undefined> {
+  const config = vscode.workspace.getConfiguration();
+  const existingValue = secret.settingKey
+    ? config.get<string>(secret.settingKey, '')
+    : '';
+
+  if (existingValue) {
+    const useExisting = await vscode.window.showQuickPick(
+      [
+        { label: 'Use existing key from settings', value: 'existing' },
+        { label: 'Enter a new key', value: 'new' },
+      ],
+      {
+        placeHolder: `${secret.label}: Found key in VS Code settings. Use it or enter a new one?`,
+        title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
+      },
+    );
+
+    if (!useExisting) { return undefined; }
+    if (useExisting.value === 'existing') { return existingValue; }
+  }
+
+  return vscode.window.showInputBox({
+    prompt: `Enter your ${secret.label} → ${repo.owner}/${repo.repo}`,
+    placeHolder: secret.prefix ? `${secret.prefix}api3-...` : 'Paste your API key here',
+    password: true,
+    title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
+    validateInput: (value) => {
+      if (!value || value.trim().length === 0) {
+        return 'API key cannot be empty';
+      }
+      if (secret.prefix && !value.startsWith(secret.prefix)) {
+        return `Key should start with "${secret.prefix}"`;
+      }
+      return undefined;
+    },
+  });
+}
+
+async function promptSaveLocally(
+  secret: SecretDefinition,
+  apiKey: string,
+  repo: { owner: string; repo: string },
+): Promise<void> {
+  if (!secret.settingKey) { return; }
+
+  const saveLocally = await vscode.window.showQuickPick(
+    [
+      { label: 'Yes — save to VS Code settings too', value: 'yes' },
+      { label: 'No — only set as repo secret', value: 'no' },
+    ],
+    {
+      placeHolder: `Also save ${secret.label} to VS Code settings for local LLM use?`,
+      title: `$(lock) Target: ${repo.owner}/${repo.repo}`,
+    },
+  );
+
+  if (saveLocally?.value === 'yes') {
+    const config = vscode.workspace.getConfiguration();
+    await config.update(secret.settingKey, apiKey, vscode.ConfigurationTarget.Global);
   }
 }

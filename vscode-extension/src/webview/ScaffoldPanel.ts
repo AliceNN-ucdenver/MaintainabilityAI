@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { TechStackDetector } from '../services/TechStackDetector';
 import { requireTool } from '../services/PrerequisiteChecker';
 import {
@@ -24,20 +22,17 @@ import {
 import { readRepoMetadata } from '../services/RepoMetadata';
 import type { ComponentScaffoldContext } from '../types';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
+import { execFileAsync } from '../utils/exec';
+import { BasePanel } from './BasePanel';
+import { getSharedStyles } from './styles';
 
-const execFileAsync = promisify(execFile);
-
-export class ScaffoldPanel {
+export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<string, unknown>> {
   public static currentPanel: ScaffoldPanel | undefined;
   private static readonly viewType = 'maintainabilityai.scaffold';
 
-  private readonly panel: vscode.WebviewPanel;
-  private readonly extensionPath: string;
-  private readonly extensionContext: vscode.ExtensionContext;
   private componentContext?: ComponentScaffoldContext;
-  private disposables: vscode.Disposable[] = [];
 
-  public static createOrShow(context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext) {
+  public static createOrShow(context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext, folderPath?: string) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -47,13 +42,18 @@ export class ScaffoldPanel {
       // Update component context if a new one was provided (e.g. implementing a second component)
       if (componentContext) {
         ScaffoldPanel.currentPanel.componentContext = componentContext;
-        ScaffoldPanel.currentPanel.send({
+        ScaffoldPanel.currentPanel.postMessage({
           type: 'componentMode',
           barName: componentContext.barName,
           repoUrl: componentContext.repoUrl,
           repoName: componentContext.repoName,
           homeDir: process.env.HOME || process.env.USERPROFILE || '',
         });
+      }
+      // Switch to the requested folder if provided
+      if (folderPath) {
+        ScaffoldPanel.currentPanel.postMessage({ type: 'init', workspaceRoot: folderPath });
+        ScaffoldPanel.currentPanel.detectStackForFolder(folderPath);
       }
       return;
     }
@@ -68,34 +68,23 @@ export class ScaffoldPanel {
       }
     );
 
-    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, componentContext);
+    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, componentContext, folderPath);
   }
 
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext) {
-    this.panel = panel;
-    this.extensionPath = context.extensionPath;
-    this.extensionContext = context;
+  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext, folderPath?: string) {
+    super(panel, context);
     this.componentContext = componentContext;
 
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
-    this.panel.webview.onDidReceiveMessage(
-      (msg) => this.handleMessage(msg),
-      null,
-      this.disposables
-    );
-
-    this.panel.webview.html = this.getHtml();
-
     // Send initial state and detect stack if workspace is available
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
-    this.send({ type: 'init', workspaceRoot });
+    const workspaceRoot = folderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+    this.postMessage({ type: 'init', workspaceRoot });
     if (workspaceRoot) {
       this.detectStackForFolder(workspaceRoot);
     }
 
     // Notify webview of component mode if BAR context provided
     if (this.componentContext) {
-      this.send({
+      this.postMessage({
         type: 'componentMode',
         barName: this.componentContext.barName,
         repoUrl: this.componentContext.repoUrl,
@@ -105,11 +94,7 @@ export class ScaffoldPanel {
     }
   }
 
-  private send(msg: Record<string, unknown>) {
-    this.panel.webview.postMessage(msg);
-  }
-
-  private async handleMessage(msg: Record<string, unknown>) {
+  protected async handleMessage(msg: Record<string, unknown>) {
     switch (msg.type) {
       case 'pickFolder': {
         const picked = await vscode.window.showOpenDialog({
@@ -121,7 +106,7 @@ export class ScaffoldPanel {
         });
         if (picked && picked.length > 0) {
           const folderPath = picked[0].fsPath;
-          this.send({ type: 'folderSelected', path: folderPath });
+          this.postMessage({ type: 'folderSelected', path: folderPath });
           await this.detectStackForFolder(folderPath);
         }
         break;
@@ -130,10 +115,20 @@ export class ScaffoldPanel {
       case 'openFolder': {
         const folderPath = msg.path as string;
         if (folderPath) {
-          // Add to current workspace as an additional root — preserves all open tabs
-          const folderUri = vscode.Uri.file(folderPath);
-          const insertIndex = vscode.workspace.workspaceFolders?.length || 0;
-          vscode.workspace.updateWorkspaceFolders(insertIndex, 0, { uri: folderUri });
+          // Check if folder is already in the workspace
+          const alreadyOpen = (vscode.workspace.workspaceFolders || []).some(
+            f => f.uri.fsPath === folderPath
+          );
+          if (alreadyOpen) {
+            // Folder already open — navigate to Security Scorecard and close scaffold panel
+            vscode.commands.executeCommand('maintainabilityai.openScorecard', folderPath);
+            this.panel.dispose();
+          } else {
+            // Add to current workspace as an additional root — preserves all open tabs
+            const folderUri = vscode.Uri.file(folderPath);
+            const insertIndex = vscode.workspace.workspaceFolders?.length || 0;
+            vscode.workspace.updateWorkspaceFolders(insertIndex, 0, { uri: folderUri });
+          }
         }
         break;
       }
@@ -159,7 +154,7 @@ export class ScaffoldPanel {
           }
 
           IssueCreatorPanel.createOrShow(
-            this.extensionContext,
+            this.context,
             this.componentContext.description,
             this.componentContext.packs,
             this.componentContext.repoUrl,
@@ -190,7 +185,7 @@ export class ScaffoldPanel {
     // Check for existing repo-metadata.yml first
     const metadata = readRepoMetadata(folderPath);
     if (metadata) {
-      this.send({
+      this.postMessage({
         type: 'stackDefaults',
         language: metadata.language || '',
         moduleSystem: metadata.module_system || '',
@@ -248,7 +243,7 @@ export class ScaffoldPanel {
     } catch { /* no package.json or parse error */ }
     if (!testing && language === 'Python') { testing = 'Pytest'; }
 
-    this.send({
+    this.postMessage({
       type: 'stackDefaults',
       language,
       moduleSystem,
@@ -271,13 +266,13 @@ export class ScaffoldPanel {
     const workspaceRoot = config.folder;
 
     // Step 1: Build tech stack from user selections
-    this.send({ type: 'step', id: 'detect', status: 'running', message: 'Applying project configuration...' });
+    this.postMessage({ type: 'step', id: 'detect', status: 'running', message: 'Applying project configuration...' });
     const sc = config.stackConfig;
     const stack = this.buildStackFromConfig(sc);
-    this.send({ type: 'step', id: 'detect', status: 'done', message: `${sc.language}, ${sc.testing}, ${sc.packageManager}` });
+    this.postMessage({ type: 'step', id: 'detect', status: 'done', message: `${sc.language}, ${sc.testing}, ${sc.packageManager}` });
 
     // Step 2: Generate files
-    this.send({ type: 'step', id: 'generate', status: 'running', message: 'Generating scaffold files...' });
+    this.postMessage({ type: 'step', id: 'generate', status: 'running', message: 'Generating scaffold files...' });
 
     const selectedIds = new Set(config.files);
     const filesToCreate: Array<{ relativePath: string; content: string }> = [];
@@ -286,25 +281,25 @@ export class ScaffoldPanel {
       filesToCreate.push({ relativePath: 'CLAUDE.md', content: generateClaudeMd(stack) });
     }
     if (selectedIds.has('alice-remediation')) {
-      filesToCreate.push({ relativePath: '.github/workflows/alice-remediation.yml', content: generateAliceRemediationWorkflow(this.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/workflows/alice-remediation.yml', content: generateAliceRemediationWorkflow(this.context.extensionPath) });
     }
     if (selectedIds.has('codeql')) {
-      filesToCreate.push({ relativePath: '.github/workflows/codeql.yml', content: generateCodeqlWorkflow(this.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/workflows/codeql.yml', content: generateCodeqlWorkflow(this.context.extensionPath) });
     }
     if (selectedIds.has('codeql-to-issues')) {
-      filesToCreate.push({ relativePath: '.github/workflows/codeql-to-issues.yml', content: generateCodeqlToIssuesWorkflow(this.extensionPath) });
-      filesToCreate.push({ relativePath: '.github/workflows/validate-prompt-hashes.yml', content: generateValidatePromptHashesWorkflow(this.extensionPath) });
-      filesToCreate.push({ relativePath: 'automation/process-codeql-results.cjs', content: generateProcessCodeqlResults(this.extensionPath) });
-      filesToCreate.push({ relativePath: 'automation/prompt-mappings.json', content: generatePromptMappings(this.extensionPath) });
-      filesToCreate.push({ relativePath: 'automation/generate-prompt-hashes.cjs', content: generatePromptHashGenerator(this.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/workflows/codeql-to-issues.yml', content: generateCodeqlToIssuesWorkflow(this.context.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/workflows/validate-prompt-hashes.yml', content: generateValidatePromptHashesWorkflow(this.context.extensionPath) });
+      filesToCreate.push({ relativePath: 'automation/process-codeql-results.cjs', content: generateProcessCodeqlResults(this.context.extensionPath) });
+      filesToCreate.push({ relativePath: 'automation/prompt-mappings.json', content: generatePromptMappings(this.context.extensionPath) });
+      filesToCreate.push({ relativePath: 'automation/generate-prompt-hashes.cjs', content: generatePromptHashGenerator(this.context.extensionPath) });
       // Empty hash manifest — user runs generate-prompt-hashes.js after adding prompt packs
       filesToCreate.push({ relativePath: 'automation/prompt-hashes.json', content: JSON.stringify({ _metadata: { generator: 'generate-prompt-hashes.js', algorithm: 'SHA-256' }, owasp: {} }, null, 2) + '\n' });
     }
     if (selectedIds.has('fitness')) {
-      filesToCreate.push({ relativePath: '.github/workflows/fitness-functions.yml', content: generateFitnessFunctionsWorkflow(stack, this.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/workflows/fitness-functions.yml', content: generateFitnessFunctionsWorkflow(stack, this.context.extensionPath) });
     }
     if (selectedIds.has('ci-workflow')) {
-      filesToCreate.push({ relativePath: '.github/workflows/ci.yml', content: generateCiWorkflow(stack, this.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/workflows/ci.yml', content: generateCiWorkflow(stack, this.context.extensionPath) });
     }
     if (selectedIds.has('pr-template')) {
       filesToCreate.push({ relativePath: '.github/PULL_REQUEST_TEMPLATE.md', content: generatePrTemplate() });
@@ -313,7 +308,7 @@ export class ScaffoldPanel {
       filesToCreate.push({ relativePath: '.github/SECURITY.md', content: generateSecurityPolicy() });
     }
     if (selectedIds.has('prompt-packs')) {
-      const packsDir = path.join(this.extensionPath, 'prompt-packs', 'owasp');
+      const packsDir = path.join(this.context.extensionPath, 'prompt-packs', 'owasp');
       if (fs.existsSync(packsDir)) {
         const files = fs.readdirSync(packsDir).filter(f => f.endsWith('.md'));
         for (const file of files) {
@@ -324,16 +319,16 @@ export class ScaffoldPanel {
     }
 
     if (selectedIds.has('copilot-setup')) {
-      filesToCreate.push({ relativePath: '.github/copilot-setup-steps.yml', content: generateCopilotSetupSteps(stack, this.extensionPath) });
+      filesToCreate.push({ relativePath: '.github/copilot-setup-steps.yml', content: generateCopilotSetupSteps(stack, this.context.extensionPath) });
     }
 
     // Always write repo-metadata.yml
     filesToCreate.push({ relativePath: '.github/repo-metadata.yml', content: generateRepoMetadata(stack) });
 
-    this.send({ type: 'step', id: 'generate', status: 'done', message: `${filesToCreate.length} files ready` });
+    this.postMessage({ type: 'step', id: 'generate', status: 'done', message: `${filesToCreate.length} files ready` });
 
     // Step 3: Write files
-    this.send({ type: 'step', id: 'write', status: 'running', message: 'Writing files to disk...' });
+    this.postMessage({ type: 'step', id: 'write', status: 'running', message: 'Writing files to disk...' });
 
     let created = 0;
     for (const file of filesToCreate) {
@@ -344,21 +339,21 @@ export class ScaffoldPanel {
       }
       fs.writeFileSync(fullPath, file.content, 'utf8');
       created++;
-      this.send({ type: 'fileCreated', file: file.relativePath, count: created, total: filesToCreate.length });
+      this.postMessage({ type: 'fileCreated', file: file.relativePath, count: created, total: filesToCreate.length });
     }
 
-    this.send({ type: 'step', id: 'write', status: 'done', message: `${created} files written` });
+    this.postMessage({ type: 'step', id: 'write', status: 'done', message: `${created} files written` });
 
     // Step 4: Git + GitHub (if requested)
     if (config.createRepo) {
       // Check gh
       if (!(await requireTool('gh'))) {
-        this.send({ type: 'step', id: 'github', status: 'error', message: 'GitHub CLI (gh) not found' });
+        this.postMessage({ type: 'step', id: 'github', status: 'error', message: 'GitHub CLI (gh) not found' });
         return;
       }
 
       // Git init
-      this.send({ type: 'step', id: 'git', status: 'running', message: 'Initializing git repository...' });
+      this.postMessage({ type: 'step', id: 'git', status: 'running', message: 'Initializing git repository...' });
       try {
         if (!fs.existsSync(path.join(workspaceRoot, '.git'))) {
           await execFileAsync('git', ['init'], { cwd: workspaceRoot });
@@ -366,15 +361,15 @@ export class ScaffoldPanel {
         }
         await execFileAsync('git', ['add', '-A'], { cwd: workspaceRoot });
         await execFileAsync('git', ['commit', '-m', 'chore: scaffold MaintainabilityAI SDLC structure\n\nGenerated by MaintainabilityAI VS Code Extension'], { cwd: workspaceRoot });
-        this.send({ type: 'step', id: 'git', status: 'done', message: 'Git initialized and committed' });
+        this.postMessage({ type: 'step', id: 'git', status: 'done', message: 'Git initialized and committed' });
       } catch (err: unknown) {
         const message = this.extractError(err);
-        this.send({ type: 'step', id: 'git', status: 'error', message: `Git error: ${message}` });
+        this.postMessage({ type: 'step', id: 'git', status: 'error', message: `Git error: ${message}` });
         return;
       }
 
       // Create GitHub repo (or connect to existing)
-      this.send({ type: 'step', id: 'github', status: 'running', message: `Creating repo: ${config.repoName}...` });
+      this.postMessage({ type: 'step', id: 'github', status: 'running', message: `Creating repo: ${config.repoName}...` });
       try {
         const ghArgs = [
           'repo', 'create', config.repoName,
@@ -392,13 +387,13 @@ export class ScaffoldPanel {
         // Enable GitHub Actions write permissions (required for agents to push branches/PRs)
         await this.enableWorkflowPermissions(config.repoName, workspaceRoot);
 
-        this.send({ type: 'step', id: 'github', status: 'done', message: repoUrl, url: repoUrl });
+        this.postMessage({ type: 'step', id: 'github', status: 'done', message: repoUrl, url: repoUrl });
       } catch (err: unknown) {
         const errMsg = this.extractError(err);
 
         // Handle "already exists" — connect to existing repo and push
         if (errMsg.includes('already exists')) {
-          this.send({ type: 'step', id: 'github', status: 'running', message: 'Repo exists — connecting and pushing...' });
+          this.postMessage({ type: 'step', id: 'github', status: 'running', message: 'Repo exists — connecting and pushing...' });
           try {
             // Get the authenticated user's login for the full repo path
             const { stdout: owner } = await execFileAsync('gh', ['api', 'user', '-q', '.login'], { cwd: workspaceRoot });
@@ -420,21 +415,21 @@ export class ScaffoldPanel {
             // Enable GitHub Actions write permissions
             await this.enableWorkflowPermissions(fullRepo, workspaceRoot);
 
-            this.send({ type: 'step', id: 'github', status: 'done', message: `Pushed to existing: ${repoUrl}`, url: repoUrl });
+            this.postMessage({ type: 'step', id: 'github', status: 'done', message: `Pushed to existing: ${repoUrl}`, url: repoUrl });
           } catch (pushErr: unknown) {
             const pushMsg = this.extractError(pushErr);
-            this.send({ type: 'step', id: 'github', status: 'error', message: `Push failed: ${pushMsg}` });
+            this.postMessage({ type: 'step', id: 'github', status: 'error', message: `Push failed: ${pushMsg}` });
             return;
           }
         } else {
-          this.send({ type: 'step', id: 'github', status: 'error', message: `GitHub error: ${errMsg}` });
+          this.postMessage({ type: 'step', id: 'github', status: 'error', message: `GitHub error: ${errMsg}` });
           return;
         }
       }
 
       // Configure secrets — prompt directly since the workspace may not be open yet
       if (config.configureSecrets) {
-        this.send({ type: 'step', id: 'secrets', status: 'running', message: 'Waiting for API key input...' });
+        this.postMessage({ type: 'step', id: 'secrets', status: 'running', message: 'Waiting for API key input...' });
 
         // Determine the repo owner
         let repoOwner: string;
@@ -442,9 +437,10 @@ export class ScaffoldPanel {
           const { stdout } = await execFileAsync('gh', ['api', 'user', '-q', '.login'], { cwd: workspaceRoot });
           repoOwner = stdout.trim();
         } catch {
-          this.send({ type: 'step', id: 'secrets', status: 'error', message: 'Could not determine GitHub user' });
+          this.postMessage({ type: 'step', id: 'secrets', status: 'error', message: 'Could not determine GitHub user' });
           // Continue to completion — secrets are optional
-          this.send({ type: 'complete', folder: workspaceRoot });
+          const alreadyInWs = (vscode.workspace.workspaceFolders || []).some(f => f.uri.fsPath === workspaceRoot);
+          this.postMessage({ type: 'complete', folder: workspaceRoot, folderInWorkspace: alreadyInWs });
           return;
         }
 
@@ -469,13 +465,13 @@ export class ScaffoldPanel {
 
         if (apiKey) {
           try {
-            this.send({ type: 'step', id: 'secrets', status: 'running', message: `Setting ANTHROPIC_API_KEY on ${fullRepoName}...` });
+            this.postMessage({ type: 'step', id: 'secrets', status: 'running', message: `Setting ANTHROPIC_API_KEY on ${fullRepoName}...` });
             await execFileAsync('gh', [
               'secret', 'set', 'ANTHROPIC_API_KEY',
               '--repo', fullRepoName,
               '--body', apiKey,
             ], { cwd: workspaceRoot });
-            this.send({ type: 'step', id: 'secrets', status: 'done', message: `ANTHROPIC_API_KEY set on ${fullRepoName}` });
+            this.postMessage({ type: 'step', id: 'secrets', status: 'done', message: `ANTHROPIC_API_KEY set on ${fullRepoName}` });
 
             // Offer to save locally too
             const saveLocally = await vscode.window.showQuickPick(
@@ -497,15 +493,16 @@ export class ScaffoldPanel {
             }
           } catch (err: unknown) {
             const errMsg = this.extractError(err);
-            this.send({ type: 'step', id: 'secrets', status: 'error', message: `Failed to set secret: ${errMsg}` });
+            this.postMessage({ type: 'step', id: 'secrets', status: 'error', message: `Failed to set secret: ${errMsg}` });
           }
         } else {
-          this.send({ type: 'step', id: 'secrets', status: 'done', message: 'Skipped — no key provided' });
+          this.postMessage({ type: 'step', id: 'secrets', status: 'done', message: 'Skipped — no key provided' });
         }
       }
     }
 
-    this.send({ type: 'complete', folder: workspaceRoot });
+    const folderInWs = (vscode.workspace.workspaceFolders || []).some(f => f.uri.fsPath === workspaceRoot);
+    this.postMessage({ type: 'complete', folder: workspaceRoot, folderInWorkspace: folderInWs });
   }
 
   private async enableWorkflowPermissions(repoFullName: string, cwd: string) {
@@ -539,13 +536,8 @@ export class ScaffoldPanel {
     return String(err);
   }
 
-  private dispose() {
+  protected clearCurrentPanel(): void {
     ScaffoldPanel.currentPanel = undefined;
-    this.panel.dispose();
-    while (this.disposables.length) {
-      const d = this.disposables.pop();
-      if (d) { d.dispose(); }
-    }
   }
 
   private buildStackFromConfig(sc: { language: string; testing: string; packageManager: string }): import('../types').TechStack {
@@ -584,7 +576,7 @@ export class ScaffoldPanel {
     };
   }
 
-  private getHtml(): string {
+  protected getHtmlContent(_webview: vscode.Webview, _extensionUri: vscode.Uri): string {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -592,28 +584,8 @@ export class ScaffoldPanel {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MaintainabilityAI — Scaffold Project</title>
 <style>
-  :root {
-    --bg: var(--vscode-editor-background);
-    --fg: var(--vscode-editor-foreground);
-    --border: var(--vscode-panel-border, #333);
-    --accent: var(--vscode-textLink-foreground, #7c3aed);
-    --input-bg: var(--vscode-input-background);
-    --input-fg: var(--vscode-input-foreground);
-    --input-border: var(--vscode-input-border, #444);
-    --btn-bg: var(--vscode-button-background);
-    --btn-fg: var(--vscode-button-foreground);
-    --btn-hover: var(--vscode-button-hoverBackground);
-    --success: #22c55e;
-    --error: #ef4444;
-    --running: #f59e0b;
-    --muted: var(--vscode-descriptionForeground, #888);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  ${getSharedStyles()}
   body {
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size, 13px);
-    color: var(--fg);
-    background: var(--bg);
     padding: 24px;
     max-width: 800px;
     margin: 0 auto;
@@ -1261,6 +1233,11 @@ window.addEventListener('message', (event) => {
       if (isComponentMode) {
         const featureBtn = document.getElementById('createComponentFeatureBtn');
         if (featureBtn) { featureBtn.style.display = ''; }
+      }
+      // If folder is already in workspace, change button to open scorecard
+      const openBtn = document.getElementById('openFolderBtn');
+      if (openBtn && msg.folderInWorkspace) {
+        openBtn.textContent = 'Open Security Scorecard';
       }
       // Auto-scroll to completion banner so user sees the action buttons
       banner.scrollIntoView({ behavior: 'smooth', block: 'center' });

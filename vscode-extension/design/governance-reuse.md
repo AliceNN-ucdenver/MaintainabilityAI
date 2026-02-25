@@ -642,50 +642,71 @@ These were renamed from `.js` to `.cjs` in a previous session. The deletions and
 
 ## Implementation Roadmap
 
-### Phase 1 — Quick Wins (low risk, immediate cleanup)
-- [ ] Extract `getNonce()` → `src/utils/getNonce.ts`
-- [ ] Extract `execFileAsync` → `src/utils/exec.ts`
-- [ ] Extract `escapeHtml()`, `escapeAttr()`, `formatTimestamp()` → `src/webview/app/utils/html.ts`
-- [ ] Consolidate webview type mirrors → `src/webview/app/types.ts`
-- [ ] Remove stale `maintainabilityai-0.1.0.vsix`, add `*.vsix` to `.gitignore`
-- [ ] Fix broken `src/templates/meshTemplates.ts` barrel
-- [ ] Move `OrgScannerPrompt.ts` out of `llm/` folder
-- [ ] Update all imports, verify build
+### Phase 1 — Quick Wins (low risk, immediate cleanup) ✅ Complete
+- [x] Extract `getNonce()` → `src/utils/getNonce.ts` (removed 4 copies from Panel files)
+- [x] Extract `execFileAsync` → `src/utils/exec.ts` (removed 8 copies from Panels + services)
+- [x] Extract `escapeHtml()`, `escapeAttr()`, `formatTimestamp()` → canonical versions in `pillars/shared.ts` (removed copies from lookingGlass, scorecard, main, oraculum)
+- [x] Add `*.vsix` to `.gitignore`
+- [x] Verified `src/templates/meshTemplates.ts` barrel — working correctly as pass-through re-export, no change needed
+- [x] Move `OrgScannerPrompt.ts` from `llm/` to `services/` (alongside `OrgScannerService.ts`)
+- [x] Update all imports, verify clean build
+- [x] Consolidate webview type mirrors → `src/webview/app/types.ts` (completed in Phase 5)
 
-### Phase 2 — BasePanel Abstraction (medium risk, high payoff)
-- [ ] Create `src/webview/BasePanel.ts` with shared lifecycle
-- [ ] Migrate `ScorecardPanel` first (simplest)
-- [ ] Migrate remaining panels one at a time
-- [ ] Verify all panel functionality after each migration
+### Phase 2 — BasePanel Abstraction (medium risk, high payoff) ✅ Complete
+- [x] Created `src/webview/BasePanel.ts` — generic abstract base class `BasePanel<TWebviewMsg, TExtMsg>`
+  - Shared: `panel`, `context`, `disposables` fields + `postMessage()` + `dispose()` lifecycle
+  - Abstract: `getHtmlContent()`, `handleMessage()`, `clearCurrentPanel()`
+  - Hook: `onDispose()` (no-op default for optional subclass cleanup)
+- [x] Migrated `ScaffoldPanel` first (simplest — no cleanup, proved the pattern)
+- [x] Migrated `OracularPanel` — `onDispose()` calls `monitorService.dispose()`
+- [x] Migrated `ScorecardPanel` — `onDispose()` clears `pollTimer`
+- [x] Migrated `IssueCreatorPanel` — `onDispose()` calls `monitorService.dispose()`
+- [x] Migrated `LookingGlassPanel` (most complex) — `onDispose()` calls `stopActiveReviewPolling()` + `calmFileWatcher.stop()`
+- [x] Clean build verified after each migration (`node esbuild.js --production`)
+- [x] Eliminated ~75-100 lines of duplicated boilerplate across 5 panels
 
-### Phase 3 — Cross-Cutting Infrastructure (medium risk)
-- [ ] Create `src/utils/Logger.ts` with OutputChannel
-- [ ] Create `src/utils/ConfigService.ts` with caching
-- [ ] Create `src/utils/errors.ts` with `handleError()` pattern
-- [ ] Migrate error handling in services (target: 93 try-catch blocks)
-- [ ] Extract `configureSecrets.ts` business logic → `SecretsConfigService`
+### Phase 3 — Cross-Cutting Infrastructure (medium risk) ✅ Complete
+- [x] Created `src/utils/Logger.ts` — singleton with OutputChannel + 500-entry circular buffer, 4 log levels (debug/info/warn/error), `exportLog()` for bug reports
+- [x] Created `src/utils/errors.ts` — `toErrorMessage()` standardizes err handling, `handleError()` logs + optional notification
+- [x] Added `handleAndNotifyError()` convenience method to `BasePanel.ts` — log + postMessage in one call
+- [x] Created `src/services/ConfigService.ts` — cached typed getters for all `maintainabilityai.*` settings, auto-invalidates on config change
+- [x] Bug Report feature — `$(bug)` status bar icon → opens pre-filled GitHub issue at `AliceNN-ucdenver/MaintainabilityAI`, copies log to clipboard, writes log to temp file for review
+- [x] Migrated config access in `MeshService`, `LlmService`, `IssueBodyBuilder`, `IssueMonitorService` to use `configService`
+- [x] Migrated 5 Node-side `console.*` calls in `LookingGlassPanel.ts` → `logger.*`
+- [x] Extracted `configureSecrets.ts` → `SecretsService.ts` (business logic) + slimmed command to UI orchestrator
+- [x] Clean build verified
+- [x] Migrated all 68 `err instanceof Error ? err.message : String(err)` → `toErrorMessage(err)` across 9 files (LookingGlassPanel 38, OracularPanel 10, IssueCreatorPanel 10, ScorecardPanel 4, GitSyncService 2, GitHubService 1, + 3 LLM providers)
 
-### Phase 4 — Shared CSS/Theme (medium risk)
-- [ ] Extract CSS variables to `src/webview/app/styles/theme.ts`
-- [ ] Extract shared component styles to `src/webview/app/styles/components.ts`
-- [ ] Update `getHtmlContent()` in each Panel to import shared styles
-- [ ] Visual regression check on all panels
+### Phase 4 — Shared CSS/Theme (medium risk) ✅
+- [x] Created `src/webview/styles/theme.ts` — unified `:root` CSS variables mapped to VS Code tokens, with compat aliases (`--bg`, `--fg`, `--text`, `--surface`, etc.) for backward compatibility
+- [x] Created `src/webview/styles/components.ts` — shared reset, body, button (.btn-primary/.btn-secondary/.btn-success/.btn-ghost/.btn-link/.btn-sm/.btn-icon), error-msg, spinner (+variants), loading-overlay
+- [x] Created `src/webview/styles/index.ts` — barrel with `getSharedStyles()` helper
+- [x] Migrated ScaffoldPanel — replaced `:root` + reset with shared, kept panel-specific button pattern + layout
+- [x] Migrated ScorecardPanel — replaced `:root` + reset + buttons + spinner + error-msg with shared
+- [x] Migrated IssueCreatorPanel — replaced `:root` + reset + buttons + spinner + error-msg with shared
+- [x] Bridged LookingGlass — 10 hardcoded GitHub-dark `:root` colors now use VS Code tokens with fallbacks (e.g., `--bg: var(--vscode-editor-background, #0d1117)`) — adapts to light themes
+- [x] Migrated Oraculum — imported shared theme + components, removed duplicate reset/body/buttons/spinner/@keyframes, replaced 40+ direct `var(--vscode-*)` tokens with shared variable names
+- [x] Clean production build verified
 
-### Phase 5 — Types & Build (low risk)
-- [ ] Split `src/types/index.ts` into domain files
-- [ ] Refactor `esbuild.js` with webview config factory
-- [ ] Add error boundary to `extension.ts` activation
-- [ ] Add React error boundary to `DiagramCanvas.tsx`
+### Phase 5 — Types & Build (low risk) ✅ COMPLETE
+- [x] Consolidate webview type mirrors → `src/webview/app/types.ts` (56 types, ~240 lines removed from 8 files)
+- [x] Split `src/types/index.ts` into 5 domain files (`prompts.ts`, `github.ts`, `scorecard.ts`, `governance.ts`, `webview.ts`) + barrel re-export
+- [x] Refactor `esbuild.js` with `webviewEntry()` config factory (115 → 75 LOC)
+- [x] Add try-catch error boundary to `extension.ts` activation
+- [x] Add React error boundary to `DiagramCanvas.tsx` with retry button
+- [x] Fixed `LinkedPullRequest` drift (added missing `reviewRequested` field)
+- [x] Created `BarSummarySlim` type for Oraculum's 9-field subset
+- [x] Replaced `CapabilityNode`/`CapabilityModelSummary` mirrors in DiagramCanvas.tsx
 
-### Phase 6 — lookingGlass.ts Decomposition (high risk, high payoff)
-- [ ] Extract Absolem to `src/webview/app/components/absolem.ts`
-- [ ] Extract portfolio view to `src/webview/app/views/portfolio.ts`
-- [ ] Extract BAR detail to `src/webview/app/views/barDetail.ts`
-- [ ] Extract EA lenses to `src/webview/app/views/eaLenses.ts`
-- [ ] Extract policies to `src/webview/app/views/policies.ts`
-- [ ] Verify each extraction with build + manual testing
+### Phase 6 — lookingGlass.ts Decomposition (high risk, high payoff) ✅
+- [x] Extract Absolem to `src/webview/app/components/absolem.ts` (620 LOC)
+- [x] Extract portfolio view to `src/webview/app/views/portfolio.ts` (1,390 LOC)
+- [x] Extract BAR detail to `src/webview/app/views/barDetail.ts` (1,597 LOC)
+- [x] Extract EA lenses to `src/webview/app/views/eaLenses.ts` (349 LOC)
+- [x] Extract policies to `src/webview/app/views/policies.ts` (766 LOC)
+- [x] Verify each extraction with build + manual testing — lookingGlass.ts 7,643→3,612 LOC (53% reduction)
 
-### Phase 7 — HTML Components & Service Improvements (low priority)
+### Phase 7 — HTML Components & Service Improvements (low priority, on hold)
 - [ ] Create component helper functions
 - [ ] Evaluate service registry pattern
 - [ ] Consider shared git utilities extraction

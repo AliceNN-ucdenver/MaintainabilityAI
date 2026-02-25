@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
-import type { LlmProvider, LlmProviderType, RctroPrompt, TechStack } from '../../types';
+import type { LlmProvider, RctroPrompt, TechStack } from '../../types';
+import { configService } from '../ConfigService';
 import { ClaudeProvider } from './ClaudeProvider';
 import { VsCodeLmProvider } from './VsCodeLmProvider';
 import { OpenAiProvider } from './OpenAiProvider';
@@ -63,21 +63,20 @@ export class LlmService {
   }
 
   private createProvider(): LlmProvider {
-    const config = vscode.workspace.getConfiguration('maintainabilityai.llm');
-    const providerType = config.get<LlmProviderType>('provider', 'vscode-lm');
+    const providerType = configService.llmProvider;
 
     switch (providerType) {
       case 'claude': {
-        const apiKey = config.get<string>('claudeApiKey', '');
-        const model = config.get<string>('model', '');
+        const apiKey = configService.claudeApiKey;
+        const model = configService.llmModel;
         if (!apiKey) {
           throw new Error('Anthropic API key is required when using the Claude provider. Set it in Settings > MaintainabilityAI > Claude API Key.');
         }
         return new ClaudeProvider(apiKey, model);
       }
       case 'openai': {
-        const apiKey = config.get<string>('openaiApiKey', '');
-        const model = config.get<string>('model', '');
+        const apiKey = configService.openaiApiKey;
+        const model = configService.llmModel;
         if (!apiKey) {
           throw new Error('OpenAI API key is required when using the OpenAI provider. Set it in Settings > MaintainabilityAI > OpenAI API Key.');
         }

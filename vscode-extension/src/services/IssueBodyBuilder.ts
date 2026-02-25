@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
 import type { IssueCreationRequest, PromptPackContent, RctroPrompt } from '../types';
+import { configService } from './ConfigService';
 
 const BODY_SAFE_LIMIT = 60_000; // leave headroom below GitHub's 65,536 char limit
 const MAX_PACK_CONTENT_CHARS = 8_000; // per-pack content cap
@@ -163,11 +163,7 @@ ${content}
   }
 
   generateLabels(request: IssueCreationRequest): string[] {
-    const config = vscode.workspace
-      .getConfiguration('maintainabilityai.github')
-      .get<string[]>('defaultLabels', ['maintainabilityai', 'rctro-feature']);
-
-    const labels = [...config];
+    const labels = [...configService.defaultLabels];
 
     for (const id of request.selectedPacks.owasp) {
       labels.push(`owasp/${id.toLowerCase()}`);

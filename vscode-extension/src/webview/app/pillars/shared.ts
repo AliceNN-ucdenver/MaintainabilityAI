@@ -2,39 +2,8 @@
 // Shared utilities for pillar detail renderers
 // ============================================================================
 
-export interface VsCodeApi {
-  postMessage(message: unknown): void;
-  getState(): unknown;
-  setState(state: unknown): void;
-}
-
-export interface ThreatEntry {
-  id: string;
-  category: string;
-  target: string;
-  targetName: string;
-  dataClassification: string;
-  description: string;
-  attackVector: string;
-  impact: string;
-  likelihood: string;
-  existingControls: string[];
-  controlEffectiveness: string;
-  residualRisk: string;
-  recommendedMitigations: string[];
-  nistReferences: string[];
-}
-
-export interface ThreatModelResult {
-  threats: ThreatEntry[];
-  summary: {
-    totalThreats: number;
-    byCategory: Record<string, number>;
-    byRisk: Record<string, number>;
-    unmitigatedCount: number;
-  };
-  mermaidDiagram: string;
-}
+import type { VsCodeApi, ThreatEntry, ThreatModelResult } from '../types';
+export type { VsCodeApi, ThreatEntry, ThreatModelResult };
 
 export function escapeHtml(str: string): string {
   return str
@@ -45,7 +14,22 @@ export function escapeHtml(str: string): string {
 }
 
 export function escapeAttr(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Format an ISO timestamp as a human-friendly relative time string. */
+export function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) { return 'just now'; }
+  if (diffMin < 60) { return `${diffMin}m ago`; }
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) { return `${diffHr}h ago`; }
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 30) { return `${diffDays}d ago`; }
+  return d.toLocaleDateString();
 }
 
 /** Lightweight markdown → HTML renderer (safe — escapes HTML first). */

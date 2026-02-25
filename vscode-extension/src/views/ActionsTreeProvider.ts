@@ -28,12 +28,6 @@ const ACTIONS: ActionItem[] = [
     command: 'maintainabilityai.browsePromptPacks',
     icon: 'book',
   },
-  {
-    label: 'Repository Secrets',
-    command: 'maintainabilityai.configureSecrets',
-    icon: 'lock',
-    args: ['workspace'],
-  },
 ];
 
 class ActionTreeItem extends vscode.TreeItem {

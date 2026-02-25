@@ -3,31 +3,8 @@
  * Self-contained — owns its own escape helpers and has no external deps.
  */
 
-// ==========================================================================
-// Types (duplicated from ../../types to avoid import issues in webview IIFE)
-// ==========================================================================
-
-export type AgentStatusPhase =
-  | 'awaiting-approval'
-  | 'planning'
-  | 'plan-review'
-  | 'implementing'
-  | 'pr-review'
-  | 'pr-checks-failing'
-  | 'complete';
-
-export interface AgentStatusInfo {
-  phase: AgentStatusPhase;
-  agent: 'claude' | 'copilot' | 'unknown';
-  issue: { number: number; url: string; title: string };
-  pr?: {
-    number: number; url: string; title: string;
-    draft: boolean; checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
-    mergeable: boolean; state: 'open' | 'closed' | 'merged';
-    reviewRequested: boolean;
-  };
-  workflowRun?: { name: string; url: string };
-}
+import type { AgentStatusPhase, AgentStatusInfo } from './types';
+export type { AgentStatusPhase, AgentStatusInfo };
 
 // ==========================================================================
 // Escape helpers

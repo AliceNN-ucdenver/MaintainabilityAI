@@ -1,8 +1,5 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import * as vscode from 'vscode';
-
-const execFileAsync = promisify(execFile);
+import { execFileAsync } from '../utils/exec';
 
 export interface ToolStatus {
   name: string;

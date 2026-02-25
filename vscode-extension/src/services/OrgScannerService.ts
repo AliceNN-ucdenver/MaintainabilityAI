@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { OrgRepo, OrgScanRecommendation, RecommendedPlatform, RecommendedBar, Criticality, ExistingStructureContext, ExistingBarUpdate } from '../types';
 import { GitHubService } from './GitHubService';
-import { buildSystemPrompt, buildUserPrompt } from './llm/OrgScannerPrompt';
+import { buildSystemPrompt, buildUserPrompt } from './OrgScannerPrompt';
 
 export class OrgScannerService {
   private github: GitHubService;

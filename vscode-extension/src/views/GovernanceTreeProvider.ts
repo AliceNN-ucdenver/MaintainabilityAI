@@ -18,12 +18,6 @@ const GOVERNANCE_ACTIONS: GovernanceItem[] = [
     command: 'maintainabilityai.oraculum',
     icon: 'telescope',
   },
-  {
-    label: 'Repository Secrets',
-    command: 'maintainabilityai.configureSecrets',
-    icon: 'lock',
-    args: ['governance'],
-  },
 ];
 
 class GovernanceTreeItem extends vscode.TreeItem {
