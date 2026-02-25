@@ -21,6 +21,10 @@ export interface RctroPrompt {
 // Prompt Pack Types
 // ============================================================================
 
+export type PackDomain = 'rabbit-hole' | 'looking-glass';
+
+export type PackCategory = 'owasp' | 'maintainability' | 'threat-modeling' | 'governance';
+
 export interface PromptPackSelection {
   owasp: string[];           // e.g., ["A03_injection", "A04_insecure_design"]
   maintainability: string[]; // e.g., ["complexity-reduction"]
@@ -28,10 +32,14 @@ export interface PromptPackSelection {
 }
 
 export interface PromptPackInfo {
-  id: string;                // e.g., "A03_injection"
-  category: 'owasp' | 'maintainability' | 'threat-modeling';
-  name: string;              // e.g., "Injection"
+  id: string;                // e.g., "A03_injection" or "architecture"
+  name: string;              // e.g., "Injection" or "Architecture Review"
   filename: string;          // e.g., "A03_injection.md"
+  packDomain: PackDomain;    // which domain this pack belongs to
+  category?: PackCategory;   // rabbit-hole uses owasp/maintainability/threat-modeling; looking-glass uses governance
+  description?: string;      // UI description (always set for looking-glass, derived for rabbit-hole)
+  required?: boolean;        // true for looking-glass 'default' pack
+  available?: boolean;       // true if the .md file exists on disk
   content?: string;          // Loaded on demand
 }
 

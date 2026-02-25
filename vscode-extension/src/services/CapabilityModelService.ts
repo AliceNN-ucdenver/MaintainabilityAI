@@ -16,7 +16,7 @@ import type {
 import {
   generateInsuranceCapabilityModel,
   generateBankingCapabilityModel,
-} from '../templates/scaffolding/capabilityModelTemplates';
+} from '../templates/mesh/capabilityModelTemplates';
 
 // ============================================================================
 // Service

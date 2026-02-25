@@ -370,3 +370,6 @@ export class GitSyncService {
     return `feat(${barId}): sync governance artifacts${body}`;
   }
 }
+
+/** Singleton git sync service — all methods take cwd/path parameters, no internal state. */
+export const gitSyncService = new GitSyncService();

@@ -50,7 +50,7 @@ import {
   generateImdbLiteMongoAdr,
   generateImdbLiteJwtRbacAdr,
   generateImdbLiteMongoMemoryServerAdr,
-} from '../templates/meshTemplates';
+} from '../templates/mesh';
 
 export class BarService {
   private scorer: GovernanceScorer;

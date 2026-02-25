@@ -53,7 +53,7 @@ export interface BarDetailRenderState {
   syncing: boolean;
   syncProgress: string;
   scoreHistory: GovernanceScoreSnapshot[];
-  scoreTrend: GovernanceTrend | string;
+  scoreTrend: GovernanceTrend;
   pillarTrends: { architecture: GovernanceTrend; security: GovernanceTrend; infoRisk: GovernanceTrend; operations: GovernanceTrend } | null;
   currentRepoTree: string[];
   currentDecisions: GovernanceDecision[];
@@ -96,40 +96,54 @@ export function needsPush(gitStatus: GitSyncStatus | null): boolean {
 export function renderGitSyncBanner(gitStatus: GitSyncStatus | null): string {
   if (!gitStatus?.isGitRepo) { return ''; }
 
-  // Case 1: Has remote but never pushed (no upstream tracking branch)
+  const banners: string[] = [];
+
+  // Uncommitted changes (dirty working tree)
+  const dirtyCount = Object.keys(gitStatus.dirtyFiles).length;
+  if (dirtyCount > 0) {
+    banners.push(`
+      <div class="git-sync-banner has-dirty">
+        <span class="git-sync-icon">&#x25CF;</span>
+        <span>${dirtyCount} uncommitted change${dirtyCount !== 1 ? 's' : ''} in mesh.</span>
+        <button id="btn-commit-mesh" class="btn-primary btn-sm">Commit All</button>
+      </div>
+    `);
+  }
+
+  // Has remote but never pushed (no upstream tracking branch)
   if (gitStatus.hasRemote && !gitStatus.hasUpstream) {
-    return `
+    banners.push(`
       <div class="git-sync-banner needs-push">
         <span class="git-sync-icon">&#x2191;</span>
         <span>Local commits have not been pushed to remote yet.</span>
         <button id="btn-push-mesh" class="btn-primary btn-sm">Push to Remote</button>
       </div>
-    `;
+    `);
   }
 
-  // Case 2: Ahead of remote
+  // Ahead of remote
   if (gitStatus.hasRemote && gitStatus.ahead > 0) {
-    return `
+    banners.push(`
       <div class="git-sync-banner needs-push">
         <span class="git-sync-icon">&#x2191;</span>
         <span>${gitStatus.ahead} commit${gitStatus.ahead !== 1 ? 's' : ''} ahead of remote.</span>
         <button id="btn-push-mesh" class="btn-primary btn-sm">Push</button>
       </div>
-    `;
+    `);
   }
 
-  // Case 3: Behind remote
+  // Behind remote
   if (gitStatus.hasRemote && gitStatus.behind > 0) {
-    return `
+    banners.push(`
       <div class="git-sync-banner needs-pull">
         <span class="git-sync-icon">&#x2193;</span>
         <span>${gitStatus.behind} commit${gitStatus.behind !== 1 ? 's' : ''} behind remote.</span>
         <button id="btn-pull-mesh" class="btn-primary btn-sm">Pull</button>
       </div>
-    `;
+    `);
   }
 
-  return '';
+  return banners.join('\n');
 }
 
 // ============================================================================
@@ -1162,6 +1176,9 @@ export function getBarDetailStyles(): string {
       .git-sync-banner.needs-pull {
         background: rgba(75, 156, 211, 0.1); border: 1px solid rgba(75, 156, 211, 0.3); color: var(--accent);
       }
+      .git-sync-banner.has-dirty {
+        background: rgba(210, 153, 34, 0.08); border: 1px solid rgba(210, 153, 34, 0.25); color: var(--warning);
+      }
       .git-sync-icon { font-size: 16px; font-weight: 700; }
       .git-sync-banner .btn-sm { padding: 3px 10px; font-size: 11px; margin-left: auto; }
 
@@ -1377,6 +1394,13 @@ export function attachBarDetailEvents(
       render();
       vscode.postMessage({ type: 'syncBar', barPath });
     }
+  });
+
+  // Commit all dirty files in mesh
+  document.getElementById('btn-commit-mesh')?.addEventListener('click', () => {
+    setState({ syncing: true, syncProgress: 'Committing changes...' });
+    render();
+    vscode.postMessage({ type: 'commitMesh' });
   });
 
   // Push mesh to remote (initial push or push ahead commits)

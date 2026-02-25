@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
-import { PromptPackService } from '../services/PromptPackService';
+import { promptPackService } from '../services/PromptPackService';
 
-export async function browsePromptPacksCommand(context: vscode.ExtensionContext) {
-  const service = new PromptPackService(context.extensionPath);
-  const packs = service.getAllPacks();
+export async function browsePromptPacksCommand(_context: vscode.ExtensionContext) {
+  const packs = promptPackService.getAllPacks();
 
   const categories = [
     { label: 'OWASP Top 10', description: 'Security vulnerability prompt packs', id: 'owasp' },
@@ -30,7 +29,7 @@ export async function browsePromptPacksCommand(context: vscode.ExtensionContext)
     return;
   }
 
-  const content = service.getPackContent(packPick.id);
+  const content = promptPackService.getPackContent(packPick.id);
   if (content) {
     const doc = await vscode.workspace.openTextDocument({
       content,

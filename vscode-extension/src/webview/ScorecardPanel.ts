@@ -3,16 +3,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData } from '../types';
 import { toErrorMessage } from '../utils/errors';
-import { GitHubService } from '../services/GitHubService';
+import { GitHubService, githubService } from '../services/GitHubService';
 import { AgentStatusService } from '../services/AgentStatusService';
-import { PromptPackService } from '../services/PromptPackService';
+import { promptPackService } from '../services/PromptPackService';
 import { PmatService } from '../services/PmatService';
 import { ScorecardService } from '../services/ScorecardService';
 import { ScorecardHistoryService } from '../services/ScorecardHistoryService';
 import { TechStackDetector } from '../services/TechStackDetector';
 import { FolderStateService } from '../services/FolderStateService';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
-import { generateAliceRemediationWorkflow } from '../templates/scaffoldTemplates';
+import { generateAliceRemediationWorkflow } from '../templates/codeRepoTemplates';
 import { execFileAsync } from '../utils/exec';
 import { getNonce } from '../utils/getNonce';
 import { BasePanel } from './BasePanel';
@@ -69,10 +69,9 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
 
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
     super(panel, context);
-    this.githubService = new GitHubService();
+    this.githubService = githubService;
     this.agentStatusService = new AgentStatusService(this.githubService);
     this.pmatService = new PmatService();
-    const promptPackService = new PromptPackService(context.extensionPath);
     this.scorecardService = new ScorecardService(this.githubService, promptPackService, this.pmatService);
     this.historyService = new ScorecardHistoryService(context.workspaceState);
     this.techStackDetector = new TechStackDetector();

@@ -18,7 +18,8 @@ import {
   generateProcessCodeqlResults,
   generateRepoMetadata,
   generateCopilotSetupSteps,
-} from '../templates/scaffoldTemplates';
+} from '../templates/codeRepoTemplates';
+import { promptPackService } from '../services/PromptPackService';
 import { readRepoMetadata } from '../services/RepoMetadata';
 import type { ComponentScaffoldContext } from '../types';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
@@ -308,14 +309,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
       filesToCreate.push({ relativePath: '.github/SECURITY.md', content: generateSecurityPolicy() });
     }
     if (selectedIds.has('prompt-packs')) {
-      const packsDir = path.join(this.context.extensionPath, 'prompt-packs', 'owasp');
-      if (fs.existsSync(packsDir)) {
-        const files = fs.readdirSync(packsDir).filter(f => f.endsWith('.md'));
-        for (const file of files) {
-          const content = fs.readFileSync(path.join(packsDir, file), 'utf8');
-          filesToCreate.push({ relativePath: `prompts/owasp/${file}`, content });
-        }
-      }
+      filesToCreate.push(...promptPackService.getScaffoldFiles());
     }
 
     if (selectedIds.has('copilot-setup')) {
@@ -952,7 +946,7 @@ const FILES = [
   { id: 'fitness', label: 'Fitness Functions', desc: '.github/workflows/fitness-functions.yml', checked: false },
   { id: 'pr-template', label: 'PR Template', desc: '.github/PULL_REQUEST_TEMPLATE.md', checked: true },
   { id: 'security', label: 'Security Policy', desc: '.github/SECURITY.md', checked: true },
-  { id: 'prompt-packs', label: 'Prompt Packs', desc: 'prompts/owasp/ — 10 OWASP packs', checked: false },
+  { id: 'prompt-packs', label: 'Prompt Packs', desc: '.cheshire/prompts/ — OWASP, maintainability, and STRIDE packs', checked: true },
   { id: 'copilot-setup', label: 'Copilot Agent Setup', desc: '.github/copilot-setup-steps.yml — Pre-install deps before agent firewall', checked: true },
 ];
 

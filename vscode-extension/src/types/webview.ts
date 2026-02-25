@@ -81,6 +81,7 @@ export type ScorecardWebviewMessage =
   | { type: 'runCommand'; command: string }
   | { type: 'installPmat' }
   | { type: 'addressTechDebt' }
+  | { type: 'reduceComplexity' }
   | { type: 'refreshDeps' }
   | { type: 'runCoverage' }
   | { type: 'improveCoverage' }
@@ -112,7 +113,7 @@ export type ScorecardExtensionMessage =
   | { type: 'preferredModelSaved'; family: string }
   | { type: 'workspaceFolders'; folders: { name: string; path: string }[] }
   | { type: 'agentStatusUpdate'; status: AgentStatusInfo | null }
-  | { type: 'syncStatus'; behind: number; ahead: number; branch: string }
+  | { type: 'syncStatus'; behind: number; ahead: number; branch: string; dirty: boolean }
   | { type: 'repoSynced' };
 
 // ============================================================================
@@ -160,7 +161,7 @@ export type OracularWebviewMessage =
 
 export type OracularExtensionMessage =
   | { type: 'meshRepoDetected'; owner: string; repo: string }
-  | { type: 'promptPacksLoaded'; packs: { id: string; name: string; description: string; domain?: string; required?: boolean; available: boolean }[] }
+  | { type: 'promptPacksLoaded'; packs: PromptPackInfo[] }
   | { type: 'reviewCreated'; url: string; number: number }
   | { type: 'agentAssigned'; agent: AgentAssignment; commentUrl?: string }
   | { type: 'workflowNotFound' }
@@ -232,6 +233,7 @@ export type LookingGlassWebviewMessage =
   | { type: 'updateAdr'; barPath: string; adr: AdrRecord }
   | { type: 'deleteAdr'; barPath: string; adrId: string }
   | { type: 'syncBar'; barPath: string }
+  | { type: 'commitMesh' }
   | { type: 'pushMesh' }
   | { type: 'pullMesh' }
   | { type: 'switchCapabilityModel'; modelType: CapabilityModelType }
@@ -257,8 +259,6 @@ export type LookingGlassWebviewMessage =
   | { type: 'checkWorkflowStatus' }
   | { type: 'provisionWorkflow' }
   | { type: 'savePreferredModel'; family: string }
-  | { type: 'loadIssueTemplate' }
-  | { type: 'saveIssueTemplate'; content: string }
   | { type: 'reinitializeMesh' }
   | { type: 'loadDriftWeights' }
   | { type: 'saveDriftWeights'; weights: DriftWeights }
@@ -274,7 +274,8 @@ export type LookingGlassWebviewMessage =
   | { type: 'getCalmComponents'; barPath: string }
   | { type: 'implementComponent'; barPath: string; componentId: string; repoName: string; componentName: string; componentType: string; componentDescription: string }
   | { type: 'saveWorkspace'; name: string }
-  | { type: 'configureMeshSecrets' };
+  | { type: 'configureMeshSecrets' }
+  | { type: 'refreshPromptPacks' };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -328,8 +329,6 @@ export type LookingGlassExtensionMessage =
   | { type: 'workflowStatus'; exists: boolean }
   | { type: 'workflowProvisioned' }
   | { type: 'preferredModelSaved'; family: string }
-  | { type: 'issueTemplateLoaded'; content: string; exists: boolean }
-  | { type: 'issueTemplateSaved' }
   | { type: 'meshReinitialized' }
   | { type: 'driftWeightsLoaded'; weights: DriftWeights }
   | { type: 'driftWeightsSaved' }

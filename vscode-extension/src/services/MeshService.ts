@@ -30,7 +30,7 @@ import {
   generateNistControls,
   generatePlatformYaml,
   generatePlatformDecisionsYaml,
-} from '../templates/meshTemplates';
+} from '../templates/mesh';
 
 export class MeshService {
   private barService: BarService;
@@ -506,81 +506,17 @@ export class MeshService {
   // ==========================================================================
 
   /**
-   * Write the Oraculum GitHub Action workflow, prompt pack registry,
-   * and all domain prompt packs into the mesh directory.
-   * Called during initMesh when createRepo=true and on workflow redeploy.
+   * Write the Oraculum GitHub Action workflow into the mesh directory.
+   * Prompt packs are now seeded separately via promptPackService.seedMeshPrompts().
    */
   writeOraculumWorkflow(meshPath: string, extensionPath: string): void {
-    const { generateOraculumWorkflow, generateOraculumDefaultPrompt, generateOraculumPromptPack, generateOraculumRegistry } = require('../templates/scaffoldTemplates');
+    const { generateOraculumWorkflow } = require('../templates/codeRepoTemplates');
 
-    // Write GitHub Actions workflow
     const workflowDir = path.join(meshPath, '.github', 'workflows');
     fs.mkdirSync(workflowDir, { recursive: true });
     const workflowContent = generateOraculumWorkflow(extensionPath);
     if (workflowContent) {
       fs.writeFileSync(path.join(workflowDir, 'oraculum-review.yml'), workflowContent, 'utf8');
-    }
-
-    // Write prompt pack registry + all domain packs
-    const promptsDir = path.join(meshPath, '.caterpillar', 'prompts');
-    fs.mkdirSync(promptsDir, { recursive: true });
-
-    // Registry
-    const registryContent = generateOraculumRegistry(extensionPath);
-    if (registryContent) {
-      fs.writeFileSync(path.join(promptsDir, 'registry.yaml'), registryContent, 'utf8');
-    }
-
-    // Default prompt pack
-    const defaultContent = generateOraculumDefaultPrompt(extensionPath);
-    if (defaultContent) {
-      fs.writeFileSync(path.join(promptsDir, 'default.md'), defaultContent, 'utf8');
-    }
-
-    // Domain prompt packs
-    const domainPacks = ['architecture', 'information-risk', 'operations', 'application-security'];
-    for (const packId of domainPacks) {
-      const content = generateOraculumPromptPack(extensionPath, packId);
-      if (content) {
-        fs.writeFileSync(path.join(promptsDir, `${packId}.md`), content, 'utf8');
-      }
-    }
-
-    // Write GitHub issue template (only if not already present — preserves user edits)
-    const templateDir = path.join(meshPath, '.github', 'ISSUE_TEMPLATE');
-    const templatePath = path.join(templateDir, 'oraculum-review.yml');
-    if (!fs.existsSync(templatePath)) {
-      fs.mkdirSync(templateDir, { recursive: true });
-      fs.writeFileSync(templatePath, `name: Oraculum Architecture Review
-description: Request an AI-powered architecture review for a BAR
-title: "Architecture Review: [APP_NAME]"
-labels: ["oraculum-review"]
-body:
-  - type: textarea
-    id: config
-    attributes:
-      label: Review Configuration
-      description: Oraculum YAML configuration block
-      render: yaml
-      value: |
-        bar_path: platforms/<platform>/<bar>
-        prompt_packs:
-          - default
-        scope:
-          - architecture
-          - security
-          - risk
-          - operations
-        repos:
-          - https://github.com/org/repo
-    validations:
-      required: true
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional Context
-      description: Any additional context for the review
-`, 'utf8');
     }
   }
 

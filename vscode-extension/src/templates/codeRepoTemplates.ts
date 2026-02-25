@@ -7,9 +7,9 @@ import { serializeMetadataYaml, type RepoMetadata } from '../services/RepoMetada
 // HELPERS
 // ============================================================================
 
-/** Read a file from the extension's scaffolding directory. */
+/** Read a file from the extension's code-templates directory. */
 function readScaffoldFile(extensionPath: string, ...segments: string[]): string {
-  const filePath = path.join(extensionPath, 'scaffolding', ...segments);
+  const filePath = path.join(extensionPath, 'code-templates', ...segments);
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
 }
 
@@ -370,18 +370,3 @@ export function generateOraculumWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'oraculum-review.yml');
 }
 
-export function generateOraculumDefaultPrompt(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'prompts', 'oraculum-default.md');
-}
-
-export function generateScaffoldPromptPack(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'prompts', 'cheshire-scaffold-default.md');
-}
-
-export function generateOraculumPromptPack(extensionPath: string, packId: string): string {
-  return readScaffoldFile(extensionPath, 'prompts', `oraculum-${packId}.md`);
-}
-
-export function generateOraculumRegistry(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'prompts', 'oraculum-registry.yaml');
-}

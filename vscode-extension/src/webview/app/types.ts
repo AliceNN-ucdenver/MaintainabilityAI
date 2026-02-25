@@ -272,6 +272,7 @@ export interface BarSummary {
   operations: GovernancePillarScore;
   compositeScore: number;
   pendingDecisions: number;
+  adrCount: number;
   repos: string[];
   repoCount: number;
   path: string;
@@ -303,6 +304,7 @@ export interface PortfolioSummary {
   governanceCoverage: number;
   platforms: PlatformSummary[];
   allBars: BarSummary[];
+  capabilityModel?: CapabilityModelSummary | null;
 }
 
 // ============================================================================

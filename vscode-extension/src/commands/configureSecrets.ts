@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { GitHubService } from '../services/GitHubService';
+import { githubService } from '../services/GitHubService';
 import { requireTool } from '../services/PrerequisiteChecker';
 import {
   SECRETS,
@@ -18,7 +18,7 @@ export async function configureSecretsCommand(target?: SecretsTarget, folderPath
     return;
   }
 
-  const github = new GitHubService();
+  const github = githubService;
 
   // Resolve the target repo based on context
   let repo: { owner: string; repo: string } | null = null;

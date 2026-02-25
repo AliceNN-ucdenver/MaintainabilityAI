@@ -47,9 +47,11 @@ The Caterpillar automates this. It gives every BAR a reviewable, auditable, AI-p
 6. Cheshire opens the governance mesh repository's Issues tab in the browser with the issue pre-populated.
 7. Architect reviews the issue content and submits.
 
-### 2.2 Alternative: Direct Issue Creation
+### ~~2.2 Alternative: Direct Issue Creation~~ (Removed)
 
-Architects who prefer to work directly in GitHub can create a Caterpillar review issue manually using the issue template (see Section 4). The GitHub Action triggers on the label regardless of how the issue was created.
+~~Architects who prefer to work directly in GitHub can create a Caterpillar review issue manually using the issue template (see Section 4). The GitHub Action triggers on the label regardless of how the issue was created.~~
+
+> **Decision (Feb 2026):** Manual issue creation via GitHub Issue Templates has been removed. All Oraculum reviews are created programmatically through the extension. The `.github/ISSUE_TEMPLATE/oraculum-review.yml` file is no longer scaffolded during mesh init, and the Issue Template editor has been removed from Looking Glass Settings.
 
 ### 2.3 Review Execution
 
@@ -207,9 +209,9 @@ For Manulife's use case, the GitHub App approach is recommended since it provide
 
 ---
 
-## 4. Issue Template
+## 4. ~~Issue Template~~ Issue Body Format
 
-The governance mesh repository includes an issue template for Caterpillar reviews:
+> **Note:** The GitHub Issue Form template (`.github/ISSUE_TEMPLATE/oraculum-review.yml`) has been removed. Issues are created exclusively through the extension via `ReviewService.buildIssueBody()`.
 
 The issue body is generated programmatically by `ReviewService.buildIssueBody()` and contains:
 
@@ -390,8 +392,8 @@ The Caterpillar action is accessible from:
 - [x] Default prompt pack with four-pillar analysis (`scaffolding/prompts/oraculum-default.md`)
 - [x] Claude Code posts findings as issue comment via `anthropics/claude-code-action@v1`
 - [x] `review-complete` label added on successful workflow completion
-- [x] Issue template in mesh repository (scaffolded during `writeOraculumWorkflow()`, editable from Settings)
-- [x] Manual issue creation — any user can create a properly formatted issue on the mesh repo
+- ~~[x] Issue template in mesh repository (scaffolded during `writeOraculumWorkflow()`, editable from Settings)~~ *(Removed Feb 2026 — manual creation path dropped)*
+- ~~[x] Manual issue creation — any user can create a properly formatted issue on the mesh repo~~ *(Removed Feb 2026 — all reviews created via extension)*
 
 **Value:** Architecture reviews can run against real code with BAR artifacts as the baseline. The workflow is usable immediately by anyone who can create a GitHub Issue.
 
@@ -427,7 +429,7 @@ The Caterpillar action is accessible from:
 - [x] Link from BAR table to completed review issues (issue number link)
 - [x] Settings gear on Looking Glass portfolio header with inline settings panel
 - [x] Workflow deploy/redeploy moved from Oraculum hub to Looking Glass Settings
-- [x] Issue template editor for `.github/ISSUE_TEMPLATE/oraculum-review.yml`
+- ~~[x] Issue template editor for `.github/ISSUE_TEMPLATE/oraculum-review.yml`~~ *(Removed Feb 2026 — manual creation path dropped)*
 - [x] LLM model preference selector persisted to VS Code workspace settings
 - [x] Preferred model family respected across all LLM-powered features (threat model, org scan, policy generation, top findings)
 - [x] Danger Zone: mesh reinitialization with double confirmation and auto-push
@@ -480,3 +482,4 @@ The Caterpillar action is accessible from:
 | D16 | Multi-select with Default always included | Domain packs add depth to specific pillars. The Default pack provides the BAR artifact inventory and baseline 4-pillar analysis that every review needs. Making it non-removable ensures consistent baseline quality. Architects compose their review scope by checking additional domain packs. |
 | D17 | YAML registry for prompt pack metadata | Avoids parsing `.md` frontmatter. The registry is version-controlled in the mesh, giving architects explicit control over which packs appear in the UI and in what order. Simple hand-rolled YAML parsing consistent with existing codebase patterns (`parseAppYaml`, `parseDecisions`). |
 | D18 | Enhanced default prompt with full BAR inventory | The review agent needs to know exactly which artifacts exist in a BAR and what each file contains. Listing every file by path, format, and purpose — plus explaining the CALM 1.2 model structure — gives the agent maximum context. This is the single biggest driver of review quality. Previous default referenced wrong file extensions (`.json` instead of `.yaml`) and omitted key artifacts (ADRs, fitness functions, quality attributes, decisions). |
+| D19 | Manual issue creation path removed (Feb 2026) | The `.github/ISSUE_TEMPLATE/oraculum-review.yml` file is no longer scaffolded during mesh init, and the Issue Template editor has been removed from Looking Glass Settings. All Oraculum reviews are created programmatically through the extension. The manual path was unused and added maintenance burden (template YAML drifted from `ReviewService.buildIssueBody()` format). |

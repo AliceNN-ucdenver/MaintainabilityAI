@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { Octokit } from '@octokit/rest';
 import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment, LinkedPullRequest, GitHubIssueListItem, WorkflowRunSummary, OrgRepo, ActiveReviewInfo } from '../types';
-import { IssueBodyBuilder } from './IssueBodyBuilder';
+import { promptPackService } from './PromptPackService';
 import { toErrorMessage } from '../utils/errors';
+import { parseGitHubUrl, getRemoteOriginUrl, getCurrentBranch } from '../utils/git';
 
 export class GitHubService {
   /**
@@ -10,13 +11,10 @@ export class GitHubService {
    * Handles https://github.com/org/repo, git@github.com:org/repo.git, etc.
    */
   static parseRepoUrl(url: string): { owner: string; repo: string } | null {
-    const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-    if (!match) { return null; }
-    return { owner: match[1], repo: match[2] };
+    return parseGitHubUrl(url);
   }
 
   private octokit: Octokit | null = null;
-  private bodyBuilder = new IssueBodyBuilder();
 
   async getToken(): Promise<string> {
     const session = await vscode.authentication.getSession('github', ['repo'], {
@@ -76,24 +74,12 @@ export class GitHubService {
   }
 
   private async detectRepoViaGitCli(folderPath: string): Promise<RepoInfo | null> {
-    try {
-      const { execFileAsync } = await import('../utils/exec');
-      const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: folderPath, timeout: 5000 });
-      const url = stdout.trim();
-      const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-      if (!match) { return null; }
-
-      // Try to get the current branch name
-      let branch = 'main';
-      try {
-        const { stdout: branchOut } = await execFileAsync('git', ['branch', '--show-current'], { cwd: folderPath, timeout: 5000 });
-        if (branchOut.trim()) { branch = branchOut.trim(); }
-      } catch { /* use default */ }
-
-      return { owner: match[1], repo: match[2], defaultBranch: branch, remoteUrl: url };
-    } catch {
-      return null;
-    }
+    const url = await getRemoteOriginUrl(folderPath);
+    if (!url) { return null; }
+    const parsed = parseGitHubUrl(url);
+    if (!parsed) { return null; }
+    const branch = await getCurrentBranch(folderPath);
+    return { owner: parsed.owner, repo: parsed.repo, defaultBranch: branch, remoteUrl: url };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,14 +91,14 @@ export class GitHubService {
     }
 
     const url = origin.fetchUrl || origin.pushUrl || '';
-    const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-    if (!match) {
+    const parsed = parseGitHubUrl(url);
+    if (!parsed) {
       return null;
     }
 
     return {
-      owner: match[1],
-      repo: match[2],
+      owner: parsed.owner,
+      repo: parsed.repo,
       defaultBranch: repo.state.HEAD?.name || 'main',
       remoteUrl: url,
     };
@@ -122,11 +108,11 @@ export class GitHubService {
     const client = await this.getClient();
 
     // Ensure labels exist
-    const labels = this.bodyBuilder.generateLabels(request);
+    const labels = promptPackService.generateLabels(request);
     await this.ensureLabels(client, request.repo.owner, request.repo.repo, labels);
 
     // Build issue body
-    const body = this.bodyBuilder.build(request);
+    const body = promptPackService.buildRabbitHoleIssue(request);
 
     // Create issue
     const { data: issue } = await client.rest.issues.create({
@@ -720,11 +706,8 @@ export class GitHubService {
     while (true) {
       try {
         // Try org endpoint first, fall back to user repos
-        let data: Array<{
-          name: string; full_name: string; description: string | null;
-          language: string | null; html_url: string; default_branch: string;
-          updated_at: string; topics?: string[]; archived: boolean; fork: boolean;
-        }>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any[];
 
         try {
           const response = await client.rest.repos.listForOrg({
@@ -834,12 +817,14 @@ export class GitHubService {
       const [waiting, actionRequired] = await Promise.all([
         client.rest.actions.listWorkflowRunsForRepo({
           owner, repo,
-          status: 'waiting' as Parameters<typeof client.rest.actions.listWorkflowRunsForRepo>[0]['status'],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          status: 'waiting' as any,
           per_page: 10,
         }),
         client.rest.actions.listWorkflowRunsForRepo({
           owner, repo,
-          status: 'action_required' as Parameters<typeof client.rest.actions.listWorkflowRunsForRepo>[0]['status'],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          status: 'action_required' as any,
           per_page: 10,
         }),
       ]);
@@ -860,3 +845,6 @@ export class GitHubService {
     }
   }
 }
+
+/** Singleton GitHub service — shares a single Octokit auth session. */
+export const githubService = new GitHubService();

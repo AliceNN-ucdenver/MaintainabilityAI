@@ -6,8 +6,10 @@ import { renderAgentStatus, attachAgentStatusListeners } from './agentStatus';
 import type { AgentStatusInfo } from './agentStatus';
 import type { AdrRecord, AbsolemState, CalmDataPayload } from './pillars/architecturePillar';
 import { renderMarkdown, escapeHtml, escapeAttr } from './pillars/shared';
+import { deployStatusBadge } from './components/html';
 import { mountDiagramCanvas, unmountDiagramCanvas, updateDiagramCanvasProps, isDiagramCanvasMounted } from './reactflow/ReactBridge';
 import type { CalmArchitecture } from './reactflow/CalmAdapter';
+import type { CalmPatch } from './reactflow/CalmMutator';
 import type { DiagramLayout } from './reactflow/LayoutTypes';
 import { renderPoliciesLensContent, renderNistPopup, attachPolicyEvents, getPolicyStyles } from './views/policies';
 import { renderEaLensTabs, renderBusinessCapabilityView, attachEaLensEvents, getEaLensStyles } from './views/eaLenses';
@@ -154,9 +156,6 @@ const state = {
   meshRepo: '',
   // Settings state
   settingsWorkflowExists: null as boolean | null,
-  settingsIssueTemplate: '',
-  settingsIssueTemplateExists: false,
-  settingsIssueTemplateEditing: false,
   settingsPreferredModel: '',
   settingsDriftWeights: { critical: 15, high: 5, medium: 2, low: 1 } as { critical: number; high: number; medium: number; low: number },
   settingsReinitConfirmStep: 0,  // 0=default, 1=warning shown
@@ -1168,7 +1167,7 @@ function render() {
 
 async function renderMermaidDiagrams() {
   const elements = document.querySelectorAll('.mermaid-diagram[data-diagram]');
-  for (const el of elements) {
+  for (const el of Array.from(elements)) {
     const diagramSrc = el.getAttribute('data-diagram') || '';
     if (!diagramSrc) { continue; }
     // Show spinner while rendering
@@ -1207,7 +1206,7 @@ function mountReactDiagramIfNeeded() {
     calmData: calmJson as CalmArchitecture,
     diagramType: state.activeTab as 'context' | 'logical',
     savedLayout: layout,
-    onLayoutChange: (updatedLayout) => {
+    onLayoutChange: (updatedLayout: DiagramLayout) => {
       if (state.activeTab === 'context') {
         state.layouts = { context: updatedLayout, logical: state.layouts?.logical || null };
       } else {
@@ -1220,7 +1219,7 @@ function mountReactDiagramIfNeeded() {
         layout: updatedLayout,
       });
     },
-    onExportPng: (dataUrl) => {
+    onExportPng: (dataUrl: string) => {
       vscode.postMessage({
         type: 'exportPng',
         barPath: state.currentBar!.path,
@@ -1228,7 +1227,7 @@ function mountReactDiagramIfNeeded() {
         pngDataUrl: dataUrl,
       });
     },
-    onCalmMutation: (patch, updatedCalm) => {
+    onCalmMutation: (patch: CalmPatch[], updatedCalm: CalmArchitecture) => {
       // Keep local state in sync so render() re-mounts use current data
       state.calmData = updatedCalm;
       vscode.postMessage({
@@ -1502,7 +1501,7 @@ function renderSettings(): string {
       </div>
 
       ${renderSettingsWorkflow()}
-      ${renderSettingsIssueTemplate()}
+      ${renderSettingsPromptPacks()}
       ${renderSettingsLlmModel()}
       ${renderSettingsMeshSecrets()}
       ${renderSettingsDriftWeights()}
@@ -1517,11 +1516,7 @@ function settingsRepoHint(): string {
 }
 
 function renderSettingsWorkflow(): string {
-  const statusLabel = state.settingsWorkflowExists === null
-    ? '<span class="status-badge unknown">Checking...</span>'
-    : state.settingsWorkflowExists
-    ? '<span class="status-badge deployed">Deployed</span>'
-    : '<span class="status-badge not-deployed">Not Deployed</span>';
+  const statusLabel = deployStatusBadge(state.settingsWorkflowExists);
 
   const buttonLabel = state.settingsWorkflowExists ? 'Redeploy Workflow' : 'Deploy Workflow';
   const buttonClass = state.settingsWorkflowExists ? 'btn-secondary' : 'btn-primary';
@@ -1541,28 +1536,18 @@ function renderSettingsWorkflow(): string {
   `;
 }
 
-function renderSettingsIssueTemplate(): string {
-  if (!state.settingsIssueTemplateEditing) {
-    return `
-      <div class="settings-section">
-        <h3>Issue Template ${settingsRepoHint()}</h3>
-        <p class="text-muted">Edit the <code>.github/ISSUE_TEMPLATE/oraculum-review.yml</code> GitHub issue template in your mesh repo.</p>
-        <div class="settings-row">
-          <span class="text-muted">${state.settingsIssueTemplateExists ? 'Template exists on disk' : 'No template found — a default will be provided'}</span>
-          <button id="btn-edit-issue-template" class="btn-secondary">Edit Template</button>
-        </div>
-      </div>
-    `;
-  }
 
+function renderSettingsPromptPacks(): string {
   return `
     <div class="settings-section">
-      <h3>Issue Template</h3>
-      <p class="text-muted">Edit the YAML issue template. Save writes to disk — sync your mesh to push changes.</p>
-      <textarea id="issue-template-editor" class="settings-editor" rows="20" spellcheck="false">${escapeHtml(state.settingsIssueTemplate)}</textarea>
-      <div class="settings-row" style="margin-top: 8px; gap: 8px; justify-content: flex-start;">
-        <button id="btn-save-issue-template" class="btn-primary">Save</button>
-        <button id="btn-cancel-issue-template" class="btn-secondary">Cancel</button>
+      <h3>Prompt Packs</h3>
+      <p class="text-muted">
+        Refresh bundled prompt packs in <code>.caterpillar/prompts/</code>.
+        This overwrites existing packs with the latest versions shipped with the extension.
+        Custom packs you added manually are not affected.
+      </p>
+      <div class="settings-row" style="justify-content: flex-start;">
+        <button id="btn-refresh-prompt-packs" class="btn-secondary">Refresh Prompts</button>
       </div>
     </div>
   `;
@@ -2115,9 +2100,7 @@ function attachEventHandlers() {
   document.getElementById('btn-settings-gear')?.addEventListener('click', () => {
     state.view = 'settings';
     state.settingsReinitConfirmStep = 0;
-    state.settingsIssueTemplateEditing = false;
     vscode.postMessage({ type: 'checkWorkflowStatus' });
-    vscode.postMessage({ type: 'loadIssueTemplate' });
     vscode.postMessage({ type: 'listModels' });
     vscode.postMessage({ type: 'loadDriftWeights' });
     render();
@@ -2135,28 +2118,9 @@ function attachEventHandlers() {
     vscode.postMessage({ type: 'provisionWorkflow' });
   });
 
-  // Settings: edit issue template
-  document.getElementById('btn-edit-issue-template')?.addEventListener('click', () => {
-    state.settingsIssueTemplateEditing = true;
-    render();
-  });
-
-  // Settings: save issue template
-  document.getElementById('btn-save-issue-template')?.addEventListener('click', () => {
-    const editor = document.getElementById('issue-template-editor') as HTMLTextAreaElement;
-    if (editor) {
-      vscode.postMessage({ type: 'saveIssueTemplate', content: editor.value });
-      state.settingsIssueTemplate = editor.value;
-      state.settingsIssueTemplateEditing = false;
-      state.settingsIssueTemplateExists = true;
-      render();
-    }
-  });
-
-  // Settings: cancel issue template edit
-  document.getElementById('btn-cancel-issue-template')?.addEventListener('click', () => {
-    state.settingsIssueTemplateEditing = false;
-    render();
+  // Settings: refresh prompt packs
+  document.getElementById('btn-refresh-prompt-packs')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'refreshPromptPacks' });
   });
 
   // Settings: save model preference
@@ -3453,7 +3417,7 @@ window.addEventListener('message', (event) => {
             calmData: updatedCalm as CalmArchitecture,
             diagramType,
             savedLayout: layout,
-            onLayoutChange: (updatedLayout) => {
+            onLayoutChange: (updatedLayout: DiagramLayout) => {
               if (state.activeTab === 'context') {
                 state.layouts = { context: updatedLayout, logical: state.layouts?.logical || null };
               } else {
@@ -3466,7 +3430,7 @@ window.addEventListener('message', (event) => {
                 layout: updatedLayout,
               });
             },
-            onExportPng: (dataUrl) => {
+            onExportPng: (dataUrl: string) => {
               vscode.postMessage({
                 type: 'exportPng',
                 barPath: state.currentBar!.path,
@@ -3474,7 +3438,7 @@ window.addEventListener('message', (event) => {
                 pngDataUrl: dataUrl,
               });
             },
-            onCalmMutation: (patch, updatedCalmFromCanvas) => {
+            onCalmMutation: (patch: CalmPatch[], updatedCalmFromCanvas: CalmArchitecture) => {
               state.calmData = updatedCalmFromCanvas;
               vscode.postMessage({
                 type: 'calmMutation',
@@ -3611,17 +3575,6 @@ window.addEventListener('message', (event) => {
 
     case 'workflowProvisioned':
       state.settingsWorkflowExists = true;
-      if (state.view === 'settings') { render(); }
-      break;
-
-    case 'issueTemplateLoaded':
-      state.settingsIssueTemplate = (message.content as string) || '';
-      state.settingsIssueTemplateExists = message.exists as boolean;
-      if (state.view === 'settings') { render(); }
-      break;
-
-    case 'issueTemplateSaved':
-      state.settingsIssueTemplateExists = true;
       if (state.view === 'settings') { render(); }
       break;
 

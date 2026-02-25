@@ -6,6 +6,7 @@
 import { escapeHtml, escapeAttr } from './shared';
 import type { VsCodeApi } from './shared';
 import type { AdrLinkType, AdrLink, AdrCharacteristics, AdrRecord } from '../types';
+export type { AdrRecord };
 
 // Absolem state passed from lookingGlass.ts
 export interface AbsolemState {
@@ -497,7 +498,7 @@ export function attachArchitectureEvents(
     // Prevent duplicate
     const linkType = typeEl.value as AdrLinkType;
     const targetId = targetEl.value;
-    if (links.some(l => l.type === linkType && l.targetId === targetId)) { return; }
+    if (links.some((l: AdrLink) => l.type === linkType && l.targetId === targetId)) { return; }
     links.push({ type: linkType, targetId });
     form.links = links;
     onAdrEdit(getEditingId(), form);
@@ -536,7 +537,7 @@ export function attachArchitectureEvents(
       alternatives: (document.getElementById('adr-alternatives') as HTMLTextAreaElement)?.value || '',
       references: (document.getElementById('adr-references') as HTMLTextAreaElement)?.value || '',
       links: form?.links && form.links.length > 0 ? form.links : undefined,
-      characteristics: form?.characteristics && Object.values(form.characteristics).some(v => v > 0) ? form.characteristics : undefined,
+      characteristics: form?.characteristics && Object.values(form.characteristics).some((v: number) => v > 0) ? form.characteristics : undefined,
     };
 
     if (!(adr.title as string).trim()) { return; } // Title required

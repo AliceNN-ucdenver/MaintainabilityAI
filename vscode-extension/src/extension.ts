@@ -11,6 +11,7 @@ import { bugReportCommand } from './commands/bugReport';
 import { checkPrerequisitesOnActivation } from './services/PrerequisiteChecker';
 import { configService } from './services/ConfigService';
 import { FolderStateService } from './services/FolderStateService';
+import { promptPackService } from './services/PromptPackService';
 import { ActionsTreeProvider } from './views/ActionsTreeProvider';
 import { GovernanceTreeProvider } from './views/GovernanceTreeProvider';
 import { ScaffoldPanel } from './webview/ScaffoldPanel';
@@ -23,6 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
     logger.initialize(context);
     configService.initialize(context);
     FolderStateService.initialize(context.workspaceState);
+    promptPackService.initialize(context.extensionPath);
     logger.info('MaintainabilityAI activated');
 
     // Check for required CLI tools (gh, git) — non-blocking warning

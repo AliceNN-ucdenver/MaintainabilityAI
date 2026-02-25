@@ -29,87 +29,117 @@ vscode-extension/
 │   ├── threat-modeling/           # 6 STRIDE packs
 │   ├── mappings.json              # Pack ↔ pillar mapping
 │   └── default.md                 # Default pack
-├── scaffolding/                   # Templates scaffolded into user repos
+├── code-templates/                # Templates scaffolded into user repos
 │   ├── scripts/                   # CI scripts (cjs/js)
 │   ├── workflows/                 # GitHub Actions workflows (8 files)
 │   └── prompts/                   # Oraculum review prompts + registry
 ├── src/
 │   ├── extension.ts               # Main entry point (75 LOC, clean)
-│   ├── commands/                  # Command handlers (7 files)
-│   │   ├── browsePromptPacks.ts   #   41 LOC — thin + picker UI
-│   │   ├── configureSecrets.ts    #  252 LOC — ⚠ heavy, has business logic
-│   │   ├── createIssue.ts         #    6 LOC — thin wrapper
+│   ├── commands/                  # Command handlers (8 files, 336 LOC)
+│   │   ├── configureSecrets.ts    #  208 LOC — ⚠ heavy, has business logic
+│   │   ├── bugReport.ts           #   53 LOC — bug report dialog
+│   │   ├── browsePromptPacks.ts   #   40 LOC — thin + picker UI
+│   │   ├── createIssue.ts         #    8 LOC — thin wrapper
+│   │   ├── scaffoldRepo.ts        #    8 LOC — thin wrapper
 │   │   ├── lookingGlass.ts        #    7 LOC — thin wrapper
 │   │   ├── openScorecard.ts       #    6 LOC — thin wrapper
-│   │   ├── oraculum.ts            #    6 LOC — thin wrapper
-│   │   └── scaffoldRepo.ts        #    6 LOC — thin wrapper
+│   │   └── oraculum.ts            #    6 LOC — thin wrapper
 │   ├── schemas/                   # CALM 1.2 JSON schemas (11 files, static)
-│   ├── services/                  # Business logic (25+ files)
-│   │   ├── AbsolemService.ts      #  500+ LOC
-│   │   ├── AgentStatusService.ts  #  300+ LOC
-│   │   ├── BarService.ts          # 1032  LOC
-│   │   ├── CalmFileWatcher.ts
-│   │   ├── CalmTransformer.ts
-│   │   ├── CalmValidator.ts
-│   │   ├── CalmWriteService.ts    #  400+ LOC
-│   │   ├── CapabilityModelService.ts
-│   │   ├── GitHubService.ts       #  840  LOC
-│   │   ├── GitSyncService.ts      #  400+ LOC
-│   │   ├── GovernanceScorer.ts    #  600+ LOC
-│   │   ├── IssueBodyBuilder.ts
-│   │   ├── IssueMonitorService.ts
-│   │   ├── LayoutPersistenceService.ts
-│   │   ├── MeshService.ts         #  872  LOC
-│   │   ├── OrgScannerService.ts
-│   │   ├── PmatService.ts
-│   │   ├── PrerequisiteChecker.ts
-│   │   ├── PromptPackService.ts
-│   │   ├── RepoMetadata.ts
-│   │   ├── ReviewService.ts
-│   │   ├── ScorecardHistoryService.ts
-│   │   ├── ScorecardService.ts    #  733  LOC
-│   │   ├── TechStackDetector.ts
-│   │   ├── ThreatModelService.ts  #  752  LOC
+│   ├── services/                  # Business logic (30 files, ~9,500 LOC)
+│   │   ├── BarService.ts          # 1032 LOC — manifest, scoring, ADRs, reviews
+│   │   ├── MeshService.ts         #  870 LOC — portfolio, platforms, policies
+│   │   ├── GitHubService.ts       #  851 LOC — singleton ✓ API client, issues, org scan
+│   │   ├── ThreatModelService.ts  #  752 LOC — STRIDE threat modeling with LLM
+│   │   ├── ScorecardService.ts    #  733 LOC — metrics: security, deps, coverage
+│   │   ├── AbsolemService.ts      #  676 LOC — multi-turn CALM refinement agent
+│   │   ├── CalmTransformer.ts     #  409 LOC — CALM → Mermaid visualization
+│   │   ├── GitSyncService.ts      #  375 LOC — singleton ✓ git status, per-BAR sync
+│   │   ├── GovernanceScorer.ts    #  361 LOC — pillar artifact scoring
+│   │   ├── OrgScannerService.ts   #  321 LOC — GitHub org scanning
+│   │   ├── ReviewService.ts       #  304 LOC — review formatting
+│   │   ├── CapabilityModelService.ts # 303 LOC — capability model YAML I/O
+│   │   ├── CalmWriteService.ts    #  279 LOC — JSON patch application
+│   │   ├── PmatService.ts         #  258 LOC — exec wrapper for pmat tool
+│   │   ├── AgentStatusService.ts  #  232 LOC — agent status from comments
+│   │   ├── TechStackDetector.ts   #  225 LOC — language/framework detection
+│   │   ├── PromptPackService.ts   #  209 LOC — singleton ✓ cached prompt packs
+│   │   ├── IssueBodyBuilder.ts    #  182 LOC — issue template formatting
+│   │   ├── CalmValidator.ts       #  179 LOC — JSON schema validation
+│   │   ├── IssueMonitorService.ts #  153 LOC — issue polling + events
+│   │   ├── PrerequisiteChecker.ts #  124 LOC — gh/git tool check
+│   │   ├── RepoMetadata.ts        #  118 LOC — .github/repo-metadata.yml
+│   │   ├── ConfigService.ts       #   83 LOC — singleton ✓ cached config
+│   │   ├── FolderStateService.ts  #   77 LOC — singleton ✓ workspace state
+│   │   ├── CalmFileWatcher.ts     #   76 LOC — *.arch.json watcher
+│   │   ├── ScorecardHistoryService.ts # 67 LOC — score snapshot persistence
+│   │   ├── LayoutPersistenceService.ts # 66 LOC — diagram layout I/O
+│   │   ├── SecretsService.ts      #   58 LOC — secret detection helpers
 │   │   └── llm/                   # LLM provider abstraction (good pattern)
-│   │       ├── LlmService.ts      #  118  LOC — factory + orchestrator
-│   │       ├── ClaudeProvider.ts   #   95  LOC
-│   │       ├── OpenAiProvider.ts   #   94  LOC
-│   │       ├── VsCodeLmProvider.ts #   97  LOC
-│   │       └── OrgScannerPrompt.ts #  133  LOC — ⚠ misplaced (prompt, not provider)
-│   ├── templates/                 # Code generation templates
-│   │   ├── issueTemplates.ts      #   56  LOC
-│   │   ├── meshTemplates.ts       #    2  LOC — ⚠ broken barrel re-export
-│   │   ├── scaffoldTemplates.ts   #  942  LOC
-│   │   └── scaffolding/           # Mesh/BAR/CALM scaffold templates
-│   │       ├── index.ts           #    1  LOC barrel
-│   │       ├── archetypeTemplates.ts   # 332 LOC
-│   │       ├── barTemplates.ts         # 887 LOC
-│   │       ├── calmTemplates.ts        # 942 LOC
-│   │       ├── capabilityModelTemplates.ts # 577 LOC
-│   │       └── meshTemplates.ts        # 459 LOC
-│   ├── types/
-│   │   └── index.ts               # 1079 LOC — ⚠ monolith, should split
+│   │       ├── LlmService.ts      #  117 LOC — factory + orchestrator
+│   │       ├── ClaudeProvider.ts   #   95 LOC
+│   │       ├── OpenAiProvider.ts   #   94 LOC
+│   │       ├── VsCodeLmProvider.ts #   97 LOC
+│   │       └── OrgScannerPrompt.ts #  133 LOC — ⚠ misplaced (prompt, not provider)
+│   ├── templates/                 # Code generation templates (3,647 LOC total)
+│   │   ├── issueTemplates.ts      #   56  LOC — issue type defaults
+│   │   ├── codeRepoTemplates.ts   #  387  LOC — code repo CI/CD generators (renamed from scaffoldTemplates)
+│   │   └── mesh/                  # Governance mesh templates (renamed from scaffolding/)
+│   │       ├── index.ts           #    5  LOC barrel
+│   │       ├── archetypeTemplates.ts   # 332 LOC — 3-tier, event-driven, data-pipeline
+│   │       ├── barTemplates.ts         # 887 LOC — BAR pillar artifact generators
+│   │       ├── calmTemplates.ts        # 942 LOC — CALM architecture models
+│   │       ├── capabilityModelTemplates.ts # 577 LOC — Insurance + Banking models
+│   │       └── meshTemplates.ts        # 459 LOC — portfolio/platform/policy generators
+│   ├── types/                     # Split in Phase 5 (1,117 LOC total)
+│   │   ├── index.ts               #    6 LOC — barrel re-export
+│   │   ├── governance.ts          #  397 LOC — BAR, mesh, platform, pillar types
+│   │   ├── webview.ts             #  347 LOC — message protocols (all panels)
+│   │   ├── scorecard.ts           #  179 LOC — scorecard data types
+│   │   ├── github.ts              #  121 LOC — GitHub, issue, PR types
+│   │   └── prompts.ts             #   67 LOC — prompt pack types
+│   ├── utils/                     # Shared utilities (196 LOC total)
+│   │   ├── Logger.ts              #   94 LOC — singleton OutputChannel logger
+│   │   ├── git.ts                 #   47 LOC — GitHub URL parsing, remote detection
+│   │   ├── errors.ts              #   41 LOC — toErrorMessage, handleError
+│   │   ├── getNonce.ts            #    9 LOC — CSP nonce generation
+│   │   └── exec.ts                #    5 LOC — promisified execFile
 │   ├── views/                     # Tree data providers
 │   │   ├── ActionsTreeProvider.ts  #   59 LOC
 │   │   └── GovernanceTreeProvider.ts # 49 LOC
 │   └── webview/                   # Panel classes (extension-side)
-│       ├── LookingGlassPanel.ts   # 2816 LOC
-│       ├── ScaffoldPanel.ts       # 1275 LOC
-│       ├── IssueCreatorPanel.ts   # 1237 LOC
-│       ├── ScorecardPanel.ts      # 1128 LOC
-│       ├── OracularPanel.ts       #  806 LOC
+│       ├── BasePanel.ts           #   74 LOC — abstract base (Phase 2)
+│       ├── LookingGlassPanel.ts   # 2800 LOC — 68 handlers ⚠ largest
+│       ├── ScaffoldPanel.ts       # 1252 LOC
+│       ├── IssueCreatorPanel.ts   # 1220 LOC
+│       ├── ScorecardPanel.ts      # 1116 LOC
+│       ├── OracularPanel.ts       #  776 LOC
+│       ├── styles/                # Shared CSS (Phase 4)
+│       │   ├── theme.ts           #   74 LOC — CSS variables
+│       │   ├── components.ts      #   87 LOC — button/badge/spinner CSS
+│       │   └── index.ts           #    9 LOC — barrel
 │       └── app/                   # Webview frontend (browser-side IIFEs)
-│           ├── lookingGlass.ts    # 8000 LOC — ⚠ monolithic IIFE
-│           ├── oraculum.ts        # 1958 LOC
-│           ├── main.ts            # 1234 LOC (Rabbit Hole / Issue Creator)
-│           ├── scorecard.ts       #  825 LOC
-│           ├── agentStatus.ts     #  311 LOC
-│           ├── pillars/           # Extracted pillar renderers (good pattern)
-│           │   ├── shared.ts      #  122 LOC — escapeHtml, renderMarkdown
-│           │   ├── architecturePillar.ts # 696 LOC
+│           ├── lookingGlass.ts    # 3651 LOC (was 8000, Phase 6 extraction)
+│           ├── oraculum.ts        # 1840 LOC
+│           ├── main.ts            # 1193 LOC (Rabbit Hole / Issue Creator)
+│           ├── scorecard.ts       #  816 LOC
+│           ├── agentStatus.ts     #  288 LOC
+│           ├── types.ts           #  499 LOC — ⚠ mirrors src/types/ (drift risk)
+│           ├── components/        # Reusable HTML builders
+│           │   ├── html.ts        #   81 LOC — button(), statusBadge(), deployStatusBadge()
+│           │   ├── absolem.ts     #  682 LOC — Absolem FAB + chat overlay
+│           │   ├── scoreRing.ts   #  SVG score ring
+│           │   └── pillarCard.ts  #  Pillar card rendering
+│           ├── views/             # Extracted view modules (Phase 6)
+│           │   ├── portfolio.ts   # 1395 LOC — portfolio grid, filters, trend
+│           │   ├── barDetail.ts   # 1608 LOC — BAR detail, pillar cards
+│           │   ├── policies.ts    #  766 LOC — policy management
+│           │   └── eaLenses.ts    #  349 LOC — EA lens views
+│           ├── pillars/           # Pillar detail renderers (Phase 6)
+│           │   ├── shared.ts      #  106 LOC — escapeHtml, renderMarkdown
+│           │   ├── architecturePillar.ts # 676 LOC
 │           │   ├── securityPillar.ts     # 205 LOC
-│           │   ├── operationsPillar.ts   #  22 LOC (stub)
-│           │   └── infoRiskPillar.ts     #  25 LOC (stub)
+│           │   ├── operationsPillar.ts   #  stub
+│           │   └── infoRiskPillar.ts     #  stub
 │           └── reactflow/         # CALM diagram subsystem (well-organized)
 │               ├── CalmAdapter.ts       # 488 LOC
 │               ├── CalmMutator.ts       # 475 LOC
@@ -136,18 +166,18 @@ vscode-extension/
 
 ---
 
-## Codebase Snapshot
+## Codebase Snapshot (Post Phase 7)
 
-| Metric | Value |
-|--------|-------|
-| Total source files | 110+ |
-| Largest file | `lookingGlass.ts` — 8,000 lines |
-| Panel classes | 5 (all follow identical boilerplate) |
-| Service classes | 25+ |
-| Duplicated functions | 7 identified (500–700 lines estimated) |
-| Webview app files | 5 (`lookingGlass`, `scorecard`, `main`, `oraculum`, `agentStatus`) |
-| Type definitions | 1,079 lines in single monolith |
-| Try-catch blocks | 93 (inconsistent error handling) |
+| Metric | Before (Phase 0) | Current (Phase 7 Complete) |
+|--------|-------------------|----------------------------|
+| Total source lines | ~35,000 | 38,552 (net growth from features) |
+| Largest panel | `LookingGlassPanel.ts` — 2,816 | 2,800 |
+| Largest webview | `lookingGlass.ts` — 8,000 | 3,651 (53% reduction) |
+| Service singletons | 1 (configService) | 5 (+ github, gitSync, promptPack, folderState) |
+| GitHub URL regex copies | 11 | 1 (canonical in `utils/git.ts`) |
+| Type monolith | 1,079 lines | Split into 5 domain files |
+| Extracted view modules | 0 | 7 (portfolio, barDetail, policies, eaLenses, pillars) |
+| Shared utilities | 2 | 7 (exec, getNonce, errors, Logger, git, ConfigService, html) |
 
 ---
 
@@ -706,11 +736,235 @@ These were renamed from `.js` to `.cjs` in a previous session. The deletions and
 - [x] Extract policies to `src/webview/app/views/policies.ts` (766 LOC)
 - [x] Verify each extraction with build + manual testing — lookingGlass.ts 7,643→3,612 LOC (53% reduction)
 
-### Phase 7 — HTML Components & Service Improvements (low priority, on hold)
-- [ ] Create component helper functions
-- [ ] Evaluate service registry pattern
-- [ ] Consider shared git utilities extraction
-- [ ] Add prompt pack content caching in `PromptPackService`
+### Phase 7 — HTML Components & Service Improvements (Complete)
+- [x] Create component helper functions — `src/webview/app/components/html.ts` (`button()`, `statusBadge()`, `deployStatusBadge()`) adopted in scorecard.ts and lookingGlass.ts
+- [x] Evaluate service registry pattern — targeted singletons: `promptPackService`, `githubService`, `gitSyncService` (following existing `configService` pattern). Eliminated 11 `new Service()` instantiations across 8 files.
+- [x] Shared git utilities extraction — `src/utils/git.ts` (`parseGitHubUrl()`, `getRemoteOriginUrl()`, `getCurrentBranch()`, `detectGitHubRepo()`). Reduced GitHub URL regex from 11 to 1 canonical location. Updated GitHubService, SecretsService, LookingGlassPanel, OracularPanel.
+- [x] Add prompt pack content caching in `PromptPackService` — singleton with `initialize()`, `getAllPacks()` cache, lazy-loaded mappings. Eliminated 3 separate instantiations + redundant disk reads.
+
+---
+
+## Phase 8 — Comprehensive Reuse & Organization Audit (February 2026)
+
+Fresh analysis of the full codebase after Phases 1-7 complete. Identifies remaining opportunities grouped by impact.
+
+### 8.1 Templates Rename — Resolve Naming Confusion ✅
+
+**Problem:** "templates" and "scaffolding" are overloaded across two completely different domains:
+
+| Current Path | Domain | Used By | Generates |
+|-------------|--------|---------|-----------|
+| `src/templates/scaffoldTemplates.ts` | Code repo | ScaffoldPanel (Cheshire Cat) | CI/CD workflows, CLAUDE.md, SECURITY.md |
+| `src/templates/scaffolding/*.ts` | Governance mesh | LookingGlassPanel | BAR artifacts, CALM models, capability models |
+| `vscode-extension/scaffolding/` | Code repo | scaffoldTemplates.ts (reads raw files) | Physical workflow/script files with `{{placeholders}}` |
+| `src/templates/meshTemplates.ts` | Barrel re-export | — | 2-line re-export, confusing |
+
+The word "scaffolding" inside `src/templates/` refers to mesh governance artifacts, but `vscode-extension/scaffolding/` at the root refers to code repo CI/CD files. This is backwards.
+
+**Proposed rename:**
+
+```
+src/templates/
+├── scaffoldTemplates.ts         → codeRepoTemplates.ts     # Code repo scaffolding (Cheshire Cat)
+├── issueTemplates.ts            (keep)                     # Issue type templates
+├── meshTemplates.ts             (delete)                   # Dead barrel re-export
+└── scaffolding/                 → mesh/                    # Governance mesh generators
+    ├── index.ts                 (keep)
+    ├── meshTemplates.ts         → portfolioTemplates.ts    # Portfolio/platform/policy
+    ├── barTemplates.ts          (keep)                     # BAR pillar artifacts
+    ├── calmTemplates.ts         (keep)                     # CALM architecture models
+    ├── capabilityModelTemplates.ts (keep)                  # Insurance/banking models
+    └── archetypeTemplates.ts    (keep)                     # Architecture pattern starters
+
+vscode-extension/scaffolding/    → code-templates/          # Physical CI/CD template files
+├── workflows/                   (keep)
+├── scripts/                     (keep)
+└── prompts/                     (keep)
+```
+
+**Completed:**
+- [x] `src/templates/scaffolding/` → `src/templates/mesh/` (governance mesh templates)
+- [x] `src/templates/scaffoldTemplates.ts` → `src/templates/codeRepoTemplates.ts` (code repo CI/CD generators)
+- [x] `vscode-extension/scaffolding/` → `vscode-extension/code-templates/` (physical template files)
+- [x] Deleted `src/templates/meshTemplates.ts` (dead 2-line barrel re-export)
+- [x] Updated `readScaffoldFile()` path from `'scaffolding'` → `'code-templates'`
+- [x] Updated `LookingGlassPanel.ts` — 2 static + 2 dynamic imports
+- [x] Updated `ScaffoldPanel.ts` — 1 static import
+- [x] Updated `ScorecardPanel.ts` — 1 static import
+- [x] Updated `CapabilityModelService.ts` — 1 static import
+- [x] Updated `MeshService.ts` — 1 static import + 1 require
+- [x] Updated `BarService.ts` — 1 static import
+- [x] Clean build verified
+
+---
+
+### 8.2 Remaining Service Duplication (Pending)
+
+#### 8.2a YAML Parsing — 8+ methods with inline regex
+
+Multiple services implement ad-hoc regex-based YAML key extraction:
+
+| Service | Methods |
+|---------|---------|
+| `BarService.ts` | `parseAppYaml()`, `parseReviewsYaml()`, `parseDecisions()`, `parseScoreHistoryYaml()` |
+| `MeshService.ts` | `parsePortfolioConfig()`, `parsePlatformConfig()`, `parseNistControls()`, `readScoringConfig()` |
+| `GovernanceScorer.ts` | inline regex for YAML value extraction |
+| `ThreatModelService.ts` | `parseThreatModelYaml()`, `parseInlineArray()` |
+
+**Why not use a YAML library?** These are lightweight governance YAML files (not complex nested docs). A full YAML parser would be overkill. But the regex patterns are duplicated.
+
+**Opportunity:** Extract `src/utils/yaml.ts` with helpers:
+- `yamlGetString(content, key)` — extract single value
+- `yamlGetArray(content, key)` — extract inline `[a, b, c]` array
+- `yamlGetSection(content, key)` — extract indented block under a key
+
+**Impact:** ~120 lines of duplicated regex → ~40 lines in one utility. Medium priority.
+
+#### 8.2b Score/Status Computation — Repeated thresholds
+
+| Service | Pattern |
+|---------|---------|
+| `ScorecardService.ts` | `scoreToStatus()` (green/yellow/red), `computeGrade()` (A–F) |
+| `GovernanceScorer.ts` | `scorePillar()` (60% present + 40% quality bonus) |
+| `BarService.ts` | `computeDriftScore()` (pillar findings → 0-100) |
+| `barDetail.ts` (webview) | Inline score → color mapping |
+
+**Opportunity:** Extract `src/utils/scoring.ts` with configurable thresholds. Low priority — different domains use different formulas deliberately.
+
+#### 8.2c Services Still Instantiated Per-Panel
+
+Phase 7 converted GitHubService, GitSyncService, PromptPackService to singletons. Remaining:
+
+| Service | Instantiation Sites | Stateful? | Singleton Candidate? |
+|---------|---------------------|-----------|---------------------|
+| `MeshService` | 2 (LookingGlass, Oraculum) | No (static methods + fs reads) | Yes |
+| `BarService` | 2 (LookingGlass, Oraculum) | Accepts GovernanceScorer in constructor | Yes (with default scorer) |
+| `ThreatModelService` | 1 (LookingGlass) | Takes progress callback in constructor | No — stateful per-operation |
+| `OrgScannerService` | 1 (LookingGlass) | Takes GitHubService + callback in constructor | No — stateful per-operation |
+| `ScorecardService` | 1 (Scorecard) | Takes 3 deps in constructor | No — intentionally composed |
+
+**Opportunity:** Convert `MeshService` and `BarService` to singletons. Low priority — only 2 instantiation sites each.
+
+---
+
+### 8.3 Webview Frontend Duplication (Pending)
+
+#### 8.3a renderIssueRow() — 2 near-identical copies
+
+```
+main.ts:624       renderIssueRow(issue) — issue #, title, labels, assignee, comments, createdAt
+oraculum.ts:151   renderIssueRow(issue) — same but filters labels, adds "reviewing" badge, uses updatedAt
+```
+
+~80% identical. **Opportunity:** Extract to `components/issueRow.ts` with render options.
+
+#### 8.3b renderFolderDropdown() — 2 near-identical copies
+
+```
+main.ts:544       renderFolderDropdown() — with isComponentMode early exit
+scorecard.ts:169  renderFolderDropdown() — simpler version
+```
+
+~95% identical. **Opportunity:** Extract to `components/folderDropdown.ts`.
+
+#### 8.3c CSS Import Inconsistency
+
+- `main.ts` and `oraculum.ts` — import from `../styles`
+- `scorecard.ts` and `lookingGlass.ts` — do NOT import from `../styles`, build CSS inline
+
+**Opportunity:** Standardize all webview apps to use `styles/theme.ts` + `styles/components.ts`. Low effort.
+
+#### 8.3d button() / statusBadge() Helpers — Defined but Underused
+
+`components/html.ts` defines `button()`, `statusBadge()`, `deployStatusBadge()` but:
+- `deployStatusBadge()` — used in 2 files (good)
+- `button()` — **not used anywhere** (87+ buttons still inline HTML)
+- `statusBadge()` — **not used anywhere**
+
+**Decision needed:** Either adopt incrementally (settings sections first) or remove unused exports.
+
+---
+
+### 8.4 Large File Candidates for Splitting (Pending)
+
+#### 8.4a LookingGlassPanel.ts — 2,800 lines, 68 message handlers
+
+Largest panel by far. Handles portfolio, platforms, BARs, git sync, threat models, org scanning, capability models, Absolem delegation, CALM mutations, policy baselines, Oraculum workflow provisioning, issue templates, and settings.
+
+**Extraction candidates:**
+
+| Method/Group | Lines | Extract To |
+|-------------|-------|------------|
+| `onInitMesh()` | 213 | `MeshService.initializeMeshWithGitHub()` |
+| `onSummarizeTopFindings()` | 120 | `BarService` or new `FindingsService` |
+| `onGeneratePolicyBaseline()` | 120 | `MeshService.generatePolicyBaseline()` |
+| Org scanning handlers (5) | ~200 | Already delegated to `OrgScannerService`, but coordination is large |
+| Issue template handlers (3) | ~80 | Could move to a template helper |
+
+**Realistic target:** 2,800 → ~2,000 lines by extracting `onInitMesh`, policy baseline, and findings summary into services. The panel would become a thinner coordinator.
+
+#### 8.4b ScaffoldPanel.ts — 1,252 lines
+
+`runScaffold()` method is 241 lines — an entire phase-loop state machine. Could extract a `ScaffoldOrchestrator` but it's a single-use flow, so the payoff is low.
+
+#### 8.4c configureSecrets.ts — 208 lines
+
+A command file with substantial business logic (repo detection, secret setup flow with QuickPick UI). Should move logic to `SecretsService.configureForTarget()`, leaving the command as a thin wrapper (~30 lines).
+
+#### 8.4d BarService.ts — 1,032 lines
+
+Handles manifest I/O, scoring, field updates, ADR CRUD, review metrics, score history, scaffolding, tree walking. Could split ADR methods into `BarAdrService` (6 methods, ~200 lines).
+
+---
+
+### 8.5 Tree Provider Duplication (Pending)
+
+`ActionsTreeProvider.ts` (53 lines) and `GovernanceTreeProvider.ts` (43 lines) are ~90% identical — both implement `TreeDataProvider<TreeItem>` with an array of `{label, icon, command}` items.
+
+**Opportunity:** Extract `GenericTreeProvider` base class (~25 lines), reduce each provider to ~10 lines of item definitions. Low impact but clean.
+
+---
+
+### 8.6 Type System Duplication (Pending)
+
+`src/types/` (1,117 lines across 5 files) vs `src/webview/app/types.ts` (499 lines).
+
+The webview `types.ts` is a **manual mirror** of server-side types. Every type change must be made in two places. Risk of drift is real.
+
+**Why it exists:** esbuild bundles webview apps as separate IIFEs — they can't import from `src/types/` at runtime because they run in the browser. The types file was created in Phase 1 as a pragmatic mirror.
+
+**Options:**
+1. **Build-time generation** — script that copies relevant interfaces from `src/types/` → `webview/app/types.ts`
+2. **Shared declaration file** — `.d.ts` that both sides reference (esbuild resolves at compile time, not runtime)
+3. **Status quo** — keep manual sync, accept the risk
+
+**Recommendation:** Option 2 (shared `.d.ts`) is lowest friction. esbuild already resolves TypeScript types at build time — a shared `src/shared-types.ts` imported by both sides would work since types are erased and never appear in the runtime bundle. Medium priority.
+
+---
+
+### 8.7 Remaining Naming & Organization Issues (Pending)
+
+| Issue | Current | Suggested | Impact |
+|-------|---------|-----------|--------|
+| `src/templates/meshTemplates.ts` | 2-line barrel re-export | Delete (consumers import from `mesh/` directly) | Cleanup |
+| `src/services/llm/OrgScannerPrompt.ts` | Prompt templates in llm/ directory | Move to `src/services/OrgScannerPrompt.ts` | Already noted in Phase 1 |
+| `src/webview/app/pillars/shared.ts` | escapeHtml, renderMarkdown | Could be `src/webview/app/utils.ts` (more discoverable) | Low |
+| `configureSecrets.ts` command | 208 lines of business logic | Extract to `SecretsService`, thin command wrapper | Medium |
+| `SecretsService.ts` | 58 lines — very thin | Absorb configureSecrets logic → single service | Pairs with above |
+
+---
+
+### 8.8 Priority Ranking & Progress
+
+- [x] **8.1 Templates rename** (`scaffolding/` → `mesh/`, root → `code-templates/`) — Small effort, High impact (clarity)
+- [ ] **8.2 Shared webview types** (eliminate mirror in `app/types.ts`) — Medium effort, High impact (prevents drift)
+- [ ] **8.3a Extract renderIssueRow + renderFolderDropdown** — Small effort, Medium impact (DRY)
+- [ ] **8.3b configureSecrets → SecretsService** — Small effort, Medium impact (architecture)
+- [ ] **8.4 YAML parsing utility** — Medium effort, Medium impact (DRY)
+- [ ] **8.5 LookingGlassPanel extraction** (onInitMesh, policy baseline) — Medium effort, Medium impact (readability)
+- [ ] **8.6 CSS import standardization** — Small effort, Low impact (consistency)
+- [ ] **8.7 Tree provider base class** — Small effort, Low impact (DRY)
+- [ ] **8.8 MeshService + BarService singletons** — Small effort, Low impact (only 2 sites each)
 
 ---
 
@@ -739,3 +993,5 @@ These were renamed from `.js` to `.cjs` in a previous session. The deletions and
 | `src/webview/app/components/absolem.ts` | Absolem FAB + chat | 6 |
 | `src/webview/app/components/scoreRing.ts` | SVG score ring | 6 |
 | `src/webview/app/components/pillarCard.ts` | Pillar card rendering | 6 |
+| `src/utils/git.ts` | Shared git URL parsing + remote detection | 7 |
+| `src/webview/app/components/html.ts` | Button, badge HTML component helpers | 7 |

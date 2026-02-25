@@ -73,7 +73,7 @@
 | [`governance-absolem.md`](governance-absolem.md) | **1.0.0 Complete** | Absolem multi-turn AI governance assistant — 7 commands, image-to-CALM, gap analysis, ADR suggestions |
 | [`governance-whiterabbit.md`](governance-whiterabbit.md) | **Complete** | White Rabbit — BAR component scaffolding → Rabbit Hole with CALM/ADR/threat model context |
 | [`governance-repo-to-calm.md`](governance-repo-to-calm.md) | **Complete** | Absolem "Scan Repo" command — scan a GitHub repo via gh CLI, propose incremental CALM patches |
-| [`governance-reuse.md`](governance-reuse.md) | **Phase 6 Complete (Phase 7 pending)** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts |
+| [`governance-reuse.md`](governance-reuse.md) | **Complete (All 7 Phases)** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts, service singletons, shared git utils, HTML helpers |
 
 ---
 
@@ -532,6 +532,30 @@ Shared workspace folder persistence across all code-repo panels, secrets moved t
 **New file:** `src/services/FolderStateService.ts`
 **Modified files:** `extension.ts`, `types/webview.ts`, `ScorecardPanel.ts`, `IssueCreatorPanel.ts`, `LookingGlassPanel.ts`, `main.ts`, `scorecard.ts`, `lookingGlass.ts`, `portfolio.ts`, `configureSecrets.ts`, `createIssue.ts`, `scaffoldRepo.ts`, `ActionsTreeProvider.ts`, `GovernanceTreeProvider.ts`
 
+### Codebase Reuse Phase 7 — Service Singletons, Git Utils, HTML Helpers (February 2026)
+
+Final phase of codebase health work. Eliminated service instantiation duplication, GitHub URL regex duplication, and provided reusable HTML component helpers.
+
+**Service singletons (targeted, not full DI):**
+- `PromptPackService` — singleton with `initialize()`, `getAllPacks()` cache, lazy-loaded mappings. Eliminated 3 instantiations + redundant `fs.readdirSync()` on every `getAllPacks()` call
+- `GitHubService` — singleton export (stateless — all API methods take owner/repo params, only cached Octokit auth). Eliminated 6 `new GitHubService()` across 4 panels + 2 services
+- `GitSyncService` — singleton export (all methods take cwd/path params). Eliminated 2 instantiations
+
+**Shared git utilities (`src/utils/git.ts`):**
+- `parseGitHubUrl()` — canonical GitHub URL regex, replaced 8 inline copies
+- `getRemoteOriginUrl()` — `git remote get-url origin` wrapper, replaced 5 inline copies
+- `getCurrentBranch()` — `git branch --show-current` wrapper
+- `detectGitHubRepo()` — combines all three for one-call repo detection
+- Updated: `GitHubService`, `SecretsService`, `LookingGlassPanel`, `OracularPanel`
+
+**HTML component helpers (`src/webview/app/components/html.ts`):**
+- `button()` — configurable button builder (id, variant, icon, disabled, title, style, data attributes)
+- `statusBadge()` / `deployStatusBadge()` — workflow deploy status badges
+- Adopted in `scorecard.ts` and `lookingGlass.ts` settings sections
+
+**New files:** `src/utils/git.ts`, `src/webview/app/components/html.ts`
+**Modified files:** `PromptPackService.ts`, `GitHubService.ts`, `GitSyncService.ts`, `SecretsService.ts`, `extension.ts`, `LookingGlassPanel.ts`, `ScorecardPanel.ts`, `IssueCreatorPanel.ts`, `OracularPanel.ts`, `configureSecrets.ts`, `browsePromptPacks.ts`, `scorecard.ts`, `lookingGlass.ts`
+
 ---
 
 ## Phase 5 — Codebase Health & Refactoring
@@ -571,11 +595,11 @@ Structural improvements to the extension codebase itself. Full analysis: [govern
 - [ ] Add `--watch` mode to esbuild for development
 - [ ] Resolve `--no-dependencies` publish flag (missing declared dependencies)
 
-### Remaining (reuse Phase 7 — on hold)
-- [ ] Create HTML component helper functions (button, card, badge, metricTile)
-- [ ] Evaluate service registry pattern
-- [ ] Consider shared git utilities extraction
-- [ ] Add prompt pack content caching in `PromptPackService`
+### Reuse Phase 7 — Complete
+- [x] HTML component helpers (`src/webview/app/components/html.ts`) — `button()`, `statusBadge()`, `deployStatusBadge()`
+- [x] Service singletons — `promptPackService`, `githubService`, `gitSyncService` (eliminated 11 instantiations across 8 files)
+- [x] Shared git utilities (`src/utils/git.ts`) — `parseGitHubUrl()`, `getRemoteOriginUrl()`, `getCurrentBranch()`, `detectGitHubRepo()`
+- [x] PromptPackService caching — singleton with `initialize()`, `getAllPacks()` cache, lazy mappings
 
 ---
 

@@ -1,4 +1,4 @@
-// Barrel re-export for all scaffolding templates
+// Barrel re-export for all governance mesh templates
 export * from './meshTemplates';
 export * from './barTemplates';
 export * from './calmTemplates';

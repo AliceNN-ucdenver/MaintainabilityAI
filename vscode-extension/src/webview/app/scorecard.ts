@@ -2,6 +2,7 @@
 import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
 import type { AgentStatusInfo } from './agentStatus';
 import { escapeHtml, escapeAttr, formatTimestamp } from './pillars/shared';
+import { deployStatusBadge } from './components/html';
 import type { VsCodeApi, MetricStatus, HealthGrade, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection } from './types';
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -490,11 +491,7 @@ function renderSettingsView(): string {
 }
 
 function renderSettingsAliceWorkflow(): string {
-  const statusLabel = state.settingsAliceWorkflowExists === null
-    ? '<span class="status-badge checking">Checking\u2026</span>'
-    : state.settingsAliceWorkflowExists
-    ? '<span class="status-badge deployed">Deployed</span>'
-    : '<span class="status-badge not-deployed">Not Deployed</span>';
+  const statusLabel = deployStatusBadge(state.settingsAliceWorkflowExists);
 
   const buttonLabel = state.settingsAliceWorkflowExists ? 'Redeploy Workflow' : 'Deploy Workflow';
   const buttonClass = state.settingsAliceWorkflowExists ? 'btn-secondary' : 'btn-primary';

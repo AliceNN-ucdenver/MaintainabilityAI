@@ -1,6 +1,6 @@
-import { GitHubService } from './GitHubService';
+import { githubService } from './GitHubService';
 import { MeshService } from './MeshService';
-import { execFileAsync } from '../utils/exec';
+import { getRemoteOriginUrl, parseGitHubUrl } from '../utils/git';
 
 export interface SecretDefinition {
   id: string;
@@ -42,24 +42,16 @@ export async function detectGovernanceRepo(): Promise<{ owner: string; repo: str
   const meshPath = MeshService.getMeshPath();
   if (!meshPath) { return null; }
 
-  try {
-    const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
-    const url = stdout.trim();
-    const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-    if (match) {
-      return { owner: match[1], repo: match[2] };
-    }
-  } catch {
-    // No git remote — mesh is local only
-  }
-  return null;
+  const url = await getRemoteOriginUrl(meshPath);
+  if (!url) { return null; }
+  return parseGitHubUrl(url);
 }
 
 /**
  * Detect the workspace repo (owner/repo) from the open folder's git remote.
  */
 export async function detectWorkspaceRepo(): Promise<{ owner: string; repo: string } | null> {
-  const github = new GitHubService();
+  const github = githubService;
   const repoInfo = await github.detectRepo();
   if (!repoInfo) { return null; }
   return { owner: repoInfo.owner, repo: repoInfo.repo };

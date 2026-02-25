@@ -7,11 +7,12 @@ import type {
   RepoInfo,
 } from '../types';
 import { MeshService } from '../services/MeshService';
-import { GitHubService } from '../services/GitHubService';
-import { GitSyncService } from '../services/GitSyncService';
+import { GitHubService, githubService } from '../services/GitHubService';
+import { GitSyncService, gitSyncService } from '../services/GitSyncService';
 import { IssueMonitorService } from '../services/IssueMonitorService';
-import { ReviewService } from '../services/ReviewService';
+import { promptPackService } from '../services/PromptPackService';
 import { execFileAsync } from '../utils/exec';
+import { getRemoteOriginUrl, parseGitHubUrl, getCurrentBranch } from '../utils/git';
 import { getNonce } from '../utils/getNonce';
 import { BasePanel } from './BasePanel';
 
@@ -23,8 +24,6 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
   private readonly githubService: GitHubService;
   private readonly gitSyncService: GitSyncService;
   private readonly monitorService: IssueMonitorService;
-  private readonly reviewService: ReviewService;
-
   private meshRepoInfo: RepoInfo | null = null;
   private currentIssueNumber: number | undefined;
   private currentIssueUrl: string | undefined;
@@ -69,10 +68,9 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     super(panel, context);
     this.initialBarPath = barPath;
     this.meshService = new MeshService();
-    this.githubService = new GitHubService();
-    this.gitSyncService = new GitSyncService();
+    this.githubService = githubService;
+    this.gitSyncService = gitSyncService;
     this.monitorService = new IssueMonitorService(this.githubService);
-    this.reviewService = new ReviewService();
 
     // Wire monitor events -> webview
     this.monitorService.onDidUpdateComments(comments => {
@@ -173,6 +171,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     }
 
     this.postMessage({ type: 'loading', active: true, message: 'Loading...' });
+    promptPackService.setMeshPath(meshPath);
 
     try {
       // Detect mesh repo (GitHub remote)
@@ -182,7 +181,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
       this.checkMeshSync(meshPath).catch(() => {});
 
       // Load prompt packs
-      const packs = this.reviewService.loadPromptPacks(meshPath);
+      const packs = promptPackService.getAllPacks('looking-glass');
       this.postMessage({ type: 'promptPacksLoaded', packs });
 
       // Check if the Oraculum workflow exists on the mesh repo
@@ -216,26 +215,23 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
   private async onRefreshPromptPacks() {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) { return; }
-    const packs = this.reviewService.loadPromptPacks(meshPath);
+    const packs = promptPackService.getAllPacks('looking-glass');
     this.postMessage({ type: 'promptPacksLoaded', packs });
   }
 
   private async detectMeshRepo(meshPath: string) {
-    try {
-      const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
-      const url = stdout.trim();
-      const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-      if (match) {
-        this.meshRepoInfo = {
-          owner: match[1],
-          repo: match[2],
-          defaultBranch: 'main',
-          remoteUrl: url,
-        };
-        this.postMessage({ type: 'meshRepoDetected', owner: match[1], repo: match[2] });
-      }
-    } catch {
-      // No git remote — mesh is local only
+    const url = await getRemoteOriginUrl(meshPath);
+    if (!url) { return; }
+    const parsed = parseGitHubUrl(url);
+    if (parsed) {
+      const branch = await getCurrentBranch(meshPath);
+      this.meshRepoInfo = {
+        owner: parsed.owner,
+        repo: parsed.repo,
+        defaultBranch: branch,
+        remoteUrl: url,
+      };
+      this.postMessage({ type: 'meshRepoDetected', owner: parsed.owner, repo: parsed.repo });
     }
   }
 
@@ -397,17 +393,12 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
       const bar = summary?.allBars.find(b => b.path === barPath);
       const appName = bar?.name || 'Unknown Application';
 
-      // Load prompt pack content for inclusion in the issue body
-      const packIds = scope.promptPacks ?? (scope.promptPack ? [scope.promptPack] : ['default']);
-      const promptPacks = this.reviewService.loadMultiplePromptPacks(meshPath, packIds);
-
-      const body = this.reviewService.buildIssueBody(
+      // Build the issue body via unified PromptPackService
+      const body = promptPackService.buildOraculumIssue({
         appName,
-        relativePath,
+        barPath: relativePath,
         scope,
-        undefined,
-        promptPacks.length > 0 ? promptPacks : undefined
-      );
+      });
 
       // Create issue WITHOUT the trigger label — user will assign agent to start the review
       const result = await this.githubService.createIssueRaw(
@@ -726,7 +717,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
         this.postMessage({ type: 'pullComplete', message: result.message });
         // Refresh sync status + prompt packs (may have changed on remote)
         await this.checkMeshSync(meshPath);
-        const packs = this.reviewService.loadPromptPacks(meshPath);
+        const packs = promptPackService.getAllPacks('looking-glass');
         this.postMessage({ type: 'promptPacksLoaded', packs });
       } else {
         this.postMessage({ type: 'pullError', message: result.message });

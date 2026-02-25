@@ -18,11 +18,12 @@ import type {
 } from '../types';
 import { MeshService } from '../services/MeshService';
 import { BarService } from '../services/BarService';
-import { GitHubService } from '../services/GitHubService';
+import { GovernanceScorer } from '../services/GovernanceScorer';
+import { GitHubService, githubService } from '../services/GitHubService';
 import { AgentStatusService } from '../services/AgentStatusService';
 import { OrgScannerService } from '../services/OrgScannerService';
 import { ThreatModelService, exportThreatModelCsv } from '../services/ThreatModelService';
-import { GitSyncService } from '../services/GitSyncService';
+import { GitSyncService, gitSyncService } from '../services/GitSyncService';
 import { CapabilityModelService } from '../services/CapabilityModelService';
 import { generateMermaidDiagrams } from '../services/CalmTransformer';
 import { readCalmArchitectureData, readLayoutFile, writeLayoutFile } from '../services/LayoutPersistenceService';
@@ -30,10 +31,11 @@ import { applyPatch as applyCalmPatch, type CalmPatch } from '../services/CalmWr
 import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
-import { generateArchetype, type ArchetypeId } from '../templates/scaffolding/archetypeTemplates';
-import { generateScaffoldPromptPack } from '../templates/scaffoldTemplates';
+import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
+import { promptPackService } from '../services/PromptPackService';
 import { ScaffoldPanel } from './ScaffoldPanel';
 import { execFileAsync } from '../utils/exec';
+import { getRemoteOriginUrl, parseGitHubUrl } from '../utils/git';
 import { getNonce } from '../utils/getNonce';
 import { BasePanel } from './BasePanel';
 import { logger } from '../utils/Logger';
@@ -103,9 +105,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     super(panel, context);
     this.meshService = new MeshService();
     this.barService = new BarService();
-    this.githubService = new GitHubService();
+    this.githubService = githubService;
     this.agentStatusService = new AgentStatusService(this.githubService);
-    this.gitSyncService = new GitSyncService();
+    this.gitSyncService = gitSyncService;
     this.capabilityModelService = new CapabilityModelService();
     this.calmFileWatcher = new CalmFileWatcher();
     this.absolemService = new AbsolemService();
@@ -244,6 +246,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         await this.onSyncBar(message.barPath);
         break;
 
+      case 'commitMesh':
+        await this.onCommitMesh();
+        break;
+
       case 'pushMesh':
         await this.onPushMesh();
         break;
@@ -329,14 +335,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         await this.onSavePreferredModel(message.family);
         break;
 
-      case 'loadIssueTemplate':
-        await this.onLoadIssueTemplate();
-        break;
-
-      case 'saveIssueTemplate':
-        await this.onSaveIssueTemplate(message.content);
-        break;
-
       case 'reinitializeMesh':
         await this.onReinitializeMesh();
         break;
@@ -351,6 +349,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
       case 'configureMeshSecrets':
         vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'governance');
+        break;
+
+      case 'refreshPromptPacks':
+        await this.onRefreshPromptPacks();
         break;
 
       // Absolem — multi-turn CALM refinement agent
@@ -591,11 +593,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
         // Enable GitHub Actions to create PRs (required for Oraculum workflow)
         if (repoUrl) {
-          const repoMatch = repoUrl.match(/github\.com[/:]([\w.-]+)\/([\w.-]+)/);
-          if (repoMatch) {
+          const repoParsed = parseGitHubUrl(repoUrl);
+          if (repoParsed) {
             try {
               await execFileAsync('gh', [
-                'api', `repos/${repoMatch[1]}/${repoMatch[2]}/actions/permissions/workflow`,
+                'api', `repos/${repoParsed.owner}/${repoParsed.repo}/actions/permissions/workflow`,
                 '-X', 'PUT',
                 '-f', 'default_workflow_permissions=write',
                 '-F', 'can_approve_pull_request_reviews=true',
@@ -605,9 +607,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
         stepIdx++;
 
-        // Step 5: Write Oraculum workflow + default prompt pack
+        // Step 5: Seed prompt packs + write Oraculum workflow
         markActive(stepIdx);
         try {
+          promptPackService.seedMeshPrompts(meshPath);
           this.meshService.writeOraculumWorkflow(meshPath, this.context.extensionPath);
           await execFileAsync('git', ['add', '-A'], { cwd: meshPath });
           await execFileAsync('git', ['commit', '-m', 'chore: add oraculum review workflow\n\nGenerated by MaintainabilityAI VS Code Extension'], { cwd: meshPath });
@@ -633,10 +636,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           });
 
           if (apiKey && repoUrl) {
-            // Parse owner/repo from repoUrl
-            const repoMatch = repoUrl.match(/github\.com[/:]([\w.-]+)\/([\w.-]+)/);
-            if (repoMatch) {
-              await this.githubService.setRepoSecret(repoMatch[1], repoMatch[2], 'ANTHROPIC_API_KEY', apiKey);
+            const secretRepo = parseGitHubUrl(repoUrl);
+            if (secretRepo) {
+              await this.githubService.setRepoSecret(secretRepo.owner, secretRepo.repo, 'ANTHROPIC_API_KEY', apiKey);
               markDone(stepIdx, 'ANTHROPIC_API_KEY configured');
             } else {
               markDone(stepIdx, 'Skipped — could not parse repo URL');
@@ -815,11 +817,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         // Detect mesh repo from git remote if not already cached
         const meshPath = MeshService.getMeshPath();
         if (!meshPath) { return; }
-        const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
-        const url = stdout.trim();
-        const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-        if (!match) { return; }
-        this.meshRepoInfo = { owner: match[1], repo: match[2] };
+        const url = await getRemoteOriginUrl(meshPath);
+        if (!url) { return; }
+        const parsed = parseGitHubUrl(url);
+        if (!parsed) { return; }
+        this.meshRepoInfo = { owner: parsed.owner, repo: parsed.repo };
       }
 
       const searchName = barName || path.basename(barPath);
@@ -1493,6 +1495,40 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
   }
 
+  private async onCommitMesh() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'syncError', barPath: '', message: 'No mesh configured.' });
+      return;
+    }
+
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (!gitRoot) {
+      this.postMessage({ type: 'syncError', barPath: '', message: 'Not a git repository.' });
+      return;
+    }
+
+    try {
+      await execFileAsync('git', ['add', '-A'], { cwd: gitRoot });
+      const { stdout: diffCheck } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+      if (!diffCheck.trim()) {
+        this.postMessage({ type: 'syncComplete', barPath: '', message: 'Nothing to commit.' });
+        return;
+      }
+
+      await execFileAsync('git', ['commit', '-m', 'chore: update governance mesh\n\nGenerated by MaintainabilityAI VS Code Extension'], { cwd: gitRoot });
+      this.postMessage({ type: 'syncComplete', barPath: '', message: 'Changes committed.' });
+
+      // Refresh git status so banner updates
+      const summary = this.meshService.buildPortfolioSummary(meshPath);
+      if (summary) {
+        await this.sendGitStatus(meshPath, summary.allBars);
+      }
+    } catch (err) {
+      this.postMessage({ type: 'syncError', barPath: '', message: `Commit failed: ${toErrorMessage(err)}` });
+    }
+  }
+
   private async onPushMesh() {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) {
@@ -1963,7 +1999,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     // 7. Scaffold prompt pack
     let scaffoldGuidelines = '';
     try {
-      const packContent = generateScaffoldPromptPack(this.context.extensionPath);
+      const packContent = promptPackService.getScaffoldPackContent();
       scaffoldGuidelines = `\n### Scaffold Guidelines\n${packContent}\n`;
     } catch { /* best effort */ }
 
@@ -2192,7 +2228,7 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
     }
 
     try {
-      const { generateNistControls } = await import('../templates/meshTemplates');
+      const { generateNistControls } = await import('../templates/mesh');
       this.meshService.savePolicyFile(meshPath, 'nist-800-53-controls.yaml', generateNistControls());
       // Reload policies
       const policies = this.meshService.readPolicies(meshPath);
@@ -2216,7 +2252,7 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
     try {
       // For NIST catalog, reset from template (no LLM needed)
       if (filename === 'nist-800-53-controls.yaml') {
-        const { generateNistControls } = await import('../templates/meshTemplates');
+        const { generateNistControls } = await import('../templates/mesh');
         this.meshService.savePolicyFile(meshPath, filename, generateNistControls());
         const policies = this.meshService.readPolicies(meshPath);
         const nistControls = this.meshService.readNistControls(meshPath);
@@ -2440,10 +2476,12 @@ Policy file: ${filename}
 
     // Gap analysis — enrich review context with all pillar artifacts
     if (command === 'gap-analysis') {
-      const pillarScores = this.barService.scorePillars(barPath);
-      const adrs = this.barService.readAdrs(barPath);
+      const scorer = new GovernanceScorer();
+      const scores = scorer.scoreAllPillars(barPath);
+      const adrs = this.barService.listAdrs(barPath);
       const lines: string[] = ['## Governance Artifact Status\n'];
-      for (const [pillarKey, pillar] of Object.entries(pillarScores)) {
+      for (const [pillarKey, pillar] of Object.entries(scores)) {
+        if (pillarKey === 'compositeScore') { continue; }
         const p = pillar as { score: number; artifacts: { label: string; present: boolean; nonEmpty: boolean }[] };
         lines.push(`### ${pillarKey} (${p.score}%)`);
         for (const a of p.artifacts) {
@@ -2462,7 +2500,7 @@ Policy file: ${filename}
 
     // ADR suggestion — inject existing ADRs as context
     if (command === 'suggest-adr') {
-      const adrs = this.barService.readAdrs(barPath);
+      const adrs = this.barService.listAdrs(barPath);
       const lines: string[] = ['## Existing ADRs\n'];
       if (adrs.length === 0) {
         lines.push('No ADRs documented yet.');
@@ -2566,15 +2604,13 @@ Policy file: ${filename}
   }
 
   private async detectMeshRepo(meshPath: string): Promise<void> {
-    try {
-      const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath });
-      const url = stdout.trim();
-      const match = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-      if (match) {
-        this.meshRepoInfo = { owner: match[1], repo: match[2] };
-        this.postMessage({ type: 'meshRepoDetected', owner: match[1], repo: match[2] });
-      }
-    } catch { /* no git remote — mesh is local only */ }
+    const url = await getRemoteOriginUrl(meshPath);
+    if (!url) { return; }
+    const parsed = parseGitHubUrl(url);
+    if (parsed) {
+      this.meshRepoInfo = { owner: parsed.owner, repo: parsed.repo };
+      this.postMessage({ type: 'meshRepoDetected', owner: parsed.owner, repo: parsed.repo });
+    }
   }
 
   private async onCheckWorkflowStatus() {
@@ -2625,6 +2661,7 @@ Policy file: ${filename}
         } catch { /* non-fatal */ }
       }
 
+      promptPackService.seedMeshPrompts(meshPath);
       this.meshService.writeOraculumWorkflow(meshPath, this.context.extensionPath);
 
       await execFileAsync('git', ['add', '-A'], { cwd: meshPath });
@@ -2646,6 +2683,30 @@ Policy file: ${filename}
     }
   }
 
+  private async onRefreshPromptPacks() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+
+    this.postMessage({ type: 'loading', active: true, message: 'Refreshing prompt packs...' });
+    try {
+      promptPackService.seedMeshPrompts(meshPath, true);
+      vscode.window.showInformationMessage('Prompt packs refreshed in .caterpillar/prompts/');
+
+      // Refresh git status so sync banner picks up any changes
+      const summary = this.meshService.buildPortfolioSummary(meshPath);
+      if (summary) {
+        await this.sendGitStatus(meshPath, summary.allBars);
+      }
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to refresh prompt packs: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
   private async onSavePreferredModel(family: string) {
     try {
       const config = vscode.workspace.getConfiguration('maintainabilityai');
@@ -2654,64 +2715,6 @@ Policy file: ${filename}
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to save model preference: ${toErrorMessage(err)}` });
     }
-  }
-
-  private async onLoadIssueTemplate() {
-    const meshPath = MeshService.getMeshPath();
-    if (!meshPath) {
-      this.postMessage({ type: 'issueTemplateLoaded', content: '', exists: false });
-      return;
-    }
-    const templatePath = path.join(meshPath, '.github', 'ISSUE_TEMPLATE', 'oraculum-review.yml');
-    const exists = fs.existsSync(templatePath);
-    const content = exists ? fs.readFileSync(templatePath, 'utf8') : this.getDefaultIssueTemplate();
-    this.postMessage({ type: 'issueTemplateLoaded', content, exists });
-  }
-
-  private async onSaveIssueTemplate(content: string) {
-    const meshPath = MeshService.getMeshPath();
-    if (!meshPath) {
-      this.postMessage({ type: 'error', message: 'No mesh configured' });
-      return;
-    }
-    const templateDir = path.join(meshPath, '.github', 'ISSUE_TEMPLATE');
-    fs.mkdirSync(templateDir, { recursive: true });
-    fs.writeFileSync(path.join(templateDir, 'oraculum-review.yml'), content, 'utf8');
-    this.postMessage({ type: 'issueTemplateSaved' });
-    this.postMessage({ type: 'info', message: 'Issue template saved. Sync your mesh to push changes.' });
-  }
-
-  private getDefaultIssueTemplate(): string {
-    return `name: Oraculum Architecture Review
-description: Request an AI-powered architecture review for a BAR
-title: "Architecture Review: [APP_NAME]"
-labels: ["oraculum-review"]
-body:
-  - type: textarea
-    id: config
-    attributes:
-      label: Review Configuration
-      description: Oraculum YAML configuration block
-      render: yaml
-      value: |
-        bar_path: platforms/<platform>/<bar>
-        prompt_packs:
-          - default
-        scope:
-          - architecture
-          - security
-          - risk
-          - operations
-        repos:
-          - https://github.com/org/repo
-    validations:
-      required: true
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional Context
-      description: Any additional context for the review
-`;
   }
 
   private async onReinitializeMesh() {

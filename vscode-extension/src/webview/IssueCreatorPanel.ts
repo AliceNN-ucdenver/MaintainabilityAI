@@ -4,8 +4,8 @@ import * as path from 'path';
 import type { WebviewMessage, ExtensionMessage, RctroPrompt, RepoInfo, AgentAssignment, PromptPackSelection, TechStack } from '../types';
 import { toErrorMessage } from '../utils/errors';
 import { LlmService } from '../services/llm/LlmService';
-import { GitHubService } from '../services/GitHubService';
-import { PromptPackService } from '../services/PromptPackService';
+import { GitHubService, githubService } from '../services/GitHubService';
+import { promptPackService } from '../services/PromptPackService';
 import { TechStackDetector } from '../services/TechStackDetector';
 import { IssueMonitorService } from '../services/IssueMonitorService';
 import { FolderStateService } from '../services/FolderStateService';
@@ -28,7 +28,6 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
 
   private readonly llmService: LlmService;
   private readonly githubService: GitHubService;
-  private readonly promptPackService: PromptPackService;
   private readonly techStackDetector: TechStackDetector;
   private readonly monitorService: IssueMonitorService;
 
@@ -121,8 +120,7 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
     this.pendingStackOverride = stackOverride;
     this.folderPath = folderPath;
     this.llmService = new LlmService();
-    this.githubService = new GitHubService();
-    this.promptPackService = new PromptPackService(context.extensionPath);
+    this.githubService = githubService;
     this.techStackDetector = new TechStackDetector();
     this.monitorService = new IssueMonitorService(this.githubService);
 
@@ -342,8 +340,8 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
 
     try {
       this.lastSelectedPacks = message.packs;
-      const packContents = this.promptPackService.getSelectedPackContents(message.packs);
-      const defaultContent = this.promptPackService.getDefaultPackContent();
+      const packContents = promptPackService.getSelectedPackContents(message.packs);
+      const defaultContent = promptPackService.getDefaultPackContent();
       const contentStrings = [
         ...(defaultContent ? [defaultContent] : []),
         ...packContents.map(p => p.content),
@@ -428,10 +426,10 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
         threatModeling: [],
       };
 
-      const packContents = this.promptPackService.getSelectedPackContents(selection);
+      const packContents = promptPackService.getSelectedPackContents(selection);
 
       // Always include the default pack (Security-First Baseline)
-      const defaultContent = this.promptPackService.getDefaultPackContent();
+      const defaultContent = promptPackService.getDefaultPackContent();
       if (defaultContent) {
         packContents.unshift({
           id: 'default',
@@ -874,7 +872,7 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
   }
 
   private onLoadPromptPacks() {
-    const packs = this.promptPackService.getAllPacks();
+    const packs = promptPackService.getAllPacks();
     this.postMessage({ type: 'promptPacks', packs });
   }
 
