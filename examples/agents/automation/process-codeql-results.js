@@ -755,6 +755,26 @@ ${prompt.content}
 `;
   }
 
+  // Add Prompt Pack references
+  body += `
+
+---
+
+## Prompt Packs
+
+This repository contains scaffolded prompt packs in \`.cheshire/prompts/\` with detailed implementation guidance.
+Read the following files for security-first remediation instructions:
+
+`;
+  if (owaspCategory) {
+    body += `- \`.cheshire/prompts/owasp/${owaspCategory.key}.md\` — OWASP security guidance for this vulnerability category\n`;
+  }
+  body += `- \`.cheshire/prompts/default.md\` — Security-first baseline (always applicable)
+- \`.cheshire/prompts/maintainability/maintainability.md\` — Maintainability guidance
+- \`.cheshire/prompts/threat-modeling/stride.md\` — STRIDE threat model analysis
+
+`;
+
   // Add Claude Remediation Zone at the bottom
   body += `
 
@@ -765,7 +785,7 @@ ${prompt.content}
 To request a remediation plan for **all ${count} occurrence${count > 1 ? 's' : ''}**, **copy and paste this comment**:
 
 \`\`\`
-@claude Please provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath} following the security and maintainability guidelines provided.
+@claude Read the prompt packs in .cheshire/prompts/ for security guidance, then provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${groupedFinding.filePath}. Follow the RCTRO (Role/Context/Task/Requirements/Output) patterns from the prompt packs.
 \`\`\`
 
 ---

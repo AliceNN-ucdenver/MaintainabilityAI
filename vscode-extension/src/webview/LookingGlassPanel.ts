@@ -1642,9 +1642,9 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       repoName = repoUrl.replace(/\.git$/, '').split('/').pop() || repoUrl;
     } catch { /* use full url */ }
 
-    // Check if already in workspace
+    // Check if already in workspace (exact folder name match, not endsWith)
     const workspaceFolders = vscode.workspace.workspaceFolders || [];
-    const existing = workspaceFolders.find(f => f.uri.fsPath.endsWith(repoName));
+    const existing = workspaceFolders.find(f => path.basename(f.uri.fsPath) === repoName);
     if (existing) { return; } // Already open in workspace
 
     // Search for the repo locally
@@ -1708,10 +1708,11 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
   }
 
   private findLocalRepo(repoName: string, repoUrl: string): string | null {
-    // 1. Check workspace folders
+    // 1. Check workspace folders (exact basename match to avoid false positives
+    //    e.g. "sample-imdb-identity" should not match "imdb-identity")
     const workspaceFolders = vscode.workspace.workspaceFolders || [];
     for (const folder of workspaceFolders) {
-      if (folder.uri.fsPath.endsWith(repoName)) {
+      if (path.basename(folder.uri.fsPath) === repoName) {
         return folder.uri.fsPath;
       }
       const subPath = path.join(folder.uri.fsPath, repoName);

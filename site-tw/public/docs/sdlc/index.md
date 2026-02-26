@@ -256,7 +256,7 @@ This framework operationalizes that insight:
   <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px 0;">
     See the full workflow: feature description → RCTRO generation → GitHub issue → agent implementation
   </p>
-  <a href="https://olucdenver-my.sharepoint.com/:v:/g/personal/shawn_mccarthy_ucdenver_edu/IQAs4vpIObTOQ75l8bjm9DSGASlETl6xn6YIm7I1dRQPhE4?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=fbcbN8" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #c4b5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
+  <a href="https://youtu.be/WtSRfwKrcFU?si=eapuXusdWhIa8Mor" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #c4b5fd; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);">
     ▶️ Watch the Demo
   </a>
 </div>
