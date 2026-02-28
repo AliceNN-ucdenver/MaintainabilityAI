@@ -29,11 +29,15 @@ See also: [STRIDE: Spoofing](/docs/prompts/stride/spoofing), [STRIDE: Elevation 
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for Authentication Vulnerabilities
+## Prompt 1: Analyze Code for Authentication Vulnerabilities
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Finds weak password storage, timing attacks, missing rate limiting, and session issues — returns prioritized findings</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in identification and authentication failures (OWASP A07).
@@ -50,9 +54,7 @@ My codebase includes:
 - Multi-factor authentication (or lack thereof)
 
 Task:
-Analyze the following code/files for OWASP A07 vulnerabilities:
-
-[PASTE YOUR CODE HERE - authentication controllers, password hashing, session management, login endpoints]
+Analyze the code in the current workspace for OWASP A07 vulnerabilities.
 
 Identify:
 
@@ -87,14 +89,19 @@ Provide a prioritized list of authentication vulnerabilities (Critical > High > 
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Secure Authentication
+## Prompt 2: Implement Secure Authentication
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates bcrypt hashing, rate limiting, account lockout, secure sessions, MFA, and test coverage</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive secure authentication for a web application (OWASP A07 remediation).
@@ -179,19 +186,23 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: Plaintext password and timing attack vulnerability
+// CRITICAL: Plaintext password and timing attack vulnerability
 const users = new Map<string, { email: string; password: string }>();
 
 export function register(email: string, password: string) {
-  // ❌ Stores password in plaintext!
+  // Stores password in plaintext!
   users.set(email, { email, password });
 }
 
@@ -199,8 +210,8 @@ export function login(email: string, password: string): boolean {
   const user = users.get(email);
   if (!user) return false;
 
-  // ❌ Non-constant-time comparison leaks timing information!
-  // ❌ Compares plaintext passwords!
+  // Non-constant-time comparison leaks timing information!
+  // Compares plaintext passwords!
   return user.password === password;
 }
 
@@ -210,10 +221,15 @@ export function login(email: string, password: string): boolean {
 // Attack: No session management or expiration
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: Comprehensive authentication with bcrypt, rate limiting, and session management
+// SECURE: Comprehensive authentication with bcrypt, rate limiting, and session management
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import speakeasy from 'speakeasy';
@@ -249,7 +265,7 @@ const users = new Map<string, User>();
 const sessions = new Map<string, Session>();
 const rateLimits = new Map<string, number[]>();
 
-// ✅ Validate password strength
+// Validate password strength
 function validatePasswordStrength(password: string): void {
   const errors: string[] = [];
 
@@ -278,28 +294,28 @@ function validatePasswordStrength(password: string): void {
   }
 }
 
-// ✅ Register user with bcrypt password hashing
+// Register user with bcrypt password hashing
 export async function registerUser(email: string, password: string): Promise<User> {
-  // ✅ Validate email format
+  // Validate email format
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error('Invalid email format');
   }
 
-  // ✅ Validate password strength
+  // Validate password strength
   validatePasswordStrength(password);
 
-  // ✅ Check if user already exists
+  // Check if user already exists
   if (users.has(email)) {
     throw new Error('Email already registered');
   }
 
-  // ✅ Hash password with bcrypt (cost factor 12)
+  // Hash password with bcrypt (cost factor 12)
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   const user: User = {
     id: crypto.randomBytes(16).toString('hex'),
     email,
-    passwordHash, // ✅ Store hash, not plaintext
+    passwordHash, // Store hash, not plaintext
     failedAttempts: 0,
     mfaEnabled: false,
   };
@@ -315,7 +331,7 @@ export async function registerUser(email: string, password: string): Promise<Use
   return user;
 }
 
-// ✅ Rate limiting
+// Rate limiting
 function checkRateLimit(identifier: string, maxRequests: number, windowMs: number): boolean {
   const now = Date.now();
   const windowStart = now - windowMs;
@@ -337,7 +353,7 @@ function checkRateLimit(identifier: string, maxRequests: number, windowMs: numbe
   return true;
 }
 
-// ✅ Check if account is locked
+// Check if account is locked
 function isAccountLocked(user: User): boolean {
   if (!user.lockedUntil) return false;
 
@@ -346,48 +362,48 @@ function isAccountLocked(user: User): boolean {
     return true; // Still locked
   }
 
-  // ✅ Auto-unlock after lockout period
+  // Auto-unlock after lockout period
   user.lockedUntil = undefined;
   user.failedAttempts = 0;
   return false;
 }
 
-// ✅ Secure login with comprehensive protections
+// Secure login with comprehensive protections
 export async function login(
   email: string,
   password: string,
   ipAddress: string,
   mfaToken?: string
 ): Promise<{ sessionId: string } | null> {
-  // ✅ Rate limiting by IP address
+  // Rate limiting by IP address
   if (!checkRateLimit(ipAddress, MAX_REQUESTS_PER_WINDOW, RATE_LIMIT_WINDOW_MS)) {
-    // ✅ Generic error (don't reveal rate limit details)
+    // Generic error (don't reveal rate limit details)
     throw new Error('Too many login attempts. Please try again later.');
   }
 
-  // ✅ Find user
+  // Find user
   const user = users.get(email);
   if (!user) {
-    // ✅ Generic error (don't reveal if user exists)
+    // Generic error (don't reveal if user exists)
     // Still consume time to prevent timing attacks
     await bcrypt.hash(password, BCRYPT_ROUNDS);
     throw new Error('Invalid credentials');
   }
 
-  // ✅ Check account lockout
+  // Check account lockout
   if (isAccountLocked(user)) {
-    // ✅ Generic error (don't reveal account is locked)
+    // Generic error (don't reveal account is locked)
     throw new Error('Invalid credentials');
   }
 
-  // ✅ Constant-time password verification with bcrypt
+  // Constant-time password verification with bcrypt
   const isValidPassword = await bcrypt.compare(password, user.passwordHash);
 
   if (!isValidPassword) {
-    // ✅ Increment failed attempts
+    // Increment failed attempts
     user.failedAttempts++;
 
-    // ✅ Lock account after max attempts
+    // Lock account after max attempts
     if (user.failedAttempts >= MAX_LOGIN_ATTEMPTS) {
       user.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
       console.warn('Account locked due to failed attempts', {
@@ -397,7 +413,7 @@ export async function login(
       });
     }
 
-    // ✅ Log failed attempt
+    // Log failed attempt
     console.warn('Login failed', {
       email: email.substring(0, 3) + '***',
       ipAddress: ipAddress.split('.').slice(0, 3).join('.') + '.***',
@@ -405,11 +421,11 @@ export async function login(
       timestamp: new Date().toISOString()
     });
 
-    // ✅ Generic error
+    // Generic error
     throw new Error('Invalid credentials');
   }
 
-  // ✅ Verify MFA if enabled
+  // Verify MFA if enabled
   if (user.mfaEnabled) {
     if (!mfaToken) {
       throw new Error('MFA token required');
@@ -425,11 +441,11 @@ export async function login(
     }
   }
 
-  // ✅ Reset failed attempts on successful login
+  // Reset failed attempts on successful login
   user.failedAttempts = 0;
   user.lockedUntil = undefined;
 
-  // ✅ Generate cryptographically secure session ID
+  // Generate cryptographically secure session ID
   const sessionId = crypto.randomBytes(32).toString('hex');
 
   const session: Session = {
@@ -442,7 +458,7 @@ export async function login(
 
   sessions.set(sessionId, session);
 
-  // ✅ Log successful login
+  // Log successful login
   console.info('Login successful', {
     userId: user.id,
     ipAddress: ipAddress.split('.').slice(0, 3).join('.') + '.***',
@@ -452,7 +468,7 @@ export async function login(
   return { sessionId };
 }
 
-// ✅ Validate session with expiration checks
+// Validate session with expiration checks
 export function validateSession(sessionId: string): { userId: string } | null {
   const session = sessions.get(sessionId);
   if (!session) {
@@ -461,7 +477,7 @@ export function validateSession(sessionId: string): { userId: string } | null {
 
   const now = new Date();
 
-  // ✅ Check absolute timeout (24 hours from creation)
+  // Check absolute timeout (24 hours from creation)
   const sessionAge = now.getTime() - session.createdAt.getTime();
   if (sessionAge > SESSION_ABSOLUTE_TIMEOUT_MS) {
     sessions.delete(sessionId);
@@ -469,7 +485,7 @@ export function validateSession(sessionId: string): { userId: string } | null {
     return null;
   }
 
-  // ✅ Check idle timeout (30 minutes from last access)
+  // Check idle timeout (30 minutes from last access)
   const idleTime = now.getTime() - session.lastAccessedAt.getTime();
   if (idleTime > SESSION_IDLE_TIMEOUT_MS) {
     sessions.delete(sessionId);
@@ -477,14 +493,14 @@ export function validateSession(sessionId: string): { userId: string } | null {
     return null;
   }
 
-  // ✅ Update last accessed time
+  // Update last accessed time
   session.lastAccessedAt = now;
   sessions.set(sessionId, session);
 
   return { userId: session.userId };
 }
 
-// ✅ Logout
+// Logout
 export function logout(sessionId: string): void {
   const session = sessions.get(sessionId);
   sessions.delete(sessionId);
@@ -497,20 +513,20 @@ export function logout(sessionId: string): void {
   }
 }
 
-// ✅ Setup MFA (TOTP)
+// Setup MFA (TOTP)
 export function setupMFA(userId: string): { secret: string; qrCode: string } {
   const user = Array.from(users.values()).find(u => u.id === userId);
   if (!user) {
     throw new Error('User not found');
   }
 
-  // ✅ Generate MFA secret
+  // Generate MFA secret
   const secret = speakeasy.generateSecret({
     name: `SecureApp (${user.email})`,
     length: 32,
   });
 
-  // ✅ Store secret for user (encrypt in production)
+  // Store secret for user (encrypt in production)
   user.mfaSecret = secret.base32;
   user.mfaEnabled = true;
 
@@ -525,7 +541,7 @@ export function setupMFA(userId: string): { secret: string; qrCode: string } {
   };
 }
 
-// ✅ Verify MFA token
+// Verify MFA token
 export function verifyMFAToken(userId: string, token: string): boolean {
   const user = Array.from(users.values()).find(u => u.id === userId);
 
@@ -533,16 +549,16 @@ export function verifyMFAToken(userId: string, token: string): boolean {
     return false;
   }
 
-  // ✅ Verify TOTP token with time window
+  // Verify TOTP token with time window
   return speakeasy.totp.verify({
     secret: user.mfaSecret,
     encoding: 'base32',
     token,
-    window: 2, // Allow ±1 minute time drift
+    window: 2, // Allow +/-1 minute time drift
   });
 }
 
-// ✅ Cookie configuration for session management
+// Cookie configuration for session management
 export function getSecureCookieOptions() {
   return {
     httpOnly: true, // Prevent XSS access to cookie
@@ -554,139 +570,63 @@ export function getSecureCookieOptions() {
 }
 ```
 
+</details>
+
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated authentication code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated authentication code:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Password Storage</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All passwords hashed using bcrypt with cost factor of at least 12<br/>
-    ✓ Never store passwords in plaintext or use weak algorithms (MD5, SHA-1, SHA-256)<br/>
-    ✓ bcrypt library handles salt generation automatically with slow, memory-hard algorithm resistant to GPU acceleration<br/>
-    ✓ Passwords hashed immediately before storing on user registration<br/>
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Password Storage & Timing Safety</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All passwords hashed with bcrypt, cost factor 12+<br/>
+    ✓ Never plaintext, MD5, SHA-1, or SHA-256 for passwords<br/>
+    ✓ bcrypt.compare() used — never == or === on passwords<br/>
+    ✓ Failed lookups still hash to prevent timing-based user enumeration<br/>
     ✓ Passwords never logged or included in error messages<br/>
-    ✓ bcrypt version and cost factor documented for future migration planning<br/>
-    ✓ Test: Inspect database verify only bcrypt hashes stored, register with same password twice verify different hashes
+    ✓ <strong style="color: #94a3b8;">Test:</strong> verify only bcrypt hashes stored; measure response time for wrong user vs wrong password (should match)
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Timing Attack Prevention</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Password verification uses constant-time comparison to prevent timing attacks<br/>
-    ✓ bcrypt.compare() performs constant-time comparison internally, never use ==, ===, or string operators<br/>
-    ✓ Failed login attempts consume similar time by hashing against dummy hash when user doesn't exist<br/>
-    ✓ Prevents user enumeration through timing analysis<br/>
-    ✓ Response times similar for wrong password vs wrong user within ~10ms<br/>
-    ✓ Test: Measure response time for wrong password vs wrong user, times should be similar
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Brute Force & Account Lockout</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ IP-based rate limiting: 5 attempts per 15 minutes<br/>
+    ✓ Per-account lockout after 5 consecutive failures, 15 min minimum<br/>
+    ✓ Counter resets on successful login; auto-unlock after duration<br/>
+    ✓ Generic "Invalid credentials" for all failure modes<br/>
+    ✓ All lockouts and rate-limit hits logged as security events<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> 6 attempts from same IP verify blocked; 5 wrong passwords verify account locks
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Brute Force Protection</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Multi-layered protection using both IP-based rate limiting and per-account lockout<br/>
-    ✓ Rate limiting restricts login attempts to 5 per IP per 15 minutes<br/>
-    ✓ Attempts tracked in memory using Map for small deployments or Redis for production<br/>
-    ✓ Account lockout activates after 5 consecutive failed attempts, locks for 15 minutes minimum<br/>
-    ✓ Failed attempt counter reset on successful login<br/>
-    ✓ All rate limit violations and lockouts logged as security events<br/>
-    ✓ Generic error messages that don't reveal whether rate limit or lockout triggered<br/>
-    ✓ Test: Make 6 attempts from same IP verify 6th blocked, 5 wrong passwords verify account locks
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Session Management & Cookies</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Session IDs from crypto.randomBytes(32) — 256 bits entropy<br/>
+    ✓ Idle timeout (30 min) and absolute timeout (24 hr) both enforced<br/>
+    ✓ Session regenerated on login to prevent fixation<br/>
+    ✓ Cookies: httpOnly, secure (prod), sameSite=strict<br/>
+    ✓ Sessions stored server-side; deleted on logout<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> verify session expires after 30 min idle and 24 hr absolute; inspect cookie flags in DevTools
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Account Lockout</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Failed login attempts tracked per account, automatic lock after reaching threshold<br/>
-    ✓ Lockout timestamp stored with user record, checked on every login attempt<br/>
-    ✓ Locked accounts return same generic "Invalid credentials" error as wrong password<br/>
-    ✓ Automatic unlock after lockout duration expires without admin intervention<br/>
-    ✓ Progressive lockout considered where duration increases with repeated lockouts<br/>
-    ✓ Lockout events logged with masked user identifier and timestamp<br/>
-    ✓ Account recovery mechanism provided for legitimate users who forgot password<br/>
-    ✓ Test: Enter wrong password 5 times verify lock, wait duration verify auto-unlock, check logs
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Session Management</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Session IDs generated using crypto.randomBytes with minimum 32 bytes (256 bits) entropy<br/>
-    ✓ Session metadata stored including userId, creation timestamp, last accessed timestamp, IP address<br/>
-    ✓ Both idle timeout (30 min inactivity) and absolute timeout (24 hours from creation) implemented<br/>
-    ✓ Both timeouts validated on every session check<br/>
-    ✓ Session ID regenerated on login to prevent session fixation attacks<br/>
-    ✓ Sessions stored server-side (memory, Redis, database), never trust client-side session data<br/>
-    ✓ Session deleted from storage on logout<br/>
-    ✓ Last accessed timestamp updated on each authenticated request for idle timeout<br/>
-    ✓ Test: Login verify session works, wait 31 min idle verify expired, wait 25 hours verify expired
-  </div>
-</div>
-
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Secure Cookies</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Session cookies have httpOnly flag preventing JavaScript access defending against XSS<br/>
-    ✓ Secure flag true in production ensuring transmission only over HTTPS<br/>
-    ✓ SameSite attribute set to 'strict' or 'lax' to prevent CSRF attacks<br/>
-    ✓ Appropriate maxAge set matching session absolute timeout<br/>
-    ✓ Generic cookie name like 'sessionId' not revealing technology stack<br/>
-    ✓ Path set to minimum required scope, typically '/'<br/>
-    ✓ __Host- prefix considered for cookies to enforce secure and path restrictions<br/>
-    ✓ Never store sensitive data in cookies, only session identifier referencing server-side storage<br/>
-    ✓ Test: Inspect cookies in DevTools verify httpOnly, secure, sameSite flags, attempt JavaScript access verify undefined
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Multi-Factor Authentication</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ TOTP (Time-based One-Time Password) implemented using libraries like speakeasy<br/>
-    ✓ Cryptographically secure random secrets generated (32 bytes minimum) for each user<br/>
-    ✓ QR codes provided for easy setup in authenticator apps (Google Authenticator, Authy)<br/>
-    ✓ MFA secret stored encrypted in database<br/>
-    ✓ Tokens verified with time window (±1-2 minutes) to account for clock drift<br/>
-    ✓ MFA enforced for admin accounts, offered as option for regular users<br/>
-    ✓ Backup codes provided for account recovery if MFA device lost<br/>
-    ✓ MFA setup and verification events logged<br/>
-    ✓ Same token never accepted twice (replay prevention implemented)<br/>
-    ✓ Test: Enable MFA scan QR verify token works, test expired token verify rejection, test reused token verify rejection
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Generic Error Messages</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All authentication failures return identical generic error messages to prevent user enumeration<br/>
-    ✓ "Invalid credentials" used for wrong password, wrong username, locked account, disabled account, rate limit exceeded<br/>
-    ✓ Never reveal whether specific username exists, password is close, or account is locked<br/>
-    ✓ Time-based user enumeration prevented by constant-time password comparison<br/>
-    ✓ Registration doesn't reveal if email already exists until after email verification<br/>
-    ✓ Password reset doesn't reveal if email exists in system<br/>
-    ✓ Different code paths take similar time to prevent timing-based enumeration<br/>
-    ✓ Test: Login with wrong user, wrong password, locked account verify identical error with similar response times
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Security Event Logging</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All authentication events logged including successful logins, failed attempts, account lockouts, MFA setup/verification, password changes, logout<br/>
-    ✓ Contextual data included: masked user identifier (first 3 chars + ***), masked IP address (last octet hidden), timestamp, user agent, action outcome<br/>
-    ✓ Passwords, session IDs, and MFA secrets never logged<br/>
-    ✓ Logs sent to centralized system with restricted access<br/>
-    ✓ Alerts set up for suspicious patterns like many failed logins from single IP, rapid sequential failed attempts, successful login after multiple failures<br/>
-    ✓ Logs retained for minimum 90 days for forensic analysis<br/>
-    ✓ Test: Trigger various authentication events verify all logged with appropriate detail, check no sensitive data in logs
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">MFA & Generic Errors</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ TOTP with 32-byte secrets; QR code for authenticator setup<br/>
+    ✓ MFA enforced for admin accounts<br/>
+    ✓ All auth failures return identical "Invalid credentials" message<br/>
+    ✓ Registration and password reset do not reveal if email exists<br/>
+    ✓ All auth events logged: success, failure, lockout, MFA<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> enable MFA verify token works; login with wrong user, wrong password, locked account verify identical error
   </div>
 </div>
 
@@ -696,29 +636,25 @@ export function getSecureCookieOptions() {
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing authentication implementation
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate secure authentication with bcrypt, rate limiting, and MFA
-4. **Review generated code** using the Human Review Checklist above
-5. **Test bcrypt**: Verify cost factor 12+, hashes stored not plaintext
-6. **Test rate limiting**: Verify IP-based blocking after 5 attempts
-7. **Test account lockout**: Verify account locks after 5 failed attempts
-8. **Test session expiration**: Verify idle and absolute timeouts work
-9. **Implement MFA**: Add TOTP support for admin accounts
-10. **Monitor logs**: Set up alerts for brute force and credential stuffing patterns
+1. **Prompt 1** → analyze existing authentication implementation
+2. **Prioritize** by risk (Critical > High > Medium)
+3. **Prompt 2** → generate bcrypt, rate limiting, sessions, and MFA
+4. **Review** with the checklist above
+5. **Test thoroughly** — bcrypt storage, lockout, session expiry, MFA flow
+6. **Monitor** — set up alerts for brute force and credential stuffing patterns
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - [OWASP A07:2021 - Identification and Authentication Failures](https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/)
 - [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
 - [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 - [OWASP Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
-- [OWASP Credential Stuffing Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: Authentication failures are preventable through bcrypt password hashing (cost 12+), constant-time comparison (bcrypt.compare), rate limiting (5 attempts/15 min), account lockout (5 failures = 15 min lock), cryptographically secure session IDs (crypto.randomBytes), session expiration (30 min idle + 24 hr absolute), and MFA support (TOTP). Never store plaintext passwords or use timing-vulnerable comparisons.
+**Key principle**: Hash with bcrypt (cost 12+), compare with constant-time functions, rate-limit and lock accounts on failure, use cryptographic session IDs with expiration, and add MFA. Never store plaintext passwords.

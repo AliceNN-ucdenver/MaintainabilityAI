@@ -13,7 +13,7 @@
 - **RBAC Bypass**: Manipulating role assignments or bypassing role checks
 - **Parameter Manipulation**: Changing user IDs or role fields in requests
 - **Insecure Direct Object References**: Accessing admin resources by ID
-- **Path Traversal**: Using `../` to escape restricted directories
+- **Path Traversal**: Using ../ to escape restricted directories
 
 **Why It Matters**: Privilege escalation transforms low-privilege users into administrators, enabling complete system compromise. Attackers can access sensitive data, modify critical configurations, create backdoor accounts, or delete entire databases. This is often the final step in a multi-stage attack after initial access is gained.
 
@@ -26,19 +26,21 @@
 
 ---
 
-## 🤖 AI Prompt: Identify Elevation of Privilege Threats in Architecture
+## Prompt: Identify Elevation of Privilege Threats in Architecture
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Discover authorization bypass and privilege escalation risks across roles, endpoints, and file access</span>
+</summary>
 
-**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security architect specializing in access control, authorization, and least privilege principles. Your task is to perform STRIDE threat modeling focusing on Elevation of Privilege (E) threats.
 
 Context:
-I have the following architecture:
-
-[PASTE YOUR ARCHITECTURE DIAGRAM OR DESCRIPTION HERE]
+Analyze the architecture of the current project.
 
 Example:
 - React SPA with role-based UI rendering
@@ -83,10 +85,11 @@ Provide 3-5 high-priority elevation of privilege threats with complete details. 
 ```
 
 </div>
+</details>
 
 ---
 
-## 📋 Example AI Output
+## Example AI Output
 
 ### Threat 1: JWT Role Manipulation to Gain Admin Access
 
@@ -95,11 +98,11 @@ Provide 3-5 high-priority elevation of privilege threats with complete details. 
 **Component**: JWT-based authorization checking only client-provided token claims
 
 **Attack Scenario**:
-1. User logs in and receives JWT: `{"userId": 123, "role": "user"}`
-2. Attacker decodes JWT and changes payload: `{"userId": 123, "role": "admin"}`
-3. Attacker signs JWT with guessed or leaked secret, or uses `none` algorithm
-4. Attacker sends modified JWT to `/api/admin/users` endpoint
-5. Backend reads `role: "admin"` from JWT and grants access
+1. User logs in and receives JWT: {"userId": 123, "role": "user"}
+2. Attacker decodes JWT and changes payload: {"userId": 123, "role": "admin"}
+3. Attacker signs JWT with guessed or leaked secret, or uses none algorithm
+4. Attacker sends modified JWT to /api/admin/users endpoint
+5. Backend reads role: "admin" from JWT and grants access
 6. Attacker can now delete users, access admin panel, change configurations
 
 **Impact**: Complete privilege escalation from regular user to administrator. Full system compromise.
@@ -206,7 +209,7 @@ Additional controls:
 
 **Threat**: User modifies their own profile to change role to admin
 
-**Component**: `/api/users/:userId` PUT endpoint
+**Component**: /api/users/:userId PUT endpoint
 
 **Attack Scenario**:
 1. User views their profile update form
@@ -214,7 +217,7 @@ Additional controls:
    ```json
    {"name": "Alice", "email": "alice@example.com", "role": "user"}
    ```
-3. User modifies request to include `"role": "admin"`
+3. User modifies request to include "role": "admin"
 4. Backend accepts all fields from request body without filtering
 5. User's role is updated to admin in database
 6. User refreshes page and now has admin privileges
@@ -304,11 +307,11 @@ app.put("/api/users/:userId", isAuthenticated, async (req, res) => {
 
 Additional controls:
 - Use separate DTOs/schemas for different roles
-- Never allow users to update their own `role` field
+- Never allow users to update their own role field
 - Implement explicit field allowlists (not blocklists)
 - Log all profile updates with field changes
 - Require admin approval for role changes
-- Use parameterized queries with explicit columns (not `UPDATE users SET *`)
+- Use parameterized queries with explicit columns (not UPDATE users SET *)
 
 **OWASP Mapping**: A01 - Broken Access Control, A04 - Insecure Design
 
@@ -318,13 +321,13 @@ Additional controls:
 
 **Threat**: Attacker uses directory traversal to read restricted system configuration files
 
-**Component**: `/api/files/:filename` download endpoint
+**Component**: /api/files/:filename download endpoint
 
 **Attack Scenario**:
-1. Application serves user-uploaded files: `GET /api/files/invoice.pdf`
-2. Attacker manipulates filename parameter: `GET /api/files/../../config/database.yml`
-3. Backend concatenates path without validation: `/uploads/../../config/database.yml`
-4. Normalized path resolves to `/config/database.yml`
+1. Application serves user-uploaded files: GET /api/files/invoice.pdf
+2. Attacker manipulates filename parameter: GET /api/files/../../config/database.yml
+3. Backend concatenates path without validation: /uploads/../../config/database.yml
+4. Normalized path resolves to /config/database.yml
 5. Attacker downloads database configuration with credentials
 6. Attacker uses credentials to access database directly
 
@@ -418,7 +421,7 @@ app.get("/api/files/:fileId", isAuthenticated, async (req, res) => {
 Additional controls:
 - Store file metadata in database with UUIDs as identifiers
 - Never use user-provided filenames directly in paths
-- Use `basename()` to strip directory components
+- Use basename() to strip directory components
 - Validate resolved path is within allowed directory
 - Implement separate endpoints for different file types
 - Use object storage (S3) instead of file system
@@ -428,95 +431,95 @@ Additional controls:
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated Elevation of Privilege threat mitigation code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated Elevation of Privilege threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Server-Side Authorization</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Server-Side Authorization</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Every endpoint performing privileged operations checks authorization server-side<br/>
     ✓ Never rely on client-side checks (hidden UI elements, disabled buttons) because attackers bypass UI entirely<br/>
     ✓ User's current role fetched from database on every request, not from JWT claims that can be manipulated<br/>
     ✓ Deny-by-default policies implemented where access must be explicitly granted<br/>
     ✓ Authorization checked after authentication but before executing any business logic<br/>
-    ✓ Test: Attempt to call admin endpoints while logged in as regular user, modify JWT claims and verify they're ignored, check authorization enforced even when bypassing UI
+    <strong style="color: #94a3b8;">Test:</strong> Attempt to call admin endpoints while logged in as regular user, modify JWT claims and verify they're ignored, check authorization enforced even when bypassing UI
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Role-Based Access Control (RBAC)</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Role-Based Access Control (RBAC)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Clear role hierarchy implemented with well-defined permissions: guest (unauthenticated), user (basic access), moderator (content management), admin (user management), superadmin (system configuration)<br/>
     ✓ Roles stored in database as single source of truth<br/>
     ✓ Never allow users to modify their own role field<br/>
     ✓ Role inheritance implemented where appropriate (admin inherits user permissions)<br/>
     ✓ Middleware or decorators enforce role checks consistently across all endpoints<br/>
-    ✓ Validate: Document all roles and their permissions, review database schema to ensure role field has appropriate constraints, verify role changes require admin approval
+    <strong style="color: #94a3b8;">Test:</strong> Document all roles and their permissions, review database schema to ensure role field has appropriate constraints, verify role changes require admin approval
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Mass Assignment Prevention</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Mass Assignment Prevention</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Explicit allowlists define which fields each role can modify<br/>
     ✓ Regular users never able to update role, is_admin, permissions, or similar security-critical fields<br/>
     ✓ Separate validation schemas created for different roles<br/>
     ✓ ORMs with field-level access control used or dynamic SQL built with only allowed columns<br/>
     ✓ All attempts to update restricted fields logged as potential attacks<br/>
-    ✓ Test: Submit requests with extra fields like role: admin and verify they're ignored or rejected, check database updates only touch explicitly allowed columns
+    <strong style="color: #94a3b8;">Test:</strong> Submit requests with extra fields like role: admin and verify they're ignored or rejected, check database updates only touch explicitly allowed columns
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Resource Ownership and Horizontal Escalation Prevention</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Resource Ownership and Horizontal Escalation Prevention</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Ownership checks ensure users can only access their own resources<br/>
     ✓ For endpoints like /api/users/:userId/orders, verify req.user.id === userId or user has admin privileges<br/>
     ✓ Database queries use ownership filters: WHERE user_id = $1 AND id = $2<br/>
     ✓ Never expose sequential resource IDs (use UUIDs)<br/>
     ✓ ACLs implemented for resources shared between users<br/>
-    ✓ Test: Log in as User A, attempt to access User B's resources by changing IDs in URLs, verify all requests return 403 Forbidden
+    <strong style="color: #94a3b8;">Test:</strong> Log in as User A, attempt to access User B's resources by changing IDs in URLs, verify all requests return 403 Forbidden
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">File System and Path Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">File System and Path Validation</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Never construct file paths using user-provided input directly<br/>
     ✓ Database-backed file identifiers (UUIDs) used that map to internal paths<br/>
     ✓ basename() applied to strip directory components<br/>
     ✓ Absolute paths resolved and verified they're within allowed directories<br/>
     ✓ Separate storage locations implemented for different sensitivity levels (public uploads, private documents, system configs)<br/>
     ✓ Object storage (S3) used instead of file system when possible<br/>
-    ✓ Test: Attempt path traversal with ../, ..%2F, and URL-encoded variants, verify all attempts blocked and logged
+    <strong style="color: #94a3b8;">Test:</strong> Attempt path traversal with ../, ..%2F, and URL-encoded variants, verify all attempts blocked and logged
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Logging and Anomaly Detection</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Logging and Anomaly Detection</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All authorization failures logged with user ID, requested resource, required permission, and actual permission<br/>
     ✓ Monitoring for patterns indicating privilege escalation attempts: repeated 403 errors, access to many resources sequentially, profile updates with restricted fields<br/>
     ✓ Security teams alerted on suspicious activity<br/>
     ✓ Honeypot endpoints implemented that should never be accessed (trigger immediate alerts)<br/>
-    ✓ Validate: Review authorization failure logs, verify sufficient context for investigation, test alerts fire when authorization fails repeatedly
+    <strong style="color: #94a3b8;">Test:</strong> Review authorization failure logs, verify sufficient context for investigation, test alerts fire when authorization fails repeatedly
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Least Privilege and Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Least Privilege and Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Users granted minimum permissions necessary for their role<br/>
     ✓ Multiple layers of authorization implemented: network level (firewall rules), application level (middleware), database level (row-level security)<br/>
     ✓ Separate database accounts with limited privileges used for different services<br/>
     ✓ Multi-factor authentication required for admin actions<br/>
     ✓ Approval workflows implemented for sensitive operations (user deletion, role changes)<br/>
-    ✓ Review: Audit all role permissions and remove unnecessary access, verify database users have minimal privileges (read-only where possible)
+    <strong style="color: #94a3b8;">Test:</strong> Audit all role permissions and remove unnecessary access, verify database users have minimal privileges (read-only where possible)
   </div>
 </div>
 
@@ -526,25 +529,23 @@ Additional controls:
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
 1. **Use the AI prompt** with ChatGPT or Claude to analyze your architecture
 2. **Review generated threats** using the checklist above
 3. **Audit all admin endpoints** — ensure authorization checks exist
 4. **Implement RBAC middleware** with server-side role verification
 5. **Fix mass assignment** — use explicit field allowlists
-6. **Test authorization** — attempt privilege escalation as regular user
-7. **Document role permissions** — create RBAC matrix showing what each role can do
-8. **Complete STRIDE analysis** — you've now covered all six threat categories!
+6. **Complete STRIDE analysis** — you've now covered all six threat categories!
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - **[OWASP A01: Broken Access Control](/docs/prompts/owasp/A01_broken_access_control)** — Authorization patterns
 - **[OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)** — Best practices
-- **[Back to STRIDE Overview](index)** — See all six categories
+- **[Back to STRIDE Overview](/docs/prompts/threat-modeling/)** — See all six categories
 
 ---
 
-**Remember**: Elevation of Privilege is prevented by rigorous server-side authorization. Never trust client-provided claims — always verify permissions against authoritative server-side data. Default to deny.
+**Key principle**: Elevation of Privilege is prevented by rigorous server-side authorization. Never trust client-provided claims — always verify permissions against authoritative server-side data. Default to deny.

@@ -9,7 +9,7 @@
 **Definition**: Access control enforces policy such that users cannot act outside of their intended permissions. Failures typically lead to unauthorized information disclosure, modification, or destruction of data, or performing business functions outside user limits.
 
 **Common Manifestations**:
-- **IDOR**: Changing URL parameter `id=123` to `id=456` grants access to another user's resource
+- **IDOR**: Changing URL parameter id=123 to id=456 grants access to another user's resource
 - **Privilege Escalation**: Regular users can access admin functions
 - **Missing Authorization**: Authentication present but authorization checks absent
 - **Metadata Manipulation**: Tampering with JWT claims, cookies, or hidden fields to elevate privileges
@@ -28,11 +28,15 @@ See also: [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-pri
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for Access Control Vulnerabilities
+## Prompt 1: Analyze Access Control Vulnerabilities
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Finds IDOR, privilege escalation, and missing authorization — returns a prioritized vulnerability report</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in access control vulnerabilities (OWASP A01).
@@ -47,9 +51,7 @@ My codebase includes:
 - Database queries that fetch user-specific data
 
 Task:
-Analyze the following code/files for OWASP A01 vulnerabilities:
-
-[PASTE YOUR CODE HERE - controllers, routes, database access functions]
+Analyze the code in the current workspace for OWASP A01 vulnerabilities.
 
 Identify:
 
@@ -80,14 +82,19 @@ Provide a prioritized list of vulnerabilities (Critical > High > Medium) with sp
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Secure Access Control
+## Prompt 2: Implement Secure Access Control
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates authorization middleware, IDOR prevention, RBAC, audit logging, and test coverage</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive access control for a web application (OWASP A01 remediation).
@@ -146,22 +153,26 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: IDOR vulnerability - no ownership check
+// CRITICAL: IDOR vulnerability - no ownership check
 export async function getUserDocument(userId: string, documentId: string) {
   const doc = await db.query('SELECT * FROM documents WHERE id = $1', [documentId]);
   return doc.rows[0];
   // Problem: Any authenticated user can access ANY document by changing documentId
 }
 
-// ❌ CRITICAL: Missing role check - admin function exposed
+// CRITICAL: Missing role check - admin function exposed
 export async function deleteAllUsers(req: Request, res: Response) {
   await db.query('DELETE FROM users');
   res.json({ message: 'All users deleted' });
@@ -169,17 +180,19 @@ export async function deleteAllUsers(req: Request, res: Response) {
 }
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: Proper authorization middleware
+// Proper authorization middleware
 import { Request, Response, NextFunction } from 'express';
 
 interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    role: 'admin' | 'user' | 'guest';
-  };
+  user?: { id: string; role: 'admin' | 'user' | 'guest'; };
 }
 
 // Centralized role-based access control
@@ -188,140 +201,94 @@ export function requireRole(allowedRoles: string[]) {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-
     if (!allowedRoles.includes(req.user.role)) {
       console.warn('Authorization failed', {
-        userId: req.user.id,
-        role: req.user.role,
-        required: allowedRoles,
-        path: req.path,
-        timestamp: new Date().toISOString()
+        userId: req.user.id, role: req.user.role,
+        required: allowedRoles, path: req.path
       });
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
-
     next();
   };
 }
 
 // Resource ownership validation
-export async function getUserDocument(requesterId: string, documentId: string, requesterRole: string) {
-  const doc = await db.query(
-    'SELECT * FROM documents WHERE id = $1',
-    [documentId]
-  );
+export async function getUserDocument(
+  requesterId: string, documentId: string, requesterRole: string
+) {
+  const doc = await db.query('SELECT * FROM documents WHERE id = $1', [documentId]);
+  if (!doc.rows[0]) throw new Error('Document not found');
 
-  if (!doc.rows[0]) {
-    throw new Error('Document not found');
-  }
-
-  // ✅ Verify ownership OR admin access
   const isOwner = doc.rows[0].owner_id === requesterId;
   const isAdmin = requesterRole === 'admin';
 
   if (!isOwner && !isAdmin) {
-    console.error('Access control violation', {
-      requesterId,
-      documentId,
-      ownerId: doc.rows[0].owner_id,
-      timestamp: new Date().toISOString()
-    });
+    console.error('Access control violation', { requesterId, documentId });
     throw new Error('Access denied');
   }
-
   return doc.rows[0];
 }
 
 // Protected route with role check
-app.delete('/api/admin/users', requireRole(['admin']), async (req: AuthRequest, res: Response) => {
-  // ✅ Only reachable by admin users
+app.delete('/api/admin/users', requireRole(['admin']), async (req, res) => {
   await db.query('DELETE FROM users WHERE role != $1', ['admin']);
   res.json({ message: 'Users deleted' });
 });
 ```
 
+</details>
+
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated access control code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated access control code:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Authorization Middleware</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Deny-by-default approach where access must be explicitly granted<br/>
-    ✓ Never trust client-provided data like user IDs or roles from headers, cookies, or request bodies<br/>
-    ✓ Properly handle missing user context by returning 401 Unauthorized<br/>
-    ✓ Role checks are case-sensitive and validate against allowlist of known roles<br/>
-    ✓ Middleware fails closed by denying access when encountering errors<br/>
-    ✓ Test: Attempt protected routes without authentication, with wrong role, and with valid credentials
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Authorization Middleware</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Deny-by-default — access explicitly granted<br/>
+    ✓ Never trust client-provided user IDs or roles<br/>
+    ✓ Missing user context → 401, wrong role → 403<br/>
+    ✓ Middleware fails closed on errors<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> unauthenticated, wrong role, valid credentials
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">IDOR Protection</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Every function accessing user resources validates ownership before returning data<br/>
-    ✓ Validation happens server-side, never relying on client-side filtering<br/>
-    ✓ Database queries include ownership checks in WHERE clause or verify after retrieval<br/>
-    ✓ Admin users may bypass ownership checks but this is explicit and logged<br/>
-    ✓ All IDOR violations logged with sufficient detail for security monitoring<br/>
-    ✓ Generic error messages returned to clients to avoid information disclosure<br/>
-    ✓ Test: As user A, attempt to access user B's resources by ID manipulation - all fail with 403
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">IDOR Protection</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Every resource access validates ownership server-side<br/>
+    ✓ DB queries include ownership check or post-retrieval verify<br/>
+    ✓ Admin bypass is explicit and logged<br/>
+    ✓ Generic error messages — no information disclosure<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> user A accesses user B's resources by ID → 403
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Role-Based Access Control</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Role definitions centralized in single configuration file or enum<br/>
-    ✓ Each protected route explicitly declares required roles using middleware<br/>
-    ✓ System supports hierarchical roles where appropriate (admin inherits user permissions)<br/>
-    ✓ Role changes are admin-only operations and all modifications logged<br/>
-    ✓ When adding new roles, all relevant middleware and permissions updated consistently<br/>
-    ✓ Test: Create test users with each role - verify they only access appropriate endpoints
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">RBAC & Privilege Escalation</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Roles centralized in config/enum, routes declare required roles<br/>
+    ✓ Admin functions require role check, not just authentication<br/>
+    ✓ Users cannot elevate own privileges via any interface<br/>
+    ✓ Profile updates never accept role/permission fields from client<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> curl admin endpoints with non-admin tokens → 403
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Function-Level Access & Privilege Escalation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Administrative functions require explicit role checks, not just authentication<br/>
-    ✓ Direct URL access to admin functions blocked for non-admin users<br/>
-    ✓ API endpoints validate permissions for every operation independently<br/>
-    ✓ Regular users cannot elevate their own privileges through any interface<br/>
-    ✓ Profile update endpoints never accept role or permission fields from client input<br/>
-    ✓ JWT claims or session data containing roles are server-signed and validated on every request<br/>
-    ✓ Test: Use curl/Postman to attempt direct API calls to admin endpoints with non-admin tokens
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Authorization Context & Data Access</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ User context (ID, role, permissions) comes from authenticated session or JWT only<br/>
-    ✓ Never from request parameters, headers, or body<br/>
-    ✓ All authorization decisions made server-side with no client-side reliance<br/>
-    ✓ Users only access resources they own or have explicit permission grants<br/>
-    ✓ Listing queries filter by ownership or granted permissions, never return all records<br/>
-    ✓ Cross-user access logged for audit purposes<br/>
-    ✓ Test: Attempt to forge authorization by adding custom headers or manipulating payloads
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Audit Logging</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All authorization failures logged with sufficient context<br/>
-    ✓ Logs include user ID, requested resource, required permission, IP, user agent, timestamp<br/>
-    ✓ Successful access to sensitive resources also logged<br/>
-    ✓ Log entries do not contain sensitive data but enough info to track security incidents<br/>
-    ✓ Failed authorization attempts increment counter for rate limiting and attack detection<br/>
-    ✓ Test: Trigger authorization failures - verify logs contain necessary details without sensitive info
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Context & Logging</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ User context from JWT/session only — never from request params<br/>
+    ✓ Listing queries filter by ownership, never return all records<br/>
+    ✓ All auth failures logged: userId, resource, IP, timestamp<br/>
+    ✓ Failed attempts feed rate limiting and attack detection<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> forge auth headers, manipulate payloads → blocked and logged
   </div>
 </div>
 
@@ -331,26 +298,24 @@ app.delete('/api/admin/users', requireRole(['admin']), async (req: AuthRequest, 
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing codebase for access control gaps
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate secure authorization middleware
-4. **Review generated code** using the Human Review Checklist above
-5. **Test thoroughly**: Positive cases (authorized) and negative cases (denied)
-6. **Deploy incrementally**: Start with highest-risk endpoints
-7. **Monitor logs**: Track authorization failures for attack patterns
-8. **Integrate with CI/CD**: Add automated tests for access control
-9. **Audit regularly**: Review access control logic quarterly
+1. **Prompt 1** → analyze existing codebase for access control gaps
+2. **Prioritize** by risk (Critical > High > Medium)
+3. **Prompt 2** → generate secure authorization middleware
+4. **Review** with the checklist above, test both authorized and denied cases
+5. **Deploy incrementally** starting with highest-risk endpoints
+6. **Monitor** authorization failure logs for attack patterns
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - [OWASP A01:2021 - Broken Access Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/)
-- [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
+- [Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
 - [IDOR Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: Access control failures are preventable through centralized middleware, deny-by-default policies, and thorough ownership validation. Authentication verifies identity; authorization verifies permission.
+**Key principle**: Authentication verifies identity; authorization verifies permission. Centralized middleware + deny-by-default + ownership validation = access control done right.

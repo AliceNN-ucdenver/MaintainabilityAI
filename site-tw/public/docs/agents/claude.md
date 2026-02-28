@@ -1,6 +1,6 @@
 # Claude Code — In-Editor Guide
 
-> **Mode**: In-editor AI assistant (human-in-the-loop, IDE-integrated)
+> <span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> Human-in-the-loop, IDE-integrated
 >
 > Looking for the autonomous GitHub agent? See [Claude Code Action](/docs/agents/claude-code-action).
 

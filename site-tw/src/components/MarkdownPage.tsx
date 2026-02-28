@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSlug from 'rehype-slug';
 import mermaid from 'mermaid';
 
 interface MarkdownPageProps {
@@ -188,6 +189,20 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
     };
   }, [markdown, loading]);
 
+  // Scroll to hash fragment after content renders (SPA navigation doesn't auto-scroll)
+  useEffect(() => {
+    if (!loading && markdown && location.hash) {
+      const timeoutId = setTimeout(() => {
+        const id = location.hash.slice(1);
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [markdown, loading, location.hash]);
+
   // Add copy-to-clipboard functionality for prompt boxes
   useEffect(() => {
     let isMounted = true;
@@ -335,7 +350,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
       <article className="prose prose-invert prose-slate max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw]}
+          rehypePlugins={[rehypeRaw, rehypeSlug]}
           components={{
             // Style code blocks
             // @ts-ignore - TypeScript inference issue, inline exists

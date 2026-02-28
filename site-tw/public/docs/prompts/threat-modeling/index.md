@@ -170,7 +170,7 @@ Draw your system components (frontend, API, database, external services) and dat
 Review which threat categories apply to your architecture. Usually, all six apply to some degree.
 
 ### Step 3: Use AI with Prompt Pack
-Copy the relevant prompt pack (e.g., [Spoofing](./spoofing)), customize with your architecture details, and paste into ChatGPT or Claude.
+Open the relevant prompt pack (e.g., [Spoofing](./spoofing)) and use it with Claude Code, Copilot, or ChatGPT — customize the architecture context for your project.
 
 ### Step 4: Review AI Output
 AI will generate a list of potential threats. Validate each one — is it realistic? Does it apply to your specific design?

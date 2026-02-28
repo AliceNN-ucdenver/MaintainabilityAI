@@ -267,7 +267,7 @@ cat A03_injection.md | xclip -selection clipboard
 Get-Content A03_injection.md | Set-Clipboard
 ```
 
-**Note**: All prompt packs are stored at `site-tw/public/docs/prompts/` to keep them synchronized with the online documentation.
+**Note**: All prompt packs are stored at site-tw/public/docs/prompts/ to keep them synchronized with the online documentation.
 
 ---
 

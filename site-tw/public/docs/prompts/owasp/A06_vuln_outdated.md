@@ -13,7 +13,7 @@
 - **Outdated Versions**: Running old versions of frameworks (Express 3.x, React 16.x) without security updates
 - **No Integrity Verification**: Loading external scripts without Subresource Integrity (SRI) checks
 - **Eval() with Remote Code**: Executing untrusted JavaScript from CDNs or APIs
-- **Wildcard Version Ranges**: Using `^` or `~` in package.json allowing vulnerable minor/patch versions
+- **Wildcard Version Ranges**: Using ^ or ~ in package.json allowing vulnerable minor/patch versions
 - **Unused Dependencies**: Bloated dependency trees increasing attack surface unnecessarily
 
 **Why It Matters**: Vulnerable components ranked #6 in OWASP Top 10 2021, affecting 94% of applications tested. Automated tools like npm audit and Snyk make finding vulnerabilities easy for attackers. A single vulnerable dependency can compromise entire applications. Supply chain attacks targeting popular packages (event-stream, colors.js) demonstrate real-world exploitation.
@@ -29,11 +29,15 @@ See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Elevatio
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for Vulnerable Component Issues
+## Prompt 1: Analyze Code for Vulnerable Component Issues
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Scans dependencies, CDN scripts, and dynamic code for outdated or vulnerable components — returns prioritized findings</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in vulnerable and outdated components (OWASP A06).
@@ -49,9 +53,7 @@ My codebase includes:
 - Build and deployment pipelines
 
 Task:
-Analyze the following code/files for OWASP A06 vulnerabilities:
-
-[PASTE YOUR CODE HERE - package.json, HTML with script tags, dynamic import/eval usage, build configs]
+Analyze the code in the current workspace for OWASP A06 vulnerabilities.
 
 Identify:
 
@@ -85,14 +87,19 @@ Provide a prioritized list of vulnerable components (Critical > High > Medium) w
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Secure Dependency Management
+## Prompt 2: Implement Secure Dependency Management
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates pinned dependencies, SRI verification, safe code loading, and vulnerability scanning setup</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive secure dependency management for a web application (OWASP A06 remediation).
@@ -167,45 +174,54 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: eval() executes arbitrary remote code
+// CRITICAL: eval() executes arbitrary remote code
 export async function loadRemoteConfig(url: string) {
   const response = await fetch(url);
   const code = await response.text();
 
-  // ❌ EXTREMELY DANGEROUS - executes any JavaScript!
+  // EXTREMELY DANGEROUS - executes any JavaScript!
   eval(code);
 }
 
 // package.json with vulnerable dependencies
 {
   "dependencies": {
-    "express": "^3.21.2",      // ❌ Old version with known CVEs
-    "lodash": "~4.17.15",      // ❌ Vulnerable to prototype pollution
-    "mongoose": "*"             // ❌ Wildcard allows any version!
+    "express": "^3.21.2",      // Old version with known CVEs
+    "lodash": "~4.17.15",      // Vulnerable to prototype pollution
+    "mongoose": "*"             // Wildcard allows any version!
   }
 }
 
 // HTML loading script without integrity check
 <script src="https://cdn.example.com/library.js"></script>
-// ❌ No SRI - if CDN is compromised, malicious code executes!
+// No SRI - if CDN is compromised, malicious code executes!
 
 // Attack: Attacker compromises CDN or package, injects malicious code
 // Attack: npm install pulls vulnerable version automatically
 // Attack: Exploit known CVE in outdated Express 3.x
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: Safe resource loading with integrity verification
+// SECURE: Safe resource loading with integrity verification
 import crypto from 'crypto';
 
 interface TrustedResource {
@@ -214,7 +230,7 @@ interface TrustedResource {
   type: 'json' | 'script';
 }
 
-// ✅ Allowlist of trusted external resources with SRI hashes
+// Allowlist of trusted external resources with SRI hashes
 const TRUSTED_RESOURCES: Record<string, TrustedResource> = {
   'app-config': {
     url: 'https://cdn.example.com/config.json',
@@ -228,7 +244,7 @@ const TRUSTED_RESOURCES: Record<string, TrustedResource> = {
   }
 };
 
-// ✅ Generate SRI hash for a resource (run once, store result)
+// Generate SRI hash for a resource (run once, store result)
 export function generateSRIHash(content: string): string {
   const hash = crypto
     .createHash('sha384')
@@ -238,7 +254,7 @@ export function generateSRIHash(content: string): string {
   return `sha384-${hash}`;
 }
 
-// ✅ Verify content integrity before using
+// Verify content integrity before using
 function verifyIntegrity(content: string, expectedIntegrity: string): boolean {
   // Parse SRI format: "sha384-base64hash"
   const [algorithm, expectedHash] = expectedIntegrity.split('-');
@@ -247,29 +263,29 @@ function verifyIntegrity(content: string, expectedIntegrity: string): boolean {
     throw new Error(`Unsupported SRI algorithm: ${algorithm}`);
   }
 
-  // ✅ Calculate hash of actual content
+  // Calculate hash of actual content
   const actualHash = crypto
     .createHash(algorithm as 'sha256' | 'sha384' | 'sha512')
     .update(content, 'utf8')
     .digest('base64');
 
-  // ✅ Constant-time comparison
+  // Constant-time comparison
   return crypto.timingSafeEqual(
     Buffer.from(actualHash),
     Buffer.from(expectedHash)
   );
 }
 
-// ✅ Load and verify trusted external resource
+// Load and verify trusted external resource
 export async function loadTrustedResource(resourceName: string): Promise<any> {
-  // ✅ Check if resource is in allowlist
+  // Check if resource is in allowlist
   const resource = TRUSTED_RESOURCES[resourceName];
   if (!resource) {
     throw new Error(`Resource '${resourceName}' not in trusted resource list`);
   }
 
   try {
-    // ✅ Fetch content
+    // Fetch content
     const response = await fetch(resource.url);
     if (!response.ok) {
       throw new Error(`Failed to fetch ${resource.url}: ${response.statusText}`);
@@ -277,7 +293,7 @@ export async function loadTrustedResource(resourceName: string): Promise<any> {
 
     const content = await response.text();
 
-    // ✅ Verify integrity BEFORE using content
+    // Verify integrity BEFORE using content
     if (!verifyIntegrity(content, resource.integrity)) {
       console.error('Integrity check failed', {
         resource: resourceName,
@@ -287,11 +303,11 @@ export async function loadTrustedResource(resourceName: string): Promise<any> {
       throw new Error(`Integrity verification failed for ${resourceName}`);
     }
 
-    // ✅ Parse based on type (never eval!)
+    // Parse based on type (never eval!)
     if (resource.type === 'json') {
-      return JSON.parse(content); // ✅ Safe JSON parsing
+      return JSON.parse(content); // Safe JSON parsing
     } else if (resource.type === 'script') {
-      // ✅ For scripts, better to bundle as npm dependency
+      // For scripts, better to bundle as npm dependency
       // Dynamic script loading is inherently risky
       console.warn('Dynamic script loading not recommended - use npm packages instead');
       return content; // Return content, don't execute
@@ -307,12 +323,12 @@ export async function loadTrustedResource(resourceName: string): Promise<any> {
   }
 }
 
-// ✅ Safe configuration loading
+// Safe configuration loading
 export async function loadRemoteConfig(configName: string): Promise<Record<string, any>> {
-  // ✅ Use JSON.parse, never eval()
+  // Use JSON.parse, never eval()
   const config = await loadTrustedResource(configName);
 
-  // ✅ Validate config structure
+  // Validate config structure
   if (typeof config !== 'object' || config === null) {
     throw new Error('Invalid configuration format');
   }
@@ -320,13 +336,13 @@ export async function loadRemoteConfig(configName: string): Promise<Record<strin
   return config;
 }
 
-// ✅ Content Security Policy helper
+// Content Security Policy helper
 export function getSecureCSP(): string {
   return [
     "default-src 'self'",
-    // ✅ Only allow scripts from specific CDN with SRI
+    // Only allow scripts from specific CDN with SRI
     "script-src 'self' https://cdn.jsdelivr.net",
-    // ✅ Require SRI for external scripts
+    // Require SRI for external scripts
     "require-sri-for script style",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
@@ -338,11 +354,13 @@ export function getSecureCSP(): string {
   ].join('; ');
 }
 
-// ❌ NEVER do this:
+// NEVER do this:
 // eval(remoteCode);  // Executes arbitrary code!
 // Function(remoteCode)();  // Same as eval!
 // vm.runInContext(remoteCode, context);  // Dangerous!
 ```
+
+</details>
 
 ### Secure package.json
 
@@ -390,19 +408,19 @@ export function getSecureCSP(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- ✅ Content Security Policy -->
+  <!-- Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; require-sri-for script style;">
 
   <title>Secure Application</title>
 
-  <!-- ✅ External script with SRI -->
+  <!-- External script with SRI -->
   <script
     src="https://cdn.jsdelivr.net/npm/vue@3.3.13/dist/vue.global.prod.js"
     integrity="sha384-qH4M5EkT4JsFVrzLIgzSQJQVcr0lWtN7P4lqLsPlgHYrqh7C6vKwMDLU7t3r0ZqN"
     crossorigin="anonymous"
   ></script>
 
-  <!-- ✅ External CSS with SRI -->
+  <!-- External CSS with SRI -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -414,7 +432,7 @@ export function getSecureCSP(): string {
   <!-- Application content -->
   <div id="app"></div>
 
-  <!-- ✅ Local scripts (no SRI needed for same-origin) -->
+  <!-- Local scripts (no SRI needed for same-origin) -->
   <script src="/js/app.js"></script>
 </body>
 </html>
@@ -422,130 +440,56 @@ export function getSecureCSP(): string {
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated dependency management code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated dependency management code:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Dependency Version Pinning</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All package versions in package.json pinned to exact versions without ^ or ~ prefixes<br/>
-    ✓ Each dependency specifies exact major.minor.patch version like "express": "4.18.2"<br/>
-    ✓ Package-lock.json contains integrity hashes for every package and sub-dependency<br/>
-    ✓ Package updates include review of changelog and security advisories<br/>
-    ✓ Version choices documented in DEPENDENCIES.md file or inline comments<br/>
-    ✓ Test: Run npm install and verify package-lock.json unchanged, no ^ or ~ in package.json
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Version Pinning & Scanning</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All package.json versions pinned exactly (no ^ or ~)<br/>
+    ✓ package-lock.json contains integrity hashes<br/>
+    ✓ npm audit passes with 0 high/critical vulnerabilities<br/>
+    ✓ CI/CD fails builds when audit threshold exceeded<br/>
+    ✓ Dependabot or Renovate configured for automated update PRs<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> run npm install, verify lock unchanged; run npm audit, verify exit 0
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Vulnerability Scanning</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ npm audit run in project root, all high and critical vulnerabilities addressed before deployment<br/>
-    ✓ CI/CD pipeline configured to fail builds if audit returns vulnerabilities above threshold<br/>
-    ✓ Each vulnerability reviewed to understand attack vector and affected code paths<br/>
-    ✓ Non-exploitable vulnerabilities documented with justification<br/>
-    ✓ Automated dependency scanning set up with GitHub Dependabot, Snyk, or WhiteSource<br/>
-    ✓ Regular dependency reviews scheduled quarterly to update outdated packages<br/>
-    ✓ Test: Run npm audit verify exit code 0, trigger build with vulnerable package verify build fails
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Subresource Integrity & CSP</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Every external script/stylesheet has integrity SHA-384+ and crossorigin="anonymous"<br/>
+    ✓ CSP includes require-sri-for and restricts script-src to specific CDNs<br/>
+    ✓ SRI hashes regenerated and verified before deploy<br/>
+    ✓ Registry of trusted resources maintained with current hashes<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> modify integrity hash by one char, verify browser refuses to load script
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Subresource Integrity</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Every external script and stylesheet from CDN has integrity attribute with SHA-384 or SHA-512 hash<br/>
-    ✓ SRI hashes generated and verified before deploying<br/>
-    ✓ crossorigin="anonymous" attribute included to enable CORS for integrity checking<br/>
-    ✓ Registry maintained of trusted resources with current SRI hashes<br/>
-    ✓ require-sri-for script style directive used in Content Security Policy<br/>
-    ✓ Resource changes cause hash mismatch and browser refuses to load as intended protection<br/>
-    ✓ Test: Modify one character of integrity hash, verify browser shows SRI error and script doesn't execute
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">No Dynamic Code Execution</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ No eval(), Function(), vm.runInContext() with remote/user content<br/>
+    ✓ JSON data parsed with JSON.parse(), modules loaded with import()<br/>
+    ✓ Dynamic config validated with Zod schema after parsing<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> grep codebase for eval() and Function() — zero matches
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">No Dynamic Code Execution</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ No eval(), Function(), vm.runInContext(), or vm.runInThisContext() calls with user input or remote content<br/>
-    ✓ JSON data parsed with JSON.parse() which is safe and cannot execute code<br/>
-    ✓ Modules loaded with dynamic import() which goes through module resolution not arbitrary execution<br/>
-    ✓ Dynamic configuration parsed as JSON and validated with Zod schema<br/>
-    ✓ Never deserialize or execute code from untrusted sources (CDNs, user uploads, API responses)<br/>
-    ✓ Test: Search codebase with grep -r "eval(", verify no matches for Function(, all dynamic content uses safe methods
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Unused Dependencies Cleanup</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ npx depcheck identifies packages in package.json but not imported anywhere<br/>
-    ✓ Unused dependencies removed to reduce attack surface<br/>
-    ✓ Transitive dependencies reviewed with npm ls to ensure necessity<br/>
-    ✓ Large libraries evaluated - use specific functions rather than entire library if possible<br/>
-    ✓ Dependencies consolidated - don't install multiple similar packages<br/>
-    ✓ Documentation in package.json comments or DEPENDENCIES.md explaining why each package required<br/>
-    ✓ Test: Run npx depcheck verify "No depcheck issue", review npm ls for reasonable tree depth
-  </div>
-</div>
-
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Update Frequency & Maintenance</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Dependency age checked with npm outdated, packages without updates in 2+ years reviewed<br/>
-    ✓ Unmaintained packages identified as security risks, alternatives researched<br/>
-    ✓ Critical security packages (crypto, auth, validation) are actively maintained with frequent updates<br/>
-    ✓ Calendar reminder set for quarterly dependency reviews<br/>
-    ✓ Major version releases evaluated for upgrade within 3-6 months<br/>
-    ✓ Balance maintained between stability and security<br/>
-    ✓ Test: Run npm outdated verify no packages more than 1 major version behind, check GitHub commit dates
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Supply Chain Security</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Package authenticity verified before installing with npm view package-name to check publisher<br/>
-    ✓ Package signatures checked with npm audit signatures for supported packages<br/>
-    ✓ Source code on GitHub reviewed for suspicious activity before adopting new dependencies<br/>
-    ✓ Packages with obfuscated code or compiled binaries without source avoided<br/>
-    ✓ npm scope used for organizational packages to prevent typosquatting<br/>
-    ✓ Package-lock.json enabled and committed to git for reproducible builds<br/>
-    ✓ npm private registry or Verdaccio considered for additional supply chain control<br/>
-    ✓ Test: Run npm audit signatures, check NPM package page for verification badge, review deps on GitHub
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Content Security Policy</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ CSP header configured to restrict where scripts can be loaded from<br/>
-    ✓ default-src 'self' allows only same-origin by default<br/>
-    ✓ Specific CDN domains added to script-src directive for external scripts<br/>
-    ✓ require-sri-for script style directive mandates SRI for all external resources<br/>
-    ✓ Nonce or hash-based CSP used for inline scripts if needed<br/>
-    ✓ CSP tested in report-only mode first to avoid breaking legitimate functionality<br/>
-    ✓ CSP violation reports monitored to detect attack attempts<br/>
-    ✓ Never use unsafe-inline or unsafe-eval in script-src as they defeat CSP protection<br/>
-    ✓ Test: Load app check DevTools Network tab for CSP header, verify violations reported, test intentional violation
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Automated Updates</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Dependabot or Renovate configured to automatically create PRs for dependency updates<br/>
-    ✓ Automated update PRs reviewed and tested before merging, not blindly accepted<br/>
-    ✓ Separate PRs for major version updates requiring manual review vs minor/patch updates<br/>
-    ✓ Automated updates configured to only suggest when vulnerability is fixed<br/>
-    ✓ CI/CD runs full test suite on dependency update PRs<br/>
-    ✓ Staging environment considered for testing dependency updates before production<br/>
-    ✓ Automation balanced with human review - automate discovery, manually approve critical changes<br/>
-    ✓ Test: Enable Dependabot verify PRs created for outdated deps, review PR descriptions for changelogs
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Dependency Hygiene & Supply Chain</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Unused dependencies removed (run depcheck)<br/>
+    ✓ No packages unmaintained for 2+ years<br/>
+    ✓ npm audit signatures verified; package publishers checked<br/>
+    ✓ package-lock.json committed for reproducible builds<br/>
+    ✓ Quarterly dependency review scheduled<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> run npx depcheck, verify clean; run npm outdated, verify no major gaps
   </div>
 </div>
 
@@ -555,30 +499,26 @@ export function getSecureCSP(): string {
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing dependencies and external resource usage
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate secure dependency management with pinned versions and SRI
-4. **Review generated code** using the Human Review Checklist above
-5. **Run npm audit**: Address all high/critical vulnerabilities immediately
-6. **Pin versions**: Remove all ^ and ~ from package.json
-7. **Add SRI**: Generate integrity hashes for all external scripts
-8. **Remove eval()**: Replace with JSON.parse or dynamic import()
-9. **Integrate scanning**: Add npm audit to CI/CD pipeline
-10. **Regular audits**: Review dependencies quarterly, update within 3 months
+1. **Prompt 1** → analyze existing dependencies and external resource usage
+2. **Prioritize** by risk (Critical > High > Medium)
+3. **Prompt 2** → generate pinned versions, SRI, and scanning setup
+4. **Review** with the checklist above
+5. **Pin versions** and remove all ^ and ~ from package.json
+6. **Integrate scanning** — add npm audit to CI/CD pipeline
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - [OWASP A06:2021 - Vulnerable and Outdated Components](https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/)
 - [OWASP Dependency Check Project](https://owasp.org/www-project-dependency-check/)
 - [Subresource Integrity (SRI)](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity)
 - [npm audit Documentation](https://docs.npmjs.com/cli/v10/commands/npm-audit)
 - [Snyk Vulnerability Database](https://security.snyk.io/)
-- [GitHub Advisory Database](https://github.com/advisories)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: Vulnerable components are preventable through pinned dependency versions (no ^ or ~), regular vulnerability scanning (npm audit in CI/CD), Subresource Integrity for external scripts (SHA-384 hashes), and never using eval() with remote content. Dependencies are code you didn't write but are responsible for securing.
+**Key principle**: Pin dependency versions, verify integrity with SRI hashes, never use eval() with remote content, and scan continuously. Dependencies are code you did not write but are responsible for securing.

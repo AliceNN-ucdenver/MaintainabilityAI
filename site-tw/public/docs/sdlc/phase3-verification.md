@@ -1,3 +1,5 @@
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 3</div>
+
 # Phase 3: Verification
 
 <div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4); border: 1px solid rgba(248, 113, 113, 0.3);">
@@ -31,7 +33,7 @@ flowchart LR
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">30-60 min</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Tools</div>
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">ESLint, Jest, CodeQL, Snyk</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -296,32 +298,71 @@ Generate this report for Phase 4 handoff:
 ## Recommendation: [APPROVED/BLOCKED] for Phase 4
 ```
 
+<details>
+<summary style="cursor: pointer; color: #fca5a5; font-weight: 600; padding: 8px 0;">Example: Document Sharing verification report</summary>
+
+```markdown
+# Verification Report: Document Sharing
+
+## Gate 1: Local Tests — PASS
+- ESLint: 0 errors, 0 warnings
+- Jest: 42 tests, 95% coverage
+- npm audit: 0 vulnerabilities
+
+## Gate 2: CodeQL — PASS
+- Findings: 0 high, 0 critical
+- Queries: security-extended
+- Note: Parameterized queries verified, no SQL concatenation found
+
+## Gate 3: Snyk — PASS
+- Dependencies: 87 scanned
+- Vulnerabilities: 0 high, 0 critical
+- License: All MIT/Apache-2.0
+
+## Gate 4: Fitness Functions — PASS
+- Complexity: max 4 (threshold 10)
+- Coverage: 95% (threshold 80%)
+- Dependencies: all < 1 month (threshold 3)
+
+## Threat Coverage
+- T1 (JWT forgery): ✅ Token validation tests pass
+- T3 (Permission escalation): ✅ Owner-only mutation tests pass
+- T4 (SQL injection): ✅ 5 injection payloads blocked
+- T5 (No audit trail): ✅ Audit log entries verified
+- T6 (IDOR): ✅ Non-sequential UUIDs + auth check
+- T7 (Metadata leaks): ✅ Generic error messages verified
+- T8 (Share flooding): ✅ Rate limiting at 10/min
+- T9 (Re-sharing): ✅ Owner-only sharing enforced
+
+## Recommendation: APPROVED for Phase 4
+```
+
+</details>
+
 ---
 
 ## Phase Handoff → Phase 4
 
-<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 24px; margin: 24px 0;">
-
-```
-===== PHASE 3 → PHASE 4 HANDOFF =====
-
-Feature: [Feature name]
-
-Verification Complete:
-✅ All 4 gates passed
-✅ [X]% coverage with attack vector tests
-✅ 0 high/critical findings
-✅ All threats from Phase 1 verified
-
-Artifacts:
-- Verification report (attached)
-- Files for review: [list]
-
-Next: Human code review with Golden Rules (Phase 4)
-
-===== END HANDOFF =====
-```
-
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(239, 68, 68, 0.3);">
+<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
+  <span style="font-size: 24px;">3&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
+  <span style="font-size: 24px;">4&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Verification → Governance</span>
+</div>
+<div style="padding: 24px;">
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <div>✅ All 4 verification gates passed</div>
+    <div>✅ [X]% coverage with attack vector tests</div>
+    <div>✅ 0 high/critical findings across all scanners</div>
+    <div>✅ All threats from Phase 1 verified</div>
+  </div>
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Artifacts</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <div>Verification report (attached) · Files for review: [list]</div>
+  </div>
+</div>
 </div>
 
 ---

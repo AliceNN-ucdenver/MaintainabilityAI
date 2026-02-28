@@ -21,7 +21,7 @@
 - **Easier to Reuse**: Focused modules can be composed in different ways
 
 **Violation Symptoms**:
-- Function names with "and" (e.g., `validateAndSaveUser`)
+- Function names with "and" (e.g., validateAndSaveUser)
 - Functions that do formatting AND business logic
 - Classes that handle data AND presentation AND persistence
 - Modules with multiple unrelated exports
@@ -36,20 +36,21 @@
 
 ---
 
-## 🤖 AI Prompt #1: Identify SRP Violations
+## Prompt 1: Identify SRP Violations
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Finds functions and classes handling multiple concerns that should be separated</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a software architect analyzing code for violations of the Single Responsibility Principle.
 
 Context:
 I need to identify functions, classes, and modules that are doing too much—handling multiple unrelated concerns that should be separated.
-
-Code to Analyze:
-[PASTE YOUR CODE HERE]
 
 Example:
 function createUser(userData) {
@@ -75,7 +76,7 @@ function createUser(userData) {
 // Violation: Handles validation, hashing, persistence, email, logging, formatting
 
 Task:
-Analyze the provided code and identify SRP violations:
+Analyze the code in the current workspace and identify SRP violations:
 
 1. **Multiple Concerns in One Function/Class**:
    - List each distinct responsibility the code handles
@@ -110,23 +111,25 @@ Provide an SRP violation report with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Split Functions by Responsibility
+## Prompt 2: Split Functions by Responsibility
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Refactors a multi-responsibility function into focused single-purpose functions with an orchestrator</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a refactoring expert splitting multi-responsibility functions into focused, single-purpose functions.
 
 Context:
 I have a function that handles multiple concerns. I want to refactor it into smaller functions, each with a single, clear responsibility.
-
-Function to Refactor:
-[PASTE YOUR MULTI-RESPONSIBILITY FUNCTION HERE]
 
 Example:
 async function processOrder(orderData) {
@@ -157,7 +160,7 @@ async function processOrder(orderData) {
 // Handles: validation, pricing, discounts, persistence, notifications
 
 Task:
-Refactor into single-responsibility functions:
+Refactor the multi-responsibility functions in the current workspace into single-responsibility functions:
 
 1. **Identify Responsibility Boundaries**:
    - Validation → separate pure function
@@ -195,23 +198,25 @@ Provide refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #3: Apply Layered Architecture
+## Prompt 3: Apply Layered Architecture
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Restructures mixed-concern code into clean layers: routes, services, repositories, and validators</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a software architect implementing layered architecture to enforce Single Responsibility Principle across a codebase.
 
 Context:
 My codebase has mixed concerns—routes contain business logic, services access the database directly, and validation is scattered everywhere. I want to organize into clear layers.
-
-Current State:
-[PASTE YOUR CURRENT CODE STRUCTURE OR EXAMPLE FILES HERE]
 
 Example:
 // File: src/routes/orders.ts (violates SRP - too many concerns)
@@ -225,7 +230,7 @@ app.post('/orders', async (req, res) => {
 });
 
 Task:
-Refactor into layered architecture with clear responsibilities:
+Refactor the current workspace into layered architecture with clear responsibilities:
 
 1. **Define Layers**:
    - **Routes/Controllers**: HTTP concerns (request parsing, response formatting, status codes)
@@ -273,23 +278,25 @@ Provide complete refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #4: Separate Cross-Cutting Concerns
+## Prompt 4: Separate Cross-Cutting Concerns
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Extracts logging, auth, error handling, and metrics into reusable middleware and decorators</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a software engineer extracting cross-cutting concerns (logging, authentication, error handling) from business logic using middleware and decorators.
 
 Context:
 My functions have repeated boilerplate for logging, auth checks, error handling, and performance monitoring. This violates SRP—business logic is mixed with infrastructure concerns.
-
-Current State:
-[PASTE YOUR FUNCTION WITH MIXED CONCERNS HERE]
 
 Example:
 async function getUser(userId: string, requestUser: User) {
@@ -321,7 +328,7 @@ async function getUser(userId: string, requestUser: User) {
 // Violation: Business logic buried in logging, auth, error handling, metrics
 
 Task:
-Extract cross-cutting concerns using middleware/decorators:
+Extract cross-cutting concerns from functions in the current workspace using middleware/decorators:
 
 1. **Identify Cross-Cutting Concerns**:
    - Logging (entry, exit, errors)
@@ -358,54 +365,59 @@ Provide complete refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## ✅ Validation Checklist
+## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #8b5cf6;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">After applying SRP refactoring, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After applying SRP refactoring, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Single Responsibility</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Single Responsibility</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Each function has ONE clear purpose<br/>
     ✓ Function names describe what they do (no "and" in names)<br/>
     ✓ Each class has ONE reason to change<br/>
-    ✓ No mixing of validation, business logic, and data access in one function
+    ✓ No mixing of validation, business logic, and data access in one function<br/>
+    <strong style="color: #94a3b8;">Test:</strong> For each function, ask "what does this do?" — if the answer uses "and", it needs splitting
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Layered Architecture</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Layered Architecture</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Routes handle HTTP only (no business logic or SQL)<br/>
     ✓ Services handle business logic only (no SQL or res.json())<br/>
     ✓ Repositories handle data access only (no business rules)<br/>
-    ✓ Validators handle validation only (no side effects)
+    ✓ Validators handle validation only (no side effects)<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Grep routes for SQL keywords and services for res.json() — neither should appear
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Separation of Concerns</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Separation of Concerns</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Pure functions (calculations, validation) separate from side effects (DB, email)<br/>
     ✓ Cross-cutting concerns (logging, auth) extracted to middleware/decorators<br/>
     ✓ Infrastructure (DB, external APIs) abstracted behind interfaces<br/>
-    ✓ Domain models have no framework dependencies
+    ✓ Domain models have no framework dependencies<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Business logic tests should require zero mocks for infrastructure
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Testability</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Testability</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Business logic testable without database<br/>
     ✓ Each layer testable in isolation<br/>
     ✓ Dependencies injectable (can mock in tests)<br/>
-    ✓ Cross-cutting concerns can be disabled in tests
+    ✓ Cross-cutting concerns can be disabled in tests<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Write a unit test for a service function that uses no database connection
   </div>
 </div>
 
@@ -415,7 +427,7 @@ Provide complete refactored code with:
 
 ---
 
-## 🎓 SRP by Abstraction Level
+## SRP by Abstraction Level
 
 | Layer | Single Responsibility | Examples | Should NOT Do |
 |-------|----------------------|----------|---------------|
@@ -428,19 +440,19 @@ Provide complete refactored code with:
 
 ---
 
-## 🎓 Common SRP Violations
+## Common SRP Violations
 
 | Violation | Example | Fix |
 |-----------|---------|-----|
-| **God Function** | `processOrder()` does validation + pricing + persistence + email | Split into `validate`, `calculate`, `save`, `notify` |
+| **God Function** | processOrder() does validation + pricing + persistence + email | Split into validate, calculate, save, notify |
 | **Mixed Abstraction Levels** | Business logic with SQL queries | Move SQL to repository, inject repository into service |
-| **Multiple Concerns in Class** | `UserManager` handles CRUD + auth + email | Split into `UserRepository`, `AuthService`, `EmailService` |
-| **Routes with Business Logic** | Express handler calculates totals, applies discounts | Move to `OrderService` |
+| **Multiple Concerns in Class** | UserManager handles CRUD + auth + email | Split into UserRepository, AuthService, EmailService |
+| **Routes with Business Logic** | Express handler calculates totals, applies discounts | Move to OrderService |
 | **Validators with Side Effects** | Validation function logs to DB | Separate validation (pure) from logging (side effect) |
 
 ---
 
-## ⚠️ When to Stop Splitting
+## When to Stop Splitting
 
 **Don't over-apply SRP**:
 - **Cohesion Matters**: Related operations should stay together (pricing + tax = one function)
@@ -452,7 +464,7 @@ Provide complete refactored code with:
 
 ---
 
-## 🔗 Related Resources
+## Related Resources
 
 - **[DRY Principle](./dry-principle)** — Avoid duplication across single-responsibility functions
 - **[Complexity Reduction](./complexity-reduction)** — Simplify before splitting
@@ -461,29 +473,19 @@ Provide complete refactored code with:
 
 ---
 
-## 📖 Further Reading
+## Resources
 
 **Books**:
 - *Clean Architecture* (Martin) — The definitive SRP guide
 - *Domain-Driven Design* (Evans) — Layered architecture
-- *Agile Software Development* (Martin) — SOLID principles
 
 **Patterns**:
 - **Layered Architecture**: Presentation → Application → Domain → Infrastructure
 - **Hexagonal Architecture**: Core domain surrounded by adapters
 - **CQRS**: Separate read and write responsibilities
 
-**Tools**:
-- **SonarQube** — Detects "God classes" and functions with too many responsibilities
-- **Madge** (Node.js) — Visualize dependencies between modules
-- **ts-morph** — Analyze TypeScript structure programmatically
+[Back to Maintainability Overview](/docs/prompts/maintainability/)
 
 ---
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; text-align: center; color: #f1f5f9; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
-  <div style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">One Function, One Purpose</div>
-  <div style="font-size: 15px; color: #cbd5e1; max-width: 600px; margin: 0 auto;">
-    Functions with a single responsibility are easier to test, understand, and change. Use these prompts to enforce clear separation of concerns.
-  </div>
-</div>
+**Key principle**: Each function should have one reason to change. Separate validation, business logic, data access, and side effects into distinct layers for testability and maintainability.

@@ -1,4 +1,4 @@
-# Cheshire Demo Video Script
+# Cheshire Demo Video Script — SDLC Walkthrough
 
 > **Runtime Target**: ~12-15 minutes
 > **Tone**: Energetic, practitioner-focused, Wonderland-flavored

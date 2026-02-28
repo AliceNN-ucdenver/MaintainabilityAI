@@ -1,3 +1,5 @@
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 1</div>
+
 # Phase 1: Design Intent
 
 <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(30, 64, 175, 0.4); border: 1px solid rgba(59, 130, 246, 0.3);">
@@ -33,7 +35,7 @@ flowchart LR
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">1-4 hours</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Agents</div>
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">ChatGPT, Claude</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -137,8 +139,8 @@ Feature: User document sharing
 
 Systematically identify threats across all six STRIDE categories.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(124, 58, 237, 0.3);">
-<div style="font-size: 12px; color: #d8b4fe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — STRIDE Threat Model</div>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
+<div style="font-size: 12px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — STRIDE Threat Model</div>
 
 ```
 Role: You are a security threat modeler using STRIDE methodology.
@@ -178,16 +180,16 @@ Structured threat model with format per threat:
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 16px 0;">
-  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Spoofing</div>
-  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Tampering</div>
-  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Repudiation</div>
-  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Info Disclosure</div>
-  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">DoS</div>
-  <div style="background: rgba(124, 58, 237, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #d8b4fe; font-weight: 600;">Privilege Escalation</div>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Spoofing</div>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Tampering</div>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Repudiation</div>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Info Disclosure</div>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">DoS</div>
+  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Privilege Escalation</div>
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #d8b4fe; font-weight: 600; padding: 8px 0;">Example: Document Sharing threat model output</summary>
+<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Document Sharing threat model output</summary>
 
 ```markdown
 ## STRIDE Threat Model: Document Sharing
@@ -251,8 +253,8 @@ Map threats to specific OWASP prompt packs for Phase 2 implementation.
 
 Design the secure architecture addressing all identified threats.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(16, 185, 129, 0.3);">
-<div style="font-size: 12px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Secure Architecture</div>
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
+<div style="font-size: 12px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Secure Architecture</div>
 
 ```
 Role: You are a senior software architect designing a secure system.
@@ -301,7 +303,7 @@ authorization sequence diagram, error handling strategy.
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Architecture output — Data Model</summary>
+<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Architecture output — Data Model</summary>
 
 ```sql
 CREATE TABLE document_shares (
@@ -329,7 +331,7 @@ CREATE TABLE share_audit_log (
 </details>
 
 <details>
-<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Architecture output — Security Controls Mapping</summary>
+<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Architecture output — Security Controls Mapping</summary>
 
 | Threat | Control | Pattern |
 |---|---|---|
@@ -427,34 +429,29 @@ Before proceeding to Phase 2, verify all gates pass:
 
 ## Phase Handoff → Phase 2
 
-<div style="background: rgba(30, 64, 175, 0.1); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 24px 0;">
-
-```
-===== PHASE 1 → PHASE 2 HANDOFF =====
-
-Feature: [Feature name]
-
-OWASP Prompt Packs:
-- /prompts/owasp/[applicable packs]
-
-Threats to Mitigate:
-- [T1-Tn with one-line mitigation each]
-
-Architecture Reference:
-- Data model, API endpoints, security controls
-
-Fitness Functions:
-- Complexity ≤ 10, Coverage ≥ 80%
-- CodeQL/Snyk clean, Performance < 200ms
-
-===== END HANDOFF =====
-```
-
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
+<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
+  <span style="font-size: 24px;">1&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
+  <span style="font-size: 24px;">2&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Design → Implementation</span>
+</div>
+<div style="padding: 24px;">
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <div>✅ OWASP prompt packs selected: <code style="color: #93c5fd;">/prompts/owasp/[applicable packs]</code></div>
+    <div>✅ Threats to mitigate: T1-Tn with one-line mitigation each</div>
+    <div>✅ Architecture reference: Data model, API endpoints, security controls</div>
+    <div>✅ Fitness functions defined: Complexity ≤ 10, Coverage ≥ 80%, CodeQL/Snyk clean</div>
+  </div>
+</div>
 </div>
 
 ---
 
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">Further reading: <a href="/docs/maintainability/evolutionary-architecture" style="color: #93c5fd;">Evolutionary Architecture</a> · <a href="/docs/maintainability/fitness-functions" style="color: #93c5fd;">Fitness Functions</a></div>
+
 <div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
-  <span style="color: #94a3b8; font-size: 14px;">Further reading: <a href="/docs/maintainability/evolutionary-architecture" style="color: #93c5fd;">Evolutionary Architecture</a> · <a href="/docs/maintainability/fitness-functions" style="color: #93c5fd;">Fitness Functions</a></span>
+  <a href="/docs/sdlc/" style="color: #94a3b8; font-size: 14px; text-decoration: none;">← SDLC Overview</a>
   <a href="/docs/sdlc/phase2-implementation" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 2: Implementation →</a>
 </div>

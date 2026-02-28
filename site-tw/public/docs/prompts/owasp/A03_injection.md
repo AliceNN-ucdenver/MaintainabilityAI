@@ -9,9 +9,9 @@
 **Definition**: Injection flaws occur when untrusted data is sent to an interpreter as part of a command or query. The attacker's hostile data can trick the interpreter into executing unintended commands or accessing data without proper authorization.
 
 **Common Manifestations**:
-- **SQL Injection**: Malicious SQL in user input modifies database queries (`' OR '1'='1`)
+- **SQL Injection**: Malicious SQL in user input modifies database queries (' OR '1'='1)
 - **NoSQL Injection**: JSON/JavaScript injection in MongoDB or similar databases
-- **OS Command Injection**: Shell commands injected through user input (`;rm -rf /`)
+- **OS Command Injection**: Shell commands injected through user input (;rm -rf /)
 - **LDAP Injection**: Manipulating LDAP filters to bypass authentication
 - **Template Injection**: User input interpreted as template code
 - **Header Injection**: CRLF injection in HTTP headers
@@ -29,11 +29,15 @@ See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Informat
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for Injection Vulnerabilities
+## Prompt 1: Analyze Code for Injection Vulnerabilities
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Scans your codebase for SQL, NoSQL, command, and template injection vulnerabilities</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in injection vulnerabilities (OWASP A03).
@@ -49,9 +53,7 @@ My codebase includes:
 - External API calls with user-provided parameters
 
 Task:
-Analyze the following code/files for OWASP A03 vulnerabilities:
-
-[PASTE YOUR CODE HERE - database queries, search functions, command execution]
+Analyze the code in the current workspace for OWASP A03 vulnerabilities.
 
 Identify:
 
@@ -84,14 +86,19 @@ Provide a prioritized list of vulnerabilities (Critical > High > Medium) with sp
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Injection Prevention
+## Prompt 2: Implement Injection Prevention
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates parameterized queries, Zod validation schemas, and safe error handling</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive injection prevention for a web application (OWASP A03 remediation).
@@ -155,20 +162,23 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: SQL injection vulnerability
 export async function searchUsers(email: string) {
   const client = new Client({ /* config */ });
   await client.connect();
 
-  // ❌ String concatenation creates SQL injection
+  // String concatenation creates SQL injection
   const sql = `SELECT id, email, name FROM users WHERE email LIKE '%${email}%'`;
 
   const result = await client.query(sql);
@@ -176,9 +186,8 @@ export async function searchUsers(email: string) {
   return result.rows;
 }
 
-// ❌ CRITICAL: NoSQL injection
 export async function findUserMongo(filter: any) {
-  // ❌ Accepts arbitrary query objects
+  // Accepts arbitrary query objects
   return await db.collection('users').findOne(filter);
 }
 
@@ -186,14 +195,17 @@ export async function findUserMongo(filter: any) {
 // Attack: findUserMongo({$ne: null}) bypasses authentication!
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: Parameterized queries with input validation
 import { Client } from 'pg';
 import { z } from 'zod';
 
-// ✅ Zod schema for input validation
 const searchQuerySchema = z.string()
   .trim()
   .max(100, 'Search query must be 100 characters or less')
@@ -206,7 +218,6 @@ interface User {
 }
 
 export async function searchUsers(emailQuery: string): Promise<User[]> {
-  // ✅ Validate and sanitize input
   const validatedQuery = searchQuerySchema.parse(emailQuery);
 
   const client = new Client({
@@ -219,15 +230,12 @@ export async function searchUsers(emailQuery: string): Promise<User[]> {
   try {
     await client.connect();
 
-    // ✅ Parameterized query prevents SQL injection
+    // Parameterized query prevents SQL injection
     const sql = 'SELECT id, email, name FROM users WHERE email ILIKE $1';
-
-    // ✅ Pass user input as parameter, not concatenated
     const result = await client.query<User>(sql, [`%${validatedQuery}%`]);
 
     return result.rows;
   } catch (err) {
-    // ✅ Generic error message (don't expose SQL details)
     console.error('Database error:', err);
     throw new Error('Search failed');
   } finally {
@@ -235,11 +243,9 @@ export async function searchUsers(emailQuery: string): Promise<User[]> {
   }
 }
 
-// ✅ NoSQL with proper validation
 const userIdSchema = z.string().uuid();
 
 export async function getUserById(userId: string): Promise<User | null> {
-  // ✅ Validate input format
   const validatedId = userIdSchema.parse(userId);
 
   const client = new Client({ /* config */ });
@@ -247,7 +253,6 @@ export async function getUserById(userId: string): Promise<User | null> {
   try {
     await client.connect();
 
-    // ✅ Parameterized query
     const sql = 'SELECT id, email, name FROM users WHERE id = $1';
     const result = await client.query<User>(sql, [validatedId]);
 
@@ -260,14 +265,12 @@ export async function getUserById(userId: string): Promise<User | null> {
   }
 }
 
-// ✅ Additional validation schemas
 const emailSchema = z.string().email().max(255);
 const usernameSchema = z.string()
   .min(3)
   .max(30)
   .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, hyphens, and underscores');
 
-// ✅ Command execution protection
 export function sanitizeFilename(filename: string): string {
   const schema = z.string()
     .max(255)
@@ -275,97 +278,58 @@ export function sanitizeFilename(filename: string): string {
 
   return schema.parse(filename);
 }
-
-// ❌ NEVER do this:
-// exec(`cat ${userInput}`); // Command injection!
-// db.collection('users').find(JSON.parse(userInput)); // NoSQL injection!
 ```
+
+</details>
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated injection prevention code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated injection prevention code, verify:</div>
 
 <div style="display: grid; gap: 20px;">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
   <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Parameterized Queries</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Every database query uses parameterized statements with $1, $2, $3 or ? placeholders<br/>
-    ✓ Never string concatenation or template literals containing user input<br/>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Every query uses $1, $2, $3 or ? placeholders — never string concatenation<br/>
     ✓ SQL structure and user data completely separated<br/>
-    ✓ No queries build SQL strings dynamically by appending user input<br/>
-    ✓ ORM methods (Sequelize, Prisma) used correctly<br/>
-    ✓ All WHERE clauses, ORDER BY, and LIMIT values from user input use parameters<br/>
-    ✓ Test: SQL injection payloads like ' OR '1'='1 and '; DROP TABLE users-- treated as literal strings
+    ✓ ORM methods used correctly; WHERE, ORDER BY, LIMIT values parameterized<br/>
+    <strong style="color: #94a3b8;">Test:</strong> SQL injection payloads like ' OR '1'='1 and ; DROP TABLE users-- treated as literal strings
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
   <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Input Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All user input passes through Zod schema validation before use in queries or commands<br/>
-    ✓ Validation uses allowlist regex patterns defining what IS allowed<br/>
-    ✓ Length limits enforced on all string inputs with reasonable maximums<br/>
-    ✓ Input trimmed of whitespace automatically<br/>
-    ✓ Validation happens server-side, never trust client-side alone<br/>
-    ✓ Type checking verifies input matches expected types (string, number, UUID)<br/>
-    ✓ Test: Submit invalid characters, overly long strings, malformed data - all rejected before database
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All input passes Zod schema validation before use<br/>
+    ✓ Allowlist regex, length limits, and auto-trimming enforced<br/>
+    ✓ Server-side validation — never trust client-side alone<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Invalid characters, overlong strings, and malformed data all rejected before reaching the database
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">No String Concatenation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ No string concatenation or template literals in queries<br/>
-    ✓ Patterns like "SELECT * FROM users WHERE id = " + userId are eliminated<br/>
-    ✓ All query construction separates SQL structure from user data<br/>
-    ✓ Dynamic table/column names use allowlist validation, never direct user input<br/>
-    ✓ Variable query structure uses switch statement for predefined safe queries<br/>
-    ✓ Test: Grep for patterns like "SELECT" + userInput, `INSERT INTO ${table}`, query(sql + userId)
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Safe APIs & Error Handling</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ No eval(), Function(), or exec() with user input<br/>
+    ✓ File operations validate filenames against allowlist<br/>
+    ✓ Error responses generic — no SQL syntax, table names, or paths exposed<br/>
+    ✓ Detailed errors logged server-side only<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Trigger DB errors — client sees only generic messages; grep for eval/exec with user input
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Safe APIs & Output Encoding</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Never use eval(), Function(), or vm.runInContext() with user input<br/>
-    ✓ For shell commands, use child_process.spawn() with argument arrays, not exec() with concatenation<br/>
-    ✓ For NoSQL, use query builder methods, not raw query objects from user input<br/>
-    ✓ For file operations, validate filenames against allowlist before using fs methods<br/>
-    ✓ User-generated content in HTML encoded with DOMPurify or validator.escape()<br/>
-    ✓ Never insert user input directly into script tags or event handlers<br/>
-    ✓ Test: Search for eval(), exec() with user input; file operations reject path traversal like ../../etc/passwd
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Error Handling & Logging</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Error messages to users are generic, never expose SQL syntax, table structures, or column names<br/>
-    ✓ Messages like "Search failed" or "Invalid request" are safe<br/>
-    ✓ Detailed errors logged server-side only, never shown to end users<br/>
-    ✓ Production environments never show debug information or stack traces<br/>
-    ✓ Query logging never logs user input values that could contain sensitive data<br/>
-    ✓ Logs contain only query structure and parameter types, not values<br/>
-    ✓ Test: Trigger database errors - client sees only generic messages, full details logged server-side
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
   <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Multiple layers of protection: parameterization + input validation + least privilege<br/>
-    ✓ Even with parameterized queries, add input validation<br/>
-    ✓ Use least-privilege database accounts, run with minimal permissions<br/>
-    ✓ Use prepared statements and stored procedures where appropriate<br/>
-    ✓ Implement rate limiting to slow down attack attempts<br/>
-    ✓ Monitor for suspicious query patterns (many failed queries, unusual characters)<br/>
-    ✓ Set up WAF rules to detect common injection patterns<br/>
-    ✓ Test: Verify removing one layer doesn't expose vulnerability - multiple independent protections exist
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Multiple layers: parameterization + validation + least privilege<br/>
+    ✓ Least-privilege DB accounts with minimal permissions<br/>
+    ✓ Rate limiting to slow attack attempts; WAF rules for common patterns<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Removing one layer does not expose the vulnerability — multiple independent protections exist
   </div>
 </div>
 
@@ -375,27 +339,25 @@ export function sanitizeFilename(filename: string): string {
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing codebase for injection vulnerabilities
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate parameterized queries and input validation
-4. **Review generated code** using the Human Review Checklist above
-5. **Test thoroughly**: Valid inputs work, attack payloads blocked
-6. **Search for patterns**: Grep for string concatenation in queries
-7. **Update all queries**: Convert to parameterized statements
-8. **Implement validation**: Add Zod schemas for all user inputs
-9. **Audit regularly**: Review query code monthly for injection risks
+1. **Use Prompt 1** to analyze your codebase for injection vulnerabilities
+2. **Use Prompt 2** to generate parameterized queries and Zod validation
+3. **Review generated code** using the Human Review Checklist above
+4. **Grep for string concatenation** in all query files
+5. **Add Zod schemas** for every user input endpoint
+6. **Audit monthly** for injection risks in new query code
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - [OWASP A03:2021 - Injection](https://owasp.org/Top10/A03_2021-Injection/)
 - [OWASP SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)
 - [OWASP Query Parameterization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html)
 - [OWASP Injection Theory](https://owasp.org/www-community/Injection_Theory)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: Injection is preventable through parameterized queries (never string concatenation), input validation (Zod schemas with allowlist regex), and safe error handling (generic messages to clients). Separate code from data in all contexts.
+**Key principle**: Injection is preventable through parameterized queries, input validation with Zod allowlist schemas, and generic error messages. Always separate code from data.

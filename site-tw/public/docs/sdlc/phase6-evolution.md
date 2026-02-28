@@ -1,3 +1,5 @@
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 6</div>
+
 # Phase 6: Evolution
 
 <div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4); border: 1px solid rgba(244, 114, 182, 0.3);">
@@ -33,7 +35,7 @@ flowchart LR
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Weekly + Quarterly</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Participants</div>
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Full Team</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -240,30 +242,64 @@ Adjust thresholds based on team data:
 
 </div>
 
+<details>
+<summary style="cursor: pointer; color: #f9a8d4; font-weight: 600; padding: 8px 0;">Example: Document Sharing evolution metrics</summary>
+
+```markdown
+## Document Sharing — Q1 Evolution Review
+
+### Metrics (4 weeks post-deploy)
+- Security scan pass rate: 100% (0 findings)
+- Test coverage: 95% → 97% (added edge case tests)
+- Dependency freshness: All < 2 months
+- Prompt first-try success: A01 pack 90%, A03 pack 95%
+
+### What Worked Well
+- A03 injection prompt pack produced correct parameterized queries on first try
+- STRIDE threat model caught IDOR vulnerability (T6) during design
+- Audit logging (T5) caught 3 unauthorized access attempts in week 2
+
+### What Needs Improvement
+- A01 prompt pack needed manual tweaks for nested resource authorization
+- Rate limiting threshold (10/min) too aggressive for bulk operations
+
+### Actions
+1. Update A01 prompt pack v2 → v3: Add nested resource ownership examples
+2. Add configurable rate limiting tiers (standard: 10/min, bulk: 100/min)
+3. Create A01 regression test for nested IDOR scenarios
+
+### Prompt Pack Updates
+- A01 v2 → v3: Added nested ownership verification pattern
+- A03 v2: No changes needed (95% first-try success)
+```
+
+</details>
+
 ---
 
 ## Phase Handoff → Phase 1
 
-<div style="background: rgba(236, 72, 153, 0.1); border-left: 4px solid #ec4899; border-radius: 8px; padding: 24px; margin: 24px 0;">
-
-```
-===== PHASE 6 → PHASE 1 HANDOFF (CYCLE COMPLETE) =====
-
-Evolution Cycle Complete:
-✅ Metrics collected and analyzed
-✅ Prompt packs updated to v[X]
-✅ Dependencies upgraded (all < 3 months)
-✅ Fitness function thresholds reviewed
-✅ Technical debt items prioritized
-
-Improvements Applied:
-- [list prompt/threshold/process changes]
-
-Next: Begin Phase 1 for next feature with updated tooling.
-
-===== END HANDOFF =====
-```
-
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
+<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
+  <span style="font-size: 24px;">6&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
+  <span style="font-size: 24px;">1&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Evolution → Design (Cycle Complete)</span>
+</div>
+<div style="padding: 24px;">
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <div>✅ Metrics collected and analyzed</div>
+    <div>✅ Prompt packs updated to v[X]</div>
+    <div>✅ Dependencies upgraded (all < 3 months)</div>
+    <div>✅ Fitness function thresholds reviewed</div>
+    <div>✅ Technical debt items prioritized</div>
+  </div>
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Improvements Applied</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <div>[list prompt/threshold/process changes]</div>
+  </div>
+</div>
 </div>
 
 ---

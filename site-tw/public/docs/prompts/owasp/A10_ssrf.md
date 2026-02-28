@@ -9,13 +9,13 @@
 **Definition**: SSRF flaws occur whenever a web application fetches a remote resource without validating the user-supplied URL. Attackers can coerce the application to send crafted requests to unexpected destinations, even when protected by firewall, VPN, or network access control list (ACL).
 
 **Common Manifestations**:
-- **Internal Service Access**: Fetching `http://localhost:8080/admin` to access internal services
-- **Cloud Metadata Exposure**: Accessing `http://169.254.169.254/latest/meta-data/` for AWS credentials
-- **Private Network Scanning**: Using SSRF to scan internal network `http://192.168.1.0/24`
+- **Internal Service Access**: Fetching http://localhost:8080/admin to access internal services
+- **Cloud Metadata Exposure**: Accessing http://169.254.169.254/latest/meta-data/ for AWS credentials
+- **Private Network Scanning**: Using SSRF to scan internal network http://192.168.1.0/24
 - **DNS Rebinding**: Domain initially resolves to public IP, then rebinds to private IP
-- **Protocol Smuggling**: Using `file:///etc/passwd` or `gopher://internal-service` protocols
+- **Protocol Smuggling**: Using file:///etc/passwd or gopher://internal-service protocols
 - **Redirect Abuse**: Allowed domain redirects to internal service
-- **IP Format Bypass**: Using alternative IP representations like `http://127.1` or `http://2130706433`
+- **IP Format Bypass**: Using alternative IP representations like http://127.1 or http://2130706433
 
 **Why It Matters**: SSRF ranked #10 in OWASP Top 10 2021 with rising prevalence due to cloud adoption and microservices architecture. Modern applications increasingly fetch remote resources (webhooks, document processing, image proxies), expanding attack surface. Successful SSRF enables access to cloud metadata containing IAM credentials, internal databases, admin interfaces, and other services meant to be isolated. In cloud environments, SSRF can lead to full account compromise through metadata service exploitation.
 
@@ -30,11 +30,15 @@ See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Informat
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for SSRF Vulnerabilities
+## Prompt 1: Analyze Code for SSRF Vulnerabilities
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Finds unvalidated URL fetching, missing domain allowlists, private IP access, and metadata exposure — returns prioritized findings</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in Server-Side Request Forgery vulnerabilities (OWASP A10).
@@ -51,9 +55,7 @@ My codebase includes:
 - RSS feed readers or web scrapers
 
 Task:
-Analyze the following code/files for OWASP A10 vulnerabilities:
-
-[PASTE YOUR CODE HERE - fetch() calls, axios requests, webhook handlers, proxy functions]
+Analyze the code in the current workspace for OWASP A10 vulnerabilities.
 
 Identify:
 
@@ -89,14 +91,19 @@ Provide a prioritized list of SSRF vulnerabilities (Critical > High > Medium) wi
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement SSRF Prevention
+## Prompt 2: Implement SSRF Prevention
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates URL validation, domain allowlist, private IP blocking, DNS resolution checks, timeout controls, and test coverage</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive SSRF prevention for a web application (OWASP A10 remediation).
@@ -207,19 +214,23 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: SSRF vulnerability - fetches arbitrary URLs
+// CRITICAL: SSRF vulnerability - fetches arbitrary URLs
 import fetch from 'node-fetch';
 
 export async function fetchWebhook(url: string): Promise<string> {
-  // ❌ No validation whatsoever!
+  // No validation whatsoever!
   const response = await fetch(url);
   const text = await response.text();
   return text;
@@ -232,16 +243,21 @@ export async function fetchWebhook(url: string): Promise<string> {
 // fetchWebhook('http://192.168.1.1/config') // Scan internal network
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: Comprehensive SSRF protection with defense in depth
+// SECURE: Comprehensive SSRF protection with defense in depth
 import { URL } from 'url';
 import dns from 'dns/promises';
 import ipaddr from 'ipaddr.js';
 import fetch from 'node-fetch';
 
-// ✅ Domain allowlist (deny-by-default)
+// Domain allowlist (deny-by-default)
 const ALLOWED_DOMAINS = new Set([
   'api.github.com',
   'api.example.com',
@@ -249,7 +265,7 @@ const ALLOWED_DOMAINS = new Set([
   'webhook.site', // For testing only
 ]);
 
-// ✅ Private IP ranges to block (CIDR notation)
+// Private IP ranges to block (CIDR notation)
 const PRIVATE_IP_RANGES = [
   '127.0.0.0/8',    // Loopback
   '10.0.0.0/8',     // Private network (Class A)
@@ -264,7 +280,7 @@ const PRIVATE_IP_RANGES = [
   'ff00::/8',       // IPv6 multicast
 ];
 
-// ✅ Known cloud metadata endpoints to block
+// Known cloud metadata endpoints to block
 const METADATA_ENDPOINTS = [
   '169.254.169.254',           // AWS, Azure, GCP, DigitalOcean
   'metadata.google.internal',  // GCP alternative
@@ -273,7 +289,7 @@ const METADATA_ENDPOINTS = [
   'fd00:ec2::254',             // AWS IPv6 metadata
 ];
 
-// ✅ Localhost variations to block
+// Localhost variations to block
 const LOCALHOST_VARIATIONS = [
   'localhost',
   '127.0.0.1',
@@ -284,17 +300,17 @@ const LOCALHOST_VARIATIONS = [
   '2130706433',      // Decimal representation of 127.0.0.1
 ];
 
-// ✅ Check if IP address is private
+// Check if IP address is private
 function isPrivateIP(ip: string): boolean {
   try {
     const addr = ipaddr.parse(ip);
 
-    // ✅ Check against each private CIDR range
+    // Check against each private CIDR range
     for (const range of PRIVATE_IP_RANGES) {
       try {
         const cidr = ipaddr.parseCIDR(range);
 
-        // ✅ Ensure same IP version (IPv4 or IPv6)
+        // Ensure same IP version (IPv4 or IPv6)
         if (addr.kind() === cidr[0].kind()) {
           if (addr.match(cidr)) {
             return true; // Private IP detected
@@ -308,13 +324,13 @@ function isPrivateIP(ip: string): boolean {
 
     return false; // Public IP
   } catch (err) {
-    // ✅ If parsing fails, treat as suspicious (safer to block)
+    // If parsing fails, treat as suspicious (safer to block)
     console.warn('Failed to parse IP address', { ip, error: err });
     return true;
   }
 }
 
-// ✅ Validate URL format and protocol
+// Validate URL format and protocol
 function validateURL(urlString: string): URL {
   let parsedUrl: URL;
 
@@ -324,7 +340,7 @@ function validateURL(urlString: string): URL {
     throw new Error('Invalid URL format');
   }
 
-  // ✅ Only allow http and https protocols
+  // Only allow http and https protocols
   if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
     console.warn('SSRF attempt blocked: invalid protocol', {
       url: urlString,
@@ -334,7 +350,7 @@ function validateURL(urlString: string): URL {
     throw new Error(`Protocol ${parsedUrl.protocol} not allowed. Use http or https only.`);
   }
 
-  // ✅ Validate hostname is not empty
+  // Validate hostname is not empty
   if (!parsedUrl.hostname || parsedUrl.hostname.length === 0) {
     throw new Error('URL must contain a valid hostname');
   }
@@ -342,16 +358,16 @@ function validateURL(urlString: string): URL {
   return parsedUrl;
 }
 
-// ✅ Check if domain is in allowlist
+// Check if domain is in allowlist
 function isDomainAllowed(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
 
-  // ✅ Direct match
+  // Direct match
   if (ALLOWED_DOMAINS.has(normalized)) {
     return true;
   }
 
-  // ✅ Check if subdomain of allowed domain (e.g., api.github.com)
+  // Check if subdomain of allowed domain (e.g., api.github.com)
   for (const allowedDomain of ALLOWED_DOMAINS) {
     if (normalized.endsWith('.' + allowedDomain)) {
       return true;
@@ -361,11 +377,11 @@ function isDomainAllowed(hostname: string): boolean {
   return false;
 }
 
-// ✅ Validate domain against allowlist and known bad hosts
+// Validate domain against allowlist and known bad hosts
 function validateDomain(hostname: string): void {
   const normalized = hostname.toLowerCase();
 
-  // ✅ Block localhost variations
+  // Block localhost variations
   if (LOCALHOST_VARIATIONS.includes(normalized)) {
     console.warn('SSRF attempt blocked: localhost access', {
       hostname: normalized,
@@ -374,7 +390,7 @@ function validateDomain(hostname: string): void {
     throw new Error('Access to localhost is blocked');
   }
 
-  // ✅ Block known metadata endpoints by hostname
+  // Block known metadata endpoints by hostname
   if (METADATA_ENDPOINTS.includes(normalized)) {
     console.error('SSRF attempt blocked: cloud metadata endpoint', {
       hostname: normalized,
@@ -383,7 +399,7 @@ function validateDomain(hostname: string): void {
     throw new Error('Access to cloud metadata endpoints is blocked');
   }
 
-  // ✅ Check domain allowlist
+  // Check domain allowlist
   if (!isDomainAllowed(normalized)) {
     console.warn('SSRF attempt blocked: domain not in allowlist', {
       hostname: normalized,
@@ -393,15 +409,15 @@ function validateDomain(hostname: string): void {
   }
 }
 
-// ✅ Resolve hostname to IPs and validate none are private
+// Resolve hostname to IPs and validate none are private
 async function validateIPAddress(hostname: string): Promise<void> {
   let addresses: string[];
 
   try {
-    // ✅ Resolve hostname to IP addresses
+    // Resolve hostname to IP addresses
     addresses = await dns.resolve(hostname);
   } catch (err) {
-    // ✅ DNS resolution failed - treat as suspicious
+    // DNS resolution failed - treat as suspicious
     console.warn('DNS resolution failed', {
       hostname,
       error: err instanceof Error ? err.message : 'Unknown error',
@@ -410,9 +426,9 @@ async function validateIPAddress(hostname: string): Promise<void> {
     throw new Error(`DNS resolution failed for ${hostname}`);
   }
 
-  // ✅ Validate each resolved IP address
+  // Validate each resolved IP address
   for (const ip of addresses) {
-    // ✅ Check if IP is private
+    // Check if IP is private
     if (isPrivateIP(ip)) {
       console.error('SSRF attempt blocked: private IP resolution', {
         hostname,
@@ -422,7 +438,7 @@ async function validateIPAddress(hostname: string): Promise<void> {
       throw new Error(`Hostname ${hostname} resolves to private IP address: ${ip}`);
     }
 
-    // ✅ Check if IP is metadata endpoint
+    // Check if IP is metadata endpoint
     if (METADATA_ENDPOINTS.includes(ip)) {
       console.error('SSRF attempt blocked: metadata IP resolution', {
         hostname,
@@ -433,7 +449,7 @@ async function validateIPAddress(hostname: string): Promise<void> {
     }
   }
 
-  // ✅ All IPs validated successfully
+  // All IPs validated successfully
   console.debug('DNS validation passed', {
     hostname,
     resolvedIPs: addresses.length,
@@ -441,32 +457,32 @@ async function validateIPAddress(hostname: string): Promise<void> {
   });
 }
 
-// ✅ Safe fetch with comprehensive SSRF protection
+// Safe fetch with comprehensive SSRF protection
 export async function fetchRemoteResource(urlString: string): Promise<string> {
   try {
-    // ✅ Layer 1: Validate URL format and protocol
+    // Layer 1: Validate URL format and protocol
     const parsedUrl = validateURL(urlString);
 
-    // ✅ Layer 2: Validate domain against allowlist
+    // Layer 2: Validate domain against allowlist
     validateDomain(parsedUrl.hostname);
 
-    // ✅ Layer 3: Resolve DNS and validate IPs are not private
+    // Layer 3: Resolve DNS and validate IPs are not private
     await validateIPAddress(parsedUrl.hostname);
 
-    // ✅ Layer 4: Fetch with security controls
+    // Layer 4: Fetch with security controls
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
-    }, 5000); // ✅ 5 second timeout
+    }, 5000); // 5 second timeout
 
     const response = await fetch(parsedUrl.toString(), {
       signal: controller.signal,
-      // ✅ Disable automatic redirects (prevent redirect to internal service)
+      // Disable automatic redirects (prevent redirect to internal service)
       redirect: 'error',
       headers: {
         'User-Agent': 'SecureApp/1.0',
       },
-      // ✅ Additional security options
+      // Additional security options
       follow: 0,
     });
 
@@ -476,7 +492,7 @@ export async function fetchRemoteResource(urlString: string): Promise<string> {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // ✅ Layer 5: Validate response size before reading
+    // Layer 5: Validate response size before reading
     const contentLength = response.headers.get('content-length');
     const MAX_RESPONSE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -489,14 +505,14 @@ export async function fetchRemoteResource(urlString: string): Promise<string> {
       throw new Error('Response size exceeds limit');
     }
 
-    // ✅ Read response with size limit enforcement
+    // Read response with size limit enforcement
     const text = await response.text();
 
     if (text.length > MAX_RESPONSE_SIZE) {
       throw new Error('Response size exceeds limit');
     }
 
-    // ✅ Log successful request
+    // Log successful request
     console.info('External request completed', {
       hostname: parsedUrl.hostname,
       status: response.status,
@@ -507,7 +523,7 @@ export async function fetchRemoteResource(urlString: string): Promise<string> {
     return text;
 
   } catch (err) {
-    // ✅ Log SSRF prevention trigger
+    // Log SSRF prevention trigger
     if (err instanceof Error) {
       console.error('SSRF prevention triggered', {
         url: urlString,
@@ -515,12 +531,12 @@ export async function fetchRemoteResource(urlString: string): Promise<string> {
         timestamp: new Date().toISOString()
       });
 
-      // ✅ Send security alert for suspicious patterns
+      // Send security alert for suspicious patterns
       if (err.message.includes('metadata') ||
           err.message.includes('localhost') ||
           err.message.includes('private IP')) {
         // Alert security team (implement actual alerting)
-        console.error('🚨 SECURITY ALERT: SSRF attack attempt', {
+        console.error('SECURITY ALERT: SSRF attack attempt', {
           url: urlString,
           error: err.message,
           timestamp: new Date().toISOString()
@@ -528,17 +544,17 @@ export async function fetchRemoteResource(urlString: string): Promise<string> {
       }
     }
 
-    // ✅ Generic error message to client (don't leak internal details)
+    // Generic error message to client (don't leak internal details)
     throw new Error('Failed to fetch resource');
   }
 }
 
-// ✅ Alternative: Validate redirect if redirects are needed
+// Alternative: Validate redirect if redirects are needed
 async function validateRedirect(redirectUrl: string, originalUrl: URL): Promise<void> {
-  // ✅ Parse redirect URL
+  // Parse redirect URL
   const parsedRedirect = validateURL(redirectUrl);
 
-  // ✅ Ensure redirect stays within same allowed domain
+  // Ensure redirect stays within same allowed domain
   if (parsedRedirect.hostname.toLowerCase() !== originalUrl.hostname.toLowerCase()) {
     console.warn('Redirect to different domain blocked', {
       original: originalUrl.hostname,
@@ -548,11 +564,11 @@ async function validateRedirect(redirectUrl: string, originalUrl: URL): Promise<
     throw new Error('Redirects to different domains are not allowed');
   }
 
-  // ✅ Validate redirect target IP
+  // Validate redirect target IP
   await validateIPAddress(parsedRedirect.hostname);
 }
 
-// ✅ Example usage with error handling
+// Example usage with error handling
 export async function handleWebhook(webhookUrl: string): Promise<void> {
   try {
     const response = await fetchRemoteResource(webhookUrl);
@@ -568,7 +584,7 @@ export async function handleWebhook(webhookUrl: string): Promise<void> {
   }
 }
 
-// ✅ Additional security patterns:
+// Additional security patterns:
 // - URL format and protocol validation (http/https only)
 // - Domain allowlist enforced (deny-by-default)
 // - Private IP ranges blocked (RFC1918, loopback, link-local)
@@ -581,7 +597,7 @@ export async function handleWebhook(webhookUrl: string): Promise<void> {
 // - Generic error messages to clients
 // - Detailed errors logged server-side for investigation
 
-// ✅ Network-level controls (additional defense layer):
+// Network-level controls (additional defense layer):
 // Firewall rules should also block egress to private IPs:
 // iptables -A OUTPUT -d 10.0.0.0/8 -j REJECT
 // iptables -A OUTPUT -d 172.16.0.0/12 -j REJECT
@@ -590,143 +606,61 @@ export async function handleWebhook(webhookUrl: string): Promise<void> {
 // iptables -A OUTPUT -d 127.0.0.0/8 -j REJECT
 ```
 
+</details>
+
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated SSRF prevention code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated SSRF prevention code:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">URL Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All user-supplied URLs parsed using Node.js URL class which handles edge cases and malformed URLs<br/>
-    ✓ Protocol restricted to http and https only, rejecting file://, gopher://, ftp://, data:, javascript:, and other schemes<br/>
-    ✓ URL parsing happens before any other validation for consistent parsing and bypass prevention<br/>
-    ✓ Hostname validated as not empty and properly formed<br/>
-    ✓ URL encoding bypasses checked like %2F for forward slash or %3A for colon<br/>
-    ✓ URLs normalized before comparison to prevent case sensitivity or encoding bypasses<br/>
-    ✓ Tested with various malformed URLs and alternative IP representations to ensure correct parser handling<br/>
-    ✓ Test: Submit file:///etc/passwd, gopher://internal, data:text/html, javascript:alert() verify all non-http/https blocked
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">URL Validation & Domain Allowlist</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All user-supplied URLs parsed with Node.js URL class<br/>
+    ✓ Protocol restricted to http/https — file://, gopher://, ftp://, data: all blocked<br/>
+    ✓ Deny-by-default domain allowlist; only listed domains pass<br/>
+    ✓ Domains normalized to lowercase before comparison<br/>
+    ✓ All blocked attempts logged with URL and timestamp<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> submit file:///etc/passwd, gopher://internal, unlisted domains — verify all blocked
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Domain Allowlist</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Deny-by-default domain allowlist implemented where only explicitly permitted domains can be accessed<br/>
-    ✓ Allowlist maintained as configuration not hardcoded throughout application<br/>
-    ✓ Both exact domain matching and subdomain matching supported if needed using suffix checks<br/>
-    ✓ Domains normalized to lowercase before comparison to prevent case sensitivity bypasses<br/>
-    ✓ Wildcards used carefully as *.example.com could be exploited if attacker registers evil-example.com<br/>
-    ✓ All blocked domain access attempts logged with full URL and timestamp for security monitoring<br/>
-    ✓ Allowlist regularly reviewed to remove unused domains reducing attack surface<br/>
-    ✓ Temporary testing domains like webhook.site documented with justification and removal timeline<br/>
-    ✓ Separate allowlists per feature or environment implemented if different trust levels exist<br/>
-    ✓ Test: Attempt localhost, internal IPs, external domains not in allowlist verify all blocked with specific errors
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Private IP & Metadata Blocking</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ RFC1918 (10/8, 172.16/12, 192.168/16), loopback (127/8), link-local (169.254/16) all blocked<br/>
+    ✓ IPv6 equivalents blocked: ::1, fc00::/7, fe80::/10<br/>
+    ✓ Cloud metadata endpoints blocked: 169.254.169.254, metadata.google.internal, metadata.azure.com<br/>
+    ✓ Decimal/octal/hex IP representations handled (2130706433, 127.1, 0x7f000001)<br/>
+    ✓ Metadata access logged as critical security event<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> attempt 127.0.0.1, 127.1, 10.0.0.1, 169.254.169.254, [::1] — verify all blocked
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Private IP Blocking</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All RFC1918 private IP ranges blocked (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) using proper CIDR matching with ipaddr.js<br/>
-    ✓ Loopback range 127.0.0.0/8 blocked not just 127.0.0.1, includes 127.0.0.2 and 127.1 shorthand<br/>
-    ✓ Link-local range 169.254.0.0/16 blocked which includes cloud metadata endpoint 169.254.169.254<br/>
-    ✓ Carrier-grade NAT range 100.64.0.0/10 blocked<br/>
-    ✓ IPv6 ranges blocked: loopback ::1, private fc00::/7, link-local fe80::/10, multicast ff00::/8<br/>
-    ✓ ipaddr.js match() method used which properly handles CIDR notation and IP version compatibility<br/>
-    ✓ Decimal IP representation (2130706433 for 127.0.0.1), octal, and hex representations tested<br/>
-    ✓ 0.0.0.0 blocked which refers to current host<br/>
-    ✓ Test: Attempt 127.0.0.1, 127.1, 10.0.0.1, 172.16.0.1, 192.168.1.1, 169.254.169.254, [::1] verify all blocked
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">DNS Validation & Redirect Handling</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Hostname resolved via dns.promises.resolve() before HTTP request<br/>
+    ✓ Every resolved IP checked against private ranges and metadata endpoints<br/>
+    ✓ DNS resolution failures treated as suspicious (request rejected)<br/>
+    ✓ Redirects disabled (redirect: 'error') or validated through full chain<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> domain resolving to private IP verify blocked; allowed domain redirecting to localhost verify blocked
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Metadata Endpoint Protection</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All known cloud metadata endpoints blocked (169.254.169.254 for AWS/Azure/GCP/DigitalOcean, metadata.google.internal, metadata.azure.com, fd00:ec2::254)<br/>
-    ✓ Both hostname and resolved IP checked against metadata endpoint list<br/>
-    ✓ Metadata access is critical vulnerability exposing IAM credentials, API keys, instance metadata without authentication<br/>
-    ✓ All metadata access attempts logged as critical security events requiring immediate investigation<br/>
-    ✓ Entire 169.254.0.0/16 range considered for blocking as multiple cloud providers use this space<br/>
-    ✓ Docker metadata at 172.17.0.1 blocked for containerized environments<br/>
-    ✓ Metadata endpoint list updated as new cloud providers emerge or existing providers add endpoints<br/>
-    ✓ Test: Attempt 169.254.169.254, metadata.google.internal, metadata.azure.com directly and via DNS verify all blocked and logged
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">DNS Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Hostname resolved to IP addresses using dns.promises.resolve() before HTTP request to prevent DNS rebinding attacks<br/>
-    ✓ Every resolved IP address validated against private IP ranges and metadata endpoints<br/>
-    ✓ If any resolved IP is private or metadata, entire request rejected<br/>
-    ✓ DNS resolution failures handled by rejecting request rather than proceeding without validation<br/>
-    ✓ DNS rebinding TTL tricks where attacker sets very low TTL considered and mitigated<br/>
-    ✓ DNS response caching with security checks or DNS resolver that blocks private IPs considered<br/>
-    ✓ For highest security, DNS resolved, IPs validated, then resolved IP used directly with Host header bypassing client-side DNS<br/>
-    ✓ Test: Create test domain resolving to private IP or 169.254.169.254 verify blocked, test domain with multiple IPs including mix
-  </div>
-</div>
-
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Redirect Handling</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Automatic redirect following disabled using fetch() option redirect: 'error' to prevent allowed domain redirecting to internal service<br/>
-    ✓ If redirects are business requirement, manual redirect handling validates redirect target URL through full validation chain<br/>
-    ✓ Redirect chain depth limited to maximum 3 redirects preventing infinite loops<br/>
-    ✓ Redirect stays within same allowed domain or uses separate allowlist for redirect targets<br/>
-    ✓ All redirects logged with original and target URLs for security monitoring<br/>
-    ✓ Location header can contain relative or absolute URLs requiring careful parsing<br/>
-    ✓ Some HTTP clients follow redirects even for error status codes like 401 or 403 considered<br/>
-    ✓ Test: Set up allowed domain redirecting to localhost or 169.254.169.254 verify redirect blocked, test redirect chains and cross-domain
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Timeout Protection</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Request timeout implemented using AbortController with maximum 5 seconds to prevent slowloris attacks<br/>
-    ✓ Timeout cleared after successful request completion to prevent resource leaks<br/>
-    ✓ Separate timeouts considered for DNS resolution (1s), connection establishment (2s), data transfer (5s) for finer control<br/>
-    ✓ Timeout applies to entire request lifecycle not just initial connection<br/>
-    ✓ In production, timeout values tuned based on legitimate request patterns but never exceed 10 seconds total<br/>
-    ✓ Timeout events logged as potential attack indicators<br/>
-    ✓ Connection pooling with maximum concurrent connections limit preventing resource exhaustion<br/>
-    ✓ Keep-alive timeout implemented to close idle connections<br/>
-    ✓ Test: Create slow HTTP server delaying response verify request times out after 5 seconds, monitor resource usage during timeout
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Response Size Limits</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Content-Length header checked before fetching response body, rejected if exceeds maximum 10MB to prevent memory exhaustion DoS<br/>
-    ✓ If Content-Length header missing or lies, limit enforced by measuring actual data received and aborting if exceeds threshold<br/>
-    ✓ Response read in chunks with size validation rather than single response.text() call<br/>
-    ✓ Different limits considered for different content types like 100KB for JSON API responses vs 10MB for document downloads<br/>
-    ✓ Large response attempts logged with source URL and size<br/>
-    ✓ Rate limiting implemented on total bandwidth consumed per IP or per time period<br/>
-    ✓ For streaming responses, timeout on total transfer time not just initial connection<br/>
-    ✓ Memory usage monitored during large responses to detect issues before production impact<br/>
-    ✓ Test: Create response with Content-Length claiming 1KB but sending 50MB verify abort, test without Content-Length header
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Multiple independent layers of SSRF protection implemented where failure of one layer doesn't expose vulnerability<br/>
-    ✓ Application-level controls include URL validation, domain allowlist, DNS validation, IP blocking, timeout, size limits<br/>
-    ✓ Network-level controls include firewall egress rules blocking private IPs, network segmentation isolating application from internal services, proxy server for all external requests<br/>
-    ✓ Infrastructure controls include running application in container or VM with minimal network access, cloud security groups restricting egress, monitoring network traffic for suspicious patterns<br/>
-    ✓ Administrative controls include security testing for SSRF in CI/CD, regular security audits, incident response procedures<br/>
-    ✓ Each layer provides redundancy so compromise of application doesn't automatically expose internal network<br/>
-    ✓ Test: Verify both application validation and network firewall rules block private IPs, try bypassing each layer individually verify others protect
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Timeouts, Size Limits & Defense in Depth</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ 5-second timeout via AbortController on all requests<br/>
+    ✓ 10MB max response size enforced via Content-Length and body read<br/>
+    ✓ Generic "Failed to fetch resource" error to clients; details server-side only<br/>
+    ✓ Network-level egress firewall rules complement application controls<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> slow server verify timeout; large response verify abort; verify both app and network layers block
   </div>
 </div>
 
@@ -736,34 +670,25 @@ export async function handleWebhook(webhookUrl: string): Promise<void> {
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing codebase for SSRF vulnerabilities
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate comprehensive SSRF protection
-4. **Review generated code** using the Human Review Checklist above
-5. **Implement domain allowlist**: Define allowed external domains
-6. **Add IP validation**: Block private IP ranges and metadata endpoints
-7. **Configure DNS validation**: Resolve and validate IPs before requests
-8. **Disable redirects**: Use redirect: 'error' or validate redirect targets
-9. **Add timeouts**: Implement 5 second timeout with AbortController
-10. **Set size limits**: Enforce 10MB maximum response size
-11. **Test thoroughly**: Attempt access to localhost, private IPs, metadata endpoints
-12. **Add network controls**: Configure firewall rules blocking egress to private IPs
-13. **Monitor logs**: Set up alerts for SSRF attempt patterns
-14. **Regular testing**: Include SSRF in penetration testing and security audits
+1. **Prompt 1** → analyze existing codebase for SSRF vulnerabilities
+2. **Prioritize** by risk (Critical > High > Medium)
+3. **Prompt 2** → generate domain allowlist, IP blocking, DNS validation, and safe fetch
+4. **Review** with the checklist above
+5. **Disable redirects** or validate redirect targets through the full chain
+6. **Add network controls** — configure firewall egress rules blocking private IPs
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
-- **[OWASP A10:2021 - Server-Side Request Forgery](https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/)** — Official OWASP documentation
-- **[OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)** — Comprehensive prevention guide
-- **[PortSwigger SSRF Guide](https://portswigger.net/web-security/ssrf)** — Attack techniques and defenses
-- **[AWS SSRF Protection with IMDSv2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)** — Metadata security
-- **[Cloud Metadata SSRF](https://blog.appsecco.com/an-ssrf-privileged-aws-keys-and-the-capital-one-breach-4c3c2cded3af)** — Capital One breach analysis
-- **[Back to OWASP Overview](/docs/prompts/owasp/)** — See all 10 categories
+- [OWASP A10:2021 - Server-Side Request Forgery](https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/)
+- [OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
+- [PortSwigger SSRF Guide](https://portswigger.net/web-security/ssrf)
+- [AWS SSRF Protection with IMDSv2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: SSRF is preventable through defense in depth. Validate URL format and protocol (http/https only), enforce domain allowlist (deny-by-default), block private IP ranges (RFC1918, loopback, link-local) and cloud metadata endpoints (169.254.169.254), resolve DNS and validate IPs before requests (prevent DNS rebinding), disable automatic redirects or validate redirect targets, implement request timeout (5 seconds) and response size limits (10MB), and deploy network-level egress filtering. SSRF in cloud environments can lead to full account compromise through metadata service exploitation. Validate, validate, validate.
+**Key principle**: Validate URL protocol (http/https only), enforce a domain allowlist (deny-by-default), block private IPs and cloud metadata endpoints, resolve DNS and validate IPs before requests, and disable redirects. In cloud environments, SSRF can lead to full account compromise.

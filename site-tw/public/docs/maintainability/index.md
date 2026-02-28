@@ -1,297 +1,162 @@
 # Maintainability Framework
 
-> **Purpose**: Ensure long-term code health through evolutionary architecture principles, fitness functions, and technical debt management.
-
----
-
-## Overview
-
-Maintainability is not a one-time achievement—it's an ongoing practice enforced through automated fitness functions and evolutionary architecture principles.
-
-```mermaid
-flowchart TD
-    A[Write Code] --> B{Fitness Functions}
-    B -->|Pass| C[Merge]
-    B -->|Fail| D[Refactor]
-    D --> A
-
-    C --> E[Monitor Metrics]
-    E --> F{Degradation?}
-    F -->|Yes| G[Technical Debt Backlog]
-    F -->|No| E
-
-    G --> H[Evolutionary Refactoring]
-    H --> A
-
-    style B fill:#4CAF50
-    style F fill:#FF9800
-```
-
----
-
-## Core Principles
-
-### 1. Evolutionary Architecture
+<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);">
+  <div style="text-align: center;">
+    <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Evolutionary Architecture for Long-Lived Systems</h2>
+    <div style="font-size: 15px; color: #d1fae5; margin-top: 12px; max-width: 700px; margin-left: auto; margin-right: auto;">
+      Maintainability is not a one-time achievement — it's an ongoing practice enforced through automated fitness functions, incremental change patterns, and systematic technical debt management.
+    </div>
+  </div>
+</div>
 
 > "An evolutionary architecture supports guided, incremental change across multiple dimensions."
 > — Neal Ford, Rebecca Parsons, Patrick Kua
 
-**Key Concepts**:
-- **Incremental Change**: Small, verifiable changes over big-bang rewrites
-- **Fitness Functions**: Automated checks that guide architectural evolution
-- **Technical Debt Management**: Systematic identification and reduction
-- **Reversibility**: Changes can be rolled back if fitness functions fail
+---
 
-**Integration with AI**:
-- AI agents perform incremental refactoring
-- Fitness functions validate AI-generated changes
-- Human oversight ensures architecture goals met
+## Core Guides
 
-### 2. Fitness Functions
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 32px 0;">
 
-Automated, objective checks that verify architectural characteristics:
+<a href="./fitness-functions" style="text-decoration: none; display: block;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(16, 185, 129, 0.3); height: 100%; box-sizing: border-box;">
+  <div style="font-size: 32px; margin-bottom: 12px;">📏</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #f1f5f9; font-weight: 800;">Fitness Functions</h3>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Automated, objective checks that verify architectural characteristics at every commit
+  </p>
+  <div style="color: #6ee7b7; font-size: 13px; line-height: 1.8;">
+    ✓ Complexity (cyclomatic ≤10)<br/>
+    ✓ Dependency freshness (3-month rule)<br/>
+    ✓ Security compliance (CodeQL + Snyk)<br/>
+    ✓ Test coverage (≥80%, 100% for security paths)<br/>
+    ✓ Performance (p95 &lt;200ms)
+  </div>
+</div>
+</a>
 
-```mermaid
-flowchart LR
-    A[Code Change] --> B[Fitness Function 1:<br/>Complexity ≤10]
-    A --> C[Fitness Function 2:<br/>Coverage ≥80%]
-    A --> D[Fitness Function 3:<br/>Dependencies <3mo]
-    A --> E[Fitness Function 4:<br/>Security Clean]
+<a href="./evolutionary-architecture" style="text-decoration: none; display: block;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(16, 185, 129, 0.3); height: 100%; box-sizing: border-box;">
+  <div style="font-size: 32px; margin-bottom: 12px;">🔄</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #f1f5f9; font-weight: 800;">Evolutionary Architecture</h3>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Incremental change patterns, technical debt management, and AI-assisted refactoring
+  </p>
+  <div style="color: #6ee7b7; font-size: 13px; line-height: 1.8;">
+    ✓ Strangler Fig migrations<br/>
+    ✓ Feature flags for safe rollout<br/>
+    ✓ Branch by Abstraction<br/>
+    ✓ Architecture Decision Records<br/>
+    ✓ Technical debt tracking
+  </div>
+</div>
+</a>
 
-    B -->|Pass| F[Continue]
-    C -->|Pass| F
-    D -->|Pass| F
-    E -->|Pass| F
+<a href="/docs/prompts/maintainability/" style="text-decoration: none; display: block;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(16, 185, 129, 0.3); height: 100%; box-sizing: border-box;">
+  <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #f1f5f9; font-weight: 800;">AI Prompt Packs</h3>
+  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Production-ready RCTRO prompts for AI-assisted maintainability work
+  </p>
+  <div style="color: #6ee7b7; font-size: 13px; line-height: 1.8;">
+    ✓ Complexity reduction<br/>
+    ✓ Dependency hygiene<br/>
+    ✓ DRY principle enforcement<br/>
+    ✓ Strangler Fig implementation<br/>
+    ✓ Technical debt management
+  </div>
+</div>
+</a>
 
-    B -->|Fail| G[Block Merge]
-    C -->|Fail| G
-    D -->|Fail| G
-    E -->|Fail| G
-```
+</div>
 
-**Types of Fitness Functions**:
-- **Atomic**: Single characteristic (e.g., cyclomatic complexity)
-- **Holistic**: Multiple characteristics combined (e.g., security score)
-- **Triggered**: Run on specific events (e.g., deployment)
-- **Continuous**: Always running (e.g., monitoring)
+---
 
-### 3. Technical Debt as Measured Quantity
+## Why Maintainability Matters for Security
 
-Track debt metrics rather than subjective assessments:
+Maintainability and security are deeply intertwined. Code that is hard to understand is hard to audit, and code that is hard to audit harbors vulnerabilities.
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
+  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Simple Code is Secure Code</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">Low complexity means fewer bugs, which means fewer vulnerabilities. Fitness function: cyclomatic complexity ≤10.</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Tested Code is Trustworthy Code</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">High coverage gives confidence that changes don't introduce regressions. Fitness function: coverage ≥80%.</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #f97316;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Fresh Code is Secure Code</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">Up-to-date dependencies mean fewer known CVEs. Fitness function: all packages less than 3 months old.</div>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #8b5cf6;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Documented Code is Auditable Code</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">Clear rationale enables faster security reviews. Fitness function: all security decisions documented.</div>
+</div>
+
+</div>
+
+---
+
+## Technical Debt as a Measured Quantity
+
+Track debt with metrics and thresholds rather than subjective assessments:
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3); overflow-x: auto;">
 
 | Debt Type | Metric | Threshold | Action |
 |-----------|--------|-----------|--------|
+| **Security Debt** | CVE count | 0 high/critical | Patch immediately |
 | **Complexity Debt** | Cyclomatic complexity | >10 per function | Refactor |
 | **Dependency Debt** | Package age | >3 months | Upgrade |
-| **Security Debt** | CVE count | >0 high/critical | Patch immediately |
 | **Test Debt** | Coverage % | <80% | Add tests |
 | **Documentation Debt** | Undocumented public APIs | >10% | Document |
 
----
-
-## Integration with Security
-
-Maintainability and security are deeply intertwined:
-
-```mermaid
-flowchart TD
-    A[Maintainable Code] --> B[Easier to Audit]
-    B --> C[Faster Vulnerability Detection]
-    C --> D[Quicker Remediation]
-    D --> E[Lower Security Risk]
-
-    F[Unmaintainable Code] --> G[Hard to Understand]
-    G --> H[Slow Audits]
-    H --> I[Vulnerabilities Linger]
-    I --> J[High Security Risk]
-
-    style A fill:#4CAF50
-    style E fill:#4CAF50
-    style F fill:#f44336
-    style J fill:#f44336
-```
-
-**Security-Maintainability Principles**:
-
-1. **Simple Code is Secure Code**
-   - Low complexity → fewer bugs → fewer vulnerabilities
-   - Fitness function: Complexity ≤10
-
-2. **Tested Code is Trustworthy Code**
-   - High coverage → confidence in changes
-   - Fitness function: Coverage ≥80%
-
-3. **Up-to-Date Code is Secure Code**
-   - Fresh dependencies → fewer known CVEs
-   - Fitness function: All packages <3 months old
-
-4. **Documented Code is Auditable Code**
-   - Clear rationale → faster security reviews
-   - Fitness function: All security decisions documented
-
----
-
-## Evolutionary Architecture Concepts
-
-### Guided Change with Fitness Functions
-
-```typescript
-// Example: Architecture Decision Record (ADR)
-
-/**
- * ADR-001: Use UUID for All Resource IDs
- *
- * Status: Accepted
- *
- * Context:
- * - Sequential IDs (1, 2, 3) enable IDOR attacks
- * - Need non-guessable identifiers
- *
- * Decision:
- * All new tables use UUID v4 for primary keys
- *
- * Fitness Function:
- * - Check: All CREATE TABLE statements use UUID type
- * - Tool: Custom SQL linter
- * - Enforcement: Pre-commit hook
- *
- * Consequences:
- * - Pro: IDOR prevention (OWASP A01)
- * - Pro: Distributed ID generation
- * - Con: 16 bytes vs 4 bytes storage
- */
-```
-
-### Incremental Migration Pattern
-
-When refactoring legacy code:
-
-```mermaid
-flowchart LR
-    A[Legacy Code] --> B[Phase 1: Add Types]
-    B --> C[Phase 2: Add Validation]
-    C --> D[Phase 3: Add Tests]
-    D --> E[Phase 4: Refactor Logic]
-    E --> F[Phase 5: Remove Legacy]
-
-    B -.->|Fitness: Type coverage| G[Monitor]
-    C -.->|Fitness: Validation coverage| G
-    D -.->|Fitness: Test coverage| G
-    E -.->|Fitness: Complexity| G
-    F -.->|Fitness: Dead code| G
-```
-
-**Example: Migrate Authentication from MD5 to bcrypt**
-
-```markdown
-Phase 1: Add bcrypt (dual-write)
-- New users: bcrypt
-- Existing users: MD5 (read-only)
-- Fitness: 0 new MD5 hashes created
-
-Phase 2: Migrate existing users
-- On login: rehash MD5 → bcrypt
-- Fitness: % of users migrated
-
-Phase 3: Deprecate MD5
-- All users on bcrypt
-- Fitness: 0 MD5 hashes in database
-
-Phase 4: Remove MD5 code
-- Delete legacy code
-- Fitness: No MD5 imports detected
-```
-
----
-
-## Practical Application
-
-### Daily Developer Workflow
-
-```mermaid
-flowchart LR
-    A[Start Feature] --> B[Check Fitness Functions]
-    B --> C[Implement]
-    C --> D[Run Local Fitness Checks]
-    D -->|Pass| E[Commit]
-    D -->|Fail| F[Fix]
-    F --> C
-
-    E --> G[Pre-commit Hook:<br/>Fitness Functions]
-    G -->|Pass| H[Push]
-    G -->|Fail| F
-
-    H --> I[CI: Fitness Functions]
-    I -->|Pass| J[Merge]
-    I -->|Fail| F
-```
-
-**Commands**:
-```bash
-# Check fitness functions locally
-npm run fitness-check
-
-# Auto-fix common issues
-npm run fitness-fix
-
-# Generate fitness report
-npm run fitness-report
-```
-
----
-
-## Framework Components
-
-### 1. [Fitness Functions](fitness-functions.md)
-
-Detailed implementation guide for:
-- Complexity fitness functions (cyclomatic, file size)
-- Dependency freshness (3-month rule)
-- Security compliance (CodeQL, Snyk)
-- Performance thresholds (response time, memory)
-- Test coverage (overall, security-critical paths)
-
-### 2. [Evolutionary Architecture](evolutionary-architecture.md)
-
-Patterns for:
-- Incremental refactoring with AI assistance
-- Technical debt tracking and reduction
-- Architecture Decision Records (ADRs)
-- "Upgrade All The Things" kata
-- Reversible changes
+</div>
 
 ---
 
 ## Success Metrics
 
-Track these metrics to measure maintainability:
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
 
-### Leading Indicators (Process)
-- **Fitness Function Pass Rate**: % of commits passing all functions (target: >95%)
-- **Refactoring Velocity**: Story points of tech debt resolved per sprint
-- **Dependency Freshness**: Average package age (target: <2 months)
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Leading Indicators (Process)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ Fitness Function Pass Rate — target: >95%<br/>
+    ✓ Refactoring Velocity — tech debt resolved per sprint<br/>
+    ✓ Dependency Freshness — average package age target: <2 months
+  </div>
+</div>
 
-### Lagging Indicators (Outcomes)
-- **Defect Density**: Bugs per 1000 LOC (target: <5)
-- **Time to Fix**: Discovery → fix deployed (target: <7 days)
-- **Complexity Trend**: Average cyclomatic complexity over time (target: ↓)
-- **Security Incidents**: Production security issues per quarter (target: 0)
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
+  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 12px;">Lagging Indicators (Outcomes)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ Defect Density — bugs per 1000 LOC target: <5<br/>
+    ✓ Time to Fix — discovery to deploy target: <7 days<br/>
+    ✓ Complexity Trend — average cyclomatic over time target: decreasing<br/>
+    ✓ Security Incidents — production issues per quarter target: 0
+  </div>
+</div>
+
+</div>
 
 ---
 
-## Quick Start
+## Resources
 
-1. **Implement Fitness Functions**: See [fitness-functions.md](fitness-functions.md)
-2. **Set Up Monitoring**: Track metrics dashboard
-3. **Create Tech Debt Backlog**: Identify current debt
-4. **Plan Evolution**: Incremental refactoring roadmap
-5. **Educate Team**: Share principles and tools
+- [Fitness Functions](./fitness-functions) — Automated quality gates with implementation code
+- [Evolutionary Architecture](./evolutionary-architecture) — Incremental change patterns and technical debt management
+- [Maintainability Prompt Packs](/docs/prompts/maintainability/) — AI prompts for complexity reduction, dependency hygiene, and more
+- [SDLC Phase 6: Evolution](/docs/sdlc/phase6-evolution) — How maintainability integrates with the development lifecycle
+- [Building Evolutionary Architectures](https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/) — Ford, Parsons, Kua (O'Reilly)
+- [Back to Documentation](/docs/)
 
 ---
 
-## Further Reading
-
-- [Fitness Functions](fitness-functions.md) - Detailed implementation guide
-- [Evolutionary Architecture](evolutionary-architecture.md) - Patterns and practices
-- [SDLC Framework](../sdlc/) - How maintainability integrates with development lifecycle
-- [Building Evolutionary Architectures](https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/) - Book by Ford, Parsons, Kua
+**Key principle**: Evolutionary architecture is about making change safe and incremental. Fitness functions are the guardrails that ensure every change moves the system toward its architectural goals, not away from them.

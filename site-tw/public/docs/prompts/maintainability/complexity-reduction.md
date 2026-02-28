@@ -30,19 +30,21 @@
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code Complexity
+## Prompt 1: Analyze Code Complexity
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Scans functions for cyclomatic complexity violations, deep nesting, and long parameter lists</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a code quality engineer analyzing TypeScript/JavaScript code for complexity violations.
 
 Context:
 I have a codebase with several high-complexity functions that need refactoring. I'm targeting cyclomatic complexity ≤10 per function.
-
-[PASTE YOUR CODE HERE]
 
 Example:
 function processOrder(order, user, inventory) {
@@ -59,7 +61,7 @@ function processOrder(order, user, inventory) {
 }
 
 Task:
-Analyze the provided code and identify complexity violations:
+Analyze the code in the current workspace and identify complexity violations:
 
 1. Calculate cyclomatic complexity for each function
 2. Identify specific complexity contributors (if/else, loops, &&, ||, ?:, switch cases)
@@ -83,14 +85,19 @@ Provide a prioritized list of complexity violations with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Refactor with Extract Method Pattern
+## Prompt 2: Refactor with Extract Method Pattern
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Splits a high-complexity function into smaller focused functions using Extract Method</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a refactoring expert reducing cyclomatic complexity using the Extract Method pattern.
@@ -99,7 +106,7 @@ Context:
 I have a function with high cyclomatic complexity that needs to be refactored into smaller, focused functions.
 
 Current State:
-[PASTE YOUR COMPLEX FUNCTION HERE]
+Analyze the functions in the current workspace that exceed the complexity thresholds above.
 
 Example:
 function validateUser(user) {
@@ -148,14 +155,19 @@ Provide refactored TypeScript code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #3: Reduce Nesting with Guard Clauses
+## Prompt 3: Reduce Nesting with Guard Clauses
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Flattens deeply nested conditionals into guard clauses with early returns</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a refactoring expert specializing in reducing nested conditionals using Guard Clauses.
@@ -164,7 +176,7 @@ Context:
 I have deeply nested code (>3 levels) that's hard to read and maintain. I want to flatten the control flow using guard clauses (early returns).
 
 Current State:
-[PASTE YOUR NESTED CODE HERE]
+Analyze the functions in the current workspace with nesting depth >3 levels.
 
 Example:
 function processPayment(user, payment) {
@@ -226,14 +238,19 @@ Provide refactored TypeScript code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #4: Apply Strategy Pattern for Complex Conditionals
+## Prompt 4: Apply Strategy Pattern for Complex Conditionals
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Replaces large switch/if-else chains with a Strategy Pattern dictionary lookup</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a software architect refactoring complex switch/if-else chains using the Strategy Pattern.
@@ -242,7 +259,7 @@ Context:
 I have a function with large switch statements or if-else chains that handle different types/modes. This creates high complexity and is hard to extend.
 
 Current State:
-[PASTE YOUR CONDITIONAL CODE HERE]
+Analyze the functions in the current workspace with large switch statements or if-else chains.
 
 Example:
 function calculateShipping(order) {
@@ -297,55 +314,60 @@ Provide complete refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## ✅ Validation Checklist
+## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f59e0b;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">After refactoring for complexity reduction, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After refactoring for complexity reduction, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(251, 146, 60, 0.15); border-left: 4px solid #fb923c; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Complexity Metrics</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(251, 146, 60, 0.15); border-left: 4px solid #fb923c; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Complexity Metrics</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All functions have cyclomatic complexity ≤10<br/>
     ✓ Critical functions have complexity ≤8<br/>
     ✓ No functions exceed 50 lines<br/>
     ✓ No nesting deeper than 3 levels<br/>
-    ✓ No functions with >4 parameters
+    ✓ No functions with >4 parameters<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Run ts-complexity or ESLint complexity rule and confirm zero violations
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Behavior Preservation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Behavior Preservation</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All existing tests pass without modification<br/>
     ✓ No changes to public API or function signatures<br/>
     ✓ Error handling remains equivalent<br/>
-    ✓ Edge cases still handled correctly
+    ✓ Edge cases still handled correctly<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Run full test suite before and after refactoring and diff the results
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Code Quality</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Code Quality</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Extracted functions have descriptive names<br/>
     ✓ Guard clauses used for validation<br/>
     ✓ JSDoc comments explain intent<br/>
-    ✓ TypeScript strict mode passes (no `any`)<br/>
-    ✓ ESLint passes with no warnings
+    ✓ TypeScript strict mode passes (no any)<br/>
+    ✓ ESLint passes with no warnings<br/>
+    <strong style="color: #94a3b8;">Test:</strong> run npm run lint and verify zero warnings or errors
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Testing</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Testing</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Refactored code has equivalent or better test coverage<br/>
     ✓ New helper functions have unit tests<br/>
-    ✓ Complexity fitness function passes in CI/CD
+    ✓ Complexity fitness function passes in CI/CD<br/>
+    <strong style="color: #94a3b8;">Test:</strong> run npm test --coverage and confirm coverage did not decrease
   </div>
 </div>
 
@@ -355,7 +377,7 @@ Provide complete refactored code with:
 
 ---
 
-## 🎓 Common Refactoring Patterns
+## Common Refactoring Patterns
 
 | Pattern | Use Case | Complexity Impact | Example |
 |---------|----------|-------------------|---------|
@@ -363,12 +385,12 @@ Provide complete refactored code with:
 | **Guard Clauses** | Deep nesting (>3 levels) | Flattens control flow | Early returns for error conditions |
 | **Strategy Pattern** | Large switch/if-else chains | Replaces branching with lookup | Shipping calculators, payment processors |
 | **Replace Conditional with Polymorphism** | Type-based behavior | Eliminates type checking | Shape.area() instead of if (shape.type) |
-| **Decompose Conditional** | Complex boolean expressions | Converts to named functions | `if (isEligibleForDiscount(user))` |
-| **Introduce Parameter Object** | Functions with >4 parameters | Groups related data | Pass `OrderRequest` instead of 7 params |
+| **Decompose Conditional** | Complex boolean expressions | Converts to named functions | if (isEligibleForDiscount(user)) |
+| **Introduce Parameter Object** | Functions with >4 parameters | Groups related data | Pass OrderRequest instead of 7 params |
 
 ---
 
-## 🔗 Related Resources
+## Related Resources
 
 - **[Fitness Functions](./fitness-functions)** — Automate complexity enforcement in CI/CD
 - **[Single Responsibility](./single-responsibility)** — Ensure functions do ONE thing well
@@ -377,7 +399,7 @@ Provide complete refactored code with:
 
 ---
 
-## 📖 Further Reading
+## Resources
 
 **Books**:
 - *Clean Code* (Martin) — Chapter 3: Functions (keep them small)
@@ -386,20 +408,14 @@ Provide complete refactored code with:
 
 **Tools**:
 - **ts-complexity** (TypeScript) — Cyclomatic complexity analysis
-- **radon** (Python) — Complexity and maintainability metrics
 - **SonarQube** (Multi-language) — Code quality dashboard
 
 **Metrics**:
 - **Cyclomatic Complexity**: Thomas McCabe's metric for decision points
 - **Cognitive Complexity**: SonarSource's metric for human understanding difficulty
-- **Maintainability Index**: Microsoft's composite metric (0-100 scale)
+
+[Back to Maintainability Overview](/docs/prompts/maintainability/)
 
 ---
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; text-align: center; color: #f1f5f9; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 16px;">⚡</div>
-  <div style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">Lower Complexity = Fewer Bugs</div>
-  <div style="font-size: 15px; color: #cbd5e1; max-width: 600px; margin: 0 auto;">
-    Functions with complexity >10 have exponentially higher defect rates. Use these prompts to systematically reduce complexity and improve maintainability.
-  </div>
-</div>
+**Key principle**: Functions with complexity >10 have exponentially higher defect rates. Systematically reduce complexity using Extract Method, Guard Clauses, and Strategy Pattern to improve maintainability.

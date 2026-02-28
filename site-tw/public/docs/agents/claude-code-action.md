@@ -1,6 +1,6 @@
 # Claude Code Action — Agentic Guide
 
-> **Mode**: Autonomous GitHub agent (governance-enforced, runs in GitHub Actions)
+> <span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> Autonomous GitHub agent, governance-enforced via GitHub Actions
 >
 > Looking for the interactive in-editor assistant? See [Claude Code](/docs/agents/claude).
 

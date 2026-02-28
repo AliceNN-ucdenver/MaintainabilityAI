@@ -27,19 +27,21 @@
 
 ---
 
-## 🤖 AI Prompt #1: Identify Where to Apply Fitness Functions
+## Prompt 1: Identify Where to Apply Fitness Functions
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Analyzes your project to recommend which fitness functions to implement and in what priority order</span>
+</summary>
 
-**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are an Evolutionary Architecture engineer analyzing a codebase to determine which fitness functions would provide the most value.
 
 Context:
-I have the following project:
-
-[PASTE YOUR PROJECT DETAILS HERE]
+Analyze the project in the current workspace.
 
 Example:
 - Node.js 18 + TypeScript
@@ -82,14 +84,19 @@ Provide a prioritized list of 3-5 fitness functions with specific thresholds and
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Generate Fitness Function Tests
+## Prompt 2: Generate Fitness Function Tests
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates executable Jest test files for complexity, coverage, dependency freshness, and performance fitness functions</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a software engineer implementing fitness functions as automated tests that run in CI/CD pipelines.
@@ -145,123 +152,76 @@ Also generate:
 - .github/workflows/fitness-functions.yml (runs on every PR, uploads artifacts)
 - baseline/coverage-baseline.json (example structure with 85% coverage)
 - baseline/perf-baseline.json (example structure with p95: 145ms)
-- README-FITNESS-FUNCTIONS.md (explains how to run tests and update baselines)
 
 Output: Complete, executable TypeScript code for all files. Initially configure CI with continue-on-error: true (warning mode) so we can monitor for 2 weeks before switching to blocking mode.
 ```
 
 </div>
+</details>
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #10b981;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #86efac; margin-bottom: 20px;">After AI generates fitness function tests, review the code carefully before running it:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After AI generates fitness function tests, review the code carefully before running it:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">File Structure</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">File Structure</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Four test files in fitness-functions directory<br/>
     ✓ GitHub Actions workflow for CI integration<br/>
     ✓ Baseline files for tracking historical metrics<br/>
-    ✓ Documentation explaining how to run and update tests
+    ✓ Documentation explaining how to run and update tests<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Verify all files exist and are syntactically valid TypeScript
   </div>
 </div>
 
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Complexity Analysis</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Complexity Analysis</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Uses dedicated tool like ts-complex (not manual AST parsing or regex)<br/>
     ✓ Correctly counts all branching structures (conditionals, loops, case statements, logical operators, exception handlers)<br/>
     ✓ Error messages pinpoint exact location and suggest specific refactoring patterns<br/>
     ✓ Threshold configurable through environment variables<br/>
-    ✓ Test by running locally and verifying error messages are actionable
+    <strong style="color: #94a3b8;">Test:</strong> Run locally and verify error messages are actionable
   </div>
 </div>
 
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Coverage Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Coverage Validation</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Reads Jest's coverage report and validates all four metrics (lines, branches, functions, statements)<br/>
     ✓ Compares current coverage against stored baseline to detect regressions<br/>
     ✓ Error messages show which metric failed, by how much, and remediation steps<br/>
     ✓ Thresholds configurable for starting with realistic values<br/>
-    ✓ Test by generating coverage report first, then running fitness function
+    <strong style="color: #94a3b8;">Test:</strong> Generate coverage report first, then run fitness function
   </div>
 </div>
 
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Dependency Freshness</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Dependency Freshness</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Checks actual publish dates of dependencies (not just version numbers)<br/>
     ✓ Categorizes outdated packages by severity (security vs minor version bumps)<br/>
     ✓ Provides clear upgrade paths<br/>
     ✓ Warns before failing to give teams time to plan upgrades<br/>
-    ✓ Integrates with npm audit to flag known security vulnerabilities<br/>
-    ✓ Test by running check and verifying age calculations are accurate
+    <strong style="color: #94a3b8;">Test:</strong> Run check and verify age calculations are accurate
   </div>
 </div>
 
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Performance Testing</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Starts application programmatically and cleanly shuts down<br/>
-    ✓ Runs realistic load tests against critical endpoints<br/>
-    ✓ Measures both absolute latency (p95, p99) and regression from baseline<br/>
-    ✓ Properly cleans up spawned processes (no background servers left running)<br/>
-    ✓ Error messages show actual vs expected latency with percentage regression<br/>
-    ✓ Test to ensure clean startup, load test, and termination
-  </div>
-</div>
-
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">CI/CD Integration</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Workflow runs on every pull request and push to main<br/>
-    ✓ Uses npm ci for deterministic dependency installation<br/>
-    ✓ Initially configured with continue-on-error: true for monitoring period<br/>
-    ✓ Uploads test results as artifacts for historical tracking<br/>
-    ✓ Optionally comments on pull requests with pass/fail summaries<br/>
-    ✓ After monitoring: change to blocking mode with continue-on-error: false
-  </div>
-</div>
-
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Baseline Management</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Baseline files contain realistic starting values based on current codebase<br/>
-    ✓ Files committed to Git with metadata (timestamp, commit SHA)<br/>
-    ✓ Documentation explains how to regenerate baselines<br/>
-    ✓ Update process: validate results, copy fresh metrics, commit with clear message
-  </div>
-</div>
-
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Security Review</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Security Review</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ No hardcoded secrets<br/>
     ✓ No arbitrary code execution patterns (eval, unsanitized exec calls)<br/>
     ✓ No external network calls that could leak data<br/>
     ✓ File system operations limited to project directory<br/>
-    ✓ No dependencies from unknown sources<br/>
     ✓ Tests are self-contained and offline-first<br/>
-    ✓ Red flags: data exfiltration, arbitrary input execution, sensitive system access
-  </div>
-</div>
-
-<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Final Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Install new dependencies required by tests<br/>
-    ✓ Run each fitness function individually to verify clear output<br/>
-    ✓ Run all tests together to check for conflicts or race conditions<br/>
-    ✓ Validate GitHub Actions workflow syntax before committing<br/>
-    ✓ Optional: test full CI pipeline locally using tools like act<br/>
-    ✓ Expected outcome: tests pass cleanly or fail with actionable error messages
+    <strong style="color: #94a3b8;">Test:</strong> Grep for eval, exec, and external URLs in generated code
   </div>
 </div>
 
@@ -271,26 +231,24 @@ Output: Complete, executable TypeScript code for all files. Initially configure 
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** with ChatGPT/Claude to identify which fitness functions your project needs
-2. **Use Prompt #2** to generate the test code
+1. **Use Prompt 1** with ChatGPT/Claude to identify which fitness functions your project needs
+2. **Use Prompt 2** to generate the test code
 3. **Review generated code** using the checklist above
-4. **Run tests locally**: `npm test tests/fitness-functions`
-5. **Create baselines**: Run tests once, copy results to `baseline/`
-6. **Integrate CI**: Add workflow to `.github/workflows/`
-7. **Start in warning mode**: Monitor for 2 weeks, then switch to blocking
-8. **Monitor trends**: Track metrics over time (Grafana, DataDog)
-9. **Refactor violations**: Use [Technical Debt Management](technical-debt) to prioritize fixes
+4. **Run tests locally**: npm test tests/fitness-functions
+5. **Create baselines**: Run tests once, copy results to baseline/
+6. **Start in warning mode**: Monitor for 2 weeks, then switch to blocking
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - **[Dependency Hygiene Prompt Pack](dependency-hygiene)** — Enforce 90-day freshness rule
 - **[Technical Debt Management](technical-debt)** — Track and prioritize refactoring work
 - **Book**: *Building Evolutionary Architectures* (Ford, Parsons, Kua)
+- [Back to Maintainability Overview](/docs/prompts/maintainability/)
 
 ---
 
-**Remember**: Fitness functions prevent architectural erosion. Manual reviews catch bugs; fitness functions enforce quality standards automatically.
+**Key principle**: Fitness functions prevent architectural erosion. Manual reviews catch bugs; fitness functions enforce quality standards automatically.

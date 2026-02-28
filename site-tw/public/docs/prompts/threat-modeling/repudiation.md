@@ -26,19 +26,21 @@
 
 ---
 
-## 🤖 AI Prompt: Identify Repudiation Threats in Architecture
+## Prompt: Identify Repudiation Threats in Architecture
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Audit your system for gaps in logging, accountability, and non-repudiation controls</span>
+</summary>
 
-**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security architect specializing in audit logging, compliance, and incident response. Your task is to perform STRIDE threat modeling focusing on Repudiation (R) threats.
 
 Context:
-I have the following architecture:
-
-[PASTE YOUR ARCHITECTURE DIAGRAM OR DESCRIPTION HERE]
+Analyze the architecture of the current project.
 
 Example:
 - React SPA frontend with user dashboard
@@ -81,16 +83,17 @@ Provide 3-5 high-priority repudiation threats with complete details. Prioritize 
 ```
 
 </div>
+</details>
 
 ---
 
-## 📋 Example AI Output
+## Example AI Output
 
 ### Threat 1: Missing Audit Logs for Admin User Deletion
 
 **Threat**: Admin deletes user account with no audit trail of who or when
 
-**Component**: `/api/admin/users/:id` DELETE endpoint
+**Component**: /api/admin/users/:id DELETE endpoint
 
 **Attack Scenario**:
 1. Malicious admin (or attacker with stolen admin credentials) accesses admin portal
@@ -177,7 +180,7 @@ Additional controls:
 
 **Threat**: Attacker modifies or deletes logs to erase evidence of compromise
 
-**Component**: Application logging to local file system (`/var/log/app.log`)
+**Component**: Application logging to local file system (/var/log/app.log)
 
 **Attack Scenario**:
 1. Attacker compromises application server
@@ -246,11 +249,11 @@ Additional controls:
 
 **Threat**: Failed login attempts logged without IP or user context
 
-**Component**: `/api/auth/login` endpoint
+**Component**: /api/auth/login endpoint
 
 **Attack Scenario**:
 1. Attacker attempts credential stuffing attack with 10,000 username/password pairs
-2. System logs: `"Login failed"` (no username, IP, or timestamp)
+2. System logs: "Login failed" (no username, IP, or timestamp)
 3. Security team cannot identify attack pattern or block malicious IPs
 4. Attacker eventually guesses valid credentials
 5. Forensic investigation cannot determine how many accounts were compromised
@@ -338,87 +341,87 @@ Additional controls:
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f59e0b;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">Before merging AI-generated Repudiation threat mitigation code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">Before merging AI-generated Repudiation threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Audit Log Coverage</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Audit Log Coverage</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Every security-relevant action logged with sufficient detail for forensic investigation<br/>
     ✓ Authentication events logged: login, logout, password reset, MFA enrollment<br/>
     ✓ Authorization changes logged: role modifications, permission grants<br/>
     ✓ Data access to sensitive resources logged: PII, financial data, healthcare records<br/>
     ✓ Administrative actions logged: user deletion, config changes, system settings<br/>
     ✓ Each log entry answers who, what, when, where, and how<br/>
-    ✓ Test: Perform sensitive action (delete user, change password) and verify log entry appears with complete context including user ID, IP address, timestamp, and action details
+    <strong style="color: #94a3b8;">Test:</strong> Perform sensitive action (delete user, change password) and verify log entry appears with complete context including user ID, IP address, timestamp, and action details
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Log Integrity and Immutability</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Log Integrity and Immutability</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Audit logs stored in append-only systems that application cannot modify or delete<br/>
     ✓ Centralized logging platforms used: CloudWatch, Splunk, or ELK with IAM policies preventing write access from application accounts<br/>
     ✓ Cryptographic signing (HMAC-SHA256) implemented for each log entry to detect tampering<br/>
     ✓ Logs stored in separate account or subscription from application to prevent lateral movement<br/>
-    ✓ Test: Attempt to modify or delete log entry from application, verify access denial, check log signatures are generated and can be verified
+    <strong style="color: #94a3b8;">Test:</strong> Attempt to modify or delete log entry from application, verify access denial, check log signatures are generated and can be verified
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Log Retention and Compliance</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Log Retention and Compliance</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Logs retained for durations satisfying compliance requirements: 90 days minimum for SOC 2, 1 year for PCI DSS, 7 years for some HIPAA records<br/>
     ✓ Automated log rotation and archival to cold storage (S3 Glacier, Azure Archive) after active retention period<br/>
     ✓ Retention policies documented and automated deletion implemented after compliance period expires<br/>
-    ✓ Validate: Review log retention settings in logging platform, verify old logs archived and available for retrieval, confirm automated deletion configured
+    <strong style="color: #94a3b8;">Test:</strong> Review log retention settings in logging platform, verify old logs archived and available for retrieval, confirm automated deletion configured
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Sensitive Data Masking</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Sensitive Data Masking</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Never log passwords, session tokens, credit card numbers, Social Security numbers, or API keys<br/>
     ✓ Automatic PII detection and redaction implemented using regex or library functions<br/>
     ✓ Log identifiers (user ID, email) instead of full names<br/>
     ✓ Careful with request bodies, error messages, and debug logs that might expose secrets<br/>
-    ✓ Test: Submit request with credit card number and verify masking in logs (shows only last 4 digits), check passwords never appear in any log file
+    <strong style="color: #94a3b8;">Test:</strong> Submit request with credit card number and verify masking in logs (shows only last 4 digits), check passwords never appear in any log file
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Real-Time Alerting</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Real-Time Alerting</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ High-severity security events trigger immediate alerts to security teams via PagerDuty, Slack, email, or SIEM<br/>
     ✓ Alert rules defined for failed authentication bursts, privilege escalation attempts, anomalous data access patterns, and admin actions<br/>
     ✓ Alerts include enough context to triage without accessing full logs<br/>
-    ✓ Test: Trigger high-severity event (10 failed logins in 1 minute) and verify alert sent within 30 seconds, check alert includes actionable details
+    <strong style="color: #94a3b8;">Test:</strong> Trigger high-severity event (10 failed logins in 1 minute) and verify alert sent within 30 seconds, check alert includes actionable details
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Log Correlation and Tracing</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Log Correlation and Tracing</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Each log entry includes correlation ID or request ID linking related events across services<br/>
     ✓ Enables tracing single user action through microservices architecture<br/>
     ✓ Structured logging (JSON format) used with consistent field names across all services<br/>
     ✓ Integration with distributed tracing tools (Jaeger, Zipkin) for performance and security correlation<br/>
-    ✓ Validate: Generate request ID at ingress and verify appearance in all downstream logs, test search for specific request ID shows all related events
+    <strong style="color: #94a3b8;">Test:</strong> Generate request ID at ingress and verify appearance in all downstream logs, test search for specific request ID shows all related events
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring and Anomaly Detection</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring and Anomaly Detection</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Dashboards implemented showing authentication trends, failed login rates, data access patterns, and admin action frequency<br/>
     ✓ Statistical anomaly detection alerts on unusual patterns (10x normal login attempts, access to 100+ user records in 5 minutes)<br/>
     ✓ Dashboards regularly reviewed for suspicious activity during security reviews<br/>
-    ✓ Set up: Create dashboards in logging platform showing key security metrics, configure thresholds for alerts based on historical baselines
+    <strong style="color: #94a3b8;">Test:</strong> Create dashboards in logging platform showing key security metrics, configure thresholds for alerts based on historical baselines
   </div>
 </div>
 
@@ -428,24 +431,23 @@ Additional controls:
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
 1. **Use the AI prompt** with ChatGPT or Claude to analyze your architecture
 2. **Review generated threats** using the checklist above
 3. **Implement comprehensive audit logging** using [OWASP A09](/docs/prompts/owasp/A09_logging_monitoring) prompt pack
 4. **Set up centralized logging** (CloudWatch, Splunk, ELK)
 5. **Configure alerting rules** for high-severity security events
-6. **Test log integrity** — verify logs cannot be tampered with
-7. **Document retention policies** and ensure compliance
-8. **Move to next STRIDE category** → [Information Disclosure](information-disclosure)
+6. **Move to next STRIDE category** → [Information Disclosure](information-disclosure)
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - **[OWASP A09: Logging and Monitoring Failures](/docs/prompts/owasp/A09_logging_monitoring)** — Implementation guide
 - **[OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)** — Best practices
+- **[Back to STRIDE Overview](/docs/prompts/threat-modeling/)** — See all six categories
 
 ---
 
-**Remember**: Repudiation is prevented by comprehensive, immutable audit logs. If you can't prove it happened, it might as well not have happened — log everything security-relevant.
+**Key principle**: Repudiation is prevented by comprehensive, immutable audit logs. If you can't prove it happened, it might as well not have happened — log everything security-relevant.

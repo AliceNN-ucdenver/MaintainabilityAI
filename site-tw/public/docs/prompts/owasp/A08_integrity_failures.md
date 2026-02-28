@@ -29,11 +29,15 @@ See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Elevatio
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for Integrity Failures
+## Prompt 1: Analyze Code for Integrity Failures
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Finds unsigned plugins, insecure deserialization, missing checksums, and CI/CD gaps — returns prioritized findings</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in software and data integrity failures (OWASP A08).
@@ -50,9 +54,7 @@ My codebase includes:
 - Build and deployment scripts
 
 Task:
-Analyze the following code/files for OWASP A08 vulnerabilities:
-
-[PASTE YOUR CODE HERE - plugin loaders, deserialization, downloads, CI/CD configs, update mechanisms]
+Analyze the code in the current workspace for OWASP A08 vulnerabilities.
 
 Identify:
 
@@ -86,14 +88,19 @@ Provide a prioritized list of integrity failures (Critical > High > Medium) with
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Integrity Verification
+## Prompt 2: Implement Integrity Verification
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates HMAC signing, checksum verification, safe deserialization, timestamped data, and CI/CD artifact signing</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive integrity verification for a web application (OWASP A08 remediation).
@@ -172,26 +179,30 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: Loads unsigned plugin from network
+// CRITICAL: Loads unsigned plugin from network
 export async function loadPlugin(url: string) {
   const response = await fetch(url);
   const code = await response.text();
 
-  // ❌ No signature or integrity verification!
-  return eval(code); // ❌ Executes arbitrary code!
+  // No signature or integrity verification!
+  return eval(code); // Executes arbitrary code!
 }
 
-// ❌ CRITICAL: Insecure deserialization
+// CRITICAL: Insecure deserialization
 export function deserialize(data: string): any {
-  return eval(`(${data})`); // ❌ Code injection!
+  return eval(`(${data})`); // Code injection!
 }
 
 // Attack: Attacker compromises CDN, serves malicious plugin
@@ -199,10 +210,15 @@ export function deserialize(data: string): any {
 // Attack: Supply chain attack injects backdoor in dependency
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: Comprehensive integrity verification
+// SECURE: Comprehensive integrity verification
 import crypto from 'crypto';
 import { z } from 'zod';
 
@@ -214,7 +230,7 @@ interface PluginMetadata {
   checksum: string;  // SHA-256 hash
 }
 
-// ✅ Allowlist of trusted plugins with signatures
+// Allowlist of trusted plugins with signatures
 const TRUSTED_PLUGINS: Record<string, PluginMetadata> = {
   'analytics': {
     name: 'analytics',
@@ -225,7 +241,7 @@ const TRUSTED_PLUGINS: Record<string, PluginMetadata> = {
   }
 };
 
-// ✅ Get signing key from environment
+// Get signing key from environment
 function getSigningKey(): Buffer {
   const key = process.env.PLUGIN_SIGNING_KEY;
   if (!key) {
@@ -234,14 +250,14 @@ function getSigningKey(): Buffer {
   return Buffer.from(key, 'hex');
 }
 
-// ✅ Generate HMAC-SHA256 signature
+// Generate HMAC-SHA256 signature
 export function generateSignature(content: string): string {
   const hmac = crypto.createHmac('sha256', getSigningKey());
   hmac.update(content, 'utf8');
   return 'hmac-sha256-' + hmac.digest('hex');
 }
 
-// ✅ Verify HMAC signature with constant-time comparison
+// Verify HMAC signature with constant-time comparison
 function verifySignature(content: string, expectedSignature: string): boolean {
   if (!expectedSignature.startsWith('hmac-sha256-')) {
     throw new Error('Invalid signature format');
@@ -249,21 +265,21 @@ function verifySignature(content: string, expectedSignature: string): boolean {
 
   const actualSignature = generateSignature(content);
 
-  // ✅ Constant-time comparison prevents timing attacks
+  // Constant-time comparison prevents timing attacks
   return crypto.timingSafeEqual(
     Buffer.from(actualSignature),
     Buffer.from(expectedSignature)
   );
 }
 
-// ✅ Calculate SHA-256 checksum
+// Calculate SHA-256 checksum
 export function generateChecksum(content: string): string {
   const hash = crypto.createHash('sha256');
   hash.update(content, 'utf8');
   return hash.digest('hex');
 }
 
-// ✅ Verify checksum with constant-time comparison
+// Verify checksum with constant-time comparison
 function verifyChecksum(content: string, expectedChecksum: string): boolean {
   const actualChecksum = generateChecksum(content);
 
@@ -273,16 +289,16 @@ function verifyChecksum(content: string, expectedChecksum: string): boolean {
   );
 }
 
-// ✅ Secure plugin loading with integrity verification
+// Secure plugin loading with integrity verification
 export async function loadPlugin(pluginName: string): Promise<string> {
-  // ✅ Check allowlist
+  // Check allowlist
   const metadata = TRUSTED_PLUGINS[pluginName];
   if (!metadata) {
     throw new Error(`Plugin '${pluginName}' not in trusted plugin list`);
   }
 
   try {
-    // ✅ Download plugin
+    // Download plugin
     const response = await fetch(metadata.url);
     if (!response.ok) {
       throw new Error(`Failed to fetch plugin: ${response.statusText}`);
@@ -290,26 +306,26 @@ export async function loadPlugin(pluginName: string): Promise<string> {
 
     const content = await response.text();
 
-    // ✅ Verify checksum (integrity)
+    // Verify checksum (integrity)
     if (!verifyChecksum(content, metadata.checksum)) {
       console.error('Plugin checksum verification failed', { plugin: pluginName });
       throw new Error('Plugin integrity check failed');
     }
 
-    // ✅ Verify signature (authenticity)
+    // Verify signature (authenticity)
     if (!verifySignature(content, metadata.signature)) {
       console.error('Plugin signature verification failed', { plugin: pluginName });
       throw new Error('Plugin signature verification failed');
     }
 
-    // ✅ Log successful verification
+    // Log successful verification
     console.info('Plugin verified successfully', {
       plugin: pluginName,
       version: metadata.version,
       timestamp: new Date().toISOString()
     });
 
-    // ✅ Return content (don't execute with eval!)
+    // Return content (don't execute with eval!)
     return content;
   } catch (err) {
     console.error('Plugin loading failed', {
@@ -320,7 +336,7 @@ export async function loadPlugin(pluginName: string): Promise<string> {
   }
 }
 
-// ✅ Secure deserialization with schema validation
+// Secure deserialization with schema validation
 const UserDataSchema = z.object({
   id: z.string().uuid(),
   name: z.string().max(100),
@@ -332,10 +348,10 @@ type UserData = z.infer<typeof UserDataSchema>;
 
 export function deserializeUserData(json: string): UserData {
   try {
-    // ✅ Use JSON.parse (safe)
+    // Use JSON.parse (safe)
     const parsed = JSON.parse(json);
 
-    // ✅ Validate schema with Zod
+    // Validate schema with Zod
     const validated = UserDataSchema.parse(parsed);
 
     return validated;
@@ -345,12 +361,12 @@ export function deserializeUserData(json: string): UserData {
   }
 }
 
-// ❌ NEVER do this:
+// NEVER do this:
 // eval(serializedData);  // Code injection!
 // yaml.load(yamlData);   // Unsafe! Use yaml.safeLoad()
 // pickle.loads(data);    // Python only, but demonstrates unsafe deserialization
 
-// ✅ Signed data with timestamp (prevents replay attacks)
+// Signed data with timestamp (prevents replay attacks)
 interface SignedData<T> {
   data: T;
   signature: string;
@@ -361,7 +377,7 @@ export function signData<T>(data: T): SignedData<T> {
   const timestamp = new Date().toISOString();
   const payload = JSON.stringify(data) + timestamp;
 
-  // ✅ Create HMAC signature
+  // Create HMAC signature
   const hmac = crypto.createHmac('sha256', getSigningKey());
   hmac.update(payload);
   const signature = hmac.digest('hex');
@@ -376,7 +392,7 @@ export function signData<T>(data: T): SignedData<T> {
 export function verifySignedData<T>(signedData: SignedData<T>, maxAgeMs: number = 5 * 60 * 1000): T {
   const payload = JSON.stringify(signedData.data) + signedData.timestamp;
 
-  // ✅ Verify signature
+  // Verify signature
   const hmac = crypto.createHmac('sha256', getSigningKey());
   hmac.update(payload);
   const expectedSignature = hmac.digest('hex');
@@ -385,7 +401,7 @@ export function verifySignedData<T>(signedData: SignedData<T>, maxAgeMs: number 
     throw new Error('Signature verification failed - data may be tampered');
   }
 
-  // ✅ Check timestamp (prevent replay attacks)
+  // Check timestamp (prevent replay attacks)
   const age = Date.now() - new Date(signedData.timestamp).getTime();
   if (age > maxAgeMs) {
     throw new Error('Signed data expired');
@@ -394,7 +410,7 @@ export function verifySignedData<T>(signedData: SignedData<T>, maxAgeMs: number 
   return signedData.data;
 }
 
-// ✅ Download with checksum verification
+// Download with checksum verification
 export async function downloadAndVerify(url: string, expectedChecksum: string): Promise<Buffer> {
   try {
     const response = await fetch(url);
@@ -405,12 +421,12 @@ export async function downloadAndVerify(url: string, expectedChecksum: string): 
     const buffer = await response.arrayBuffer();
     const content = Buffer.from(buffer);
 
-    // ✅ Calculate checksum
+    // Calculate checksum
     const hash = crypto.createHash('sha256');
     hash.update(content);
     const actualChecksum = hash.digest('hex');
 
-    // ✅ Verify checksum
+    // Verify checksum
     if (!crypto.timingSafeEqual(Buffer.from(actualChecksum), Buffer.from(expectedChecksum))) {
       console.error('Download checksum mismatch', { url });
       throw new Error('File integrity verification failed');
@@ -424,6 +440,8 @@ export async function downloadAndVerify(url: string, expectedChecksum: string): 
   }
 }
 ```
+
+</details>
 
 ### CI/CD Artifact Signing Example
 
@@ -440,36 +458,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ✅ Verify signed commits
+      # Verify signed commits
       - name: Verify commit signature
         run: git verify-commit HEAD || echo "Warning: Unsigned commit"
 
       - uses: actions/checkout@v4
 
-      # ✅ Pin action versions (not @main)
+      # Pin action versions (not @main)
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      # ✅ Use lockfile for integrity
+      # Use lockfile for integrity
       - name: Install dependencies
         run: npm ci
 
-      # ✅ Run security audit
+      # Run security audit
       - name: Security audit
         run: npm audit --audit-level=moderate
 
       - name: Build
         run: npm run build
 
-      # ✅ Generate checksums for artifacts
+      # Generate checksums for artifacts
       - name: Generate checksums
         run: |
           cd dist
           sha256sum * > checksums.txt
           cd ..
 
-      # ✅ Sign checksums file
+      # Sign checksums file
       - name: Sign checksums
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
@@ -479,7 +497,7 @@ jobs:
           openssl dgst -sha256 -hmac "$(cat signing.key)" dist/checksums.txt > dist/checksums.sig
           rm signing.key
 
-      # ✅ Upload artifacts with signatures
+      # Upload artifacts with signatures
       - uses: actions/upload-artifact@v3
         with:
           name: build-artifacts
@@ -491,130 +509,58 @@ jobs:
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated integrity verification code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated integrity verification code:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Digital Signatures</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All plugins, updates, and critical code verified using HMAC-SHA256 or digital signatures before execution<br/>
-    ✓ Signing key stored securely in environment variables or secret management systems, never hardcoded<br/>
-    ✓ Signatures generated for trusted content during build process and stored with metadata<br/>
-    ✓ Signature verification uses constant-time comparison to prevent timing attacks<br/>
-    ✓ Allowlist maintained of trusted sources with their expected signatures<br/>
-    ✓ Content with missing, invalid, or mismatched signatures rejected<br/>
-    ✓ All signature verification failures logged as security events<br/>
-    ✓ Test: Tamper with one byte of plugin content, verify signature check fails and logs show integrity violation
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Signatures & Checksums</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All plugins and updates verified with HMAC-SHA256 before execution<br/>
+    ✓ SHA-256 checksums calculated and compared for all downloads<br/>
+    ✓ Signing keys in env vars or secret manager — never hardcoded<br/>
+    ✓ Constant-time comparison for all signature/checksum checks<br/>
+    ✓ Missing or invalid signatures cause immediate rejection<br/>
+    ✓ All verification failures logged as security events<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> tamper one byte of plugin content, verify signature check fails and logs integrity violation
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Checksum Verification</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ SHA-256 checksums calculated for all downloaded files and compared against expected values before use<br/>
-    ✓ Expected checksums fetched from trusted source over HTTPS, ideally from different channel than file<br/>
-    ✓ Constant-time comparison used for checksum validation to prevent timing attacks<br/>
-    ✓ Checksums stored alongside artifacts in version control or secure storage<br/>
-    ✓ Verification happens immediately after download, before parsing or executing content<br/>
-    ✓ Streaming hash calculation considered for large files to reduce memory usage<br/>
-    ✓ Checksum verification never skipped even for "trusted" sources<br/>
-    ✓ Test: Download file, modify one byte, verify checksum validation fails and file rejected
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Safe Deserialization & Replay Prevention</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ No eval(), Function(), or unsafe yaml.load() with external data<br/>
+    ✓ JSON.parse() + Zod schema validation for all deserialization<br/>
+    ✓ Signed data includes timestamp; reject if older than 5 minutes<br/>
+    ✓ Nonces used for high-security replay prevention<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> attempt malicious payload deserialization verify rejection; create signed data, wait past expiry, verify rejected
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Safe Deserialization</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Never use eval(), Function(), or vm.runInContext() with external data<br/>
-    ✓ JSON parsed with JSON.parse() which is safe and cannot execute code<br/>
-    ✓ Structure validated with Zod or similar schema validator after parsing<br/>
-    ✓ YAML uses yaml.safeLoad() not yaml.load() to prevent code execution<br/>
-    ✓ Never deserialize Python pickle, PHP unserialize, or Java ObjectInputStream from untrusted sources<br/>
-    ✓ Deserialization formats allowing code execution validated and safer alternatives considered<br/>
-    ✓ Allowlist implemented for accepted data types, unexpected structures rejected<br/>
-    ✓ Test: Attempt malicious payload deserialization, verify safe methods reject them, JSON.parse throws SyntaxError
-  </div>
-</div>
-
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Supply Chain Security</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Dependency integrity verified during installation using package-lock.json integrity hashes<br/>
-    ✓ npm audit run to check for known vulnerabilities in dependencies<br/>
-    ✓ GitHub Action versions pinned to specific commit SHAs, not @main or @latest<br/>
-    ✓ Dependency tree reviewed with npm ls, unnecessary transitive dependencies questioned<br/>
-    ✓ Dependabot or Renovate enabled for automated dependency updates with security scanning<br/>
-    ✓ npm private registry or artifact repository considered for additional control<br/>
-    ✓ Allowlist implemented of approved packages for critical applications<br/>
-    ✓ Signed commits required from contributors<br/>
-    ✓ Test: Modify package-lock.json integrity hash verify npm ci fails, check npm audit in CI/CD
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">CI/CD Pipeline Security</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ CI/CD pipelines secured with artifact signing and verification at each stage<br/>
-    ✓ Build artifacts signed using HMAC or GPG during build process<br/>
-    ✓ Signatures stored alongside artifacts<br/>
-    ✓ Signatures verified before deployment to any environment<br/>
-    ✓ Separate signing keys used for different environments (dev, staging, prod)<br/>
-    ✓ Access to signing keys restricted using secret management<br/>
-    ✓ Immutable build artifacts implemented - never modified after build<br/>
-    ✓ Reproducible builds used where possible to verify artifact integrity<br/>
-    ✓ All artifact generation and verification events logged<br/>
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Supply Chain & CI/CD Security</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ package-lock.json integrity hashes verified on install (npm ci)<br/>
+    ✓ GitHub Action versions pinned to commit SHAs, not @main<br/>
+    ✓ Build artifacts signed with HMAC or GPG; verified before deploy<br/>
     ✓ Deployment fails if signature verification fails<br/>
-    ✓ Test: Deploy artifact without signature verify deployment fails, tamper post-build verify verification fails
+    ✓ Signed commits required from contributors<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> modify lock integrity hash verify npm ci fails; deploy unsigned artifact verify rejection
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Replay Attack Prevention</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Timestamp included in all signed data structures to prevent replay attacks<br/>
-    ✓ Timestamp age validated on verification, data older than threshold (typically 5 minutes) rejected<br/>
-    ✓ ISO 8601 format timestamps used for consistency<br/>
-    ✓ Nonce (random value) included for additional replay prevention in high-security scenarios<br/>
-    ✓ Recently used nonces stored to detect duplicates<br/>
-    ✓ Sequence numbers considered for ordered operations<br/>
-    ✓ Replay attack attempts logged<br/>
-    ✓ Timestamp tolerance balanced with security - tighter windows more secure but may reject legitimate delayed requests<br/>
-    ✓ Test: Create signed data, wait past expiration time, attempt use and verify rejection due to age
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Integrity Metadata</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Comprehensive metadata maintained for all trusted external resources (name, version, URL, signature, checksum, last verification date)<br/>
-    ✓ Metadata stored in version control alongside code for auditability<br/>
-    ✓ Verification process documented for adding new trusted resources<br/>
-    ✓ Metadata schema validation included to prevent malformed entries<br/>
-    ✓ Metadata versioning implemented to track changes over time<br/>
-    ✓ Tools provided to regenerate signatures and checksums when resources update<br/>
-    ✓ Metadata validation automated in CI/CD to catch misconfigurations<br/>
-    ✓ Code never allowed to specify its own integrity metadata<br/>
-    ✓ Test: Add resource to allowlist without proper metadata, verify loading fails with clear error message
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Integrity Failure Logging</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All integrity verification events logged including successful verifications and failures<br/>
-    ✓ Failure logs include resource identifier, expected vs actual signature/checksum, timestamp, action taken<br/>
-    ✓ Signing keys or full signatures never logged in plaintext logs<br/>
-    ✓ Sensitive information masked while preserving forensic value<br/>
-    ✓ Alerts set up for integrity failures as they may indicate active attacks<br/>
-    ✓ Integrity failure patterns aggregated to detect systematic attacks<br/>
-    ✓ Integrity logs retained separately from application logs for security analysis<br/>
-    ✓ Logs forwarded to SIEM or security monitoring system for correlation<br/>
-    ✓ Test: Trigger integrity failure, verify comprehensive log entry created with all necessary details
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Integrity Metadata & Logging</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Trusted resource registry maintained with name, version, signature, checksum<br/>
+    ✓ Metadata stored in version control for auditability<br/>
+    ✓ All integrity events logged (success and failure) with resource details<br/>
+    ✓ Alerts configured for integrity failures (may indicate active attack)<br/>
+    ✓ <strong style="color: #94a3b8;">Test:</strong> add resource without proper metadata, verify loading fails with clear error
   </div>
 </div>
 
@@ -624,30 +570,25 @@ jobs:
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing code for integrity verification gaps
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate integrity verification with HMAC and checksums
-4. **Review generated code** using the Human Review Checklist above
-5. **Implement signatures**: Add HMAC-SHA256 for all plugins and updates
-6. **Add checksums**: Verify SHA-256 hashes for all downloads
-7. **Secure deserialization**: Replace eval() and unsafe formats with JSON.parse + Zod
-8. **Sign CI/CD artifacts**: Add checksum generation and signing to build pipeline
-9. **Test integrity checks**: Verify tampered content is rejected
-10. **Monitor failures**: Set up alerts for integrity verification failures
+1. **Prompt 1** → analyze existing code for integrity verification gaps
+2. **Prioritize** by risk (Critical > High > Medium)
+3. **Prompt 2** → generate HMAC, checksums, safe deserialization, and CI/CD signing
+4. **Review** with the checklist above
+5. **Replace eval()** with JSON.parse + Zod everywhere
+6. **Sign CI/CD artifacts** and verify on deployment
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - [OWASP A08:2021 - Software and Data Integrity Failures](https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/)
 - [OWASP Deserialization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html)
 - [Sigstore - Code Signing for Software Supply Chain](https://www.sigstore.dev/)
 - [SLSA Framework - Supply Chain Security](https://slsa.dev/)
-- [GitHub Artifact Attestations](https://docs.github.com/en/actions/security-guides/using-artifact-attestations)
-- [npm Package Signatures](https://docs.npmjs.com/cli/v9/commands/npm-audit)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: Software integrity failures are preventable through digital signatures (HMAC-SHA256 for plugins), checksum verification (SHA-256 for downloads), secure deserialization (JSON.parse + Zod, never eval), signed CI/CD artifacts, and timestamp validation (prevent replay attacks). Never execute unsigned code or deserialize untrusted data without verification.
+**Key principle**: Sign everything with HMAC-SHA256, verify checksums before use, deserialize only with JSON.parse + Zod (never eval), and sign CI/CD artifacts. Never execute unsigned code.

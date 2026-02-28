@@ -1,3 +1,5 @@
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 4</div>
+
 # Phase 4: Governance
 
 <div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(168, 85, 247, 0.4); border: 1px solid rgba(192, 132, 252, 0.3);">
@@ -31,7 +33,7 @@ flowchart LR
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">15-45 min</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Participants</div>
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Engineer + Reviewer</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -99,7 +101,7 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Rule 1: Be Specific</div>
+  <a href="/docs/governance/vibe-golden-rules#rule-1" style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px; text-decoration: none; display: block;">Rule 1: Be Specific</a>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     OWASP prompt packs referenced in commits?<br/>
     Tech stack constraints specified?<br/>
@@ -108,7 +110,7 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 </div>
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Rule 2: Trust But Verify</div>
+  <a href="/docs/governance/vibe-golden-rules#rule-2" style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px; text-decoration: none; display: block;">Rule 2: Trust But Verify</a>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     Reviewer understands every function?<br/>
     OWASP controls correctly implemented?<br/>
@@ -117,7 +119,7 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 </div>
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Rule 3: Junior Dev Treatment</div>
+  <a href="/docs/governance/vibe-golden-rules#rule-3" style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px; text-decoration: none; display: block;">Rule 3: Junior Dev Treatment</a>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     Code follows team patterns?<br/>
     No over-engineering or unnecessary complexity?<br/>
@@ -126,7 +128,7 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 </div>
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #a855f7;">
-  <div style="font-size: 15px; font-weight: 700; color: #d8b4fe; margin-bottom: 8px;">Rule 4: Isolate AI Changes</div>
+  <a href="/docs/governance/vibe-golden-rules#rule-4" style="font-size: 15px; font-weight: 700; color: #d8b4fe; margin-bottom: 8px; text-decoration: none; display: block;">Rule 4: Isolate AI Changes</a>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     Commits labeled with AI-assisted tag?<br/>
     AI tool identified?<br/>
@@ -135,7 +137,7 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 </div>
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Rule 5: Document Rationale</div>
+  <a href="/docs/governance/vibe-golden-rules#rule-5" style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px; text-decoration: none; display: block;">Rule 5: Document Rationale</a>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     Inline comments explain "why" not "what"?<br/>
     OWASP categories referenced in code?<br/>
@@ -144,7 +146,7 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 </div>
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ec4899;">
-  <div style="font-size: 15px; font-weight: 700; color: #f9a8d4; margin-bottom: 8px;">Rule 6: Share Winning Prompts</div>
+  <a href="/docs/governance/vibe-golden-rules#rule-6" style="font-size: 15px; font-weight: 700; color: #f9a8d4; margin-bottom: 8px; text-decoration: none; display: block;">Rule 6: Share Winning Prompts</a>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     Prompt produced secure code on first try?<br/>
     Reusable for future features?<br/>
@@ -249,29 +251,27 @@ PR can be approved when ALL criteria are met:
 
 ## Phase Handoff → Phase 5
 
-<div style="background: rgba(168, 85, 247, 0.1); border-left: 4px solid #a855f7; border-radius: 8px; padding: 24px; margin: 24px 0;">
-
-```
-===== PHASE 4 → PHASE 5 HANDOFF =====
-
-Feature: [Feature name]
-
-Governance Complete:
-✅ All 6 Golden Rules validated
-✅ OWASP compliance reviewed (A01, A03, A09)
-✅ [X]/[X] threats verified with code + tests
-✅ AI disclosure documented
-✅ PR approved by [Reviewer]
-
-Artifacts:
-- Approved PR: [link]
-- Threat coverage matrix: [attached]
-
-Next: Merge and deploy via CI/CD (Phase 5)
-
-===== END HANDOFF =====
-```
-
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(168, 85, 247, 0.3);">
+<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
+  <span style="font-size: 24px;">4&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
+  <span style="font-size: 24px;">5&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Governance → Deployment</span>
+</div>
+<div style="padding: 24px;">
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <div>✅ All 6 Golden Rules validated</div>
+    <div>✅ OWASP compliance reviewed (A01, A03, A09)</div>
+    <div>✅ [X]/[X] threats verified with code + tests</div>
+    <div>✅ AI disclosure documented</div>
+    <div>✅ PR approved by [Reviewer]</div>
+  </div>
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Artifacts</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <div>Approved PR: [link] · Threat coverage matrix: [attached]</div>
+  </div>
+</div>
 </div>
 
 ---

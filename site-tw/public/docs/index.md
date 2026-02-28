@@ -10,113 +10,74 @@
   </div>
 </div>
 
-## 🚀 Quick Start
+## Start Here
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
-  <a href="./framework" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block; transition: transform 0.2s;">
+  <a href="./framework" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
     <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">New to this Framework?</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">See how OWASP, STRIDE, fitness functions, and the 6-phase SDLC work together to deliver secure, maintainable features fast</p>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Framework Overview</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">New here? See how OWASP, STRIDE, fitness functions, and the 6-phase SDLC work together</p>
   </a>
 
-  <a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
-    <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">OWASP Security Prompts</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Browse OWASP Top 10 prompt packs (A01-A10) with metrics dashboard</p>
+  <a href="./workshop/part1-spectrum" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🎓</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Begin Workshop</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Hands-on? Start the 4-part series from The Spectrum to Fitness Functions</p>
   </a>
 
-  <a href="./prompts/threat-modeling" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
-    <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Threat Modeling (STRIDE)</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">AI-powered threat modeling with 6 STRIDE categories</p>
+  <a href="./impossible-things" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
+    <div style="font-size: 32px; margin-bottom: 12px;">🎩</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Impossible Things</h3>
+    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Read the vision behind the framework and the art of the possible</p>
   </a>
-
-  <a href="./prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
-    <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Maintainability Prompts</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Evolutionary architecture patterns and fitness functions</p>
-  </a>
-
-  <a href="./agents/" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid rgba(100, 116, 139, 0.3); display: block;">
-    <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Using AI Agents?</h3>
-    <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Read AI Agent Guides to choose the right tool (Claude, Copilot, ChatGPT)</p>
-  </a>
-
 </div>
 
 ---
 
-## 📚 Core Documentation
+## Prompt Pack Libraries
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 32px 0;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
 
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3); border: 1px solid rgba(99, 102, 241, 0.3);">
-  <div style="font-size: 40px; margin-bottom: 12px;">🔄</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #ffffff; font-weight: 800;">SDLC Framework</h3>
-  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 20px;">
-    Complete 6-phase framework integrating security and maintainability throughout the software development lifecycle
-  </p>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-    <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
-      <strong style="color: #ffffff;">Phase 1:</strong> Design & Threat Modeling<br/>
-      <strong style="color: #ffffff;">Phase 2:</strong> Secure Implementation<br/>
-      <strong style="color: #ffffff;">Phase 3:</strong> Verification & Testing<br/>
-      <strong style="color: #ffffff;">Phase 4:</strong> Governance & Review<br/>
-      <strong style="color: #ffffff;">Phase 5:</strong> CI/CD Deployment<br/>
-      <strong style="color: #ffffff;">Phase 6:</strong> Evolution & Metrics
-    </div>
-  </div>
-  <a href="./sdlc/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    View Complete SDLC Guide →
-  </a>
+<div style="text-align: center; margin-bottom: 32px;">
+  <h3 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Production-Ready AI Prompts</h3>
+  <p style="color: #94a3b8; font-size: 16px; margin: 0;">All prompt packs follow the proven <strong style="color: #c7d2fe;">RCTRO: Role → Context → Task → Requirements → Output</strong> pattern</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); border: 1px solid rgba(239, 68, 68, 0.3);">
-  <div style="font-size: 40px; margin-bottom: 12px;">🛡️</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">OWASP Top 10</h3>
-  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 20px;">
-    Security-first prompt packs for AI code generation with comprehensive examples and testing checklists
-  </p>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">
+
+<a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">OWASP Top 10 Security</div>
+  <div style="color: #ffffff; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">10 comprehensive packs with before/after examples, attack vector tests, and remediation checklists</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px;">
     <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
       ✓ 10 complete vulnerability categories<br/>
       ✓ Before/after code examples<br/>
       ✓ Attack vector test suites<br/>
-      ✓ Tool-specific variations (Claude/Copilot/ChatGPT)
+      ✓ Human review checklists
     </div>
   </div>
-  <a href="./prompts/owasp/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    View OWASP Dashboard →
-  </a>
-</div>
+</a>
 
-<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(234, 88, 12, 0.3); border: 1px solid rgba(249, 115, 22, 0.3);">
-  <div style="font-size: 40px; margin-bottom: 12px;">🎯</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">STRIDE Threat Modeling</h3>
-  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 20px;">
-    AI-powered threat detection before code is written using Microsoft's 6-category STRIDE framework
-  </p>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+<a href="./prompts/threat-modeling" style="text-decoration: none; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">STRIDE Threat Modeling</div>
+  <div style="color: #ffffff; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">6 categories for AI-powered threat detection before code is written, with OWASP cross-references</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px;">
     <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
       ✓ 6 STRIDE categories covered<br/>
       ✓ Auto-maps threats to OWASP<br/>
-      ✓ Early threat detection before code is written<br/>
-      ✓ Integrates with OWASP controls
+      ✓ Early detection before code<br/>
+      ✓ Scenario-based analysis
     </div>
   </div>
-  <a href="./prompts/threat-modeling/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    View Threat Modeling Dashboard →
-  </a>
-</div>
+</a>
 
-<div style="background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3); border: 1px solid rgba(20, 184, 166, 0.3);">
-  <div style="font-size: 40px; margin-bottom: 12px;">📐</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">Evolutionary Architecture</h3>
-  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 20px;">
-    Maintainability patterns for long-lived systems with AI-assisted refactoring and automated fitness functions
-  </p>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+<a href="./prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+  <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
+  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Evolutionary Architecture</div>
+  <div style="color: #ffffff; font-size: 14px; line-height: 1.6; margin-bottom: 12px;">Fitness functions and patterns for long-lived maintainable systems with AI-assisted refactoring</div>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px;">
     <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
       ✓ Fitness functions (complexity ≤10)<br/>
       ✓ Dependency hygiene (≤90 days)<br/>
@@ -124,88 +85,13 @@
       ✓ Technical debt tracking
     </div>
   </div>
-  <a href="./prompts/maintainability/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    View Maintainability Dashboard →
-  </a>
-</div>
-
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3); border: 1px solid rgba(139, 92, 246, 0.3);">
-  <div style="font-size: 40px; margin-bottom: 12px;">⚖️</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">Governance</h3>
-  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 20px;">
-    Golden Rules for AI-assisted development with human oversight, policies, and responsible AI usage
-  </p>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-    <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
-      ✓ 6 Golden Rules framework<br/>
-      ✓ AI disclosure requirements<br/>
-      ✓ PR review checklists<br/>
-      ✓ Trust but verify approach
-    </div>
-  </div>
-  <a href="./governance/vibe-golden-rules" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    View Golden Rules →
-  </a>
-</div>
-
-<div style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 16px; padding: 28px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3); border: 1px solid rgba(6, 182, 212, 0.3);">
-  <div style="font-size: 40px; margin-bottom: 12px;">🔗</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 24px; color: #f1f5f9; font-weight: 800;">Framework Integration</h3>
-  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 20px;">
-    How SDLC, OWASP, STRIDE, and maintainability patterns work together across the entire development lifecycle
-  </p>
-  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-    <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
-      ✓ 6-layer security pipeline<br/>
-      ✓ Multi-agent orchestration<br/>
-      ✓ Expandable Six Layers example<br/>
-      ✓ Complete workflow guide
-    </div>
-  </div>
-  <a href="./framework" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
-    View Framework Guide →
-  </a>
-</div>
-
-</div>
-
----
-
-## 📦 Prompt Pack Libraries
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-
-<div style="text-align: center; margin-bottom: 32px;">
-  <div style="font-size: 48px; margin-bottom: 16px;">🎯</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Production-Ready AI Prompts</h3>
-  <p style="color: #94a3b8; font-size: 16px; margin: 0;">All prompt packs follow the proven <strong style="color: #c7d2fe;">RCTRO: Role → Context → Task → Requirements → Output</strong> pattern</p>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">
-
-<a href="./prompts/threat-modeling" style="text-decoration: none; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-  <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
-  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">STRIDE Threat Modeling</div>
-  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">6 categories for AI-powered threat detection before code is written</div>
-</a>
-
-<a href="./prompts/owasp" style="text-decoration: none; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-  <div style="font-size: 32px; margin-bottom: 12px;">🛡️</div>
-  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">OWASP Top 10 Security</div>
-  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">10 comprehensive packs with before/after examples and attack tests</div>
-</a>
-
-<a href="./prompts/maintainability" style="text-decoration: none; background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; padding: 24px; display: block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-  <div style="font-size: 32px; margin-bottom: 12px;">📐</div>
-  <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Evolutionary Architecture</div>
-  <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">Fitness functions and patterns for long-lived maintainable systems</div>
 </a>
 
 </div>
 
 <div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px;">
   <div style="color: #a5b4fc; font-size: 14px; line-height: 1.7;">
-    <strong style="color: #c7d2fe;">💡 Pro Tip:</strong> Clone the repository to use prompts with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #e0e7ff;">#file:</code> references in Claude Code and Copilot
+    <strong style="color: #c7d2fe;">Pro Tip:</strong> Clone the repository to use prompts with #file: references in Claude Code and Copilot
   </div>
 </div>
 
@@ -213,11 +99,149 @@
 
 ---
 
-## 🎓 Workshop
+## SDLC & Governance
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+
+<a href="./sdlc/" style="text-decoration: none; display: block;">
+<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 16px; padding: 28px; box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3); height: 100%; box-sizing: border-box;">
+  <div style="font-size: 32px; margin-bottom: 12px;">🔄</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #ffffff; font-weight: 800;">SDLC Framework</h3>
+  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    Complete 6-phase lifecycle integrating security and maintainability from design through evolution
+  </p>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px;">
+    <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
+      Phase 1: Design & Threat Modeling<br/>
+      Phase 2: Secure Implementation<br/>
+      Phase 3: Verification & Testing<br/>
+      Phase 4: Governance & Review<br/>
+      Phase 5: CI/CD Deployment<br/>
+      Phase 6: Evolution & Metrics
+    </div>
+  </div>
+</div>
+</a>
+
+<a href="./governance/vibe-golden-rules" style="text-decoration: none; display: block;">
+<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 16px; padding: 28px; box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3); height: 100%; box-sizing: border-box;">
+  <div style="font-size: 32px; margin-bottom: 12px;">⚖️</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #ffffff; font-weight: 800;">Governance Golden Rules</h3>
+  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    6 Golden Rules for AI-assisted development with human oversight and responsible AI usage
+  </p>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px;">
+    <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
+      ✓ Be specific with AI prompts<br/>
+      ✓ Trust but verify<br/>
+      ✓ Treat AI like a junior dev<br/>
+      ✓ Isolate AI changes<br/>
+      ✓ Document rationale<br/>
+      ✓ Share winning prompts
+    </div>
+  </div>
+</div>
+</a>
+
+<a href="./framework" style="text-decoration: none; display: block;">
+<div style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 16px; padding: 28px; box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3); height: 100%; box-sizing: border-box;">
+  <div style="font-size: 32px; margin-bottom: 12px;">🔗</div>
+  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #ffffff; font-weight: 800;">Framework Integration</h3>
+  <p style="color: #ffffff; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+    How SDLC, OWASP, STRIDE, and maintainability patterns work together across the entire lifecycle
+  </p>
+  <div style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 12px;">
+    <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
+      ✓ 6-layer security pipeline<br/>
+      ✓ Multi-agent orchestration<br/>
+      ✓ Expandable Six Layers<br/>
+      ✓ Complete workflow guide
+    </div>
+  </div>
+</div>
+</a>
+
+</div>
+
+---
+
+## AI Agent Guides
+
+<div style="font-size: 14px; color: #94a3b8; margin-bottom: 24px;">Choose the right AI tool for the job. MaintainabilityAI supports two modes of AI assistance.</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 32px 0;">
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">In-Editor</span>
+    <span style="color: #64748b; font-size: 13px;">Human-in-the-loop, IDE-integrated</span>
+  </div>
+  <div style="display: grid; gap: 16px;">
+    <a href="./agents/claude" style="text-decoration: none; display: flex; align-items: center; gap: 14px; background: rgba(99, 102, 241, 0.1); border-radius: 10px; padding: 16px; border: 1px solid rgba(99, 102, 241, 0.2);">
+      <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; color: white; flex-shrink: 0;">C</div>
+      <div>
+        <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Claude Code</div>
+        <div style="font-size: 13px; color: #94a3b8;">Multi-file refactoring, test generation, security review</div>
+      </div>
+    </a>
+    <a href="./agents/copilot" style="text-decoration: none; display: flex; align-items: center; gap: 14px; background: rgba(16, 185, 129, 0.1); border-radius: 10px; padding: 16px; border: 1px solid rgba(16, 185, 129, 0.2);">
+      <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; flex-shrink: 0;">⚡</div>
+      <div>
+        <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">GitHub Copilot</div>
+        <div style="font-size: 13px; color: #94a3b8;">In-editor completions, pattern following, quick fixes</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+    <span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">Agentic</span>
+    <span style="color: #64748b; font-size: 13px;">Autonomous, GitHub-native, governance-enforced</span>
+  </div>
+  <div style="display: grid; gap: 16px;">
+    <a href="./agents/claude-code-action" style="text-decoration: none; display: flex; align-items: center; gap: 14px; background: rgba(168, 85, 247, 0.1); border-radius: 10px; padding: 16px; border: 1px solid rgba(168, 85, 247, 0.2);">
+      <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; color: white; flex-shrink: 0;">C</div>
+      <div>
+        <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Claude Code Action</div>
+        <div style="font-size: 13px; color: #94a3b8;">Autonomous PR agent via GitHub Actions</div>
+      </div>
+    </a>
+    <a href="./agents/copilot-coding-agent" style="text-decoration: none; display: flex; align-items: center; gap: 14px; background: rgba(168, 85, 247, 0.1); border-radius: 10px; padding: 16px; border: 1px solid rgba(168, 85, 247, 0.2);">
+      <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; flex-shrink: 0;">⚡</div>
+      <div>
+        <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Copilot Coding Agent</div>
+        <div style="font-size: 13px; color: #94a3b8;">GitHub-native autonomous coding via Issues/PRs</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 0 0 32px 0;">
+
+<a href="./agents/multi-agent" style="text-decoration: none; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3); display: flex; align-items: center; gap: 14px;">
+  <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; flex-shrink: 0;">🔀</div>
+  <div>
+    <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Multi-Agent Orchestration</div>
+    <div style="font-size: 13px; color: #94a3b8;">Coordinating multiple AI agents for complex workflows</div>
+  </div>
+</a>
+
+</div>
+
+<div style="text-align: center;">
+  <a href="./agents/" style="color: #818cf8; text-decoration: none; font-size: 14px; font-weight: 600;">View Full Agent Comparison & Selection Guide →</a>
+</div>
+
+---
+
+## Workshop
 
 <div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px; margin: 24px 0;">
-  <div style="color: #a5b4fc; font-size: 14px; margin-bottom: 12px;">
-    Hands-on training for teams learning security-first AI development. 4-part series with 4 more in development, designed for junior → senior developers.
+  <div style="color: #a5b4fc; font-size: 14px;">
+    Hands-on training for teams learning security-first AI development. 4-part series designed for junior → senior developers.
   </div>
 </div>
 
@@ -259,30 +283,13 @@
   </a>
 </div>
 
-<div style="text-align: center; margin: 32px 0;">
-  <a href="./workshop/" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #f1f5f9; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);">
-    View Complete Workshop Overview →
-  </a>
+<div style="text-align: center;">
+  <a href="./workshop/" style="color: #818cf8; text-decoration: none; font-size: 14px; font-weight: 600;">View Complete Workshop Overview →</a>
 </div>
 
 ---
 
-## 🤖 AI Agent Guides
-
-Platform-specific guidance for security-first development with different AI tools:
-
-| Agent | Best For | Guide |
-|-------|----------|-------|
-| **Claude** | Complex refactoring, multi-file changes, comprehensive testing | [Claude Guide](./agents/claude) |
-| **GitHub Copilot** | In-editor completions, `#codebase` patterns, real-time constraints | [Copilot Guide](./agents/copilot) |
-| **ChatGPT** | Threat modeling, architecture reviews, iterative refinement | [ChatGPT Guide](./agents/chatgpt) |
-| **Multi-Agent** | Orchestrating multiple AI agents for complex workflows | [Multi-Agent Guide](./agents/multi-agent) |
-
-📖 **[View All Agent Guides](./agents/)** - Detailed comparison and selection guide
-
----
-
-## ❓ Getting Help
+## Getting Help
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
   <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -314,7 +321,7 @@ Platform-specific guidance for security-first development with different AI tool
   </p>
   <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
     <a href="./impossible-things" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
-      🎩 Impossible Things →
+      Impossible Things →
     </a>
     <a href="./workshop/part1-spectrum" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
       Begin Workshop →

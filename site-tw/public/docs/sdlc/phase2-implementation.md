@@ -1,3 +1,5 @@
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 2</div>
+
 # Phase 2: Implementation
 
 <div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4); border: 1px solid rgba(251, 191, 36, 0.3);">
@@ -31,7 +33,7 @@ flowchart LR
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">2-6 hours</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Agents</div>
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Copilot, Claude, ChatGPT</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -54,7 +56,7 @@ flowchart LR
 | **Claude Code** | Multi-file features, large refactorings, test generation | Refactor entire auth module + add tests |
 | **ChatGPT** | Incremental development, learning patterns, iteration | Build feature step-by-step with review |
 
-See [Copilot Guide](/docs/agents/copilot), [Claude Guide](/docs/agents/claude), [ChatGPT Guide](/docs/agents/chatgpt) for detailed guides.
+See [COPILOT.md](https://github.com/shawnmccarthy/maintainabilityai/blob/main/COPILOT.md), [CLAUDE.md](https://github.com/shawnmccarthy/maintainabilityai/blob/main/CLAUDE.md), [CHATGPT.md](https://github.com/shawnmccarthy/maintainabilityai/blob/main/CHATGPT.md) for agent-specific guidance, or [AGENTS.md](https://github.com/shawnmccarthy/maintainabilityai/blob/main/AGENTS.md) for multi-agent orchestration patterns.
 
 ---
 
@@ -303,30 +305,22 @@ Tests: 95% coverage, all attack vectors tested
 
 ## Phase Handoff → Phase 3
 
-<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 24px; margin: 24px 0;">
-
-```
-===== PHASE 2 → PHASE 3 HANDOFF =====
-
-Feature: [Feature name]
-
-Implementation Complete:
-- Files: [list implementation + test files]
-- Coverage: [percentage]
-
-OWASP Categories Implemented: [A01, A03, etc.]
-Threats Mitigated: [T1-Tn with status]
-
-Local Tests:
-✅ ESLint: Pass
-✅ Jest: [X] tests pass, [Y]% coverage
-✅ npm audit: 0 high/critical
-
-Next: CodeQL + Snyk scans in CI (Phase 3)
-
-===== END HANDOFF =====
-```
-
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(245, 158, 11, 0.3);">
+<div style="background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
+  <span style="font-size: 24px;">2&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
+  <span style="font-size: 24px;">3&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Implementation → Verification</span>
+</div>
+<div style="padding: 24px;">
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <div>✅ Implementation files: [list implementation + test files]</div>
+    <div>✅ OWASP categories implemented: [A01, A03, etc.]</div>
+    <div>✅ Threats mitigated: [T1-Tn with status]</div>
+    <div>✅ ESLint: Pass — Jest: [X] tests, [Y]% coverage — npm audit: 0 high/critical</div>
+  </div>
+</div>
 </div>
 
 ---

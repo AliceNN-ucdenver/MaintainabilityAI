@@ -29,11 +29,15 @@ See also: [STRIDE: Information Disclosure](/docs/prompts/stride/information-disc
 
 ---
 
-## 🤖 AI Prompt #1: Analyze Code for Cryptographic Vulnerabilities
+## Prompt 1: Analyze Code for Cryptographic Vulnerabilities
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Scans your codebase for weak encryption, hardcoded secrets, and password hashing issues</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security analyst specializing in cryptographic vulnerabilities (OWASP A02).
@@ -49,9 +53,7 @@ My codebase includes:
 - File encryption/decryption functionality
 
 Task:
-Analyze the following code/files for OWASP A02 vulnerabilities:
-
-[PASTE YOUR CODE HERE - authentication, encryption, configuration files]
+Analyze the code in the current workspace for OWASP A02 vulnerabilities.
 
 Identify:
 
@@ -84,14 +86,19 @@ Provide a prioritized list of vulnerabilities (Critical > High > Medium) with sp
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Secure Cryptography
+## Prompt 2: Implement Secure Cryptography
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px; 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates AES-256-GCM encryption, bcrypt password hashing, and key management code</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security engineer implementing comprehensive cryptographic controls for a web application (OWASP A02 remediation).
@@ -155,35 +162,40 @@ Provide complete, executable TypeScript code for:
 ```
 
 </div>
+</details>
 
 ---
 
-## 📝 Example AI Output
+## Example Output
 
-### Before (Vulnerable Code)
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+❌ Before — Vulnerable Code
+</summary>
 
 ```typescript
-// ❌ CRITICAL: Base64 encoding is not encryption!
 export function encryptData(data: string): string {
-  const key = "hardcoded-secret-key-123"; // ❌ Hardcoded key
-  return Buffer.from(data + key).toString('base64'); // ❌ Just encoding
+  const key = "hardcoded-secret-key-123";
+  return Buffer.from(data + key).toString('base64');
 }
 
-// ❌ CRITICAL: Plaintext password storage
 export function savePassword(password: string): void {
-  database.insert({ password }); // ❌ Stored in plaintext
+  database.insert({ password });
 }
 
-// ❌ CRITICAL: Weak hashing algorithm
 export function hashPassword(password: string): string {
-  return crypto.createHash('md5').update(password).digest('hex'); // ❌ MD5 is broken
+  return crypto.createHash('md5').update(password).digest('hex');
 }
 ```
 
-### After (Secure Code)
+</details>
+
+<details style="margin: 16px 0;">
+<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+✅ After — Secure Code
+</summary>
 
 ```typescript
-// ✅ SECURE: AES-256-GCM encryption with proper key management
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 
@@ -193,7 +205,6 @@ const AUTH_TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 const BCRYPT_ROUNDS = 12;
 
-// ✅ Key management - load from environment
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
@@ -208,175 +219,111 @@ function getEncryptionKey(): Buffer {
   return keyBuffer;
 }
 
-// ✅ Encrypt data with AES-256-GCM
 export function encryptData(plaintext: string): string {
   try {
-    // ✅ Generate random IV for each encryption
     const iv = crypto.randomBytes(IV_LENGTH);
-
-    // ✅ Create cipher with authenticated encryption
     const cipher = crypto.createCipheriv(ALGORITHM, getEncryptionKey(), iv);
 
-    // ✅ Encrypt the data
     const encrypted = Buffer.concat([
       cipher.update(plaintext, 'utf8'),
       cipher.final()
     ]);
 
-    // ✅ Get authentication tag
     const authTag = cipher.getAuthTag();
-
-    // ✅ Combine IV + authTag + encrypted data
     return Buffer.concat([iv, authTag, encrypted]).toString('base64');
   } catch (err) {
-    // ✅ Generic error message
     console.error('Encryption failed:', err);
     throw new Error('Encryption failed');
   }
 }
 
-// ✅ Decrypt data with integrity verification
 export function decryptData(encryptedData: string): string {
   try {
     const buffer = Buffer.from(encryptedData, 'base64');
 
-    // Extract IV, auth tag, and encrypted content
     const iv = buffer.subarray(0, IV_LENGTH);
     const authTag = buffer.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
     const encrypted = buffer.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
 
-    // ✅ Create decipher
     const decipher = crypto.createDecipheriv(ALGORITHM, getEncryptionKey(), iv);
-
-    // ✅ Set authentication tag for verification
     decipher.setAuthTag(authTag);
 
-    // ✅ Decrypt and verify
     const decrypted = Buffer.concat([
       decipher.update(encrypted),
-      decipher.final() // Will throw if auth tag doesn't match (tampered data)
+      decipher.final()
     ]);
 
     return decrypted.toString('utf8');
   } catch (err) {
-    // ✅ Generic error message
     console.error('Decryption failed:', err);
     throw new Error('Decryption failed or data tampered');
   }
 }
 
-// ✅ Secure password hashing with bcrypt
 export async function hashPassword(password: string): Promise<string> {
-  // ✅ Bcrypt automatically generates salt and uses cost factor
   return await bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
-// ✅ Constant-time password verification
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  // ✅ bcrypt.compare uses constant-time comparison
   return await bcrypt.compare(password, hash);
 }
 
-// ✅ Generate cryptographically secure tokens
 export function generateSecureToken(bytes: number = 32): string {
   return crypto.randomBytes(bytes).toString('hex');
 }
 ```
 
+</details>
+
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #dc2626;">
 
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated cryptographic code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated cryptographic code, verify:</div>
 
 <div style="display: grid; gap: 20px;">
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 20px;">
+<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
   <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Encryption Algorithm</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Only AES-256-GCM used for symmetric encryption, never DES, 3DES, RC4, or ECB mode<br/>
-    ✓ Algorithm provides both confidentiality and authenticity through authenticated encryption<br/>
-    ✓ GCM mode includes authentication tag that prevents tampering<br/>
-    ✓ Implementation uses Node.js crypto module with correct algorithm name<br/>
-    ✓ No custom crypto implementations exist<br/>
-    ✓ Test: Encrypt data and verify output includes IV, auth tag, and ciphertext - tampering fails decryption
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ Only AES-256-GCM used for symmetric encryption (no DES, 3DES, RC4, ECB)<br/>
+    ✓ GCM mode provides both confidentiality and authenticity<br/>
+    ✓ Uses Node.js crypto module, no custom implementations<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Encrypt data and verify output includes IV + auth tag + ciphertext; tampering fails decryption
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Key Management</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All encryption keys come from environment variables or secrets management system<br/>
-    ✓ Never hardcoded in source code or configuration files checked into Git<br/>
-    ✓ Keys are exactly 32 bytes (256 bits) for AES-256<br/>
-    ✓ Application validates key length on startup and fails fast if missing or wrong length<br/>
-    ✓ Key rotation mechanisms documented and testable<br/>
-    ✓ Production keys never appear in development environments or logs<br/>
-    ✓ Test: Remove key from environment - app fails to start with clear error, Git history has no keys
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Key Management & IV Generation</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All keys from environment variables, never hardcoded<br/>
+    ✓ Keys validated as exactly 32 bytes (256 bits) on startup<br/>
+    ✓ Fresh random IV via crypto.randomBytes(16) per encryption<br/>
+    ✓ All randomness from crypto.randomBytes, never Math.random()<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Remove key from env — app fails fast; encrypt same text twice — outputs differ
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">IV Generation & Randomness</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Every encryption operation generates fresh random IV using crypto.randomBytes(16)<br/>
-    ✓ IV never reused with same key<br/>
-    ✓ IVs prepended to ciphertext for decryption availability<br/>
-    ✓ All cryptographic randomness uses crypto.randomBytes(), never Math.random() or Date.now()<br/>
-    ✓ Random values have sufficient entropy (32 bytes for tokens, 16 bytes for IVs)<br/>
-    ✓ No custom random number generators for security-sensitive operations<br/>
-    ✓ Test: Encrypt same plaintext twice - outputs completely different due to random IVs
-  </div>
-</div>
-
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
   <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Password Hashing</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Passwords hashed with bcrypt using cost factor of at least 12<br/>
-    ✓ Never MD5, SHA1, SHA256, or plaintext storage<br/>
-    ✓ Bcrypt automatically handles salt generation<br/>
-    ✓ Password verification uses bcrypt.compare() for constant-time comparison<br/>
-    ✓ Passwords never logged, stored unhashed in memory longer than necessary, or transmitted except over TLS<br/>
-    ✓ Test: Hash same password twice - hashes differ (random salt), bcrypt.compare works for valid/invalid
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ bcrypt with cost factor >= 12 (no MD5, SHA1, plaintext)<br/>
+    ✓ bcrypt.compare() for constant-time verification<br/>
+    ✓ Passwords never logged or stored unhashed<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Hash same password twice — hashes differ; bcrypt.compare succeeds for valid, fails for invalid
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Authenticated Encryption</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All encryption includes authentication to prevent tampering<br/>
-    ✓ GCM mode provides authentication through authentication tag<br/>
-    ✓ After encryption, retrieve auth tag with cipher.getAuthTag() and include with ciphertext<br/>
-    ✓ During decryption, set auth tag with decipher.setAuthTag() before calling final()<br/>
-    ✓ Never use CBC, CFB, or OFB modes without separate HMAC<br/>
-    ✓ Test: Modify encrypted data before decryption - verify rejection with authentication failure error
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Data in Transit</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ All network communication containing sensitive data uses TLS 1.2 or higher, never plain HTTP<br/>
-    ✓ APIs reject HTTP requests for sensitive endpoints or redirect to HTTPS<br/>
-    ✓ HTTPS enforced in production through HSTS headers<br/>
-    ✓ TLS certificates valid and verified (not self-signed in production)<br/>
-    ✓ Database connections use TLS/SSL when communicating over networks<br/>
-    ✓ No sensitive data transmitted in URL query parameters<br/>
-    ✓ Test: Attempt HTTP connection to sensitive endpoints - verify rejection or redirect to HTTPS
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Sensitive Data in Logs</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Logs never contain passwords, API keys, tokens, encryption keys, credit cards, or other secrets<br/>
-    ✓ Logging sanitization removes or masks sensitive fields before writing<br/>
-    ✓ Stack traces sanitized to not expose sensitive data<br/>
-    ✓ Log files protected with appropriate file permissions and encrypted at rest if needed<br/>
-    ✓ Error messages to clients are generic and don't leak cryptographic implementation details<br/>
-    ✓ Test: Trigger errors in encryption/authentication - logs contain only generic messages, no sensitive data
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Data in Transit & Logging</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+    ✓ All sensitive data over TLS 1.2+, HSTS enforced in production<br/>
+    ✓ No sensitive data in URL query parameters<br/>
+    ✓ Logs never contain passwords, keys, tokens, or credit cards<br/>
+    ✓ Error messages generic — no crypto implementation details leaked<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Attempt HTTP on sensitive endpoints — rejected; trigger errors — logs show only generic messages
   </div>
 </div>
 
@@ -386,27 +333,25 @@ export function generateSecureToken(bytes: number = 32): string {
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** to analyze your existing codebase for cryptographic vulnerabilities
-2. **Prioritize findings** by risk (Critical > High > Medium > Low)
-3. **Use Prompt #2** to generate secure encryption and hashing implementations
-4. **Review generated code** using the Human Review Checklist above
-5. **Test thoroughly**: Encryption/decryption roundtrips, password hashing, tampered data rejection
-6. **Generate encryption key**: Run `crypto.randomBytes(32).toString('hex')` once, store in environment
-7. **Update documentation**: Document key management procedures and rotation policy
-8. **Rotate keys**: Implement key rotation for production systems
-9. **Audit regularly**: Review cryptographic code quarterly for new vulnerabilities
+1. **Use Prompt 1** to analyze your codebase for cryptographic vulnerabilities
+2. **Use Prompt 2** to generate secure encryption and hashing implementations
+3. **Review generated code** using the Human Review Checklist above
+4. **Generate encryption key** using crypto.randomBytes(32), store in environment variable
+5. **Implement key rotation** for production systems
+6. **Audit quarterly** for new cryptographic vulnerabilities
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - [OWASP A02:2021 - Cryptographic Failures](https://owasp.org/Top10/A02_2021-Cryptographic_Failures/)
 - [OWASP Cryptographic Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html)
 - [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 - [Node.js Crypto Documentation](https://nodejs.org/api/crypto.html)
+- [Back to OWASP Overview](/docs/prompts/owasp/)
 
 ---
 
-**Remember**: Cryptographic failures are preventable through strong algorithms (AES-256-GCM), proper key management (environment variables), and secure password hashing (bcrypt cost >= 12). Never use encoding as encryption, and always verify data integrity with authenticated encryption.
+**Key principle**: Use strong algorithms (AES-256-GCM), proper key management (environment variables), and secure password hashing (bcrypt cost >= 12). Never use encoding as encryption.

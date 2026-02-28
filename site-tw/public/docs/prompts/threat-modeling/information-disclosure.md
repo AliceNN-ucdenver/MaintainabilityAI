@@ -26,19 +26,21 @@
 
 ---
 
-## 🤖 AI Prompt: Identify Information Disclosure Threats in Architecture
+## Prompt: Identify Information Disclosure Threats in Architecture
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Identify where sensitive data (PII, credentials, secrets) could leak through APIs, errors, or storage</span>
+</summary>
 
-**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security architect specializing in data privacy, access control, and cryptography. Your task is to perform STRIDE threat modeling focusing on Information Disclosure (I) threats.
 
 Context:
-I have the following architecture:
-
-[PASTE YOUR ARCHITECTURE DIAGRAM OR DESCRIPTION HERE]
+Analyze the architecture of the current project.
 
 Example:
 - React SPA fetching user profile data
@@ -81,20 +83,21 @@ Provide 3-5 high-priority information disclosure threats with complete details. 
 ```
 
 </div>
+</details>
 
 ---
 
-## 📋 Example AI Output
+## Example AI Output
 
 ### Threat 1: IDOR Vulnerability Exposing User PII
 
 **Threat**: Attacker accesses other users' personal data by manipulating resource IDs
 
-**Component**: `/api/users/:userId/profile` endpoint
+**Component**: /api/users/:userId/profile endpoint
 
 **Attack Scenario**:
-1. Authenticated user logs in and views their profile: `GET /api/users/123/profile`
-2. Attacker changes URL to `GET /api/users/124/profile`
+1. Authenticated user logs in and views their profile: GET /api/users/123/profile
+2. Attacker changes URL to GET /api/users/124/profile
 3. API returns other user's profile including SSN, address, phone number
 4. Attacker iterates through IDs 1-10000 to scrape all user data
 5. Attacker sells PII database on dark web
@@ -164,8 +167,8 @@ Additional controls:
 **Component**: Global error handler in Express API
 
 **Attack Scenario**:
-1. Attacker sends malformed request: `GET /api/products?id=abc`
-2. Database throws error: `Invalid input syntax for type integer: "abc"`
+1. Attacker sends malformed request: GET /api/products?id=abc
+2. Database throws error: Invalid input syntax for type integer: "abc"
 3. API returns full stack trace to attacker:
    ```
    Error: column "id" is of type integer but expression is of type text
@@ -228,7 +231,7 @@ app.use((err, req, res, next) => {
 ```
 
 Additional controls:
-- Set `NODE_ENV=production` in production environments
+- Set NODE_ENV=production in production environments
 - Never log sensitive data (passwords, tokens) even server-side
 - Implement custom error classes for expected errors (validation, not found)
 - Use error monitoring (Sentry, Rollbar) for structured error tracking
@@ -245,8 +248,8 @@ Additional controls:
 **Component**: Automated database backup job storing to S3
 
 **Attack Scenario**:
-1. Automated job dumps PostgreSQL database to `/backups/db-2024-01-15.sql`
-2. Backup uploaded to S3 bucket `my-company-backups` (public-read by mistake)
+1. Automated job dumps PostgreSQL database to /backups/db-2024-01-15.sql
+2. Backup uploaded to S3 bucket my-company-backups (public-read by mistake)
 3. Attacker finds bucket through reconnaissance (Google dorks, bucket enumeration tools)
 4. Attacker downloads 100GB backup containing all user PII, passwords, credit cards
 5. Attacker has complete database history for past year
@@ -321,95 +324,95 @@ Additional controls:
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #3b82f6;">
 
-<div style="font-size: 20px; font-weight: 700; color: #93c5fd; margin-bottom: 20px;">Before merging AI-generated Information Disclosure threat mitigation code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #93c5fd; margin-bottom: 20px;">Before merging AI-generated Information Disclosure threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Access Control and Authorization</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Access Control and Authorization</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Every API endpoint returning user data verifies requesting user is authorized to access that specific resource<br/>
     ✓ Centralized authorization middleware checks resource ownership before fetching data<br/>
     ✓ Never trust client-provided IDs without validation<br/>
     ✓ Deny-by-default policies implemented where access must be explicitly granted<br/>
-    ✓ Test: Log in as User A, capture API requests, change resource IDs to User B's resources, and verify access denial with 403 Forbidden
+    <strong style="color: #94a3b8;">Test:</strong> Log in as User A, capture API requests, change resource IDs to User B's resources, and verify access denial with 403 Forbidden
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Data Minimization and Field Filtering</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Data Minimization and Field Filtering</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ APIs return only minimum data necessary for specific use case<br/>
     ✓ Never return entire database rows with SELECT * queries<br/>
     ✓ Explicitly list fields in queries and filter sensitive data (SSN, full credit card numbers, passwords) from responses<br/>
     ✓ Response schemas define exactly which fields are exposed<br/>
     ✓ Separate read models used for different contexts (admin vs user vs public)<br/>
-    ✓ Test: Inspect API responses and verify no sensitive fields present, check database queries specify exact columns not SELECT *
+    <strong style="color: #94a3b8;">Test:</strong> Inspect API responses and verify no sensitive fields present, check database queries specify exact columns not SELECT *
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Error Handling and Information Leakage</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Error Handling and Information Leakage</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Production applications never expose stack traces, SQL queries, file paths, or technology details in error responses<br/>
     ✓ Global error handlers return generic messages to clients while logging details server-side<br/>
     ✓ NODE_ENV=production set to disable verbose errors<br/>
     ✓ Custom error classes created for expected errors (validation, not found) with safe messages<br/>
     ✓ Error monitoring services used for internal debugging<br/>
-    ✓ Test: Send malformed requests and verify error responses are generic, check stack traces never appear in API responses
+    <strong style="color: #94a3b8;">Test:</strong> Send malformed requests and verify error responses are generic, check stack traces never appear in API responses
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Encryption at Rest</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Encryption at Rest</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All sensitive data encrypted in databases, file storage, backups, and caches<br/>
     ✓ AES-256-GCM used for encryption with keys managed by AWS KMS, Azure Key Vault, or HashiCorp Vault<br/>
     ✓ Never store encryption keys in code or environment variables alongside the data<br/>
     ✓ Encryption enabled for databases (PostgreSQL TDE, MySQL encryption), S3 buckets (SSE-KMS), and EBS volumes<br/>
     ✓ Backups encrypted before uploading to storage<br/>
-    ✓ Test: Inspect database files, S3 objects, and backup files to verify encryption enabled, attempt to access raw data without decryption keys
+    <strong style="color: #94a3b8;">Test:</strong> Inspect database files, S3 objects, and backup files to verify encryption enabled, attempt to access raw data without decryption keys
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Encryption in Transit</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Encryption in Transit</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All communication uses TLS 1.3 or 1.2 with strong cipher suites<br/>
     ✓ TLS 1.0/1.1 and weak ciphers (RC4, DES) disabled<br/>
     ✓ HTTPS Strict Transport Security (HSTS) enabled with max-age=31536000; includeSubDomains; preload<br/>
     ✓ Certificate pinning used in mobile apps<br/>
     ✓ WebSocket connections use WSS (not WS)<br/>
     ✓ Internal service-to-service communication uses TLS<br/>
-    ✓ Test: Use SSL Labs or testssl.sh to scan domain, verify A or A+ rating with TLS 1.3 support and no weak ciphers
+    <strong style="color: #94a3b8;">Test:</strong> Use SSL Labs or testssl.sh to scan domain, verify A or A+ rating with TLS 1.3 support and no weak ciphers
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Secrets Management</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Secrets Management</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Never hardcode API keys, database passwords, encryption keys, or OAuth secrets in source code<br/>
     ✓ Environment variables loaded from secure vaults (AWS Secrets Manager, Azure Key Vault, Doppler)<br/>
     ✓ Secrets rotated quarterly<br/>
     ✓ Secret scanning implemented in CI/CD (trufflehog, git-secrets) to prevent accidental commits<br/>
     ✓ Separate secrets used for each environment (dev, staging, prod)<br/>
-    ✓ Test: Search codebase for hardcoded secrets using regex, verify secrets loaded from environment variables or vault services
+    <strong style="color: #94a3b8;">Test:</strong> Search codebase for hardcoded secrets using regex, verify secrets loaded from environment variables or vault services
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Logging and Monitoring Privacy</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Logging and Monitoring Privacy</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Logs never contain passwords, session tokens, credit card numbers, SSNs, or API keys<br/>
     ✓ Automatic PII redaction implemented using regex patterns or libraries<br/>
     ✓ Log only identifiers (user ID, transaction ID) instead of sensitive values<br/>
     ✓ All log statements reviewed to ensure compliance<br/>
     ✓ Log sampling configured for high-volume endpoints to reduce storage costs while maintaining security visibility<br/>
-    ✓ Validate: Search logs for sensitive patterns (credit card regex, SSN format), verify PII is masked or absent, test authentication failures don't log passwords
+    <strong style="color: #94a3b8;">Test:</strong> Search logs for sensitive patterns (credit card regex, SSN format), verify PII is masked or absent, test authentication failures don't log passwords
   </div>
 </div>
 
@@ -419,25 +422,24 @@ Additional controls:
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
 1. **Use the AI prompt** with ChatGPT or Claude to analyze your architecture
 2. **Review generated threats** using the checklist above
 3. **Audit API endpoints** for IDOR vulnerabilities and over-fetching
 4. **Implement encryption** for data at rest and in transit
 5. **Fix error handling** to prevent information leakage
-6. **Scan for secrets** in codebase and Git history
-7. **Test access controls** by attempting unauthorized data access
-8. **Move to next STRIDE category** → [Denial of Service](denial-of-service)
+6. **Move to next STRIDE category** → [Denial of Service](denial-of-service)
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - **[OWASP A01: Broken Access Control](/docs/prompts/owasp/A01_broken_access_control)** — IDOR prevention
 - **[OWASP A02: Cryptographic Failures](/docs/prompts/owasp/A02_crypto_failures)** — Encryption guidance
 - **[OWASP Access Control Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)** — Best practices
+- **[Back to STRIDE Overview](/docs/prompts/threat-modeling/)** — See all six categories
 
 ---
 
-**Remember**: Information disclosure is prevented by access control, encryption, and minimal data exposure. Default to privacy — share only what's necessary, encrypt everything sensitive, and verify authorization on every request.
+**Key principle**: Information disclosure is prevented by access control, encryption, and minimal data exposure. Default to privacy — share only what's necessary, encrypt everything sensitive, and verify authorization on every request.

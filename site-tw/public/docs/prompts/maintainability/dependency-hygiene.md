@@ -9,7 +9,7 @@
 **Definition**: A systematic approach to dependency management that enforces a 3-month freshness rule, pins exact versions, and automates security scanning and updates.
 
 **Key Practices**:
-- **Pin exact versions**: No `^` or `~` in package.json (prevents surprise breakage)
+- **Pin exact versions**: No ^ or ~ in package.json (prevents surprise breakage)
 - **Automated updates**: Renovate/Dependabot creates weekly PRs for patches (auto-merge if tests pass)
 - **Security scanning**: npm audit + Snyk on every PR (fail on high/critical CVEs)
 - **90-day rule**: All dependencies must be ≤3 months old (fitness function enforces this)
@@ -22,26 +22,28 @@
 ## 🔗 Maps to OWASP
 
 **Primary**: [A06 - Vulnerable and Outdated Components](/docs/prompts/owasp/A06_vuln_outdated) (outdated deps have known CVEs)
-**Secondary**: [A05 - Security Misconfiguration](/docs/prompts/owasp/A05_security_misconfig) (using `^` allows untested versions)
+**Secondary**: [A05 - Security Misconfiguration](/docs/prompts/owasp/A05_security_misconfig) (using ^ allows untested versions)
 
 ---
 
-## 🤖 AI Prompt #1: Audit Current Dependency State
+## Prompt 1: Audit Current Dependency State
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Audits package.json for semver ranges, outdated libraries, and missing best practices</span>
+</summary>
 
-**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a DevOps engineer auditing a codebase for dependency hygiene issues.
 
 Context:
-I have a Node.js + TypeScript project with the following package.json:
-
-[PASTE YOUR package.json HERE]
+I have a Node.js + TypeScript project. Analyze the package.json in the current workspace.
 
 Task:
-Analyze this package.json and identify:
+Analyze the package.json and identify:
 
 1. Dependencies using semver ranges (`^` or `~`) instead of exact versions
 2. Dependencies that appear outdated (common libraries with old major versions)
@@ -64,14 +66,19 @@ Prioritized list of 5-10 actionable fixes with npm commands ready to copy-paste.
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Implement Dependency Hygiene System
+## Prompt 2: Implement Dependency Hygiene System
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Generates freshness check scripts, Renovate config, and CI workflows for automated dependency management</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a platform engineer implementing automated dependency hygiene with the "Upgrade All The Things" kata.
@@ -123,95 +130,73 @@ Output: Complete, executable code for all 4 files.
 ```
 
 </div>
+</details>
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #8b5cf6;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">After AI generates the dependency hygiene system, review the code carefully before running it:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After AI generates the dependency hygiene system, review the code carefully before running it:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Package.json Configuration</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Package.json Configuration</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All dependencies pinned to exact versions with no semver ranges<br/>
     ✓ Engines field specifies Node.js and npm versions<br/>
     ✓ PackageManager field locks npm to specific version for deterministic builds<br/>
-    ✓ Test by running npm ci locally and in CI to ensure lock file is honored
+    <strong style="color: #94a3b8;">Test:</strong> run npm ci locally and in CI to ensure lock file is honored
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Freshness Check Script</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Freshness Check Script</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Uses npm outdated --json to find outdated packages<br/>
     ✓ Checks actual publish dates using npm registry API<br/>
     ✓ Age calculations are accurate (not just version number comparison)<br/>
     ✓ Categorizes packages by severity: P0 (security), P1 (major versions), P2 (minor/patch)<br/>
     ✓ Generates structured JSON report for tracking trends<br/>
-    ✓ Test by running script and verifying accurate age calculations
+    <strong style="color: #94a3b8;">Test:</strong> Run script and verify age calculations match actual publish dates
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Renovate Configuration</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Renovate Configuration</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Runs weekly (not daily) to avoid PR spam<br/>
     ✓ Groups patch updates together for auto-merge<br/>
     ✓ Separate PRs for minor and major updates requiring manual review<br/>
     ✓ Vulnerability alerts enabled to notify security team immediately<br/>
     ✓ Docker images pinned to SHA256 digests (not just tags)<br/>
-    ✓ Test by verifying Renovate creates expected PRs with correct labels and assignees
+    <strong style="color: #94a3b8;">Test:</strong> Verify Renovate creates expected PRs with correct labels and assignees
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Security Scanning</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Security Scanning</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ CI workflow uses npm ci (not npm install) to respect lock file exactly<br/>
     ✓ Both npm audit and Snyk run on every PR<br/>
     ✓ Audit configured to fail on high/critical vulnerabilities<br/>
     ✓ Snyk initially set to continue-on-error: true for monitoring period<br/>
     ✓ Workflow uploads freshness report as artifact for historical trend analysis<br/>
-    ✓ Test by triggering workflow manually and verifying it catches known vulnerabilities
+    <strong style="color: #94a3b8;">Test:</strong> Trigger workflow manually and verify it catches known vulnerabilities
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Reporting and Metrics</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Report includes timestamp, max age threshold, list of violations<br/>
-    ✓ Lists warnings for packages approaching threshold<br/>
-    ✓ Total count of outdated packages<br/>
-    ✓ Enables tracking improvement over time<br/>
-    ✓ Identifies which packages are consistently problematic<br/>
-    ✓ Validate JSON report is structured correctly for Grafana or DataDog
-  </div>
-</div>
-
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Exception Handling</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Exception Handling</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Handles packages removed from npm<br/>
     ✓ Handles private packages requiring authentication<br/>
     ✓ Handles monorepo packages with workspace: protocol<br/>
     ✓ Handles dependencies with pre-release versions<br/>
     ✓ Edge cases don't cause entire check to fail<br/>
-    ✓ Red flags: crashes on npm registry API errors or incorrect flagging of internal packages
-  </div>
-</div>
-
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Update Workflow</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✓ Patch updates auto-merge if all tests pass<br/>
-    ✓ Minor updates require quick review but can merge within 24 hours<br/>
-    ✓ Major updates need thorough testing, feature flag protection, and rollback plans<br/>
-    ✓ Security updates have SLAs: critical <24 hours, high <7 days<br/>
-    ✓ After deployment: monitor for 2 weeks, then switch to blocking mode
+    <strong style="color: #94a3b8;">Test:</strong> Verify script handles npm registry API errors without crashing
   </div>
 </div>
 
@@ -221,28 +206,26 @@ Output: Complete, executable code for all 4 files.
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. **Use Prompt #1** with ChatGPT to audit your current package.json
-2. **Use Prompt #2** to generate the automation scripts and CI workflows
+1. **Use Prompt 1** with ChatGPT to audit your current package.json
+2. **Use Prompt 2** to generate the automation scripts and CI workflows
 3. **Review generated code** using the checklist above
-4. **Pin all dependencies**: Remove `^` and `~` from package.json
+4. **Pin all dependencies**: Remove ^ and ~ from package.json
 5. **Set up Renovate**: Merge .github/renovate.json configuration
-6. **Enable CI checks**: Add dependency-check.yml workflow
-7. **Monitor for 2 weeks**: Review Renovate PRs, track freshness report trends
-8. **Switch to blocking**: Set `continue-on-error: false` after monitoring period
-9. **Establish SLAs**: P0 (security) <7 days, P1 (major versions) <30 days, P2 (minor/patch) <90 days
+6. **Monitor for 2 weeks**: Review Renovate PRs, track freshness report trends
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - **[Fitness Functions Prompt Pack](fitness-functions)** — Automate dependency age enforcement
 - **[Technical Debt Management](technical-debt)** — Track outdated dependencies as debt items
 - **Book**: *Building Evolutionary Architectures* (Ford, Parsons, Kua) — "Upgrade All The Things" kata
 - **Tool**: Renovate — Automated dependency updates
 - **Tool**: Snyk — Security scanning with autofix suggestions
+- [Back to Maintainability Overview](/docs/prompts/maintainability/)
 
 ---
 
-**Remember**: The 3-month rule prevents dependency upgrades from becoming scary "big bang" migrations. Small, frequent updates are safer than large, infrequent ones.
+**Key principle**: The 3-month rule prevents dependency upgrades from becoming scary "big bang" migrations. Small, frequent updates are safer than large, infrequent ones.

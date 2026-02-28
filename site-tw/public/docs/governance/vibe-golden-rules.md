@@ -6,66 +6,52 @@
 
 ---
 
-## 📋 The 8 Golden Rules (Quick Reference)
+## The 6 Golden Rules
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 2px solid #4f46e5; page-break-inside: avoid;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 40px; margin: 32px 0; border: 2px solid #4f46e5;">
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; color: #f1f5f9;">
 
 <div style="background: rgba(99, 102, 241, 0.2); border-left: 4px solid #6366f1; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">1️⃣</div>
+  <div style="font-size: 28px; margin-bottom: 8px;">1</div>
   <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #c7d2fe;">Be Specific and Clear</div>
   <div style="font-size: 14px; line-height: 1.6;">Clear prompts using RCTRO (Role, Context, Task, Requirements, Output) yield secure, correct code.</div>
 </div>
 
 <div style="background: rgba(239, 68, 68, 0.2); border-left: 4px solid #ef4444; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">2️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fca5a5;">Always Validate Output</div>
-  <div style="font-size: 14px; line-height: 1.6;">Trust but verify. Test with malicious inputs, review security controls, run scanners.</div>
+  <div style="font-size: 28px; margin-bottom: 8px;">2</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fca5a5;">Trust but Verify</div>
+  <div style="font-size: 14px; line-height: 1.6;">Never merge code you can't explain. Test with malicious inputs, review security controls, run scanners.</div>
 </div>
 
 <div style="background: rgba(16, 185, 129, 0.2); border-left: 4px solid #10b981; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">3️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #6ee7b7;">Treat AI as Junior Dev</div>
-  <div style="font-size: 14px; line-height: 1.6;">Fast and knowledgeable, but needs supervision, clear direction, and code review.</div>
-</div>
-
-<div style="background: rgba(251, 146, 60, 0.2); border-left: 4px solid #fb923c; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">4️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fdba74;">Understand All Code</div>
-  <div style="font-size: 14px; line-height: 1.6;">Never merge code you can't explain, debug, or defend in production.</div>
+  <div style="font-size: 28px; margin-bottom: 8px;">3</div>
+  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #6ee7b7;">Treat AI as a Junior Dev</div>
+  <div style="font-size: 14px; line-height: 1.6;">Fast and knowledgeable, but needs supervision, clear direction, and the same peer review as human code.</div>
 </div>
 
 <div style="background: rgba(139, 92, 246, 0.2); border-left: 4px solid #8b5cf6; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">5️⃣</div>
+  <div style="font-size: 28px; margin-bottom: 8px;">4</div>
   <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #c4b5fd;">Isolate AI Changes</div>
-  <div style="font-size: 14px; line-height: 1.6;">Separate commits labeled 🤖 enable audits, rollbacks, and quality tracking.</div>
-</div>
-
-<div style="background: rgba(6, 182, 212, 0.2); border-left: 4px solid #06b6d4; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">6️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #67e8f9;">Human Review Required</div>
-  <div style="font-size: 14px; line-height: 1.6;">AI code goes through same peer review as human code. No rubber-stamping.</div>
+  <div style="font-size: 14px; line-height: 1.6;">Separate commits labeled with a robot emoji enable audits, rollbacks, and quality tracking.</div>
 </div>
 
 <div style="background: rgba(244, 63, 94, 0.2); border-left: 4px solid #f43f5e; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">7️⃣</div>
+  <div style="font-size: 28px; margin-bottom: 8px;">5</div>
   <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fda4af;">Document Rationale</div>
   <div style="font-size: 14px; line-height: 1.6;">AI can't explain "why" — you must document decisions, tradeoffs, and context.</div>
 </div>
 
 <div style="background: rgba(234, 179, 8, 0.2); border-left: 4px solid #eab308; padding: 20px; border-radius: 8px;">
-  <div style="font-size: 28px; margin-bottom: 8px;">8️⃣</div>
+  <div style="font-size: 28px; margin-bottom: 8px;">6</div>
   <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fde047;">Share Effective Prompts</div>
-  <div style="font-size: 14px; line-height: 1.6;">Build a team prompt library. Codify best practices, ensure consistency.</div>
+  <div style="font-size: 14px; line-height: 1.6;">Build a team prompt library. Codify best practices, ensure consistency across projects.</div>
 </div>
 
 </div>
 
 <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.2); color: #cbd5e1; font-size: 14px; text-align: center;">
-  <strong>Remember</strong>: These rules ensure speed and creativity are balanced with discipline, quality, and accountability.
-  <br>
-  <em>Print this page for your desk — keep the rules visible during AI-assisted development.</em>
+  These rules ensure speed and creativity are balanced with discipline, quality, and accountability.
 </div>
 
 </div>
@@ -74,21 +60,27 @@
 
 ## Detailed Rule Explanations
 
-These eight rules form the governance framework for ensuring that speed and creativity are balanced with discipline, quality, and accountability in AI-assisted engineering. They are not meant to stifle innovation but to create a sustainable and professional practice around it.
-
 ---
 
-## Rule 1: Be Specific and Clear About What You Want
+### Rule 1: Be Specific and Clear About What You Want
 
-**Principle**: All effective human-AI collaboration begins with a clear expression of intent. The quality of the AI's output is a direct reflection of the quality of the prompt. Vague instructions lead to ambiguous and often incorrect code.
+All effective human-AI collaboration begins with a clear expression of intent. The quality of the AI's output is a direct reflection of the quality of the prompt. Vague instructions lead to ambiguous and often incorrect code.
 
-### ❌ Bad Prompt
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #6366f1;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #c7d2fe;">Bad Prompt vs Good Prompt</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">See the difference between vague and RCTRO-structured prompts</span>
+</summary>
+
+<div style="padding: 4px 24px 24px 24px;">
+
+**Bad prompt:**
 ```
 Create a login function
 ```
 
-### ✅ Good Prompt
-```markdown
+**Good prompt (RCTRO):**
+```
 Role: You are a security engineer implementing authentication.
 
 Context:
@@ -111,106 +103,148 @@ Task:
 5) Log failed attempts for monitoring
 ```
 
-### Why This Works
+**Why the good prompt works:**
 - **Role** sets security mindset
 - **Context** defines tech stack and constraints
 - **Requirements** list specific security controls
 - **Task** provides step-by-step implementation guidance
 
----
-
-## Rule 2: Always Validate AI Output Against Your Intent
-
-**Principle**: The core principle of "Trust, but verify" must be rigorously applied. Never assume AI-generated code is correct. It must be tested, reviewed, and measured against the original requirements to ensure it solves the right problem in the right way.
-
-### Before Merging AI-Generated Code
-
-#### ✅ Verification Checklist
-```markdown
-□ I understand what every line does
-□ I've tested with both valid and malicious inputs
-□ Security controls match the OWASP category requirements
-□ Error messages don't leak sensitive information
-□ Logging doesn't expose secrets or PII
-□ Dependencies are from trusted sources
-□ Tests cover positive and negative cases
-□ CodeQL and Snyk scans are clean
-□ Code review by a human with security knowledge
-```
-
-### Red Flags to Watch For
-
-1. **Hard-coded Secrets**
-   ```typescript
-   // ❌ AI might generate this
-   const apiKey = "sk-1234567890abcdef";
-
-   // ✅ Human must catch and fix
-   const apiKey = process.env.API_KEY;
-   if (!apiKey) throw new Error('API_KEY not configured');
-   ```
-
-2. **Insecure Defaults**
-   ```typescript
-   // ❌ AI might default to permissive
-   app.use(cors({ origin: '*' }));
-
-   // ✅ Human enforces allowlist
-   app.use(cors({
-     origin: ['https://app.example.com'],
-     credentials: true
-   }));
-   ```
-
-3. **Missing Input Validation**
-   ```typescript
-   // ❌ AI might skip validation
-   async function getUser(id: string) {
-     return await db.query(`SELECT * FROM users WHERE id = ${id}`);
-   }
-
-   // ✅ Human adds validation + parameterization
-   const userIdSchema = z.string().uuid();
-   async function getUser(id: string) {
-     const validId = userIdSchema.parse(id);
-     return await db.query('SELECT * FROM users WHERE id = $1', [validId]);
-   }
-   ```
+</div>
+</details>
 
 ---
 
-## Rule 3: Treat AI as a Junior Developer (With Supervision)
+### Rule 2: Trust but Verify
 
-**Principle**: This is the most effective mental model for working with current AI assistants. They are knowledgeable, fast, and eager, but they lack context, experience, and critical judgment. They require clear direction, constant oversight, and a senior hand to guide them away from pitfalls.
+The core principle: never assume AI-generated code is correct. It must be tested, reviewed, and measured against the original requirements. You own every line in your pull request, regardless of its origin.
 
-### Interaction Pattern
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #ef4444;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #fca5a5;">Verification Checklist</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">What to check before merging any AI-generated code</span>
+</summary>
 
-```mermaid
-flowchart LR
-    A[You: Senior Engineer] -->|Detailed Prompt| B[AI: Junior Dev]
-    B -->|Code Suggestion| C[You: Code Review]
-    C -->|Feedback Loop| B
-    C -->|Approved| D[Merge]
-    C -->|Rejected| A
+<div style="padding: 4px 24px 24px 24px;">
+
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Before Merging</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ I understand what every line does<br/>
+    ✓ I can explain why this approach was chosen<br/>
+    ✓ I've tested with both valid and malicious inputs<br/>
+    ✓ Security controls match the OWASP category requirements<br/>
+    ✓ Error messages don't leak sensitive information<br/>
+    ✓ Logging doesn't expose secrets or PII<br/>
+    ✓ Dependencies are from trusted sources<br/>
+    ✓ Tests cover positive and negative cases<br/>
+    ✓ CodeQL and Snyk scans are clean<br/>
+    ✓ I can debug this code if it fails in production
+  </div>
+</div>
+
+</div>
+</details>
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #f97316;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #fdba74;">Red Flags to Watch For</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Common AI mistakes that humans must catch</span>
+</summary>
+
+<div style="padding: 4px 24px 24px 24px;">
+
+**Hard-coded secrets:**
+```typescript
+// AI might generate this
+const apiKey = "sk-1234567890abcdef";
+
+// Human must catch and fix
+const apiKey = process.env.API_KEY;
+if (!apiKey) throw new Error('API_KEY not configured');
 ```
 
-### What AI Does Well (Junior Developer Tasks)
-- ✅ Boilerplate code generation
-- ✅ Implementing known patterns from prompts
-- ✅ Unit test scaffolding
-- ✅ Documentation from code
-- ✅ Refactoring with clear instructions
+**Insecure defaults:**
+```typescript
+// AI might default to permissive
+app.use(cors({ origin: '*' }));
 
-### What AI Does Poorly (Senior Tasks)
-- ❌ Threat modeling and security architecture
-- ❌ Complex business logic edge cases
-- ❌ Performance optimization decisions
-- ❌ Cross-system integration design
-- ❌ Balancing security vs. usability tradeoffs
+// Human enforces allowlist
+app.use(cors({
+  origin: ['https://app.example.com'],
+  credentials: true
+}));
+```
 
-### Example: Pair Programming with AI
+**Missing input validation:**
+```typescript
+// AI might skip validation
+async function getUser(id: string) {
+  return await db.query(`SELECT * FROM users WHERE id = ${id}`);
+}
 
-**You (Senior)**: "We need to prevent IDOR attacks on the `/api/documents/:id` endpoint."
+// Human adds validation + parameterization
+const userIdSchema = z.string().uuid();
+async function getUser(id: string) {
+  const validId = userIdSchema.parse(id);
+  return await db.query('SELECT * FROM users WHERE id = $1', [validId]);
+}
+```
+
+</div>
+</details>
+
+---
+
+### Rule 3: Treat AI as a Junior Developer
+
+This is the most effective mental model for working with current AI assistants. They are knowledgeable, fast, and eager, but they lack context, experience, and critical judgment. They require clear direction, constant oversight, and the same peer review process as human-written code. No rubber-stamping.
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #6ee7b7;">What AI Does Well vs Poorly</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Junior dev tasks vs senior tasks that require human judgment</span>
+</summary>
+
+<div style="padding: 4px 24px 24px 24px;">
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 16px;">
+
+<div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">AI Does Well (Junior Tasks)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ Boilerplate code generation<br/>
+    ✓ Implementing known patterns from prompts<br/>
+    ✓ Unit test scaffolding<br/>
+    ✓ Documentation from code<br/>
+    ✓ Refactoring with clear instructions
+  </div>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">AI Does Poorly (Senior Tasks)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✗ Threat modeling and security architecture<br/>
+    ✗ Complex business logic edge cases<br/>
+    ✗ Performance optimization decisions<br/>
+    ✗ Cross-system integration design<br/>
+    ✗ Balancing security vs usability tradeoffs
+  </div>
+</div>
+
+</div>
+
+</div>
+</details>
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #6ee7b7;">Pair Programming with AI</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Iterative feedback loop: direct, review, refine</span>
+</summary>
+
+<div style="padding: 4px 24px 24px 24px;">
+
+**You (Senior)**: "We need to prevent IDOR attacks on the /api/documents/:id endpoint."
 
 **AI (Junior)**: *Generates authorization middleware*
 
@@ -224,48 +258,24 @@ flowchart LR
 
 **You (Senior)**: *Reviews, tests, approves*
 
----
-
-## Rule 4: Don't Merge Code You Don't Understand
-
-**Principle**: This is the ultimate rule of ownership. A developer is responsible for every line of code in their pull request, regardless of its origin. Merging code without fully comprehending its logic, implications, and potential edge cases is a dereliction of professional duty and a direct path to technical debt and production failures.
-
-### Understanding Checklist
-
-Before merging AI-generated code, ask yourself:
-
-```markdown
-□ Can I explain what every line does?
-□ Do I understand why this approach was chosen?
-□ Can I identify the edge cases this code handles?
-□ Do I know what could go wrong with this code?
-□ Can I debug this code if it fails in production?
-□ Do I understand the security implications?
-□ Would I be comfortable explaining this in a code review?
-```
-
-### Anti-Patterns to Avoid
-
-❌ **"The AI wrote it, so it must be correct"**
-- AI can generate plausible-looking but subtly broken code
-- You own the bugs, not the AI
-
-❌ **"I don't have time to understand it all"**
-- Time pressure is not an excuse for poor quality
-- Technical debt compounds quickly
-
-❌ **"It passed the tests, so it's fine"**
-- Tests may not cover all edge cases
-- Security issues often hide in untested paths
+</div>
+</details>
 
 ---
 
-## Rule 5: Isolate AI Changes in Git
+### Rule 4: Isolate AI Changes in Git
 
-**Principle**: When using AI to generate significant chunks of code, commit those changes separately. This practice makes code reviews more manageable, simplifies rollbacks if an issue is discovered, and improves the overall traceability of the codebase.
+When using AI to generate significant chunks of code, commit those changes separately. This practice makes code reviews more manageable, simplifies rollbacks if an issue is discovered, and improves the overall traceability of the codebase.
 
-### Commit Message Pattern
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Commit Message Pattern & PR Template</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">How to label AI-assisted changes for auditability</span>
+</summary>
 
+<div style="padding: 4px 24px 24px 24px;">
+
+**Commit message pattern:**
 ```bash
 git commit -m "feat(auth): Add rate limiting to login endpoint
 
@@ -274,18 +284,18 @@ git commit -m "feat(auth): Add rate limiting to login endpoint
 - Return 429 status on rate limit exceeded
 - Log rate limit violations for monitoring
 
-🤖 AI-assisted with Claude Code using OWASP A07 prompt pack
+AI-assisted with Claude Code using OWASP A07 prompt pack
 Refs: #123"
 ```
 
-### PR Template (AI Disclosure Section)
+**PR template (AI disclosure section):**
 
 ```markdown
 ## AI Assistance Disclosure
 
 - [ ] This PR includes AI-generated code
-- **AI Tool Used**: Claude Code / GitHub Copilot / ChatGPT
-- **Prompt Pack Used**: `prompts/owasp/A07_authn_failures.md`
+- **AI Tool Used**: Claude Code / GitHub Copilot
+- **Prompt Pack Used**: prompts/owasp/A07_authn_failures.md
 - **Human Review**: Code reviewed line-by-line, tested with attack vectors
 - **Security Verification**: CodeQL and Snyk scans passed
 
@@ -296,53 +306,37 @@ Refs: #123"
 - Added integration tests with real Redis instance
 ```
 
-### Why This Matters
+**Why this matters:**
 
-1. **Auditability**: Track which code came from AI for security audits
-2. **Learning**: Analyze AI-generated code quality over time
-3. **Accountability**: Clear ownership and review trail
-4. **Incident Response**: Quickly identify AI-generated code if vulnerability found
+1. **Auditability** — Track which code came from AI for security audits
+2. **Learning** — Analyze AI-generated code quality over time
+3. **Accountability** — Clear ownership and review trail
+4. **Incident Response** — Quickly identify AI-generated code if a vulnerability is found
 
----
-
-## Rule 6: Ensure All Code Undergoes Human Review
-
-**Principle**: AI-generated code should be held to the same quality standards as human-written code. It must go through the same rigorous peer review process. This ensures a consistent quality bar and provides a critical check against the AI's potential blind spots.
-
-### Code Review Checklist for AI-Generated Code
-
-```markdown
-□ Code follows team patterns and style guide
-□ Security controls match requirements
-□ Error handling is comprehensive
-□ Tests cover positive and negative cases
-□ Documentation explains the "why"
-□ No hardcoded secrets or credentials
-□ Performance is acceptable
-□ Code is maintainable and readable
-```
-
-### Reviewer Responsibilities
-
-- Treat AI code the same as junior developer code
-- Don't rubber-stamp because "AI generated it"
-- Ask questions if anything is unclear
-- Request changes if quality bar not met
-- Verify security controls are correct
+</div>
+</details>
 
 ---
 
-## Rule 7: Prioritize Documentation and Rationale
+### Rule 5: Document Rationale
 
-**Principle**: AI can generate code, but it cannot explain the why behind a business decision or architectural trade-off. It is the developer's responsibility to document this crucial context. For agentic workflows, this might involve prompting the agent to maintain a decision log, which the developer then reviews and augments.
+AI can generate code, but it cannot explain the "why" behind a business decision or architectural trade-off. It is the developer's responsibility to document this crucial context.
 
-### ❌ Bad Documentation
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #f43f5e;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #fda4af;">Bad Documentation vs Good Documentation</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Document decisions, not descriptions of what code does</span>
+</summary>
+
+<div style="padding: 4px 24px 24px 24px;">
+
+**Bad — describes "what":**
 ```typescript
 // Hash the password
 const hash = await bcrypt.hash(password, 12);
 ```
 
-### ✅ Good Documentation
+**Good — explains "why":**
 ```typescript
 /**
  * Hash password using bcrypt with cost factor 12.
@@ -355,15 +349,22 @@ const hash = await bcrypt.hash(password, 12);
  * Why cost factor 12?
  * - OWASP recommendation (2023): minimum 10, prefer 12+
  * - ~250ms on modern hardware (acceptable UX, strong security)
- * - Adjust upward as compute power increases
  *
  * Security: OWASP A02:2021 Cryptographic Failures
- * Last reviewed: 2025-10-10
  */
 const hash = await bcrypt.hash(password, 12);
 ```
 
-### Document Security Decisions
+</div>
+</details>
+
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #f43f5e;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #fda4af;">Security Decision Record Template</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Structured format for documenting security architecture decisions</span>
+</summary>
+
+<div style="padding: 4px 24px 24px 24px;">
 
 ```typescript
 /**
@@ -389,19 +390,27 @@ const hash = await bcrypt.hash(password, 12);
  * Risk: Increased Redis memory usage (acceptable tradeoff)
  *
  * Reference: OWASP A07:2021 Authentication Failures
- * Decided by: [Your Name]
- * Date: 2025-10-10
  */
 ```
 
+</div>
+</details>
+
 ---
 
-## Rule 8: Share and Reuse Effective Prompts
+### Rule 6: Share and Reuse Effective Prompts
 
-**Principle**: Well-crafted prompts are valuable intellectual assets. Teams should create a shared repository of effective prompt patterns and templates for common tasks. This practice ensures consistency, codifies best practices, and accelerates the entire team's ability to work effectively with AI.
+Well-crafted prompts are valuable intellectual assets. Teams should create a shared repository of effective prompt patterns and templates for common tasks. This ensures consistency, codifies best practices, and accelerates the entire team's ability to work effectively with AI.
 
-### Building Your Prompt Library
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #eab308;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #fde047;">Prompt Library Structure</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">How to organize reusable prompts across your team</span>
+</summary>
 
+<div style="padding: 4px 24px 24px 24px;">
+
+**Recommended directory layout:**
 ```
 /prompts
   /owasp              # Security-focused prompts (this repo)
@@ -417,253 +426,187 @@ const hash = await bcrypt.hash(password, 12);
       - e2e-test.md
 ```
 
-### Prompt Template Structure
+**Each prompt should include:**
+- **Category**: Backend / Frontend / Testing / Security
+- **AI Tools**: Claude Code, Copilot
+- **When to Use**: Scenario description
+- **Prerequisites**: Tech stack and context needed
+- **The Prompt**: Full copy-paste ready RCTRO prompt
+- **Example Output**: What good AI output looks like
+- **Common Pitfalls**: What to watch for in AI responses
+- **Version History**: Track iterations and improvements
 
-```markdown
-# [Prompt Title]
+</div>
+</details>
 
-**Category**: Backend / Frontend / Testing / Security
-**AI Tools**: Claude Code, Copilot, ChatGPT
-**Success Rate**: 85% (based on team usage)
-**Maintainer**: @your-name
-**Last Updated**: 2025-10-10
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #eab308;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #fde047;">Prompt Iteration Log</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Track improvements to prompts over time</span>
+</summary>
 
-## When to Use
-[Describe the scenario where this prompt is effective]
+<div style="padding: 4px 24px 24px 24px;">
 
-## Prerequisites
-- [Tech stack requirements]
-- [Context needed]
-
-## Prompt
-
-```markdown
-[Full copy-paste ready prompt]
 ```
-
-## Example Output
-
-**Good AI Output** (following the prompt):
-```typescript
-// Secure login implementation with rate limiting
-import bcrypt from 'bcrypt';
-import rateLimit from 'express-rate-limit';
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts
-  message: 'Too many login attempts, please try again later'
-});
-
-export async function login(username: string, password: string) {
-  // Input validation with Zod
-  const validated = loginSchema.parse({ username, password });
-
-  // Fetch user with prepared statement
-  const user = await db.query(
-    'SELECT id, password_hash FROM users WHERE username = $1',
-    [validated.username]
-  );
-
-  if (!user) {
-    // Generic error (no username enumeration)
-    throw new Error('Invalid credentials');
-  }
-
-  // Constant-time comparison
-  const match = await bcrypt.compare(validated.password, user.password_hash);
-
-  if (!match) {
-    // Log failed attempt for monitoring
-    logger.warn('Failed login attempt', { userId: user.id });
-    throw new Error('Invalid credentials');
-  }
-
-  return { userId: user.id };
-}
-```
-
-## Common Pitfalls
-
-**Watch out for these issues in AI-generated code:**
-- **Missing rate limiting**: AI may implement auth but forget rate limits
-- **Username enumeration**: Error messages like "User not found" vs "Wrong password"
-- **Timing attacks**: Using `===` instead of constant-time comparison for passwords
-- **Hardcoded secrets**: AI may use example API keys instead of environment variables
-- **Insufficient logging**: No failed attempt tracking for security monitoring
-
-**Human Verification Steps:**
-1. Test with valid credentials → should succeed
-2. Test with invalid password → should return generic error
-3. Test with non-existent username → should return same generic error
-4. Test 6 rapid login attempts → should be rate-limited on 6th
-5. Check logs → failed attempts should be recorded (without passwords)
-6. Run CodeQL/Snyk → should pass security scans
-
-## Related Prompts
-
-**Security Prompts:**
-- [OWASP A07: Authentication Failures](/docs/prompts/owasp/A07_authn_failures) — Complete authentication security
-- [OWASP A01: Broken Access Control](/docs/prompts/owasp/A01_broken_access_control) — Authorization after login
-- [OWASP A09: Logging/Monitoring](/docs/prompts/owasp/A09_logging_monitoring) — Security event logging
-
-**Maintainability Prompts:**
-- [Fitness Functions](/docs/prompts/maintainability/fitness-functions) — Automated quality gates
-- [Technical Debt Management](/docs/prompts/maintainability/technical-debt) — Track refactoring needs
-```
-
-### Prompt Iteration Log
-
-Track improvements over time:
-
-```markdown
 ## Version History
 
-**v3 (2025-10-10)**: Added Zod validation requirement
+v3 (2025-10-10): Added Zod validation requirement
 - Problem: AI was skipping input validation
 - Fix: Explicit "use Zod schema" instruction
 - Result: Validation now included 100% of time
 
-**v2 (2025-09-15)**: Added error handling checklist
+v2 (2025-09-15): Added error handling checklist
 - Problem: Generic errors not being used
 - Fix: Added checklist item for generic errors
 - Result: Security improved, fewer schema leaks
 
-**v1 (2025-08-01)**: Initial version
+v1 (2025-08-01): Initial version
 ```
+
+</div>
+</details>
 
 ---
 
 ## Measuring Success
 
-Track these metrics to ensure Golden Rules are working:
+Track these metrics to ensure the Golden Rules are working:
 
-### Leading Indicators (Process)
-- **Prompt Quality Score**: Team rates prompts 1-5 after use
-- **AI Code Acceptance Rate**: % of AI suggestions merged without changes
-- **Review Cycle Time**: Time from AI generation to merge
-- **Prompt Reuse Rate**: % of work using team prompt library
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
 
-### Lagging Indicators (Outcomes)
-- **Security Findings in AI Code**: CodeQL/Snyk issues per 1000 LOC
-- **Post-Merge Defects**: Bugs found in AI-generated code after merge
-- **Velocity**: Story points delivered (with quality maintained)
-- **Team Confidence**: Survey: "I trust AI-generated code" (1-5)
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Leading Indicators (Process)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ Prompt Quality Score — team rates prompts 1-5 after use<br/>
+    ✓ AI Code Acceptance Rate — % of AI suggestions merged without changes<br/>
+    ✓ Review Cycle Time — time from AI generation to merge<br/>
+    ✓ Prompt Reuse Rate — % of work using team prompt library
+  </div>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
+  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 12px;">Lagging Indicators (Outcomes)</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ Security Findings in AI Code — CodeQL/Snyk issues per 1000 LOC<br/>
+    ✓ Post-Merge Defects — bugs found in AI-generated code after merge<br/>
+    ✓ Velocity — story points delivered (with quality maintained)<br/>
+    ✓ Team Confidence — survey: "I trust AI-generated code" (1-5)
+  </div>
+</div>
+
+</div>
 
 ---
 
 ## Enforcement in Practice
 
-### During Development
-- **Pre-commit Hook**: Checks for `🤖 AI-assisted` label in commit messages
-- **PR Template**: Requires AI disclosure section (enforced by CI)
-- **Code Review Checklist**: Includes Golden Rules verification
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
 
-### During Review
-- **Automated**: CodeQL, Snyk, ESLint catch technical issues
-- **Human**: Reviewer validates Golden Rules compliance:
-  1. "Is the prompt specific and clear?" (Rule 1)
-  2. "Was AI output validated against intent?" (Rule 2)
-  3. "Was AI treated as junior dev with proper oversight?" (Rule 3)
-  4. "Do I fully understand this code?" (Rule 4)
-  5. "Is AI usage clearly labeled?" (Rule 5)
-  6. "Did the code undergo proper human review?" (Rule 6)
-  7. "Is the 'why' documented?" (Rule 7)
-  8. "Should this prompt be shared?" (Rule 8)
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #8b5cf6;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">During Development</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ Pre-commit hook checks for AI-assisted label in commit messages<br/>
+    ✓ PR template requires AI disclosure section (enforced by CI)<br/>
+    ✓ Code review checklist includes Golden Rules verification
+  </div>
+</div>
 
----
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #f43f5e;">
+  <div style="font-size: 15px; font-weight: 700; color: #fda4af; margin-bottom: 12px;">During Review</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    ✓ <strong style="color: #94a3b8;">Automated:</strong> CodeQL, Snyk, ESLint catch technical issues<br/>
+    ✓ <strong style="color: #94a3b8;">Human:</strong> Reviewer validates Golden Rules compliance:<br/>
+    &nbsp;&nbsp;&nbsp;1. Is the prompt specific? (Rule 1)<br/>
+    &nbsp;&nbsp;&nbsp;2. Was output validated against intent? (Rule 2)<br/>
+    &nbsp;&nbsp;&nbsp;3. Was AI treated as junior dev with oversight? (Rule 3)<br/>
+    &nbsp;&nbsp;&nbsp;4. Are AI changes clearly labeled? (Rule 4)<br/>
+    &nbsp;&nbsp;&nbsp;5. Is the "why" documented? (Rule 5)<br/>
+    &nbsp;&nbsp;&nbsp;6. Should this prompt be shared? (Rule 6)
+  </div>
+</div>
 
-## Real-World Example: Full Workflow
-
-### Scenario: Implement A03 Injection Prevention
-
-**Step 1: Use Specific Prompt** (Rule 1)
-```markdown
-[Use the A03 prompt pack from prompts/owasp/A03_injection.md]
-```
-
-**Step 2: Review AI Output** (Rule 2)
-- ✅ Parameterized queries used
-- ✅ Zod validation present
-- ❌ Error message leaks table name → **Fix manually**
-
-**Step 3: Mentor the AI** (Rule 3)
-- "Good start, but change error from 'users table query failed' to 'search failed'"
-- AI regenerates with generic error
-
-**Step 4: Isolated Commit** (Rule 4)
-```bash
-git commit -m "fix(A03): Add SQL injection prevention to searchUsers
-
-- Use parameterized queries with $1 placeholder
-- Add Zod validation with character allowlist
-- Generic error messages prevent schema leaks
-- Tests verify attack payloads are blocked
-
-🤖 AI-assisted with Claude Code using OWASP A03 prompt pack"
-```
-
-**Step 5: Document Decision** (Rule 5)
-```typescript
-/**
- * SECURITY: SQL Injection Prevention (OWASP A03:2021)
- *
- * Why parameterized queries?
- * - Prevents injection by separating SQL structure from user data
- * - pg library uses prepared statements for $1, $2 placeholders
- *
- * Why Zod validation?
- * - Defense in depth: catch malicious input before it reaches DB
- * - Allowlist approach: only permit [a-zA-Z0-9 _.-@]
- * - Length limit (100 chars) prevents buffer exploits
- *
- * Attack vectors blocked:
- * - ' OR '1'='1
- * - '; DROP TABLE users--
- * - Unicode/null byte injection
- */
-```
-
-**Step 6: Share Success** (Rule 6)
-- Prompt worked well → Add to team library
-- Log: "A03 prompt v2: Added explicit Zod requirement"
-- Team notification: "Great A03 prompt in prompts/owasp/, use for all DB queries"
+</div>
 
 ---
 
-## Getting Started
+## Full Workflow Example
 
-1. **Print these rules** and post near your workstation
-2. **Create prompt library** in your repo (`/docs/prompts/team/`)
-3. **Update PR template** to require AI disclosure
-4. **Add pre-commit hook** to check for AI labels
-5. **Schedule monthly review** of AI-generated code quality
-6. **Celebrate wins** when AI+Human collaboration produces great results
+**Scenario**: Implement A03 Injection Prevention
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 32px; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="background: rgba(99, 102, 241, 0.2); color: #c7d2fe; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Rule 1</span>
+    <span style="font-size: 15px; font-weight: 700; color: #f1f5f9;">Use Specific Prompt</span>
+  </div>
+  <div style="color: #94a3b8; font-size: 14px;">Use the A03 prompt pack from prompts/owasp/A03_injection.md</div>
+</div>
+
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Rule 2</span>
+    <span style="font-size: 15px; font-weight: 700; color: #f1f5f9;">Review AI Output</span>
+  </div>
+  <div style="color: #94a3b8; font-size: 14px;">
+    ✓ Parameterized queries used<br/>
+    ✓ Zod validation present<br/>
+    ✗ Error message leaks table name — fix manually
+  </div>
+</div>
+
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Rule 3</span>
+    <span style="font-size: 15px; font-weight: 700; color: #f1f5f9;">Mentor the AI</span>
+  </div>
+  <div style="color: #94a3b8; font-size: 14px;">"Good start, but change error from 'users table query failed' to 'search failed'" — AI regenerates with generic error</div>
+</div>
+
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Rule 4</span>
+    <span style="font-size: 15px; font-weight: 700; color: #f1f5f9;">Isolated Commit</span>
+  </div>
+  <div style="color: #94a3b8; font-size: 14px;">Separate commit with AI-assisted label, OWASP A03 prompt pack reference</div>
+</div>
+
+<div style="margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="background: rgba(244, 63, 94, 0.2); color: #fda4af; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Rule 5</span>
+    <span style="font-size: 15px; font-weight: 700; color: #f1f5f9;">Document Decision</span>
+  </div>
+  <div style="color: #94a3b8; font-size: 14px;">Add security decision comment explaining why parameterized queries, why Zod, which attack vectors are blocked</div>
+</div>
+
+<div>
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Rule 6</span>
+    <span style="font-size: 15px; font-weight: 700; color: #f1f5f9;">Share Success</span>
+  </div>
+  <div style="color: #94a3b8; font-size: 14px;">Prompt worked well — add to team library, log iteration notes, notify team</div>
+</div>
+
+</div>
 
 ---
 
-## The Evolution of the Developer Role
+## Next Steps
 
-> "The culmination of these practices points to a profound evolution in the role of the software developer. The value is shifting away from the mechanical act of typing code and toward the strategic orchestration of intelligent systems."
-
-Adherence to these Golden Rules fosters a culture of **responsible innovation**. It allows teams to embrace the transformative power of AI while mitigating its risks, ensuring that the software they build is not only created faster but is also more **reliable, secure, and maintainable**.
-
-### The Developer as Conductor
-
-The developer of the future is a **"conductor,"** directing a symphony of AI agents, prompts, and automated verification tools. Their expertise is expressed not through lines of code written, but through:
-
-- **The quality of their high-level designs**
-- **The precision of their specifications**
-- **The critical depth of their evaluations**
-- **Their ability to see the system as a whole**
-
-This is the ultimate mindset required to move **"beyond vibe coding"** and become a true architect of the agentic age.
+1. Start with the [Framework Overview](/docs/framework) to see how these rules integrate into the full SDLC
+2. Use [OWASP Prompt Packs](/docs/prompts/owasp/) to practice Rule 1 (Be Specific)
+3. Follow the [Workshop](/docs/workshop/part1-spectrum) for hands-on experience applying all 6 rules
+4. Read the [SDLC Guide](/docs/sdlc/) to see governance enforcement across all phases
 
 ---
 
-## Further Reading
+## Resources
 
 - [OWASP Top 10 (2021)](https://owasp.org/Top10/)
 - [OWASP AI Security and Privacy Guide](https://owasp.org/www-project-ai-security-and-privacy-guide/)
 - Mani, A. (2025). *Beyond Vibe Coding: From Coder to AI-Era Developer*. O'Reilly Media.
-- Workshop: [Agentic Engineering, Secure by Design](../workshop)
+- [Back to Documentation](/docs/)
+
+---
+
+**Key principle**: AI accelerates development, but human judgment ensures security and quality. These 6 rules create a sustainable practice around responsible AI-assisted engineering.

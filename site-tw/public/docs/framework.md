@@ -10,10 +10,10 @@ MaintainabilityAI provides an end-to-end methodology for building secure, mainta
 
 ```mermaid
 flowchart TD
-    A[Security First:<br/>OWASP Top 10] --> E[Complete Framework]
-    B[AI Agents:<br/>Claude, Copilot, ChatGPT] --> E
+    A[Security First:<br/>OWASP Top 10 + STRIDE] --> E[Complete Framework]
+    B[AI Agents:<br/>In-Editor + Agentic] --> E
     C[SDLC Phases:<br/>Design → Deploy] --> E
-    D[Maintainability:<br/>Fitness Functions] --> E
+    D[VSCode Extension:<br/>Looking Glass + Cheshire Cat] --> E
 
     E --> F[Secure Software]
     E --> G[High Velocity]
@@ -25,7 +25,7 @@ flowchart TD
     style H fill:#2196F3
 ```
 
-The framework follows a **continuous 6-phase lifecycle** integrating security, AI agents, and quality gates at every phase. See the [SDLC Overview](/docs/sdlc/) for the complete phase-by-phase guide.
+The framework follows a **continuous 6-phase lifecycle** integrating security, AI agents, and quality gates at every phase. A [VSCode extension](/docs/sdlc/#maintainabilityai--the-vscode-extension) brings it all into your editor, and the [SDLC Overview](/docs/sdlc/) provides the complete phase-by-phase guide.
 
 ---
 
@@ -70,10 +70,10 @@ The framework follows a **continuous 6-phase lifecycle** integrating security, A
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #6366f1; border-radius: 12px; padding: 28px;">
   <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">AI Agent Orchestration</div>
   <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    Multi-agent workflows: ChatGPT for threat modeling, Copilot for implementation, Claude for refactoring and testing.
+    Two modes: <strong style="color: #93c5fd;">In-Editor</strong> (Claude Code | Copilot) for human-guided implementation, and <strong style="color: #c4b5fd;">Agentic</strong> (Claude Code Action | Copilot Coding Agent) for autonomous, governance-enforced workflows.
   </div>
   <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
-    Threat Modeler → Implementer → Validator pattern
+    In-Editor • Agentic • Multi-agent review boards • RCTRO-formatted issues
   </div>
   <a href="/docs/agents/" style="color: #a5b4fc; font-size: 14px; text-decoration: none; font-weight: 600;">Agent Guides →</a>
 </div>
@@ -260,6 +260,43 @@ Running pre-commit hooks...
 
 ---
 
+## The VSCode Extension — Framework in Your Editor
+
+Everything above lives in documentation until you bring it into the developer workflow. The **MaintainabilityAI VSCode extension** does exactly that — two panels that operationalize the entire framework.
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 24px 0;">
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #3b82f6; border-radius: 12px; padding: 24px;">
+  <div style="font-size: 18px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">The Looking Glass — Governance & Architecture</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    Portfolio → Platform → BAR hierarchy with live governance scoring across four pillars. Interactive CALM architecture diagrams with ELK.js auto-layout. Absolem AI assistant for drift analysis, gap detection, and architecture questions.
+  </div>
+  <a href="/docs/sdlc/#looking-glass" style="color: #93c5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Looking Glass details →</a>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #a78bfa; border-radius: 12px; padding: 24px;">
+  <div style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">The Cheshire Cat — Code & Security</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+    One-command SDLC scaffolding with CLAUDE.md, CodeQL workflows, and OWASP prompt packs. RCTRO-formatted issue generation with embedded prompt pack guidance. Six-metric security scorecard with one-click remediation.
+  </div>
+  <a href="/docs/sdlc/#cheshire-cat" style="color: #c4b5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Cheshire Cat details →</a>
+</div>
+
+</div>
+
+<div style="margin-top: 20px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+  <img src="../images/redqueen.png" alt="The Red Queen" style="width: 100px; height: 100px; border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.4); flex-shrink: 0;" />
+  <div style="flex: 1; min-width: 240px;">
+    <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">Coming Next: The Red Queen</div>
+    <p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0 0 12px 0;">
+      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong style="color: #f87171;">deterministic governance enforcement</strong> — an MCP server for architecture awareness, NeMo Guardrails for constraint enforcement, and a policy engine that ties agent autonomy to governance scores.
+    </p>
+    <a href="/docs/impossible-things#whats-coming-the-red-queen---governance-enforced-agent-intelligence" style="color: #f87171; font-size: 13px; font-weight: 600; text-decoration: none;">Read the Red Queen roadmap →</a>
+  </div>
+</div>
+
+---
+
 ## Framework Resources
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
@@ -278,8 +315,17 @@ Running pre-commit hooks...
   <div style="font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Learning Resources</div>
   <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
     <a href="/docs/workshop/" style="color: #93c5fd; text-decoration: none;">Workshop</a> — 8-part training<br/>
-    <a href="/docs/agents/" style="color: #93c5fd; text-decoration: none;">AI Agents</a> — Multi-agent guides<br/>
+    <a href="/docs/agents/" style="color: #93c5fd; text-decoration: none;">AI Agents</a> — In-Editor & Agentic guides<br/>
     <a href="/docs/prompts/maintainability/" style="color: #93c5fd; text-decoration: none;">Maintainability Packs</a> — Architecture prompts
+  </div>
+</div>
+
+<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
+  <div style="font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Extension & Vision</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+    <a href="/docs/sdlc/#maintainabilityai--the-vscode-extension" style="color: #93c5fd; text-decoration: none;">VSCode Extension</a> — Looking Glass + Cheshire Cat<br/>
+    <a href="/docs/impossible-things" style="color: #93c5fd; text-decoration: none;">Impossible Things</a> — Art of the Possible<br/>
+    <a href="/docs/agents/alice" style="color: #93c5fd; text-decoration: none;">Alice</a> — Agentic AI proof of concept
   </div>
 </div>
 

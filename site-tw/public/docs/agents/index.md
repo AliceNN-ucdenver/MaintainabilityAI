@@ -140,31 +140,31 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
 <div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Why</div>
 
 <div style="color: #e2e8f0;">Multi-file refactoring</div>
-<div style="color: #7dd3fc;">Claude Code (in-editor)</div>
+<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>
 <div style="color: #94a3b8;">Deep codebase understanding, interactive</div>
 
 <div style="color: #e2e8f0;">Single function fix</div>
-<div style="color: #7dd3fc;">Copilot (in-editor)</div>
+<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Copilot</span></div>
 <div style="color: #94a3b8;">Fast, pattern-aware</div>
 
 <div style="color: #e2e8f0;">Test generation</div>
-<div style="color: #7dd3fc;">Claude Code (in-editor)</div>
+<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>
 <div style="color: #94a3b8;">Comprehensive attack vectors</div>
 
 <div style="color: #e2e8f0;">Issue remediation</div>
-<div style="color: #c4b5fd;">Claude Code Action / Copilot Coding Agent</div>
+<div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #c4b5fd;">Claude Code Action | Copilot Coding Agent</span></div>
 <div style="color: #94a3b8;">Autonomous, governed</div>
 
 <div style="color: #e2e8f0;">Security bulk fixes</div>
-<div style="color: #6EE7F9;">Alice Agent</div>
+<div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #6EE7F9;">Alice Agent</span></div>
 <div style="color: #94a3b8;">Two-phase workflow, human approval</div>
 
 <div style="color: #e2e8f0;">Cross-repo changes</div>
-<div style="color: #c4b5fd;">Claude Code Action</div>
+<div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #c4b5fd;">Claude Code Action</span></div>
 <div style="color: #94a3b8;">Full MCP resources + interface contract validation</div>
 
 <div style="color: #e2e8f0;">Dependency upgrades</div>
-<div style="color: #7dd3fc;">Claude Code (in-editor)</div>
+<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>
 <div style="color: #94a3b8;">Breaking change analysis</div>
 </div>
 

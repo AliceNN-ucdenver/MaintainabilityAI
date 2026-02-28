@@ -28,46 +28,46 @@ Every AI agent in your organization operates in an **architectural vacuum**.
 
 This is the 70/30 gap.
 
-<svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" style="max-width: 800px; margin: 24px auto; display: block;">
+<svg viewBox="0 0 800 210" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
   <defs>
     <linearGradient id="gapBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
       <stop offset="100%" stop-color="#1e293b"/>
     </linearGradient>
   </defs>
-  <rect width="800" height="200" rx="12" fill="url(#gapBg)"/>
+  <rect width="800" height="210" rx="12" fill="url(#gapBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#818cf8" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">THE 70/30 GAP</text>
   <!-- 70% column -->
-  <rect x="30" y="46" width="460" height="50" rx="8" fill="rgba(74,222,128,0.12)" stroke="rgba(74,222,128,0.3)"/>
-  <text x="50" y="77" fill="#4ade80" font-size="24" font-weight="800" font-family="system-ui, sans-serif">70%</text>
-  <text x="110" y="77" fill="#e2e8f0" font-size="14" font-weight="600" font-family="system-ui, sans-serif">AI handles brilliantly</text>
-  <!-- 70% descriptors directly below the 70% bar -->
-  <rect x="30" y="106" width="105" height="26" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="82" y="123" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Boilerplate</text>
-  <rect x="143" y="106" width="75" height="26" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="180" y="123" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600" font-family="system-ui, sans-serif">CRUD</text>
-  <rect x="226" y="106" width="105" height="26" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="278" y="123" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Scaffolding</text>
-  <rect x="339" y="106" width="95" height="26" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="386" y="123" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Patterns</text>
+  <rect x="24" y="46" width="366" height="50" rx="8" fill="rgba(74,222,128,0.12)" stroke="rgba(74,222,128,0.3)"/>
+  <text x="44" y="77" fill="#4ade80" font-size="24" font-weight="800" font-family="system-ui, sans-serif">70%</text>
+  <text x="104" y="77" fill="#e2e8f0" font-size="14" font-weight="600" font-family="system-ui, sans-serif">AI handles brilliantly</text>
+  <!-- 70% descriptors — 2x2 grid -->
+  <rect x="24" y="106" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
+  <text x="113" y="124" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Boilerplate</text>
+  <rect x="212" y="106" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
+  <text x="301" y="124" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">CRUD</text>
+  <rect x="24" y="142" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
+  <text x="113" y="160" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Scaffolding</text>
+  <rect x="212" y="142" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
+  <text x="301" y="160" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Patterns</text>
   <!-- Divider -->
-  <line x1="502" y1="46" x2="502" y2="140" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="406" y1="46" x2="406" y2="170" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
   <!-- 30% column -->
-  <rect x="514" y="46" width="256" height="50" rx="8" fill="rgba(248,113,113,0.12)" stroke="rgba(248,113,113,0.3)"/>
-  <text x="534" y="77" fill="#f87171" font-size="24" font-weight="800" font-family="system-ui, sans-serif">30%</text>
-  <text x="594" y="77" fill="#e2e8f0" font-size="14" font-weight="600" font-family="system-ui, sans-serif">Makes or breaks</text>
-  <!-- 30% descriptors directly below the 30% bar -->
-  <rect x="514" y="106" width="122" height="26" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="575" y="123" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Architecture</text>
-  <rect x="644" y="106" width="126" height="26" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="707" y="123" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Security Posture</text>
-  <rect x="514" y="138" width="135" height="26" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="581" y="155" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Threat Awareness</text>
-  <rect x="657" y="138" width="113" height="26" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="713" y="155" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Governance</text>
+  <rect x="422" y="46" width="354" height="50" rx="8" fill="rgba(248,113,113,0.12)" stroke="rgba(248,113,113,0.3)"/>
+  <text x="442" y="77" fill="#f87171" font-size="24" font-weight="800" font-family="system-ui, sans-serif">30%</text>
+  <text x="502" y="77" fill="#e2e8f0" font-size="14" font-weight="600" font-family="system-ui, sans-serif">Makes or breaks</text>
+  <!-- 30% descriptors — 2x2 grid -->
+  <rect x="422" y="106" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
+  <text x="508" y="124" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Architecture</text>
+  <rect x="604" y="106" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
+  <text x="690" y="124" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Security Posture</text>
+  <rect x="422" y="142" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
+  <text x="508" y="160" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Threat Awareness</text>
+  <rect x="604" y="142" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
+  <text x="690" y="160" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Governance</text>
   <!-- Solution badge spanning the bottom -->
-  <rect x="250" y="174" width="300" height="22" rx="11" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)"/>
-  <text x="400" y="189" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MaintainabilityAI closes the 30%</text>
+  <rect x="250" y="182" width="300" height="22" rx="11" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)"/>
+  <text x="400" y="197" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MaintainabilityAI closes the 30%</text>
 </svg>
 
 AI handles 70% of the work brilliantly - the boilerplate, the CRUD, the scaffolding. But the 30% that makes or breaks your system? Architecture decisions. Security posture. Threat awareness. Governance compliance. That 30% is where systems fail, breaches happen, and technical debt compounds into organizational debt.
@@ -142,6 +142,13 @@ From that scorecard, Cheshire scaffolds the security structure your repository n
 <img src="/images/cheshire-scaffold.png" alt="Cheshire Cat scaffolding OWASP prompt packs and security structure into a code repository" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
 </div>
 
+But Cheshire doesn't stop at scaffolding. Describe a feature in plain text and the Cat generates a complete **RCTRO-formatted GitHub issue** — Role, Context, Task, Requirements, Output — with collapsible prompt pack guidance embedded directly in the issue body. The AI agent that picks up the issue doesn't just see "build a feature." It sees the full security playbook: which OWASP categories apply, what STRIDE threats to mitigate, and exactly which controls to implement.
+
+<div style="margin: 24px 0; text-align: center;">
+<img src="/images/cheshire-feature.png" alt="Cheshire Cat issue management — RCTRO-formatted GitHub issue with embedded prompt pack guidance" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+</div>
+
+- **Issue management with RCTRO format** — describe what you want to build, select security categories, and Cheshire generates a structured specification with auto-created labels and implementation zones for Claude and Copilot
 - **OWASP Top 10 prompt packs** scaffolded into every code repository at **.cheshire/prompts/** - RCTRO-formatted guidance that both humans and AI agents consume
 - **STRIDE threat models** generated from your CALM architecture by AI, overlaid on your diagrams, with NIST 800-53 control cross-references
 - **CodeQL SARIF processing** that creates GitHub Issues with severity scoring, OWASP category mapping, and prompt pack references - so remediation agents know exactly which security guidance to follow
@@ -182,9 +189,20 @@ Backstage catalogs services - it doesn't understand their architecture. Port.io 
 
 ## What's Coming: The Red Queen - Governance-Enforced Agent Intelligence
 
-Everything we've built so far creates the foundation. What comes next transforms how AI agents interact with your architecture - and introduces something no other tool in the market has: **deterministic governance enforcement**.
-
-Three capabilities make this possible: an MCP server that gives every agent architecture awareness, NeMo Guardrails that enforce constraints deterministically, and a policy engine that ties agent autonomy to governance scores.
+<div style="display: flex; align-items: flex-start; gap: 24px; margin: 24px 0 32px 0; flex-wrap: wrap;">
+  <img src="/images/redqueen.png" alt="The Red Queen" style="width: 200px; height: 200px; border-radius: 16px; border: 2px solid rgba(239, 68, 68, 0.4); box-shadow: 0 4px 24px rgba(239, 68, 68, 0.15); flex-shrink: 0;" />
+  <div style="flex: 1; min-width: 280px; padding-top: 0; margin-top: 0;">
+    <p style="color: #e2e8f0; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0 !important;">
+      Everything we've built so far creates the foundation. What comes next transforms how AI agents interact with your architecture — and introduces something no other tool in the market has: <strong style="color: #f87171;">deterministic governance enforcement</strong>.
+    </p>
+    <p style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin: 0 !important;">Three capabilities make this possible:</p>
+    <ul style="margin: 8px 0 0 0 !important; padding-left: 20px; list-style: none;">
+      <li style="color: #7dd3fc; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">⚡ <strong style="color: #7dd3fc;">MCP Server</strong> <span style="color: #94a3b8;">— architecture awareness for every agent</span></li>
+      <li style="color: #c4b5fd; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">🛡️ <strong style="color: #c4b5fd;">NeMo Guardrails</strong> <span style="color: #94a3b8;">— deterministic constraint enforcement</span></li>
+      <li style="color: #fca5a5; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">♛ <strong style="color: #fca5a5;">Policy Engine</strong> <span style="color: #94a3b8;">— agent autonomy tied to governance scores</span></li>
+    </ul>
+  </div>
+</div>
 
 ### The Problem With Prompts
 
@@ -196,7 +214,7 @@ This is the fundamental gap. And we're closing it.
 
 ### The Red Queen - Three Layers of Governance Intelligence
 
-> *"Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!"*
+> *Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!*
 
 **The Red Queen** is a unified governance intelligence and enforcement system. It doesn't just tell agents about your architecture - it **enforces** it.
 
@@ -229,7 +247,7 @@ An AI agent implementing a feature decides: "I'll save time by querying the data
 
 This isn't an LLM judging whether the change is okay. It's a finite state machine evaluating the CALM model. Deterministic. Auditable. Unfoolable.
 
-<svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg" style="max-width: 800px; margin: 24px auto; display: block;">
+<svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
   <defs>
     <linearGradient id="enfBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -298,7 +316,7 @@ Modern applications span multiple repositories. A frontend. An API. A database. 
 
 When your CALM model declares a flow from **checkout-ui** (frontend repo) through **order-api** (API repo) to **order-database** (API repo), The Red Queen understands the full dependency graph. An agent working on the frontend that tries to call an endpoint not declared on the API's interface? **Interface contract violation.** The Red Queen blocks the change and creates a coordination issue in the API repo.
 
-<svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" style="max-width: 800px; margin: 24px auto; display: block;">
+<svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
   <defs>
     <linearGradient id="crBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -540,7 +558,7 @@ No other tool connects all five layers. That's the impossible thing we built.
 
 ## Six Impossible Things Before Breakfast
 
-> *"Why, sometimes I've believed as many as six impossible things before breakfast."*
+> *Why, sometimes I've believed as many as six impossible things before breakfast.*
 
 That AI agents could understand your architecture. That governance could live where developers work. That security enforcement could be deterministic, not advisory. That a single open-source extension could bridge three $20B+ markets. That architecture models could become the control plane for autonomous agents. That all of this could be free.
 

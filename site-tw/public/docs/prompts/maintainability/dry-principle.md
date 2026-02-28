@@ -35,20 +35,21 @@
 
 ---
 
-## 🤖 AI Prompt #1: Detect Code Duplication
+## Prompt 1: Detect Code Duplication
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #06b6d4;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Scans the codebase for exact, near, and structural code duplication violations</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a code quality engineer analyzing a codebase for violations of the DRY principle.
 
 Context:
 I need to identify code duplication in my codebase so I can refactor it into reusable functions/modules.
-
-Project details:
-[PASTE YOUR PROJECT STRUCTURE OR FILES HERE]
 
 Example:
 - TypeScript + Node.js project
@@ -57,7 +58,7 @@ Example:
 - Some API clients have copy-pasted error handling
 
 Task:
-Analyze the provided code and identify DRY violations:
+Analyze the code in the current workspace and identify DRY violations:
 
 1. **Exact Duplicates**: Identical code blocks (>6 lines) in multiple locations
 2. **Near Duplicates**: Similar code with minor variations (variable names, constants)
@@ -84,23 +85,25 @@ Provide a duplication report with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #2: Extract Reusable Functions
+## Prompt 2: Extract Reusable Functions
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #06b6d4;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Extracts duplicated code into a single reusable function with types and tests</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a refactoring expert extracting duplicated code into reusable functions following the DRY principle.
 
 Context:
 I have identified duplicated code that appears in multiple locations. I want to extract it into a single, reusable function.
-
-Duplicate Code:
-[PASTE THE DUPLICATED CODE BLOCKS HERE]
 
 Example:
 // File: src/routes/users.ts
@@ -128,7 +131,7 @@ app.post('/orders', async (req, res) => {
 // Duplication: Manual validation array pattern repeated 15+ times
 
 Task:
-Refactor to eliminate duplication using extract function:
+Refactor the duplicated code in the current workspace to eliminate duplication using extract function:
 
 1. **Identify Common Pattern**:
    - What's truly duplicated vs what varies?
@@ -163,23 +166,25 @@ Provide complete refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #3: Centralize Configuration and Constants
+## Prompt 3: Centralize Configuration and Constants
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #06b6d4;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Consolidates magic numbers, strings, and config values into a single constants module</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a software engineer centralizing magic numbers, strings, and configuration to follow the DRY principle.
 
 Context:
 My codebase has hardcoded values (magic numbers, URLs, limits, messages) scattered across multiple files. This makes changes error-prone and inconsistent.
-
-Current State:
-[PASTE EXAMPLES OF HARDCODED VALUES HERE]
 
 Example:
 // File: src/auth/middleware.ts
@@ -197,7 +202,7 @@ expect(shortPassword).toBe(11); // < 12 minimum
 // Duplication: Password minimum length "12" hardcoded in 8+ places
 
 Task:
-Centralize all magic numbers, strings, and configuration:
+Centralize all magic numbers, strings, and configuration in the current workspace:
 
 1. **Identify Duplicated Values**:
    - Magic numbers (thresholds, limits, sizes)
@@ -232,23 +237,25 @@ Provide refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## 🤖 AI Prompt #4: Abstract Common Patterns with Higher-Order Functions
+## Prompt 4: Abstract Common Patterns with Higher-Order Functions
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #06b6d4;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Wraps repeated structural patterns (try/catch, logging, caching) in reusable higher-order functions</span>
+</summary>
 
-**📋 Copy this prompt and paste it into Claude Code, GitHub Copilot Chat, or ChatGPT:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a functional programming expert abstracting repeated patterns using higher-order functions, decorators, and middleware.
 
 Context:
 My codebase has the same structural pattern repeated many times (error handling, logging, caching, authorization). The logic varies slightly, but the structure is identical.
-
-Repeated Pattern:
-[PASTE THE REPEATED STRUCTURAL PATTERN HERE]
 
 Example:
 // File: src/services/users.ts
@@ -280,7 +287,7 @@ async function getOrder(id: string) {
 // Pattern repeated 30+ times: try/catch + logging wrapper
 
 Task:
-Abstract repeated structural patterns using higher-order functions or decorators:
+Abstract repeated structural patterns in the current workspace using higher-order functions or decorators:
 
 1. **Identify Pattern Structure**:
    - What's the invariant (always the same)?
@@ -315,57 +322,62 @@ Provide complete refactored code with:
 ```
 
 </div>
+</details>
 
 ---
 
-## ✅ Validation Checklist
+## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #06b6d4;">
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
 
-<div style="font-size: 20px; font-weight: 700; color: #67e8f9; margin-bottom: 20px;">After applying DRY refactoring, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After applying DRY refactoring, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Duplication Metrics</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Duplication Metrics</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Code duplication <3% (measured by SonarQube or jscpd)<br/>
     ✓ No blocks >6 lines duplicated >2 times<br/>
     ✓ No magic numbers in application code (only in config/)<br/>
     ✓ No copy-pasted validation logic<br/>
-    ✓ No duplicated error handling patterns
+    ✓ No duplicated error handling patterns<br/>
+    <strong style="color: #94a3b8;">Test:</strong> run npx jscpd src/ and confirm duplication percentage is below 3%
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Centralization</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Centralization</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All constants in config/constants.ts<br/>
     ✓ Validation rules in centralized schemas<br/>
     ✓ Common utilities in utils/ or lib/<br/>
     ✓ Shared types in types/ or interfaces/<br/>
-    ✓ Repeated patterns abstracted to higher-order functions
+    ✓ Repeated patterns abstracted to higher-order functions<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Grep for hardcoded numbers and strings outside config/ and verify none remain
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Code Quality</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Code Quality</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Extracted functions have descriptive names<br/>
     ✓ JSDoc explains purpose and usage<br/>
     ✓ TypeScript types for all abstractions<br/>
     ✓ All existing tests pass<br/>
-    ✓ New utility functions have unit tests
+    ✓ New utility functions have unit tests<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Run full test suite and verify no regressions
   </div>
 </div>
 
-<div style="background: rgba(251, 146, 60, 0.15); border-left: 4px solid #fb923c; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Maintainability</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(251, 146, 60, 0.15); border-left: 4px solid #fb923c; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Maintainability</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Changes require updates in ONE place only<br/>
     ✓ No divergence between "similar" implementations<br/>
     ✓ Clear import paths for shared code<br/>
-    ✓ Documentation explains when to use each utility
+    ✓ Documentation explains when to use each utility<br/>
+    <strong style="color: #94a3b8;">Test:</strong> Change a constant value and verify it propagates correctly to all consumers
   </div>
 </div>
 
@@ -375,32 +387,20 @@ Provide complete refactored code with:
 
 ---
 
-## 🎓 DRY vs WET Code
-
-| Aspect | DRY (Don't Repeat Yourself) | WET (Write Everything Twice) |
-|--------|------------------------------|------------------------------|
-| **Definition** | Single source of truth | Duplicated logic across codebase |
-| **Maintenance** | Fix once, affects all | Must update N copies |
-| **Risk** | Changes propagate automatically | Forget one copy = inconsistent behavior |
-| **Examples** | Utility functions, constants, base classes | Copy-pasted validation, magic numbers |
-| **Cost** | Low (change in one place) | High (find all duplicates, update each) |
-
----
-
-## 🎓 Common DRY Patterns
+## Common DRY Patterns
 
 | Pattern | Use Case | Example |
 |---------|----------|---------|
-| **Extract Function** | Repeated code blocks | Validation logic → `validateEmail()` |
-| **Constants Module** | Magic numbers/strings | `12` → `MIN_PASSWORD_LENGTH` |
-| **Higher-Order Function** | Repeated structure (try/catch, logging) | `withLogging(fn)` wraps any function |
+| **Extract Function** | Repeated code blocks | Validation logic → validateEmail() |
+| **Constants Module** | Magic numbers/strings | 12 → MIN_PASSWORD_LENGTH |
+| **Higher-Order Function** | Repeated structure (try/catch, logging) | withLogging(fn) wraps any function |
 | **Base Class** | Repeated methods in subclasses | Common CRUD operations |
-| **Decorator/Middleware** | Cross-cutting concerns (auth, logging) | `@RequireAuth` for protected routes |
-| **Configuration Object** | Environment-specific values | `config.db`, `config.api` |
+| **Decorator/Middleware** | Cross-cutting concerns (auth, logging) | @RequireAuth for protected routes |
+| **Configuration Object** | Environment-specific values | config.db, config.api |
 
 ---
 
-## ⚠️ When NOT to DRY
+## When NOT to DRY
 
 **Premature abstraction is worse than duplication**:
 - **Accidental Similarity**: Code looks similar but represents different concepts
@@ -412,7 +412,7 @@ Provide complete refactored code with:
 
 ---
 
-## 🔗 Related Resources
+## Related Resources
 
 - **[Single Responsibility](./single-responsibility)** — Ensure extracted functions do ONE thing
 - **[Complexity Reduction](./complexity-reduction)** — Simplify before extracting
@@ -421,7 +421,7 @@ Provide complete refactored code with:
 
 ---
 
-## 📖 Further Reading
+## Resources
 
 **Books**:
 - *The Pragmatic Programmer* (Hunt & Thomas) — Original DRY principle
@@ -431,19 +431,9 @@ Provide complete refactored code with:
 **Tools**:
 - **jscpd** (JavaScript/TypeScript) — Copy-paste detector
 - **SonarQube** — Duplication analysis and metrics
-- **PMD CPD** (Java, C#, Python) — Copy-paste detection
 
-**Metrics**:
-- **Duplication Percentage**: Target <3% duplicate code
-- **Copy-Paste Detector**: Flag blocks >6 lines duplicated >2x
-- **Technical Debt Ratio**: Duplication increases debt
+[Back to Maintainability Overview](/docs/prompts/maintainability/)
 
 ---
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; text-align: center; color: #f1f5f9; margin: 32px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 16px;">♻️</div>
-  <div style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">Single Source of Truth</div>
-  <div style="font-size: 15px; color: #cbd5e1; max-width: 600px; margin: 0 auto;">
-    Every piece of knowledge should have one authoritative representation. Use these prompts to eliminate duplication and improve maintainability.
-  </div>
-</div>
+**Key principle**: Every piece of knowledge should have one authoritative representation. Use the Rule of Three before extracting, and remember that premature abstraction is worse than duplication.

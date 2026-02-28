@@ -4,7 +4,7 @@
 
 ![Alice Bot - The Good Maintainer](../../images/alice-bot.png)
 
-> *"Why, sometimes I've believed as many as six impossible things before breakfast."* — Alice in Wonderland
+> *Why, sometimes I've believed as many as six impossible things before breakfast.* — Alice in Wonderland
 
 Alice is an **agentic AI proof of concept** built on Claude Code that automates security remediation while keeping humans in control. She reads documentation, tests cautiously, questions assumptions, and documents her journey—just like a great maintainer would.
 

@@ -26,19 +26,21 @@
 
 ---
 
-## 🤖 AI Prompt: Identify Denial of Service Threats in Architecture
+## Prompt: Identify Denial of Service Threats in Architecture
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
+<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
+<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span style="font-size: 13px; color: #94a3b8;">Find availability risks from missing rate limits, unbounded resources, and algorithmic complexity</span>
+</summary>
 
-**📋 Copy this prompt and paste it into ChatGPT, Claude, or GitHub Copilot Chat:**
+<div style="padding: 4px 24px 24px 24px;">
 
 ```
 Role: You are a security architect specializing in system reliability, performance engineering, and DoS prevention. Your task is to perform STRIDE threat modeling focusing on Denial of Service (D) threats.
 
 Context:
-I have the following architecture:
-
-[PASTE YOUR ARCHITECTURE DIAGRAM OR DESCRIPTION HERE]
+Analyze the architecture of the current project.
 
 Example:
 - React SPA making API calls
@@ -82,20 +84,21 @@ Provide 3-5 high-priority denial of service threats with complete details. Prior
 ```
 
 </div>
+</details>
 
 ---
 
-## 📋 Example AI Output
+## Example AI Output
 
 ### Threat 1: Regular Expression DoS (ReDoS) in Search Endpoint
 
 **Threat**: Attacker supplies malicious regex causing catastrophic backtracking and CPU exhaustion
 
-**Component**: `/api/search?q=<regex>` endpoint
+**Component**: /api/search?q=<regex> endpoint
 
 **Attack Scenario**:
-1. Search endpoint accepts user input as regex: `/api/search?q=^(a+)+$`
-2. Attacker sends pathological regex: `^(a+)+$` with input `aaaaaaaaaaaaaaaaaaaaX`
+1. Search endpoint accepts user input as regex: /api/search?q=^(a+)+$
+2. Attacker sends pathological regex: ^(a+)+$ with input aaaaaaaaaaaaaaaaaaaaX
 3. JavaScript regex engine enters catastrophic backtracking (O(2^n) time)
 4. Single request consumes 100% CPU for 30+ seconds
 5. Attacker sends 10 concurrent requests, pinning all CPU cores
@@ -157,7 +160,7 @@ Additional controls:
 - Never allow user-controlled regex patterns
 - Use safe search alternatives (LIKE with wildcards, full-text search)
 - Implement per-user rate limiting (10 searches per minute)
-- Set query timeouts at database level (`statement_timeout = 5s`)
+- Set query timeouts at database level (statement_timeout = 5s)
 - Monitor CPU usage and alert on sustained >80% utilization
 - Use ReDoS detection libraries (safe-regex, redos-detector) in CI/CD
 
@@ -169,7 +172,7 @@ Additional controls:
 
 **Threat**: Attacker uploads massive files repeatedly to fill disk storage
 
-**Component**: `/api/upload` endpoint accepting user files
+**Component**: /api/upload endpoint accepting user files
 
 **Attack Scenario**:
 1. Upload endpoint accepts files with no size limit
@@ -281,7 +284,7 @@ Additional controls:
 
 **Threat**: Attacker floods login endpoint with requests, exhausting database connections
 
-**Component**: `/api/auth/login` endpoint
+**Component**: /api/auth/login endpoint
 
 **Attack Scenario**:
 1. Login endpoint performs expensive bcrypt hash comparison (250ms each)
@@ -395,104 +398,104 @@ Additional controls:
 - Monitor for distributed attacks (same username, many IPs)
 - Use Web Application Firewall (WAF) with bot detection
 - Consider login honeypots to detect automated attacks
-- Set database connection pool limits (`max: 100`)
-- Use connection pooling with timeouts (`connectionTimeoutMillis: 5000`)
+- Set database connection pool limits (max: 100)
+- Use connection pooling with timeouts (connectionTimeoutMillis: 5000)
 
 **OWASP Mapping**: A04 - Insecure Design
 
 ---
 
-## ✅ Human Review Checklist
+## Human Review Checklist
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #06b6d4;">
 
-<div style="font-size: 20px; font-weight: 700; color: #67e8f9; margin-bottom: 20px;">Before merging AI-generated Denial of Service threat mitigation code, verify:</div>
+<div style="font-size: 18px; font-weight: 700; color: #67e8f9; margin-bottom: 20px;">Before merging AI-generated Denial of Service threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div style="display: grid; gap: 12px;">
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Rate Limiting and Throttling</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Rate Limiting and Throttling</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Every public API endpoint has rate limiting configured<br/>
     ✓ Critical endpoints (login, password reset, search) have stricter limits than read-only operations<br/>
     ✓ Multiple layers implemented: per-IP limits to block attackers, per-user limits to prevent abuse, per-endpoint limits to protect specific resources<br/>
     ✓ Sliding windows used instead of fixed windows to prevent burst attacks at window boundaries<br/>
     ✓ Rate limit counters stored in Redis for distributed systems<br/>
-    ✓ Test: Send 100 requests rapidly to endpoint and verify 11th request returns 429 Too Many Requests, check rate limits reset after time window
+    <strong style="color: #94a3b8;">Test:</strong> Send 100 requests rapidly to endpoint and verify 11th request returns 429 Too Many Requests, check rate limits reset after time window
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Timeouts and Circuit Breakers</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Timeouts and Circuit Breakers</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All external calls (databases, APIs, third-party services) have timeouts configured<br/>
     ✓ Database queries timeout after 5-10 seconds, HTTP requests to external APIs timeout after 3-5 seconds<br/>
     ✓ Circuit breakers stop calling failing services after N consecutive failures<br/>
     ✓ Exponential backoff used when retrying failed operations<br/>
     ✓ Never allow unbounded waits or infinite loops<br/>
-    ✓ Test: Simulate slow database or API by adding artificial delays, verify requests timeout and return errors instead of hanging indefinitely
+    <strong style="color: #94a3b8;">Test:</strong> Simulate slow database or API by adding artificial delays, verify requests timeout and return errors instead of hanging indefinitely
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Resource Limits and Quotas</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Resource Limits and Quotas</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Limits set on memory usage (Node.js --max-old-space-size), CPU time, file sizes, and connection counts<br/>
     ✓ Per-user quotas implemented for expensive operations (uploads, reports, exports)<br/>
     ✓ Pagination used for all list endpoints with default page size of 100 and max of 1000<br/>
     ✓ WebSocket connections per user limited to prevent connection exhaustion<br/>
     ✓ Resource usage monitored and alerts configured when approaching limits<br/>
-    ✓ Test: Attempt to upload file larger than limit and verify rejection, query list endpoint without pagination and verify returns at most default page size
+    <strong style="color: #94a3b8;">Test:</strong> Attempt to upload file larger than limit and verify rejection, query list endpoint without pagination and verify returns at most default page size
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Complexity</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Complexity</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Never allow user-controlled input to affect algorithmic complexity<br/>
     ✓ Regex patterns validated against ReDoS vulnerabilities using safe-regex library<br/>
     ✓ Search query length limited to 100 characters<br/>
     ✓ Sort operations on user-provided fields rejected (use allowlist)<br/>
     ✓ All numeric inputs validated to have reasonable bounds<br/>
     ✓ Database full-text search used instead of application-side filtering<br/>
-    ✓ Test: Submit pathological regex patterns and verify rejection, attempt to sort by 100 different fields and verify sorting limited to safe columns
+    <strong style="color: #94a3b8;">Test:</strong> Submit pathological regex patterns and verify rejection, attempt to sort by 100 different fields and verify sorting limited to safe columns
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Database Query Optimization</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Database Query Optimization</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ All database queries have EXPLAIN plans reviewed during development<br/>
     ✓ Indexes added on frequently queried columns<br/>
     ✓ Pagination used with LIMIT and OFFSET for large result sets<br/>
     ✓ Statement timeouts set at database level (SET statement_timeout = '5s')<br/>
     ✓ N+1 queries avoided by using joins or batching<br/>
     ✓ Slow query logs monitored and queries exceeding 100ms optimized<br/>
-    ✓ Test: Run EXPLAIN on all queries and verify index usage, check slow query log for queries taking >100ms
+    <strong style="color: #94a3b8;">Test:</strong> Run EXPLAIN on all queries and verify index usage, check slow query log for queries taking >100ms
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Authentication Complexity</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Authentication Complexity</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Authentication operations (bcrypt, Argon2) run asynchronously to avoid blocking event loop<br/>
     ✓ Rate limiting implemented before expensive operations to prevent DoS<br/>
     ✓ Redis used to cache failed authentication attempts and block repeated attempts<br/>
     ✓ CAPTCHA or MFA considered after N failed attempts<br/>
     ✓ Never perform authentication operations in synchronous loops<br/>
-    ✓ Validate: Verify bcrypt/Argon2 cost factors set appropriately (bcrypt cost 12 = ~250ms), check authentication endpoints have strict rate limits (5 attempts per 15 minutes)
+    <strong style="color: #94a3b8;">Test:</strong> Verify bcrypt/Argon2 cost factors set appropriately (bcrypt cost 12 = ~250ms), check authentication endpoints have strict rate limits (5 attempts per 15 minutes)
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring and Alerting</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
+  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Monitoring and Alerting</div>
+  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
     ✓ Metrics collection implemented for CPU, memory, disk, network, and request latency<br/>
     ✓ Alerts configured for abnormal patterns: CPU >80%, memory >85%, disk >90%, request latency p95 >500ms, error rate >1%<br/>
     ✓ Distributed tracing used to identify slow operations<br/>
     ✓ Rate limit hit rates monitored (high rate may indicate legitimate traffic growth)<br/>
     ✓ Auto-scaling implemented to handle traffic spikes<br/>
-    ✓ Set up: Create dashboards showing system resource usage, configure PagerDuty alerts for critical thresholds, test alerts by simulating high load
+    <strong style="color: #94a3b8;">Test:</strong> Create dashboards showing system resource usage, configure PagerDuty alerts for critical thresholds, test alerts by simulating high load
   </div>
 </div>
 
@@ -502,24 +505,23 @@ Additional controls:
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
 1. **Use the AI prompt** with ChatGPT or Claude to analyze your architecture
 2. **Review generated threats** using the checklist above
 3. **Implement rate limiting** on all public endpoints
 4. **Add timeouts** to database queries and external API calls
 5. **Validate input complexity** — reject pathological regex, limit query size
-6. **Set resource quotas** — file sizes, memory limits, connection pools
-7. **Load test** your application to verify DoS protections work
-8. **Move to final STRIDE category** → [Elevation of Privilege](elevation-of-privilege)
+6. **Move to final STRIDE category** → [Elevation of Privilege](elevation-of-privilege)
 
 ---
 
-## 📖 Additional Resources
+## Resources
 
 - **[OWASP A04: Insecure Design](/docs/prompts/owasp/A04_insecure_design)** — DoS prevention patterns
 - **[OWASP Denial of Service Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html)** — Best practices
+- **[Back to STRIDE Overview](/docs/prompts/threat-modeling/)** — See all six categories
 
 ---
 
-**Remember**: Denial of Service is prevented by rate limits, timeouts, and resource quotas. Design for graceful degradation — services should fail safely under load, not catastrophically.
+**Key principle**: Denial of Service is prevented by rate limits, timeouts, and resource quotas. Design for graceful degradation — services should fail safely under load, not catastrophically.

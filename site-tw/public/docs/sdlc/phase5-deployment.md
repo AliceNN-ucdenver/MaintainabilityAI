@@ -1,3 +1,5 @@
+<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 5</div>
+
 # Phase 5: Deployment
 
 <div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4); border: 1px solid rgba(52, 211, 153, 0.3);">
@@ -33,7 +35,7 @@ flowchart LR
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">10-30 min</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Tools</div>
+    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
     <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">GitHub Actions, Sentry</div>
   </div>
   <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
@@ -183,6 +185,33 @@ describe('Production Smoke Tests', () => {
 
 </details>
 
+<details>
+<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Document Sharing deployment checklist</summary>
+
+```markdown
+## Document Sharing — Deployment Validation
+
+### Smoke Tests (automated)
+- [x] POST /api/documents/:id/shares returns 201 for owner
+- [x] POST /api/documents/:id/shares returns 403 for non-owner (T6)
+- [x] POST /api/documents/:id/shares returns 401 without token (T1)
+- [x] POST with SQL injection payload returns 400 (T4)
+- [x] GET /health returns 200 with all subsystems healthy
+
+### Security Controls Verified in Production
+- [x] JWT validation active (expired tokens rejected)
+- [x] Rate limiting enforced (429 after 10 requests/min)
+- [x] Audit log entries created for share operations
+- [x] Generic error messages (no stack traces or schema info)
+
+### Monitoring Configured
+- [x] Sentry: New error types trigger alert
+- [x] Auth failure rate > 100/min → security team notified
+- [x] p95 latency < 200ms confirmed
+```
+
+</details>
+
 ---
 
 ## Step 3: Monitoring & Alerting
@@ -238,30 +267,27 @@ git revert HEAD && git push origin main
 
 ## Phase Handoff → Phase 6
 
-<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 8px; padding: 24px; margin: 24px 0;">
-
-```
-===== PHASE 5 → PHASE 6 HANDOFF =====
-
-Feature: [Feature name]
-
-Deployment Complete:
-✅ Build + security re-scan passed
-✅ Staging smoke tests passed
-✅ Production deployment successful
-✅ Health checks healthy
-✅ Monitoring active
-
-Artifacts:
-- Deployment URL: [production URL]
-- Monitoring dashboard: [link]
-- Rollback version: [previous version]
-
-Next: Collect metrics and iterate (Phase 6)
-
-===== END HANDOFF =====
-```
-
+<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(16, 185, 129, 0.3);">
+<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
+  <span style="font-size: 24px;">5&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
+  <span style="font-size: 24px;">6&#xFE0F;&#x20E3;</span>
+  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Deployment → Evolution</span>
+</div>
+<div style="padding: 24px;">
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+    <div>✅ Build + security re-scan passed</div>
+    <div>✅ Staging smoke tests passed</div>
+    <div>✅ Production deployment successful</div>
+    <div>✅ Health checks healthy</div>
+    <div>✅ Monitoring active</div>
+  </div>
+  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Artifacts</div>
+  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+    <div>Deployment URL: [production URL] · Monitoring dashboard: [link] · Rollback version: [previous version]</div>
+  </div>
+</div>
 </div>
 
 ---
