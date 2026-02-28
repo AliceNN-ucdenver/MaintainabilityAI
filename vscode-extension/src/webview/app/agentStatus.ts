@@ -208,7 +208,7 @@ export function renderAgentStatus(status: AgentStatusInfo | null): string {
   const labelHtml = config.label(agent, status);
 
   // Issue link
-  const issueLink = `Issue <a class="agent-status-link" data-url="${escAttr(status.issue.url)}">#${status.issue.number}</a>`;
+  const issueLink = `Issue <a class="agent-status-link" data-url="${escAttr(status.issue.url)}">#${esc(String(status.issue.number))}</a>`;
 
   // PR link with badges
   let prHtml = '';
@@ -230,7 +230,7 @@ export function renderAgentStatus(status: AgentStatusInfo | null): string {
       badges.push('<span class="agent-status-badge agent-status-badge-checks-passing">Merged</span>');
     }
     const badgesHtml = badges.length > 0 ? ` ${badges.join(' ')}` : '';
-    prHtml = `<span style="margin-left: 6px;">PR <a class="agent-status-link" data-url="${escAttr(status.pr.url)}">#${status.pr.number}</a>${badgesHtml}</span>`;
+    prHtml = `<span style="margin-left: 6px;">PR <a class="agent-status-link" data-url="${escAttr(status.pr.url)}">#${esc(String(status.pr.number))}</a>${badgesHtml}</span>`;
   }
 
   // Action button

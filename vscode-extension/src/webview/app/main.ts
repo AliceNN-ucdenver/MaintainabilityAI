@@ -113,7 +113,7 @@ function goToPhase(phase: Phase) {
 // ============================================================================
 
 function renderInputPhase() {
-  const repoHint = state.repo ? `<span class="repo-hint" style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;">${state.repo.owner}/${state.repo.repo}</span>` : '';
+  const repoHint = state.repo ? `<span class="repo-hint" style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;">${escapeHtml(state.repo.owner)}/${escapeHtml(state.repo.repo)}</span>` : '';
 
   contentEl.innerHTML = `
     <h2>Describe Your Feature${repoHint}</h2>
@@ -296,7 +296,7 @@ function renderInputPhase() {
 function renderReviewPhase() {
   state.showFeedback = false;
 
-  const reviewRepoHint = state.repo ? `<span class="repo-hint" style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;">${state.repo.owner}/${state.repo.repo}</span>` : '';
+  const reviewRepoHint = state.repo ? `<span class="repo-hint" style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;">${escapeHtml(state.repo.owner)}/${escapeHtml(state.repo.repo)}</span>` : '';
 
   contentEl.innerHTML = `
     <h2>Review Generated RCTRO${reviewRepoHint}</h2>
@@ -372,7 +372,7 @@ function renderSubmitPhase() {
       <input type="text" id="issue-title" value="${escapeAttr(autoTitle)}" placeholder="Feature title for the GitHub issue..." />
     </div>
 
-    ${state.repo ? `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Repository: ${state.repo.owner}/${state.repo.repo}</p>` : ''}
+    ${state.repo ? `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Repository: ${escapeHtml(state.repo.owner)}/${escapeHtml(state.repo.repo)}</p>` : ''}
 
     <button id="btn-submit" class="btn-success" style="padding: 10px 32px;">Create Issue on GitHub</button>
 
@@ -412,7 +412,7 @@ function renderAssignPhase() {
   contentEl.innerHTML = `
     <h2>Assign an AI Agent</h2>
     <p style="color: var(--text-secondary); margin-bottom: 4px;">
-      Issue <a id="issue-link" style="color: var(--accent); cursor: pointer;">#${state.issueNumber}</a> created successfully.
+      Issue <a id="issue-link" style="color: var(--accent); cursor: pointer;">#${escapeHtml(String(state.issueNumber))}</a> created successfully.
     </p>
     <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">Choose who should implement this feature:</p>
 
@@ -565,7 +565,7 @@ function renderIssueListHub() {
         <div>
           <h2 style="margin-bottom: 4px;">&#x1F407; Rabbit Hole</h2>
           <span style="color: var(--text-secondary); font-size: 12px;">
-            ${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'No repository detected'}
+            ${state.repo ? `${escapeHtml(state.repo.owner)}/${escapeHtml(state.repo.repo)}` : 'No repository detected'}
           </span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -679,9 +679,12 @@ function renderPromptPacks(packs: PromptPackInfo[]) {
 }
 
 function checkbox(pack: PromptPackInfo): string {
+  const safeId = escapeAttr(pack.id);
+  const safeCat = escapeAttr(pack.category);
+  const safeName = escapeHtml(pack.name);
   return `<div class="checkbox-item">
-    <input type="checkbox" id="pack-${pack.id}" data-category="${pack.category}" value="${pack.id}" />
-    <label for="pack-${pack.id}">${pack.name}</label>
+    <input type="checkbox" id="pack-${safeId}" data-category="${safeCat}" value="${safeId}" />
+    <label for="pack-${safeId}">${safeName}</label>
   </div>`;
 }
 

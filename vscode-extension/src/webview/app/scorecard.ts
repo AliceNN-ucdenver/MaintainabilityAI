@@ -84,7 +84,7 @@ function render() {
           ${CHESHIRE_SVG}
           <div>
             <h1>Security Scorecard</h1>
-            <p>${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'Detecting repository...'}</p>
+            <p>${state.repo ? `${escapeHtml(state.repo.owner)}/${escapeHtml(state.repo.repo)}` : 'Detecting repository...'}</p>
           </div>
           <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
         </div>
@@ -105,7 +105,7 @@ function render() {
           ${CHESHIRE_SVG}
           <div>
             <h1>Security Scorecard</h1>
-            <p>${state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'No repository detected'}</p>
+            <p>${state.repo ? `${escapeHtml(state.repo.owner)}/${escapeHtml(state.repo.repo)}` : 'No repository detected'}</p>
           </div>
           <button id="btn-settings-gear" class="settings-gear" title="Settings">&#x2699;</button>
         </div>
@@ -121,8 +121,8 @@ function render() {
   }
 
   const d = state.data!;
-  const repoLabel = d.repo ? `${d.repo.owner}/${d.repo.repo}` : 'No repository detected';
-  const repoUrl = d.repo ? `https://github.com/${d.repo.owner}/${d.repo.repo}` : '';
+  const repoLabel = d.repo ? `${escapeHtml(d.repo.owner)}/${escapeHtml(d.repo.repo)}` : 'No repository detected';
+  const repoUrl = d.repo ? `https://github.com/${encodeURIComponent(d.repo.owner)}/${encodeURIComponent(d.repo.repo)}` : '';
 
   rootEl.innerHTML = `
     ${state.errorMessage ? `<div class="error-msg">${escapeHtml(state.errorMessage)}</div>` : ''}

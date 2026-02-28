@@ -229,7 +229,7 @@ function renderConfigurePhase(): string {
   }
 
   const bar = state.selectedBar;
-  const critClass = `crit-${bar.criticality.toLowerCase()}`;
+  const critClass = `crit-${escapeAttr(bar.criticality.toLowerCase())}`;
 
   const pillars: ReviewPillar[] = ['architecture', 'security', 'risk', 'operations'];
   const pillarCheckboxes = pillars.map(p => `
