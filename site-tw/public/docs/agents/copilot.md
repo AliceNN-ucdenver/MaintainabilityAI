@@ -1,53 +1,83 @@
-# GitHub Copilot - MaintainabilityAI Guide
+# GitHub Copilot — In-Editor Guide
 
-> **Purpose**: GitHub Copilot-specific guidance for security-first AI-assisted development in the MaintainabilityAI framework.
+> **Mode**: In-editor AI assistant (human-in-the-loop, IDE-integrated)
+>
+> Looking for the autonomous GitHub agent? See [Copilot Coding Agent](/docs/agents/copilot-coding-agent).
 
-This guide shows you how to effectively use GitHub Copilot (including Chat and Workspace features) with security constraints, OWASP prompt packs, and evolutionary architecture principles.
+GitHub Copilot excels at **fast, in-editor code generation** with security constraints. Use #codebase context for repo-aware suggestions and #file references for OWASP prompt packs.
 
 ---
 
 ## Quick Start
 
-### Using #codebase Patterns
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
 
-GitHub Copilot Chat supports `#codebase` context to understand your entire repository structure. Use this for security-aware code generation:
+**Paste into Copilot Chat to get security-aware suggestions:**
 
-```markdown
-#codebase I need to implement user authentication following OWASP A07 best practices.
-Review /prompts/owasp/A07_authn_failures.md and generate secure authentication middleware.
-```
+<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 20px; margin-top: 16px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
 
-**Key Benefits**:
-- Copilot understands existing security patterns in your repo
-- References OWASP prompt packs automatically
-- Maintains consistency with established conventions
+**Role:** You are a security-focused developer implementing authentication middleware.
+
+**Context:**
+#codebase — Node 18 + TypeScript + Express application.
+#file:/docs/prompts/owasp/A07\_authn\_failures — OWASP A07 security requirements.
+
+**Task:**
+Generate secure authentication middleware that handles login, session management, and rate limiting.
+
+**Requirements:**
+- bcrypt password hashing (cost factor 12)
+- Rate limiting: 5 failed attempts per 15 minutes
+- Secure session cookies (httpOnly, secure, sameSite)
+- Generic error messages — no username enumeration
+- Reference the A07 prompt pack constraints above
+
+**Output:**
+Middleware function + brief explanation of each security control.
+
+</div>
+</div>
+
+**Key strengths**: Real-time completions, pattern following, fast single-function implementation. Copilot works best when you give it a focused, single-function task with explicit security constraints via #file references.
 
 ---
 
-## Security-First Coding with Copilot
+## Security-First Coding
 
 ### 1. Reference OWASP Prompts Directly
 
-**Pattern**: Always reference the specific OWASP prompt pack for your task.
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #6366f1;">
 
-```markdown
-#file:/docs/prompts/owasp/A03_injection
+<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
 
-Using the security requirements above, refactor this function to use parameterized queries:
+**Role:** You are a security engineer fixing injection vulnerabilities.
 
-[paste insecure code]
-```
+**Context:**
+#file:/docs/prompts/owasp/A03\_injection
 
-**Why This Works**:
-- Gives Copilot explicit security constraints
-- Ensures compliance with OWASP Top 10 (2021)
-- Creates consistent security patterns across your codebase
+**Task:**
+Using the security requirements above, refactor this function to use parameterized queries.
+
+**Requirements:**
+- Replace all string concatenation with parameterized placeholders
+- Add Zod input validation with allowlist regex
+- Return generic error messages only
+
+**Output:**
+Refactored function + explanation of each change.
+
+</div>
+
+<p style="color: #94a3b8; font-size: 13px; margin: 16px 0 0 0;">This gives Copilot explicit security constraints via #file references and ensures OWASP compliance.</p>
+
+</div>
 
 ### 2. Use Workspace Agent for Architecture Decisions
 
-The Copilot Workspace agent can help with architectural fitness functions:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
 
-```markdown
+<div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+
 @workspace Review the codebase and identify:
 1. Functions with cyclomatic complexity > 10
 2. Modules violating the 3-month dependency freshness rule
@@ -55,433 +85,88 @@ The Copilot Workspace agent can help with architectural fitness functions:
 4. Security vulnerabilities matching OWASP A01-A10
 
 Reference: /docs/maintainability/fitness-functions.md
-```
+
+</div>
+</div>
 
 ### 3. Inline Completions with Security Context
 
-When writing code, add comments to guide Copilot's inline suggestions:
+Guide Copilot's inline suggestions with structured security comments:
 
-```typescript
-// SECURITY: OWASP A01 - Implement RBAC authorization check
-// - Verify user is authenticated
-// - Check requester owns resource OR has admin role
-// - Log authorization failures
-// - Return generic error (no info leakage)
-export function getUserDocument(requester: User, ownerId: string) {
-  // [Copilot will generate secure implementation]
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+
+<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7; font-family: monospace;">
+
+<span style="color: #6b7280;">// SECURITY: OWASP A01 - Implement RBAC authorization check</span><br/>
+<span style="color: #6b7280;">// - Verify user is authenticated</span><br/>
+<span style="color: #6b7280;">// - Check requester owns resource OR has admin role</span><br/>
+<span style="color: #6b7280;">// - Log authorization failures</span><br/>
+<span style="color: #6b7280;">// - Return generic error (no info leakage)</span><br/>
+<span style="color: #c084fc;">export function</span> <span style="color: #67e8f9;">getUserDocument</span>(requester: User, ownerId: string) {<br/>
+&nbsp;&nbsp;<span style="color: #6b7280;">// Copilot generates secure implementation from these comments</span><br/>
 }
-```
 
----
-
-## Integration with Fitness Functions
-
-### Architectural Fitness Functions
-
-Use Copilot to enforce evolutionary architecture principles:
-
-#### Example 1: Complexity Fitness Function
-
-```markdown
-@workspace Create a custom ESLint rule that:
-- Flags functions with cyclomatic complexity > 15
-- Suggests refactoring patterns
-- Integrates with our CI/CD pipeline
-
-Reference: /docs/maintainability/fitness-functions.md (complexity section)
-```
-
-#### Example 2: Dependency Freshness
-
-```markdown
-#codebase Review package.json and identify dependencies older than 3 months.
-For each outdated package:
-1. Check for security vulnerabilities
-2. Suggest upgrade path
-3. Identify breaking changes
-4. Generate migration guide
-
-Reference: /docs/maintainability/evolutionary-architecture.md (3-month rule)
-```
-
----
-
-## OWASP Top 10 Integration
-
-### Using Prompt Packs with Copilot Chat
-
-For each OWASP category, reference the prompt pack before generating code:
-
-| OWASP Category | Copilot Command Pattern |
-|----------------|-------------------------|
-| **A01: Broken Access Control** | `#file:/docs/prompts/owasp/A01_broken_access_control Implement RBAC for [endpoint]` |
-| **A02: Cryptographic Failures** | `#file:/docs/prompts/owasp/A02_crypto_failures Add secure password hashing to [function]` |
-| **A03: Injection** | `#file:/docs/prompts/owasp/A03_injection Refactor SQL query with parameterization` |
-| **A04: Insecure Design** | `#file:/docs/prompts/owasp/A04_insecure_design Review threat model for [feature]` |
-| **A05: Security Misconfiguration** | `#file:/docs/prompts/owasp/A05_security_misconfig Add security headers to Express app` |
-| **A06: Vulnerable Components** | `#file:/docs/prompts/owasp/A06_vuln_outdated Audit dependencies for CVEs` |
-| **A07: Authentication Failures** | `#file:/docs/prompts/owasp/A07_authn_failures Implement MFA for login` |
-| **A08: Integrity Failures** | `#file:/docs/prompts/owasp/A08_integrity_failures Add signature verification` |
-| **A09: Logging/Monitoring** | `#file:/docs/prompts/owasp/A09_logging_monitoring Add structured logging with PII redaction` |
-| **A10: SSRF** | `#file:/docs/prompts/owasp/A10_ssrf Validate external URLs before fetch` |
-
----
-
-## Maintainability Prompt Packs
-
-### Evolutionary Architecture Integration
-
-Use these maintainability prompt packs alongside OWASP security prompts for production-grade code:
-
-| Maintainability Pattern | Copilot Command Pattern |
-|-------------------------|-------------------------|
-| **Fitness Functions** | `#file:/docs/prompts/maintainability/fitness-functions Create complexity test: fail if any function >10` |
-| **Dependency Hygiene** | `#file:/docs/prompts/maintainability/dependency-hygiene Implement 3-month freshness rule with Renovate bot` |
-| **Strangler Fig Migration** | `#file:/docs/prompts/maintainability/strangler-fig Create proxy layer for incremental service migration` |
-| **Technical Debt Tracking** | `#file:/docs/prompts/maintainability/technical-debt Generate TECHNICAL-DEBT.yml with automated detection` |
-
-### Hybrid Prompts (Security + Maintainability)
-
-**Example: Secure API Endpoint with Maintainability Constraints**
-
-```markdown
-#file:/docs/prompts/owasp/A01_broken_access_control
-#file:/docs/prompts/owasp/A07_authn_failures
-#file:/docs/prompts/maintainability/fitness-functions
-
-Implement secure user profile endpoint with:
-
-Security (OWASP):
-- A01: RBAC authorization (user owns resource OR admin role)
-- A07: JWT authentication with bcrypt password hashing
-- Generic error messages (no info leakage)
-- Structured logging (PII redacted)
-
-Maintainability (Fitness Functions):
-- Cyclomatic complexity ≤10 per function
-- Test coverage ≥80% (include attack vectors)
-- Dependencies: bcrypt ≥5.1.0, jsonwebtoken ≥9.0.0
-- Performance: p95 latency <200ms
-
-Generate:
-- src/routes/users.ts (implementation)
-- src/__tests__/users.test.ts (security + performance tests)
-- tests/fitness-functions/users-complexity.test.ts (complexity check)
-```
-
-**Example: Dependency Upgrade with Security Validation**
-
-```markdown
-#file:/docs/prompts/maintainability/dependency-hygiene
-#file:/docs/prompts/owasp/A06_vuln_outdated
-
-Upgrade express from 4.17.1 to 4.18.2:
-
-1. Review CHANGELOG for breaking changes
-2. Run npm audit to check for CVEs in current version
-3. Upgrade with npm install express@4.18.2 --save-exact
-4. Update all route handlers for API changes
-5. Run full test suite
-6. Run CodeQL and Snyk scans to verify no new vulnerabilities
-7. Update TECHNICAL-DEBT.yml to mark DEBT-XXX as resolved
-
-Reference: 3-month dependency freshness rule
-```
-
----
-
-## Evolutionary Architecture Principles
-
-### Incremental Change Pattern
-
-**Principle**: Make small, verifiable changes aligned with fitness functions.
-
-```markdown
-@workspace I want to refactor the authentication module incrementally.
-
-Phase 1: Add TypeScript strict mode types
-Phase 2: Implement input validation with Zod
-Phase 3: Add unit tests (>80% coverage)
-Phase 4: Integrate with CodeQL security scanning
-
-For each phase:
-- Generate code changes
-- Run tests
-- Verify fitness functions pass
-- Commit with clear message
-
-Reference: /docs/maintainability/evolutionary-architecture.md
-```
-
-### Technical Debt Tracking
-
-```markdown
-#codebase Analyze the codebase and create a technical debt backlog:
-
-1. Security debt: OWASP violations, missing auth checks
-2. Complexity debt: Functions >15 cyclomatic complexity
-3. Dependency debt: Packages >3 months old with CVEs
-4. Test debt: Modules <80% coverage
-5. Documentation debt: Undocumented public APIs
-
-Format as GitHub issues with priority labels.
-```
-
----
-
-## Workflow Integration
-
-### SDLC Phase Alignment
-
-Copilot fits into the MaintainabilityAI SDLC at specific phases:
-
-```mermaid
-flowchart LR
-    A[Design Intent] --> B[Threat Model]
-    B --> C[Select OWASP Prompts]
-    C --> D[Copilot Code Generation]
-    D --> E[Local Tests]
-    E --> F[Fitness Function Check]
-    F --> G[Human Review]
-    G --> H[Merge]
-    E --Fail--> D
-    F --Fail--> D
-```
-
-**Best Practices**:
-1. **Design Phase**: Use `@workspace` to understand requirements
-2. **Implementation Phase**: Reference OWASP prompts for secure code
-3. **Verification Phase**: Generate tests with security attack vectors
-4. **Governance Phase**: Document AI-assisted changes in commits
-
----
-
-## Security Constraints
-
-### Always Include in Prompts
-
-Every security-related prompt should include:
-
-```markdown
-#file:/docs/prompts/owasp/[category]
-
-Context:
-- Tech stack: [Node 18, TypeScript, Express, PostgreSQL]
-- Security level: Production (strict mode)
-- Compliance: OWASP Top 10 (2021)
-
-Security Checklist:
-□ Input validation (Zod schemas)
-□ Parameterized queries (no string concatenation)
-□ Error handling (generic messages, no info leakage)
-□ Logging (structured, PII redacted)
-□ Authentication/authorization enforced
-□ Tests include attack vectors
-
-Generate code that passes:
-- ESLint security rules
-- Jest tests (including negative cases)
-- CodeQL security scanning
-```
-
----
-
-## Example: Complete Workflow
-
-### Scenario: Implement A03 Injection Prevention
-
-**Step 1: Reference Prompt Pack**
-
-```markdown
-#file:/docs/prompts/owasp/A03_injection
-
-Review the security requirements for SQL injection prevention.
-```
-
-**Step 2: Generate Secure Code**
-
-```markdown
-#file:/examples/owasp/A03_injection/insecure.ts
-
-Refactor this function following the A03 prompt pack:
-1. Use parameterized queries
-2. Add Zod validation
-3. Implement length limits (100 chars)
-4. Generic error messages
-5. Add tests with attack payloads
-```
-
-**Step 3: Verify with Fitness Functions**
-
-```markdown
-@workspace Run fitness function checks:
-- Cyclomatic complexity < 10
-- All inputs validated
-- Test coverage > 80%
-- CodeQL security scan clean
-```
-
-**Step 4: Generate Tests**
-
-```markdown
-Generate Jest tests for searchUsers() including:
-- Valid input (passes)
-- SQL injection attempts (blocked)
-- Excessively long input (rejected)
-- Invalid characters (rejected)
-- Empty input (handled gracefully)
-```
-
----
-
-## Copilot Agent Mode
-
-GitHub Copilot's Agent mode can handle multi-step tasks autonomously:
-
-### Example: Upgrade All Dependencies
-
-```markdown
-@workspace Task: Upgrade all dependencies following the "Upgrade All The Things" kata
-
-Steps:
-1. Audit package.json for packages >3 months old
-2. Check each for security vulnerabilities (npm audit)
-3. Review changelogs for breaking changes
-4. Upgrade patch versions first, then minors, then majors
-5. Run tests after each upgrade
-6. If tests fail, revert and document reason
-7. Generate upgrade report with:
-   - Packages upgraded
-   - Security fixes applied
-   - Breaking changes handled
-   - Tests status
-
-Reference: /docs/sdlc/phase6-evolution.md (dependency management)
-```
+</div>
+</div>
 
 ---
 
 ## Best Practices
 
-### 1. Be Explicit About Security
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 24px 0;">
 
-```markdown
-# ❌ Vague
-"Add authentication to the API"
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
+<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">1. Be Explicit About Security</h3>
+<p style="color: #f87171; font-size: 13px; margin: 8px 0 4px 0;">Don't say: "Add authentication to the API"</p>
+<p style="color: #4ade80; font-size: 13px; margin: 4px 0 12px 0;">Do say: "#file:/docs/prompts/owasp/A07_authn_failures — Implement authentication middleware with bcrypt (cost 12), rate limiting (5 attempts/15min), secure session cookies (httpOnly, secure, sameSite), generic error messages."</p>
+</div>
 
-# ✅ Specific
-"#file:/docs/prompts/owasp/A07_authn_failures
-Implement authentication middleware with:
-- bcrypt password hashing (cost 12)
-- Rate limiting (5 attempts/15min)
-- Secure session cookies (httpOnly, secure, sameSite)
-- Generic error messages (no username enumeration)"
-```
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
+<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">2. Reference Existing Patterns</h3>
+<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">Use #file references to your OWASP examples: "#file:/examples/owasp/A01\_broken\_access\_control/ — Use this authorization pattern to protect the new /api/reports endpoint. Ensure ownership checks prevent IDOR attacks."</p>
+</div>
 
-### 2. Reference Existing Code Patterns
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
+<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">3. Always Generate Tests</h3>
+<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">After generating code, ask for tests that verify: authorized users can access (200), unauthorized users are blocked (403), invalid tokens are rejected (401), and IDOR attempts are logged and denied.</p>
+</div>
 
-```markdown
-#file:/examples/owasp/A01_broken_access_control/
-
-Use the authorization pattern from this example to protect the new /api/reports endpoint.
-Ensure ownership checks prevent IDOR attacks.
-```
-
-### 3. Validate with Tests
-
-```markdown
-After generating the code, create Jest tests that verify:
-1. Authorized users can access (200 OK)
-2. Unauthorized users are blocked (403 Forbidden)
-3. Invalid tokens are rejected (401 Unauthorized)
-4. IDOR attempts are logged and denied
-```
+</div>
 
 ---
 
 ## Golden Rules Integration
 
-Apply the [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules) with Copilot:
+Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Copilot:
 
-1. **Be Specific**: Reference OWASP prompts, tech stack, and constraints
-2. **Trust But Verify**: Review every line Copilot generates
-3. **Treat as Junior Dev**: Give detailed guidance, review output
-4. **Isolate AI Changes**: Commit with `🤖 AI-assisted with Copilot` label
-5. **Document Rationale**: Add comments explaining security decisions
-6. **Share Prompts**: Add successful patterns to `/prompts/team/`
-
----
-
-## Common Pitfalls
-
-### 1. Over-Trusting Autocomplete
-
-**Problem**: Accepting inline suggestions without review
-
-**Solution**:
-- Read every line before accepting
-- Verify security constraints are met
-- Test with attack vectors
-
-### 2. Vague Prompts
-
-**Problem**: "Fix the security issue"
-
-**Solution**:
-```markdown
-#file:/docs/prompts/owasp/A03_injection
-The searchUsers function is vulnerable to SQL injection.
-Refactor using parameterized queries and add Zod validation per the prompt pack.
-```
-
-### 3. Skipping Tests
-
-**Problem**: Generating code without test verification
-
-**Solution**:
-```markdown
-Generate secure implementation AND comprehensive tests:
-- Unit tests for happy path
-- Security tests for attack vectors (from OWASP examples)
-- Integration tests with real database
-All tests must pass before committing.
-```
+| Rule | Application |
+|------|-------------|
+| **Be Specific** | Reference OWASP prompts, tech stack, and constraints |
+| **Trust But Verify** | Review every line Copilot generates |
+| **Treat as Junior Dev** | Give detailed guidance, review output carefully |
+| **Isolate AI Changes** | Separate commits, labeled with agent used |
+| **Document Rationale** | Add comments explaining security decisions |
+| **Share Prompts** | Save successful patterns to your team's prompt library |
 
 ---
 
-## Measuring Success
+## Example: Complete A03 Injection Fix
 
-Track these metrics to optimize Copilot usage:
+<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
 
-- **Acceptance Rate**: % of Copilot suggestions accepted without modification
-- **Security Scan Pass Rate**: % of AI-generated code passing CodeQL/Snyk
-- **Time to Implementation**: Speed of feature delivery with security maintained
-- **Test Coverage**: % coverage on AI-generated code
-- **Prompt Reuse**: Frequency of OWASP prompt pack references
+| Step | Action | Details |
+|------|--------|---------|
+| **1. Reference** | #file:/docs/prompts/owasp/A03_injection | Load security requirements into context |
+| **2. Generate** | #file:/examples/owasp/A03_injection/insecure.ts | Refactor with parameterized queries, Zod validation |
+| **3. Test** | Generate Jest tests | SQL injection payloads, long inputs, invalid characters |
+| **4. Verify** | @workspace fitness function checks | Complexity < 10, coverage > 80% |
+
+</div>
 
 ---
 
 ## Further Reading
 
-### Security Prompts
-- [GitHub Copilot Documentation](https://docs.github.com/en/copilot)
-- [OWASP Prompt Packs](/prompts/owasp/)
-- [Golden Rules of Vibe Coding](/docs/governance/vibe-golden-rules)
-- [SDLC Framework](/docs/sdlc/)
-
-### Maintainability Prompts
-- [Fitness Functions Prompt Pack](/docs/prompts/maintainability/fitness-functions)
-- [Dependency Hygiene Prompt Pack](/docs/prompts/maintainability/dependency-hygiene)
-- [Strangler Fig Prompt Pack](/docs/prompts/maintainability/strangler-fig)
-- [Technical Debt Prompt Pack](/docs/prompts/maintainability/technical-debt)
-- [Evolutionary Architecture Guide](/docs/maintainability/evolutionary-architecture)
-
----
-
-**Next Steps**:
-1. Install GitHub Copilot extension in VS Code
-2. Review OWASP prompt packs in `/prompts/owasp/`
-3. Review Maintainability prompt packs in `/prompts/maintainability/`
-4. Try the [A03 Injection example](/examples/owasp/A03_injection/)
-5. Practice with `#file:` and `@workspace` patterns for hybrid security + maintainability prompts
-6. Share successful prompts with your team
+- [OWASP Prompt Packs](/docs/prompts/owasp/) — Security requirements for all categories
+- [Golden Rules](/docs/governance/vibe-golden-rules) — Governance principles
+- [Copilot Coding Agent Guide](/docs/agents/copilot-coding-agent) — Autonomous agent version

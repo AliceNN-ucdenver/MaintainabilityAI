@@ -89,6 +89,7 @@ export default function Layout() {
                 <li><Link to="/docs/" className="hover:text-white">Documentation</Link></li>
                 <li><Link to="/agenda" className="hover:text-white">Workshop</Link></li>
                 <li><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="hover:text-white">GitHub</a></li>
+                <li><Link to="/docs/impossible-things" className="hover:text-white">Impossible Things</Link></li>
                 <li><Link to="/docs/governance/vibe-golden-rules" className="hover:text-white">Golden Rules</Link></li>
               </ul>
             </div>
@@ -106,7 +107,7 @@ export default function Layout() {
           </div>
 
           <div className="border-t border-slate-800 pt-8 text-center text-slate-500 text-sm">
-            <p>© 2025 Maintainability.ai — Built with Tailwind + Vite. Licensed under MIT.</p>
+            <p>© 2026 Maintainability.ai — Built with Tailwind + Vite. Licensed under MIT.</p>
           </div>
         </div>
       </footer>

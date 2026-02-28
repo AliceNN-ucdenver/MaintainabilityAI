@@ -1,9 +1,9 @@
 # Cheshire: Governance Mesh Extension — Status & Roadmap
 
-**Version:** February 25, 2026
+**Version:** February 28, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
-> **All design documents complete.** Eight companion specs cover the full architecture — see [Design Documents](#design-documents) for status and links. This file is the master roadmap and completed work log.
+> **All design documents complete.** Ten companion specs cover the full architecture (The Grin MCP server has been subsumed into The Red Queen as a unified design) — see [Design Documents](#design-documents) for status and links. This file is the master roadmap and completed work log.
 
 ---
 
@@ -20,6 +20,7 @@
 | **Scorecard** | — | Repository health scorecard + "Create Feature" entry point | Complete |
 | **Governance Tree** | — | Sidebar tree view of governance artifacts | Complete |
 | **White Rabbit** | White Rabbit | Component scaffolding: ScaffoldPanel → Rabbit Hole with BAR context | Complete |
+| **The Red Queen** | The Red Queen | Unified governance intelligence and enforcement — MCP server (The Grin), NeMo Guardrails deterministic enforcement, agent orchestration, cross-repo semantic governance, agent-agnostic control plane for Claude Code Action + Copilot coding agent | Design Complete |
 
 ---
 
@@ -54,6 +55,7 @@
 | `AgentStatusService` | Agent activity tracking and status display |
 | `FolderStateService` | Cross-panel workspace folder persistence via `workspaceState` + EventEmitter |
 | `LlmService` | Multi-provider LLM abstraction (VS Code LM, Claude API, OpenAI) |
+| `RedQueenService` | Unified governance intelligence — MCP server (`calm://` resources + tools + prompts), NeMo Guardrails deterministic enforcement (CALM flows, controls, interfaces, threats), agent orchestration (policy evaluation, dynamic CLAUDE.md, permissions), cross-repo semantic governance, feedback loops (planned) |
 
 ### DSL & Data
 
@@ -77,6 +79,9 @@
 | [`governance-repo-to-calm.md`](governance-repo-to-calm.md) | **Complete** | Absolem "Scan Repo" command — scan a GitHub repo via gh CLI, propose incremental CALM patches |
 | [`governance-reuse.md`](governance-reuse.md) | **Complete (Phases 1-7 + 8.1-8.2)** | Codebase reuse & organization — deduplicate utilities, extract BasePanel, split types monolith, decompose lookingGlass.ts, service singletons, shared git utils, unified PromptPackService |
 | [`governance-prompt-packs.md`](governance-prompt-packs.md) | **Complete** | Unified PromptPackService — consolidate Rabbit Hole + Looking Glass prompt packs, issue body templates, override resolution, repo seeding |
+| [`governance-redqueen.md`](governance-redqueen.md) | **Design Complete** | The Red Queen — unified governance intelligence and enforcement. Subsumes The Grin (MCP server with 14 `calm://` resources, 13 tools, 4 prompts) + NeMo Guardrails (Colang 2.0 deterministic enforcement of CALM flows, controls, interfaces, threats) + agent orchestration (policy engine, permission tiers, cross-repo semantic governance, multi-agent review, feedback loops). Agent-agnostic control plane for Claude Code Action + Copilot coding agent |
+| ~~[`governance-grin.md`](governance-grin.md)~~ | **Subsumed** | Merged into governance-redqueen.md — The Grin is now the data layer of The Red Queen |
+| [`market-research.md`](market-research.md) | **Complete** | Competitive landscape analysis — 14 vendors, 3 converging markets, 7 novel strategic opportunities |
 
 ---
 
@@ -287,7 +292,7 @@
 - [x] CodeQL SARIF processor (`process-codeql-results.cjs`) — parses SARIF output, extracts security-severity from extension rules, maps to OWASP categories, creates GitHub issues for findings above threshold
 - [x] Prompt integrity verification (`validate-prompt-hashes.yml` + `generate-prompt-hashes.cjs`) — SHA-256 hash validation of prompt packs in CI
 - [ ] GitHub Actions workflow for governance scoring — run on PR/push, report scores as check status
-- [ ] Governance gate — block merges if governance score drops below threshold
+- [ ] Governance gate — block merges if governance score drops below threshold → see [The Red Queen](governance-redqueen.md) §8 GitHub Actions Integration
 - [ ] Webhook support — notify external systems (Slack, Teams) on governance changes
 - [ ] Automated BAR creation from CI — scaffold BAR when new service repo is created
 
@@ -664,24 +669,78 @@ Structural improvements to the extension codebase itself. Full analysis: [govern
 
 ---
 
+## Phase 6 — The Red Queen: Governance-Enforced Agent Intelligence ([governance-redqueen.md](governance-redqueen.md))
+
+Unified governance intelligence and enforcement system comprising three layers: The Grin (MCP data layer), NeMo Guardrails (deterministic enforcement), and Red Queen Policy Engine (orchestration). Agent-agnostic control plane governing both Claude Code Action and Copilot coding agent through MCP tools.
+
+### Layer 1: The Grin — MCP Data Layer
+
+- [ ] **14 Resources** (`calm://` URI scheme) — portfolio, platforms, BARs, architecture (CALM), scores, threats, ADRs, reviews, controls, flows, capabilities, prompts
+- [ ] **13 Tools** — `find_bars`, `get_bar_context`, `blast_radius`, `governance_gaps`, `architecture_query`, `compare_bars`, `score_snapshot`, `validate_calm`, `validate_action` (NeMo-backed), `get_constraints`, `validate_interface_contract` (NeMo-backed), `flow_impact`, `get_orchestration_decision`
+- [ ] **4 Prompt Templates** — architecture-review, remediation-plan, threat-assessment, adr-proposal
+- [ ] **Dual transport** — stdio (VS Code extension + CLI) and Streamable HTTP (CI/CD)
+- [ ] **VS Code integration** — `mcpServerDefinitionProviders` contribution point
+- [ ] **npm package** — `npx @maintainabilityai/redqueen-mcp` for standalone deployment
+- [ ] **File watcher** — real-time notifications on mesh changes, auto re-evaluation
+
+### Layer 2: NeMo Guardrails — Deterministic Enforcement
+
+- [ ] **NeMo sidecar** — Python-based `nemoguardrails server` alongside Node.js MCP server
+- [ ] **Dynamic Colang 2.0 config** — per-BAR guardrail configs generated from CALM architecture (`RailsConfig.from_content()` + `+` operator)
+- [ ] **Flow constraint rails** — enforce CALM flow transitions; deny undeclared connections
+- [ ] **Control adherence rails** — enforce CALM controls (NIST-mapped); block actions violating declared security requirements
+- [ ] **Interface contract rails** — enforce cross-repo interface semantics; validate changes respect downstream contracts
+- [ ] **Threat model rails** — enforce STRIDE mitigations; flag actions that introduce or worsen threats
+- [ ] **Permission tier rails** — enforce score-based access boundaries per governance tier
+- [ ] **Custom actions** — `@action` bridge from Colang 2.0 to CALM model queries (`validate_flow_constraint`, `validate_control_adherence`, `validate_interface_contract`, `check_threat_model`)
+
+### Layer 3: Red Queen Policy Engine — Orchestration
+
+- [ ] **Orchestration policy** — declarative rules in `mesh.yaml` mapping governance scores → agent behavior
+- [ ] **3 Permission tiers** — autonomous (80-100), supervised (50-79), restricted (0-49) with criticality multipliers
+- [ ] **Dynamic CLAUDE.md** — `governance-context.md` with architecture constraints, cross-repo links, controls, threats, ADRs
+- [ ] **Dynamic `.claude/settings.json`** — governance-scoped permissions
+- [ ] **Dynamic subagent definitions** — `.claude/agents/{security,architecture}-reviewer.md`
+- [ ] **Pillar-specific prompt injection** — inject OWASP/STRIDE based on weak pillar scores
+- [ ] **Multi-agent review board** — 3 consensus rules (unanimous, majority, any-flag-escalates)
+- [ ] **Feedback loop** — score delta tracking, guardrail action counts, agent memory
+- [ ] **Adaptive policy refinement** — data-driven suggestions from agent memory
+
+### Cross-Repo Semantic Governance
+
+- [ ] **Linked BAR discovery** — from `app.yaml` `linkedBars` + implicit CALM flow analysis
+- [ ] **Cross-repo flow resolution** — resolve CALM flows across multiple BARs, identify interface boundaries
+- [ ] **Interface contract enforcement** — `validate_interface_contract` tool validates changes respect downstream specs
+- [ ] **Cross-repo notifications** — create GitHub Issues in affected repos when interface contracts change
+- [ ] **Flow impact analysis** — `flow_impact` tool computes downstream BAR impact of changes
+
+### Agent-Agnostic Deployment
+
+- [ ] **Claude Code Action** — `.mcp.json` auto-detection, `CLAUDE.md` + `settings.json` + subagent definitions
+- [ ] **Copilot coding agent** — `copilot-setup-steps.yml` (environment setup), repo Settings UI (MCP config), `AGENTS.md` (shared governance instructions)
+- [ ] **Shared governance instructions** — `AGENTS.md` instructs both agents to call `validate_action` and `validate_interface_contract`
+- [ ] **Scaffold integration** — ScaffoldPanel generates `.mcp.json`, `AGENTS.md`, `copilot-setup-steps.yml` for new repos
+
+---
+
 ## Future Directions — Research-Backed (February 2026)
 
 Sourced from 2025-2026 industry research across architecture-as-code, AI agent evolution, supply chain security, platform engineering, and developer experience.
 
 ### Tier 1 — High ROI, Builds on Existing Capabilities
 
-- [ ] **Governance CI/CD Gates** — Extract `GovernanceScorer` to a standalone GitHub Action that runs pillar-level governance checks on every PR, blocking merges when scores drop below configured thresholds. Extends existing `alice-remediation` workflow pattern; failing governance checks auto-trigger remediation issues. Analogous to Terraform Sentinel/OPA but for architecture governance.
+- [x] **Governance CI/CD Gates** — ~~Extract `GovernanceScorer` to a standalone GitHub Action.~~ **Subsumed by The Red Queen** — see [governance-redqueen.md](governance-redqueen.md) §8 GitHub Actions Integration (Red Queen Action, governance gates, dynamic agent dispatch).
 - [ ] **Predictive Architecture Health** — Time-series regression on existing `GovernanceScoreSnapshot` data to forecast when a BAR will breach governance thresholds (e.g., "BAR X will fall below 75% in ~45 days at current trend"). Converts governance from reactive to proactive. Existing trend data (`GovernanceTrend`, `ScorecardSnapshot`) plus simple linear regression.
 - [ ] **Architecture Pattern Detection** — Graph algorithms on CALM topology to automatically detect patterns (event-driven, saga, CQRS, BFF) and anti-patterns (God service, circular dependencies, shared databases). Configurable rule engine with scoring per BAR. `CalmTransformer` already builds the node/relationship graph needed for traversal.
 - [ ] **Governance Leaderboard & Gamification** — Portfolio-level dashboards showing BAR scores as a leaderboard with achievement badges (first ADR, all pillars green, 5 consecutive passing reviews) and guided "governance quests" that turn gaps into actionable tasks. Existing `GovernanceScoreSnapshot` and `GovernanceTrend` are the data layer. Addresses the adoption problem that kills governance initiatives.
 
 ### Tier 2 — Significant Impact, Moderate Effort
 
-- [ ] **Blast Radius Analysis** — Analyze CALM `connects` relationships, shared capability mappings, and repo-level dependency graphs to compute change blast radius across the portfolio. Answers: "If Service A goes down, which business capabilities and BARs are affected?" Existing CALM topology, `CapabilityModelSummary.capabilityToBarMap`, and `ReviewFinding` severity data provide the foundation. Visualize on ReactFlow.
+- [x] **Blast Radius Analysis** — ~~Analyze CALM `connects` relationships to compute change blast radius.~~ **Subsumed by The Red Queen** — see [governance-redqueen.md](governance-redqueen.md) §3.2 Tool T3 `blast_radius` (graph traversal across CALM relationships, capabilities, and shared dependencies). Visualization on ReactFlow remains a separate future enhancement.
 - [ ] **SBOM + SLSA Supply Chain Integration** — Generate SBOMs from linked repos (via syft/cdxgen), compute transitive dependency risk scores, and track SLSA provenance levels as a governance dimension. SBOMs mandated by regulation (US CISA 2025, EU CRA). `ScorecardService.collectDependencyFreshness()` already checks deps; extend to SBOM completeness and SLSA level scoring. Alice remediation workflow auto-creates issues for findings.
 - [ ] **IaC-to-CALM Reverse Engineering** — Parse Terraform state files, CloudFormation templates, or Kubernetes manifests to auto-generate CALM architecture models. Solves the cold start problem: import existing infrastructure topology instead of manually modeling in CALM. Absolem's `image-to-calm` pipeline is the template; extend with IaC parsers.
-- [ ] **Multi-Agent Review Board** — Run Claude and Copilot independently on the same review scope, then synthesize findings via a third "arbiter" agent. Flag disagreements as high-confidence signals. `AgentAssignment` type already supports both agents; `IssueMonitorService` already polls comments. Extends Oraculum to parallel dispatch.
-- [ ] **Agent Memory Across Reviews** — Persist learnings from each Oraculum review (accepted vs. rejected findings, false positive patterns, implemented recommendations) to build BAR-specific and portfolio-level agent memory that improves future review quality. `ReviewRecord[]` and `LinkedPullRequest` state already track outcomes.
+- [x] **Multi-Agent Review Board** — ~~Run Claude and Copilot independently on the same review scope, then synthesize findings via a third "arbiter" agent.~~ **Subsumed by The Red Queen** — see [governance-redqueen.md](governance-redqueen.md) §5 Multi-Agent Review Board (consensus rules, weighted voting, disagreement escalation).
+- [x] **Agent Memory Across Reviews** — ~~Persist learnings from each Oraculum review.~~ **Subsumed by The Red Queen** — see [governance-redqueen.md](governance-redqueen.md) §6 Feedback Loops & Agent Memory (BAR-level + portfolio-level memory, false positive suppression, adaptive thresholds).
 
 ### Tier 3 — Game-Changers, Larger Investment
 

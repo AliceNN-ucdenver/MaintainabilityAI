@@ -5,7 +5,7 @@
     <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
     <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Complete Framework Documentation</h2>
     <div style="font-size: 16px; color: #ffffff; margin-top: 12px; max-width: 800px; margin-left: auto; margin-right: auto;">
-      Security-first, maintainable AI-assisted software development. From OWASP prompt packs to evolutionary architecture patterns.
+      Security-first AI-assisted engineering. From OWASP prompt packs and threat modeling to governance tooling and evolutionary architecture.
     </div>
   </div>
 </div>
@@ -42,6 +42,7 @@
     <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #f1f5f9; font-weight: 700;">Using AI Agents?</h3>
     <p style="color: #cbd5e1; font-size: 14px; margin: 0; line-height: 1.6;">Read AI Agent Guides to choose the right tool (Claude, Copilot, ChatGPT)</p>
   </a>
+
 </div>
 
 ---
@@ -100,8 +101,8 @@
     <div style="color: #ffffff; font-size: 13px; line-height: 1.8;">
       ✓ 6 STRIDE categories covered<br/>
       ✓ Auto-maps threats to OWASP<br/>
-      ✓ 93% threats found pre-code<br/>
-      ✓ Saves 4hrs per feature
+      ✓ Early threat detection before code is written<br/>
+      ✓ Integrates with OWASP controls
     </div>
   </div>
   <a href="./prompts/threat-modeling/" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.3); transition: background 0.2s;">
@@ -216,7 +217,7 @@
 
 <div style="background: rgba(79, 70, 229, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 20px; margin: 24px 0;">
   <div style="color: #a5b4fc; font-size: 14px; margin-bottom: 12px;">
-    Hands-on training for teams learning security-first AI development. 4-part series designed for junior → senior developers.
+    Hands-on training for teams learning security-first AI development. 4-part series with 4 more in development, designed for junior → senior developers.
   </div>
 </div>
 
@@ -309,9 +310,12 @@ Platform-specific guidance for security-first development with different AI tool
   <div style="font-size: 40px; margin-bottom: 16px;">🚀</div>
   <h2 style="margin: 0 0 12px 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Ready to Get Started?</h2>
   <p style="color: #d1fae5; font-size: 16px; margin: 0 0 24px 0; max-width: 600px; margin-left: auto; margin-right: auto;">
-    Get hands-on with the workshop or contact us to bring this training to your team
+    Read the vision, get hands-on with the workshop, or contact us to bring this training to your team
   </p>
   <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+    <a href="./impossible-things" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
+      🎩 Impossible Things →
+    </a>
     <a href="./workshop/part1-spectrum" style="display: inline-block; background: rgba(255, 255, 255, 0.2); color: #f1f5f9; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; border: 2px solid rgba(255, 255, 255, 0.3);">
       Begin Workshop →
     </a>
