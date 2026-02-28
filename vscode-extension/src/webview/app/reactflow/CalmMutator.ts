@@ -357,7 +357,7 @@ export function updateComposedOf(
   containerId: string,
   nodeIds: string[],
 ): MutationResult {
-  let updatedRelationships = [...calm.relationships];
+  const updatedRelationships = [...calm.relationships];
 
   const existingIdx = updatedRelationships.findIndex(r =>
     r['relationship-type']['composed-of']?.container === containerId

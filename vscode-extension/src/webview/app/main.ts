@@ -56,25 +56,6 @@ const state = {
 const contentEl = document.getElementById('phaseContent')!;
 const repoInfoEl = document.getElementById('repo-info')!;
 
-// Inline Cheshire Cat SVG for completion/banner screens (48px)
-const CHESHIRE_SVG = `<svg width="48" height="48" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="128" height="128" rx="16" fill="#1e1e2e"/>
-  <ellipse cx="42" cy="38" rx="9" ry="11" fill="#a855f7"/>
-  <ellipse cx="86" cy="38" rx="9" ry="11" fill="#a855f7"/>
-  <ellipse cx="44" cy="38" rx="4" ry="6" fill="#1e1e2e"/>
-  <ellipse cx="88" cy="38" rx="4" ry="6" fill="#1e1e2e"/>
-  <circle cx="46" cy="35" r="2" fill="#e9d5ff"/>
-  <circle cx="90" cy="35" r="2" fill="#e9d5ff"/>
-  <path d="M18 62 Q30 52 64 52 Q98 52 110 62" stroke="#a855f7" stroke-width="4" fill="none" stroke-linecap="round"/>
-  <path d="M18 62 Q30 88 64 88 Q98 88 110 62" stroke="#a855f7" stroke-width="4" fill="none" stroke-linecap="round"/>
-  <line x1="40" y1="58" x2="40" y2="76" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="52" y1="55" x2="52" y2="80" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="64" y1="54" x2="64" y2="82" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="76" y1="55" x2="76" y2="80" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
-  <line x1="88" y1="58" x2="88" y2="76" stroke="#a855f7" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M104 96 L114 100 L114 110 Q114 116 104 120 Q94 116 94 110 L94 100 Z" fill="#a855f7" opacity="0.8"/>
-  <path d="M100 106 L103 109 L109 103" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
 
 // ============================================================================
 // Phase Navigation
@@ -978,15 +959,12 @@ function hideError() {
   if (el) { el.textContent = ''; }
 }
 
-function formatKey(key: string): string {
-  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-}
-
 // ============================================================================
 // Message Handling (from extension)
 // ============================================================================
 
 window.addEventListener('message', (event) => {
+  if (event.origin !== window.origin) { return; }
   const message = event.data;
 
   switch (message.type) {
@@ -1038,13 +1016,14 @@ window.addEventListener('message', (event) => {
         if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = 'Sync Repo'; } }
       break;
 
-    case 'loading':
+    case 'loading': {
       state.isLoading = message.active;
       const loadingEl = document.getElementById('loading');
       if (loadingEl) {
         loadingEl.classList.toggle('active', message.active);
       }
       break;
+    }
 
     case 'promptPacks':
       state.allPacks = message.packs;
@@ -1080,12 +1059,13 @@ window.addEventListener('message', (event) => {
       if (state.viewMode === 'hub') { renderIssueListHub(); }
       break;
 
-    case 'templateLoaded':
+    case 'templateLoaded': {
       // Set description and packs in the input phase
       const descEl = document.getElementById('description') as HTMLTextAreaElement | null;
       if (descEl) { descEl.value = message.description; }
       setSelectedPacks(message.packs);
       break;
+    }
 
     case 'prefillDescription': {
       // Switch to create mode and render the input phase so the textarea exists
@@ -1134,11 +1114,12 @@ window.addEventListener('message', (event) => {
       });
       break;
 
-    case 'workflowNotFound':
+    case 'workflowNotFound': {
       state.workflowWarning = true;
       const warningEl = document.getElementById('workflow-warning');
       if (warningEl) { warningEl.style.display = 'block'; }
       break;
+    }
 
     case 'commentsUpdated':
       state.comments = message.comments;

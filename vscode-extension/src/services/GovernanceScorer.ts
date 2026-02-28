@@ -90,8 +90,9 @@ function isSubstantive(filePath: string): boolean {
         return isSubstantive(entryPath);
       });
     }
-    if (stat.size === 0) { return false; }
+    // Read content directly — skip stat.size pre-check to avoid TOCTOU
     const content = fs.readFileSync(filePath, 'utf8').trim();
+    if (content.length === 0) { return false; }
     // Strip YAML/Markdown comments and whitespace — if nothing remains, it's just template
     const stripped = content
       .split('\n')

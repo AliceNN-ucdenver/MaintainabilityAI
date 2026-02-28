@@ -140,7 +140,7 @@ export async function computeElkLayout(
     // Extract positions from ELK result
     const elkPositions = new Map<string, { x: number; y: number; width: number; height: number }>();
 
-    function extractPositions(elkNode: Record<string, unknown>, offsetX = 0, offsetY = 0) {
+    const extractPositions = (elkNode: Record<string, unknown>, offsetX = 0, offsetY = 0) => {
       const id = elkNode.id as string;
       const x = (elkNode.x as number || 0) + offsetX;
       const y = (elkNode.y as number || 0) + offsetY;

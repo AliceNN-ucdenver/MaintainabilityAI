@@ -678,14 +678,15 @@ export class GitHubService {
     try {
       const allOrgs: string[] = [];
       let page = 1;
-      while (true) {
+      let hasMore = true;
+      while (hasMore) {
         const { data: orgList } = await orgClient.rest.orgs.listForAuthenticatedUser({
           per_page: 100,
           page,
         });
         if (orgList.length === 0) { break; }
         allOrgs.push(...orgList.map(o => o.login));
-        if (orgList.length < 100) { break; }
+        hasMore = orgList.length >= 100;
         page++;
       }
       orgs = allOrgs;
@@ -702,8 +703,9 @@ export class GitHubService {
     const client = await this.getClient();
     const repos: OrgRepo[] = [];
     let page = 1;
+    let hasMore = true;
 
-    while (true) {
+    while (hasMore) {
       try {
         // Try org endpoint first, fall back to user repos
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -749,7 +751,7 @@ export class GitHubService {
           });
         }
 
-        if (data.length < 100) { break; }
+        hasMore = data.length >= 100;
         page++;
       } catch {
         break;

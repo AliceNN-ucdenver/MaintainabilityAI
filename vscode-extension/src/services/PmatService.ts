@@ -71,7 +71,7 @@ export class PmatService {
     'set PMAT_TMP=%TEMP%\\pmat-build',
     'git clone https://github.com/paiml/paiml-mcp-agent-toolkit "%PMAT_TMP%"',
     // Bump aprender to a working crates.io version
-    'powershell -Command "(Get-Content %PMAT_TMP%\\Cargo.toml) -replace \'^aprender = .*\', \'aprender = \\\"0.25.9\\\"\' | Set-Content %PMAT_TMP%\\Cargo.toml"',
+    'powershell -Command "(Get-Content %PMAT_TMP%\\Cargo.toml) -replace \'^aprender = .*\', \'aprender = \\"0.25.9\\"\' | Set-Content %PMAT_TMP%\\Cargo.toml"',
     'set CARGO_TARGET_DIR=%PMAT_TMP%\\cargo-target',
     'cargo install --path "%PMAT_TMP%"',
     'rmdir /s /q "%PMAT_TMP%"',

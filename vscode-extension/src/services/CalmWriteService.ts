@@ -24,17 +24,18 @@ export function applyPatch(filePath: string, patches: CalmPatch[]): string | nul
   // For replaceFull, create the file if it doesn't exist or has invalid JSON
   const isReplaceFull = patches.length === 1 && patches[0].op === 'replaceFull';
 
-  if (!fs.existsSync(filePath)) {
+  let original: string;
+  try {
+    original = fs.readFileSync(filePath, 'utf-8');
+  } catch {
     if (isReplaceFull) {
-      // Create parent directory if needed
-      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-      if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+      // File doesn't exist — create parent directory if needed
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      original = '';
     } else {
       return null;
     }
   }
-
-  const original = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(original);
@@ -258,8 +259,11 @@ export function hashFile(filePath: string): string | null {
 // Helpers
 // ============================================================================
 
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 function setNestedField(obj: Record<string, unknown>, fieldPath: string, value: unknown): void {
   const parts = fieldPath.split('.');
+  if (parts.some(k => UNSAFE_KEYS.has(k))) { return; }
 
   if (parts.length === 1) {
     obj[parts[0]] = value;

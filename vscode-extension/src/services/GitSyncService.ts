@@ -55,11 +55,11 @@ export class GitSyncService {
     if (fs.existsSync(path.join(meshPath, '.git'))) { return true; }
     // Walk up to find a parent .git
     let dir = meshPath;
-    while (true) {
-      const parent = path.dirname(dir);
-      if (parent === dir) { break; } // reached filesystem root
+    let parent = path.dirname(dir);
+    while (parent !== dir) {
       if (fs.existsSync(path.join(parent, '.git'))) { return true; }
       dir = parent;
+      parent = path.dirname(dir);
     }
     return false;
   }
@@ -68,13 +68,13 @@ export class GitSyncService {
    * Find the git repository root for a given path.
    */
   findGitRoot(meshPath: string): string | null {
-    let dir = meshPath;
-    while (true) {
+    let dir: string | null = meshPath;
+    while (dir !== null) {
       if (fs.existsSync(path.join(dir, '.git'))) { return dir; }
       const parent = path.dirname(dir);
-      if (parent === dir) { return null; }
-      dir = parent;
+      dir = parent === dir ? null : parent;
     }
+    return null;
   }
 
   /**
@@ -300,7 +300,7 @@ export class GitSyncService {
       relPath: path.relative(gitRoot, bar.path),
     }));
 
-    for (const [filePath, status] of Object.entries(dirtyFiles)) {
+    for (const [filePath] of Object.entries(dirtyFiles)) {
       // Find which BAR this file belongs to
       for (const { bar, relPath } of barRelPaths) {
         // Check if the dirty file is inside the BAR directory

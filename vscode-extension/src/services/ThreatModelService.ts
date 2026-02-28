@@ -9,6 +9,11 @@ import * as path from 'path';
 import type { ThreatEntry, ThreatModelResult } from '../types';
 import { transformThreatsToMermaid } from './CalmTransformer';
 
+/** Escape a string for safe inclusion in double-quoted YAML values. */
+function yamlEscape(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+}
+
 // ============================================================================
 // Input Gathering
 // ============================================================================
@@ -631,18 +636,18 @@ export class ThreatModelService {
       lines.push(`    target: "${t.target}"`);
       lines.push(`    target_name: "${t.targetName}"`);
       lines.push(`    data_classification: "${t.dataClassification}"`);
-      lines.push(`    description: "${t.description.replace(/"/g, '\\"')}"`);
-      lines.push(`    attack_vector: "${t.attackVector.replace(/"/g, '\\"')}"`);
+      lines.push(`    description: "${yamlEscape(t.description)}"`);
+      lines.push(`    attack_vector: "${yamlEscape(t.attackVector)}"`);
       lines.push(`    impact: ${t.impact}`);
       lines.push(`    likelihood: ${t.likelihood}`);
-      lines.push(`    existing_controls: [${t.existingControls.map(c => `"${c}"`).join(', ')}]`);
+      lines.push(`    existing_controls: [${t.existingControls.map(c => `"${yamlEscape(c)}"`).join(', ')}]`);
       lines.push(`    control_effectiveness: ${t.controlEffectiveness}`);
       lines.push(`    residual_risk: ${t.residualRisk}`);
       lines.push(`    recommended_mitigations:`);
       for (const m of t.recommendedMitigations) {
-        lines.push(`      - "${m.replace(/"/g, '\\"')}"`);
+        lines.push(`      - "${yamlEscape(m)}"`);
       }
-      lines.push(`    nist_references: [${t.nistReferences.map(r => `"${r}"`).join(', ')}]`);
+      lines.push(`    nist_references: [${t.nistReferences.map(r => `"${yamlEscape(r)}"`).join(', ')}]`);
       lines.push('');
     }
 

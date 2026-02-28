@@ -31,6 +31,7 @@ import {
   generatePlatformYaml,
   generatePlatformDecisionsYaml,
 } from '../templates/mesh';
+import { generateOraculumWorkflow } from '../templates/codeRepoTemplates';
 
 export class MeshService {
   private barService: BarService;
@@ -114,8 +115,12 @@ export class MeshService {
 
   saveDriftWeights(meshPath: string, weights: DriftWeights): void {
     const meshYaml = path.join(meshPath, 'mesh.yaml');
-    if (!fs.existsSync(meshYaml)) { return; }
-    let content = fs.readFileSync(meshYaml, 'utf8');
+    let content: string;
+    try {
+      content = fs.readFileSync(meshYaml, 'utf8');
+    } catch {
+      return;
+    }
     const block = `drift_weights:\n    critical: ${weights.critical}\n    high: ${weights.high}\n    medium: ${weights.medium}\n    low: ${weights.low}`;
 
     // Replace existing drift_weights block or append after scoring section
@@ -249,12 +254,10 @@ export class MeshService {
       }
     }
 
-    // Write .gitkeep files for empty dirs
+    // Write .gitkeep files for empty dirs (exclusive create — no overwrite)
     for (const dir of ['platforms', 'reports']) {
       const gitkeep = path.join(targetPath, dir, '.gitkeep');
-      if (!fs.existsSync(gitkeep)) {
-        fs.writeFileSync(gitkeep, '', 'utf8');
-      }
+      try { fs.writeFileSync(gitkeep, '', { encoding: 'utf8', flag: 'wx' }); } catch { /* already exists */ }
     }
 
     // Write mesh.yaml
@@ -510,8 +513,6 @@ export class MeshService {
    * Prompt packs are now seeded separately via promptPackService.seedMeshPrompts().
    */
   writeOraculumWorkflow(meshPath: string, extensionPath: string): void {
-    const { generateOraculumWorkflow } = require('../templates/codeRepoTemplates');
-
     const workflowDir = path.join(meshPath, '.github', 'workflows');
     fs.mkdirSync(workflowDir, { recursive: true });
     const workflowContent = generateOraculumWorkflow(extensionPath);

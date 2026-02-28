@@ -738,14 +738,14 @@ function showPrBanner(pr: LinkedPullRequest) {
 
   const draftLabel = pr.draft ? ' (Draft)' : '';
   const stateLabel = pr.state === 'merged' ? 'Merged' : pr.state === 'closed' ? 'Closed' : pr.draft ? 'Draft' : 'Open';
-  const checksLabel = pr.checksStatus === 'unknown' ? 'No checks' : pr.checksStatus;
+  const checksLabel = pr.checksStatus === 'unknown' ? 'No checks' : escapeHtml(pr.checksStatus);
   const completeBtn = pr.draft
     ? `<button id="btn-complete-review" class="btn-primary btn-sm">View Results</button>`
     : '';
 
   area.innerHTML = `
     <div class="pr-banner${pr.draft ? ' pr-banner-draft' : ''}">
-      <h4>Pull Request #${pr.number}${draftLabel}: ${escapeHtml(pr.title)}</h4>
+      <h4>Pull Request #${escapeHtml(String(pr.number))}${draftLabel}: ${escapeHtml(pr.title)}</h4>
       <div class="pr-meta">
         <span class="checks-dot checks-${pr.checksStatus}"></span>
         ${checksLabel} | ${stateLabel} | Branch: <code>${escapeHtml(pr.branch)}</code>
@@ -970,6 +970,7 @@ function selectIssueFromHub(issueNumber: number, issueUrl: string) {
 // ============================================================================
 
 window.addEventListener('message', (event) => {
+  if (event.origin !== window.origin) { return; }
   const msg = event.data;
 
   switch (msg.type) {
@@ -1160,12 +1161,14 @@ function renderMarkdown(text: string): string {
   // Images (before links to avoid conflict)
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%;" />');
 
-  // HTML img tags (already escaped, unescape them)
+  // HTML img tags (already escaped, unescape them — only allow safe src from GitHub domains)
   html = html.replace(/&lt;img\s+(.*?)\/?\s*&gt;/gi, (_m, attrs) => {
     const clean = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
     const srcMatch = clean.match(/src\s*=\s*"(https:\/\/(?:github\.com|[^"]*\.githubusercontent\.com)[^"]*)"/i);
     if (!srcMatch) { return ''; }
-    return `<img ${clean} style="max-width: 100%;" />`;
+    const altMatch = clean.match(/alt\s*=\s*"([^"]*)"/i);
+    const safeAlt = altMatch ? escapeAttr(altMatch[1]) : '';
+    return `<img src="${escapeAttr(srcMatch[1])}" alt="${safeAlt}" style="max-width: 100%;" />`;
   });
 
   // Links
@@ -1208,7 +1211,12 @@ function renderMarkdown(text: string): string {
     if (rows.length < 2) { return tableBlock; }
 
     // Check if row 2 is a separator (|---|---|...)
-    const isSeparator = (row: string) => /^\|[\s:-]+\|/.test(row.replace(/<[^>]+>/g, ''));
+    const isSeparator = (row: string) => {
+      let stripped = row;
+      let prev = '';
+      while (stripped !== prev) { prev = stripped; stripped = stripped.replace(/<[^>]+>/g, ''); }
+      return /^\|[\s:-]+\|/.test(stripped);
+    };
     const hasSeparator = isSeparator(rows[1]);
 
     let tableHtml = '<table>';

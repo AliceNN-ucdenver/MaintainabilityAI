@@ -117,8 +117,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
       setEdges(addBidirectionalMarkers(routedEdges, v));
       setLayoutReady(true);
     });
-  }, [calmData, diagramType]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [calmData, diagramType]);
   // Fit view on first layout — delay to let ReactFlow measure nodes
   useEffect(() => {
     if (layoutReady && reactFlowInstance) {
@@ -132,8 +131,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
         return () => { clearTimeout(t1); clearTimeout(t2); };
       }
     }
-  }, [layoutReady]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [layoutReady]);
   // Debounced save
   const saveLayout = useCallback((updatedNodes: Node[]) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

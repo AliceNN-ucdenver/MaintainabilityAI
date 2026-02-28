@@ -246,8 +246,6 @@ export function renderAgentStatus(status: AgentStatusInfo | null): string {
   }
 
   // Inline CSS variables for phase color
-  const style = `--agent-status-color: ${config.color}; --agent-status-bg: ${config.bgColor}; --agent-status-pulse-shadow: ${config.color.replace(')', ', 0.4)').replace('rgb', 'rgba').replace('#', '')}`;
-  // Simpler: use hex with alpha for shadow
   const shadowColor = config.color + '66'; // ~40% alpha
 
   return `

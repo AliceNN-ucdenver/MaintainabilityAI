@@ -18,14 +18,12 @@ import { getInfoRiskStyles } from '../pillars/infoRiskPillar';
 import {
   renderDriftIndicator, attachDriftListeners, trendArrow,
   renderGovernanceHistoryIndicator,
-  type GovernanceHistoryState,
 } from './portfolio';
 import type { AgentStatusInfo } from '../agentStatus';
-import type { DiagramLayout } from '../reactflow/LayoutTypes';
 import type {
   VsCodeApi, BarSummary, PillarArtifact, GovernancePillarScore,
   GovernanceDecision, GovernanceTrend, GovernanceScoreSnapshot,
-  GitSyncStatus, Criticality, ThreatModelResult,
+  GitSyncStatus, ThreatModelResult,
 } from '../types';
 
 // ============================================================================

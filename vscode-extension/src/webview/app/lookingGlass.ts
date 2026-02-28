@@ -4,13 +4,12 @@
 import mermaid from 'mermaid';
 import { renderAgentStatus, attachAgentStatusListeners } from './agentStatus';
 import type { AgentStatusInfo } from './agentStatus';
-import type { AdrRecord, AbsolemState, CalmDataPayload } from './pillars/architecturePillar';
+import type { AdrRecord, CalmDataPayload } from './pillars/architecturePillar';
 import { renderMarkdown, escapeHtml, escapeAttr } from './pillars/shared';
 import { deployStatusBadge } from './components/html';
 import { mountDiagramCanvas, unmountDiagramCanvas, updateDiagramCanvasProps, isDiagramCanvasMounted } from './reactflow/ReactBridge';
 import type { CalmArchitecture } from './reactflow/CalmAdapter';
 import type { CalmPatch } from './reactflow/CalmMutator';
-import type { DiagramLayout } from './reactflow/LayoutTypes';
 import { renderPoliciesLensContent, renderNistPopup, attachPolicyEvents, getPolicyStyles } from './views/policies';
 import { renderEaLensTabs, renderBusinessCapabilityView, attachEaLensEvents, getEaLensStyles } from './views/eaLenses';
 import {
@@ -23,14 +22,13 @@ import {
   getBarDetailStyles, attachBarDetailEvents,
 } from './views/barDetail';
 import type {
-  VsCodeApi, Criticality, LifecycleStage, PillarStatus, RationalizationStrategy,
-  PortfolioConfig, PillarArtifact, GovernanceScoreSnapshot, GovernanceTrend,
-  GovernancePillarScore, GovernanceDecision, PillarFindingCounts, ReviewRecord,
-  ActiveReviewInfo, BarSummary, PlatformSummary, PortfolioSummary,
-  ThreatEntry, ThreatModelResult, CapabilityModelType, EaLens, CapabilityNode,
-  CapabilityModelSummary, PolicyFile, NistControl, GitFileStatus, PillarGitStatus,
-  BarGitStatus, GitSyncStatus, OrgRepo, RecommendedBar, RecommendedPlatform,
-  OrgScanRecommendation, ExistingBarUpdate,
+  VsCodeApi, Criticality, GovernanceScoreSnapshot, GovernanceTrend,
+  GovernanceDecision,
+  ActiveReviewInfo, BarSummary, PortfolioSummary,
+  ThreatModelResult, CapabilityModelType, EaLens,
+  CapabilityModelSummary, PolicyFile, NistControl,
+  GitSyncStatus, OrgRepo,
+  OrgScanRecommendation,
 } from './types';
 
 mermaid.initialize({
@@ -1941,9 +1939,6 @@ function renderOrgScanner(): string {
     const stepIcon = (s: string) =>
       s === 'done' ? '&#10003;' : s === 'error' ? '&#10007;' : '&#9679;';
 
-    const stepMessage = (s: string, range: [number, number]) =>
-      s === 'active' ? escapeHtml(step) : '';
-
     return `
       <div class="lg-header">
         <div class="lg-header-left">
@@ -2862,6 +2857,7 @@ function attachEventHandlers() {
 // ============================================================================
 
 window.addEventListener('message', (event) => {
+  if (event.origin !== window.origin) { return; }
   const message = event.data;
 
   switch (message.type) {

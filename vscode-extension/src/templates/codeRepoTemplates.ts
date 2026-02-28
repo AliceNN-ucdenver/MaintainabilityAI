@@ -152,7 +152,7 @@ export function generateCopilotSetupSteps(stack: TechStack, extensionPath: strin
 
   // getStackCommands() returns setup strings with 6-space indent (for nested workflow YAML).
   // copilot-setup-steps.yml uses 2-space indent under `steps:`, so strip the extra 4 spaces.
-  const setup = cmds.setup.replace(/^      /gm, '  ');
+  const setup = cmds.setup.replace(/^ {6}/gm, '  ');
   yml = yml.replace(/\{\{SETUP_STEPS\}\}/g, setup);
   yml = yml.replace(/\{\{INSTALL_CMD\}\}/g, cmds.install);
 

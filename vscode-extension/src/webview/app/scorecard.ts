@@ -1,9 +1,9 @@
 // Scorecard webview frontend — renders Security Scorecard dashboard
 import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
 import type { AgentStatusInfo } from './agentStatus';
-import { escapeHtml, escapeAttr, formatTimestamp } from './pillars/shared';
+import { escapeHtml, formatTimestamp } from './pillars/shared';
 import { deployStatusBadge } from './components/html';
-import type { VsCodeApi, MetricStatus, HealthGrade, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection } from './types';
+import type { VsCodeApi, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection } from './types';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 
@@ -708,6 +708,7 @@ function trendIndicator(direction: TrendDirection): string {
 // ============================================================================
 
 window.addEventListener('message', (event) => {
+  if (event.origin !== window.origin) { return; }
   const message = event.data;
 
   switch (message.type) {
