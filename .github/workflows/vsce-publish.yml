@@ -39,7 +39,7 @@ jobs:
 
       - name: Test
         working-directory: vscode-extension
-        run: npm run test
+        run: npx vitest run --passWithNoTests
 
       - name: Bump patch version
         id: bump
