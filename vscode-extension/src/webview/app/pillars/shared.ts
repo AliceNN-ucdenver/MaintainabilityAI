@@ -82,7 +82,12 @@ export function renderMarkdown(text: string): string {
   html = html.replace(/((?:^\|.+\|$\n?)+)/gm, (tableBlock) => {
     const rows = tableBlock.trim().split('\n').filter(r => r.trim());
     if (rows.length < 2) { return tableBlock; }
-    const isSeparator = (row: string) => /^\|[\s:-]+\|/.test(row.replace(/<[^>]+>/g, ''));
+    const isSeparator = (row: string) => {
+      let stripped = row;
+      let prev = '';
+      while (stripped !== prev) { prev = stripped; stripped = stripped.replace(/<[^>]+>/g, ''); }
+      return /^\|[\s:-]+\|/.test(stripped);
+    };
     const hasSeparator = isSeparator(rows[1]);
     let tableHtml = '<table>';
     for (let i = 0; i < rows.length; i++) {

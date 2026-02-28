@@ -216,7 +216,7 @@ export function applyPatch(filePath: string, patches: CalmPatch[]): string | nul
             const archDir = path.dirname(filePath);
             for (const layoutFile of ['context.layout.json', 'logical.layout.json']) {
               const lp = path.join(archDir, layoutFile);
-              if (fs.existsSync(lp)) { try { fs.unlinkSync(lp); } catch { /* best effort */ } }
+              try { fs.unlinkSync(lp); } catch { /* file may not exist — best effort */ }
             }
             return computeHash(fullContent);
           }

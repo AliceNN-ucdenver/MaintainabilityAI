@@ -416,14 +416,14 @@ export class MeshService {
         if (result) {
           // Update app.yaml with repo URLs
           const appYamlPath = path.join(result.path, 'app.yaml');
-          if (fs.existsSync(appYamlPath)) {
+          try {
             let content = fs.readFileSync(appYamlPath, 'utf8');
             if (content.includes('repos: []') && repoUrls.length > 0) {
               const reposList = repoUrls.map(u => `    - "${u}"`).join('\n');
               content = content.replace('repos: []', `repos:\n${reposList}`);
               fs.writeFileSync(appYamlPath, content, 'utf8');
             }
-          }
+          } catch { /* app.yaml does not exist yet — skip */ }
 
           barCount++;
         }
@@ -733,9 +733,9 @@ export class MeshService {
   /** Remove a platform entry from mesh.yaml by its ID (e.g., PLT-INS). */
   private unregisterPlatformFromMesh(meshPath: string, platformId: string): void {
     const meshYaml = path.join(meshPath, 'mesh.yaml');
-    if (!fs.existsSync(meshYaml)) { return; }
-
-    const lines = fs.readFileSync(meshYaml, 'utf8').split('\n');
+    let rawContent: string;
+    try { rawContent = fs.readFileSync(meshYaml, 'utf8'); } catch { return; }
+    const lines = rawContent.split('\n');
     const result: string[] = [];
     let i = 0;
 

@@ -347,10 +347,12 @@ function renderNistControlsTable(s: PolicyRenderState): string {
   }
 
   // Group by family
-  const families: Record<string, NistControl[]> = {};
+  const families: Record<string, NistControl[]> = Object.create(null);
   for (const c of filtered) {
-    if (!families[c.family]) { families[c.family] = []; }
-    families[c.family].push(c);
+    const key = c.family;
+    if (typeof key !== 'string' || key === '__proto__' || key === 'constructor' || key === 'prototype') { continue; }
+    if (!families[key]) { families[key] = []; }
+    families[key].push(c);
   }
 
   const searchInput = `

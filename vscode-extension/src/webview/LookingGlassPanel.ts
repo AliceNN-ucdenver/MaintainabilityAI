@@ -1094,9 +1094,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       const result = generateArchetype(archetypeId as ArchetypeId, appName, appId);
 
       // Write file
-      if (!fs.existsSync(archDir)) {
-        fs.mkdirSync(archDir, { recursive: true });
-      }
+      fs.mkdirSync(archDir, { recursive: true });
       fs.writeFileSync(archFile, result, 'utf-8');
 
       // Refresh the BAR detail view
@@ -1905,13 +1903,13 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     // Create a .code-workspace file so VS Code remembers this as a named workspace
     const wsFileName = safeFolderName.replace(/\s+/g, '-').toLowerCase();
     const wsFilePath = path.join(targetFolder, `${wsFileName}.code-workspace`);
-    if (!fs.existsSync(wsFilePath)) {
+    try {
       const wsConfig = {
         folders: [{ path: '.' }],
         settings: {},
       };
-      fs.writeFileSync(wsFilePath, JSON.stringify(wsConfig, null, 2), 'utf-8');
-    }
+      fs.writeFileSync(wsFilePath, JSON.stringify(wsConfig, null, 2), { encoding: 'utf-8', flag: 'wx' });
+    } catch { /* file already exists — keep existing workspace config */ }
 
     // Check if we're already in the target workspace (e.g. implementing a second component).
     // If so, open ScaffoldPanel directly — calling vscode.openFolder on the same workspace
@@ -2379,8 +2377,8 @@ Policy file: ${filename}
 
   private updateMeshYamlField(meshPath: string, field: string, value: string): void {
     const meshYaml = path.join(meshPath, 'mesh.yaml');
-    if (!fs.existsSync(meshYaml)) { return; }
-    let content = fs.readFileSync(meshYaml, 'utf8');
+    let content: string;
+    try { content = fs.readFileSync(meshYaml, 'utf8'); } catch { return; }
     const regex = new RegExp(`${field}:\\s*\\S+`);
     if (regex.test(content)) {
       content = content.replace(regex, `${field}: ${value}`);
