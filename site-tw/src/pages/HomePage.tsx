@@ -74,7 +74,7 @@ export default function HomePage() {
             <div className="text-4xl mb-4">🤖</div>
             <h3 className="font-bold text-2xl mb-3">Agentic Workflows</h3>
             <p className="text-slate-300 leading-relaxed">
-              Claude Code, Copilot, and ChatGPT patterns with <strong className="text-white">architecture-aware guardrails</strong>. Agents that understand your governance model.
+              Claude Code and Copilot patterns with <strong className="text-white">architecture-aware guardrails</strong>. In-editor and agentic workflows that understand your governance model.
             </p>
           </div>
 
@@ -127,7 +127,7 @@ export default function HomePage() {
               <h3 className="font-bold text-xl mb-2">Prompt Exchange Kit</h3>
               <p className="text-slate-400 text-sm mb-3">STRIDE + OWASP + Maintainability packs</p>
               <p className="text-slate-300">
-                Production-ready prompt templates for STRIDE threat modeling, OWASP Top 10, and Evolutionary Architecture patterns. Copy-paste ready for Claude Code, Copilot, and ChatGPT.
+                Production-ready prompt templates for STRIDE threat modeling, OWASP Top 10, and Evolutionary Architecture patterns. Optimized for Claude Code and GitHub Copilot.
               </p>
             </div>
 
@@ -162,9 +162,10 @@ export default function HomePage() {
       <section className="max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Framework in Action</h2>
         <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
-          Everything we teach is battle-tested, production-ready, and open source
+          Battle-tested, production-ready, and open source — covering the full AI-assisted development spectrum
         </p>
 
+        {/* Stats Row */}
         <div className="grid md:grid-cols-3 gap-6">
           <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
             <div className="text-brand text-4xl font-black mb-2">10/10</div>
@@ -183,35 +184,66 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-            <div className="text-brand text-4xl font-black mb-2">3</div>
-            <h4 className="font-bold text-lg mb-2">AI Tools</h4>
+            <div className="text-brand text-4xl font-black mb-2">6</div>
+            <h4 className="font-bold text-lg mb-2">SDLC Phases</h4>
             <p className="text-slate-400 text-sm">
-              Prompts optimized for Claude Code, GitHub Copilot, and ChatGPT with tool-specific variations
+              Design through Evolution — every phase integrates AI agents, security scanning, and governance gates
             </p>
           </div>
         </div>
 
+        {/* AI Taxonomy */}
+        <div className="mt-8">
+          <h3 className="font-bold text-2xl mb-6 text-center">Three Layers of AI Integration</h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="rounded-xl border border-blue-800/50 p-6 bg-gradient-to-br from-blue-950/30 to-slate-950">
+              <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-blue-500/20 text-blue-300 mb-4">In-Editor</span>
+              <h4 className="font-bold text-lg mb-2">Copilot</h4>
+              <p className="text-slate-400 text-sm">
+                Inline completions and chat-driven implementation. Security-first prompt packs guide every suggestion toward OWASP-compliant code.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-purple-800/50 p-6 bg-gradient-to-br from-purple-950/30 to-slate-950">
+              <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 mb-4">Agentic</span>
+              <h4 className="font-bold text-lg mb-2">Claude Code + Copilot Coding Agent</h4>
+              <p className="text-slate-400 text-sm">
+                Autonomous multi-step workflows in GitHub Actions. Agents implement features, fix vulnerabilities, and review PRs — governed by architecture-aware guardrails.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-indigo-800/50 p-6 bg-gradient-to-br from-indigo-950/30 to-slate-950">
+              <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-indigo-500/20 text-indigo-300 mb-4">Extension</span>
+              <h4 className="font-bold text-lg mb-2">Cheshire Cat + Looking Glass</h4>
+              <p className="text-slate-400 text-sm">
+                VS Code extension providing live governance dashboards, CALM architecture editing, threat model visualization, and scaffolding with governance context baked in.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Open Source Foundation */}
         <div className="mt-12 rounded-2xl border border-slate-700 bg-slate-900/50 p-8">
           <h3 className="font-bold text-2xl mb-4">Open Source Foundation</h3>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <h4 className="font-semibold text-lg mb-3 text-brand">Starter Kit Includes</h4>
+              <h4 className="font-semibold text-lg mb-3 text-brand">Starter Kit</h4>
               <ul className="space-y-2 text-slate-300">
                 <li>✓ Vulnerable TypeScript samples (A01-A10)</li>
                 <li>✓ Security test suites with attack vectors</li>
-                <li>✓ Complete STRIDE + OWASP + Maintainability prompt packs</li>
+                <li>✓ STRIDE + OWASP + Maintainability prompt packs</li>
                 <li>✓ CI/CD workflows (CodeQL + Snyk)</li>
-                <li>✓ Workshop curriculum (4 parts live, 4 in development)</li>
+                <li>✓ Workshop curriculum (4 parts live, 4 planned)</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-lg mb-3 text-brand">Documentation</h4>
+              <h4 className="font-semibold text-lg mb-3 text-brand">Governance &amp; Docs</h4>
               <ul className="space-y-2 text-slate-300">
-                <li>✓ Golden Rules governance framework</li>
-                <li>✓ 6-layer security pipeline guide</li>
-                <li>✓ Fitness functions + dependency hygiene katas</li>
+                <li>✓ 6 Golden Rules governance framework</li>
+                <li>✓ 6-phase SDLC with security pipeline</li>
+                <li>✓ Fitness functions + evolutionary architecture</li>
+                <li>✓ Agent instruction standards (CLAUDE.md, AGENTS.md)</li>
                 <li>✓ PR templates with AI disclosure</li>
-                <li>✓ CLAUDE.md standards for agents</li>
               </ul>
             </div>
           </div>
@@ -300,7 +332,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 text-center">
-            <p className="text-slate-400 mb-4">All prompt packs optimized for Claude Code, GitHub Copilot, and ChatGPT</p>
+            <p className="text-slate-400 mb-4">All prompt packs optimized for Claude Code and GitHub Copilot — in-editor and agentic workflows</p>
             <Link to="/docs/" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold text-lg">
               Browse Complete Documentation
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

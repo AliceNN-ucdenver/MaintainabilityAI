@@ -9,7 +9,7 @@
   </div>
 </div>
 
-> "An evolutionary architecture supports guided, incremental change across multiple dimensions."
+> An evolutionary architecture supports guided, incremental change across multiple dimensions.
 > — Neal Ford, Rebecca Parsons, Patrick Kua
 
 ---

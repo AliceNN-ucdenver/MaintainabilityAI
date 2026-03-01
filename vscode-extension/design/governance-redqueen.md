@@ -1,6 +1,6 @@
 # The Red Queen — Governance-Enforced Agent Intelligence
 
-**Version:** 0.2.0 — Design
+**Version:** 0.3.0 — Design
 **Date:** February 28, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
@@ -1244,13 +1244,278 @@ application:
 
 The Red Queen also discovers implicit links by analyzing CALM flows — if a flow's transitions reference nodes owned by different BARs, those BARs are implicitly linked.
 
+### 5.5 Intra-Platform Cross-BAR Governance
+
+Section 5.2–5.4 covers cross-BAR governance driven by CALM flows — the strongest signal. But CALM flows require both BARs to have declared architecture with shared nodes and transitions. Within a platform, BARs share an organizational boundary that creates governance relationships even without explicit CALM linkage.
+
+#### 5.5.1 Relationship Discovery Hierarchy
+
+The Red Queen discovers cross-BAR relationships through four mechanisms, ordered by signal strength:
+
+| # | Mechanism | Signal Strength | Requires CALM | Example |
+|---|-----------|----------------|---------------|---------|
+| 1 | **CALM flow analysis** | Strong | Yes | `checkout-ui` → `order-api` via `order-processing-flow` |
+| 2 | **Explicit `linkedBars`** | Strong | No | `app.yaml` declares `APP-CLAIMS-001 consumes APP-FRAUD-001` |
+| 3 | **Capability overlap** | Moderate | No | Two BARs mapped to same L2/L3 capability (e.g., "Claims Adjudication") |
+| 4 | **Shared infrastructure** | Moderate | No | Two BARs listing repos in the same org, sharing database or event bus |
+
+```typescript
+interface PlatformRelationshipGraph {
+  platformId: string;
+  bars: Map<string, BarResource>;
+  relationships: BarRelationship[];
+  sharedInfrastructure: SharedInfrastructure[];
+  capabilityOverlaps: CapabilityOverlap[];
+}
+
+interface BarRelationship {
+  barA: string;
+  barB: string;
+  type: 'calm-flow' | 'declared' | 'capability-overlap' | 'shared-infrastructure';
+  strength: 'strong' | 'moderate' | 'weak';
+  details: string;                   // Human-readable description
+  flows?: string[];                  // For calm-flow type
+  capabilities?: string[];           // For capability-overlap type
+  infrastructure?: string;           // For shared-infrastructure type
+}
+
+async function discoverPlatformRelationships(
+  platformId: string,
+  meshPath: string
+): Promise<PlatformRelationshipGraph> {
+  const bars = await meshReader.loadPlatformBars(platformId, meshPath);
+  const relationships: BarRelationship[] = [];
+
+  for (const [barIdA, barA] of bars) {
+    for (const [barIdB, barB] of bars) {
+      if (barIdA >= barIdB) continue; // avoid duplicates
+
+      // 1. CALM flow linkage (strongest signal)
+      const sharedFlows = await resolveSharedFlows(barIdA, barIdB);
+      if (sharedFlows.length > 0) {
+        relationships.push({
+          barA: barIdA, barB: barIdB,
+          type: 'calm-flow',
+          strength: 'strong',
+          flows: sharedFlows.map(f => f.flowId),
+          details: `Linked via ${sharedFlows.length} CALM flow(s)`
+        });
+      }
+
+      // 2. Explicit linkedBars declaration
+      const explicitLink = barA.manifest.linkedBars?.find(
+        l => l.barId === barIdB
+      );
+      if (explicitLink) {
+        relationships.push({
+          barA: barIdA, barB: barIdB,
+          type: 'declared',
+          strength: 'strong',
+          details: `${barIdA} ${explicitLink.relationship} ${barIdB}`
+        });
+      }
+
+      // 3. Capability overlap (same L2/L3 capability mapping)
+      const sharedCapabilities = findSharedCapabilities(barA, barB);
+      if (sharedCapabilities.length > 0) {
+        relationships.push({
+          barA: barIdA, barB: barIdB,
+          type: 'capability-overlap',
+          strength: 'moderate',
+          capabilities: sharedCapabilities,
+          details: `Both mapped to capability: ${sharedCapabilities.join(', ')}`
+        });
+      }
+
+      // 4. Shared infrastructure (declared in platform.yaml)
+      const sharedInfra = findSharedInfrastructure(platformId, barA, barB);
+      if (sharedInfra.length > 0) {
+        for (const infra of sharedInfra) {
+          relationships.push({
+            barA: barIdA, barB: barIdB,
+            type: 'shared-infrastructure',
+            strength: 'moderate',
+            infrastructure: infra.name,
+            details: `Both use ${infra.type}: ${infra.name}`
+          });
+        }
+      }
+    }
+  }
+
+  return { platformId, bars, relationships, ... };
+}
+```
+
+#### 5.5.2 Platform Governance Policies
+
+The platform level defines policies that apply to **all child BARs**, creating cross-BAR governance without requiring CALM flow linkage:
+
+```yaml
+# platforms/PLT-CLAIMS/platform.yaml
+platform:
+  id: PLT-CLAIMS
+  name: Claims Processing Platform
+  owner: claims-architecture@acme.com
+
+  governance:
+    # Minimum pillar scores for any BAR in this platform
+    minimumScores:
+      architecture: 60
+      security: 70             # Higher security baseline for claims
+      informationRisk: 65
+      operations: 50
+
+    # Shared infrastructure — changes require cross-BAR coordination
+    sharedInfrastructure:
+      - type: database
+        name: claims-postgres
+        bars: [APP-CLAIMS-001, APP-CLAIMS-002, APP-CLAIMS-003]
+        constraint: "Schema changes require cross-BAR ADR and migration plan"
+      - type: messageQueue
+        name: claims-event-bus
+        bars: [APP-CLAIMS-001, APP-FRAUD-001]
+        constraint: "Event schema changes require consumer-side validation"
+
+    # Cross-BAR review triggers
+    crossBarReview:
+      triggers:
+        - "Any BAR modifying a shared infrastructure interface"
+        - "Any BAR with security score drop > 10 points"
+        - "New BAR added to platform"
+      reviewers:
+        - "platform-architecture-board"
+
+    # Platform-level orchestration overrides
+    orchestrationOverrides:
+      enforcementMode: "strict"        # All BARs in this platform use strict NeMo enforcement
+      minTier: "supervised"            # No BAR in this platform can be autonomous (claims data sensitivity)
+```
+
+The Red Queen evaluates platform policies **after** BAR-level policies. Platform governance acts as a floor — a BAR cannot have weaker governance than its platform requires:
+
+```typescript
+function applyPlatformOverrides(
+  decision: OrchestrationDecision,
+  platformPolicy: PlatformGovernancePolicy
+): OrchestrationDecision {
+  // Platform minimum scores — flag BARs below threshold
+  for (const [pillar, minScore] of Object.entries(platformPolicy.minimumScores)) {
+    const barScore = decision.bar.scores[pillar];
+    if (barScore < minScore) {
+      decision.constraints.push(
+        `Platform ${platformPolicy.id} requires ${pillar} score ≥ ${minScore}% (current: ${barScore}%)`
+      );
+      decision.reasoning.push(
+        `Platform minimum: ${pillar} ${barScore}% < required ${minScore}%`
+      );
+    }
+  }
+
+  // Platform minimum tier — cannot be more permissive than platform allows
+  if (platformPolicy.orchestrationOverrides?.minTier) {
+    const tierRank = { restricted: 0, supervised: 1, autonomous: 2 };
+    const minTier = platformPolicy.orchestrationOverrides.minTier;
+    if (tierRank[decision.tier] > tierRank[minTier]) {
+      decision.tier = minTier;
+      decision.reasoning.push(
+        `Tier capped to "${minTier}" by platform policy (platform does not allow autonomous)`
+      );
+    }
+  }
+
+  // Shared infrastructure constraints
+  const barInfra = platformPolicy.sharedInfrastructure?.filter(
+    infra => infra.bars.includes(decision.bar.id)
+  );
+  if (barInfra?.length) {
+    for (const infra of barInfra) {
+      decision.constraints.push(infra.constraint);
+      decision.reasoning.push(
+        `Shared infrastructure: ${infra.type} "${infra.name}" — ${infra.bars.length} BARs affected`
+      );
+    }
+  }
+
+  return decision;
+}
+```
+
+#### 5.5.3 Platform-Level Impact Analysis
+
+When the Red Queen evaluates a change in one BAR, it computes platform-level blast radius:
+
+```typescript
+interface PlatformImpactAssessment {
+  changedBar: string;
+  platformId: string;
+  directImpact: BarImpact[];        // BARs linked via CALM flows or declared linkedBars
+  indirectImpact: BarImpact[];      // BARs sharing capabilities or infrastructure
+  platformHealthDelta: number;      // Projected platform composite health change
+  crossBarReviewRequired: boolean;  // Triggers from platform.yaml
+  affectedCapabilities: string[];   // L2/L3 capabilities touched
+  affectedInfrastructure: string[]; // Shared infrastructure affected
+}
+
+// Example: BAR APP-CLAIMS-001 modifies claims-postgres schema
+// Direct impact:  APP-CLAIMS-002, APP-CLAIMS-003 (share claims-postgres)
+// Indirect impact: APP-FRAUD-001 (shares claims-event-bus, may consume affected events)
+// Platform health: 78% → 74% (projected if schema migration breaks consumers)
+// Cross-BAR review: REQUIRED (shared infrastructure trigger)
+// Affected capabilities: "Claims Processing", "Fraud Detection"
+```
+
+#### 5.5.4 Cross-BAR Governance Scenarios (Intra-Platform)
+
+**Scenario: Shared Database Schema Change**
+
+```
+Platform: PLT-CLAIMS
+BARs sharing claims-postgres: APP-CLAIMS-001, APP-CLAIMS-002, APP-CLAIMS-003
+
+Agent action in APP-CLAIMS-001:
+> "Add new column 'fraud_score' to claims table"
+
+Red Queen enforcement:
+1. validate_action detects claims-postgres is shared infrastructure (from platform.yaml)
+2. Platform policy: "Schema changes require cross-BAR ADR and migration plan"
+3. Blast radius: 3 BARs affected, 2 capabilities touched
+4. Verdict: CONDITIONAL
+   - "Create ADR documenting schema change"
+   - "Migration plan must be reviewed by APP-CLAIMS-002 and APP-CLAIMS-003 teams"
+   - "Coordinate via platform architecture board"
+5. GitHub issue created in APP-CLAIMS-002 and APP-CLAIMS-003 repos:
+   "Schema change notification: 'fraud_score' column being added to claims table"
+```
+
+**Scenario: Platform Minimum Score Enforcement**
+
+```
+Platform: PLT-CLAIMS (minimumScores.security: 70%)
+BAR: APP-CLAIMS-003 (security score: 55%, would normally be tier: supervised)
+
+Red Queen enforcement:
+1. BAR score 55% qualifies for supervised tier
+2. Platform policy: security minimum is 70%
+3. Decision override: additional security constraints injected
+   - "OWASP A01-A10 prompt packs mandated by platform policy"
+   - "Security review required for all changes until score ≥ 70%"
+4. Platform health dashboard flags APP-CLAIMS-003 as below platform minimum
+```
+
 ---
 
 ## 6. Orchestration Policies
 
 ### 6.1 Policy Definition Format
 
-Policies are defined in `mesh.yaml` under the `orchestration` section and in per-BAR `app.yaml` for overrides.
+Policies are defined at three levels, with each level able to tighten (but never loosen) the governance posture:
+
+1. **`mesh.yaml`** — Portfolio-level defaults (apply to all BARs)
+2. **`platform.yaml`** — Platform-level overrides (apply to all BARs in that platform, see Section 5.5.2)
+3. **`app.yaml`** — BAR-level overrides (apply to a single BAR)
+
+The policy evaluation order is: portfolio defaults → platform overrides → BAR overrides → criticality multipliers. Each level can only make governance **stricter** — a platform cannot grant a BAR autonomous tier if the portfolio policy caps it at supervised, and a BAR cannot override its platform's minimum security score.
 
 **mesh.yaml (portfolio-level defaults):**
 
@@ -1479,16 +1744,52 @@ function evaluatePolicy(
     reasoning.push('Human approval forced by criticality');
   }
 
-  // 5. Add BAR-level constraints
+  // 5. Apply platform-level governance (see Section 5.5.2)
+  const platformPolicy = await loadPlatformPolicy(bar.platformId);
+  if (platformPolicy?.governance) {
+    // Platform minimum scores — inject constraints for pillars below threshold
+    for (const [pillar, minScore] of Object.entries(platformPolicy.governance.minimumScores || {})) {
+      const pillarScore = scores.pillars[pillar]?.score ?? 100;
+      if (pillarScore < minScore) {
+        constraints.push(
+          `Platform ${bar.platformId} requires ${pillar} score ≥ ${minScore}% (current: ${pillarScore}%)`
+        );
+        reasoning.push(`Platform minimum: ${pillar} ${pillarScore}% < required ${minScore}%`);
+      }
+    }
+
+    // Platform tier cap — cannot be more permissive than platform allows
+    if (platformPolicy.governance.orchestrationOverrides?.minTier) {
+      const tierRank = { restricted: 0, supervised: 1, autonomous: 2 };
+      const minTier = platformPolicy.governance.orchestrationOverrides.minTier;
+      if (tierRank[tier] > tierRank[minTier]) {
+        tier = minTier;
+        reasoning.push(`Tier capped to "${minTier}" by platform policy`);
+      }
+    }
+
+    // Shared infrastructure constraints
+    const barInfra = platformPolicy.governance.sharedInfrastructure?.filter(
+      infra => infra.bars.includes(bar.id)
+    );
+    if (barInfra?.length) {
+      for (const infra of barInfra) {
+        constraints.push(infra.constraint);
+        reasoning.push(`Shared ${infra.type} "${infra.name}" — ${infra.bars.length} BARs affected`);
+      }
+    }
+  }
+
+  // 6. Add BAR-level constraints
   if (bar.orchestration?.additional_constraints) {
     constraints.push(...bar.orchestration.additional_constraints);
   }
 
-  // 6. Build NeMo Guardrails config for this BAR
+  // 7. Build NeMo Guardrails config for this BAR
   const guardrailsConfig = buildGuardrailsConfig(bar, architecture, scores, policy);
 
-  // 7. Resolve cross-repo links
-  const crossRepoLinks = resolveCrossRepoLinks(bar);
+  // 8. Resolve cross-repo links (CALM flows + declared + platform siblings)
+  const crossRepoLinks = resolveCrossRepoLinks(bar, platformPolicy);
 
   return {
     bar, tier,
@@ -2109,28 +2410,366 @@ context.subscriptions.push(
 );
 ```
 
-### 11.2 Panel Integration
+### 11.2 Cheshire Cat Governance UX — End-to-End
 
-**Looking Glass:**
-- Red Queen tier badge on BAR detail (autonomous/supervised/restricted) with colored indicator
-- Tier badge click → popover showing policy reasoning, active constraints, NeMo rail status
-- Cross-repo dependency graph visualization (linked BARs via CALM flows)
-- Settings section: orchestration policy editor
+This section describes how Red Queen governance manifests in the Cheshire Cat user experience when a developer uses the extension to build features for governed applications. The key principle: governance is not a separate workflow — it is woven into every panel the user touches, from BAR exploration to feature implementation to post-merge feedback.
 
-**Oraculum:**
-- Review depth auto-configured by Red Queen based on BAR tier
-- Multi-agent review board assembly for restricted BARs
-- Score delta tracking after review completion
+#### 11.2.1 Looking Glass — Governance Dashboard
 
-**Rabbit Hole:**
-- Issue creation pre-populates with governance context
-- Agent selection guided by policy preferences
-- Permission configuration scaffolded from tier settings
+The Looking Glass BAR detail view is the governance entry point. Every BAR displays its Red Queen posture.
 
-**White Rabbit / Scaffold:**
-- New components inherit parent BAR's orchestration policy
-- Initial `.claude/governance-context.md` generated
-- `.mcp.json` with Red Queen server included in scaffold
+**Tier Badge**
+
+Displayed next to the BAR name in the detail header. The badge is the single most important governance signal.
+
+| Tier | Color | Badge | Meaning |
+|------|-------|-------|---------|
+| Autonomous | Green | `🟢 Autonomous` | Score ≥ 80%. Agents operate with minimal oversight. |
+| Supervised | Yellow | `🟡 Supervised` | Score 50–79%. Human review required before merge. |
+| Restricted | Red | `🔴 Restricted` | Score < 50%. Plan-mode first, dual-agent review, human approval. |
+
+Click → popover showing:
+- Current composite score and pillar breakdown (architecture, security, info-risk, operations)
+- Active NeMo rails (flow constraints, control adherence, interface contracts, threat model, permission tiers)
+- Active governance constraints injected into agent instructions
+- Reasoning audit trail ("Composite 72% vs autonomous=80%, supervised=50% → tier: supervised")
+- Platform-level overrides if applicable ("Platform PLT-CLAIMS caps tier to supervised")
+
+**Cross-BAR Dependency Panel**
+
+Below the CALM architecture section, a new "Cross-BAR Dependencies" panel shows:
+- Linked BARs discovered via CALM flows, explicit `linkedBars`, capability overlap, and shared infrastructure
+- For each linked BAR: name, relationship type (consumes/provides/shares), shared flows, interface status
+- Visual indicator per link: green (all interfaces validated), yellow (pending validation), red (active violations)
+- "Validate All Interfaces" button — triggers `validate_interface_contract` across all linked BARs
+
+**Platform Context**
+
+- Platform health bar showing aggregate composite score across all sibling BARs
+- Sibling BAR list with mini-scorecards (name, tier badge, composite score, trend arrow)
+- Platform-level policies displayed as constraints (e.g., "Platform requires security ≥ 70% for all BARs")
+- If current BAR is below any platform minimum, a warning callout appears
+
+**Orchestration Policy Editor**
+
+In the Settings tab of the BAR detail, users can view and edit:
+- BAR-level orchestration overrides (tier override, additional constraints)
+- Prompt injection rules (which packs are mandated at what score thresholds)
+- Cross-repo notification preferences (issue, comment, or none)
+- Agent selection preferences (primary/fallback for implementation and review)
+
+#### 11.2.2 White Rabbit — Governance Pre-Flight
+
+When the user clicks "🐇 Implement based on architecture" in the BAR detail, the White Rabbit flow begins. Before the Repo Picker modal opens, the Red Queen performs a pre-flight evaluation.
+
+**Pre-flight sequence:**
+1. `redQueenService.evaluate(barId)` → computes `OrchestrationDecision`
+2. Platform policies applied via `applyPlatformOverrides()`
+3. Cross-BAR dependencies resolved
+4. Tier-specific UX path selected
+
+**Tier-based UX adaptation:**
+
+| Tier | Pre-flight Behavior |
+|------|---------------------|
+| **Autonomous** | Proceed directly to Repo Picker. Green banner at top of scaffold: "This BAR is in autonomous tier — agents will operate in auto-edit mode with full `src/` permissions." |
+| **Supervised** | Proceed with yellow banner: "This BAR requires human review for all changes. Agent will operate in ask-edit mode. Changes to configuration files require approval." |
+| **Restricted** | Warning dialog before Repo Picker: "This BAR is in restricted tier (score: 42%). Components will be scaffolded with plan-mode constraints. Dual-agent review and human approval are required for all changes." User must click "I understand — proceed" to continue. |
+
+**Governance-enriched scaffolding:**
+
+When the ScaffoldPanel runs, it injects governance artifacts into the scaffolded project:
+
+| File | Content | Source |
+|------|---------|--------|
+| `.claude/governance-context.md` | Dynamic governance context — BAR identity, tier, scores, architecture constraints, cross-BAR deps, security controls, constraints, reasoning audit trail | `generateGovernanceContext()` |
+| `.claude/settings.json` | Tier-scoped permissions — auto-edit/ask-edit/plan mode, allow/deny lists | `generateSettings()` |
+| `.claude/agents/security-reviewer.md` | Security review subagent definition (if security score < threshold) | `generateSubagentDefinitions()` |
+| `.claude/agents/architecture-reviewer.md` | Architecture review subagent definition (if architecture score < threshold) | `generateSubagentDefinitions()` |
+| `.mcp.json` | Red Queen MCP server configuration | Static template + mesh path |
+| `AGENTS.md` | Shared governance instructions for Claude and Copilot | `generateAgentsMd()` |
+| `.github/copilot-setup-steps.yml` | Copilot coding agent environment setup | Static template |
+
+This ensures that **any agent working in the scaffolded repo** — whether triggered via Rabbit Hole, manually, or via CI/CD — operates under Red Queen governance from day one.
+
+#### 11.2.3 Rabbit Hole — Governance-Aware Feature Requests
+
+The Rabbit Hole (IssueCreatorPanel) is where Red Queen governance is most visible to the user. This is the point where a human request becomes an agent task, and the Red Queen ensures governance constraints travel with that request.
+
+**Pre-Population with Governance Context**
+
+The Rabbit Hole's description field receives all BAR context (CALM, ADRs, threats) from the White Rabbit flow. The Red Queen enriches this with governance-specific content:
+
+```markdown
+## Feature Request — {barName}
+
+### Governance Posture
+| Property | Value |
+|----------|-------|
+| **Tier** | {tier} |
+| **Composite Score** | {compositeScore}% |
+| **Criticality** | {criticality} |
+| **Active Constraints** | {constraintCount} |
+| **Cross-BAR Dependencies** | {linkedBarCount} |
+| **NeMo Rails** | {activeRailCount} active |
+
+### Architecture (CALM)
+{truncated CALM JSON — nodes, relationships, interfaces}
+
+### Architecture Decision Records
+{ADR summaries — id, title, status, decision}
+
+### Threat Model
+{STRIDE summary from security/threat-model.yaml}
+
+### Governance Constraints (MANDATORY)
+{constraints from policy evaluation}
+- All database queries MUST use parameterized statements
+- All user input MUST be validated with Zod schemas
+- Do not add direct database connections — route through the API layer
+
+### Cross-BAR Dependencies
+{linked BARs and interface contracts}
+- **api-service** (consumes via order-processing-flow): interface order-api-v2
+- **fraud-detector** (consumes via fraud-check-flow): interface fraud-api-v1
+  ⚠ Changes to these interfaces require `validate_interface_contract`
+
+### Scaffold Guidelines
+{cheshire-scaffold-default.md content}
+```
+
+**Governance-Driven Prompt Pack Selection**
+
+The Red Queen's policy evaluation determines which prompt packs are pre-selected. Packs mandated by governance show a lock icon and cannot be deselected:
+
+| Condition | Auto-Selected Packs | Locked? |
+|-----------|---------------------|---------|
+| Security pillar < 60% | OWASP mapped category, threat-modeling/stride | 🔒 Yes |
+| Architecture pillar < 70% | Architecture conformance pack | 🔒 Yes |
+| Information Risk pillar < 65% | Data classification, PII handling | 🔒 Yes |
+| Operations pillar < 55% | Observability, health checks, SLA | 🔒 Yes |
+| User-selected (optional) | Any additional packs | No |
+
+The "Advanced Prompt Packs" collapsible section shows:
+- Locked packs with reason: "🔒 Mandated — security score 58% is below platform threshold (70%)"
+- Unlocked packs that the user can add or remove
+- Pack count summary: "4 mandated + 2 optional"
+
+**Pre-Submission Governance Validation**
+
+Before the user clicks "Submit Issue", a **Governance Summary Panel** appears below the RCTRO preview. This is not dismissable — it ensures the user understands the governance posture before creating the agent task.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  🔴 Red Queen Governance Summary                        │
+│                                                         │
+│  Tier: Supervised  |  Mode: ask-edit  |  Score: 72%     │
+│  Criticality: high  |  Review: 1 agent + human approval │
+│                                                         │
+│  Constraints Injected: 5                                │
+│  ├─ 3 from policy evaluation (security score < 60%)     │
+│  └─ 2 from platform policy (PLT-CLAIMS shared infra)    │
+│                                                         │
+│  Prompt Packs: 4 mandated (🔒) + 2 optional             │
+│                                                         │
+│  ⚠ Cross-BAR Impact:                                   │
+│  ├─ api-service: shares order-processing-flow            │
+│  │   └─ Interface: order-api-v2 — agent will validate   │
+│  └─ fraud-detector: shares fraud-check-flow              │
+│      └─ Interface: fraud-api-v1 — agent will validate   │
+│                                                         │
+│  NeMo Rails Active: 5/5                                 │
+│  ├─ flow_constraints ✓                                  │
+│  ├─ control_adherence ✓                                 │
+│  ├─ interface_contracts ✓                               │
+│  ├─ threat_model ✓                                      │
+│  └─ permission_tiers ✓                                  │
+│                                                         │
+│  [Submit with Governance]  [Review Full Constraints]    │
+└─────────────────────────────────────────────────────────┘
+```
+
+If the BAR is in **restricted** tier, the panel shows additional warnings:
+- "⚠ Restricted tier: Agent will start in plan-mode. Implementation requires plan approval."
+- "⚠ Dual-agent review required. Secondary reviewer will be auto-assigned after implementation."
+- "⚠ Human approval required before merge."
+
+**Agent Selection Constrained by Policy**
+
+The agent assignment phase respects the orchestration decision:
+
+| Tier | Agent Selection UX |
+|------|---------------------|
+| **Autonomous** | Full choice: Claude, Copilot, Skip. No mandatory review. |
+| **Supervised** | Full choice. Yellow banner: "Human review required before merge." |
+| **Restricted** | Primary agent only (per `agent_preferences.implementation.primary`). Red banner: "Dual-agent review + human approval required. Secondary reviewer ({secondary agent}) will be auto-assigned after PR creation." |
+
+For **critical**-criticality BARs, regardless of tier:
+- Multi-agent review is mandatory
+- Human approval is mandatory
+- Banner: "Critical BAR — multi-agent review and human approval required per policy."
+
+#### 11.2.4 Scorecard — Governance Monitoring During Agent Execution
+
+After agent assignment, the Scorecard opens in the component repo's VS Code window. The Red Queen enhances the standard Scorecard with governance monitoring.
+
+**Active Review Banner (Governance-Enhanced)**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ ● Claude is implementing feature #42                    │
+│                                                         │
+│   Tier: Supervised  |  NeMo: Active (5 rails)          │
+│                                                         │
+│   Governance Activity:                                  │
+│   ├─ validate_action calls: 3                           │
+│   │   ├─ ✅ add_endpoint → approved                    │
+│   │   ├─ ⚠️ add_database_connection → conditional       │
+│   │   │   └─ "Requires migration plan per ctrl-data-001"│
+│   │   └─ ✅ modify_service → approved                  │
+│   ├─ validate_interface_contract: 1                     │
+│   │   └─ ✅ order-api-v2 interface → passed            │
+│   └─ NeMo denials: 0                                    │
+│                                                         │
+│   [View Issue]  [View PR]  [Governance Log]             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Governance Event Stream**
+
+As the agent works, governance events stream into a collapsible log:
+
+```
+14:23:05  ✅ get_bar_context: Loaded architecture (12 nodes, 8 relationships, 2 flows)
+14:23:08  ✅ get_constraints: Tier supervised, 5 constraints active
+14:23:42  ✅ validate_action: add_endpoint on user-api → approved
+14:24:15  ⚠️ validate_action: add_database_connection → conditional
+           └─ Condition: "Migration plan required per ctrl-data-001"
+14:25:30  ✅ validate_interface_contract: order-api-v2 → passed
+14:26:01  ❌ validate_action: add_external_call (web-ui → user-database) → DENIED
+           └─ "No CALM relationship declares web-ui → user-database.
+              Route through api-server per movie-search-flow."
+14:26:05  ℹ️ Agent adjusted: routing through api-server instead
+14:26:30  ✅ validate_action: add_external_call (web-ui → api-server) → approved
+```
+
+A NeMo denial (❌) triggers a visual pulse on the Scorecard badge to draw attention.
+
+**Post-Completion: Score Delta and Feedback**
+
+When the PR is merged:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  📊 Governance Impact — Feature #42 Merged              │
+│                                                         │
+│  Score Before → After:                                  │
+│  ├─ Composite:     72% → 78%  (+6)  ↑                  │
+│  ├─ Architecture:  80% → 82%  (+2)  ↑                  │
+│  ├─ Security:      58% → 72%  (+14) ↑↑                 │
+│  ├─ Info Risk:     70% → 70%  (0)   →                  │
+│  └─ Operations:    65% → 68%  (+3)  ↑                  │
+│                                                         │
+│  Tier Change: Supervised → Supervised (no change)       │
+│  Platform Health: 74% → 76%  (+2)                       │
+│                                                         │
+│  Agent Performance:                                     │
+│  ├─ validate_action: 5 calls (4 approved, 1 conditional)│
+│  ├─ NeMo denials: 1 (agent self-corrected)             │
+│  └─ Interface validations: 1 (passed)                   │
+│                                                         │
+│  [View Full Report]  [View Agent Memory]                │
+└─────────────────────────────────────────────────────────┘
+```
+
+Score delta is persisted to `score-history.yaml` and agent learnings are recorded in `.caterpillar/agent-memory/{barId}.yaml`.
+
+#### 11.2.5 Oraculum — Governance-Configured Reviews
+
+The Oraculum (automated architecture review) integrates with Red Queen:
+
+- **Review depth** auto-configured by tier: autonomous BARs get lightweight reviews, restricted BARs get deep reviews
+- **Review board assembly**: For restricted and critical BARs, Oraculum assembles multi-agent review boards per Section 9
+- **Score delta tracking**: After review completion, governance scores are recomputed and the delta is surfaced in Looking Glass
+- **Cross-BAR impact**: If the review identifies changes affecting linked BARs, notifications are created per cross-repo policy
+
+#### 11.2.6 End-to-End Governance Flow
+
+```
+Looking Glass (BAR Detail)
+    │
+    │ Red Queen evaluates OrchestrationDecision:
+    │ ├─ Tier badge displayed (autonomous/supervised/restricted)
+    │ ├─ Cross-BAR dependencies shown
+    │ ├─ Platform context + sibling BAR health
+    │ └─ Governance constraints visible
+    │
+    ▼
+White Rabbit Trigger ("🐇 Implement based on architecture")
+    │
+    │ Pre-flight:
+    │ ├─ evaluate(barId) → OrchestrationDecision
+    │ ├─ applyPlatformOverrides() → platform constraints
+    │ ├─ Tier-based UX: green banner / yellow banner / red warning dialog
+    │ └─ If restricted → user acknowledgment required
+    │
+    ▼
+Repo Picker → ScaffoldPanel
+    │
+    │ Scaffold injects governance artifacts:
+    │ ├─ .claude/governance-context.md (dynamic — BAR identity, tier, constraints)
+    │ ├─ .claude/settings.json (tier-scoped permissions)
+    │ ├─ .claude/agents/ (subagent definitions for weak pillars)
+    │ ├─ .mcp.json (Red Queen MCP server)
+    │ ├─ AGENTS.md (governance instructions)
+    │ └─ .github/copilot-setup-steps.yml (Copilot environment)
+    │
+    ▼
+Rabbit Hole (Feature Request Creation)
+    │
+    │ Pre-populated with:
+    │ ├─ CALM architecture + ADRs + threats (from White Rabbit)
+    │ ├─ Governance posture table (tier, score, criticality)
+    │ ├─ Mandatory constraints (from policy evaluation)
+    │ ├─ Cross-BAR dependency warnings
+    │ └─ Mandated prompt packs (🔒 locked, cannot deselect)
+    │
+    │ User reviews → Generate RCTRO → Governance Summary Panel
+    │ Agent selection constrained by tier
+    │
+    ▼
+Agent Execution (GitHub Actions)
+    │
+    │ Agent calls Red Queen MCP tools:
+    │ ├─ get_bar_context() → full architecture awareness
+    │ ├─ get_constraints() → permission boundaries + constraints
+    │ ├─ validate_action() → NeMo deterministic enforcement
+    │ │   └─ Approved / Denied / Conditional per CALM model
+    │ ├─ validate_interface_contract() → cross-repo validation
+    │ └─ governance_gaps() → pre-PR governance check
+    │
+    │ Scorecard shows governance events in real-time
+    │ NeMo denials trigger visual alerts
+    │
+    ▼
+PR Review (Governed)
+    │
+    │ Review board assembled per OrchestrationDecision:
+    │ ├─ Autonomous: 1 agent, no human required
+    │ ├─ Supervised: 1 agent + human approval
+    │ └─ Restricted: 2 agents + human approval + escalation
+    │
+    │ Consensus resolution per Section 9.3
+    │
+    ▼
+Merge → Feedback Loop
+    │
+    │ ├─ Score delta computed + persisted to score-history.yaml
+    │ ├─ Agent memory updated (learnings, effective prompts, recurring issues)
+    │ ├─ Platform health recalculated
+    │ ├─ Tier re-evaluated (score improvement may unlock higher tier)
+    │ └─ Policy suggestions generated (threshold adjustments, constraint additions)
+```
 
 ### 11.3 File Watching
 
@@ -2267,10 +2906,13 @@ class RedQueenService {
   validateInterfaceContract(sourceBar: string, targetBar: string, change: string): Promise<InterfaceValidationResult>;
   buildGuardrailsConfig(barId: string): Promise<GuardrailsConfig>;
 
-  // ── Cross-Repo ────────────────────────────────────────────
+  // ── Cross-Repo & Platform ────────────────────────────────
   resolveFlowAcrossBars(flowId: string): Promise<CrossRepoFlowGraph>;
   computeFlowImpact(barId: string, nodeId: string): Promise<FlowImpact>;
   getLinkedBars(barId: string): Promise<LinkedBar[]>;
+  discoverPlatformRelationships(platformId: string): Promise<PlatformRelationshipGraph>;
+  loadPlatformPolicy(platformId: string): Promise<PlatformGovernancePolicy | null>;
+  computePlatformImpact(barId: string, change: string): Promise<PlatformImpactAssessment>;
 
   // ── Review Board ──────────────────────────────────────────
   assembleReviewBoard(decision: OrchestrationDecision): ReviewBoard;
@@ -2361,8 +3003,70 @@ export interface OrchestrationDecision {
 export interface CrossRepoLink {
   targetBar: string;
   relationship: 'consumes' | 'provides' | 'composed-of';
+  linkType: 'calm-flow' | 'declared' | 'capability-overlap' | 'shared-infrastructure';
   flows: string[];
   interfaces: string[];
+}
+
+// ── Platform Governance ─────────────────────────────────────
+
+export interface PlatformGovernancePolicy {
+  minimumScores?: Record<string, number>;           // Pillar → minimum score
+  sharedInfrastructure?: SharedInfrastructure[];
+  crossBarReview?: CrossBarReviewConfig;
+  orchestrationOverrides?: {
+    enforcementMode?: GuardrailEnforcementMode;
+    minTier?: PermissionTier;                       // Floor — BARs cannot exceed this tier
+  };
+}
+
+export interface SharedInfrastructure {
+  type: 'database' | 'messageQueue' | 'apiGateway' | 'cache' | 'storage';
+  name: string;
+  bars: string[];                                    // BAR IDs sharing this resource
+  constraint: string;                                // Human-readable governance constraint
+}
+
+export interface CrossBarReviewConfig {
+  triggers: string[];
+  reviewers: string[];
+}
+
+export interface PlatformRelationshipGraph {
+  platformId: string;
+  bars: Map<string, BarResource>;
+  relationships: BarRelationship[];
+  sharedInfrastructure: SharedInfrastructure[];
+  capabilityOverlaps: CapabilityOverlap[];
+}
+
+export interface BarRelationship {
+  barA: string;
+  barB: string;
+  type: 'calm-flow' | 'declared' | 'capability-overlap' | 'shared-infrastructure';
+  strength: 'strong' | 'moderate' | 'weak';
+  details: string;
+  flows?: string[];
+  capabilities?: string[];
+  infrastructure?: string;
+}
+
+export interface PlatformImpactAssessment {
+  changedBar: string;
+  platformId: string;
+  directImpact: BarImpact[];
+  indirectImpact: BarImpact[];
+  platformHealthDelta: number;
+  crossBarReviewRequired: boolean;
+  affectedCapabilities: string[];
+  affectedInfrastructure: string[];
+}
+
+export interface BarImpact {
+  barId: string;
+  impact: string;
+  severity: 'high' | 'medium' | 'low';
+  linkType: 'calm-flow' | 'shared-infrastructure' | 'capability-overlap';
 }
 
 export interface ValidationResult {
@@ -2502,6 +3206,9 @@ function validateRequest(req: IncomingMessage): boolean {
 | D14 | Dynamic Colang 2.0 config from CALM model per-BAR | Each BAR's CALM architecture generates a unique NeMo configuration. `RailsConfig.from_content()` + `+` operator allow runtime composition. This ensures guardrails always reflect the current architecture. |
 | D15 | `AGENTS.md` as shared governance instructions | Both Claude Code and Copilot coding agent read `AGENTS.md`. This file instructs both agents to call `validate_action` before structural changes and `validate_interface_contract` for cross-repo changes. |
 | D16 | Custom `calm://` URI scheme for all resources | Domain-specific URIs make resources self-describing. Follows EventCatalog's `eventcatalog://` pattern. |
+| D17 | Three-level policy hierarchy (portfolio → platform → BAR) with tighten-only semantics | Platforms need governance authority over their BARs (shared infrastructure, minimum scores, tier caps), but cannot loosen portfolio-level rules. BAR overrides cannot loosen platform rules. This prevents governance erosion while allowing context-specific tightening. |
+| D18 | Governance woven into Cheshire Cat UX, not a separate workflow | Users should not need a "governance mode" — governance context (tier badges, mandated packs, pre-submission summaries, NeMo event streams) appears naturally in every panel they already use. Reduces friction and ensures governance is never bypassed by simply not opening a governance panel. |
+| D19 | Platform-level relationship discovery (4 mechanisms) | CALM flows are the strongest signal but not every BAR has CALM architecture. Supplementing with explicit `linkedBars`, capability overlap, and shared infrastructure declarations ensures cross-BAR governance works even for BARs at early governance maturity levels. |
 
 ---
 
@@ -2544,7 +3251,7 @@ function validateRequest(req: IncomingMessage): boolean {
 
 **Value:** Deterministic governance enforcement. Agents cannot bypass architectural constraints regardless of prompt interpretation.
 
-### Phase 4: Cross-Repo Semantic Governance
+### Phase 4: Cross-Repo & Platform Governance
 
 - [ ] Implement `cross-repo.ts` — multi-BAR flow resolution
 - [ ] Implement interface contract rails (`interface-rails.co` + `interface-validator.ts`)
@@ -2553,23 +3260,42 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Implement cross-repo notification system (GitHub Issues)
 - [ ] Add `linkedBars` field to BAR resources
 - [ ] Cross-repo flow visualization in Looking Glass
+- [ ] Implement `discoverPlatformRelationships()` — sibling BAR relationship discovery
+- [ ] Implement `loadPlatformPolicy()` — platform.yaml governance section parsing
+- [ ] Implement `computePlatformImpact()` — platform-level blast radius analysis
+- [ ] Implement shared infrastructure constraint enforcement
+- [ ] Add platform governance section to Looking Glass (sibling BAR health, platform policies)
 
-**Value:** Changes in one repo are validated against interface contracts in linked repos. The "huge" feature — semantic governance across repository boundaries.
+**Value:** Changes in one repo are validated against interface contracts in linked repos. Intra-platform governance provides sibling BAR awareness, shared infrastructure protection, and platform-level policy enforcement.
 
 ### Phase 5: Policy Engine + Agent Configuration
 
-- [ ] Define `OrchestrationPolicy` types
-- [ ] Implement policy loading from `mesh.yaml` + per-BAR `app.yaml` overrides
+- [ ] Define `OrchestrationPolicy` types (portfolio, platform, BAR levels)
+- [ ] Implement policy loading from `mesh.yaml` + `platform.yaml` + per-BAR `app.yaml` overrides
 - [ ] Implement `evaluatePolicy()` — tier determination, prompt injection, criticality adjustment
+- [ ] Implement `applyPlatformOverrides()` — platform tier caps, minimum scores, shared infra constraints
 - [ ] Implement `generateGovernanceContext()` — dynamic CLAUDE.md
 - [ ] Implement `generateSettings()` — `.claude/settings.json`
 - [ ] Implement `generateAgentsMd()` — shared AGENTS.md
 - [ ] Add Red Queen tier badge to Looking Glass BAR detail
 - [ ] Add orchestration policy editor to Looking Glass Settings
 
-**Value:** Every agent interaction receives governance-appropriate configuration based on scores, criticality, and policy.
+**Value:** Every agent interaction receives governance-appropriate configuration based on scores, criticality, platform membership, and policy.
 
-### Phase 6: Multi-Agent Review Board + Feedback Loop
+### Phase 6: Cheshire Cat Governance UX Integration
+
+- [ ] White Rabbit pre-flight: tier-based UX adaptation (green/yellow/red banners, restricted dialog)
+- [ ] ScaffoldPanel governance injection: governance-context.md, settings.json, subagent definitions, .mcp.json, AGENTS.md
+- [ ] Rabbit Hole governance-aware feature creation: governance posture table, mandated prompt packs (🔒), pre-submission governance summary panel
+- [ ] Rabbit Hole agent selection constraints by tier (restricted → primary agent only, secondary auto-assigned)
+- [ ] Scorecard governance monitoring: NeMo event stream, validate_action call log, denial alerts
+- [ ] Scorecard post-merge feedback: score delta display, agent performance summary, platform health impact
+- [ ] Looking Glass cross-BAR dependency panel with interface validation status
+- [ ] Looking Glass platform context panel with sibling BAR health and platform policies
+
+**Value:** Governance is woven into every Cheshire Cat panel. Users see governance posture at every step — from BAR exploration to feature creation to agent monitoring to post-merge feedback.
+
+### Phase 7: Multi-Agent Review Board + Feedback Loop
 
 - [ ] Implement review board assembly
 - [ ] Implement consensus resolution
@@ -2581,7 +3307,7 @@ function validateRequest(req: IncomingMessage): boolean {
 
 **Value:** Multi-agent review with consensus resolution. Continuous improvement via feedback loops.
 
-### Phase 7: Agent-Agnostic CI/CD Deployment
+### Phase 8: Agent-Agnostic CI/CD Deployment
 
 - [ ] Create `@maintainabilityai/redqueen-mcp` npm package
 - [ ] Create `copilot-setup-steps.yml` template
@@ -2614,8 +3340,9 @@ function validateRequest(req: IncomingMessage): boolean {
 | `src/mcp/utils/mesh-reader.ts` | Governance mesh file I/O |
 | `src/mcp/utils/calm-reader.ts` | CALM JSON parsing |
 | `src/mcp/utils/cross-repo.ts` | Multi-repo flow resolution |
+| `src/mcp/utils/platform-governance.ts` | Platform-level relationship discovery + policy enforcement |
 | `src/services/RedQueenService.ts` | Orchestration engine — policy, config generation, feedback loop |
-| `src/types/redqueen.ts` | All Red Queen types |
+| `src/types/redqueen.ts` | All Red Queen types (incl. platform governance, impact assessment) |
 | `mcp-server.js` | Standalone stdio entry point |
 | `mcp-server-http.js` | Standalone HTTP entry point |
 
@@ -2627,17 +3354,21 @@ function validateRequest(req: IncomingMessage): boolean {
 | `extension.ts` | Register MCP server definition provider |
 | `esbuild.js` | Add mcp-server entry points |
 | `src/types/index.ts` | Re-export redqueen.ts types |
-| `src/webview/LookingGlassPanel.ts` | Red Queen tier badge, cross-repo visualization, policy editor |
-| `src/webview/OracularPanel.ts` | Multi-agent review board, consensus UI |
-| `src/webview/IssueCreatorPanel.ts` | Governance context injection |
-| `src/webview/ScaffoldPanel.ts` | .mcp.json + AGENTS.md scaffolding |
-| `src/services/MeshService.ts` | Read/write `orchestration` section in mesh.yaml |
+| `src/webview/LookingGlassPanel.ts` | Red Queen tier badge, cross-BAR dependency panel, platform context panel, policy editor |
+| `src/webview/OracularPanel.ts` | Multi-agent review board, consensus UI, governance-configured review depth |
+| `src/webview/IssueCreatorPanel.ts` | Governance-aware feature creation: posture table, mandated packs (🔒), pre-submission summary panel, tier-constrained agent selection |
+| `src/webview/ScaffoldPanel.ts` | Governance pre-flight, governance artifact injection (.mcp.json, AGENTS.md, governance-context.md, settings.json, subagent definitions) |
+| `src/webview/app/lookingGlass.ts` | Cross-BAR dependency UI, platform health panel, tier badge popover |
+| `src/webview/app/main.ts` | Governance summary panel in Rabbit Hole, mandated pack locking, agent selection constraints |
+| `src/webview/app/scorecard.ts` | Governance event stream, NeMo denial alerts, score delta display |
+| `src/services/MeshService.ts` | Read/write `orchestration` section in mesh.yaml + platform.yaml governance |
 
 ### Mesh Files (New)
 
 | File | Purpose |
 |------|---------|
 | `mesh.yaml` → `orchestration:` | Portfolio-level orchestration + guardrails policy |
+| `platform.yaml` → `governance:` | Platform-level minimum scores, shared infrastructure, cross-BAR review triggers, tier caps |
 | `app.yaml` → `orchestration:` | Per-BAR policy overrides + linked BARs |
 | `app.yaml` → `linkedBars:` | Cross-repo BAR linkages |
 | `.caterpillar/agent-memory/{barId}.yaml` | Per-BAR agent learnings + rail effectiveness |
