@@ -15,6 +15,8 @@ Two panels. One mission. **Ship secure code.**
 
 *The mirror that shows you what your organization really looks like.*
 
+![Looking Glass governance dashboard showing four-pillar scoring across a portfolio of BARs](https://maintainability.ai/images/looking-glass-governance.png)
+
 The Looking Glass is a full enterprise governance dashboard built on [CALM](https://github.com/finos/architecture-as-code) (Common Architecture Language Model). It manages your portfolio of applications, scores governance health across four pillars, and gives you an AI assistant that speaks architecture.
 
 **Open it**: Activity Bar → MaintainabilityAI → Looking Glass
@@ -22,6 +24,8 @@ The Looking Glass is a full enterprise governance dashboard built on [CALM](http
 ### The Cheshire Cat — Code & Security
 
 *The grin that stays with your repo long after the session ends.*
+
+![Cheshire Cat security scorecard dashboard with fitness functions](https://maintainability.ai/images/cheshire-dashboard.png)
 
 The Cheshire Cat is your code-level companion. It scaffolds SDLC structure onto projects, runs security scorecards, creates structured feature issues, and orchestrates AI agents to implement them.
 
@@ -35,9 +39,8 @@ The Cheshire Cat is your code-level companion. It scaffolds SDLC structure onto 
 
 *See everything. Score everything. Govern everything.*
 
-The Looking Glass renders a portfolio → platform → BAR (Business Application Resource) hierarchy with live governance scoring:
+The Looking Glass renders a portfolio → platform → BAR (Business Application Resource) hierarchy with live governance scoring across **four governance pillars**: Architecture, Security, Information Risk, and Operations — each scored from artifact presence and content quality.
 
-- **Four Governance Pillars** — Architecture, Security, Information Risk, Operations — each scored from artifact presence and content quality
 - **CALM Diagrams** — Interactive ReactFlow canvas with ELK.js auto-layout, custom node types, drag-and-drop palette, inline editing, container collapse, and PNG export
 - **Architecture Archetypes** — Start from Three-Tier, Event-Driven, or Data Pipeline templates
 - **Sequence Diagrams** — Auto-generated Mermaid diagrams from CALM flows
@@ -45,6 +48,8 @@ The Looking Glass renders a portfolio → platform → BAR (Business Application
 - **Score History & Trends** — Track governance maturity over time with sparklines and drift indicators
 - **ADR Management** — Create, edit, and track Architecture Decision Records with BTABoK-inspired templates
 - **Git Integration** — Per-pillar sync status, one-click push-to-remote, dirty file tracking
+
+![Interactive CALM architecture diagram with ReactFlow and ELK.js layout](https://maintainability.ai/images/looking-glass-calm.png)
 
 ### 2. Enterprise Architecture Lenses
 
@@ -69,7 +74,9 @@ Drill into your portfolio through Business, Application, Data, Technology, and I
 
 *"Who are you?" said the Caterpillar. This was not an encouraging opening for a conversation.*
 
-Absolem is a floating chat widget that appears on every BAR detail view — a circular button in the bottom-right corner that expands into a full conversation panel. Seven commands, multi-turn dialogue, and real patch generation:
+![Absolem AI architecture advisor with seven specialized governance commands](https://maintainability.ai/images/looking-glass-absolem.png)
+
+Absolem is a floating chat widget that appears on every BAR detail view — seven commands, multi-turn dialogue, and real patch generation:
 
 | Command | What It Does |
 |---------|-------------|
@@ -86,6 +93,8 @@ Absolem generates structured patches that can be previewed, accepted, or rejecte
 ### 5. Oraculum — Automated Architecture Review
 
 *The Oracle sees all. The Oracle reports all.*
+
+![Oraculum review configuration with four-pillar selection, prompt packs, and multi-repo targeting](https://maintainability.ai/images/looking-glass-oraculum-review.png)
 
 Oraculum automates architecture drift review through a 6-phase wizard:
 
@@ -121,6 +130,8 @@ Supports **multi-folder workspaces** — select which project to analyze from th
 
 *Down the rabbit hole we go — but this time with a plan.*
 
+![Cheshire Cat issue management — RCTRO-formatted GitHub issue with embedded prompt pack guidance](https://maintainability.ai/images/cheshire-feature.png)
+
 The Rabbit Hole is your issue management hub. Create structured feature issues or work through existing ones:
 
 - **Hub Mode** — Browse all open issues with status indicators
@@ -128,7 +139,7 @@ The Rabbit Hole is your issue management hub. Create structured feature issues o
 - **Tech Stack Auto-Detection** — Reads `package.json`, `pyproject.toml`, and `.github/repo-metadata.yml` to set language, framework, testing, and validation context
 - **23 Prompt Packs** — OWASP Top 10, Maintainability patterns, STRIDE threat models
 - **Issue Templates** — Pre-built templates for API endpoints, auth features, data pipelines, frontend components
-- **Agent Assignment** — One-click assignment to Claude Code or Copilot with real-time monitoring
+- **Agent Assignment** — One-click assignment to Claude Code or Copilot Coding Agent with real-time monitoring
 - **Component Mode** — When launched from White Rabbit, pre-populated with CALM architecture, ADRs, and threat model context
 
 ### 8. White Rabbit — Component Scaffolding
@@ -147,6 +158,8 @@ White Rabbit bridges governance and implementation. From a BAR's architecture, i
 ### 9. SDLC Scaffolding
 
 *"Begin at the beginning," the King said gravely.*
+
+![Cheshire Cat scaffolding OWASP prompt packs and security structure into a code repository](https://maintainability.ai/images/cheshire-scaffold.png)
 
 Run **Scaffold SDLC Structure** to bootstrap security-first CI/CD in any project:
 
@@ -171,8 +184,28 @@ Run **Scaffold SDLC Structure** to bootstrap security-first CI/CD in any project
 | **Oraculum** | The oracle — automated architecture review via GitHub Issues and AI agents |
 | **The White Rabbit** | The implementation bridge — scaffolds components from governance artifacts |
 | **The Rabbit Hole** | The issue hub — feature creation, RCTRO generation, agent assignment and monitoring |
-| **Alice** | The remediation agent — follows RCTRO prompts to implement features via `@claude` or Copilot |
+| **Alice** | The remediation agent — follows RCTRO prompts to implement features via Claude Code or Copilot Coding Agent |
 | **You** | The architect — you describe, review, approve, and govern |
+
+---
+
+## Coming Next: The Red Queen
+
+> *"Now, here, you see, it takes all the running you can do, to keep in the same place."*
+
+![The Red Queen](https://maintainability.ai/images/redqueen.png)
+
+**The Red Queen** is governance-enforced agent intelligence — three enforcement layers that move AI agents from advisory prompts to deterministic constraint enforcement:
+
+| Layer | Mechanism | Speed |
+|-------|-----------|-------|
+| **PreToolUse Hooks** | Inline blocking before any agent tool fires | Milliseconds |
+| **MCP Server + NeMo Guardrails** | 14 calm:// resources, 13 tools, Colang 2.0 state machines | Seconds |
+| **CI Required Status Check** | `redqueen-action` GitHub Action blocks merge on violations | Minutes |
+
+Score-driven progressive autonomy (autonomous / supervised / restricted), trust battery decay, machine-checkable contract diffs (oasdiff, buf, graphql-inspector), cross-repo semantic governance, break-glass overrides with anti-normalization controls, and a full SHA-256 audit trail.
+
+One control plane for Claude Code and Copilot Coding Agent. See the [design document](design/governance-redqueen.md) and [The Art of the Possible](https://maintainability.ai/docs/impossible-things) for details.
 
 ---
 

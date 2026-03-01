@@ -274,10 +274,13 @@ function setNestedField(obj: Record<string, unknown>, fieldPath: string, value: 
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
     if (typeof current[key] !== 'object' || current[key] === null) {
-      current[key] = {};
+      current[key] = Object.create(null) as Record<string, unknown>;
     }
     current = current[key] as Record<string, unknown>;
   }
 
-  current[parts[parts.length - 1]] = value;
+  const finalKey = parts[parts.length - 1];
+  if (!UNSAFE_KEYS.has(finalKey)) {
+    current[finalKey] = value;
+  }
 }

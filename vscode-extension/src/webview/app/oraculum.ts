@@ -1163,7 +1163,7 @@ function renderMarkdown(text: string): string {
 
   // HTML img tags (already escaped, unescape them — only allow safe src from GitHub domains)
   html = html.replace(/&lt;img\s+(.*?)\/?\s*&gt;/gi, (_m, attrs) => {
-    const clean = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    const clean = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
     const srcMatch = clean.match(/src\s*=\s*"(https:\/\/(?:github\.com|[^"]*\.githubusercontent\.com)[^"]*)"/i);
     if (!srcMatch) { return ''; }
     const altMatch = clean.match(/alt\s*=\s*"([^"]*)"/i);

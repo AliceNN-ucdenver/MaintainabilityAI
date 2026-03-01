@@ -79,19 +79,20 @@ function isNonEmpty(filePath: string): boolean {
 }
 
 function isSubstantive(filePath: string): boolean {
-  // A file is "substantive" if it exists and has more than just template comments
+  // A file is "substantive" if it exists and has more than just template comments.
+  // Avoid TOCTOU: attempt readFileSync first; handle EISDIR to detect directories.
   try {
-    const stat = fs.statSync(filePath);
-    if (stat.isDirectory()) {
-      // For directories, at least one file inside must have substantive content
-      const entries = fs.readdirSync(filePath).filter(f => !f.startsWith('.'));
-      return entries.some(entry => {
-        const entryPath = path.join(filePath, entry);
-        return isSubstantive(entryPath);
-      });
+    let content: string;
+    try {
+      content = fs.readFileSync(filePath, 'utf8').trim();
+    } catch (readErr: unknown) {
+      // EISDIR means it's a directory — recurse into its entries
+      if (readErr instanceof Error && 'code' in readErr && (readErr as NodeJS.ErrnoException).code === 'EISDIR') {
+        const entries = fs.readdirSync(filePath).filter(f => !f.startsWith('.'));
+        return entries.some(entry => isSubstantive(path.join(filePath, entry)));
+      }
+      return false;
     }
-    // Read content directly — skip stat.size pre-check to avoid TOCTOU
-    const content = fs.readFileSync(filePath, 'utf8').trim();
     if (content.length === 0) { return false; }
     // Strip YAML/Markdown comments and whitespace — if nothing remains, it's just template
     const stripped = content
