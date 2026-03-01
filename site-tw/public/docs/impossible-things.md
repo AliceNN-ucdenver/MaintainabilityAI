@@ -124,7 +124,7 @@ Seven specialized commands: drift analysis, component addition, CALM validation,
 
 Architecture drift detection that actually runs.
 
-Create a review. Select prompt packs. Assign Claude or Copilot as reviewers. A GitHub Action checks out your code repos, analyzes them against your CALM architecture model, and posts structured findings to a GitHub Issue - organized by governance pillar, rated by severity, mapped to NIST controls.
+Create a review. Select prompt packs. Assign Claude Code or Copilot Coding Agent as reviewers. A GitHub Action checks out your code repos, analyzes them against your CALM architecture model, and posts structured findings to a GitHub Issue - organized by governance pillar, rated by severity, mapped to NIST controls.
 
 Real-time monitoring with avatar timelines. PR detection with checks status. Review metrics saved to your governance mesh. Active review banners with auto-refresh. This isn't a governance wishlist - it's a shipped, working review pipeline.
 
@@ -148,7 +148,7 @@ But Cheshire doesn't stop at scaffolding. Describe a feature in plain text and t
 <img src="/images/cheshire-feature.png" alt="Cheshire Cat issue management — RCTRO-formatted GitHub issue with embedded prompt pack guidance" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
 </div>
 
-- **Issue management with RCTRO format** — describe what you want to build, select security categories, and Cheshire generates a structured specification with auto-created labels and implementation zones for Claude and Copilot
+- **Issue management with RCTRO format** — describe what you want to build, select security categories, and Cheshire generates a structured specification with auto-created labels and implementation zones for Claude Code and Copilot Coding Agent
 - **OWASP Top 10 prompt packs** scaffolded into every code repository at **.cheshire/prompts/** - RCTRO-formatted guidance that both humans and AI agents consume
 - **STRIDE threat models** generated from your CALM architecture by AI, overlaid on your diagrams, with NIST 800-53 control cross-references
 - **CodeQL SARIF processing** that creates GitHub Issues with severity scoring, OWASP category mapping, and prompt pack references - so remediation agents know exactly which security guidance to follow
@@ -195,11 +195,11 @@ Backstage catalogs services - it doesn't understand their architecture. Port.io 
     <p style="color: #e2e8f0; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0 !important;">
       Everything we've built so far creates the foundation. What comes next transforms how AI agents interact with your architecture — and introduces something no other tool in the market has: <strong style="color: #f87171;">deterministic governance enforcement</strong>.
     </p>
-    <p style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin: 0 !important;">Three capabilities make this possible:</p>
+    <p style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin: 0 !important;">Three enforcement layers at three speeds make this possible:</p>
     <ul style="margin: 8px 0 0 0 !important; padding-left: 20px; list-style: none;">
-      <li style="color: #7dd3fc; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">⚡ <strong style="color: #7dd3fc;">MCP Server</strong> <span style="color: #94a3b8;">— architecture awareness for every agent</span></li>
-      <li style="color: #c4b5fd; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">🛡️ <strong style="color: #c4b5fd;">NeMo Guardrails</strong> <span style="color: #94a3b8;">— deterministic constraint enforcement</span></li>
-      <li style="color: #fca5a5; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">♛ <strong style="color: #fca5a5;">Policy Engine</strong> <span style="color: #94a3b8;">— agent autonomy tied to governance scores</span></li>
+      <li style="color: #7dd3fc; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">⚡ <strong style="color: #7dd3fc;">PreToolUse Hooks</strong> <span style="color: #94a3b8;">— millisecond inline blocking before any tool fires</span></li>
+      <li style="color: #c4b5fd; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">🛡️ <strong style="color: #c4b5fd;">MCP Tools + NeMo Guardrails</strong> <span style="color: #94a3b8;">— agent-called validation with deterministic constraint enforcement</span></li>
+      <li style="color: #fca5a5; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">♛ <strong style="color: #fca5a5;">CI Required Status Check</strong> <span style="color: #94a3b8;">— hard gate that blocks merge on governance violations</span></li>
     </ul>
   </div>
 </div>
@@ -221,16 +221,16 @@ This is the fundamental gap. And we're closing it.
 <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
 <div style="display: grid; grid-template-rows: auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto;">
 <div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">Layer 1: The Grin - Architecture Intelligence (MCP Server)</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">14 calm:// resources and 13 tools make your governance mesh queryable by any AI agent - Claude, Copilot, Cursor, GitHub Actions. Architecture models, scores, threats, ADRs, controls, flows - all accessible in a single call.</div>
+<div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">Layer 1: PreToolUse Hooks — Millisecond Inline Blocking</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Before any agent tool fires, lightweight hooks evaluate governance constraints and block violations inline. Zero latency overhead. Works with Claude Code and Copilot Coding Agent natively — no MCP round-trip required.</div>
 </div>
 <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: NeMo Guardrails - Deterministic Enforcement</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">NVIDIA's Colang 2.0 DSL enforces governance constraints as state machines - not LLM suggestions. CALM flows, controls, interface contracts, and threat model mitigations are enforced <em>deterministically</em>. An agent <strong>cannot</strong> bypass a flow constraint.</div>
+<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: The Grin (MCP Server) + NeMo Guardrails — Contextual Validation</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">14 calm:// resources and 13 MCP tools make your governance mesh queryable by any AI agent. NVIDIA's Colang 2.0 DSL enforces constraints as state machines — not LLM suggestions. CALM flows, controls, interface contracts, and threat model mitigations enforced <em>deterministically</em>. An agent <strong>cannot</strong> bypass a flow constraint.</div>
 </div>
 <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: Red Queen Policy Engine - Orchestration</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Score-driven agent configuration - permission tiers, dynamic CLAUDE.md generation, multi-agent review boards, cross-repo semantic governance, feedback loops. Governance scores become the control plane for agent behavior.</div>
+<div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: CI Required Status Check — Hard Merge Gate</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">The <code>redqueen-action</code> GitHub Action runs independent PR diff analysis as a required status check. No PR merges without governance clearance. Score-driven agent configuration — permission tiers, dynamic CLAUDE.md generation, cross-repo semantic governance, and feedback loops. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
 </div>
 </div>
 </div>
@@ -314,7 +314,7 @@ Modern applications span multiple repositories. A frontend. An API. A database. 
 
 **The Red Queen governs across repository boundaries.**
 
-When your CALM model declares a flow from **checkout-ui** (frontend repo) through **order-api** (API repo) to **order-database** (API repo), The Red Queen understands the full dependency graph. An agent working on the frontend that tries to call an endpoint not declared on the API's interface? **Interface contract violation.** The Red Queen blocks the change and creates a coordination issue in the API repo.
+When your CALM model declares a flow from **checkout-ui** (frontend repo) through **order-api** (API repo) to **order-database** (API repo), The Red Queen understands the full dependency graph. Interface contracts are **machine-checkable** — OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff. An agent working on the frontend that tries to call an endpoint not declared on the API's interface? **Interface contract violation.** The Red Queen blocks the change and creates a coordination issue in the API repo.
 
 <svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
   <defs>
@@ -370,9 +370,9 @@ When your CALM model declares a flow from **checkout-ui** (frontend repo) throug
 
 ### Agent-Agnostic - One Control Plane, Every Agent
 
-Organizations use Claude Code Action *and* GitHub Copilot coding agent. Different config files. Different instruction formats. Different MCP support.
+Organizations use Claude Code *and* Copilot Coding Agent. Different config files. Different instruction formats. Different MCP support.
 
-**The Red Queen doesn't care.** Both agents call the same MCP tools. Both hit the same NeMo guardrails. Both are governed by the same CALM model. One config file for Copilot, one for Claude - the enforcement is identical.
+**The Red Queen doesn't care.** Both agents call the same MCP tools. Both hit the same NeMo guardrails. Both are governed by the same CALM model. One config file for Copilot Coding Agent, one for Claude Code — the enforcement is identical.
 
 ### Progressive Autonomy - Governance Earns Trust
 
@@ -400,9 +400,15 @@ Three permission tiers, driven by governance scores:
 
 **Improve your governance scores, and your agents earn more autonomy.** Governance becomes a force multiplier, not a bureaucratic tax.
 
+And when you genuinely need to bypass a constraint? A **break-glass procedure** — scoped, time-limited, CODEOWNER-approved, with anti-normalization controls that prevent overrides from becoming habit. Quarterly budgets, escalating friction, and follow-up SLAs ensure the exception never becomes the rule.
+
 ### The Feedback Loop - Agents That Learn
 
-Every agent interaction is measured - governance scores before and after, guardrail actions counted, cross-repo violations tracked. Over time, the Red Queen builds **agent memory**: which guardrails fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts. That memory feeds back into policy refinements. Agents get smarter. Policies get sharper. **Governance improves continuously.**
+Every agent interaction is measured — governance scores before and after, guardrail actions counted, cross-repo violations tracked, every decision correlated to a specific PR, commit, and workflow run via SHA-256 audit trail.
+
+Governance scores aren't static — they behave like a **trust battery**. Scores decay over time based on review freshness, scan recency, and dependency age. Skip a security review? Your score drifts down. Let dependencies age? The trust battery drains. Active governance earns autonomy; neglect erodes it.
+
+Over time, the Red Queen builds **agent memory**: which guardrails fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts. That memory feeds back into policy refinements. Agents get smarter. Policies get sharper. **Governance improves continuously.**
 
 ---
 
@@ -414,8 +420,8 @@ Everything above - Looking Glass, Absolem, Oraculum, Cheshire, The Red Queen - i
 <div style="font-size: 14px; font-weight: 600; color: #818cf8; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;">The MaintainabilityAI Stack</div>
 <div style="display: grid; grid-template-rows: auto auto auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto; text-align: left;">
 <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 16px;">
-<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Red Queen Policy Engine</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Orchestrates</strong> based on governance scores. Permission tiers drive agent autonomy. Dynamic CLAUDE.md generation configures agents per-BAR. Multi-agent review boards validate cross-repo changes. Feedback loops sharpen policies over time.</div>
+<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Red Queen Policy Engine + CI Hard Gate</div>
+<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Orchestrates and enforces</strong> across three layers: PreToolUse hooks (ms), MCP tool validation (s), and CI required status checks (min). Permission tiers drive agent autonomy. Trust battery scores decay with neglect, recharge with active governance. Break-glass overrides with anti-normalization controls.</div>
 </div>
 <div style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #d8b4fe;">NeMo Guardrails (Colang 2.0)</div>
@@ -423,7 +429,7 @@ Everything above - Looking Glass, Absolem, Oraculum, Cheshire, The Red Queen - i
 </div>
 <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">The Grin (MCP Server)</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Exposes</strong> architecture intelligence to every AI agent via calm:// resources and tools. Claude, Copilot, Cursor, GitHub Actions - any MCP client gets the same governance context in a single call.</div>
+<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Exposes</strong> architecture intelligence to every AI agent via calm:// resources and tools. Claude Code, Copilot Coding Agent, Cursor, GitHub Actions — any MCP client gets the same governance context. Machine-checkable contract diffs via oasdiff, buf, graphql-inspector, and asyncapi-diff.</div>
 </div>
 <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #93c5fd;">Looking Glass + Absolem + Oraculum</div>
@@ -459,7 +465,7 @@ No other tool connects all five layers. That's the impossible thing we built.
 <div style="text-align: center; padding: 16px;">
 <div style="font-size: 32px; font-weight: 800; color: #818cf8;">$26.0B</div>
 <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">AI Code Tools by 2030</div>
-<div style="color: #64748b; font-size: 13px; margin-top: 8px;">Claude, Copilot, Cursor - agents without architecture awareness</div>
+<div style="color: #64748b; font-size: 13px; margin-top: 8px;">Claude Code, Copilot Coding Agent, Cursor — agents without architecture awareness</div>
 <div style="color: #475569; font-size: 10px; margin-top: 4px;">Source: Grand View Research, 27.1% CAGR</div>
 </div>
 </div>
@@ -488,7 +494,7 @@ No other tool connects all five layers. That's the impossible thing we built.
 </div>
 <div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
 <div style="font-size: 15px; font-weight: 700; color: #86efac;">📜 Oraculum</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Automated architecture review via Claude/Copilot agents on GitHub Issues - continuous governance in your CI pipeline.</div>
+<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Automated architecture review via Claude Code / Copilot Coding Agent on GitHub Issues - continuous governance in your CI pipeline.</div>
 </div>
 <div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
 <div style="font-size: 15px; font-weight: 700; color: #86efac;">🐇 White Rabbit</div>
@@ -518,7 +524,7 @@ No other tool connects all five layers. That's the impossible thing we built.
 </div>
 <div style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.3); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
 <div style="font-size: 15px; font-weight: 700; color: #a5b4fc;">♛ The Red Queen</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Unified governance intelligence and enforcement - MCP server (The Grin), NeMo Guardrails with Colang 2.0 deterministic enforcement, progressive autonomy agent orchestration, cross-repo semantic governance via CALM flow/interface contracts, and an agent-agnostic control plane supporting Claude Code Action and Copilot coding agent.</div>
+<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Unified governance intelligence and enforcement - MCP server (The Grin), NeMo Guardrails with Colang 2.0 deterministic enforcement, progressive autonomy agent orchestration, cross-repo semantic governance via CALM flow/interface contracts, and an agent-agnostic control plane supporting Claude Code and Copilot Coding Agent.</div>
 </div>
 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
 <div style="width: 14px; height: 14px; border-radius: 50%; background: #64748b; flex-shrink: 0;"></div>

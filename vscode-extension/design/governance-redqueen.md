@@ -1,7 +1,7 @@
 # The Red Queen — Governance-Enforced Agent Intelligence
 
-**Version:** 0.3.0 — Design
-**Date:** February 28, 2026
+**Version:** 0.4.2 — Design
+**Date:** March 1, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 > *"Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!"*
@@ -45,7 +45,7 @@ The Red Queen creates a **closed governance loop**: the mesh defines constraints
 3. **Architecture as law**: CALM flows, controls, interfaces, and relationships are the governance constitution. The Red Queen doesn't invent rules — it enforces the architecture the organization has declared.
 4. **Progressive autonomy**: Higher governance scores grant agents more autonomy. Lower scores tighten constraints and increase human oversight. This creates a natural incentive to improve governance.
 5. **Cross-repo awareness**: When repositories are linked in CALM flows, governance is not per-repo — it's per-flow. A change to any node in a flow can trigger validation across all linked repositories.
-6. **Zero infrastructure**: The Red Queen runs as a Node.js process reading governance mesh files. No database, no cloud service, no separate infrastructure.
+6. **Minimal infrastructure**: The Red Queen runs as a Node.js process reading governance mesh files. No database, no cloud service. The only additional process is the NeMo Guardrails sidecar (Python REST server) for deterministic enforcement. Both processes are ephemeral and stateless — spun up on demand in CI/CD or locally.
 
 ---
 
@@ -1021,6 +1021,218 @@ export async function validateInterfaceContract(
   };
 }
 ```
+
+### 4.5.1 Machine-Checkable Contract Artifacts
+
+The interface validation above relies on CALM metadata (host, port) and description-level string matching. For **deterministic** interface contract enforcement, the Red Queen supports machine-checkable contract artifacts — formal schema definitions that can be diffed programmatically.
+
+#### Contract Artifact Model
+
+CALM interfaces are extended with an optional `contractArtifact` field that references a formal schema:
+
+```typescript
+interface CalmInterfaceExtended extends CalmInterface {
+  'unique-id': string;
+  host?: string;
+  port?: number;
+  protocol?: string;
+
+  // Machine-checkable contract artifacts
+  contractArtifact?: {
+    type: 'openapi' | 'asyncapi' | 'protobuf' | 'graphql' | 'json-schema';
+    path: string;            // Relative path within the BAR's repo (e.g., "specs/order-api-v2.yaml")
+    version?: string;        // Schema version for compatibility checking
+    breaking_change_policy?: 'deny' | 'warn' | 'allow';  // How to handle detected breaking changes
+  };
+}
+```
+
+#### Schema-Based Validation
+
+When a contract artifact exists, the Red Queen performs **schema-level diff validation** instead of description-level string matching:
+
+```typescript
+async function validateContractArtifact(
+  sourceBarId: string,
+  targetBarId: string,
+  iface: CalmInterfaceExtended,
+  prDiff: PullRequestDiff
+): Promise<ContractValidationResult> {
+  if (!iface.contractArtifact) {
+    // Fall back to description-level validation (Section 4.5)
+    return { method: 'description', valid: true };
+  }
+
+  const artifact = iface.contractArtifact;
+
+  switch (artifact.type) {
+    case 'openapi': {
+      // Use oasdiff or similar to compute breaking changes
+      const baseSpec = await loadArtifactFromRef(targetBarId, artifact.path, 'main');
+      const headSpec = await loadArtifactFromRef(targetBarId, artifact.path, 'HEAD');
+      if (!headSpec) return { method: 'openapi', valid: true }; // Spec unchanged
+      const breaking = computeOpenApiBreakingChanges(baseSpec, headSpec);
+      return {
+        method: 'openapi',
+        valid: breaking.length === 0 || artifact.breaking_change_policy === 'allow',
+        breakingChanges: breaking,
+        // e.g., "Removed field 'email' from POST /users response (200)"
+        // e.g., "Changed type of 'amount' from number to string in PUT /orders request"
+      };
+    }
+
+    case 'protobuf': {
+      // Use buf breaking to detect wire-incompatible changes
+      const breaking = await computeProtobufBreakingChanges(targetBarId, artifact.path);
+      return { method: 'protobuf', valid: breaking.length === 0, breakingChanges: breaking };
+    }
+
+    case 'asyncapi': {
+      // Validate event schema compatibility
+      const breaking = await computeAsyncApiBreakingChanges(targetBarId, artifact.path);
+      return { method: 'asyncapi', valid: breaking.length === 0, breakingChanges: breaking };
+    }
+
+    case 'graphql': {
+      // Use graphql-inspector for schema diff
+      const breaking = await computeGraphqlBreakingChanges(targetBarId, artifact.path);
+      return { method: 'graphql', valid: breaking.length === 0, breakingChanges: breaking };
+    }
+
+    case 'json-schema': {
+      // Validate JSON Schema backward compatibility
+      const breaking = await computeJsonSchemaBreakingChanges(targetBarId, artifact.path);
+      return { method: 'json-schema', valid: breaking.length === 0, breakingChanges: breaking };
+    }
+  }
+}
+```
+
+#### CALM Interface Declaration Example
+
+```json
+{
+  "unique-id": "order-api-v2",
+  "host": "api.example.com",
+  "port": 443,
+  "protocol": "HTTPS",
+  "contractArtifact": {
+    "type": "openapi",
+    "path": "specs/order-api-v2.yaml",
+    "version": "2.3.1",
+    "breaking_change_policy": "deny"
+  }
+}
+```
+
+#### Validation Priority
+
+When both CALM metadata and a contract artifact exist, the Red Queen validates both:
+
+1. **CALM metadata** (host, port, protocol) — structural contract
+2. **Contract artifact** (OpenAPI, protobuf, etc.) — semantic contract
+3. **CALM controls** attached to the interface's node — compliance contract
+
+A violation at any level blocks the action (if policy is `deny`). This layered approach means governance works even for BARs that haven't adopted formal schema artifacts yet — they get description-level validation as a floor, with schema-level validation as a ceiling.
+
+#### Concrete Diff Engines and Breaking Change Rulesets
+
+Each contract artifact type maps to a specific, proven diff engine with well-defined breaking change semantics:
+
+| Artifact Type | Diff Engine | Breaking Change Rules | False Positive Strategy |
+|--------------|-------------|----------------------|------------------------|
+| **OpenAPI** | [oasdiff](https://github.com/Tufin/oasdiff) v2+ | [OpenAPI breaking changes spec](https://github.com/Tufin/oasdiff/blob/main/docs/BREAKING-CHANGES.md): removed endpoints, narrowed request types, widened required fields, removed response fields, changed status codes | `exclude` file per BAR for intentional breaks (e.g., deprecation-then-removal) |
+| **Protobuf** | [buf breaking](https://buf.build/docs/breaking/overview/) | Wire compatibility by default: field number reuse, type changes, required field addition, enum value removal. Configurable via `buf.yaml` (`WIRE`, `WIRE_JSON`, `FILE`) | `buf.yaml` `except` list for planned migrations |
+| **AsyncAPI** | [asyncapi-diff](https://github.com/asyncapi/diff) | Channel removal, message schema narrowing, required header addition, server removal | `ignore` annotations on channels marked for deprecation |
+| **GraphQL** | [graphql-inspector](https://graphql-inspector.com/) | Removed types/fields, changed nullability (non-null → nullable is safe, reverse breaks), argument addition to existing fields | Suppression comments in `.graphql-inspector.yaml` |
+| **JSON Schema** | [json-schema-diff](https://github.com/pwall567/json-schema-diff) + custom | Tighten (add `required`, narrow `enum`, reduce `maxLength`) is non-breaking for producers, breaking for consumers. Loosen (remove `required`, widen `enum`) is the reverse. Direction depends on `contractArtifact.role` (`provider` vs `consumer`). | Role-aware validation: provider changes validated against consumer expectations |
+
+```typescript
+interface ContractDiffConfig {
+  engine: string;                      // e.g., "oasdiff", "buf", "graphql-inspector"
+  engineVersion: string;               // Pinned version for reproducible results
+  ruleSet: string;                     // e.g., "WIRE" for buf, "default" for oasdiff
+  suppressionFile?: string;            // Path to false-positive suppression config
+  role?: 'provider' | 'consumer';      // For JSON Schema directional validation
+}
+```
+
+**Handling edge cases in CI:**
+
+- **Generated specs** (e.g., OpenAPI from code annotations): The CI gate diffs the *committed* spec, not the generated output. If the BAR uses spec generation, the pipeline must include a "generate → commit → validate" step. The `contractArtifact.path` must point to the committed artifact.
+- **Partial schema moves** (splitting one spec into multiple files): `oasdiff` and `buf` both support multi-file specs via `$ref` resolution. The Red Queen resolves refs before diffing.
+- **Monorepo multi-spec**: When a monorepo contains specs for multiple interfaces, each CALM interface's `contractArtifact.path` points to its specific spec file. The CI gate validates only specs changed in the PR diff, not all specs in the repo.
+- **Spec version mismatch**: If the committed spec version doesn't match `contractArtifact.version`, the CI gate emits a warning (not an error) and validates against the committed content regardless.
+
+### 4.6 AST-Based Semantic Diff Analysis
+
+The `blast_radius` tool (T3) computes impact at the CALM graph level — tracing node relationships and flow transitions. But CALM-level analysis cannot distinguish between a comment edit (zero risk) and an authentication logic change (critical risk) in the same file.
+
+The Red Queen supplements CALM graph traversal with **AST-based semantic diff analysis** to classify code changes by risk tier.
+
+#### 4.6.1 Risk Classification
+
+```typescript
+type ChangeRiskTier = 'cosmetic' | 'low' | 'medium' | 'high' | 'critical';
+
+interface SemanticDiffResult {
+  file: string;
+  overallRisk: ChangeRiskTier;
+  changes: ClassifiedChange[];
+}
+
+interface ClassifiedChange {
+  type: 'added' | 'modified' | 'deleted';
+  nodeType: string;              // AST node type (function, class, import, etc.)
+  name: string;                  // Identifier name
+  risk: ChangeRiskTier;
+  reason: string;                // Why this risk level
+  calmNodeId?: string;           // Mapped CALM node, if identifiable
+}
+```
+
+#### 4.6.2 Risk Tier Definitions
+
+| Tier | AST Change Type | Examples |
+|------|----------------|---------|
+| **Cosmetic** | Comments, whitespace, formatting, type annotations | JSDoc update, prettier reformatting |
+| **Low** | Internal variable renames, private method refactoring | Rename local variable, extract helper function |
+| **Medium** | Business logic changes, new functions, modified control flow | New API handler, changed validation rules |
+| **High** | Interface changes, exported function signatures, dependency modifications | Changed function parameters, new `import`, modified `package.json` |
+| **Critical** | Authentication/authorization, cryptography, data access patterns, security middleware | Modified auth middleware, changed bcrypt rounds, raw SQL queries, CORS config |
+
+#### 4.6.3 Critical Pattern Detection
+
+The AST analyzer detects patterns known to be security-sensitive:
+
+```typescript
+const CRITICAL_PATTERNS = [
+  { pattern: /auth|authenticate|authorize|permission|rbac|abac/i, category: 'authentication' },
+  { pattern: /bcrypt|argon|scrypt|crypto|encrypt|decrypt|hash|hmac/i, category: 'cryptography' },
+  { pattern: /query|sql|exec|raw|knex\.|prisma\.\$|sequelize\.query/i, category: 'data-access' },
+  { pattern: /cors|csp|helmet|x-frame|hsts|origin/i, category: 'security-headers' },
+  { pattern: /cookie|session|token|jwt|oauth|bearer/i, category: 'session-management' },
+  { pattern: /eval|Function\(|child_process|exec\(|spawn\(/i, category: 'code-execution' },
+  { pattern: /\.env|secret|key|password|credential|api_key/i, category: 'secrets' },
+];
+```
+
+#### 4.6.4 Integration with Blast Radius and Merge Gating
+
+AST risk classification feeds into two downstream systems:
+
+1. **`blast_radius` (T3)**: Risk tier is included in impact computation. A PR touching 10 files all classified as `cosmetic` has minimal blast radius despite a large diff. A PR touching 1 file classified as `critical` (auth logic) triggers maximum blast radius with cross-BAR notifications.
+
+2. **`redqueen-action` (Section 14.3)**: The CI gate uses AST risk classification to determine validation depth:
+   - `cosmetic`/`low` changes: Lightweight CALM relationship check only
+   - `medium`/`high` changes: Full CALM flow + control validation
+   - `critical` changes: Full validation + mandatory human review + cross-BAR notification
+
+#### 4.6.5 Implementation Approach
+
+The Red Queen uses **tree-sitter** for AST parsing (available in WebAssembly for Node.js). Tree-sitter supports TypeScript, JavaScript, Python, Go, Java, and other languages relevant to enterprise codebases. For TypeScript-heavy repos, the TypeScript Compiler API (`ts.createSourceFile`) provides richer type-aware analysis.
+
+AST analysis runs in the CI gate (Layer 3) where full source is available. In the agent's local environment (Layers 1-2), file-path heuristics provide approximate risk classification without AST parsing.
 
 ---
 
@@ -2360,6 +2572,134 @@ interface PolicySuggestion {
 //  BARs between 60-70% still show 2.3 security findings per review."
 ```
 
+### 10.4 Score Decay Model — The Trust Battery
+
+Governance scores must not be static snapshots. A BAR reviewed 6 months ago with a score of 85% is not as trustworthy as a BAR reviewed yesterday with the same score. Scores without decay create a false sense of governance health and remove the incentive for continuous maintenance.
+
+The Red Queen implements a **trust battery** model: scores decay over time unless actively maintained, mimicking how trust works in human engineering teams.
+
+#### 10.4.1 Decay Factors
+
+| Factor | Decay Rate | Trigger | Rationale |
+|--------|-----------|---------|-----------|
+| **Review freshness** | -2 points/month after 30 days since last Oraculum review | No review in >30 days | Unreviewed code drifts from architecture |
+| **Dependency staleness** | -1 point/month per critical dependency beyond 90 days old | `npm outdated` / `snyk test` age data | Stale dependencies accumulate CVEs |
+| **Security scan staleness** | -3 points/month after 14 days since last CodeQL/Snyk scan | No scan results in >14 days | Security posture is unknown without recent scans |
+| **Threat model staleness** | -1 point/month after 90 days since last threat model update | `threat-model.yaml` modification date | Threat landscape evolves; stale models miss new vectors |
+| **ADR freshness** | -0.5 points/month after 180 days since last ADR | No new ADR in >180 days | Architectural decisions accumulate without documentation |
+
+#### 10.4.2 Critical Failure Reset
+
+Certain events trigger immediate score reductions rather than gradual decay:
+
+| Event | Score Impact | Recovery Path |
+|-------|-------------|---------------|
+| **Critical CVE in dependency** | Security pillar → floor of 30% | Remediate CVE, re-scan, score recomputes |
+| **NeMo rail denial on merged PR** | -10 points to affected pillar | Indicates enforcement bypass — investigate how denial was circumvented |
+| **Failed security scan (high/critical)** | Security pillar capped at 50% until resolved | Fix findings, re-scan to lift cap |
+| **Interface contract violation in production** | -15 points to architecture pillar | Update CALM model, validate all linked BARs |
+
+#### 10.4.3 Decay Computation
+
+Decay is computed **on read**, not as a background job. When any tool, panel, or CI workflow queries a BAR's governance scores, the Red Queen applies decay based on the current timestamp versus the last event timestamps:
+
+```typescript
+interface DecayConfig {
+  reviewFreshness: { gracePeriodDays: number; decayPerMonth: number };
+  dependencyAge: { thresholdDays: number; decayPerMonth: number };
+  securityScan: { gracePeriodDays: number; decayPerMonth: number };
+  threatModel: { gracePeriodDays: number; decayPerMonth: number };
+  adrFreshness: { gracePeriodDays: number; decayPerMonth: number };
+}
+
+const DEFAULT_DECAY: DecayConfig = {
+  reviewFreshness: { gracePeriodDays: 30, decayPerMonth: 2 },
+  dependencyAge: { thresholdDays: 90, decayPerMonth: 1 },
+  securityScan: { gracePeriodDays: 14, decayPerMonth: 3 },
+  threatModel: { gracePeriodDays: 90, decayPerMonth: 1 },
+  adrFreshness: { gracePeriodDays: 180, decayPerMonth: 0.5 }
+};
+
+function computeDecayedScore(
+  rawScore: GovernanceScores,
+  timestamps: GovernanceTimestamps,
+  now: Date,
+  config: DecayConfig = DEFAULT_DECAY
+): GovernanceScores {
+  const decayed = { ...rawScore };
+
+  // Review freshness decay — affects all pillars
+  const daysSinceReview = daysBetween(timestamps.lastReview, now);
+  if (daysSinceReview > config.reviewFreshness.gracePeriodDays) {
+    const monthsOverdue = (daysSinceReview - config.reviewFreshness.gracePeriodDays) / 30;
+    const reviewDecay = monthsOverdue * config.reviewFreshness.decayPerMonth;
+    decayed.composite = Math.max(0, decayed.composite - reviewDecay);
+  }
+
+  // Security scan staleness — affects security pillar
+  const daysSinceScan = daysBetween(timestamps.lastSecurityScan, now);
+  if (daysSinceScan > config.securityScan.gracePeriodDays) {
+    const monthsOverdue = (daysSinceScan - config.securityScan.gracePeriodDays) / 30;
+    const scanDecay = monthsOverdue * config.securityScan.decayPerMonth;
+    decayed.security = Math.max(0, decayed.security - scanDecay);
+  }
+
+  // Dependency staleness — affects security + operations pillars
+  if (timestamps.oldestCriticalDependencyDays > config.dependencyAge.thresholdDays) {
+    const monthsOverdue = (timestamps.oldestCriticalDependencyDays - config.dependencyAge.thresholdDays) / 30;
+    const depDecay = monthsOverdue * config.dependencyAge.decayPerMonth;
+    decayed.security = Math.max(0, decayed.security - depDecay);
+    decayed.operations = Math.max(0, decayed.operations - depDecay);
+  }
+
+  // Threat model staleness — affects security + informationRisk pillars
+  const daysSinceThreatUpdate = daysBetween(timestamps.lastThreatModelUpdate, now);
+  if (daysSinceThreatUpdate > config.threatModel.gracePeriodDays) {
+    const monthsOverdue = (daysSinceThreatUpdate - config.threatModel.gracePeriodDays) / 30;
+    const threatDecay = monthsOverdue * config.threatModel.decayPerMonth;
+    decayed.security = Math.max(0, decayed.security - threatDecay);
+    decayed.informationRisk = Math.max(0, decayed.informationRisk - threatDecay);
+  }
+
+  // Recompute composite from decayed pillars
+  decayed.composite = Math.round(
+    (decayed.architecture + decayed.security + decayed.informationRisk + decayed.operations) / 4
+  );
+
+  return decayed;
+}
+```
+
+#### 10.4.4 Decay Visualization
+
+The Looking Glass BAR detail shows decay as a distinct visual signal:
+
+- **Score display**: Shows both raw score and decayed score when they differ: `Security: 85% → 72% (decayed)`
+- **Decay warning**: Amber callout when decay exceeds 10 points: "Security score has decayed 13 points since last scan (47 days ago)"
+- **Tier impact**: If decay pushes a BAR below a tier threshold, the tier badge shows both: `🟢 Autonomous → 🟡 Supervised (decayed)`
+- **Recovery actions**: Each decay factor links to a remediation action: "Run Oraculum review to restore review freshness"
+
+#### 10.4.5 Decay in Orchestration Decisions
+
+The policy evaluator uses **decayed scores**, not raw scores, for all tier and constraint decisions. This means:
+
+- A BAR with raw score 82% but decayed score 74% is evaluated as **supervised**, not autonomous
+- Prompt pack injection thresholds compare against decayed scores
+- Platform minimum score enforcement uses decayed scores
+- Score delta tracking records both raw and decayed values
+
+```typescript
+interface GovernanceTimestamps {
+  lastReview: Date | null;
+  lastSecurityScan: Date | null;
+  lastThreatModelUpdate: Date | null;
+  lastAdrCreated: Date | null;
+  oldestCriticalDependencyDays: number;
+  lastCriticalFailure: Date | null;
+  criticalFailureType: string | null;
+}
+```
+
 ---
 
 ## 11. VS Code Extension Integration
@@ -2514,28 +2854,51 @@ The Rabbit Hole's description field receives all BAR context (CALM, ADRs, threat
 | **NeMo Rails** | {activeRailCount} active |
 
 ### Architecture (CALM)
-{truncated CALM JSON — nodes, relationships, interfaces}
+<!-- Resolved from: bar.arch.json via CalmParser.parse() -->
+<!-- Truncated to nodes + relationships + interfaces (no metadata) -->
+<!-- Max 200 lines — if larger, include only nodes and relationship summaries -->
+${calmContext.toMarkdown({ sections: ['nodes', 'relationships', 'interfaces'], maxLines: 200 })}
 
 ### Architecture Decision Records
-{ADR summaries — id, title, status, decision}
+<!-- Resolved from: governance/adrs/*.yaml via globSync('governance/adrs/*.yaml') -->
+<!-- Each ADR rendered as: "- **ADR-{id}** ({status}): {title} — {decision summary (first 100 chars)}" -->
+${adrFiles.map(adr => `- **ADR-${adr.id}** (${adr.status}): ${adr.title} — ${truncate(adr.decision, 100)}`).join('\n')}
 
 ### Threat Model
-{STRIDE summary from security/threat-model.yaml}
+<!-- Resolved from: security/threat-model.yaml via ThreatModelParser.parse() -->
+<!-- Access controlled by BAR's threat_model_access tier (Section 14.4.1): -->
+<!--   open: full STRIDE categories with attack vectors -->
+<!--   summary: risk ratings + mitigated control IDs only (DEFAULT) -->
+<!--   restricted: returns "Access restricted — contact security team" -->
+${threatModel.toMarkdown({ accessTier: barConfig.security.threat_model_access ?? 'summary' })}
 
 ### Governance Constraints (MANDATORY)
-{constraints from policy evaluation}
-- All database queries MUST use parameterized statements
-- All user input MUST be validated with Zod schemas
-- Do not add direct database connections — route through the API layer
+<!-- Resolved from: Red Queen policy evaluation (evaluatePolicy() in Section 7.3) -->
+<!-- Each constraint sourced from one of: -->
+<!--   1. CALM controls (ctrl-*) → "All {resource} MUST {control.requirement}" -->
+<!--   2. NeMo rail violations on current codebase → "Do not {blocked pattern}" -->
+<!--   3. Platform-level mandates (policy.yaml) → inherited constraints -->
+<!--   4. Fitness function failures → "{metric} must be {operator} {threshold}" -->
+${policyResult.constraints.map(c => `- ${c.requirement} _(source: ${c.sourceType}/${c.sourceId})_`).join('\n')}
 
 ### Cross-BAR Dependencies
-{linked BARs and interface contracts}
-- **api-service** (consumes via order-processing-flow): interface order-api-v2
-- **fraud-detector** (consumes via fraud-check-flow): interface fraud-api-v1
+<!-- Resolved from: CALM interfaces where this BAR appears as provider or consumer -->
+<!-- Each linked BAR rendered with flow name and interface ID -->
+<!-- Machine-checkable contract paths included when contractArtifact exists (Section 4.5.1) -->
+${linkedBars.map(link => {
+  const contract = link.interface.contractArtifact
+    ? ` — contract: \`${link.interface.contractArtifact.path}\``
+    : '';
+  return `- **${link.barId}** (${link.role} via ${link.flowId}): interface ${link.interfaceId}${contract}`;
+}).join('\n')}
   ⚠ Changes to these interfaces require `validate_interface_contract`
 
 ### Scaffold Guidelines
-{cheshire-scaffold-default.md content}
+<!-- Resolved from: .cheshire/scaffold-default.md in the governance mesh -->
+<!-- Falls back to built-in default if file doesn't exist -->
+<!-- Content is included verbatim — it contains repo-specific coding standards -->
+${fs.readFileSync(path.join(meshPath, '.cheshire', 'scaffold-default.md'), 'utf-8')
+  ?? BUILTIN_SCAFFOLD_DEFAULTS}
 ```
 
 **Governance-Driven Prompt Pack Selection**
@@ -3156,33 +3519,375 @@ No authentication required. The server inherits filesystem permissions.
 
 ### 14.2 HTTP Transport (Remote / CI/CD)
 
-Bearer token authentication for HTTP deployments:
+Bearer token authentication with **fail-closed semantics** for CI/production deployments:
 
 ```typescript
+import { timingSafeEqual } from 'crypto';
+
+// Environment detection
+type RedQueenEnv = 'local' | 'ci' | 'production';
+const REDQUEEN_ENV: RedQueenEnv =
+  (process.env.REDQUEEN_ENV as RedQueenEnv) ?? 'local';
 const REDQUEEN_AUTH_TOKEN = process.env.REDQUEEN_AUTH_TOKEN;
 
+// Fail-closed: in CI/production, refuse to start without auth token
+if (REDQUEEN_ENV !== 'local' && !REDQUEEN_AUTH_TOKEN) {
+  throw new Error(
+    `REDQUEEN_AUTH_TOKEN required in ${REDQUEEN_ENV} mode. ` +
+    `Set REDQUEEN_ENV=local for unauthenticated development.`
+  );
+}
+
 function validateRequest(req: IncomingMessage): boolean {
-  if (!REDQUEEN_AUTH_TOKEN) return true;  // Open in local dev
+  if (REDQUEEN_ENV === 'local' && !REDQUEEN_AUTH_TOKEN) {
+    return true;  // Open only in explicit local dev
+  }
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return false;
-  return auth.slice(7) === REDQUEEN_AUTH_TOKEN;
+  // Constant-time comparison to prevent timing attacks
+  const token = Buffer.from(auth.slice(7));
+  const expected = Buffer.from(REDQUEEN_AUTH_TOKEN!);
+  if (token.length !== expected.length) return false;
+  return timingSafeEqual(token, expected);
 }
 ```
 
-### 14.3 Data Access Control
+#### 14.2.1 Audit Logging
+
+All tool invocations are logged with governance metadata for post-incident analysis:
+
+```typescript
+interface AuditLogEntry {
+  timestamp: string;           // ISO 8601
+  tool: string;                // e.g. "validate_action"
+  caller: string;              // agent identity or CI job ID
+  barId: string;
+  action: string;              // action type attempted
+  verdict: 'allow' | 'deny' | 'condition';
+  governanceTier: 'autonomous' | 'supervised' | 'restricted';
+  score: number;               // governance score at time of call
+  durationMs: number;
+  env: RedQueenEnv;
+  // Only populated on deny/condition
+  violations?: string[];
+}
+
+// Structured JSON to stdout — consumed by existing log aggregation
+function emitAuditLog(entry: AuditLogEntry): void {
+  console.log(JSON.stringify({ level: 'audit', ...entry }));
+}
+```
+
+**Audit Trail Storage and Integrity**
+
+| Concern | Approach |
+|---------|----------|
+| **Storage** | Audit logs emit to stdout as structured JSON. In CI (GitHub Actions), stdout is captured in workflow run logs with 90-day retention. In production, logs are forwarded to the organization's existing log aggregation (Splunk, Datadog, ELK) via standard container log drivers. The Red Queen does not implement its own log storage — it produces events; the org's observability stack stores them. |
+| **Retention** | Minimum 90 days (GitHub Actions default). Organizations requiring longer retention configure their log aggregation pipeline. Break-glass events (Section 14.3.5) are additionally persisted as GitHub Issues, which have no expiration. |
+| **Tamper-evidence** | Each `AuditLogEntry` includes a `correlationId` (SHA-256 of `timestamp + tool + barId + caller + verdict`) that can be independently recomputed from the log fields. In CI, the workflow run ID provides a tamper-evident anchor — GitHub Actions logs cannot be modified after the run completes. For production deployments, organizations should route audit events to append-only storage (e.g., S3 with Object Lock, immutable Datadog archives). |
+| **Correlation** | Every audit entry includes `correlationId`, `prNumber` (when running in PR context), `commitSha`, and `workflowRunId`. This enables tracing a governance decision back to the exact PR, commit, agent session, and workflow run. Break-glass overrides include the `ticketRef` for incident correlation. |
+
+```typescript
+interface AuditLogEntry {
+  // ... (existing fields above)
+  correlationId: string;           // SHA-256(timestamp + tool + barId + caller + verdict)
+  prNumber?: number;               // GitHub PR number (when in PR context)
+  commitSha?: string;              // HEAD commit SHA at time of validation
+  workflowRunId?: string;          // GitHub Actions run ID (CI only)
+}
+```
+
+#### 14.2.2 Rate Limiting
+
+Per-tool rate limits prevent runaway agents from overwhelming the governance server:
+
+```typescript
+interface RateLimitConfig {
+  windowMs: number;         // Sliding window (default: 60_000)
+  maxPerWindow: number;     // Max calls per window (default: 120)
+  perToolLimits?: Record<string, number>;  // Override per tool
+}
+
+const DEFAULT_RATE_LIMITS: RateLimitConfig = {
+  windowMs: 60_000,
+  maxPerWindow: 120,
+  perToolLimits: {
+    validate_action: 200,       // High — called frequently
+    architecture_query: 30,     // Low — LLM sampling is expensive
+    score_snapshot: 10,         // Very low — write operation
+  },
+};
+```
+
+When a caller exceeds the rate limit, the server returns HTTP 429 with a `Retry-After` header. In `ci` and `production` modes, rate limit breaches are logged as audit events.
+
+### 14.3 Merge Gating — The Hard Enforcement Boundary
+
+The most critical lesson from real-world governance: **enforcement that depends on agent cooperation is advisory, not deterministic.** An agent that ignores `AGENTS.md`, one that's never configured with the Red Queen MCP server, or one that simply doesn't call `validate_action` faces zero enforcement if the only enforcement point is inside the agent's own tool calls.
+
+The Red Queen solves this with a **CI-level hard gate** — a GitHub Actions workflow that runs independently of any agent, analyzes the PR diff against CALM constraints, and sets a **required status check** that blocks merge on violations.
+
+#### 14.3.1 The Three-Layer Enforcement Model
+
+```
+Layer 1: PreToolUse Hooks (Fast Feedback — Milliseconds)
+  Claude Code hooks intercept Edit/Write calls → validate against CALM
+  Agent gets immediate feedback before writing code
+  Advisory — agent can retry with corrected approach
+
+Layer 2: Agent-Called Tools (Rich Feedback — Seconds)
+  Agent calls validate_action proactively per AGENTS.md instructions
+  Receives detailed reasons, conditions, recommendations
+  Advisory — but informative enough that compliant agents self-correct
+
+Layer 3: CI Required Status Check (Hard Gate — Minutes)
+  redqueen-action runs on every pull_request event
+  Independently analyzes PR diff against CALM model
+  Required status check in branch protection rules
+  DETERMINISTIC — merge is blocked regardless of agent cooperation
+```
+
+Layers 1 and 2 optimize the developer/agent experience by catching issues early. Layer 3 is the **only true enforcement boundary** — the line that cannot be crossed.
+
+#### 14.3.2 `redqueen-action` GitHub Action
+
+```yaml
+# .github/workflows/redqueen-gate.yml
+name: Red Queen Governance Gate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  governance-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for diff analysis
+
+      - name: Checkout governance mesh
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/governance-mesh
+          path: governance-mesh
+          token: ${{ secrets.MESH_TOKEN }}
+
+      - name: Red Queen Governance Validation
+        uses: maintainabilityai/redqueen-action@v1
+        with:
+          mesh_path: governance-mesh
+          bar_id: ${{ vars.BAR_ID }}
+          base_ref: ${{ github.event.pull_request.base.sha }}
+          head_ref: ${{ github.event.pull_request.head.sha }}
+          enforcement_mode: strict  # strict | advisory
+          fail_on: error            # error | warning
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+The action performs the following independent validation (no agent cooperation required):
+
+1. **Diff analysis**: Computes the PR diff and classifies changed files by risk tier (see Section 4.6)
+2. **CALM constraint validation**: Checks whether new connections, services, or dependencies introduced in the diff violate CALM flow or relationship declarations
+3. **Interface contract validation**: For cross-repo changes, validates that modified endpoints/schemas still conform to declared interface contracts
+4. **Control adherence check**: Verifies that changes to security-sensitive code (auth, crypto, data access) maintain compliance with declared CALM controls
+5. **Schema diff validation**: If machine-checkable contract artifacts exist (OpenAPI, protobuf — see Section 4.5.1), validates the schema diff against the declared contract
+6. **Score impact projection**: Estimates the governance score delta if the PR merges
+
+The action posts results as a PR check with detailed findings:
+
+```
+Red Queen Governance Gate: ❌ Failed (2 errors, 1 warning)
+
+Errors:
+  ❌ CALM-FLOW-001: New connection src/api/directDb.ts:42 creates
+     web-ui → user-database connection not declared in any CALM relationship.
+     Expected path: web-ui → api-server → user-database (movie-search-flow)
+
+  ❌ CTRL-AUTH-002: New endpoint src/routes/export.ts:15 lacks
+     authentication middleware. Control ctrl-auth-001 requires OAuth2
+     on all endpoints (NIST AC-3).
+
+Warnings:
+  ⚠️ IFACE-001: Modified response schema in src/api/users.ts:88 may
+     affect interface user-api-v2 consumed by frontend-app.
+     Run validate_interface_contract for confirmation.
+
+Score Impact: 72% → 68% (projected -4 points)
+```
+
+#### 14.3.3 Branch Protection Configuration
+
+For governed repositories, branch protection rules must include:
+
+```
+Required status checks:
+  ✅ Red Queen Governance Gate  (required)
+  ✅ CI Tests                   (required)
+  ✅ CodeQL Security Scan       (required)
+
+Required reviewers:
+  - Determined by Red Queen tier:
+    - Autonomous: 1 reviewer (can be agent)
+    - Supervised: 1 reviewer (must be human)
+    - Restricted: 2 reviewers (1 agent + 1 human)
+
+Restrict pushes:
+  - No direct pushes to main/protected branches
+  - All changes via PR (ensures governance gate runs)
+```
+
+The ScaffoldPanel (Section 11.2.2) configures these branch protection rules automatically when scaffolding a governed repository, using the GitHub API.
+
+#### 14.3.4 Relationship to Agent-Called Validation
+
+Layer 3 (CI gate) does **not** replace Layers 1 and 2 — it complements them:
+
+| Aspect | Layers 1-2 (Agent) | Layer 3 (CI Gate) |
+|--------|-------------------|-------------------|
+| **Timing** | During development | At PR creation/update |
+| **Feedback quality** | Rich (reasons, conditions, alternatives) | Binary (pass/fail with findings) |
+| **Agent cooperation** | Required | Not required |
+| **Enforcement** | Advisory | Deterministic |
+| **Bypass resistance** | Agent can ignore | Cannot be bypassed (branch protection) |
+| **Coverage** | Only agents that call tools | All PRs regardless of author |
+
+The ideal flow: Layer 1 catches issues in milliseconds → Layer 2 provides detailed guidance → the PR arrives at Layer 3 already clean. Layer 3 is the safety net, not the primary feedback mechanism.
+
+#### 14.3.5 Break-Glass Procedure
+
+A hard gate that cannot be overridden is a liability during incidents. The Red Queen defines a **controlled override mechanism** with full audit trail:
+
+```typescript
+interface BreakGlassOverride {
+  pr: number;
+  overriddenBy: string;        // GitHub username
+  reason: 'incident' | 'hotfix' | 'false_positive' | 'other';
+  justification: string;       // Free-text explanation (required)
+  approvedBy: string[];        // Must include at least 1 CODEOWNER
+  expiresAt: string;           // ISO 8601 — max 24 hours from creation
+  violations: string[];        // Which specific checks are being overridden
+  ticketRef?: string;          // Link to incident ticket (required for 'incident')
+}
+```
+
+**Override Process:**
+
+1. **Request:** Developer runs `gh workflow dispatch redqueen-break-glass.yml` with reason and justification
+2. **Approval:** At least one CODEOWNER must approve via GitHub review (cannot self-approve)
+3. **Time-limited bypass:** The override creates a temporary branch protection exception lasting **max 24 hours**
+4. **Scoped:** The override applies only to the specific PR and the specific violations listed — all other checks remain enforced
+5. **Audit:** The override is logged as a governance event and posted as a PR comment visible to all reviewers
+6. **Follow-up required:** A follow-up issue is automatically created with label `governance:break-glass` tracking remediation of the overridden violations
+
+```yaml
+# .github/workflows/redqueen-break-glass.yml
+name: Red Queen Break-Glass Override
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to override'
+        required: true
+      reason:
+        description: 'Override reason'
+        required: true
+        type: choice
+        options: [incident, hotfix, false_positive, other]
+      justification:
+        description: 'Why this override is necessary'
+        required: true
+      ticket_ref:
+        description: 'Incident ticket URL (required for incident reason)'
+        required: false
+```
+
+**Guardrails on the override itself:**
+- Cannot override if governance score is below `criticalThreshold` (default: 30%) — these BARs need remediation, not bypasses
+- Maximum 3 active break-glass overrides per BAR at any time
+- Overrides are tracked in governance score decay (see Section 10.4) — frequent overrides accelerate score decay
+- Monthly break-glass report surfaces override patterns to platform architects
+
+**Anti-Normalization Controls:**
+
+Break-glass exists for genuine emergencies. Without active controls, it silently becomes the "normal path" — governance theater. The Red Queen prevents normalization through:
+
+1. **Escalating friction:** Each successive break-glass for the same BAR within a 30-day window requires one additional CODEOWNER approver (1st override: 1 approver, 2nd: 2, 3rd: 3). The 4th triggers automatic escalation to the architecture review board.
+
+2. **Break-glass budget:** Each BAR has a configurable `breakGlassBudget` per quarter (default: 3). Exceeding the budget triggers:
+   - Automatic tier downgrade (e.g., supervised → restricted) until the next quarter
+   - Platform architect notification with override history
+   - Mandatory remediation plan (tracked as a GitHub Issue with `governance:remediation-required` label)
+
+3. **Follow-up enforcement:** The auto-created follow-up issue from step 6 of the override process has a 14-day SLA. If not closed within 14 days, the BAR's governance score receives a -5 point penalty per week (additive to normal decay). This creates a hard incentive to remediate rather than "override and forget."
+
+4. **Self-approve prevention:** The `overriddenBy` field is compared against the CODEOWNER list — the person requesting the override cannot be among the approvers. GitHub branch protection's "require review from Code Owners" enforces this at the platform level.
+
+5. **Visibility:** All active break-glass overrides appear in the Looking Glass BAR detail as a red callout: "1 active break-glass override (expires in 18h) — PR #247: ctrl-auth-002 bypassed for hotfix." Platform-level dashboard aggregates override frequency across all BARs.
+
+```typescript
+interface BreakGlassBudget {
+  perQuarter: number;                  // Default: 3
+  currentUsage: number;
+  escalationThreshold: number;         // Triggers arch board review (default: 4 in 30 days)
+  followUpSlaDays: number;             // Default: 14
+  penaltyPerWeekOverdue: number;       // Default: 5 points
+}
+```
+
+### 14.4 Data Access Control
 
 | Resource | Sensitivity | Access Policy |
 |----------|------------|---------------|
 | Portfolio/platform summaries | Low | Open read |
 | CALM architecture | Medium | Open read (architecture is documentation) |
 | Governance scores | Medium | Open read |
-| Threat models | High | Open read (valuable but not secrets) |
+| Threat models | **Variable** | **Tier-based** (see below) |
 | Controls / ADRs | Medium | Open read |
 | Prompt packs | Low | Open read |
 | validate_action (write) | Low | Available to any authenticated caller |
 | score_snapshot (write) | Low | Requires explicit user approval |
 
-> **Decision D9:** Governance mesh data is documentation, not secrets. API keys and credentials should never be stored in mesh files. Write operations require user confirmation.
+#### 14.4.1 Threat Model Access Tiers
+
+Threat models contain attack surfaces, risk ratings, and mitigation gaps — information that could aid an attacker if leaked. Access is configurable per BAR based on criticality:
+
+```typescript
+interface ThreatModelAccessPolicy {
+  // Configured per BAR in mesh.yaml under security.threat_model_access
+  tier: 'open' | 'summary' | 'restricted';
+}
+```
+
+| Access Tier | Who Can Read | What They See | Use When |
+|-------------|-------------|---------------|----------|
+| `open` | Any authenticated caller | Full threat model YAML | Internal tools, low-criticality BARs |
+| `summary` | Any authenticated caller | Risk ratings + mitigated controls only (attack vectors redacted) | Default for most BARs |
+| `restricted` | Callers with `REDQUEEN_THREAT_MODEL_TOKEN` | Full threat model YAML | High-criticality BARs (PII, payments, auth) |
+
+**Default:** `summary` — agents see enough to validate controls without exposing attack surface details.
+
+**Configuration in mesh.yaml:**
+```yaml
+bars:
+  payment-service:
+    criticality: high
+    security:
+      threat_model_access: restricted
+  movie-search:
+    criticality: medium
+    security:
+      threat_model_access: summary  # default
+  internal-tools:
+    criticality: low
+    security:
+      threat_model_access: open
+```
+
+When an agent calls `get_bar_context` for a BAR with `summary` access, the returned threat model replaces attack vector details with references to control IDs: _"Mitigated by ctrl-auth-001, ctrl-crypto-002"_ — enough for governance validation without exposing the how-to-attack narrative.
+
+> **Decision D9 (revised):** Most governance mesh data is documentation, not secrets. However, threat models are an exception — they describe attack surfaces and should be access-controlled by BAR criticality. API keys and credentials must never be stored in mesh files. Write operations require user confirmation.
 
 ---
 
@@ -3196,7 +3901,7 @@ function validateRequest(req: IncomingMessage): boolean {
 | D4 | CALM flows + interfaces as cross-repo governance contracts | CALM already models service relationships, transitions, and interfaces. Using this existing structure as governance contracts avoids inventing a new schema and ensures architecture models and governance rules are always in sync. |
 | D5 | `copilot-setup-steps.yml` + repo Settings UI for Copilot agent MCP | Copilot agent doesn't read committed MCP config files. The environment setup step starts the Red Queen server; the Settings UI points to it. This is the only pattern GitHub currently supports. |
 | D6 | NeMo runs as a sidecar process, not embedded in Node.js | NeMo Guardrails is a Python package. Running it as a REST sidecar (`nemoguardrails server`) keeps the MCP server in pure Node.js while using NeMo's full Colang 2.0 engine. HTTP latency (~50ms) is negligible for PR-level validation. |
-| D7 | `validate_action` called by agents, not as a pre-commit hook | Agents call `validate_action` proactively (instructed via AGENTS.md and governance-context.md). This is more informative than a binary hook — the agent receives reasons, conditions, and recommendations it can act on. |
+| D7 | Three-layer enforcement: hooks → agent tools → CI gate | **Layer 1 (Fast feedback):** Claude Code `PreToolUse` hooks intercept `Edit`/`Write` calls and validate against CALM constraints in milliseconds — the agent gets immediate feedback before writing code. **Layer 2 (Rich feedback):** Agents call `validate_action` proactively (instructed via AGENTS.md) for detailed reasons, conditions, and recommendations they can act on. **Layer 3 (Hard gate):** `redqueen-action` GitHub Action runs independently on every PR as a **required status check** in branch protection — merge is blocked on governance violations regardless of whether the agent cooperated. Layers 1 and 2 are advisory (informative); Layer 3 is deterministic (the only true "hard enforcement boundary"). |
 | D8 | Three permission tiers (autonomous/supervised/restricted) | Maps to the governance maturity curve. High-scoring BARs earn autonomy; low-scoring BARs get guardrails. Simple enough to understand, flexible enough via criticality multipliers. |
 | D9 | All governance data is read-open (no per-resource ACL) | Governance mesh is documentation and scores, not secrets. Simplicity over complexity — YAGNI for per-resource authorization. |
 | D10 | Cross-repo notifications via GitHub Issues | When a change in BAR A violates an interface contract with BAR B, the Red Queen creates an issue in BAR B's repo. This integrates with existing workflows — developers see it in their issue tracker. |
@@ -3209,6 +3914,19 @@ function validateRequest(req: IncomingMessage): boolean {
 | D17 | Three-level policy hierarchy (portfolio → platform → BAR) with tighten-only semantics | Platforms need governance authority over their BARs (shared infrastructure, minimum scores, tier caps), but cannot loosen portfolio-level rules. BAR overrides cannot loosen platform rules. This prevents governance erosion while allowing context-specific tightening. |
 | D18 | Governance woven into Cheshire Cat UX, not a separate workflow | Users should not need a "governance mode" — governance context (tier badges, mandated packs, pre-submission summaries, NeMo event streams) appears naturally in every panel they already use. Reduces friction and ensures governance is never bypassed by simply not opening a governance panel. |
 | D19 | Platform-level relationship discovery (4 mechanisms) | CALM flows are the strongest signal but not every BAR has CALM architecture. Supplementing with explicit `linkedBars`, capability overlap, and shared infrastructure declarations ensures cross-BAR governance works even for BARs at early governance maturity levels. |
+| D20 | Three-layer enforcement model: hooks → agent tools → CI gate | Agent-called `validate_action` provides rich feedback but depends on agent cooperation. The CI gate (`redqueen-action` as a required status check) is the only true "hard enforcement boundary" — it runs independently of agent behavior and blocks merge on violations. Layers 1-2 optimize DX; Layer 3 ensures governance. |
+| D21 | Machine-checkable contract artifacts for interface validation | Description-level string matching on change descriptions is best-effort, not deterministic. Extending CALM interfaces with `contractArtifact` references (OpenAPI, protobuf, AsyncAPI, GraphQL, JSON Schema) enables programmatic schema diffing — the only way to make "interface contract enforcement" truly machine-checkable. |
+| D22 | Governance score decay (trust battery model) | Scores without time-based decay create a false sense of governance health. A BAR reviewed 6 months ago is not as trustworthy as one reviewed yesterday. Decay is computed on read (not as a background job) and feeds into all orchestration decisions, ensuring stale BARs cannot maintain high-autonomy tiers indefinitely. |
+| D23 | AST-based semantic diff analysis for risk classification | CALM graph traversal computes impact at the architecture level but cannot distinguish a comment edit from an authentication logic change. Tree-sitter AST parsing classifies changes by risk tier (cosmetic → critical), enabling proportionate governance: lightweight checks for low-risk changes, full validation + mandatory human review for critical changes. |
+| D24 | Critical failure score reset | Gradual decay handles staleness; critical failures (CVE in dependency, merged code that bypassed guardrails, production interface violation) require immediate score impact. This mimics the "trust battery" concept — trust accumulates slowly but can be lost quickly. |
+| D25 | "Minimal infrastructure" not "zero infrastructure" | The Red Queen's Node.js MCP server is truly zero-infra (reads files, no database). But the NeMo Guardrails sidecar is a Python REST process — lightweight and ephemeral, but still infrastructure. Accuracy in claims builds credibility with enterprise adopters who will audit the architecture. |
+| D26 | Fail-closed HTTP auth in CI/production | In `local` mode, missing `REDQUEEN_AUTH_TOKEN` is permissive (developer convenience). In `ci` or `production` mode, the server **refuses to start** without a token. This prevents accidental unauthenticated deployments. Constant-time token comparison (`timingSafeEqual`) prevents timing attacks. |
+| D27 | Threat model access controlled by BAR criticality tier | Blanket "open read" for threat models risks leaking attack surface details. Three tiers (`open`/`summary`/`restricted`) let platform architects match access to BAR sensitivity. Default `summary` gives agents enough for governance validation (risk ratings + control IDs) without exposing attack vectors. |
+| D28 | Break-glass override with scoped, time-limited bypass | A hard gate without an escape hatch is a liability during incidents. The break-glass procedure requires CODEOWNER approval, is scoped to specific violations on a specific PR, expires in 24 hours, auto-creates follow-up issues, and feeds into score decay. This balances safety with operational reality. |
+| D29 | Concrete artifact-to-constraint resolution in system prompts | Template placeholders like `{STRIDE summary}` are load-bearing — if they resolve to empty strings, governance constraints silently disappear from agent context. Each placeholder now specifies its source artifact, parsing function, access control rules, and fallback behavior. Resolution failures surface as visible warnings, not silent omissions. |
+| D30 | Pinned, proven diff engines per contract artifact type | "Programmatic schema diffing" is only robust if the breaking change rules are well-defined and reproducible. Each artifact type maps to a specific engine (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL, etc.) with pinned versions and documented rulesets. False-positive suppression is per-BAR via engine-native config files, not custom logic. |
+| D31 | Audit trail integrity via correlation IDs and append-only storage | Audit events include `correlationId` (SHA-256 of key fields), `prNumber`, `commitSha`, and `workflowRunId` for full traceability. The Red Queen emits events; the organization's observability stack stores them. For CI, GitHub Actions log immutability provides tamper-evidence. For production, append-only storage (S3 Object Lock, immutable archives) is recommended. |
+| D32 | Break-glass anti-normalization via escalating friction and budgets | Without active controls, break-glass becomes the normal path. Escalating CODEOWNER requirements per successive override, quarterly budgets with automatic tier downgrade on exhaustion, 14-day follow-up SLAs with score penalties, and self-approve prevention ensure break-glass remains the exception. |
 
 ---
 
@@ -3232,10 +3950,16 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Implement T1-T8 (find_bars, get_bar_context, blast_radius, governance_gaps, architecture_query, compare_bars, score_snapshot, validate_calm)
 - [ ] Implement T12 flow_impact and T13 get_orchestration_decision
 - [ ] Add HTTP transport for CI/CD (`mcp-server-http.js`)
-- [ ] Implement bearer token authentication
+- [ ] Implement bearer token authentication with fail-closed semantics (Section 14.2)
+- [ ] Implement `REDQUEEN_ENV` detection (`local`/`ci`/`production`) with constant-time token comparison
+- [ ] Add audit logging for all tool invocations (`AuditLogEntry` interface, Section 14.2.1)
+- [ ] Add correlation fields to audit entries (`correlationId`, `prNumber`, `commitSha`, `workflowRunId`)
+- [ ] Add per-tool rate limiting with configurable limits (Section 14.2.2)
 - [ ] Add MCP prompt templates (P1-P4)
+- [ ] Implement AST-based semantic diff analysis (Section 4.6) using tree-sitter WASM
+- [ ] Integrate risk classification into `blast_radius` computation
 
-**Value:** Agents can actively query governance intelligence and compute impact analysis.
+**Value:** Agents can actively query governance intelligence and compute impact analysis. AST-based risk classification enables proportionate governance responses.
 
 ### Phase 3: NeMo Guardrails Integration
 
@@ -3247,9 +3971,10 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Implement permission tier rails (`permission-rails.co`)
 - [ ] Implement T9 `validate_action` — NeMo-backed enforcement tool
 - [ ] Implement T10 `get_constraints`
+- [ ] Implement Claude Code `PreToolUse` hooks for Layer 1 fast feedback (Section 14.3)
 - [ ] Test enforcement scenarios end-to-end
 
-**Value:** Deterministic governance enforcement. Agents cannot bypass architectural constraints regardless of prompt interpretation.
+**Value:** Deterministic governance enforcement via three layers: fast hooks, rich agent tools, and CI gate backstop.
 
 ### Phase 4: Cross-Repo & Platform Governance
 
@@ -3260,6 +3985,14 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Implement cross-repo notification system (GitHub Issues)
 - [ ] Add `linkedBars` field to BAR resources
 - [ ] Cross-repo flow visualization in Looking Glass
+- [ ] Implement machine-checkable contract artifact validation (Section 4.5.1)
+- [ ] Add OpenAPI schema diff support (`oasdiff` v2+ with pinned version and breaking change ruleset)
+- [ ] Add protobuf breaking change detection (`buf breaking` with `WIRE` ruleset)
+- [ ] Add GraphQL schema diff support (`graphql-inspector`)
+- [ ] Add AsyncAPI diff support (`asyncapi-diff`)
+- [ ] Implement per-BAR false-positive suppression files for each diff engine
+- [ ] Handle CI edge cases: generated specs, multi-file `$ref` resolution, monorepo multi-spec, version mismatch warnings
+- [ ] Extend `CalmInterface` type with `contractArtifact` field
 - [ ] Implement `discoverPlatformRelationships()` — sibling BAR relationship discovery
 - [ ] Implement `loadPlatformPolicy()` — platform.yaml governance section parsing
 - [ ] Implement `computePlatformImpact()` — platform-level blast radius analysis
@@ -3273,8 +4006,9 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Define `OrchestrationPolicy` types (portfolio, platform, BAR levels)
 - [ ] Implement policy loading from `mesh.yaml` + `platform.yaml` + per-BAR `app.yaml` overrides
 - [ ] Implement `evaluatePolicy()` — tier determination, prompt injection, criticality adjustment
+- [ ] Implement threat model access tiers (`open`/`summary`/`restricted`) per BAR criticality (Section 14.4.1)
 - [ ] Implement `applyPlatformOverrides()` — platform tier caps, minimum scores, shared infra constraints
-- [ ] Implement `generateGovernanceContext()` — dynamic CLAUDE.md
+- [ ] Implement `generateGovernanceContext()` — dynamic CLAUDE.md with concrete artifact-to-constraint resolution (Section 11.2.3)
 - [ ] Implement `generateSettings()` — `.claude/settings.json`
 - [ ] Implement `generateAgentsMd()` — shared AGENTS.md
 - [ ] Add Red Queen tier badge to Looking Glass BAR detail
@@ -3304,8 +4038,12 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Implement agent memory read/write
 - [ ] Implement policy suggestion engine
 - [ ] Score delta visualization in Looking Glass
+- [ ] Implement score decay model (Section 10.4) — compute-on-read with `GovernanceTimestamps`
+- [ ] Implement critical failure score reset logic
+- [ ] Add decay visualization to Looking Glass (raw vs. decayed scores, decay warnings, recovery actions)
+- [ ] Integrate decayed scores into `evaluatePolicy()` for tier and constraint decisions
 
-**Value:** Multi-agent review with consensus resolution. Continuous improvement via feedback loops.
+**Value:** Multi-agent review with consensus resolution. Score decay ensures governance health reflects current reality, not historical snapshots. Continuous improvement via feedback loops.
 
 ### Phase 8: Agent-Agnostic CI/CD Deployment
 
@@ -3314,9 +4052,22 @@ function validateRequest(req: IncomingMessage): boolean {
 - [ ] Create Claude Code Action workflow template
 - [ ] Scaffold `.mcp.json` and `AGENTS.md` into code repos via ScaffoldPanel
 - [ ] Document configuration for all agent types
-- [ ] Create `maintainabilityai/redqueen-action` GitHub Action for governance gate
+- [ ] Create `maintainabilityai/redqueen-action` GitHub Action as **required status check** (Section 14.3)
+  - [ ] Independent PR diff analysis against CALM constraints
+  - [ ] AST-based risk classification integration
+  - [ ] Schema-level contract artifact validation (OpenAPI, protobuf)
+  - [ ] Structured PR check output with findings, severity, and score impact projection
+- [ ] Create branch protection configuration templates (required checks, reviewer rules per tier)
+- [ ] ScaffoldPanel auto-configures branch protection rules via GitHub API
+- [ ] Implement break-glass override workflow (`redqueen-break-glass.yml`, Section 14.3.5)
+- [ ] Implement CODEOWNER approval requirement and time-limited bypass (max 24h)
+- [ ] Implement auto-creation of follow-up issues for overridden violations
+- [ ] Integrate break-glass frequency into score decay model
+- [ ] Implement break-glass anti-normalization: escalating CODEOWNER requirements, quarterly budgets, follow-up SLA enforcement, self-approve prevention
+- [ ] Add break-glass budget tracking and automatic tier downgrade on exhaustion
+- [ ] Add break-glass visibility to Looking Glass BAR detail and platform dashboard
 
-**Value:** Zero-friction deployment. Both Claude Code Action and Copilot coding agent governed identically through MCP tools.
+**Value:** Zero-friction deployment with hard enforcement boundary. The CI gate ensures governance is enforced regardless of agent cooperation. Both Claude Code Action and Copilot coding agent governed identically through MCP tools.
 
 ---
 
@@ -3342,9 +4093,17 @@ function validateRequest(req: IncomingMessage): boolean {
 | `src/mcp/utils/cross-repo.ts` | Multi-repo flow resolution |
 | `src/mcp/utils/platform-governance.ts` | Platform-level relationship discovery + policy enforcement |
 | `src/services/RedQueenService.ts` | Orchestration engine — policy, config generation, feedback loop |
-| `src/types/redqueen.ts` | All Red Queen types (incl. platform governance, impact assessment) |
+| `src/types/redqueen.ts` | All Red Queen types (incl. platform governance, impact assessment, score decay) |
+| `src/mcp/utils/semantic-diff.ts` | AST-based semantic diff analysis using tree-sitter |
+| `src/mcp/utils/contract-validator.ts` | Machine-checkable contract artifact validation (OpenAPI, protobuf, etc.) |
+| `src/mcp/utils/score-decay.ts` | Score decay computation (trust battery model) |
 | `mcp-server.js` | Standalone stdio entry point |
 | `mcp-server-http.js` | Standalone HTTP entry point |
+| `.github/actions/redqueen-action/` | GitHub Action for CI governance gate (required status check) |
+| `.github/workflows/redqueen-break-glass.yml` | Break-glass override workflow for merge gate bypass |
+| `src/mcp/utils/audit-logger.ts` | Structured audit logging for all tool invocations |
+| `src/mcp/utils/rate-limiter.ts` | Per-tool rate limiting for HTTP transport |
+| `src/mcp/utils/threat-model-access.ts` | Tier-based threat model access control |
 
 ### Files Modified
 
