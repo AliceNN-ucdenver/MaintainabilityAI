@@ -5,21 +5,22 @@
 [![CodeQL](https://img.shields.io/badge/security-CodeQL-blue)](https://github.com/AliceNN-ucdenver/MaintainabilityAI/actions/workflows/codeql.yml)
 [![OWASP Top 10](https://img.shields.io/badge/OWASP-Top%2010%20(2021)-orange)](https://owasp.org/Top10/)
 
-> **An open-source framework for security-first AI-assisted software development**  
-> Production-ready prompt packs, threat modeling workflows, and evolutionary architecture patterns — designed for collaborative improvement and community-driven prompt exchange.
+> **An open-source framework for security-first AI-assisted software development**
+> Production-ready prompt packs, threat modeling workflows, evolutionary architecture patterns, and a VS Code extension for enterprise governance — designed for collaborative improvement and community-driven prompt exchange.
 
-**🌐 Live Documentation**: [maintainability.ai](https://maintainability.ai)
+**Live Documentation**: [maintainability.ai](https://maintainability.ai) &nbsp;|&nbsp; **VS Code Extension**: [Marketplace](https://marketplace.visualstudio.com/items?itemName=MaintainabilityAI.maintainabilityai)
 
 ---
 
-## 🎯 Why Open Source This Framework?
+## Why Open Source This Framework?
 
 **The Challenge**: AI code generation is fast, but without security constraints and architectural guidance, teams ship vulnerable code faster than ever. Traditional security training doesn't translate well to AI-assisted workflows.
 
 **Our Solution**: A complete framework integrating:
 - **OWASP Top 10 prompt packs** — Security-first templates for AI code generation
-- **STRIDE threat modeling** — Design-phase security with AI assistance  
+- **STRIDE threat modeling** — Design-phase security with AI assistance
 - **Evolutionary architecture patterns** — Maintainability guardrails (fitness functions, dependency hygiene, strangler fig)
+- **VS Code extension** — Enterprise governance dashboard, security scorecard, and AI agent orchestration built on [CALM](https://github.com/finos/architecture-as-code)
 - **6-phase SDLC integration** — From threat model to production deployment
 
 **Why Open Source?**
@@ -28,11 +29,11 @@
 3. **Transparency** — Security-first AI development should be accessible to everyone
 4. **Standards** — Establish common patterns for AI-assisted secure development
 
-> 💡 **We believe the best security prompts come from practitioners**. Contribute your improvements, share your variations, and help establish industry patterns for responsible AI development.
+> **We believe the best security prompts come from practitioners.** Contribute your improvements, share your variations, and help establish industry patterns for responsible AI development.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 **View the complete framework**: Visit [maintainability.ai](https://maintainability.ai) for comprehensive documentation, interactive examples, and workshop materials.
 
@@ -63,9 +64,18 @@ npm run dev  # Opens at http://localhost:5173
 
 ---
 
-## 📚 What's Included
+## What's Included
 
-### 🛡️ OWASP Top 10 Prompt Packs
+### VS Code Extension
+
+The **MaintainabilityAI VS Code Extension** brings the full framework into your editor with two panels:
+
+- **Looking Glass** — Enterprise governance dashboard with portfolio scoring across four pillars (Architecture, Security, Information Risk, Operations), interactive CALM architecture diagrams, NIST SP 800-53 policy management, and the Absolem AI governance advisor
+- **Cheshire Cat** — Code-level companion with SDLC scaffolding, security scorecard (6 fitness functions), structured RCTRO issue creation, and agent orchestration for Claude Code and Copilot Coding Agent
+
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MaintainabilityAI.maintainabilityai) or see the [extension README](vscode-extension/README.md) for details.
+
+### OWASP Top 10 Prompt Packs
 Production-ready security prompts for AI code generation covering all OWASP 2021 categories:
 
 - **A01**: Broken Access Control → [View Prompt](https://maintainability.ai/docs/prompts/owasp/A01_broken_access_control)
@@ -79,9 +89,9 @@ Production-ready security prompts for AI code generation covering all OWASP 2021
 - **A09**: Logging/Monitoring → [View Prompt](https://maintainability.ai/docs/prompts/owasp/A09_logging_monitoring)
 - **A10**: Server-Side Request Forgery → [View Prompt](https://maintainability.ai/docs/prompts/owasp/A10_ssrf)
 
-📖 **[Browse All OWASP Prompts](https://maintainability.ai/docs/prompts/owasp/)**
+**[Browse All OWASP Prompts](https://maintainability.ai/docs/prompts/owasp/)**
 
-### 🎯 STRIDE Threat Modeling
+### STRIDE Threat Modeling
 AI-powered threat detection before code is written (93% of threats found in design phase):
 
 - Spoofing Identity → [View Prompt](https://maintainability.ai/docs/prompts/threat-modeling/spoofing)
@@ -91,9 +101,9 @@ AI-powered threat detection before code is written (93% of threats found in desi
 - Denial of Service → [View Prompt](https://maintainability.ai/docs/prompts/threat-modeling/denial-of-service)
 - Elevation of Privilege → [View Prompt](https://maintainability.ai/docs/prompts/threat-modeling/elevation-of-privilege)
 
-📖 **[Browse STRIDE Prompts](https://maintainability.ai/docs/prompts/threat-modeling/)**
+**[Browse STRIDE Prompts](https://maintainability.ai/docs/prompts/threat-modeling/)**
 
-### 📐 Maintainability Patterns
+### Maintainability Patterns
 Evolutionary architecture prompts for long-lived systems:
 
 - **Fitness Functions** → Automated quality gates (complexity ≤10, coverage ≥80%)
@@ -101,9 +111,9 @@ Evolutionary architecture prompts for long-lived systems:
 - **Strangler Fig Pattern** → Incremental legacy modernization
 - **Technical Debt Tracking** → Structured debt management
 
-📖 **[Browse Maintainability Prompts](https://maintainability.ai/docs/prompts/maintainability/)**
+**[Browse Maintainability Prompts](https://maintainability.ai/docs/prompts/maintainability/)**
 
-### 🧪 Working Examples
+### Working Examples
 The `examples/` directory contains deliberately insecure TypeScript code with corresponding tests:
 
 ```
@@ -137,7 +147,7 @@ npm run lint
 
 ---
 
-## 🏆 The Golden Rules of AI-Assisted Development
+## The Golden Rules of AI-Assisted Development
 
 > **Source**: Synthesized from Addy Osmani's research and documented in Mani, A. (2025). *Beyond Vibe Coding: From Coder to AI-Era Developer*. O'Reilly Media.
 
@@ -167,11 +177,11 @@ These governance principles ensure AI assistance enhances rather than compromise
 8. **Share and Reuse Effective Prompts**  
    Build a team library of proven patterns. Contribute improvements back to the community.
 
-📖 **[Read Full Governance Guide](https://maintainability.ai/docs/governance/vibe-golden-rules)** — Detailed examples, PR checklists, and team adoption strategies.
+**[Read Full Governance Guide](https://maintainability.ai/docs/governance/vibe-golden-rules)** — Detailed examples, PR checklists, and team adoption strategies.
 
 ---
 
-## 🤝 Contributing & Prompt Exchange
+## Contributing & Prompt Exchange
 
 **We encourage community contributions!** The best security prompts come from real-world usage and iterative refinement.
 
@@ -181,7 +191,7 @@ These governance principles ensure AI assistance enhances rather than compromise
    Found a better way to phrase a security constraint? Submit a PR with your refinement.
 
 2. **Share Prompt Variations**  
-   Tool-specific variations (Claude vs Copilot vs ChatGPT) or language-specific adaptations (Python, Go, Rust).
+   Tool-specific variations (Claude Code vs Copilot Coding Agent vs ChatGPT) or language-specific adaptations (Python, Go, Rust).
 
 3. **Add New Patterns**  
    Discovered a new security pattern or architectural fitness function? Share it with the community.
@@ -211,30 +221,38 @@ git commit -m "improve(A03): Add input sanitization examples for Python
 - Include Django ORM examples
 - Clarify parameterization benefits
 
-🤖 Tested with Claude 3.5 Sonnet"
+AI-assisted with Claude Code"
 
 # 6. Push and open PR
 git push origin feature/improve-a03-prompt
 ```
 
 **Please include**:
-- Which AI tool you tested with (Claude Code, Copilot, ChatGPT, etc.)
+- Which AI tool you tested with (Claude Code, Copilot Coding Agent, ChatGPT, etc.)
 - Programming language/framework context
 - Before/after examples if applicable
 - Testing results
 
-📖 **[Read Contributing Guide](.github/CONTRIBUTING.md)** for detailed instructions.
+**[Read Contributing Guide](.github/CONTRIBUTING.md)** for detailed instructions.
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 MaintainabilityAI/
-├── site-tw/                    # React documentation site
+├── vscode-extension/          # VS Code extension (Looking Glass + Cheshire Cat)
+│   ├── src/
+│   │   ├── services/              # MeshService, GovernanceScorer, GitSync
+│   │   ├── webview/app/           # Panel UI (Looking Glass, Scaffold, Oraculum)
+│   │   └── types/                 # Shared TypeScript types
+│   ├── prompt-packs/              # 23 embedded prompt packs
+│   └── package.json               # Extension manifest
+│
+├── site-tw/                   # Tailwind documentation site (Vite)
 │   ├── public/
 │   │   └── docs/              # All documentation (Markdown)
-│   │       ├── prompts/       # ⭐ Prompt pack library
+│   │       ├── prompts/       # Prompt pack library
 │   │       │   ├── owasp/         # OWASP Top 10 (A01-A10)
 │   │       │   ├── threat-modeling/  # STRIDE categories
 │   │       │   └── maintainability/  # Architecture patterns
@@ -242,10 +260,10 @@ MaintainabilityAI/
 │   │       ├── sdlc/              # SDLC framework
 │   │       ├── agents/            # AI agent guides
 │   │       └── governance/        # Golden Rules
-│   ├── src/                   # React components
+│   ├── src/                   # Site source (Tailwind + vanilla JS)
 │   └── index.html             # Site entry point
 │
-├── examples/                  # ⭐ Hands-on remediation exercises
+├── examples/                  # Hands-on remediation exercises
 │   └── owasp/
 │       ├── A01_broken_access_control/
 │       │   ├── insecure.ts        # Vulnerable code
@@ -264,13 +282,14 @@ MaintainabilityAI/
 ```
 
 **Key Locations**:
+- **Extension**: `vscode-extension/` — Governance dashboard, scorecard, agent orchestration
 - **Prompts**: `site-tw/public/docs/prompts/` — All prompt packs (OWASP, STRIDE, Maintainability)
 - **Examples**: `examples/owasp/` — Vulnerable code for hands-on learning
 - **Documentation**: `site-tw/public/docs/` — Complete framework docs (served at maintainability.ai)
 
 ---
 
-## 🧪 Example: Remediate SQL Injection (A03)
+## Example: Remediate SQL Injection (A03)
 
 This walkthrough demonstrates the complete secure development workflow.
 
@@ -355,45 +374,46 @@ git commit -m "fix(A03): Remediate SQL injection with parameterized queries
 🤖 AI-assisted with Claude Code using OWASP A03 prompt"
 ```
 
-📖 **[View Complete Example](https://maintainability.ai/docs/workshop/part3-live-remediation)**
+**[View Complete Example](https://maintainability.ai/docs/workshop/part3-live-remediation)**
 
 ---
 
-## 🌐 Deployment
+## Deployment
 
 The site deploys automatically via GitHub Actions:
 
 1. Push to `main` branch
-2. GitHub Actions builds React site
+2. GitHub Actions builds the site
 3. Deploys to GitHub Pages
 
 **Custom domain**: Add `CNAME` file in `site-tw/public/` and configure DNS.
 
 ---
 
-## 📖 Additional Resources
+## Additional Resources
 
 - **[Complete Documentation](https://maintainability.ai/docs)** — Full framework guide
-- **[4-Part Workshop](https://maintainability.ai/docs/workshop/)** — Team training materials
+- **[VS Code Extension](vscode-extension/README.md)** — Governance dashboard, scorecard, agent orchestration
+- **[Workshop](https://maintainability.ai/docs/workshop/)** — Team training materials
 - **[SDLC Integration](https://maintainability.ai/docs/sdlc/)** — 6-phase development framework
-- **[AI Agent Guides](https://maintainability.ai/docs/agents/)** — Claude, Copilot, ChatGPT comparison
+- **[AI Agent Guides](https://maintainability.ai/docs/agents/)** — Claude Code, Copilot Coding Agent, ChatGPT comparison
 - **[Security Policy](.github/SECURITY.md)** — Responsible disclosure
 
 ---
 
-## 📜 License
+## License
 
 MIT License — see [LICENSE](LICENSE) for details.
 
 **We encourage**:
-- ✅ Using prompts in commercial projects
-- ✅ Modifying prompts for your context
-- ✅ Sharing improvements back to the community
-- ✅ Building derivative works
+- Using prompts in commercial projects
+- Modifying prompts for your context
+- Sharing improvements back to the community
+- Building derivative works
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Built with contributions from security practitioners, AI researchers, and the open-source community.
 
@@ -404,7 +424,7 @@ Built with contributions from security practitioners, AI researchers, and the op
 
 **AI Tools**:
 - Claude Code (Anthropic)
-- GitHub Copilot (OpenAI)
+- GitHub Copilot Coding Agent (GitHub / Microsoft)
 - ChatGPT (OpenAI)
 
 **Inspired by**:
@@ -413,10 +433,8 @@ Built with contributions from security practitioners, AI researchers, and the op
 
 ---
 
-## 💬 Community & Support
+## Community & Support
 
 - **Issues**: [GitHub Issues](https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/AliceNN-ucdenver/MaintainabilityAI/discussions)
 - **Email**: hello@maintainability.ai
-
-**Join us in building the future of security-first AI development!** 🚀

@@ -259,28 +259,33 @@ export function hashFile(filePath: string): string | null {
 // Helpers
 // ============================================================================
 
-const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function isUnsafeKey(key: string): boolean {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype';
+}
 
 function setNestedField(obj: Record<string, unknown>, fieldPath: string, value: unknown): void {
   const parts = fieldPath.split('.');
-  if (parts.some(k => UNSAFE_KEYS.has(k))) { return; }
+  if (parts.length === 0 || parts.length > 4) { return; }
 
   if (parts.length === 1) {
-    obj[parts[0]] = value;
+    if (!isUnsafeKey(parts[0])) {
+      obj[parts[0]] = value;
+    }
     return;
   }
 
-  let current = obj;
+  // Only traverse into existing object properties — never create intermediate objects
+  let current: Record<string, unknown> = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
-    if (typeof current[key] !== 'object' || current[key] === null) {
-      current[key] = Object.create(null) as Record<string, unknown>;
-    }
-    current = current[key] as Record<string, unknown>;
+    if (isUnsafeKey(key)) { return; }
+    const next = current[key];
+    if (typeof next !== 'object' || next === null) { return; }
+    current = next as Record<string, unknown>;
   }
 
   const finalKey = parts[parts.length - 1];
-  if (!UNSAFE_KEYS.has(finalKey)) {
+  if (!isUnsafeKey(finalKey)) {
     current[finalKey] = value;
   }
 }
