@@ -222,7 +222,7 @@ This is the fundamental gap. And we're closing it.
 <div style="display: grid; grid-template-rows: auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto;">
 <div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">Layer 1: PreToolUse Hooks — Millisecond Inline Blocking</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Before any agent tool fires, lightweight hooks evaluate governance constraints and block violations inline. Zero latency overhead. Works with Claude Code and Copilot Coding Agent natively — no MCP round-trip required.</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Before any agent tool fires, lightweight hooks evaluate governance constraints and block violations inline. Zero latency overhead. Both Claude Code (<code>.claude/settings.json</code>) and Copilot Coding Agent (<code>.github/hooks/</code>) support preToolUse hooks natively — same validation logic, symmetric enforcement, no MCP round-trip required.</div>
 </div>
 <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: The Grin (MCP Server) + NeMo Guardrails — Contextual Validation</div>
@@ -230,7 +230,7 @@ This is the fundamental gap. And we're closing it.
 </div>
 <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: CI Required Status Check — Hard Merge Gate</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">The <code>redqueen-action</code> GitHub Action runs independent PR diff analysis as a required status check. No PR merges without governance clearance. Score-driven agent configuration — permission tiers, dynamic CLAUDE.md generation, cross-repo semantic governance, and feedback loops. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">The <code>redqueen-action</code> GitHub Action runs independent PR diff analysis as a required status check. No PR merges without governance clearance. Tree-sitter AST semantic diff classifies every code change by risk tier — cosmetic edits get lightweight checks, auth logic changes trigger full validation plus mandatory human review. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
 </div>
 </div>
 </div>
@@ -370,9 +370,9 @@ When your CALM model declares a flow from **checkout-ui** (frontend repo) throug
 
 ### Agent-Agnostic - One Control Plane, Every Agent
 
-Organizations use Claude Code *and* Copilot Coding Agent. Different config files. Different instruction formats. Different MCP support.
+Organizations use Claude Code *and* Copilot Coding Agent. Different config files. Different instruction formats. Different hook mechanisms.
 
-**The Red Queen doesn't care.** Both agents call the same MCP tools. Both hit the same NeMo guardrails. Both are governed by the same CALM model. One config file for Copilot Coding Agent, one for Claude Code — the enforcement is identical.
+**The Red Queen doesn't care.** Both agents support preToolUse hooks — Layer 1 enforcement is symmetric. Both call the same MCP tools. Both hit the same NeMo guardrails. Both are governed by the same CALM model. One hook file for Copilot Coding Agent (`.github/hooks/`), one for Claude Code (`.claude/settings.json`) — the enforcement is identical. Configuration fingerprints detect drift at every layer.
 
 ### Progressive Autonomy - Governance Earns Trust
 
@@ -421,7 +421,7 @@ Everything above - Looking Glass, Absolem, Oraculum, Cheshire, The Red Queen - i
 <div style="display: grid; grid-template-rows: auto auto auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto; text-align: left;">
 <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Red Queen Policy Engine + CI Hard Gate</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Orchestrates and enforces</strong> across three layers: PreToolUse hooks (ms), MCP tool validation (s), and CI required status checks (min). Permission tiers drive agent autonomy. Trust battery scores decay with neglect, recharge with active governance. Break-glass overrides with anti-normalization controls.</div>
+<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Orchestrates and enforces</strong> across three layers: PreToolUse hooks for both agents (ms), MCP tool validation (s), and CI required status checks with tree-sitter AST semantic diff (min). Configuration fingerprints detect drift. Permission tiers drive agent autonomy. Trust battery scores decay with neglect. Break-glass with anti-normalization controls. Severity-weighted multi-agent consensus.</div>
 </div>
 <div style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #d8b4fe;">NeMo Guardrails (Colang 2.0)</div>

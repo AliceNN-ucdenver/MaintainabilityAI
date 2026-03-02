@@ -1,7 +1,7 @@
 # The Red Queen — Governance-Enforced Agent Intelligence
 
-**Version:** 0.4.2 — Design
-**Date:** March 1, 2026
+**Version:** 0.4.3 — Design
+**Date:** March 2, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 > *"Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!"*
@@ -10,6 +10,13 @@
 > **Status:** Design Complete — Not Yet Implemented
 > **Depends on:** GovernanceScorer (Complete), PromptPackService (Complete), Oraculum (Complete), Absolem (Complete)
 > **Subsumes:** governance-grin.md (The Grin MCP server is now a component of The Red Queen)
+
+## Changelog
+
+| Version | Date | Sections Modified | Summary |
+|---------|------|-------------------|---------|
+| 0.4.3 | 2026-03-02 | 4.6, 7, 9.3, 14 | Copilot hooks parity, stdio/HTTP transport split, config integrity validation, severity-weighted consensus, tree-sitter language coverage |
+| 0.4.2 | 2026-03-01 | All | Design complete — three-layer enforcement, score decay, machine-checkable contracts, break-glass, audit trail |
 
 ---
 
@@ -1228,11 +1235,50 @@ AST risk classification feeds into two downstream systems:
    - `medium`/`high` changes: Full CALM flow + control validation
    - `critical` changes: Full validation + mandatory human review + cross-BAR notification
 
-#### 4.6.5 Implementation Approach
+#### 4.6.5 Language Coverage and Extensibility
 
-The Red Queen uses **tree-sitter** for AST parsing (available in WebAssembly for Node.js). Tree-sitter supports TypeScript, JavaScript, Python, Go, Java, and other languages relevant to enterprise codebases. For TypeScript-heavy repos, the TypeScript Compiler API (`ts.createSourceFile`) provides richer type-aware analysis.
+**Initial language set:** TypeScript/JavaScript and Python. These two language families cover the majority of enterprise codebases that GitHub Actions agents work on. TypeScript/JavaScript dominates frontend, API, and serverless applications. Python dominates data engineering, ML/AI, and scripting.
 
-AST analysis runs in the CI gate (Layer 3) where full source is available. In the agent's local environment (Layers 1-2), file-path heuristics provide approximate risk classification without AST parsing.
+**Toolchain: tree-sitter**
+
+Tree-sitter provides the parsing foundation with incremental parsing (fast re-parses on edits), a unified API across languages, and well-maintained grammars via npm packages:
+
+- `tree-sitter-typescript` — Covers TypeScript and TSX
+- `tree-sitter-javascript` — Pure JavaScript
+- `tree-sitter-python` — Python 3
+
+For semantic diff specifically, parse both versions of a file into ASTs, compute the tree diff, and classify changes by node type rather than line number.
+
+**Risk classification by AST node type:**
+
+| Risk Tier | TypeScript/JavaScript | Python | Examples |
+|-----------|----------------------|--------|----------|
+| **Critical** | Auth/crypto imports, JWT handling, `eval()`, `Function()` | `subprocess`, `os.system`, `exec`, `pickle`, auth decorators | Auth logic, command injection vectors |
+| **High** | API route definitions, middleware, DB queries, env access | Flask/Django route decorators, ORM queries, `os.environ` | API surface, data access patterns |
+| **Structural** | Class/function signatures, export changes, type definitions | Class/function definitions, import changes, type hints | Interface contracts, module structure |
+| **Cosmetic** | Comments, formatting, variable renames (same scope) | Docstrings, formatting, variable renames (same scope) | No functional impact |
+
+**Fallback for unsupported languages:**
+
+For files in languages without tree-sitter grammar integration:
+- **Default to "structural" risk tier:** Any file change in an unsupported language is classified as structural (not cosmetic), which triggers standard review but not the critical/high path.
+- **Line-based heuristics:** Fall back to regex pattern matching against `CRITICAL_PATTERNS` (Section 4.6.3) for known security-sensitive patterns. Imprecise but catches obvious changes.
+- **Opt-in grammar registration:** The Red Queen exposes a configuration point in `.redqueen/config-manifest.yaml` where teams can register additional tree-sitter grammars for their stack (Go, Rust, Java, C#, etc.) without modifying core code.
+
+```yaml
+# .redqueen/config-manifest.yaml (excerpt)
+ast:
+  grammars:
+    - language: go
+      package: tree-sitter-go
+      critical_patterns:
+        - pattern: "http\\.Handle|http\\.ListenAndServe"
+          category: api-surface
+        - pattern: "exec\\.Command|os\\.Exec"
+          category: code-execution
+```
+
+**Execution context:** AST analysis runs in the CI gate (Layer 3) where full source is available. In the agent's local environment (Layers 1-2), file-path heuristics provide approximate risk classification without AST parsing. For TypeScript-heavy repos, the TypeScript Compiler API (`ts.createSourceFile`) provides richer type-aware analysis as a supplement to tree-sitter.
 
 ---
 
@@ -2031,10 +2077,14 @@ Claude Code Action and GitHub Copilot coding agent have different configuration 
 | MCP config | `.mcp.json` in repo root (auto-detected) | Repo Settings UI (JSON, not committed) |
 | Agent instructions | `CLAUDE.md` | `copilot-instructions.md`, `AGENTS.md` |
 | Permissions | `.claude/settings.json` | Not configurable |
-| Hooks | `PreToolUse` / `PostToolUse` hooks | Not supported |
+| Hooks | `.claude/settings.json` — `PreToolUse`, `PostToolUse` | `.github/hooks/*.json` — `preToolUse`, `postToolUse`, `sessionStart`, `sessionEnd`, `userPromptSubmitted`, `errorOccurred` |
+| Hook deny mechanism | Exit code 2 = deny | `{"permissionDecision":"deny"}` JSON stdout |
+| Hook scope | Personal / project / admin tiers | Repository-wide (committed to default branch) |
 | MCP features | Tools, resources, prompts | **Tools only** (no resources, no prompts) |
 | Environment setup | GitHub Actions workflow | `copilot-setup-steps.yml` |
 | Secrets | Standard Actions secrets | `COPILOT_MCP_` prefixed, `copilot` environment |
+
+> **Key parity milestone:** both agents now support `preToolUse` hooks, giving the Red Queen deterministic Layer 1 enforcement for both agents. Copilot hooks are committed to the repository's default branch in `.github/hooks/` and activate automatically for both the coding agent (GitHub Actions) and Copilot CLI.
 
 ### 7.2 Unified Governance via MCP Tools
 
@@ -2210,6 +2260,51 @@ Your permission tier is determined by the BAR's governance score:
 - Cross-repo interface modifications: `validate_interface_contract()`
 - Before creating a PR: `governance_gaps()` to check for issues
 ```
+
+### 7.6 Hook Generation (Layer 1 Enforcement)
+
+During repository scaffolding, the Red Queen generates preToolUse hooks for **both** agents, ensuring identical Layer 1 enforcement regardless of which agent is assigned to a PR.
+
+**Claude Code Action** (`.claude/settings.json`):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.redqueen/hooks/validate-tool.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Copilot Coding Agent** (`.github/hooks/redqueen.json`):
+
+```json
+{
+  "hooks": [
+    {
+      "type": "preToolUse",
+      "tools": ["bash", "edit", "view"],
+      "script": "./.redqueen/hooks/validate-tool.sh"
+    }
+  ]
+}
+```
+
+Both hooks call the same shared validation script (`.redqueen/hooks/validate-tool.sh`). The script reads tool name and arguments from stdin (JSON), performs fast checks against CALM flow constraints, and returns the appropriate response format per agent:
+
+- **Claude Code:** exit code 0 = approve, exit code 2 = deny (stderr is shown to agent)
+- **Copilot:** JSON stdout `{"permissionDecision":"approve"|"deny", "permissionDecisionReason":"..."}`
+
+The shared script detects which agent is calling it via the `AGENT_TYPE` environment variable (set by the respective workflow) and formats its response accordingly. The validation logic — CALM constraint checking, path restriction enforcement, and risk tier evaluation — is identical.
 
 ---
 
@@ -2443,6 +2538,35 @@ Stage 4: Human Architecture Board Review
 
 ### 9.3 Consensus Resolution
 
+When the Red Queen assembles a multi-agent review board (two or more specialized reviewers), the reviewers may disagree. The resolution algorithm follows a simple principle: **the most severe finding wins**, but disagreements are escalated transparently rather than resolved silently.
+
+#### 9.3.1 Resolution Rules
+
+| Scenario | Security Reviewer | Architecture Reviewer | Resolution |
+|----------|------------------|----------------------|------------|
+| Agreement | Approve | Approve | Approve — merge allowed |
+| Agreement | Deny (critical) | Deny (high) | Deny at highest severity |
+| Split | Deny (any) | Approve | Deny — blocking finding wins |
+| Split | Approve | Deny (any) | Deny — blocking finding wins |
+| Conditional | Approve with caveats | Approve | Approve with merged caveats |
+
+#### 9.3.2 Key Principles
+
+- **Any deny is a deny:** If any reviewer returns a blocking finding, the PR is blocked. There is no majority vote. This is a **union of concerns**, not a democratic process.
+- **Severity propagates upward:** The final verdict uses the highest severity from any reviewer. If security says "critical" and architecture says "medium," the combined verdict is "critical."
+- **Caveats are merged:** If both reviewers approve but attach conditions (e.g., "add rate limiting" from security + "update ADR" from architecture), all conditions are surfaced in the PR comment.
+- **No silent resolution:** When reviewers disagree, the PR comment explicitly shows both opinions. The blocking opinion is enforced, but the approving opinion is visible so the developer understands the full picture.
+
+#### 9.3.3 Escalation Path
+
+If a developer believes a blocking finding is incorrect (false positive):
+
+1. Comment on the PR with a justification.
+2. A CODEOWNER reviews the finding and either overrides (using break-glass, Section 14.3.5) or confirms.
+3. If overridden, the break-glass procedure applies — escalating friction, quarterly budget, follow-up issue.
+
+#### 9.3.4 Implementation
+
 ```typescript
 function resolveConsensus(
   verdicts: ReviewVerdict[],
@@ -2456,27 +2580,45 @@ function resolveConsensus(
     return { outcome: 'escalate', reason: `${criticalFindings.length} critical finding(s)`, findings: criticalFindings };
   }
 
-  switch (rule) {
-    case 'unanimous':
-      return verdicts.every(v => v.approve)
-        ? { outcome: 'approve', findings: [] }
-        : { outcome: 'request-changes', findings: verdicts.flatMap(v => v.findings) };
+  // Collect all findings and caveats across reviewers
+  const allFindings = verdicts.flatMap(v => v.findings);
+  const allCaveats = verdicts.flatMap(v => v.caveats ?? []);
 
-    case 'majority': {
-      const totalWeight = verdicts.reduce((sum, v) => sum + v.weight, 0);
-      const approveWeight = verdicts.filter(v => v.approve).reduce((sum, v) => sum + v.weight, 0);
-      return (approveWeight / totalWeight) > 0.5
-        ? { outcome: 'approve', findings: [] }
-        : { outcome: 'request-changes', findings: verdicts.flatMap(v => v.findings) };
-    }
-
-    case 'any-flag-escalates':
-      return verdicts.some(v => !v.approve)
-        ? { outcome: 'escalate', findings: verdicts.flatMap(v => v.findings), reason: 'Agent disagreement' }
-        : { outcome: 'approve', findings: [] };
+  // Any deny is a deny — union of concerns, not majority vote
+  const anyDeny = verdicts.some(v => !v.approve);
+  if (anyDeny) {
+    // Use highest severity from any reviewer
+    const maxSeverity = allFindings.reduce(
+      (max, f) => severityRank(f.severity) > severityRank(max) ? f.severity : max,
+      'low' as Severity
+    );
+    return {
+      outcome: 'request-changes',
+      severity: maxSeverity,
+      findings: allFindings,
+      // Include approving opinions for transparency
+      dissent: verdicts.filter(v => v.approve).map(v => ({
+        reviewer: v.reviewer,
+        opinion: 'approved',
+        rationale: v.rationale,
+      })),
+    };
   }
+
+  // All approve — merge caveats from all reviewers
+  return {
+    outcome: 'approve',
+    findings: [],
+    caveats: allCaveats.length > 0 ? allCaveats : undefined,
+  };
+}
+
+function severityRank(s: Severity): number {
+  return { low: 0, medium: 1, high: 2, critical: 3 }[s] ?? 0;
 }
 ```
+
+> The multi-agent review board is **additive** (union of concerns) rather than reductive (intersection). The cost is potential false-positive friction, but the break-glass mechanism (Section 14.3.5) provides a controlled release valve.
 
 ---
 
@@ -3513,13 +3655,28 @@ export interface PolicySuggestion {
 
 ## 14. Authentication & Security
 
-### 14.1 stdio Transport (Local)
+### 14.1 stdio Transport (CI / Local)
 
-No authentication required. The server inherits filesystem permissions.
+The primary deployment model. Both Claude Code Action and Copilot coding agent spawn MCP servers as local child processes using stdio transport within the GitHub Actions runner. There is no remote HTTP call — the MCP server is a Node.js process that starts when the agent starts and communicates over stdin/stdout.
 
-### 14.2 HTTP Transport (Remote / CI/CD)
+- **No network dependency:** The MCP server is co-located with the agent. If the runner is alive, the MCP server is reachable.
+- **No separate SLA needed:** Availability is inherited from GitHub Actions' own SLA (99.9% for hosted runners).
+- **No cold start:** The server starts as part of the agent's initialization, not as a separate service.
 
-Bearer token authentication with **fail-closed semantics** for CI/production deployments:
+The governance mesh repository is cloned during the setup step (`copilot-setup-steps.yml` or a pre-step in the Claude Code Action workflow), so all governance data is local to the runner. No authentication is required — the server inherits runner process permissions.
+
+**Fail-closed mesh clone:** If the governance mesh repository cannot be cloned (GitHub outage, permissions error), the agent session must not start. The workflow should tag the PR with a `governance-unavailable` label for manual review.
+
+| Aspect | stdio (CI/Local) | HTTP (Remote/Production) |
+|--------|------------------|-------------------------|
+| Auth | None — inherits runner permissions | Bearer token, fail-closed |
+| Availability | Same as runner process | Requires health checks + SLA |
+| Mesh access | Git clone during setup step | API or mounted volume |
+| Failure mode | Agent can't start — action fails | HTTP 503 — fail-closed |
+
+### 14.2 HTTP Transport (Remote / Production)
+
+Bearer token authentication with **fail-closed semantics** for remote VS Code Extension integration and potential future production deployments:
 
 ```typescript
 import { timingSafeEqual } from 'crypto';
@@ -3631,9 +3788,11 @@ The Red Queen solves this with a **CI-level hard gate** — a GitHub Actions wor
 
 ```
 Layer 1: PreToolUse Hooks (Fast Feedback — Milliseconds)
-  Claude Code hooks intercept Edit/Write calls → validate against CALM
-  Agent gets immediate feedback before writing code
-  Advisory — agent can retry with corrected approach
+  Both agents: hooks intercept Edit/Write/Bash calls → validate against CALM
+  Claude Code: .claude/settings.json PreToolUse → exit code 2 = deny
+  Copilot:     .github/hooks/redqueen.json preToolUse → JSON deny response
+  Same validation logic, same constraints, same enforcement — both agents
+  Advisory — agent gets immediate feedback, can retry with corrected approach
 
 Layer 2: Agent-Called Tools (Rich Feedback — Seconds)
   Agent calls validate_action proactively per AGENTS.md instructions
@@ -3647,7 +3806,7 @@ Layer 3: CI Required Status Check (Hard Gate — Minutes)
   DETERMINISTIC — merge is blocked regardless of agent cooperation
 ```
 
-Layers 1 and 2 optimize the developer/agent experience by catching issues early. Layer 3 is the **only true enforcement boundary** — the line that cannot be crossed.
+Layers 1 and 2 optimize the developer/agent experience by catching issues early. Layer 3 is the **only true enforcement boundary** — the line that cannot be crossed. With hooks now supported by both Claude Code Action and Copilot coding agent, **all three layers apply to both agents** — there is no enforcement asymmetry.
 
 #### 14.3.2 `redqueen-action` GitHub Action
 
@@ -3889,6 +4048,86 @@ When an agent calls `get_bar_context` for a BAR with `summary` access, the retur
 
 > **Decision D9 (revised):** Most governance mesh data is documentation, not secrets. However, threat models are an exception — they describe attack surfaces and should be access-controlled by BAR criticality. API keys and credentials must never be stored in mesh files. Write operations require user confirmation.
 
+### 14.5 Configuration Integrity Validation
+
+Copilot coding agent's MCP server configuration lives in the GitHub Repo Settings UI (JSON, not committed to the repository). Someone could modify or remove the MCP server configuration without a PR or audit trail, silently disabling governance for Copilot. Claude Code Action's `.mcp.json` is committed to the repo and protected by branch protection rules, but even committed config can drift.
+
+The Red Queen maintains a canonical configuration manifest for each governed repository, validated at three enforcement points.
+
+#### 14.5.1 Configuration Manifest
+
+During repository scaffolding, the Red Queen generates a `.redqueen/config-manifest.yaml` file committed to the repository:
+
+```yaml
+# .redqueen/config-manifest.yaml
+# Generated by Red Queen scaffold — do not edit manually
+version: 1
+generated: "2026-03-02T14:30:00Z"
+fingerprints:
+  claude:
+    source: ".mcp.json"
+    sha256: "a1b2c3d4..."
+    expected:
+      server_name: "redqueen"
+      required_tools:
+        - validate_action
+        - get_bar_context
+        - get_constraints
+  copilot:
+    source: "repo-settings/mcp"
+    sha256: "e5f6a7b8..."
+    expected:
+      server_name: "redqueen"
+      required_tools:
+        - validate_action
+        - get_bar_context
+        - get_constraints
+  hooks:
+    claude_source: ".claude/settings.json"
+    copilot_source: ".github/hooks/redqueen.json"
+    claude_sha256: "c9d0e1f2..."
+    copilot_sha256: "d3e4f5a6..."
+```
+
+The fingerprint covers the MCP server name, URL/command, required tools, and required environment variable names (not values).
+
+#### 14.5.2 Validation Points
+
+**Layer 1 — Hook `sessionStart` (Advisory):**
+
+The preToolUse hook (for both agents) performs a fast config check on session start. The hook computes a SHA-256 hash of the current `.mcp.json` (for Claude) and compares it to the expected fingerprint in the manifest. On mismatch, the hook outputs a warning but does not block — Layer 1 is advisory for config drift.
+
+**Layer 3 — CI Gate (Hard Enforcement):**
+
+The `redqueen-action` CI gate performs hard validation:
+- **Claude Code Action:** hashes `.mcp.json` in the PR branch and compares to the manifest. A mismatch blocks the merge.
+- **Copilot:** uses the GitHub API (`gh api repos/{owner}/{repo}/copilot/mcp-servers`) to read the current MCP server configuration from Repo Settings and compares to the manifest. Configuration modified outside of a PR fails with:
+
+> Governance configuration drift detected: Copilot MCP server configuration in Repo Settings does not match `.redqueen/config-manifest.yaml`. Expected fingerprint: `abc123...` Current fingerprint: `def456...` Run `npx redqueen scaffold --repo <name>` to reconcile.
+
+**Scheduled — Weekly Drift Detection:**
+
+A scheduled GitHub Actions workflow runs weekly, computes the current config fingerprint for both agents, and compares to the manifest. On drift, it opens an issue assigned to CODEOWNERS with the `governance:config-drift` label.
+
+```yaml
+# .github/workflows/redqueen-config-check.yml
+name: Red Queen Config Drift Check
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9 AM UTC
+  workflow_dispatch: {}
+
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maintainabilityai/redqueen-action@v1
+        with:
+          mode: config-check
+          manifest: .redqueen/config-manifest.yaml
+```
+
 ---
 
 ## 15. Design Decisions
@@ -3927,6 +4166,11 @@ When an agent calls `get_bar_context` for a BAR with `summary` access, the retur
 | D30 | Pinned, proven diff engines per contract artifact type | "Programmatic schema diffing" is only robust if the breaking change rules are well-defined and reproducible. Each artifact type maps to a specific engine (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL, etc.) with pinned versions and documented rulesets. False-positive suppression is per-BAR via engine-native config files, not custom logic. |
 | D31 | Audit trail integrity via correlation IDs and append-only storage | Audit events include `correlationId` (SHA-256 of key fields), `prNumber`, `commitSha`, and `workflowRunId` for full traceability. The Red Queen emits events; the organization's observability stack stores them. For CI, GitHub Actions log immutability provides tamper-evidence. For production, append-only storage (S3 Object Lock, immutable archives) is recommended. |
 | D32 | Break-glass anti-normalization via escalating friction and budgets | Without active controls, break-glass becomes the normal path. Escalating CODEOWNER requirements per successive override, quarterly budgets with automatic tier downgrade on exhaustion, 14-day follow-up SLAs with score penalties, and self-approve prevention ensure break-glass remains the exception. |
+| D33 | Copilot hooks parity enables symmetric Layer 1 enforcement | Copilot coding agent now supports preToolUse hooks via `.github/hooks/*.json`. The Red Queen scaffolds hooks for both agents calling the same validation logic, eliminating the enforcement asymmetry between Claude Code and Copilot. All three layers now apply to both agents. |
+| D34 | stdio transport as primary MCP deployment model in CI | Both agents spawn MCP servers as local stdio child processes within the GitHub Actions runner. No network dependency, no separate SLA, no cold start. HTTP transport applies to VS Code Extension integration and future remote deployments, not the primary CI use case. |
+| D35 | Configuration fingerprinting for MCP drift detection | Copilot's MCP config lives in Repo Settings UI (not committed). SHA-256 fingerprints in `.redqueen/config-manifest.yaml` detect drift at three points: sessionStart hooks (advisory), CI gate (hard enforcement), and weekly scheduled checks (proactive). Reconciliation via `npx redqueen scaffold --repo`. |
+| D36 | Severity-weighted consensus for multi-agent review boards | Any deny is a deny — union of concerns, not majority vote. Highest severity from any reviewer becomes the combined verdict. Disagreements are surfaced transparently in PR comments with both opinions visible. Break-glass provides the release valve for false positives. |
+| D37 | Tree-sitter for AST-based language coverage with grammar extensibility | TypeScript/JavaScript and Python first (widest blast radius). Teams register additional tree-sitter grammars via `.redqueen/config-manifest.yaml`. Unsupported languages default to "structural" risk tier with regex fallback against critical patterns. |
 
 ---
 

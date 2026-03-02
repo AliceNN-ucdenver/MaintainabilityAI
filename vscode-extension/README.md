@@ -199,11 +199,11 @@ Run **Scaffold SDLC Structure** to bootstrap security-first CI/CD in any project
 
 | Layer | Mechanism | Speed |
 |-------|-----------|-------|
-| **PreToolUse Hooks** | Inline blocking before any agent tool fires | Milliseconds |
+| **PreToolUse Hooks** | Symmetric enforcement for both agents — `.claude/settings.json` + `.github/hooks/` | Milliseconds |
 | **MCP Server + NeMo Guardrails** | 14 calm:// resources, 13 tools, Colang 2.0 state machines | Seconds |
-| **CI Required Status Check** | `redqueen-action` GitHub Action blocks merge on violations | Minutes |
+| **CI Required Status Check** | `redqueen-action` with tree-sitter AST semantic diff blocks merge on violations | Minutes |
 
-Score-driven progressive autonomy (autonomous / supervised / restricted), trust battery decay, machine-checkable contract diffs (oasdiff, buf, graphql-inspector), cross-repo semantic governance, break-glass overrides with anti-normalization controls, and a full SHA-256 audit trail.
+Score-driven progressive autonomy (autonomous / supervised / restricted), trust battery decay, configuration fingerprinting for drift detection, machine-checkable contract diffs (oasdiff, buf, graphql-inspector), severity-weighted multi-agent consensus, cross-repo semantic governance, break-glass overrides with anti-normalization controls, and a full SHA-256 audit trail.
 
 One control plane for Claude Code and Copilot Coding Agent. See the [design document](design/governance-redqueen.md) and [The Art of the Possible](https://maintainability.ai/docs/impossible-things) for details.
 
