@@ -4295,6 +4295,11 @@ jobs:
 - [ ] Create `copilot-setup-steps.yml` template
 - [ ] Create Claude Code Action workflow template
 - [ ] Scaffold `.mcp.json` and `AGENTS.md` into code repos via ScaffoldPanel
+- [ ] Scaffold `.claude/settings.json` PreToolUse hooks (Section 7.6)
+- [ ] Scaffold `.github/hooks/redqueen.json` Copilot preToolUse hooks (Section 7.6)
+- [ ] Scaffold `.redqueen/hooks/validate-tool.sh` shared validation script (Section 7.6)
+- [ ] Scaffold `.redqueen/config-manifest.yaml` configuration fingerprints (Section 14.5)
+- [ ] Implement scheduled config drift detection workflow (Section 14.5)
 - [ ] Document configuration for all agent types
 - [ ] Create `maintainabilityai/redqueen-action` GitHub Action as **required status check** (Section 14.3)
   - [ ] Independent PR diff analysis against CALM constraints
@@ -4383,9 +4388,12 @@ jobs:
 | File | Purpose |
 |------|---------|
 | `.claude/governance-context.md` | Dynamic governance context for Claude Code |
-| `.claude/settings.json` | Governance-scoped permissions |
+| `.claude/settings.json` | Governance-scoped permissions + PreToolUse hook for Layer 1 enforcement (Section 7.6) |
 | `.claude/agents/security-reviewer.md` | Security review subagent |
 | `.claude/agents/architecture-reviewer.md` | Architecture review subagent |
 | `.mcp.json` | Red Queen MCP server configuration |
 | `AGENTS.md` | Shared governance instructions for all agents |
 | `.github/copilot-setup-steps.yml` | Copilot coding agent environment setup |
+| `.github/hooks/redqueen.json` | Copilot preToolUse hook for Layer 1 enforcement (Section 7.6) |
+| `.redqueen/hooks/validate-tool.sh` | Shared hook validation script called by both agents (Section 7.6) |
+| `.redqueen/config-manifest.yaml` | Configuration integrity fingerprints for drift detection (Section 14.5) |
