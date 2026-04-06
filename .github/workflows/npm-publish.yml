@@ -39,13 +39,13 @@ jobs:
         working-directory: vscode-extension
         run: npm run lint
 
-      - name: Test
-        working-directory: vscode-extension
-        run: npx vitest run --passWithNoTests
-
       - name: Build MCP server bundle
         working-directory: vscode-extension
         run: node esbuild.js --production
+
+      - name: Test
+        working-directory: vscode-extension
+        run: npx vitest run --passWithNoTests
 
       - name: Prepare npm package
         run: |

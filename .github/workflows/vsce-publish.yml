@@ -37,6 +37,10 @@ jobs:
         working-directory: vscode-extension
         run: npm run lint
 
+      - name: Build
+        working-directory: vscode-extension
+        run: node esbuild.js --production
+
       - name: Test
         working-directory: vscode-extension
         run: npx vitest run --passWithNoTests
