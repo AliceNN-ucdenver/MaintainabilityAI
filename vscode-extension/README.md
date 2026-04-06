@@ -184,28 +184,50 @@ Run **Scaffold SDLC Structure** to bootstrap security-first CI/CD in any project
 | **Oraculum** | The oracle — automated architecture review via GitHub Issues and AI agents |
 | **The White Rabbit** | The implementation bridge — scaffolds components from governance artifacts |
 | **The Rabbit Hole** | The issue hub — feature creation, RCTRO generation, agent assignment and monitoring |
+| **The Red Queen** | The enforcer — deterministic governance enforcement via MCP tools, PreToolUse hooks, and TypeScript policy engine |
 | **Alice** | The remediation agent — follows RCTRO prompts to implement features via Claude Code or Copilot Coding Agent |
 | **You** | The architect — you describe, review, approve, and govern |
 
 ---
 
-## Coming Next: The Red Queen
+## The Red Queen — Governance-Enforced Agent Intelligence
 
 > *"Now, here, you see, it takes all the running you can do, to keep in the same place."*
 
 ![The Red Queen](https://maintainability.ai/images/redqueen.png)
 
-**The Red Queen** is governance-enforced agent intelligence — three enforcement layers that move AI agents from advisory prompts to deterministic constraint enforcement:
+**The Red Queen** is a unified governance intelligence and enforcement system — deterministic constraint enforcement that moves AI agents from advisory prompts to architecture-as-law.
+
+### Available Now (Phases 1–8)
 
 | Layer | Mechanism | Speed |
 |-------|-----------|-------|
 | **PreToolUse Hooks** | Symmetric enforcement for both agents — `.claude/settings.json` + `.github/hooks/` | Milliseconds |
-| **MCP Server + NeMo Guardrails** | 14 calm:// resources, 13 tools, Colang 2.0 state machines | Seconds |
+| **MCP Server (The Grin) + The Red Queen's Court** | 14 calm:// resources, 25 MCP tools, TypeScript policy engine with 6 rule types (TIER, PATH, SEC, CALM, CTRL, PLAT) | Seconds |
+
+**What ships today:**
+- **Progressive autonomy** — 3 permission tiers (autonomous / supervised / restricted) driven by governance scores
+- **Trust battery** — score decay with exponential half-life and grace window
+- **TypeScript policy engine** — deterministic enforcement, not LLM suggestions. CALM flows, controls, and threat models enforced as rules
+- **Config scaffold** — one command generates 16 governance files (.mcp.json, AGENTS.md, hooks, workflows, review board, audit trail)
+- **Multi-agent review boards** — severity-weighted consensus (any-flag-escalates, unanimous, majority)
+- **Audit logging** — JSONL append-only trail with correlation IDs and score deltas
+- **Agent-agnostic** — one control plane for Claude Code and Copilot Coding Agent
+- **npm package** — `npx @maintainabilityai/redqueen-mcp --scaffold --bar "My App"` for zero-config usage
+- **219 tests** across 4 test suites
+
+### Coming in Phase 9
+
+| Layer | Mechanism | Speed |
+|-------|-----------|-------|
 | **CI Required Status Check** | `redqueen-action` with tree-sitter AST semantic diff blocks merge on violations | Minutes |
 
-Score-driven progressive autonomy (autonomous / supervised / restricted), trust battery decay, configuration fingerprinting for drift detection, machine-checkable contract diffs (oasdiff, buf, graphql-inspector), severity-weighted multi-agent consensus, cross-repo semantic governance, break-glass overrides with anti-normalization controls, and a full SHA-256 audit trail.
+- Machine-checkable contract diffs (oasdiff, buf, graphql-inspector, asyncapi-diff)
+- Break-glass overrides with anti-normalization controls and quarterly budgets
+- Agent memory system that learns from policy violations and prompt pack effectiveness
+- Adaptive policy refinement
 
-One control plane for Claude Code and Copilot Coding Agent. See the [design document](design/governance-redqueen.md) and [The Art of the Possible](https://maintainability.ai/docs/impossible-things) for details.
+See the [quickstart guide](https://maintainability.ai/docs/quickstart-redqueen), [design document](design/governance-redqueen.md), and [The Art of the Possible](https://maintainability.ai/docs/impossible-things) for details.
 
 ---
 
