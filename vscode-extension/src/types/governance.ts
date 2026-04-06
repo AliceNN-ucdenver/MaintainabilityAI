@@ -52,6 +52,8 @@ export interface PortfolioConfig {
   org: string;
   owner: string;
   description: string;
+  repo?: string;             // GitHub repo for mesh (e.g. "governance-mesh") — combined with org for full ref
+  agentType?: 'claude' | 'copilot' | 'both';  // Agent framework for PR review workflows
   architectureDsl?: ArchitectureDsl;
   capabilityModel?: CapabilityModelType;
 }

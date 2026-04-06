@@ -8,7 +8,7 @@
 > **An open-source framework for security-first AI-assisted software development**
 > Production-ready prompt packs, threat modeling workflows, evolutionary architecture patterns, and a VS Code extension for enterprise governance — designed for collaborative improvement and community-driven prompt exchange.
 
-**Live Documentation**: [maintainability.ai](https://maintainability.ai) &nbsp;|&nbsp; **VS Code Extension**: [Marketplace](https://marketplace.visualstudio.com/items?itemName=MaintainabilityAI.maintainabilityai)
+**Live Documentation**: [maintainability.ai](https://maintainability.ai) &nbsp;|&nbsp; **VS Code Extension**: [Marketplace](https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai)
 
 ---
 
@@ -73,7 +73,7 @@ The **MaintainabilityAI VS Code Extension** brings the full framework into your 
 - **Looking Glass** — Enterprise governance dashboard with portfolio scoring across four pillars (Architecture, Security, Information Risk, Operations), interactive CALM architecture diagrams, NIST SP 800-53 policy management, and the Absolem AI governance advisor
 - **Cheshire Cat** — Code-level companion with SDLC scaffolding, security scorecard (6 fitness functions), structured RCTRO issue creation, and agent orchestration for Claude Code and Copilot Coding Agent
 
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MaintainabilityAI.maintainabilityai) or see the [extension README](vscode-extension/README.md) for details.
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai) or see the [extension README](vscode-extension/README.md) for details.
 
 ### OWASP Top 10 Prompt Packs
 Production-ready security prompts for AI code generation covering all OWASP 2021 categories:

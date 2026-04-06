@@ -1,13 +1,13 @@
 # The Red Queen — Governance-Enforced Agent Intelligence
 
-**Version:** 0.4.3 — Design
-**Date:** March 2, 2026
+**Version:** 0.11.0 — Phase 6 Complete
+**Date:** March 8, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 > *"Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!"*
 > — The Red Queen, Through the Looking Glass, Chapter 2
 
-> **Status:** Design Complete — Not Yet Implemented
+> **Status:** Phase 6 Complete (Phases 1-6 Complete)
 > **Depends on:** GovernanceScorer (Complete), PromptPackService (Complete), Oraculum (Complete), Absolem (Complete)
 > **Subsumes:** governance-grin.md (The Grin MCP server is now a component of The Red Queen)
 
@@ -15,6 +15,17 @@
 
 | Version | Date | Sections Modified | Summary |
 |---------|------|-------------------|---------|
+| 0.13.0 | 2026-03-08 | 16, 17 | Phase 8 complete (package + distribution). `@maintainabilityai/redqueen-mcp` npm package with bin entry point for `npx` usage. Quick Start Guide README. Build pipeline (`scripts/prepare-npm-package.sh`, `prepare-npm` script). npm publish GitHub workflow (`.github/workflows/npm-publish.yml`) with auto-bump, `mcp-v*` tags, `[npm-publish]` guard. Copilot hooks: `generateCopilotHooksJson()` → `.github/hooks/redqueen.json`, `generateValidateToolSh()` → `.redqueen/hooks/validate-tool.sh` shared bash wrapper. Claude Code Action implementation workflow: `generateImplementationWorkflow()` → `.github/workflows/redqueen-implement.yml` (issue-labeled trigger). Hook command refs updated `.js` → `.sh` in `generateClaudeSettings()` and `RedQueenService.generateSettings()`. Hard enforcement gate (`redqueen-action`) and break-glass deferred to Phase 9. 25 tools, 219 tests passing. |
+| 0.12.0 | 2026-03-08 | 7, 9, 16, 17 | Phase 7 complete. Review Board: `generateRedQueenReviewWorkflow()` generates agent-agnostic PR review workflow for claude/copilot/both; `resolveConsensus()` with any-flag-escalates/unanimous/majority rules; inline subagent definitions (security-reviewer.md, architecture-reviewer.md); self-contained consensus.js script scaffolded into code repos; `assembleReviewBoard()` in RedQueenService. Feedback Loop: `score_snapshot` MCP tool (T7, tool count 24→25); `audit-logger.ts` with JSONL append-only log, correlation fields, `computeScoreDelta()`. Score Decay: `score-decay.ts` with exponential decay (half-life 90d, grace 14d, min floor); `evaluatePolicy()` accepts optional `GovernanceTimestamps` for decay-adjusted tier decisions; decay visualization in Looking Glass BAR detail (`renderDecayIndicator()`). Agent type setting (claude/copilot/both) in Looking Glass Settings. 25 tools, 215 tests passing. |
+| 0.11.2 | 2026-03-08 | 9, 16 | Rewrote Section 9 (Multi-Agent Review Board) — agent-agnostic step-based architecture. Single `pull_request` workflow with sequential steps: security review, architecture review, deterministic consensus. Same workflow structure for Claude and Copilot teams — only `uses:` action differs. `redqueen-consensus` GitHub Action runs `resolveConsensus()` as pure TypeScript. Complements existing CodeQL/Snyk CI jobs. Updated Phase 7 checklist: review workflow template, consensus action, role-specific prompts, `agent-type` config. Updated Phase 8 checklist: reorganized into package/scaffold/gate/break-glass sections. |
+| 0.11.1 | 2026-03-08 | 16, 17 | Phase 6 continued. Auto-detect BAR from repo URL: `findBarForRepoUrl()` in `governanceBridge.ts` scans all `app.yaml` repos lists to find which BAR owns a given repository. Scorecard auto-detect: when no `decision.json` exists but repo URL matches a BAR, shows "Deploy Governance Files" one-click button. Resync auto-detect: `onResyncGovernance()` falls back to repo URL matching when no existing `decision.json`. Looking Glass "Deploy Gov" button on linked repo rows (open repos only) — writes all Red Queen files directly to repo workspace via `scaffoldAgentConfig()`. Eliminates requirement to scaffold from component picker for existing BAR repos. |
+| 0.11.0 | 2026-03-08 | 16, 17 | Phase 6 complete. Cheshire Cat Governance UX Integration — governance woven into every panel. Governance Bridge: `governanceBridge.ts` reads `.redqueen/decision.json` from code repos; `config-scaffold.ts` writes `decision.json` during scaffold. White Rabbit pre-flight: tier banners (green/yellow/red) with pillar mini-scores and constraint tags in BAR detail component picker. ScaffoldPanel governance injection: governance checkbox in file grid, `scaffoldAgentConfig()` called during scaffold for both component-mode and standalone. Rabbit Hole governance posture: tier badge, pillar scores, constraints in input phase; mandated prompt packs auto-selected with 🔒 lock icon (checked+disabled); governance summary in review phase. Agent selection constraints: restricted tier disables secondary agent, supervised tier auto-assigns reviewer, human approval notice. Scorecard governance section: tier badge, pillar scores, constraints display + "Resync from Mesh" button to re-pull governance files. Cross-BAR dependencies: linked BAR table with relationship, score, tier badge; sibling BAR health panel with platform overrides; clickable rows navigate via `drillIntoBar`. 166 tests passing. |
+| 0.10.0 | 2026-03-08 | 6, 13, 16, 17 | Phase 5 complete. RedQueenService — policy-driven orchestration replacing hardcoded `computeTier()`. Two-layer policy: mesh-level `orchestration:` (tier thresholds, prompt injection, criticality multipliers, escalation) + platform-level `governance:` (minimum scores, minTier cap, enforcement mode). New `get_orchestration_decision` MCP tool (T14). Generators: governance-context.md, settings.json, AGENTS.md. Tier badge in BAR detail. Editable orchestration policy editor in Settings (pulled forward from Phase 6). Platform governance modal with pencil icon. Reset to Defaults on both editors. Data-driven tests (38 unit + 5 integration). 24 tools, 165 tests passing. |
+| 0.9.0 | 2026-03-07 | 2, 3, 4, 16, 17 | Phase 4 complete. Platform architecture support (platform.arch.json). Added readPlatformArchitecture, validatePlatformCalm, findLinkedBars to MeshReader. New tools: get_platform_architecture (T11), blast_radius (T12), validate_platform_calm (T13). Extended get_bar_context with linkedBars. PLAT-001 cross-BAR policy rule. CalmAdapter platform view, BarNode, SharedInfraNode React components, NodePalette platform items. LookingGlassPanel platform architecture handlers. 23 tools, 122 tests passing. |
+| 0.8.0 | 2026-03-07 | 1, 2, 4, 16, 17 | Phase 3 complete. Replaced NeMo Guardrails with pure TypeScript policy engine ("The Red Queen's Court"). Added policy-engine.ts, validate_action (T9), get_constraints (T10). Updated config-scaffold: policy.json generation, Node.js hook script. 20 tools, 100 tests passing. |
+| 0.7.0 | 2026-03-07 | 2, 14, 16, 17 | Phase 2 complete. Struck HTTP transport, bearer auth, rate limiting, REDQUEEN_ENV (local-only architecture). Moved blast_radius/flow_impact to Phase 4, score_snapshot/audit logging to Phase 7, AST diff to Phase 8. |
+| 0.6.0 | 2026-03-07 | 16 | Phase 2 progress — 18 tools, 13 resources, 4 prompts, config scaffolding, 66 tests passing |
+| 0.5.0 | 2026-03-07 | 16 | Phase 1 complete — MCP server, mesh-reader, 11 resources, 10 tools, 27 tests passing |
 | 0.4.3 | 2026-03-02 | 4.6, 7, 9.3, 14 | Copilot hooks parity, stdio/HTTP transport split, config integrity validation, severity-weighted consensus, tree-sitter language coverage |
 | 0.4.2 | 2026-03-01 | All | Design complete — three-layer enforcement, score decay, machine-checkable contracts, break-glass, audit trail |
 
@@ -40,19 +51,19 @@ AI coding agents — Claude Code Action and GitHub Copilot coding agent — are 
 | Layer | Component | Role |
 |-------|-----------|------|
 | **Data** | The Grin (MCP Server) | Exposes the governance mesh as `calm://` resources, tools, and prompts to any MCP-compatible agent |
-| **Enforcement** | NeMo Guardrails Engine | Deterministic validation of agent actions against CALM flows, controls, threat models, and interface contracts using Colang 2.0 rails |
+| **Enforcement** | The Red Queen's Court (Policy Engine) | Deterministic validation of agent actions against CALM flows, controls, threat models, and interface contracts using TypeScript policy rules |
 | **Orchestration** | Red Queen Policy Engine | Score-driven agent configuration — dynamic CLAUDE.md, permission tiers, multi-agent review, feedback loops |
 
-The Red Queen creates a **closed governance loop**: the mesh defines constraints → NeMo Guardrails enforce them deterministically → agents operate within bounds → outcomes feed back into scores → scores adjust constraints.
+The Red Queen creates a **closed governance loop**: the mesh defines constraints → The Red Queen's Court enforces them deterministically → agents operate within bounds → outcomes feed back into scores → scores adjust constraints.
 
 ### 1.3 Design Principles
 
-1. **Deterministic over advisory**: NeMo Guardrails provide hard enforcement boundaries. Prompts advise; guardrails enforce. An agent cannot bypass a CALM flow constraint regardless of how it interprets its instructions.
+1. **Deterministic over advisory**: The Red Queen's Court provides hard enforcement boundaries. Prompts advise; policy rules enforce. An agent cannot bypass a CALM flow constraint regardless of how it interprets its instructions.
 2. **Agent-agnostic control plane**: MCP tools are the universal interface. Both Claude Code Action and Copilot coding agent call the same `validate_action` tool. The enforcement logic is identical regardless of which agent triggers it.
 3. **Architecture as law**: CALM flows, controls, interfaces, and relationships are the governance constitution. The Red Queen doesn't invent rules — it enforces the architecture the organization has declared.
 4. **Progressive autonomy**: Higher governance scores grant agents more autonomy. Lower scores tighten constraints and increase human oversight. This creates a natural incentive to improve governance.
 5. **Cross-repo awareness**: When repositories are linked in CALM flows, governance is not per-repo — it's per-flow. A change to any node in a flow can trigger validation across all linked repositories.
-6. **Minimal infrastructure**: The Red Queen runs as a Node.js process reading governance mesh files. No database, no cloud service. The only additional process is the NeMo Guardrails sidecar (Python REST server) for deterministic enforcement. Both processes are ephemeral and stateless — spun up on demand in CI/CD or locally.
+6. **Minimal infrastructure**: The Red Queen runs as a Node.js process reading governance mesh files. No database, no cloud service, no sidecar. The policy engine runs in-process as pure TypeScript — no Python, no HTTP roundtrips. The process is ephemeral and stateless — spun up on demand in CI/CD or locally.
 
 ---
 
@@ -96,20 +107,19 @@ The Red Queen creates a **closed governance loop**: the mesh defines constraints
 │  │  └─────────────────────────────┬───────────────────────┘    │   │
 │  │                                │                            │   │
 │  │  ┌─────────────────────────────┴──────────────────────┐     │   │
-│  │  │         NeMo Guardrails Engine                      │     │   │
+│  │  │         The Red Queen's Court (Policy Engine)       │     │   │
 │  │  │                                                     │     │   │
-│  │  │  Colang 2.0 Rails:                                  │     │   │
-│  │  │  ├─ Flow Constraint Rails (CALM transitions)        │     │   │
-│  │  │  ├─ Control Adherence Rails (NIST controls)         │     │   │
-│  │  │  ├─ Threat Model Rails (STRIDE mitigations)         │     │   │
-│  │  │  ├─ Interface Contract Rails (cross-repo semantics) │     │   │
-│  │  │  └─ Permission Tier Rails (score-based access)      │     │   │
+│  │  │  Policy Rules (TypeScript):                         │     │   │
+│  │  │  ├─ TIER-001..003  (permission tier enforcement)    │     │   │
+│  │  │  ├─ PATH-001       (read-only path protection)      │     │   │
+│  │  │  ├─ SEC-001..002   (security-critical files)        │     │   │
+│  │  │  ├─ CALM-001..004  (CALM flow constraints)          │     │   │
+│  │  │  ├─ CTRL-001       (control adherence)              │     │   │
+│  │  │  └─ PLAT-001       (cross-BAR shared node warning)  │     │   │
 │  │  │                                                     │     │   │
-│  │  │  Custom Actions:                                    │     │   │
-│  │  │  ├─ @action validate_flow_constraint()              │     │   │
-│  │  │  ├─ @action validate_control_adherence()            │     │   │
-│  │  │  ├─ @action validate_interface_contract()           │     │   │
-│  │  │  └─ @action check_threat_model()                    │     │   │
+│  │  │  Evaluation Layers:                                 │     │   │
+│  │  │  ├─ Layer 1: Static rules (hooks, ~50ms)            │     │   │
+│  │  │  └─ Layer 2: Full CALM evaluation (MCP, ~200ms)     │     │   │
 │  │  └────────────────────────────────────────────────────┘      │   │
 │  │                                │                            │   │
 │  │  ┌─────────────────────────────┴──────────────────────┐     │   │
@@ -129,6 +139,7 @@ The Red Queen creates a **closed governance loop**: the mesh defines constraints
                     │   ~/governance-mesh/    │
                     │   mesh.yaml             │
                     │   platforms/            │
+                    │     ├── platform.arch.json│
                     │     └── bars/           │
                     │         ├── app.yaml    │
                     │         ├── bar.arch.json│
@@ -150,34 +161,14 @@ vscode-extension/
 │       │   ├── bars.ts                # calm://bars/* resources (incl. flows, controls)
 │       │   ├── capabilities.ts        # calm://capabilities/* resources
 │       │   └── prompts.ts             # calm://prompts/* resources
-│       ├── tools/
-│       │   ├── query.ts               # Read-only query tools (find_bars, get_bar_context, etc.)
-│       │   ├── analysis.ts            # Computed tools (blast_radius, governance_gaps)
-│       │   ├── validation.ts          # validate_action — NeMo-backed enforcement
-│       │   ├── orchestration.ts       # get_orchestration_decision, get_agent_constraints
-│       │   └── cross-repo.ts          # validate_interface_contract, flow_impact
-│       ├── prompts/
-│       │   └── governance.ts          # MCP prompt templates (RCTRO pattern)
-│       ├── guardrails/
-│       │   ├── engine.ts              # NeMo Guardrails integration wrapper
-│       │   ├── config-builder.ts      # Dynamic Colang 2.0 config from mesh data
-│       │   ├── actions/
-│       │   │   ├── flow-validator.ts  # @action validate_flow_constraint
-│       │   │   ├── control-validator.ts # @action validate_control_adherence
-│       │   │   ├── interface-validator.ts # @action validate_interface_contract
-│       │   │   └── threat-validator.ts # @action check_threat_model
-│       │   └── rails/
-│       │       ├── flow-rails.co      # Colang 2.0: CALM flow enforcement
-│       │       ├── control-rails.co   # Colang 2.0: CALM control enforcement
-│       │       ├── interface-rails.co # Colang 2.0: cross-repo interface contracts
-│       │       ├── threat-rails.co    # Colang 2.0: STRIDE threat model enforcement
-│       │       └── permission-rails.co # Colang 2.0: score-based permission tiers
-│       └── utils/
-│           ├── mesh-reader.ts         # Governance mesh file I/O
-│           ├── calm-reader.ts         # CALM JSON parsing
-│           └── cross-repo.ts          # Multi-repo flow resolution
-├── mcp-server.js                      # Standalone entry point (stdio)
-└── mcp-server-http.js                 # HTTP entry point (CI/CD)
+│       ├── tools.ts                   # All MCP tools (23 tools in single module)
+│       ├── prompts.ts                 # MCP prompt templates (RCTRO pattern)
+│       ├── policy-engine.ts           # The Red Queen's Court — deterministic policy evaluation
+│       ├── config-scaffold.ts         # Agent config scaffolding (hooks, policy.json, AGENTS.md)
+│       └── __tests__/                 # Unit + integration tests (122 tests)
+├── core/
+│   └── mesh-reader.ts                # Governance mesh file I/O + CALM parsing
+└── mcp-server.js                      # Standalone entry point (stdio)
 ```
 
 ### 2.3 Technology Stack
@@ -185,10 +176,10 @@ vscode-extension/
 | Component | Technology | Rationale |
 |-----------|-----------|-----------|
 | MCP SDK | `@modelcontextprotocol/sdk` v1.27+ | Official TypeScript SDK, full 2025-11-25 spec |
-| NeMo Guardrails | `nemoguardrails` Python package + REST server | NVIDIA's deterministic guardrails framework; Colang 2.0 DSL for flow-based policy enforcement |
+| ~~NeMo Guardrails~~ | ~~`nemoguardrails` Python package~~ | ~~Struck: replaced by in-process TypeScript policy engine (The Red Queen's Court). No Python sidecar, no HTTP, same deterministic enforcement.~~ |
 | Schema validation | `zod` | Already in project; MCP SDK uses Zod natively |
-| Transport (local) | `StdioServerTransport` | Zero config for local clients |
-| Transport (remote) | `NodeStreamableHTTPServerTransport` | Stateless mode for CI/CD |
+| Transport | `StdioServerTransport` | Zero config for local clients; agents clone mesh and run MCP locally |
+| ~~Transport (remote)~~ | ~~`NodeStreamableHTTPServerTransport`~~ | ~~Struck: local-only architecture, no remote dependency~~ |
 | File I/O | `fs` (Node.js) | Direct mesh file reads, no database |
 | YAML parsing | `js-yaml` | Already in project for mesh.yaml/app.yaml |
 | Build | esbuild | Bundle as standalone `.js` alongside extension |
@@ -290,7 +281,7 @@ interface CrossRepoTransition {
 |---|------|------|-------------|
 | T1 | `find_bars` | Read | Search BARs by name, platform, criticality, score range, or governance status |
 | T2 | `get_bar_context` | Read | Comprehensive BAR context bundle — architecture + scores + threats + ADRs in one call |
-| T3 | `blast_radius` | Read | Given a CALM node ID, compute downstream impact across relationships, capabilities, and dependent BARs |
+| ~~T3~~ | ~~`blast_radius`~~ | ~~Read~~ | ~~Given a CALM node ID, compute downstream impact~~ — Moved to T12 with platform-level cross-BAR analysis |
 | T4 | `governance_gaps` | Read | Identify all governance gaps — missing artifacts, weak scores, overdue reviews |
 | T5 | `architecture_query` | Read | Natural language query against CALM model |
 | T6 | `compare_bars` | Read | Side-by-side comparison of two BARs across all four pillars |
@@ -298,9 +289,9 @@ interface CrossRepoTransition {
 | T8 | `validate_calm` | Read | Run CalmValidator against architecture file |
 | T9 | `validate_action` | Enforce | **NeMo-backed**: Validate a proposed agent action against CALM flows, controls, and interface contracts |
 | T10 | `get_constraints` | Read | Get active governance constraints for a BAR (tier, permissions, prompt packs) |
-| T11 | `validate_interface_contract` | Enforce | **NeMo-backed**: Validate cross-repo interface adherence for linked BARs |
-| T12 | `flow_impact` | Read | Compute downstream flow impact of a change — which BARs and interfaces are affected |
-| T13 | `get_orchestration_decision` | Read | Get full Red Queen orchestration decision for a BAR |
+| T11 | `get_platform_architecture` | Read | Read platform-level CALM model (platform.arch.json) with nodes, relationships, and linked BAR metadata |
+| T12 | `blast_radius` | Read | Compute cross-BAR impact for a given BAR — linked BARs, shared infrastructure, and platform-level connection analysis |
+| T13 | `validate_platform_calm` | Read | Validate platform-level CALM architecture structure (nodes, relationships, unique IDs) |
 
 #### T2: get_bar_context (Critical — Single-Call Context Bundle)
 
@@ -376,39 +367,54 @@ server.registerTool(
 );
 ```
 
-#### T11: validate_interface_contract (Cross-Repo Semantics)
+#### T11: get_platform_architecture (Platform CALM Model)
 
 ```typescript
-server.registerTool(
-  'validate_interface_contract',
+server.tool(
+  'get_platform_architecture',
+  'Read the platform-level CALM architecture model (platform.arch.json) showing cross-BAR relationships and shared infrastructure.',
   {
-    title: 'Validate Cross-Repo Interface Contract',
-    description: 'Validate that a change in one repository respects the interface contracts defined in CALM flows. When a frontend is linked to an API via a CALM flow, this tool verifies that frontend changes adhere to the API\'s declared interface specification.',
-    inputSchema: z.object({
-      sourceBarId: z.string().describe('BAR making the change (e.g., frontend)'),
-      targetBarId: z.string().describe('BAR whose interface must be respected (e.g., API)'),
-      flowId: z.string().optional().describe('Specific flow to validate (validates all shared flows if omitted)'),
-      changeDescription: z.string().describe('What is being changed in the source BAR'),
-      affectedEndpoints: z.array(z.string()).optional().describe('Specific endpoints or interfaces being affected')
-    }),
-    outputSchema: z.object({
-      valid: z.boolean(),
-      violations: z.array(z.object({
-        interfaceId: z.string(),
-        flowId: z.string(),
-        constraint: z.string(),
-        violation: z.string(),
-        severity: z.enum(['error', 'warning'])
-      })),
-      recommendations: z.array(z.string())
-    }),
-    annotations: { readOnlyHint: true, openWorldHint: false }
+    platformName: z.string().describe('Platform name or ID'),
   },
-  async ({ sourceBarId, targetBarId, flowId, changeDescription, affectedEndpoints }) => {
-    // 1. Resolve CALM flows linking source and target BARs
-    // 2. Extract interface contracts from flow transitions
-    // 3. Validate change against interface specifications
-    // 4. Return violations with flow/interface references
+  async ({ platformName }) => {
+    // 1. Resolve platform by ID or name (case-insensitive)
+    // 2. Read platform.arch.json from platform directory
+    // 3. Return nodes, relationships, and linked BAR metadata
+  }
+);
+```
+
+#### T12: blast_radius (Cross-BAR Impact Analysis)
+
+```typescript
+server.tool(
+  'blast_radius',
+  'Find all BARs and shared infrastructure connected to a given BAR via the platform architecture. Shows cross-BAR impact for proposed changes.',
+  {
+    barName: z.string().describe('Name of the BAR to analyze'),
+  },
+  async ({ barName }) => {
+    // 1. Find BAR and resolve platform membership
+    // 2. Use findLinkedBars() to discover bar-to-bar and bar-to-infrastructure connections
+    // 3. Compute impact level (high >3 connections, medium >0, none)
+    // 4. Return linkedBars, sharedInfrastructure, impactLevel
+  }
+);
+```
+
+#### T13: validate_platform_calm (Platform CALM Validation)
+
+```typescript
+server.tool(
+  'validate_platform_calm',
+  'Validate platform-level CALM architecture file (platform.arch.json) for structural correctness: valid node types, bar-id references, valid relationships.',
+  {
+    platformName: z.string().describe('Platform name or ID to validate'),
+  },
+  async ({ platformName }) => {
+    // 1. Resolve platform by ID or name
+    // 2. Run validatePlatformCalm() — checks nodes, relationships, unique IDs
+    // 3. Return valid/invalid with errors and warnings
   }
 );
 ```
@@ -441,21 +447,23 @@ async ({ barId, pillars }) => {
 
 ---
 
-## 4. NeMo Guardrails — Deterministic Governance Enforcement
+## 4. ~~NeMo Guardrails~~ The Red Queen's Court — Deterministic Governance Enforcement
 
-### 4.1 Why NeMo Guardrails
+> **ARCHITECTURAL DECISION (v0.8.0):** NeMo Guardrails was originally planned as the enforcement backend. Research revealed NeMo is designed for **conversational AI safety** (chatbot dialogue flows), not deterministic governance policy enforcement. Our rules — tier checks, file path validation, CALM constraint enforcement — are condition→decision logic, not conversation state machines. Replaced with a **pure TypeScript policy engine** that runs in-process. This eliminates the Python sidecar, Colang DSL, and HTTP roundtrips while delivering identical deterministic enforcement. See `src/mcp/policy-engine.ts`.
 
-The fundamental problem with LLM-based governance is that prompts are advisory — agents can and do ignore instructions. NeMo Guardrails provides a **deterministic enforcement layer** using Colang 2.0, NVIDIA's domain-specific language for defining conversational and action-level constraints.
+### ~~4.1 Why NeMo Guardrails~~ 4.1 Why a TypeScript Policy Engine
 
-Key properties that make NeMo the right framework:
+The fundamental problem with LLM-based governance is that prompts are advisory — agents can and do ignore instructions. The Red Queen's Court provides a **deterministic enforcement layer** using TypeScript policy rules that evaluate conditions and return allow/deny decisions.
+
+Key properties:
 
 | Property | Value for Governance |
 |----------|---------------------|
-| **Deterministic flows** | Colang 2.0 `flow` definitions execute as finite state machines, not LLM inference |
-| **Custom actions** | `@action` decorator connects guardrails to external validation logic (CALM model queries, interface checks) |
-| **Multi-config server** | `config_ids` parameter enables per-BAR guardrail selection at request time |
-| **Dynamic config** | `RailsConfig.from_content()` + `+` operator allow runtime config construction from governance mesh data |
-| **Five rail types** | Input, dialog, retrieval, execution, output rails cover the full agent lifecycle |
+| **Deterministic rules** | TypeScript rule functions evaluate conditions and return verdicts — no LLM inference |
+| **Two-layer evaluation** | Layer 1 (hooks): fast static rules from pre-computed policy.json (~50ms). Layer 2 (MCP tools): full CALM-aware evaluation (~200ms) |
+| **In-process** | No sidecar, no HTTP, no Python. Runs in the same Node.js process as the MCP server |
+| **Same test framework** | Policy rules are tested with vitest alongside all other MCP tests |
+| **Five rule types** | TIER (permission enforcement), PATH (read-only protection), SEC (security-critical files), CALM (flow constraints), CTRL (control adherence) |
 
 ### 4.2 NeMo Integration Architecture
 
@@ -2466,81 +2474,236 @@ You are a software architect reviewing changes for {{barName}}.
 
 ## 9. Multi-Agent Review Board
 
-### 9.1 Review Board Composition
+### 9.1 Design Principle: Agent-Agnostic Step-Based Review
 
-When the orchestration decision specifies `agents: 2+`, the Red Queen assembles a review board:
+The review board is a **single GitHub Actions workflow** triggered on `pull_request` events. It uses **sequential steps** within one job — each step is the same agent framework (whichever the team uses), but with different role-specific instructions. This design ensures:
+
+1. **Framework independence**: Teams using only Claude Code Action or only Copilot coding agent get identical review coverage. The workflow template is parameterized by `agent-type`.
+2. **Same MCP tools**: Both agents call the same Red Queen MCP tools (`validate_action`, `get_constraints`, `get_bar_context`). The governance enforcement is identical regardless of agent.
+3. **Deterministic consensus**: The consensus step is pure TypeScript (not AI). It collects structured verdicts from each review step and applies the resolution algorithm.
+4. **Separation of concerns**: Implementation agent (issue-triggered) is decoupled from review agent (PR-triggered). A PR created by Copilot can be reviewed by Claude, or vice versa, or the same agent with different roles.
+
+### 9.2 Review Board Composition
 
 ```typescript
 interface ReviewBoard {
-  agents: ReviewAgent[];
-  arbiter: 'human' | 'claude-opus';
-  consensusRule: 'unanimous' | 'majority' | 'any-flag-escalates';
+  steps: ReviewStep[];
+  consensusRule: ConsensusRule;
+  humanApproval: boolean;
   timeout: number;
 }
 
-interface ReviewAgent {
+interface ReviewStep {
   id: string;
   role: 'security' | 'architecture' | 'quality' | 'general';
-  subagentConfig?: string;
-  weight: number;
+  agentType: 'claude' | 'copilot';         // which agent runs this step
+  instructions: string;                     // role-specific prompt/instructions
+  mcpTools: string[];                       // Red Queen tools this reviewer should call
+  requiredForTier: ('supervised' | 'restricted')[];  // which tiers require this step
 }
+
+type ConsensusRule = 'any-deny-is-deny' | 'majority' | 'unanimous';
 ```
 
-### 9.2 Review Patterns
-
-**Pattern A: Dual-Agent Independent Review (Default for `restricted` tier)**
+### 9.3 Workflow Architecture
 
 ```
-PR Created
+PR Created (by any agent, or human)
     │
-    ├──→ Claude Code (Security Focus, weight: 0.6)
-    │    └── Uses security-reviewer subagent
-    │    └── Reviews against OWASP packs + STRIDE threats
-    │    └── Calls validate_action for each structural change
-    │
-    ├──→ Copilot (Quality Focus, weight: 0.4)
-    │    └── Reviews code quality, test coverage, conventions
-    │    └── Calls governance_gaps to check coverage
-    │
-    └──→ Results Aggregation
-         ├── Both approve → PR ready for human review
-         ├── One flags critical → Escalate immediately
-         └── Disagreement → Arbiter synthesizes findings
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  redqueen-review.yml (pull_request trigger)                  │
+│                                                              │
+│  Step 0: Setup                                               │
+│    ├── Checkout code + governance mesh                       │
+│    ├── Start Red Queen MCP server                            │
+│    └── Read decision.json → determine review depth           │
+│                                                              │
+│  Step 1: Security Review (same agent framework)              │
+│    ├── Role: security reviewer                               │
+│    ├── Instructions: OWASP, STRIDE, CALM controls            │
+│    ├── Calls: get_bar_context, validate_action,              │
+│    │         get_constraints, validate_interface_contract     │
+│    └── Output: structured ReviewVerdict JSON                 │
+│                                                              │
+│  Step 2: Architecture Review (same agent framework)          │
+│    ├── Role: architecture reviewer                           │
+│    ├── Instructions: CALM conformance, ADR compliance,       │
+│    │   cross-BAR interfaces, component boundaries            │
+│    ├── Calls: get_bar_context, validate_action,              │
+│    │         architecture_query, governance_gaps              │
+│    └── Output: structured ReviewVerdict JSON                 │
+│                                                              │
+│  Step 3: Consensus (deterministic TypeScript — not AI)       │
+│    ├── Collects verdicts from Steps 1-2                      │
+│    ├── Runs resolveConsensus() algorithm                     │
+│    ├── Posts combined review comment to PR                   │
+│    └── Sets status check: pass / fail / pending-approval     │
+│                                                              │
+│  Step 4: Human Approval Gate (if tier requires it)           │
+│    └── CODEOWNER approval required before merge              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Pattern B: Pipeline Review (For `critical` BARs)**
+### 9.4 Workflow Template
 
+The `redqueen-action` scaffolds this workflow into code repos during governance deployment. The `agent-type` parameter swaps the `uses:` action while keeping everything else identical.
+
+**Claude Code Action variant:**
+
+```yaml
+name: Red Queen Governance Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  redqueen-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout governance mesh
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/governance-mesh
+          path: governance-mesh
+          token: ${{ secrets.MESH_TOKEN }}
+
+      - name: Start Red Queen MCP Server
+        run: |
+          npx @maintainabilityai/redqueen-mcp &
+          sleep 2
+        env:
+          MESH_PATH: ${{ github.workspace }}/governance-mesh
+
+      - name: Determine review depth
+        id: review-depth
+        run: |
+          DECISION=$(cat .redqueen/decision.json 2>/dev/null || echo '{}')
+          TIER=$(echo "$DECISION" | jq -r '.effectiveTier // "supervised"')
+          AGENTS=$(echo "$DECISION" | jq -r '.review.agents // 1')
+          HUMAN=$(echo "$DECISION" | jq -r '.review.human_approval // true')
+          echo "tier=$TIER" >> $GITHUB_OUTPUT
+          echo "agents=$AGENTS" >> $GITHUB_OUTPUT
+          echo "human=$HUMAN" >> $GITHUB_OUTPUT
+
+      # Step 1: Security Review
+      - name: Security Review
+        id: security-review
+        if: steps.review-depth.outputs.tier != 'autonomous'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          direct_prompt: |
+            You are a senior security engineer conducting a governance-enforced PR review.
+
+            ## Your Role
+            Review this pull request for security vulnerabilities, OWASP Top 10 violations,
+            and STRIDE threat model adherence.
+
+            ## Required Steps
+            1. Call `get_bar_context` to load the application's CALM architecture and threat model
+            2. Call `get_constraints` to understand active governance rules
+            3. For each structural change in the diff, call `validate_action` to check CALM compliance
+            4. For any cross-repo interface changes, call `validate_interface_contract`
+            5. Call `governance_gaps` to identify uncovered security controls
+
+            ## Output Format
+            Post your review as a PR comment. End with a structured verdict block:
+            ```json
+            { "role": "security", "approve": true|false, "severity": "low|medium|high|critical",
+              "findings": [{ "file": "...", "line": 0, "severity": "...", "description": "..." }],
+              "caveats": ["..."] }
+            ```
+
+      # Step 2: Architecture Review
+      - name: Architecture Review
+        id: architecture-review
+        if: steps.review-depth.outputs.agents >= 2
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+          direct_prompt: |
+            You are a software architect conducting a governance-enforced PR review.
+
+            ## Your Role
+            Review this pull request for architectural conformance against the CALM model,
+            ADR compliance, component boundary violations, and cross-BAR dependency impacts.
+
+            ## Required Steps
+            1. Call `get_bar_context` to load the CALM architecture and active ADRs
+            2. Call `architecture_query` to check component relationships
+            3. For structural changes, call `validate_action` to verify CALM conformance
+            4. Call `governance_gaps` to identify architectural coverage gaps
+
+            ## Output Format
+            Post your review as a PR comment. End with a structured verdict block:
+            ```json
+            { "role": "architecture", "approve": true|false, "severity": "low|medium|high|critical",
+              "findings": [{ "file": "...", "line": 0, "severity": "...", "description": "..." }],
+              "caveats": ["..."] }
+            ```
+
+      # Step 3: Consensus (deterministic — not AI)
+      - name: Governance Consensus
+        if: always() && steps.review-depth.outputs.tier != 'autonomous'
+        uses: maintainabilityai/redqueen-consensus@v1
+        with:
+          verdicts-from: security-review,architecture-review
+          decision-json: .redqueen/decision.json
+          # Posts combined review, sets status check
 ```
-PR Created
-    │
-    v
-Stage 1: Static Analysis
-    ├── CodeQL + Snyk scans
-    └── Results attached to PR
-    │
-    v
-Stage 2: AI Security Review (Claude Opus)
-    ├── Full CALM context + threat model
-    ├── validate_action for all structural changes
-    ├── validate_interface_contract for cross-repo changes
-    └── Security findings posted as review
-    │
-    v
-Stage 3: AI Architecture Review (Claude Sonnet)
-    ├── Architectural conformance check
-    ├── ADR compliance verification
-    └── Architecture findings posted as review
-    │
-    v
-Stage 4: Human Architecture Board Review
-    └── Final approval or rejection
+
+**Copilot coding agent variant** — identical structure, different `uses:`:
+
+```yaml
+      # Step 1: Security Review (Copilot)
+      - name: Security Review
+        id: security-review
+        if: steps.review-depth.outputs.tier != 'autonomous'
+        uses: github/copilot-coding-agent@v1
+        with:
+          instructions: |
+            You are a senior security engineer conducting a governance-enforced PR review.
+            [... same instructions as Claude variant ...]
+          mcp_config: |
+            { "mcpServers": { "redqueen": { "type": "url", "url": "http://localhost:3100/mcp" } } }
+
+      # Step 2: Architecture Review (Copilot)
+      - name: Architecture Review
+        id: architecture-review
+        if: steps.review-depth.outputs.agents >= 2
+        uses: github/copilot-coding-agent@v1
+        with:
+          instructions: |
+            You are a software architect conducting a governance-enforced PR review.
+            [... same instructions as Claude variant ...]
 ```
 
-### 9.3 Consensus Resolution
+### 9.5 Tier-Based Review Depth
 
-When the Red Queen assembles a multi-agent review board (two or more specialized reviewers), the reviewers may disagree. The resolution algorithm follows a simple principle: **the most severe finding wins**, but disagreements are escalated transparently rather than resolved silently.
+The `determine review depth` step reads `decision.json` and controls which steps run:
 
-#### 9.3.1 Resolution Rules
+| Tier | Security Review | Architecture Review | Consensus | Human Approval |
+|------|----------------|--------------------|-----------| --------------|
+| Autonomous | Skip (status check auto-passes) | Skip | Skip | No |
+| Supervised | Run | Skip (unless `agents >= 2`) | Run | Yes |
+| Restricted | Run | Run | Run (any-deny-is-deny) | Yes + CODEOWNER |
+
+For `critical` criticality BARs, the review depth is always `restricted` regardless of score.
+
+### 9.6 Consensus Resolution
+
+The consensus step is a **deterministic GitHub Action** (`maintainabilityai/redqueen-consensus`), not an AI agent. It collects structured `ReviewVerdict` JSON from prior steps and applies the resolution algorithm.
+
+#### 9.6.1 Resolution Rules
 
 | Scenario | Security Reviewer | Architecture Reviewer | Resolution |
 |----------|------------------|----------------------|------------|
@@ -2550,14 +2713,14 @@ When the Red Queen assembles a multi-agent review board (two or more specialized
 | Split | Approve | Deny (any) | Deny — blocking finding wins |
 | Conditional | Approve with caveats | Approve | Approve with merged caveats |
 
-#### 9.3.2 Key Principles
+#### 9.6.2 Key Principles
 
 - **Any deny is a deny:** If any reviewer returns a blocking finding, the PR is blocked. There is no majority vote. This is a **union of concerns**, not a democratic process.
 - **Severity propagates upward:** The final verdict uses the highest severity from any reviewer. If security says "critical" and architecture says "medium," the combined verdict is "critical."
 - **Caveats are merged:** If both reviewers approve but attach conditions (e.g., "add rate limiting" from security + "update ADR" from architecture), all conditions are surfaced in the PR comment.
 - **No silent resolution:** When reviewers disagree, the PR comment explicitly shows both opinions. The blocking opinion is enforced, but the approving opinion is visible so the developer understands the full picture.
 
-#### 9.3.3 Escalation Path
+#### 9.6.3 Escalation Path
 
 If a developer believes a blocking finding is incorrect (false positive):
 
@@ -2565,9 +2728,29 @@ If a developer believes a blocking finding is incorrect (false positive):
 2. A CODEOWNER reviews the finding and either overrides (using break-glass, Section 14.3.5) or confirms.
 3. If overridden, the break-glass procedure applies — escalating friction, quarterly budget, follow-up issue.
 
-#### 9.3.4 Implementation
+#### 9.6.4 Implementation
 
 ```typescript
+interface ReviewVerdict {
+  role: 'security' | 'architecture' | 'quality' | 'general';
+  approve: boolean;
+  severity?: Severity;
+  findings: Finding[];
+  caveats?: string[];
+  rationale?: string;
+}
+
+interface Finding {
+  file: string;
+  line?: number;
+  severity: Severity;
+  description: string;
+  control?: string;     // CALM control ID (e.g., ctrl-pci-001)
+  rule?: string;        // Policy rule ID (e.g., PLAT-001)
+}
+
+type Severity = 'low' | 'medium' | 'high' | 'critical';
+
 function resolveConsensus(
   verdicts: ReviewVerdict[],
   rule: ConsensusRule
@@ -2598,7 +2781,7 @@ function resolveConsensus(
       findings: allFindings,
       // Include approving opinions for transparency
       dissent: verdicts.filter(v => v.approve).map(v => ({
-        reviewer: v.reviewer,
+        reviewer: v.role,
         opinion: 'approved',
         rationale: v.rationale,
       })),
@@ -2617,6 +2800,26 @@ function severityRank(s: Severity): number {
   return { low: 0, medium: 1, high: 2, critical: 3 }[s] ?? 0;
 }
 ```
+
+### 9.7 Relationship to Existing CI
+
+The review workflow **complements** existing CI jobs, not replaces them:
+
+```
+PR Created
+    │
+    ├──→ CodeQL (existing) ──→ Security dashboard
+    ├──→ Snyk (existing) ────→ Security dashboard
+    ├──→ Tests (existing) ───→ Status check
+    │
+    └──→ redqueen-review.yml (new)
+           ├── Security review step (AI agent)
+           ├── Architecture review step (AI agent)
+           ├── Consensus step (deterministic)
+           └──→ Status check: redqueen/governance
+```
+
+CodeQL and Snyk results feed into the security dashboard (already implemented in Rabbit Hole CI jobs). The Red Queen review workflow adds **architecture-aware, CALM-informed** review on top — it reads the governance mesh context that static analysis tools don't have access to.
 
 > The multi-agent review board is **additive** (union of concerns) rather than reductive (intersection). The cost is potential false-positive friction, but the break-glass mechanism (Section 14.3.5) provides a controlled release valve.
 
@@ -3383,56 +3586,58 @@ watch(meshPath, { recursive: true }, (eventType, filename) => {
 
 ## 13. Service Architecture
 
-### 13.1 RedQueenService
+### 13.1 RedQueenService ✅ (Implemented in Phase 5)
+
+Stateless class — no vscode imports, usable from both extension host and MCP server.
 
 ```typescript
-// src/services/RedQueenService.ts
+// src/services/RedQueenService.ts (actual implementation)
 
-class RedQueenService {
-  private meshPath: string;
-  private policy: OrchestrationPolicy | null = null;
-  private guardrailsEngine: NemoGuardrailsEngine;
+export class RedQueenService {
+  // ── Policy Loading ────────────────────────────────────────
+  loadPolicy(reader: MeshReader): OrchestrationPolicy;
+  loadPlatformPolicy(reader: MeshReader, platformId: string): PlatformGovernancePolicy | null;
 
-  // ── Policy ────────────────────────────────────────────────
-  loadPolicy(meshPath: string): OrchestrationPolicy;
-  reloadPolicy(): void;
-  evaluate(barId: string): Promise<OrchestrationDecision>;
-  evaluateAll(): Promise<OrchestrationDecision[]>;
+  // ── Policy Evaluation ─────────────────────────────────────
+  evaluatePolicy(bar: BarSummary, policy: OrchestrationPolicy): OrchestrationDecision;
+  applyPlatformOverrides(decision: OrchestrationDecision, platformPolicy: PlatformGovernancePolicy, bar: BarSummary, reader: MeshReader): OrchestrationDecision;
+  getOrchestrationDecision(reader: MeshReader, barName: string): OrchestrationDecision | { error: string };
 
-  // ── Agent Configuration ───────────────────────────────────
-  generateGovernanceContext(decision: OrchestrationDecision, context: BarContextBundle): string;
-  generateSettings(decision: OrchestrationDecision): object;
-  generateSubagentDefinitions(decision: OrchestrationDecision, context: BarContextBundle): SubagentDefinition[];
-  generateAgentsMd(decision: OrchestrationDecision): string;
-  applyConfiguration(decision: OrchestrationDecision, repoPath: string): Promise<void>;
+  // ── Agent Configuration Generators ────────────────────────
+  generateGovernanceContext(decision: OrchestrationDecision, bar: BarSummary, policy: OrchestrationPolicy, reader?: MeshReader): string;
+  generateSettings(decision: OrchestrationDecision): string;
+  generateAgentsMd(decision: OrchestrationDecision, bar: BarSummary, policy: OrchestrationPolicy): string;
+}
+```
 
-  // ── NeMo Guardrails ───────────────────────────────────────
-  validateAction(barId: string, action: AgentAction): Promise<ValidationResult>;
-  validateInterfaceContract(sourceBar: string, targetBar: string, change: string): Promise<InterfaceValidationResult>;
-  buildGuardrailsConfig(barId: string): Promise<GuardrailsConfig>;
+**Design notes:**
+- Uses `MeshReader` (injected) rather than storing `meshPath` — fully stateless, no side effects
+- Regex-based YAML parsing (same pattern as `readScoringConfig()`) — no YAML library dependency
+- `DEFAULT_POLICY` constant provides sensible defaults when mesh.yaml has no `orchestration:` section
+- Platform overrides can only restrict (cap tier down), never relax — security-first design
+- All generators return strings (not objects) — caller decides where to write
 
-  // ── Cross-Repo & Platform ────────────────────────────────
-  resolveFlowAcrossBars(flowId: string): Promise<CrossRepoFlowGraph>;
-  computeFlowImpact(barId: string, nodeId: string): Promise<FlowImpact>;
-  getLinkedBars(barId: string): Promise<LinkedBar[]>;
-  discoverPlatformRelationships(platformId: string): Promise<PlatformRelationshipGraph>;
-  loadPlatformPolicy(platformId: string): Promise<PlatformGovernancePolicy | null>;
-  computePlatformImpact(barId: string, change: string): Promise<PlatformImpactAssessment>;
-
-  // ── Review Board ──────────────────────────────────────────
+**Planned for future phases:**
+```typescript
+  // ── Review Board (Phase 7) ────────────────────────────────
   assembleReviewBoard(decision: OrchestrationDecision): ReviewBoard;
   resolveConsensus(verdicts: ReviewVerdict[]): ConsensusResult;
 
-  // ── Feedback Loop ─────────────────────────────────────────
+  // ── Feedback Loop (Phase 7) ───────────────────────────────
   computeScoreDelta(barId: string, beforeScores: GovernanceScores): Promise<ScoreDelta>;
   recordDelta(barId: string, delta: ScoreDelta): Promise<void>;
   getAgentMemory(barId: string): Promise<AgentMemory>;
   updateAgentMemory(barId: string, learning: AgentLearning): Promise<void>;
   suggestPolicyRefinements(): Promise<PolicySuggestion[]>;
-}
-
-export const redQueenService = new RedQueenService();
 ```
+
+**Struck (NeMo replaced by policy-engine.ts in Phase 3):**
+- ~~`validateAction()`~~ — implemented as `validate_action` MCP tool via `policy-engine.ts`
+- ~~`buildGuardrailsConfig()`~~ — replaced by `generateStaticPolicy()` in `policy-engine.ts`
+- ~~`validateInterfaceContract()`~~ — deferred to Phase 8 CI gate
+- ~~`resolveFlowAcrossBars()`~~ — implemented as `findLinkedBars()` in `mesh-reader.ts`
+- ~~`generateSubagentDefinitions()`~~ — deferred to Phase 7
+- ~~`applyConfiguration()`~~ — scaffold writes files directly via `config-scaffold.ts`
 
 ### 13.2 Types
 
@@ -3667,16 +3872,18 @@ The governance mesh repository is cloned during the setup step (`copilot-setup-s
 
 **Fail-closed mesh clone:** If the governance mesh repository cannot be cloned (GitHub outage, permissions error), the agent session must not start. The workflow should tag the PR with a `governance-unavailable` label for manual review.
 
-| Aspect | stdio (CI/Local) | HTTP (Remote/Production) |
-|--------|------------------|-------------------------|
-| Auth | None — inherits runner permissions | Bearer token, fail-closed |
-| Availability | Same as runner process | Requires health checks + SLA |
-| Mesh access | Git clone during setup step | API or mounted volume |
-| Failure mode | Agent can't start — action fails | HTTP 503 — fail-closed |
+| Aspect | stdio (CI/Local) |
+|--------|------------------|
+| Auth | None — inherits runner permissions |
+| Availability | Same as runner process |
+| Mesh access | Git clone during setup step |
+| Failure mode | Agent can't start — action fails |
 
-### 14.2 HTTP Transport (Remote / Production)
+### ~~14.2 HTTP Transport (Remote / Production)~~ — STRUCK
 
-Bearer token authentication with **fail-closed semantics** for remote VS Code Extension integration and potential future production deployments:
+> **Decision:** The Red Queen uses a local-only architecture. Agents clone the governance mesh and run the MCP server locally via stdio. There is no remote HTTP server, so bearer auth, REDQUEEN_ENV detection, and rate limiting are unnecessary. This eliminates an entire class of infrastructure (uptime, auth, rate limiting, CORS) with no loss of functionality.
+
+~~Bearer token authentication with **fail-closed semantics** for remote VS Code Extension integration and potential future production deployments:~~
 
 ```typescript
 import { timingSafeEqual } from 'crypto';
@@ -4135,11 +4342,11 @@ jobs:
 | # | Decision | Rationale |
 |---|----------|-----------|
 | D1 | Unified The Grin into The Red Queen as a single system | The Grin (MCP data layer) and Red Queen (enforcement + orchestration) are inseparable in practice. Every MCP tool call goes through governance enforcement. A single design eliminates coordination complexity. |
-| D2 | NeMo Guardrails for deterministic enforcement, not LLM prompts | Prompts are advisory — agents can ignore them. NeMo's Colang 2.0 flows execute as state machines. A `validate_action` call returns a deterministic verdict regardless of which LLM invoked it. |
+| D2 | ~~NeMo Guardrails~~ TypeScript policy engine for deterministic enforcement, not LLM prompts | Prompts are advisory — agents can ignore them. The Red Queen's Court evaluates policy rules deterministically. A `validate_action` call returns a deterministic verdict regardless of which LLM invoked it. (v0.8.0: NeMo replaced with in-process TypeScript engine — simpler, no Python sidecar.) |
 | D3 | MCP tools as universal control plane for agent-agnostic governance | Copilot coding agent only supports MCP tools (not resources or prompts). By exposing all enforcement through tools, both Claude Code and Copilot receive identical governance. |
 | D4 | CALM flows + interfaces as cross-repo governance contracts | CALM already models service relationships, transitions, and interfaces. Using this existing structure as governance contracts avoids inventing a new schema and ensures architecture models and governance rules are always in sync. |
 | D5 | `copilot-setup-steps.yml` + repo Settings UI for Copilot agent MCP | Copilot agent doesn't read committed MCP config files. The environment setup step starts the Red Queen server; the Settings UI points to it. This is the only pattern GitHub currently supports. |
-| D6 | NeMo runs as a sidecar process, not embedded in Node.js | NeMo Guardrails is a Python package. Running it as a REST sidecar (`nemoguardrails server`) keeps the MCP server in pure Node.js while using NeMo's full Colang 2.0 engine. HTTP latency (~50ms) is negligible for PR-level validation. |
+| D6 | ~~NeMo runs as a sidecar process~~ Policy engine runs in-process | ~~NeMo Guardrails is a Python package.~~ STRUCK (v0.8.0): Policy engine is pure TypeScript, runs in the same Node.js process as the MCP server. No sidecar, no HTTP, no Python dependency. |
 | D7 | Three-layer enforcement: hooks → agent tools → CI gate | **Layer 1 (Fast feedback):** Claude Code `PreToolUse` hooks intercept `Edit`/`Write` calls and validate against CALM constraints in milliseconds — the agent gets immediate feedback before writing code. **Layer 2 (Rich feedback):** Agents call `validate_action` proactively (instructed via AGENTS.md) for detailed reasons, conditions, and recommendations they can act on. **Layer 3 (Hard gate):** `redqueen-action` GitHub Action runs independently on every PR as a **required status check** in branch protection — merge is blocked on governance violations regardless of whether the agent cooperated. Layers 1 and 2 are advisory (informative); Layer 3 is deterministic (the only true "hard enforcement boundary"). |
 | D8 | Three permission tiers (autonomous/supervised/restricted) | Maps to the governance maturity curve. High-scoring BARs earn autonomy; low-scoring BARs get guardrails. Simple enough to understand, flexible enough via criticality multipliers. |
 | D9 | All governance data is read-open (no per-resource ACL) | Governance mesh is documentation and scores, not secrets. Simplicity over complexity — YAGNI for per-resource authorization. |
@@ -4147,18 +4354,18 @@ jobs:
 | D11 | Agent memory stored in governance mesh (`.caterpillar/agent-memory/`) | Agent memory is governance data — version-controlled alongside the mesh, not in individual repos. Enables portfolio-level learning across all BARs. |
 | D12 | Policy suggestions are advisory, not auto-applied | Governance policy changes require human judgment. The Red Queen surfaces data-driven suggestions, but a human architect decides. |
 | D13 | `architecture_query` uses MCP sampling for LLM reasoning | Avoids requiring a separate LLM API key on the server. The query + CALM model are sent as a sampling request to the client's LLM. |
-| D14 | Dynamic Colang 2.0 config from CALM model per-BAR | Each BAR's CALM architecture generates a unique NeMo configuration. `RailsConfig.from_content()` + `+` operator allow runtime composition. This ensures guardrails always reflect the current architecture. |
+| D14 | ~~Dynamic Colang 2.0 config~~ Static policy from CALM model per-BAR | ~~NeMo~~ STRUCK (v0.8.0): Each BAR's governance data generates a static `policy.json` during scaffold. The policy engine evaluates live CALM model data at Layer 2. This ensures policy rules always reflect the current architecture. |
 | D15 | `AGENTS.md` as shared governance instructions | Both Claude Code and Copilot coding agent read `AGENTS.md`. This file instructs both agents to call `validate_action` before structural changes and `validate_interface_contract` for cross-repo changes. |
 | D16 | Custom `calm://` URI scheme for all resources | Domain-specific URIs make resources self-describing. Follows EventCatalog's `eventcatalog://` pattern. |
 | D17 | Three-level policy hierarchy (portfolio → platform → BAR) with tighten-only semantics | Platforms need governance authority over their BARs (shared infrastructure, minimum scores, tier caps), but cannot loosen portfolio-level rules. BAR overrides cannot loosen platform rules. This prevents governance erosion while allowing context-specific tightening. |
-| D18 | Governance woven into Cheshire Cat UX, not a separate workflow | Users should not need a "governance mode" — governance context (tier badges, mandated packs, pre-submission summaries, NeMo event streams) appears naturally in every panel they already use. Reduces friction and ensures governance is never bypassed by simply not opening a governance panel. |
+| D18 | Governance woven into Cheshire Cat UX, not a separate workflow | Users should not need a "governance mode" — governance context (tier badges, mandated packs, pre-submission summaries, policy event streams) appears naturally in every panel they already use. Reduces friction and ensures governance is never bypassed by simply not opening a governance panel. |
 | D19 | Platform-level relationship discovery (4 mechanisms) | CALM flows are the strongest signal but not every BAR has CALM architecture. Supplementing with explicit `linkedBars`, capability overlap, and shared infrastructure declarations ensures cross-BAR governance works even for BARs at early governance maturity levels. |
 | D20 | Three-layer enforcement model: hooks → agent tools → CI gate | Agent-called `validate_action` provides rich feedback but depends on agent cooperation. The CI gate (`redqueen-action` as a required status check) is the only true "hard enforcement boundary" — it runs independently of agent behavior and blocks merge on violations. Layers 1-2 optimize DX; Layer 3 ensures governance. |
 | D21 | Machine-checkable contract artifacts for interface validation | Description-level string matching on change descriptions is best-effort, not deterministic. Extending CALM interfaces with `contractArtifact` references (OpenAPI, protobuf, AsyncAPI, GraphQL, JSON Schema) enables programmatic schema diffing — the only way to make "interface contract enforcement" truly machine-checkable. |
 | D22 | Governance score decay (trust battery model) | Scores without time-based decay create a false sense of governance health. A BAR reviewed 6 months ago is not as trustworthy as one reviewed yesterday. Decay is computed on read (not as a background job) and feeds into all orchestration decisions, ensuring stale BARs cannot maintain high-autonomy tiers indefinitely. |
 | D23 | AST-based semantic diff analysis for risk classification | CALM graph traversal computes impact at the architecture level but cannot distinguish a comment edit from an authentication logic change. Tree-sitter AST parsing classifies changes by risk tier (cosmetic → critical), enabling proportionate governance: lightweight checks for low-risk changes, full validation + mandatory human review for critical changes. |
 | D24 | Critical failure score reset | Gradual decay handles staleness; critical failures (CVE in dependency, merged code that bypassed guardrails, production interface violation) require immediate score impact. This mimics the "trust battery" concept — trust accumulates slowly but can be lost quickly. |
-| D25 | "Minimal infrastructure" not "zero infrastructure" | The Red Queen's Node.js MCP server is truly zero-infra (reads files, no database). But the NeMo Guardrails sidecar is a Python REST process — lightweight and ephemeral, but still infrastructure. Accuracy in claims builds credibility with enterprise adopters who will audit the architecture. |
+| D25 | ~~"Minimal infrastructure" not "zero infrastructure"~~ True zero infrastructure | The Red Queen's Node.js MCP server is truly zero-infra (reads files, no database). With NeMo struck (v0.8.0), there is no sidecar — the policy engine runs in-process as pure TypeScript. Single process, zero dependencies beyond Node.js. |
 | D26 | Fail-closed HTTP auth in CI/production | In `local` mode, missing `REDQUEEN_AUTH_TOKEN` is permissive (developer convenience). In `ci` or `production` mode, the server **refuses to start** without a token. This prevents accidental unauthenticated deployments. Constant-time token comparison (`timingSafeEqual`) prevents timing attacks. |
 | D27 | Threat model access controlled by BAR criticality tier | Blanket "open read" for threat models risks leaking attack surface details. Three tiers (`open`/`summary`/`restricted`) let platform architects match access to BAR sensitivity. Default `summary` gives agents enough for governance validation (risk ratings + control IDs) without exposing attack vectors. |
 | D28 | Break-glass override with scoped, time-limited bypass | A hard gate without an escape hatch is a liability during incidents. The break-glass procedure requires CODEOWNER approval, is scoped to specific violations on a specific PR, expires in 24 hours, auto-creates follow-up issues, and feeds into score decay. This balances safety with operational reality. |
@@ -4176,139 +4383,233 @@ jobs:
 
 ## 16. Implementation Phases
 
-### Phase 1: Core MCP Server + Resources (The Grin Data Layer)
+### Phase 1: Core MCP Server + Resources (The Grin Data Layer) ✅
 
-- [ ] Set up `src/mcp/` module structure
-- [ ] Implement `server.ts` with `McpServer` initialization and stdio transport
-- [ ] Implement `mesh-reader.ts` and `calm-reader.ts`
-- [ ] Register all 14 resources (R1-R14) with URI templates and annotations
-- [ ] Configure esbuild to produce `dist/mcp-server.js`
+- [x] Set up `src/mcp/` module structure
+- [x] Implement `server.ts` with `McpServer` initialization and stdio transport
+- [x] Implement `mesh-reader.ts` (VS Code-free, in `src/core/`)
+- [x] Register 11 resources (4 static + 7 templates) with URI templates
+- [x] Configure esbuild to produce `dist/mcp-server.js`
+- [x] Implement 10 query tools with Zod validation
+- [x] Refactor `MeshService` to delegate reads to `MeshReader` (no duplicate code)
+- [x] Unit tests (14) + integration tests (13) — 27/27 passing
 - [ ] Register `mcpServerDefinitionProviders` in `package.json`
 - [ ] Implement VS Code extension host registration
-- [ ] Test with Claude Desktop via stdio
 
 **Value:** Agents can discover and read all governance mesh data.
 
-### Phase 2: Query + Analysis Tools
+### Phase 2: Query + Analysis Tools + Config Scaffolding ✅
 
-- [ ] Implement T1-T8 (find_bars, get_bar_context, blast_radius, governance_gaps, architecture_query, compare_bars, score_snapshot, validate_calm)
-- [ ] Implement T12 flow_impact and T13 get_orchestration_decision
-- [ ] Add HTTP transport for CI/CD (`mcp-server-http.js`)
-- [ ] Implement bearer token authentication with fail-closed semantics (Section 14.2)
-- [ ] Implement `REDQUEEN_ENV` detection (`local`/`ci`/`production`) with constant-time token comparison
-- [ ] Add audit logging for all tool invocations (`AuditLogEntry` interface, Section 14.2.1)
-- [ ] Add correlation fields to audit entries (`correlationId`, `prNumber`, `commitSha`, `workflowRunId`)
-- [ ] Add per-tool rate limiting with configurable limits (Section 14.2.2)
-- [ ] Add MCP prompt templates (P1-P4)
-- [ ] Implement AST-based semantic diff analysis (Section 4.6) using tree-sitter WASM
-- [ ] Integrate risk classification into `blast_radius` computation
+- [x] Implement T1 `find_bars` — search with filters (name, platform, criticality, score range, status)
+- [x] Implement T2 `get_bar_context` — comprehensive BAR context bundle in one call
+- [x] Implement T4 `governance_gaps` — missing artifacts, weak scores, quality issues
+- [x] Implement T6 `compare_bars` — side-by-side pillar comparison
+- [x] Implement T8 `validate_calm` — structural validation of CALM architecture
+- [x] Implement `get_adrs` — read all ADRs for a BAR
+- [x] Add ADRs and flows resources (`calm://bar/{name}/adrs`, `calm://bar/{name}/flows`)
+- [x] Add MCP prompt templates (P1-P4): architecture-review, remediation-plan, threat-assessment, adr-proposal
+- [x] Implement `scaffold_agent_config` — generate .mcp.json, .claude/settings.json, AGENTS.md, hooks for a BAR
+- [x] Implement `get_permission_tier` — query tier with reasoning
+- [x] Implement `--scaffold` CLI mode with `--output` for file writing
+- [x] Config manifest with SHA-256 fingerprints for drift detection
+- [x] Tier-based agent permissions (autonomous/supervised/restricted)
+- [x] Copilot governance setup steps generation from mesh org
+- [x] Unit tests (33) + integration tests (33) — 66/66 passing
 
-**Value:** Agents can actively query governance intelligence and compute impact analysis. AST-based risk classification enables proportionate governance responses.
+**Deferred to later phases:**
+- T3 `blast_radius` → Phase 4 ✅ (implemented as T12 `blast_radius` with platform-level cross-BAR analysis)
+- T7 `score_snapshot` → Phase 7 (write operation, part of feedback loop)
+- T12 `flow_impact` / T13 `get_orchestration_decision` → Repurposed in Phase 4: T11 `get_platform_architecture`, T12 `blast_radius`, T13 `validate_platform_calm`
+- AST-based semantic diff → Phase 8 CI gate (tree-sitter analysis belongs in `redqueen-action`)
+- Risk classification in `blast_radius` → Phase 5 (requires orchestration policy context)
 
-### Phase 3: NeMo Guardrails Integration
+**Struck — will not implement (local-only architecture, no remote dependency):**
+- ~~HTTP transport (`mcp-server-http.js`)~~ — stdio covers CI (GitHub Actions), local dev, and Codespaces. Agents clone the mesh and run MCP locally. No remote server.
+- ~~Bearer token authentication~~ — no HTTP means no network auth needed. Runner process isolation is sufficient.
+- ~~`REDQUEEN_ENV` detection (`local`/`ci`/`production`)~~ — single local mode only.
+- ~~Per-tool rate limiting~~ — no shared server to protect. Each agent gets its own MCP process.
+- ~~T5 `architecture_query` (natural language)~~ — requires LLM routing; agents already have LLM access and can query CALM data directly via existing tools.
 
-- [ ] Set up NeMo Guardrails sidecar configuration
-- [ ] Implement `config-builder.ts` — dynamic Colang 2.0 from CALM models
-- [ ] Implement flow constraint rails (`flow-rails.co` + `flow-validator.ts`)
-- [ ] Implement control adherence rails (`control-rails.co` + `control-validator.ts`)
-- [ ] Implement threat model rails (`threat-rails.co` + `threat-validator.ts`)
-- [ ] Implement permission tier rails (`permission-rails.co`)
-- [ ] Implement T9 `validate_action` — NeMo-backed enforcement tool
-- [ ] Implement T10 `get_constraints`
-- [ ] Implement Claude Code `PreToolUse` hooks for Layer 1 fast feedback (Section 14.3)
-- [ ] Test enforcement scenarios end-to-end
+**Kept but moved:**
+- Audit logging → Phase 7 (feedback loop, useful but not blocking)
+- Correlation fields → Phase 7 (same rationale)
 
-**Value:** Deterministic governance enforcement via three layers: fast hooks, rich agent tools, and CI gate backstop.
+**Value:** Agents can query all governance intelligence, scaffold agent configs from the mesh (single source of truth), and compute governance gaps. Config scaffolding enables "update mesh once → re-scaffold to all repos" workflow.
 
-### Phase 4: Cross-Repo & Platform Governance
+### Phase 3: Policy Engine + Enforcement Hooks (The Red Queen's Court) ✅
 
-- [ ] Implement `cross-repo.ts` — multi-BAR flow resolution
-- [ ] Implement interface contract rails (`interface-rails.co` + `interface-validator.ts`)
-- [ ] Implement T11 `validate_interface_contract`
-- [ ] Implement linked BAR discovery from `app.yaml` and CALM flow analysis
-- [ ] Implement cross-repo notification system (GitHub Issues)
-- [ ] Add `linkedBars` field to BAR resources
-- [ ] Cross-repo flow visualization in Looking Glass
-- [ ] Implement machine-checkable contract artifact validation (Section 4.5.1)
-- [ ] Add OpenAPI schema diff support (`oasdiff` v2+ with pinned version and breaking change ruleset)
-- [ ] Add protobuf breaking change detection (`buf breaking` with `WIRE` ruleset)
-- [ ] Add GraphQL schema diff support (`graphql-inspector`)
-- [ ] Add AsyncAPI diff support (`asyncapi-diff`)
-- [ ] Implement per-BAR false-positive suppression files for each diff engine
-- [ ] Handle CI edge cases: generated specs, multi-file `$ref` resolution, monorepo multi-spec, version mismatch warnings
-- [ ] Extend `CalmInterface` type with `contractArtifact` field
-- [ ] Implement `discoverPlatformRelationships()` — sibling BAR relationship discovery
-- [ ] Implement `loadPlatformPolicy()` — platform.yaml governance section parsing
-- [ ] Implement `computePlatformImpact()` — platform-level blast radius analysis
-- [ ] Implement shared infrastructure constraint enforcement
-- [ ] Add platform governance section to Looking Glass (sibling BAR health, platform policies)
+- [x] Create `policy-engine.ts` — The Red Queen's Court (5 rule types: TIER, PATH, SEC, CALM, CTRL)
+- [x] Implement `evaluate()` — two-layer policy evaluation (Layer 1: fast static, Layer 2: full CALM)
+- [x] Implement `generateStaticPolicy()` — pre-computed rules for `.redqueen/policy.json`
+- [x] Implement `buildConstraintsSummary()` — session-start constraint reporting
+- [x] Implement T9 `validate_action` — full CALM-aware policy evaluation via MCP tool
+- [x] Implement T10 `get_constraints` — tier, permissions, and constraints for agents
+- [x] Upgrade `validate-tool.sh` → `validate-tool.js` — Node.js PreToolUse hook for Layer 1
+- [x] Add `.redqueen/policy.json` to scaffold output
+- [x] Update AGENTS.md template with `validate_action` and `get_constraints` references
+- [x] Add `matchesPattern()` glob utility for file path matching
+- [x] Unit tests: 20+ policy engine tests (tier rules, path rules, security rules, CALM flow, constraints)
+- [x] Integration tests: 9 tests (validate_action approve/deny/CALM, get_constraints)
+- [x] All 100 tests passing, build succeeds
 
-**Value:** Changes in one repo are validated against interface contracts in linked repos. Intra-platform governance provides sibling BAR awareness, shared infrastructure protection, and platform-level policy enforcement.
+**Value:** Deterministic governance enforcement via three layers: fast hooks (~50ms), rich agent tools (~200ms), and CI gate backstop (Phase 8). Pure TypeScript, no Python sidecar.
 
-### Phase 5: Policy Engine + Agent Configuration
+### Phase 4: Cross-Repo & Platform Governance ✅
 
-- [ ] Define `OrchestrationPolicy` types (portfolio, platform, BAR levels)
-- [ ] Implement policy loading from `mesh.yaml` + `platform.yaml` + per-BAR `app.yaml` overrides
-- [ ] Implement `evaluatePolicy()` — tier determination, prompt injection, criticality adjustment
-- [ ] Implement threat model access tiers (`open`/`summary`/`restricted`) per BAR criticality (Section 14.4.1)
-- [ ] Implement `applyPlatformOverrides()` — platform tier caps, minimum scores, shared infra constraints
-- [ ] Implement `generateGovernanceContext()` — dynamic CLAUDE.md with concrete artifact-to-constraint resolution (Section 11.2.3)
-- [ ] Implement `generateSettings()` — `.claude/settings.json`
-- [ ] Implement `generateAgentsMd()` — shared AGENTS.md
-- [ ] Add Red Queen tier badge to Looking Glass BAR detail
-- [ ] Add orchestration policy editor to Looking Glass Settings
+- [x] Platform architecture support (`platform.arch.json`) — platform-level CALM model with nodes, relationships, and BAR linkage
+- [x] Implement `readPlatformArchitecture()` in MeshReader — reads platform.arch.json from platform directory
+- [x] Implement `validatePlatformCalm()` in MeshReader — structural validation of platform CALM (nodes, relationships, unique IDs)
+- [x] Implement `findLinkedBars()` in MeshReader — discovers sibling BAR relationships and shared infrastructure from platform architecture
+- [x] Implement T11 `get_platform_architecture` — read platform-level CALM model with cross-BAR relationships
+- [x] Implement T12 `blast_radius` — cross-BAR impact analysis (linked BARs, shared infrastructure, impact level computation)
+- [x] Implement T13 `validate_platform_calm` — validate platform-level CALM architecture structure
+- [x] Extend `get_bar_context` (T2) with `linkedBars` — platform architecture and linked BAR metadata included in BAR context bundle
+- [x] Implement PLAT-001 cross-BAR policy rule — warns when modifying interfaces or data flows on nodes shared across BARs
+- [x] CalmAdapter `calmPlatformToReactFlow()` — platform view with BarNode and SharedInfraNode rendering
+- [x] BarNode and SharedInfraNode React components — custom ReactFlow nodes for platform architecture visualization
+- [x] NodePalette platform items — draggable platform-specific node types
+- [x] LookingGlassPanel platform architecture handlers — `requestPlatformArch` and `savePlatformArch` message handlers
+- [x] Platform architecture data flow through `validate_action` evaluation context (`platformCalmModel`)
+- [x] Unit tests: MeshReader platform methods (readPlatformArchitecture, validatePlatformCalm, findLinkedBars, PLAT-001)
+- [x] Integration tests: get_platform_architecture, blast_radius, validate_platform_calm tools
+- [x] All 122 tests passing, build succeeds
 
-**Value:** Every agent interaction receives governance-appropriate configuration based on scores, criticality, platform membership, and policy.
+**Deferred to later phases:**
+- Machine-checkable contract artifact validation (OpenAPI, protobuf, GraphQL, AsyncAPI diff) → Phase 8 CI gate
+- Cross-repo notification system (GitHub Issues) → Phase 5 (orchestration)
+- Risk classification in `blast_radius` → Phase 5 (requires orchestration policy context)
+- Per-BAR false-positive suppression files for diff engines → Phase 8
+- CI edge cases (generated specs, multi-file `$ref`, monorepo multi-spec) → Phase 8
 
-### Phase 6: Cheshire Cat Governance UX Integration
+**Value:** Platform-level architectural awareness across BARs. Agents see cross-BAR relationships, shared infrastructure, and blast radius before making changes. PLAT-001 policy rule provides deterministic enforcement for shared-node modifications. Platform CALM visualization in Looking Glass enables architectural governance at the platform level.
 
-- [ ] White Rabbit pre-flight: tier-based UX adaptation (green/yellow/red banners, restricted dialog)
-- [ ] ScaffoldPanel governance injection: governance-context.md, settings.json, subagent definitions, .mcp.json, AGENTS.md
-- [ ] Rabbit Hole governance-aware feature creation: governance posture table, mandated prompt packs (🔒), pre-submission governance summary panel
-- [ ] Rabbit Hole agent selection constraints by tier (restricted → primary agent only, secondary auto-assigned)
-- [ ] Scorecard governance monitoring: NeMo event stream, validate_action call log, denial alerts
-- [ ] Scorecard post-merge feedback: score delta display, agent performance summary, platform health impact
-- [ ] Looking Glass cross-BAR dependency panel with interface validation status
-- [ ] Looking Glass platform context panel with sibling BAR health and platform policies
+### Phase 5: Policy Engine + Agent Configuration ✅
 
-**Value:** Governance is woven into every Cheshire Cat panel. Users see governance posture at every step — from BAR exploration to feature creation to agent monitoring to post-merge feedback.
+- [x] Define `OrchestrationPolicy` types in `src/types/redqueen.ts` — `OrchestrationPolicy`, `TierConfig`, `PermissionConfig`, `ReviewConfig`, `PromptInjectionConfig`, `CriticalityConfig`, `EscalationConfig`, `OrchestrationDecision`, `PlatformGovernancePolicy`
+- [x] Implement `RedQueenService` (`src/services/RedQueenService.ts`) — stateless, no vscode imports, usable from extension host and MCP server
+- [x] Implement `loadPolicy()` — parse `orchestration:` block from mesh.yaml via regex, falls back to `DEFAULT_POLICY`
+- [x] Implement `loadPlatformPolicy()` — parse `governance:` block from platform.yaml
+- [x] Implement `evaluatePolicy()` — criticality boost → tier thresholds → pillar < 50 override → prompt injection → threat access → reasoning audit trail
+- [x] Implement threat model access tiers (`open`/`summary`/`restricted`) per tier config
+- [x] Implement `applyPlatformOverrides()` — platform `minTier` cap (can only restrict, never relax), minimum pillar scores, shared infrastructure constraints, cross-BAR topology from `platform.arch.json`
+- [x] Implement `generateGovernanceContext()` — `.redqueen/governance-context.md` with identity, tier, constraints, cross-BAR deps, threat access, audit trail
+- [x] Implement `generateSettings()` — `.claude/settings.json` with tier-based permissions and hooks
+- [x] Implement `generateAgentsMd()` — AGENTS.md with tier info, prompt packs, governance tiers table
+- [x] Upgrade `config-scaffold.ts` — optional `RedQueenService` param, governance-context.md in output, `OrchestrationDecision` in `ScaffoldResult`
+- [x] Add `get_orchestration_decision` MCP tool (T14, tool count 23 → 24) — full decision with tier, permissions, prompt injections, threat access, reasoning
+- [x] Add Red Queen tier badge to Looking Glass BAR detail (`computeDisplayTier()` — green/yellow/red)
+- [x] Add orchestration policy editor to Looking Glass Settings — editable tier thresholds, prompt injection thresholds, escalation config with Load/Save/Reset to Defaults
+- [x] Add platform governance editor — modal overlay from pencil icon on platform cards, editable minimum pillar scores, min tier, enforcement mode with Save/Reset to Defaults
+- [x] Add message types to `webview.ts` — 8 new messages for orchestration/governance editors
+- [x] Data-driven tests (`redqueen-service.test.ts`) — 38 tests reading fixture YAML for expected values
+- [x] Integration tests — 5 new tests (tool count 24, orchestration decision, governance-context.md in scaffold)
+- [x] All 165 tests passing, build clean
 
-### Phase 7: Multi-Agent Review Board + Feedback Loop
+**Deferred to later phases:**
+- Cross-repo notification system (GitHub Issues) → Phase 8
+- Risk classification in `blast_radius` → needs orchestration context but deferred until needed
 
-- [ ] Implement review board assembly
-- [ ] Implement consensus resolution
-- [ ] Generate specialized subagent definitions
-- [ ] Implement score delta computation and persistence
-- [ ] Implement agent memory read/write
-- [ ] Implement policy suggestion engine
-- [ ] Score delta visualization in Looking Glass
-- [ ] Implement score decay model (Section 10.4) — compute-on-read with `GovernanceTimestamps`
-- [ ] Implement critical failure score reset logic
-- [ ] Add decay visualization to Looking Glass (raw vs. decayed scores, decay warnings, recovery actions)
-- [ ] Integrate decayed scores into `evaluatePolicy()` for tier and constraint decisions
+**Pulled forward from Phase 6:**
+- ~~Editable orchestration policy UI~~ — implemented as part of Phase 5 (Settings editor + platform governance modal)
 
-**Value:** Multi-agent review with consensus resolution. Score decay ensures governance health reflects current reality, not historical snapshots. Continuous improvement via feedback loops.
+**Value:** Every agent interaction receives governance-appropriate configuration based on scores, criticality, platform membership, and policy. Two-layer policy (mesh + platform) with UI editors enables governance teams to tune thresholds without editing YAML.
 
-### Phase 8: Agent-Agnostic CI/CD Deployment
+### Phase 6: Cheshire Cat Governance UX Integration ✅ (Complete)
 
-- [ ] Create `@maintainabilityai/redqueen-mcp` npm package
-- [ ] Create `copilot-setup-steps.yml` template
-- [ ] Create Claude Code Action workflow template
-- [ ] Scaffold `.mcp.json` and `AGENTS.md` into code repos via ScaffoldPanel
-- [ ] Scaffold `.claude/settings.json` PreToolUse hooks (Section 7.6)
-- [ ] Scaffold `.github/hooks/redqueen.json` Copilot preToolUse hooks (Section 7.6)
-- [ ] Scaffold `.redqueen/hooks/validate-tool.sh` shared validation script (Section 7.6)
-- [ ] Scaffold `.redqueen/config-manifest.yaml` configuration fingerprints (Section 14.5)
-- [ ] Implement scheduled config drift detection workflow (Section 14.5)
-- [ ] Document configuration for all agent types
-- [ ] Create `maintainabilityai/redqueen-action` GitHub Action as **required status check** (Section 14.3)
-  - [ ] Independent PR diff analysis against CALM constraints
-  - [ ] AST-based risk classification integration
+- [x] Governance Bridge: `governanceBridge.ts` reads `.redqueen/decision.json`; `config-scaffold.ts` writes `decision.json` during scaffold
+- [x] White Rabbit pre-flight: tier-based banners (green/yellow/red) with pillar mini-scores and constraint tags in BAR detail component picker
+- [x] ScaffoldPanel governance injection: governance checkbox in file grid + `scaffoldAgentConfig()` for both component-mode and standalone scaffolds
+- [x] Rabbit Hole governance-aware feature creation: governance posture table, mandated prompt packs (🔒 checked+disabled), pre-submission governance summary panel
+- [x] Rabbit Hole agent selection constraints by tier (restricted → primary agent only, supervised → reviewer auto-assigned, human approval notice)
+- [x] Scorecard governance section: tier badge, pillar scores, constraints + "Resync from Mesh" button to re-pull governance files from mesh
+- [x] Looking Glass cross-BAR dependency panel with linked BAR table (relationship, score, tier badge) — clickable rows navigate via `drillIntoBar`
+- [x] Looking Glass platform context panel with sibling BAR health and platform policy overrides — clickable sibling rows
+- [x] Auto-detect BAR from repo URL: `findBarForRepoUrl()` scans `app.yaml` repos lists across mesh
+- [x] Scorecard auto-detect: "Deploy Governance Files" one-click button when repo matches BAR but no `decision.json` exists
+- [x] Looking Glass "Deploy Gov" button on linked repo rows — deploys Red Queen files to open workspace repos
+
+**Deferred to Phase 7:**
+- Score delta display (needs delta computation + persistence)
+- Agent performance summary (needs tracking infrastructure)
+- Policy engine event stream / validate_action call log / denial alerts (needs audit logging)
+
+**Pulled forward to Phase 5:**
+- ~~Editable orchestration policy UI~~ — orchestration policy editor in Settings + platform governance modal with pencil icon (done in Phase 5)
+
+**Value:** Governance is woven into every Cheshire Cat panel. Users see governance posture at every step — from BAR exploration to feature creation to agent monitoring.
+
+### Phase 7: Step-Based Review Board + Feedback Loop + Score Decay ✅ (Complete)
+
+**Review Board** — Agent-agnostic, step-based PR review (Section 9):
+- [x] Create `redqueen-review.yml` workflow template — `generateRedQueenReviewWorkflow()` generates parameterized workflow for `agent-type: claude | copilot | both`
+- [x] Implement `determine review depth` step — tier-based review depth (autonomous=skip, supervised=security, restricted=security+architecture)
+- [x] Implement security review step prompt — OWASP, STRIDE, CALM controls, structured `ReviewVerdict` JSON output (inline template in `config-scaffold.ts`)
+- [x] Implement architecture review step prompt — CALM conformance, ADR compliance, cross-BAR interfaces (inline template in `config-scaffold.ts`)
+- [x] Implement consensus resolution (`resolveConsensus()` in `consensus.ts`)
+  - [x] Parse `ReviewVerdict` JSON — deterministic merge by finding id, severity promotion
+  - [x] Implement `resolveConsensus()` — any-flag-escalates (default), unanimous, majority rules
+  - [x] Self-contained consensus script (`generateConsensusScript()`) scaffolded as `.redqueen/consensus.js`
+  - [x] Caveat deduplication, human review flagging on critical findings
+- [x] Generate role-specific subagent definitions (`.claude/agents/security-reviewer.md`, `architecture-reviewer.md`)
+- [x] Add `agent-type` configuration to mesh.yaml (`agent_type: claude | copilot | both`) with Looking Glass Settings editor
+- [x] Scaffold `redqueen-review.yml` + subagent definitions + consensus script during "Deploy Gov" via `scaffoldAgentConfig()`
+- [x] Implement `assembleReviewBoard()` in `RedQueenService` — tier-based step assembly with agent-type doubling for "both"
+
+**Feedback Loop** — Score evolution and audit logging:
+- [x] Implement T7 `score_snapshot` MCP tool — trigger governance score snapshot with delta computation (tool count 24 → 25)
+- [x] Add audit logging (`audit-logger.ts`) — `createAuditEntry()`, `appendAuditLog()`, `readAuditLog()` (JSONL format)
+- [x] Add correlation fields to audit entries (`correlationId`, `prNumber`, `commitSha`, `workflowRunId`)
+- [x] Implement score delta computation (`computeScoreDelta()`) — composite + per-pillar deltas with trigger tracking
+
+**Score Decay** — Time-based governance health (trust battery):
+- [x] Implement score decay model (`score-decay.ts`) — compute-on-read exponential decay with `GovernanceTimestamps`
+- [x] `computeDecayedScore()` — grace window (14d), exponential decay (half-life 90d), min score floor
+- [x] `computeDecayedPillarScores()` — applies decay to all four governance pillars
+- [x] Add decay visualization to Looking Glass BAR detail — `renderDecayIndicator()` shows raw→decayed score, days since assessment, tier impact badge
+- [x] Integrate decayed scores into `evaluatePolicy()` — optional `timestamps` parameter, decay reasoning in audit trail, backward-compatible
+- [x] All 215 tests passing, build clean
+
+**Deferred to later phases:**
+- Agent memory read/write → Phase 9+
+- Policy suggestion engine → Phase 9+
+- Critical failure score reset logic → Phase 8 (with break-glass)
+
+**Value:** Agent-agnostic PR review with step-based architecture — same workflow structure for Claude and Copilot teams, same MCP tools, deterministic consensus. Score decay ensures governance health reflects current reality. Continuous improvement via feedback loops.
+
+**Testability note:** Phase 8 packages the MCP server as `@maintainabilityai/redqueen-mcp`. End-to-end testing is now possible: scaffold governance into a code repo, push to GitHub, create a PR, and verify the review workflow runs with consensus. Hard enforcement gate and break-glass override are deferred to Phase 9.
+
+### Phase 8: CI/CD Deployment + Hard Enforcement ✅ (Complete — package + distribution)
+
+**Package + Distribution:** ✅
+- [x] Create `@maintainabilityai/redqueen-mcp` npm package (`packages/redqueen-mcp/`)
+- [x] Create `copilot-setup-steps.yml` template (done in Phase 7, extended with hooks)
+- [x] Create Claude Code Action implementation workflow template (`generateImplementationWorkflow()`)
+- [x] Document configuration for all agent types (README.md Quick Start Guide)
+- [x] Quick Start Guide for testing end-to-end PR review flow
+- [x] npm publish GitHub workflow (`.github/workflows/npm-publish.yml`)
+- [x] Build pipeline script (`scripts/prepare-npm-package.sh`, `prepare-npm` script)
+
+**Scaffolding** (extends Phase 6+7 governance deployment): ✅
+- [x] Scaffold `.mcp.json` and `AGENTS.md` into code repos via ScaffoldPanel (done in Phase 6)
+- [x] Scaffold `.claude/settings.json` PreToolUse hooks — updated command to `.sh` (Section 7.6)
+- [x] Scaffold `.github/hooks/redqueen.json` Copilot preToolUse hooks (`generateCopilotHooksJson()`)
+- [x] Scaffold `.redqueen/hooks/validate-tool.sh` shared validation script (`generateValidateToolSh()`)
+- [x] Scaffold `.redqueen/config-manifest.yaml` configuration fingerprints (done in Phase 6)
+- [x] Scaffold `.github/workflows/redqueen-implement.yml` implementation workflow
+- [x] ~~Scaffold `redqueen-review.yml` review workflow~~ — Done in Phase 7
+
+**Hard Enforcement Gate** — deferred to Phase 9 — `redqueen-action` as required status check (Section 14.3):
+- [ ] Create `maintainabilityai/redqueen-action` GitHub Action
+  - [ ] Independent PR diff analysis against CALM constraints (no agent dependency)
+  - [ ] AST-based risk classification via tree-sitter WASM (moved from Phase 2)
   - [ ] Schema-level contract artifact validation (OpenAPI, protobuf)
   - [ ] Structured PR check output with findings, severity, and score impact projection
 - [ ] Create branch protection configuration templates (required checks, reviewer rules per tier)
 - [ ] ScaffoldPanel auto-configures branch protection rules via GitHub API
-- [ ] Implement break-glass override workflow (`redqueen-break-glass.yml`, Section 14.3.5)
+- [ ] Implement scheduled config drift detection workflow (Section 14.5)
+
+**Break-Glass** — deferred to Phase 9 (Section 14.3.5):
+- [ ] Implement break-glass override workflow (`redqueen-break-glass.yml`)
 - [ ] Implement CODEOWNER approval requirement and time-limited bypass (max 24h)
 - [ ] Implement auto-creation of follow-up issues for overridden violations
 - [ ] Integrate break-glass frequency into score decay model
@@ -4316,42 +4617,64 @@ jobs:
 - [ ] Add break-glass budget tracking and automatic tier downgrade on exhaustion
 - [ ] Add break-glass visibility to Looking Glass BAR detail and platform dashboard
 
-**Value:** Zero-friction deployment with hard enforcement boundary. The CI gate ensures governance is enforced regardless of agent cooperation. Both Claude Code Action and Copilot coding agent governed identically through MCP tools.
+**Value:** Zero-friction deployment with hard enforcement boundary. The CI gate ensures governance is enforced regardless of agent cooperation. Step-based review workflow works identically for Claude and Copilot teams. Break-glass provides controlled override with escalating accountability.
 
 ---
 
 ## 17. File Reference Summary
 
-### Files Created
+### Files Created (Actual)
 
-| File | Purpose |
-|------|---------|
-| `src/mcp/server.ts` | McpServer initialization, transport binding, resource/tool registration |
-| `src/mcp/resources/*.ts` | MCP resource handlers (portfolio, bars, capabilities, prompts) |
-| `src/mcp/tools/query.ts` | Read-only query tools (T1-T8) |
-| `src/mcp/tools/validation.ts` | NeMo-backed enforcement tools (T9-T11) |
-| `src/mcp/tools/orchestration.ts` | Orchestration tools (T12-T13) |
-| `src/mcp/tools/cross-repo.ts` | Cross-repo validation tools |
-| `src/mcp/prompts/governance.ts` | MCP prompt templates (P1-P4) |
-| `src/mcp/guardrails/engine.ts` | NeMo Guardrails integration wrapper |
-| `src/mcp/guardrails/config-builder.ts` | Dynamic Colang 2.0 config from CALM |
-| `src/mcp/guardrails/actions/*.ts` | Custom NeMo actions (flow, control, interface, threat validators) |
-| `src/mcp/guardrails/rails/*.co` | Colang 2.0 rail definitions |
-| `src/mcp/utils/mesh-reader.ts` | Governance mesh file I/O |
-| `src/mcp/utils/calm-reader.ts` | CALM JSON parsing |
-| `src/mcp/utils/cross-repo.ts` | Multi-repo flow resolution |
-| `src/mcp/utils/platform-governance.ts` | Platform-level relationship discovery + policy enforcement |
-| `src/services/RedQueenService.ts` | Orchestration engine — policy, config generation, feedback loop |
-| `src/types/redqueen.ts` | All Red Queen types (incl. platform governance, impact assessment, score decay) |
+| File | Purpose | Status |
+|------|---------|--------|
+| `src/core/mesh-reader.ts` | VS Code-free governance mesh reading layer | ✅ Phase 1 |
+| `src/mcp/server.ts` | McpServer + stdio transport + `--scaffold` CLI mode | ✅ Phase 1-2 |
+| `src/mcp/resources.ts` | 13 calm:// resources (4 static + 9 templates) | ✅ Phase 1-2 |
+| `src/mcp/tools.ts` | 25 MCP tools (query, scaffold, policy, platform, orchestration, score_snapshot) | ✅ Phase 1-7 |
+| `src/mcp/prompts.ts` | MCP prompt templates (P1-P4) | ✅ Phase 2 |
+| `src/mcp/config-scaffold.ts` | Agent config generation (.mcp.json, settings, hooks, AGENTS.md) | ✅ Phase 2 |
+| `src/mcp/__tests__/mesh-reader.test.ts` | 72 unit tests (mesh-reader, policy engine, platform methods) | ✅ |
+| `src/mcp/__tests__/integration.test.ts` | 66 integration tests (all tools, resources, platform tools, orchestration, score_snapshot, scaffold review workflow, Copilot hooks, shell wrapper, implementation workflow) | ✅ |
+| `src/mcp/__tests__/redqueen-service.test.ts` | 49 data-driven unit tests (policy loading, evaluation, overrides, generators, assembleReviewBoard, decay) | ✅ Phase 5-7 |
+| `src/mcp/__tests__/phase7-utils.test.ts` | 32 unit tests (consensus resolution, score decay, audit logger) | ✅ Phase 7 |
+| `src/mcp/__tests__/fixtures/test-mesh/` | Test mesh with 2 BARs, platform architecture, orchestration policy, platform governance | ✅ |
+| `src/types/redqueen.ts` | Orchestration + Phase 7 type definitions (ReviewVerdict, Finding, ConsensusResult, DecayConfig, GovernanceTimestamps, etc.) | ✅ Phase 5-7 |
+| `src/services/RedQueenService.ts` | Stateless orchestration engine — policy loading, evaluation, generators, assembleReviewBoard, decay integration, hook command `.sh` ref (Phase 8) | ✅ Phase 5-8 |
+| `src/mcp/utils/score-decay.ts` | Score decay computation (trust battery model) — exponential decay, grace window, pillar decay | ✅ Phase 7 |
+| `src/mcp/utils/consensus.ts` | Deterministic consensus resolution — `resolveConsensus()` with 3 rules, finding merge, severity promotion | ✅ Phase 7 |
+| `src/mcp/utils/audit-logger.ts` | Structured audit logging — JSONL append-only, correlation fields, score delta computation | ✅ Phase 7 |
+| `code-templates/agents/security-reviewer.md` | Security review subagent definition template | ✅ Phase 7 |
+| `code-templates/agents/architecture-reviewer.md` | Architecture review subagent definition template | ✅ Phase 7 |
+| `src/utils/governanceBridge.ts` | Read `.redqueen/decision.json` + `findBarForRepoUrl()` auto-detect BAR from repo URL | ✅ Phase 6 |
+| `packages/redqueen-mcp/package.json` | npm package manifest with bin entry, files field, keywords | ✅ Phase 8 |
+| `packages/redqueen-mcp/bin/redqueen-mcp.js` | CLI entry point (shebang + require) for `npx` usage | ✅ Phase 8 |
+| `packages/redqueen-mcp/README.md` | Quick Start Guide — install, configure, MCP tools table, end-to-end testing | ✅ Phase 8 |
+| `scripts/prepare-npm-package.sh` | Build + copy pipeline (esbuild → packages/redqueen-mcp/dist/) | ✅ Phase 8 |
+| `.github/workflows/npm-publish.yml` | Automated npm publishing with auto-bump, `mcp-v*` tags, `[npm-publish]` guard | ✅ Phase 8 |
+
+### Files Planned
+
+| File | Purpose | Phase |
+|------|---------|-------|
+| ~~`src/mcp/tools/validation.ts`~~ | ~~NeMo-backed enforcement tools~~ — Replaced by `policy-engine.ts` + tools in `tools.ts` | ~~3~~ |
+| ~~`src/mcp/tools/orchestration.ts`~~ | ~~Orchestration tools (T12-T13)~~ — T11-T13 implemented directly in `tools.ts` | ~~5~~ |
+| ~~`src/mcp/tools/cross-repo.ts`~~ | ~~Cross-repo validation tools~~ — Platform tools implemented in `tools.ts`, discovery in `mesh-reader.ts` | ~~4~~ |
+| ~~`src/mcp/guardrails/engine.ts`~~ | ~~NeMo Guardrails integration wrapper~~ — STRUCK (replaced by policy-engine.ts) | ~~3~~ |
+| ~~`src/mcp/guardrails/config-builder.ts`~~ | ~~Dynamic Colang 2.0 config from CALM~~ — STRUCK | ~~3~~ |
+| ~~`src/mcp/guardrails/rails/*.co`~~ | ~~Colang 2.0 rail definitions~~ — STRUCK | ~~3~~ |
+| ~~`src/mcp/utils/cross-repo.ts`~~ | ~~Multi-repo flow resolution~~ — Implemented as `findLinkedBars()` in `mesh-reader.ts` | ~~4~~ |
+| ~~`src/mcp/utils/platform-governance.ts`~~ | ~~Platform-level relationship discovery + policy enforcement~~ — Implemented as `readPlatformArchitecture()`, `validatePlatformCalm()` in `mesh-reader.ts` + PLAT-001 in `policy-engine.ts` | ~~4~~ |
+| ~~`src/services/RedQueenService.ts`~~ | ~~Orchestration engine~~ — Implemented in Phase 5 (moved to Files Created) | ~~5~~ |
+| ~~`src/types/redqueen.ts`~~ | ~~Red Queen types~~ — Implemented in Phase 5 (moved to Files Created) | ~~5~~ |
 | `src/mcp/utils/semantic-diff.ts` | AST-based semantic diff analysis using tree-sitter |
 | `src/mcp/utils/contract-validator.ts` | Machine-checkable contract artifact validation (OpenAPI, protobuf, etc.) |
-| `src/mcp/utils/score-decay.ts` | Score decay computation (trust battery model) |
+| ~~`src/mcp/utils/score-decay.ts`~~ | ~~Score decay computation~~ — Implemented in Phase 7 (moved to Files Created) |
 | `mcp-server.js` | Standalone stdio entry point |
-| `mcp-server-http.js` | Standalone HTTP entry point |
+| ~~`mcp-server-http.js`~~ | ~~Standalone HTTP entry point~~ — STRUCK (local-only architecture) |
 | `.github/actions/redqueen-action/` | GitHub Action for CI governance gate (required status check) |
 | `.github/workflows/redqueen-break-glass.yml` | Break-glass override workflow for merge gate bypass |
-| `src/mcp/utils/audit-logger.ts` | Structured audit logging for all tool invocations |
-| `src/mcp/utils/rate-limiter.ts` | Per-tool rate limiting for HTTP transport |
+| ~~`src/mcp/utils/audit-logger.ts`~~ | ~~Structured audit logging~~ — Implemented in Phase 7 (moved to Files Created) |
+| ~~`src/mcp/utils/rate-limiter.ts`~~ | ~~Per-tool rate limiting for HTTP transport~~ — STRUCK (local-only architecture) |
 | `src/mcp/utils/threat-model-access.ts` | Tier-based threat model access control |
 
 ### Files Modified
@@ -4360,15 +4683,22 @@ jobs:
 |------|--------|
 | `package.json` | Add `mcpServerDefinitionProviders`, `@modelcontextprotocol/sdk` dependency |
 | `extension.ts` | Register MCP server definition provider |
-| `esbuild.js` | Add mcp-server entry points |
+| `esbuild.js` | Add mcp-server entry point (stdio only) |
 | `src/types/index.ts` | Re-export redqueen.ts types |
-| `src/webview/LookingGlassPanel.ts` | Red Queen tier badge, cross-BAR dependency panel, platform context panel, policy editor |
+| `src/types/webview.ts` | Added 8 message types for orchestration/governance editors (Phase 5); `governanceData` + `barGovernanceContext` + `resyncGovernance` messages (Phase 6); `agentTypeLoaded/Saved`, `decayInfo` in `barDetail` (Phase 7) |
+| `src/types/scorecard.ts` | Added `governanceTier` to `ComponentScaffoldContext` (Phase 6) |
+| `src/mcp/config-scaffold.ts` | Optional `RedQueenService` param, governance-context.md generation (Phase 5); `decision.json` in scaffold output (Phase 6); `generateRedQueenReviewWorkflow()`, `generateConsensusScript()`, `generateSubagentDefinition()`, review workflow files in `scaffoldAgentConfig()` (Phase 7); `generateCopilotHooksJson()`, `generateValidateToolSh()`, `generateImplementationWorkflow()`, hook command `.js` → `.sh` (Phase 8) |
+| `src/mcp/server.ts` | Instantiate `RedQueenService`, pass to `registerTools` (Phase 5) |
+| `src/webview/LookingGlassPanel.ts` | Red Queen tier badge, cross-BAR dependency panel, platform context panel, policy editor, platform architecture handlers (`requestPlatformArch`, `savePlatformArch`), orchestration policy load/save, platform governance load/save (Phase 5); governance tier in `buildScaffoldDescription()`, `barGovernanceContext` with barPath/path for navigation, `onDeployGovernanceToRepo()` for linked repo governance deployment (Phase 6); agent type load/save, `decayInfo` computation in `onDrillIntoBar()` (Phase 7) |
 | `src/webview/OracularPanel.ts` | Multi-agent review board, consensus UI, governance-configured review depth |
-| `src/webview/IssueCreatorPanel.ts` | Governance-aware feature creation: posture table, mandated packs (🔒), pre-submission summary panel, tier-constrained agent selection |
-| `src/webview/ScaffoldPanel.ts` | Governance pre-flight, governance artifact injection (.mcp.json, AGENTS.md, governance-context.md, settings.json, subagent definitions) |
-| `src/webview/app/lookingGlass.ts` | Cross-BAR dependency UI, platform health panel, tier badge popover |
-| `src/webview/app/main.ts` | Governance summary panel in Rabbit Hole, mandated pack locking, agent selection constraints |
-| `src/webview/app/scorecard.ts` | Governance event stream, NeMo denial alerts, score delta display |
+| `src/webview/IssueCreatorPanel.ts` | Governance-aware feature creation: `sendGovernanceData()` reads `decision.json`, posture table, mandated packs (🔒), pre-submission summary panel (Phase 6) |
+| `src/webview/ScaffoldPanel.ts` | Governance checkbox in file grid, `scaffoldAgentConfig()` for component-mode and standalone scaffolds, governance step in progress UI (Phase 6) |
+| `src/webview/app/lookingGlass.ts` | Cross-BAR dependency UI, platform health panel, tier badge popover, CalmAdapter platform view (`calmPlatformToReactFlow`), BarNode/SharedInfraNode React components, NodePalette platform items, orchestration policy editor, platform governance modal, reset buttons (Phase 5); barPath/path state for cross-BAR navigation (Phase 6) |
+| `src/webview/app/views/barDetail.ts` | Tier badge + `computeDisplayTier()` in BAR detail header (Phase 5); pre-flight governance banner, cross-BAR dependency rendering, sibling BAR health, click handlers for `drillIntoBar` navigation, "Deploy Gov" button on linked repo rows (Phase 6); `renderDecayIndicator()` — raw→decayed score, days since assessment, tier impact badge (Phase 7) |
+| `src/webview/app/views/portfolio.ts` | Pencil icon on platform cards, tier badge CSS (Phase 5) |
+| `src/webview/app/main.ts` | Governance posture table in input phase, mandated pack locking (🔒 checked+disabled), governance summary in review phase, tier-based agent selection constraints in assign phase (Phase 6) |
+| `src/webview/app/scorecard.ts` | Governance section with tier badge, pillar scores, constraints + "Resync from Mesh" button (Phase 6) |
+| `src/webview/ScorecardPanel.ts` | `sendGovernanceData()` reads `decision.json`, `onResyncGovernance()` re-syncs governance files from mesh (Phase 6) |
 | `src/services/MeshService.ts` | Read/write `orchestration` section in mesh.yaml + platform.yaml governance |
 
 ### Mesh Files (New)
@@ -4381,7 +4711,7 @@ jobs:
 | `app.yaml` → `linkedBars:` | Cross-repo BAR linkages |
 | `.caterpillar/agent-memory/{barId}.yaml` | Per-BAR agent learnings + rail effectiveness |
 | `.caterpillar/agent-memory/portfolio.yaml` | Portfolio-level agent effectiveness |
-| `.caterpillar/.guardrails/` | Generated NeMo Guardrails configs per BAR |
+| ~~`.caterpillar/.guardrails/`~~ | ~~Generated NeMo Guardrails configs per BAR~~ — STRUCK (replaced by `.redqueen/policy.json` in code repos) |
 
 ### Generated Files (Written to Code Repos)
 
@@ -4389,11 +4719,17 @@ jobs:
 |------|---------|
 | `.claude/governance-context.md` | Dynamic governance context for Claude Code |
 | `.claude/settings.json` | Governance-scoped permissions + PreToolUse hook for Layer 1 enforcement (Section 7.6) |
-| `.claude/agents/security-reviewer.md` | Security review subagent |
-| `.claude/agents/architecture-reviewer.md` | Architecture review subagent |
+| `.claude/agents/security-reviewer.md` | Security review subagent (Phase 7) |
+| `.claude/agents/architecture-reviewer.md` | Architecture review subagent (Phase 7) |
+| `.github/workflows/redqueen-review.yml` | Agent-agnostic PR review workflow — generated by `generateRedQueenReviewWorkflow()` (Phase 7) |
+| `.redqueen/consensus.js` | Self-contained consensus resolution script for GitHub Actions (Phase 7) |
+| `.redqueen/audit-log.jsonl` | Append-only audit log for governance events (Phase 7) |
 | `.mcp.json` | Red Queen MCP server configuration |
+| `.redqueen/decision.json` | Serialized OrchestrationDecision for code-repo panels (Phase 6) |
 | `AGENTS.md` | Shared governance instructions for all agents |
 | `.github/copilot-setup-steps.yml` | Copilot coding agent environment setup |
 | `.github/hooks/redqueen.json` | Copilot preToolUse hook for Layer 1 enforcement (Section 7.6) |
 | `.redqueen/hooks/validate-tool.sh` | Shared hook validation script called by both agents (Section 7.6) |
+| `.github/workflows/redqueen-implement.yml` | Issue-triggered implementation workflow — generated by `generateImplementationWorkflow()` (Phase 8) |
+| `.redqueen/hooks/validate-tool.sh` | Shared bash wrapper for hook validation — generated by `generateValidateToolSh()` (Phase 8) |
 | `.redqueen/config-manifest.yaml` | Configuration integrity fingerprints for drift detection (Section 14.5) |

@@ -383,6 +383,74 @@ export function calmLogicalToReactFlow(arch: CalmArchitecture): { nodes: Node[];
 }
 
 // ============================================================================
+// Platform Diagram Adapter — View projection from platform.arch.json
+// Shows: BARs as hexagonal nodes + shared infrastructure + cross-BAR edges
+// ============================================================================
+
+export function calmPlatformToReactFlow(arch: CalmArchitecture): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+
+  // Convert all nodes — platform nodes are either "bar" or "shared-infrastructure"
+  for (const n of arch.nodes) {
+    const id = n['unique-id'];
+    let type: string;
+    let width: number;
+    let height: number;
+
+    switch (n['node-type']) {
+      case 'bar':
+        type = 'barNode';
+        width = NODE_DEFAULTS.contextNodeWidth;
+        height = NODE_DEFAULTS.contextNodeHeight;
+        break;
+      case 'shared-infrastructure':
+        type = 'sharedInfraNode';
+        width = NODE_DEFAULTS.serviceNodeWidth;
+        height = NODE_DEFAULTS.serviceNodeHeight;
+        break;
+      default:
+        type = 'sharedInfraNode';
+        width = NODE_DEFAULTS.serviceNodeWidth;
+        height = NODE_DEFAULTS.serviceNodeHeight;
+    }
+
+    nodes.push({
+      id,
+      type,
+      position: { x: 0, y: 0 }, // ELK will compute
+      data: {
+        calmId: id,
+        name: n.name,
+        description: n.description || '',
+        nodeType: n['node-type'],
+      } satisfies CalmNodeData,
+      width,
+      height,
+    });
+  }
+
+  // Convert relationships — all connects relationships become edges
+  for (const rel of arch.relationships) {
+    const connects = rel['relationship-type'].connects;
+    if (connects) {
+      edges.push({
+        id: rel['unique-id'],
+        source: connects.source.node,
+        target: connects.destination.node,
+        type: 'protocolEdge',
+        data: {
+          protocol: rel.protocol || '',
+          description: rel.description || '',
+        },
+      });
+    }
+  }
+
+  return { nodes, edges };
+}
+
+// ============================================================================
 // Reverse Helpers: Single CALM element → ReactFlow element
 // Used for incremental additions (palette drop, edge connect)
 // ============================================================================
@@ -416,6 +484,14 @@ export function calmNodeToReactFlowNode(
       height = NODE_DEFAULTS.networkNodeHeight;
       break;
     case 'serviceNode':
+      width = NODE_DEFAULTS.serviceNodeWidth;
+      height = NODE_DEFAULTS.serviceNodeHeight;
+      break;
+    case 'barNode':
+      width = NODE_DEFAULTS.contextNodeWidth;
+      height = NODE_DEFAULTS.contextNodeHeight;
+      break;
+    case 'sharedInfraNode':
       width = NODE_DEFAULTS.serviceNodeWidth;
       height = NODE_DEFAULTS.serviceNodeHeight;
       break;

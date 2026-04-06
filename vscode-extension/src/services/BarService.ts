@@ -50,6 +50,8 @@ import {
   generateImdbLiteMongoAdr,
   generateImdbLiteJwtRbacAdr,
   generateImdbLiteMongoMemoryServerAdr,
+  generateSampleImdbCelebsArch,
+  generateImdbCelebsDecorator,
 } from '../templates/mesh';
 
 export class BarService {
@@ -344,6 +346,23 @@ export class BarService {
       { rel: 'architecture/ADRs/003-jwt-rbac-authentication.md', content: generateImdbLiteJwtRbacAdr() },
       { rel: 'architecture/ADRs/004-mongodb-memory-server-testing.md', content: generateImdbLiteMongoMemoryServerAdr() },
     ]);
+  }
+
+  /**
+   * Scaffold a sample BAR for IMDB Celebs (celebrity news & profiles — linked to IMDB Lite).
+   */
+  scaffoldImdbCelebsSampleBar(
+    parentDir: string,
+    name: string,
+    appId: string,
+    portfolioId: string,
+    platformId: string,
+    criticality: Criticality
+  ): string {
+    return this.writeSampleBar(parentDir, name, appId, portfolioId, platformId, criticality, {
+      arch: generateSampleImdbCelebsArch(),
+      decorator: generateImdbCelebsDecorator(),
+    });
   }
 
   private writeSampleBar(

@@ -1,0 +1,6 @@
+threats:
+  - id: T001
+    name: "SQL Injection"
+    category: injection
+    severity: high
+    mitigation: "Parameterized queries"

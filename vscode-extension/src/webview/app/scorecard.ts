@@ -35,6 +35,16 @@ const state = {
   agentStatus: null as AgentStatusInfo | null,
   // Repo sync status
   syncStatus: null as { behind: number; ahead: number; branch: string; dirty?: boolean } | null,
+  // Phase 6 — Governance bridge data
+  governanceData: null as {
+    barId: string; barName: string; platformId: string; compositeScore: number;
+    criticality: string; tier: string; effectiveTier: string;
+    pillarScores: { architecture: number; security: number; infoRisk: number; operations: number };
+    platformOverrides?: string[]; reasoning?: string[];
+    review?: { agents: number; human_approval: boolean };
+  } | null,
+  // Auto-detected BAR when no decision.json exists
+  detectedBar: null as { barName: string; barPath: string } | null,
 };
 
 const rootEl = document.getElementById('scorecard-root')!;
@@ -148,6 +158,7 @@ function render() {
     ${renderCreateFeatureBanner()}
     ${renderPmatBanner(d)}
     ${renderGradeCard(d)}
+    ${renderGovernanceSection()}
     ${renderMetricsGrid(d)}
     ${renderOwaspBreakdown(d.owaspIssues)}
     ${renderSdlcCompleteness(d.sdlcCompleteness)}
@@ -290,6 +301,72 @@ function renderPmatBanner(d: ScorecardData): string {
         <strong>pmat not detected</strong> — install for complexity, tech debt, and dependency analysis
       </div>
       <button id="btn-install-pmat" class="btn-primary" style="white-space: nowrap;">Install pmat</button>
+    </div>
+  `;
+}
+
+function renderGovernanceSection(): string {
+  const gov = state.governanceData;
+  if (!gov) {
+    const detected = state.detectedBar;
+    if (detected) {
+      // BAR found in mesh — offer one-click linking
+      return `
+        <div class="section-header">Governance</div>
+        <div style="background: var(--surface-raised); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 6px; padding: 12px 16px; margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--text); margin-bottom: 8px;">
+            This repository belongs to BAR <strong>${escapeHtml(detected.barName)}</strong> but governance files have not been deployed yet.
+          </div>
+          <button id="btn-link-to-bar" class="btn-primary" style="font-size: 11px; padding: 4px 12px;">Deploy Governance Files</button>
+        </div>
+      `;
+    }
+    return `
+      <div class="section-header">Governance</div>
+      <div style="background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: var(--text-secondary);">
+        Not linked to governance mesh. Use <strong>Looking Glass</strong> to create a BAR and add this repository.
+      </div>
+    `;
+  }
+
+  const tierColors: Record<string, string> = {
+    autonomous: '#2ea043',
+    supervised: '#d29922',
+    restricted: '#f85149',
+  };
+  const tierColor = tierColors[gov.effectiveTier] || '#888';
+  const p = gov.pillarScores;
+  const pillars = [
+    { name: 'Architecture', score: p.architecture },
+    { name: 'Security', score: p.security },
+    { name: 'Info Risk', score: p.infoRisk },
+    { name: 'Operations', score: p.operations },
+  ];
+  const constraintCount = (gov.platformOverrides?.length || 0) + (gov.reasoning?.length || 0);
+
+  return `
+    <div class="section-header">Governance</div>
+    <div style="background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 16px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <span style="background: ${tierColor}22; color: ${tierColor}; padding: 2px 10px; border-radius: 4px; font-weight: 600; font-size: 11px; text-transform: uppercase;">${escapeHtml(gov.effectiveTier)}</span>
+        <span style="font-weight: 500; font-size: 13px;">${escapeHtml(gov.barName)}</span>
+        <span style="color: var(--text-secondary); font-size: 12px;">${gov.compositeScore}%</span>
+        ${constraintCount > 0 ? `<span style="color: var(--text-secondary); font-size: 11px; margin-left: auto;">${constraintCount} active constraint${constraintCount > 1 ? 's' : ''}</span>` : ''}
+      </div>
+      <div style="display: flex; gap: 16px; font-size: 12px;">
+        ${pillars.map(p => `<div style="flex: 1; text-align: center;">
+          <div style="color: var(--text-secondary); font-size: 10px; margin-bottom: 2px;">${p.name}</div>
+          <div style="font-weight: 600; ${p.score < 50 ? 'color: #f85149;' : ''}">${p.score}%</div>
+        </div>`).join('')}
+      </div>
+      ${gov.platformOverrides && gov.platformOverrides.length > 0 ? `
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+          Platform: ${gov.platformOverrides.map(o => escapeHtml(o)).join(', ')}
+        </div>
+      ` : ''}
+      <div style="margin-top: 10px; display: flex; gap: 8px;">
+        <button id="btn-resync-governance" class="btn-secondary" style="font-size: 11px; padding: 4px 10px;">Resync from Mesh</button>
+      </div>
     </div>
   `;
 }
@@ -637,6 +714,18 @@ function attachActions() {
       vscode.postMessage({ type: 'openUrl', url: `https://github.com/${d.repo.owner}/${d.repo.repo}` });
     }
   });
+
+  document.getElementById('btn-resync-governance')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-resync-governance') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Resyncing...'; }
+    vscode.postMessage({ type: 'resyncGovernance' });
+  });
+
+  document.getElementById('btn-link-to-bar')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-link-to-bar') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Deploying...'; }
+    vscode.postMessage({ type: 'resyncGovernance' });
+  });
 }
 
 function attachCreateFeature() {
@@ -805,6 +894,12 @@ window.addEventListener('message', (event) => {
 
     case 'repoSynced':
       // syncStatus will be updated by the subsequent syncStatus message
+      break;
+
+    case 'governanceData':
+      state.governanceData = message.data;
+      state.detectedBar = (message as { detectedBar?: { barName: string; barPath: string } | null }).detectedBar || null;
+      render();
       break;
   }
 });

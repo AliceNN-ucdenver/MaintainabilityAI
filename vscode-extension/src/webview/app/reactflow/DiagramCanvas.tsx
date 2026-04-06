@@ -22,7 +22,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import type { CalmArchitecture, CalmNodeData, CalmNode, CalmControl } from './CalmAdapter';
-import { calmContextToReactFlow, calmLogicalToReactFlow, calmNodeToReactFlowNode, relationshipToReactFlowEdge } from './CalmAdapter';
+import { calmContextToReactFlow, calmLogicalToReactFlow, calmPlatformToReactFlow, calmNodeToReactFlowNode, relationshipToReactFlowEdge } from './CalmAdapter';
 import type { DiagramLayout } from './LayoutTypes';
 import { createEmptyLayout } from './LayoutTypes';
 import { computeElkLayout } from './ElkLayout';
@@ -41,17 +41,21 @@ import { ContainerNode } from './nodes/ContainerNode';
 import { ServiceNode } from './nodes/ServiceNode';
 import { DataStoreNode } from './nodes/DataStoreNode';
 import { NetworkNode } from './nodes/NetworkNode';
+import { BarNode } from './nodes/BarNode';
+import { SharedInfraNode } from './nodes/SharedInfraNode';
 import { ProtocolEdge } from './edges/ProtocolEdge';
 import { NodePalette } from './NodePalette';
 import { InlineNameEditor } from './InlineNameEditor';
 import { PropertyPanel } from './PropertyPanel';
+import { ContextMenu } from './ContextMenu';
+import type { ContextMenuItem } from './ContextMenu';
 
 import type { CapabilityNode, CapabilityModelSummary } from '../types';
 export type { CapabilityNode, CapabilityModelSummary };
 
 export interface DiagramCanvasProps {
   calmData: CalmArchitecture;
-  diagramType: 'context' | 'logical';
+  diagramType: 'context' | 'logical' | 'platform';
   savedLayout: DiagramLayout | null;
   onLayoutChange: (layout: DiagramLayout) => void;
   onExportPng: (dataUrl: string) => void;
@@ -68,6 +72,8 @@ const nodeTypes = {
   serviceNode: ServiceNode,
   dataStoreNode: DataStoreNode,
   networkNode: NetworkNode,
+  barNode: BarNode,
+  sharedInfraNode: SharedInfraNode,
 };
 
 const edgeTypes = {
@@ -108,7 +114,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
   useEffect(() => {
     invalidateStyleCache();
 
-    const convert = diagramType === 'context' ? calmContextToReactFlow : calmLogicalToReactFlow;
+    const convert = diagramType === 'context' ? calmContextToReactFlow : diagramType === 'platform' ? calmPlatformToReactFlow : calmLogicalToReactFlow;
     const { nodes: rawNodes, edges: rawEdges } = convert(calmData);
 
     computeElkLayout(rawNodes, rawEdges, savedLayout, { diagramType }).then(layoutedNodes => {
@@ -294,7 +300,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
 
   // Re-layout with ELK (ignores saved positions) — uses live mutated CALM data
   const handleRelayout = useCallback(() => {
-    const convert = diagramType === 'context' ? calmContextToReactFlow : calmLogicalToReactFlow;
+    const convert = diagramType === 'context' ? calmContextToReactFlow : diagramType === 'platform' ? calmPlatformToReactFlow : calmLogicalToReactFlow;
     const { nodes: rawNodes, edges: rawEdges } = convert(currentCalmRef.current);
 
     computeElkLayout(rawNodes, rawEdges, null, { diagramType }).then(layoutedNodes => {
@@ -348,6 +354,66 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
   // Property panel selection state
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+
+  // Right-click on node
+  const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    if (readOnly || !onCalmMutation) return;
+
+    const items: ContextMenuItem[] = [
+      {
+        label: 'Rename',
+        icon: '✎',
+        action: () => {
+          const screenPos = reactFlowInstance.flowToScreenPosition(node.position);
+          setEditingNodePos({ x: screenPos.x + (node.width || 100) / 2, y: screenPos.y + 20 });
+          setEditingNodeId(node.id);
+        },
+      },
+      {
+        label: 'Delete',
+        icon: '✕',
+        danger: true,
+        action: () => {
+          handleNodesDelete([node]);
+          setNodes(nds => nds.filter(n => n.id !== node.id));
+          // Also remove connected edges
+          setEdges(eds => eds.filter(e => e.source !== node.id && e.target !== node.id));
+        },
+      },
+    ];
+
+    setContextMenu({ x: event.clientX, y: event.clientY, items });
+  }, [readOnly, onCalmMutation, reactFlowInstance, handleNodesDelete, setNodes, setEdges]);
+
+  // Right-click on edge
+  const handleEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    if (readOnly || !onCalmMutation) return;
+
+    const items: ContextMenuItem[] = [
+      {
+        label: 'Delete relationship',
+        icon: '✕',
+        danger: true,
+        action: () => {
+          handleEdgesDelete([edge]);
+          setEdges(eds => eds.filter(e => e.id !== edge.id));
+        },
+      },
+    ];
+
+    setContextMenu({ x: event.clientX, y: event.clientY, items });
+  }, [readOnly, onCalmMutation, handleEdgesDelete, setEdges]);
+
+  // Right-click on pane — close any open menu
+  const handlePaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
+    event.preventDefault();
+    setContextMenu(null);
+  }, []);
 
   // Selection change handler
   const handleSelectionChange = useCallback(({ nodes: selNodes, edges: selEdges }: { nodes: Node[]; edges: Edge[] }) => {
@@ -672,6 +738,9 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onNodeDoubleClick={handleNodeDoubleClick}
+        onNodeContextMenu={handleNodeContextMenu}
+        onEdgeContextMenu={handleEdgeContextMenu}
+        onPaneContextMenu={handlePaneContextMenu}
         onSelectionChange={handleSelectionChange}
         onMoveEnd={handleMoveEnd}
         onNodeDragStart={handleNodeDragStart}
@@ -730,6 +799,16 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
           onClose={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
           calmData={currentCalmRef.current}
           capabilityModel={capabilityModel || null}
+        />
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenu.items}
+          onClose={() => setContextMenu(null)}
         />
       )}
 

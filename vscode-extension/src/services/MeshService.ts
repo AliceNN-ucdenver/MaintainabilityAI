@@ -7,7 +7,6 @@ import type {
   PortfolioConfig,
   PlatformConfig,
   PortfolioSummary,
-  PlatformSummary,
   BarSummary,
   MeshScoringConfig,
   DriftWeights,
@@ -19,6 +18,7 @@ import type {
 import { GovernanceScorer } from './GovernanceScorer';
 import { BarService } from './BarService';
 import { CapabilityModelService } from './CapabilityModelService';
+import { MeshReader } from '../core/mesh-reader';
 import {
   generateMeshYaml,
   generateMeshReadme,
@@ -30,8 +30,11 @@ import {
   generateNistControls,
   generatePlatformYaml,
   generatePlatformDecisionsYaml,
+  generateSampleImdbPlatformArch,
 } from '../templates/mesh';
 import { generateOraculumWorkflow } from '../templates/codeRepoTemplates';
+
+export { MeshReader } from '../core/mesh-reader';
 
 export class MeshService {
   private barService: BarService;
@@ -40,6 +43,12 @@ export class MeshService {
   constructor() {
     this.scorer = new GovernanceScorer();
     this.barService = new BarService(this.scorer);
+  }
+
+  /** Create a MeshReader for the given path (VS Code-free). */
+  createReader(meshPath: string): MeshReader {
+    const scoringConfig = this.readScoringConfig(meshPath);
+    return new MeshReader(meshPath, scoringConfig);
   }
 
   // ==========================================================================
@@ -57,60 +66,21 @@ export class MeshService {
   }
 
   // ==========================================================================
-  // Read operations
+  // Read operations — delegated to MeshReader (VS Code-free)
   // ==========================================================================
 
   readPortfolioConfig(meshPath: string): PortfolioConfig | null {
-    const yamlPath = path.join(meshPath, 'mesh.yaml');
-    if (!fs.existsSync(yamlPath)) { return null; }
-
-    try {
-      const content = fs.readFileSync(yamlPath, 'utf8');
-      return this.parsePortfolioConfig(content);
-    } catch {
-      return null;
-    }
+    return new MeshReader(meshPath).readPortfolioConfig();
   }
 
   static readonly DEFAULT_DRIFT_WEIGHTS: DriftWeights = { critical: 15, high: 5, medium: 2, low: 1 };
 
   readScoringConfig(meshPath: string): MeshScoringConfig {
-    const yamlPath = path.join(meshPath, 'mesh.yaml');
-    const defaults: MeshScoringConfig = { passingThreshold: 75, warningThreshold: 50 };
-    if (!fs.existsSync(yamlPath)) { return defaults; }
-
-    try {
-      const content = fs.readFileSync(yamlPath, 'utf8');
-      const passingMatch = content.match(/passing_threshold:\s*(\d+)/);
-      const warningMatch = content.match(/warning_threshold:\s*(\d+)/);
-      const config: MeshScoringConfig = {
-        passingThreshold: passingMatch ? parseInt(passingMatch[1], 10) : defaults.passingThreshold,
-        warningThreshold: warningMatch ? parseInt(warningMatch[1], 10) : defaults.warningThreshold,
-      };
-      // Parse drift weights if present
-      const dwMatch = content.match(/drift_weights:\s*\n((?:\s+\w+:\s*\d+\s*\n?)*)/);
-      if (dwMatch) {
-        const block = dwMatch[1];
-        const crit = block.match(/critical:\s*(\d+)/);
-        const high = block.match(/high:\s*(\d+)/);
-        const med = block.match(/medium:\s*(\d+)/);
-        const low = block.match(/low:\s*(\d+)/);
-        config.driftWeights = {
-          critical: crit ? parseInt(crit[1], 10) : MeshService.DEFAULT_DRIFT_WEIGHTS.critical,
-          high: high ? parseInt(high[1], 10) : MeshService.DEFAULT_DRIFT_WEIGHTS.high,
-          medium: med ? parseInt(med[1], 10) : MeshService.DEFAULT_DRIFT_WEIGHTS.medium,
-          low: low ? parseInt(low[1], 10) : MeshService.DEFAULT_DRIFT_WEIGHTS.low,
-        };
-      }
-      return config;
-    } catch {
-      return defaults;
-    }
+    return new MeshReader(meshPath).readScoringConfig();
   }
 
   readDriftWeights(meshPath: string): DriftWeights {
-    const config = this.readScoringConfig(meshPath);
-    return config.driftWeights || MeshService.DEFAULT_DRIFT_WEIGHTS;
+    return new MeshReader(meshPath).readDriftWeights();
   }
 
   saveDriftWeights(meshPath: string, weights: DriftWeights): void {
@@ -141,94 +111,15 @@ export class MeshService {
    * Enumerate all platforms by scanning platforms/ subdirectories.
    */
   listPlatforms(meshPath: string): PlatformConfig[] {
-    const platformsDir = path.join(meshPath, 'platforms');
-    if (!fs.existsSync(platformsDir)) { return []; }
-
-    const platforms: PlatformConfig[] = [];
-    const entries = fs.readdirSync(platformsDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) { continue; }
-      const platformYaml = path.join(platformsDir, entry.name, 'platform.yaml');
-      if (!fs.existsSync(platformYaml)) { continue; }
-
-      try {
-        const content = fs.readFileSync(platformYaml, 'utf8');
-        platforms.push(this.parsePlatformConfig(content));
-      } catch { /* skip unparseable */ }
-    }
-
-    return platforms;
+    return new MeshReader(meshPath).listPlatforms();
   }
 
   /**
    * Build a complete portfolio summary by scanning all platforms and BARs.
    */
   buildPortfolioSummary(meshPath: string): PortfolioSummary | null {
-    const portfolio = this.readPortfolioConfig(meshPath);
-    if (!portfolio) { return null; }
-
-    // Apply scoring config
     const scoringConfig = this.readScoringConfig(meshPath);
-    this.scorer = new GovernanceScorer(scoringConfig);
-    this.barService = new BarService(this.scorer);
-
-    const platforms = this.listPlatforms(meshPath);
-    const platformSummaries: PlatformSummary[] = [];
-    const allBars: BarSummary[] = [];
-
-    for (const platform of platforms) {
-      const platformSlug = this.findPlatformSlug(meshPath, platform.id);
-      if (!platformSlug) { continue; }
-
-      const barsDir = path.join(meshPath, 'platforms', platformSlug, 'bars');
-      const bars = this.scanBars(barsDir, platform.id, platform.name);
-
-      const compositeHealth = bars.length > 0
-        ? Math.round(bars.reduce((sum, b) => sum + b.compositeScore, 0) / bars.length)
-        : 0;
-
-      platformSummaries.push({
-        id: platform.id,
-        name: platform.name,
-        barCount: bars.length,
-        compositeHealth,
-        bars,
-      });
-
-      allBars.push(...bars);
-    }
-
-    const totalBars = allBars.length;
-    const portfolioHealth = totalBars > 0
-      ? Math.round(allBars.reduce((sum, b) => sum + b.compositeScore, 0) / totalBars)
-      : 0;
-    const pendingDecisions = allBars.reduce((sum, b) => sum + b.pendingDecisions, 0);
-    const governanceCoverage = totalBars > 0
-      ? Math.round(
-          (allBars.filter(b =>
-            b.architecture.status !== 'failing' &&
-            b.security.status !== 'failing' &&
-            b.infoRisk.status !== 'failing' &&
-            b.operations.status !== 'failing'
-          ).length / totalBars) * 100
-        )
-      : 0;
-
-    // Build capability model summary if model file exists
-    const capModelService = new CapabilityModelService();
-    const capabilityModel = capModelService.buildCapabilityModelSummary(meshPath, allBars);
-
-    return {
-      portfolio,
-      totalBars,
-      portfolioHealth,
-      pendingDecisions,
-      governanceCoverage,
-      platforms: platformSummaries,
-      allBars,
-      ...(capabilityModel ? { capabilityModel } : {}),
-    };
+    return new MeshReader(meshPath, scoringConfig).buildPortfolioSummary();
   }
 
   // ==========================================================================
@@ -497,11 +388,25 @@ export class MeshService {
     const portfolio = this.readPortfolioConfig(meshPath);
     const portfolioId = portfolio?.id || 'PF-UNKNOWN';
 
+    // BAR 1: IMDB Lite Application (movie catalog, reviews, ratings)
     this.barService.scaffoldImdbLiteSampleBar(
       barsDir, 'IMDB Lite Application', 'APP-IMDB-001', portfolioId, platformId, 'medium'
     );
 
-    return { platformCount: 1, barCount: 1 };
+    // BAR 2: IMDB Celebs (celebrity news & profiles, linked to IMDB Lite)
+    this.barService.scaffoldImdbCelebsSampleBar(
+      barsDir, 'IMDB Celebs', 'APP-IMDB-002', portfolioId, platformId, 'medium'
+    );
+
+    // Platform architecture: cross-BAR relationships + shared infrastructure
+    const platformDir = path.join(meshPath, 'platforms', slug);
+    fs.writeFileSync(
+      path.join(platformDir, 'platform.arch.json'),
+      generateSampleImdbPlatformArch(),
+      'utf8'
+    );
+
+    return { platformCount: 1, barCount: 2 };
   }
 
   // ==========================================================================
@@ -526,44 +431,11 @@ export class MeshService {
   // ==========================================================================
 
   readPolicies(meshPath: string): PolicyFile[] {
-    const policiesDir = path.join(meshPath, 'policies');
-    if (!fs.existsSync(policiesDir)) { return []; }
-
-    const pillarMap: Record<string, PolicyFile['pillar']> = {
-      'architecture-standards': 'architecture',
-      'security-baseline': 'security',
-      'risk-framework': 'risk',
-      'operations-standards': 'operations',
-      'nist-800-53-controls': 'nist',
-    };
-
-    const policies: PolicyFile[] = [];
-    const entries = fs.readdirSync(policiesDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.yaml')) { continue; }
-      try {
-        const content = fs.readFileSync(path.join(policiesDir, entry.name), 'utf8');
-        const baseName = entry.name.replace('.yaml', '');
-        const label = baseName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const pillar = pillarMap[baseName] || 'architecture';
-        policies.push({ filename: entry.name, label, pillar, content });
-      } catch { /* skip unreadable */ }
-    }
-
-    return policies;
+    return new MeshReader(meshPath).readPolicies();
   }
 
   readNistControls(meshPath: string): NistControl[] {
-    const nistPath = path.join(meshPath, 'policies', 'nist-800-53-controls.yaml');
-    if (!fs.existsSync(nistPath)) { return []; }
-
-    try {
-      const content = fs.readFileSync(nistPath, 'utf8');
-      return this.parseNistControls(content);
-    } catch {
-      return [];
-    }
+    return new MeshReader(meshPath).readNistControls();
   }
 
   savePolicyFile(meshPath: string, filename: string, content: string): void {
@@ -578,78 +450,8 @@ export class MeshService {
     fs.writeFileSync(path.join(policiesDir, filename), content, 'utf8');
   }
 
-  private parseNistControls(content: string): NistControl[] {
-    const controls: NistControl[] = [];
-    let currentFamilyId = '';
-    let currentFamilyName = '';
-
-    const lines = content.split('\n');
-    let i = 0;
-
-    while (i < lines.length) {
-      const line = lines[i];
-
-      // Match family list item: "  - id: AC" (exactly 2-space indent)
-      const familyIdMatch = line.match(/^\s{2}-\s+id:\s*(\S+)/);
-      if (familyIdMatch) {
-        currentFamilyId = familyIdMatch[1];
-        i++;
-        continue;
-      }
-
-      // Match family name (indented under family): "    name: Access Control"
-      const familyNameMatch = line.match(/^\s{4}name:\s*(.+)/);
-      if (familyNameMatch) {
-        currentFamilyName = familyNameMatch[1].trim();
-        i++;
-        continue;
-      }
-
-      // Match control list item: "      - id: AC-1"
-      const controlIdMatch = line.match(/^\s{6}-\s+id:\s*(\S+)/);
-      if (controlIdMatch) {
-        const id = controlIdMatch[1];
-        let name = '';
-        let description = '';
-        let priority: 'high' | 'medium' | 'low' = 'medium';
-
-        // Read subsequent indented lines (8+ spaces for control fields)
-        i++;
-        while (i < lines.length) {
-          const cl = lines[i];
-          if (!cl.match(/^\s{8}\S/)) { break; }
-
-          const nameMatch = cl.match(/^\s+name:\s*(.+)/);
-          if (nameMatch) { name = nameMatch[1].trim(); }
-
-          const descMatch = cl.match(/^\s+description:\s*"(.+)"/);
-          if (descMatch) { description = descMatch[1].trim(); }
-
-          const prioMatch = cl.match(/^\s+priority:\s*(\S+)/);
-          if (prioMatch) { priority = prioMatch[1] as 'high' | 'medium' | 'low'; }
-
-          i++;
-        }
-
-        controls.push({
-          id,
-          name,
-          family: currentFamilyName,
-          familyId: currentFamilyId,
-          description,
-          priority,
-        });
-        continue;
-      }
-
-      i++;
-    }
-
-    return controls;
-  }
-
   // ==========================================================================
-  // Private helpers
+  // Private helpers (scaffold operations only)
   // ==========================================================================
 
   private scanBars(barsDir: string, platformId: string, platformName: string): BarSummary[] {
@@ -763,45 +565,4 @@ export class MeshService {
     fs.writeFileSync(meshYaml, final, 'utf8');
   }
 
-  private parsePortfolioConfig(content: string): PortfolioConfig {
-    const get = (key: string): string => {
-      const match = content.match(new RegExp(`^\\s*${key}:\\s*(.+)$`, 'm'));
-      return match ? match[1].replace(/^["']|["']$/g, '').trim() : '';
-    };
-
-    const dslVal = get('architecture_dsl');
-    const architectureDsl: ArchitectureDsl = dslVal === 'markdown' ? 'markdown' : 'calm';
-
-    const capModelVal = get('capability_model');
-    const capabilityModel: CapabilityModelType | undefined =
-      capModelVal === 'banking' ? 'banking'
-      : capModelVal === 'custom' ? 'custom'
-      : capModelVal === 'insurance' ? 'insurance'
-      : undefined;
-
-    return {
-      id: get('id'),
-      name: get('name'),
-      org: get('org'),
-      owner: get('owner'),
-      description: get('description'),
-      architectureDsl,
-      capabilityModel,
-    };
-  }
-
-  private parsePlatformConfig(content: string): PlatformConfig {
-    const get = (key: string): string => {
-      const match = content.match(new RegExp(`^\\s*${key}:\\s*(.+)$`, 'm'));
-      return match ? match[1].replace(/^["']|["']$/g, '').trim() : '';
-    };
-
-    return {
-      id: get('id'),
-      name: get('name'),
-      portfolio: get('portfolio'),
-      owner: get('owner'),
-      description: get('description'),
-    };
-  }
 }

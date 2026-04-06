@@ -1,0 +1,14 @@
+id: PLT-TEST
+name: "Test Platform"
+portfolio: PF-TEST-001
+owner: "test-owner"
+description: "Test platform for unit tests"
+
+governance:
+  minimumScores:
+    architecture: 60
+    security: 70
+    operations: 50
+  orchestrationOverrides:
+    enforcementMode: strict
+    minTier: supervised

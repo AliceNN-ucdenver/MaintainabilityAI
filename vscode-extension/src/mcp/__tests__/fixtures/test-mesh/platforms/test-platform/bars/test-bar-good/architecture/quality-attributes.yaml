@@ -1,0 +1,4 @@
+scenarios:
+  - name: availability
+    stimulus: "System failure"
+    response: "Auto-recover within 30 seconds"

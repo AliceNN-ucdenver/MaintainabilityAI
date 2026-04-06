@@ -1,0 +1,3 @@
+data_elements:
+  - name: user_email
+    classification: pii

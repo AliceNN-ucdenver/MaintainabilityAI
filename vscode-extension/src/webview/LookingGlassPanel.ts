@@ -40,6 +40,11 @@ import { getNonce } from '../utils/getNonce';
 import { BasePanel } from './BasePanel';
 import { logger } from '../utils/Logger';
 import { toErrorMessage } from '../utils/errors';
+import { MeshReader } from '../core/mesh-reader';
+import { RedQueenService } from '../services/RedQueenService';
+import { computeTier, scaffoldAgentConfig } from '../mcp/config-scaffold';
+import { computeDecayedScore } from '../mcp/utils/score-decay';
+import type { GovernanceTimestamps } from '../types/redqueen';
 
 export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, LookingGlassExtensionMessage> {
   public static currentPanel: LookingGlassPanel | undefined;
@@ -278,6 +283,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         await this.onScaffoldComponent(message.repoUrl, message.barPath);
         break;
 
+      case 'deployGovernanceToRepo':
+        await this.onDeployGovernanceToRepo(message.barPath, message.localPath);
+        break;
+
       case 'loadPolicies':
         await this.onLoadPolicies();
         break;
@@ -300,6 +309,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
       case 'calmMutation':
         this.onCalmMutation(message.barPath, message.patch as CalmPatch[]);
+        break;
+
+      case 'loadPlatformArchitecture':
+        this.onLoadPlatformArchitecture(message.platformId);
+        break;
+
+      case 'platformCalmMutation':
+        this.onPlatformCalmMutation(message.platformId, message.patch as CalmPatch[]);
         break;
 
       case 'applyArchetype':
@@ -353,6 +370,31 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
       case 'refreshPromptPacks':
         await this.onRefreshPromptPacks();
+        break;
+
+      // Red Queen — orchestration + platform governance editors
+      case 'loadOrchestrationPolicy':
+        this.onLoadOrchestrationPolicy();
+        break;
+
+      case 'saveOrchestrationPolicy':
+        this.onSaveOrchestrationPolicy(message.policy);
+        break;
+
+      case 'loadAgentType':
+        this.onLoadAgentType();
+        break;
+
+      case 'saveAgentType':
+        this.onSaveAgentType(message.agentType);
+        break;
+
+      case 'loadPlatformGovernance':
+        this.onLoadPlatformGovernance(message.platformId);
+        break;
+
+      case 'savePlatformGovernance':
+        this.onSavePlatformGovernance(message.platformId, message.governance);
         break;
 
       // Absolem — multi-turn CALM refinement agent
@@ -778,7 +820,59 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // Saved threat model (if previously generated)
       const savedThreatModel = ThreatModelService.readSavedThreatModel(barPath);
 
-      this.postMessage({ type: 'barDetail', bar, decisions, repoTree, diagrams, adrs, calmData, layouts, savedThreatModel });
+      // Phase 7 — Compute score decay info
+      let decayInfo: { rawComposite: number; decayedComposite: number; decayFactor: number; daysSinceAssessment: number; inGraceWindow: boolean } | undefined;
+      try {
+        const scoreHistory = this.barService.readScoreHistory(barPath);
+        if (scoreHistory.length > 0) {
+          const lastSnapshot = scoreHistory[scoreHistory.length - 1];
+          const timestamps: GovernanceTimestamps = {
+            lastAssessment: lastSnapshot.timestamp,
+            lastReview: null,
+            lastScaffold: null,
+          };
+          const decay = computeDecayedScore(bar.compositeScore, timestamps);
+          decayInfo = {
+            rawComposite: bar.compositeScore,
+            decayedComposite: decay.decayedScore,
+            decayFactor: decay.decayFactor,
+            daysSinceAssessment: decay.daysSinceAssessment,
+            inGraceWindow: decay.inGraceWindow,
+          };
+        }
+      } catch { /* decay is best-effort */ }
+
+      this.postMessage({ type: 'barDetail', bar, decisions, repoTree, diagrams, adrs, calmData, layouts, savedThreatModel, decayInfo });
+
+      // Send cross-BAR governance context (best effort)
+      try {
+        const reader = new MeshReader(meshPath);
+        const redQueen = new RedQueenService();
+        const decision = redQueen.getOrchestrationDecision(reader, bar.name);
+        if (!('error' in decision)) {
+          const linked = decision.linkedBars.map(l => {
+            const linkedBar = summary?.allBars.find(b => b.name === l.barName);
+            return {
+              barName: l.barName,
+              barPath: linkedBar?.path ?? '',
+              relationship: l.relationship,
+              compositeScore: linkedBar?.compositeScore ?? 0,
+              tier: linkedBar ? computeTier(linkedBar) : 'restricted' as const,
+            };
+          });
+          const siblings = (summary?.allBars || [])
+            .filter(b => b.platformId === bar.platformId && b.id !== bar.id)
+            .map(b => ({ name: b.name, id: b.id, path: b.path, compositeScore: b.compositeScore, tier: computeTier(b) }));
+          this.postMessage({
+            type: 'barGovernanceContext',
+            barPath,
+            linkedBars: linked,
+            siblingBars: siblings,
+            platformOverrides: decision.platformOverrides,
+          });
+        }
+      } catch { /* governance context is best-effort */ }
+
       // Refresh git status for sync indicators
       if (summary) {
         this.sendGitStatus(meshPath, summary.allBars);
@@ -1006,7 +1100,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
   }
 
-  private onSaveLayout(barPath: string, diagramType: 'context' | 'logical', layout: object): void {
+  private onSaveLayout(barPath: string, diagramType: 'context' | 'logical' | 'platform', layout: object): void {
     try {
       writeLayoutFile(barPath, diagramType, layout as Parameters<typeof writeLayoutFile>[2]);
     } catch (err) {
@@ -1057,6 +1151,65 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
         type: 'error',
         message: `Failed to apply CALM mutation: ${toErrorMessage(err)}`,
       });
+    }
+  }
+
+  private resolvePlatformPath(platformId: string): string | null {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) { return null; }
+    const platformsDir = path.join(meshPath, 'platforms');
+    if (!fs.existsSync(platformsDir)) { return null; }
+    for (const entry of fs.readdirSync(platformsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) { continue; }
+      const yamlPath = path.join(platformsDir, entry.name, 'platform.yaml');
+      if (!fs.existsSync(yamlPath)) { continue; }
+      try {
+        const content = fs.readFileSync(yamlPath, 'utf8');
+        const idMatch = content.match(/^\s*id:\s*(.+)$/m);
+        if (idMatch && idMatch[1].trim() === platformId) {
+          return path.join(platformsDir, entry.name);
+        }
+      } catch { /* skip */ }
+    }
+    return null;
+  }
+
+  private onLoadPlatformArchitecture(platformId: string): void {
+    try {
+      const platformPath = this.resolvePlatformPath(platformId);
+      if (!platformPath) {
+        this.postMessage({ type: 'platformArchData', platformId, calmData: { nodes: [], relationships: [] } });
+        return;
+      }
+      const archFile = path.join(platformPath, 'platform.arch.json');
+      if (!fs.existsSync(archFile)) {
+        this.postMessage({ type: 'info', message: 'No platform architecture file found. Use the palette to add BARs and shared infrastructure.' });
+        this.postMessage({ type: 'platformArchData', platformId, calmData: { nodes: [], relationships: [] } });
+        return;
+      }
+      const raw = fs.readFileSync(archFile, 'utf-8');
+      const calmData = JSON.parse(raw);
+      this.postMessage({ type: 'platformArchData', platformId, calmData });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to load platform architecture: ${toErrorMessage(err)}` });
+    }
+  }
+
+  private onPlatformCalmMutation(platformId: string, patches: CalmPatch[]): void {
+    try {
+      const platformPath = this.resolvePlatformPath(platformId);
+      if (!platformPath) {
+        this.postMessage({ type: 'error', message: `Platform not found: ${platformId}` });
+        return;
+      }
+      const archFile = path.join(platformPath, 'platform.arch.json');
+      const contentHash = applyCalmPatch(archFile, patches);
+
+      if (contentHash) {
+        this.calmFileWatcher.markWritten(archFile, contentHash);
+      }
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to apply platform CALM mutation: ${toErrorMessage(err)}` });
     }
   }
 
@@ -1943,6 +2096,51 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
   }
 
+  /**
+   * Deploy Red Queen governance files to a linked repo's local clone.
+   * Calls scaffoldAgentConfig() and writes files directly to the workspace folder.
+   */
+  private async onDeployGovernanceToRepo(barPath: string, localPath?: string) {
+    if (!localPath) {
+      vscode.window.showWarningMessage('Repository is not open in the workspace. Open the repo first, then deploy governance files.');
+      return;
+    }
+
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      vscode.window.showWarningMessage('No governance mesh configured.');
+      return;
+    }
+
+    const manifest = this.barService.readManifest(barPath);
+    const barName = manifest?.name || path.basename(barPath);
+
+    try {
+      const reader = new MeshReader(meshPath);
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, barName, redQueen);
+      if ('error' in result) {
+        vscode.window.showWarningMessage(`Governance deploy failed: ${result.error}`);
+        return;
+      }
+
+      let written = 0;
+      for (const [relPath, content] of Object.entries(result.files)) {
+        const fullPath = path.join(localPath, relPath);
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+        fs.writeFileSync(fullPath, content, 'utf8');
+        written++;
+      }
+
+      vscode.window.showInformationMessage(`Governance files deployed to ${path.basename(localPath)}: ${written} files written`);
+      // Refresh BAR detail to reflect updated state
+      await this.onDrillIntoBar(barPath);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Governance deploy error: ${toErrorMessage(err)}`);
+    }
+  }
+
   private async buildScaffoldDescription(repoUrl: string, barPath: string, component?: { id?: string; name: string; type: string; description: string }): Promise<ComponentScaffoldContext> {
     // 1. BAR name & manifest
     const manifest = this.barService.readManifest(barPath);
@@ -2026,7 +2224,18 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
       threatModeling: [],
     };
 
-    return { barPath, barName, repoUrl, repoName, description, packs };
+    // Compute governance tier from mesh (best effort)
+    let governanceTier: string | undefined;
+    try {
+      const meshPath = MeshService.getMeshPath();
+      if (meshPath) {
+        const summary = this.meshService.buildPortfolioSummary(meshPath);
+        const bar = summary?.allBars.find(b => b.path === barPath);
+        if (bar) { governanceTier = computeTier(bar); }
+      }
+    } catch { /* governance tier is best-effort */ }
+
+    return { barPath, barName, repoUrl, repoName, description, packs, governanceTier };
   }
 
   // --------------------------------------------------------------------------
@@ -2411,6 +2620,264 @@ Policy file: ${filename}
     this.meshService.saveDriftWeights(meshPath, weights);
     this.postMessage({ type: 'driftWeightsSaved' });
     this.postMessage({ type: 'info', message: 'Drift weights saved to mesh.yaml. Sync your mesh to push changes.' });
+  }
+
+  // --------------------------------------------------------------------------
+  // Red Queen — Orchestration + Platform Governance Editors
+  // --------------------------------------------------------------------------
+
+  private onLoadOrchestrationPolicy() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'orchestrationPolicyLoaded', policy: null });
+      return;
+    }
+    try {
+      const content = fs.readFileSync(path.join(meshPath, 'mesh.yaml'), 'utf8');
+      const scalar = (key: string): string | null => {
+        const m = content.match(new RegExp(`${key}:\\s*(.+)$`, 'm'));
+        return m ? m[1].trim() : null;
+      };
+      const num = (key: string, fallback: number): number => {
+        const v = scalar(key);
+        return v !== null && !isNaN(Number(v)) ? Number(v) : fallback;
+      };
+      // Find the first min_score (autonomous), second (supervised)
+      const minScores = [...content.matchAll(/min_score:\s*(\d+)/g)].map(m => Number(m[1]));
+      const secThreshold = [...content.matchAll(/threshold:\s*(\d+)/g)];
+      this.postMessage({
+        type: 'orchestrationPolicyLoaded',
+        policy: {
+          autoMinScore: minScores[0] ?? 80,
+          supMinScore: minScores[1] ?? 50,
+          securityThreshold: secThreshold[0] ? Number(secThreshold[0][1]) : 60,
+          archThreshold: secThreshold[1] ? Number(secThreshold[1][1]) : 70,
+          escScoreDrop: num('score_drop_threshold', 10),
+          escConsecutive: num('consecutive_failures', 3),
+          escTarget: scalar('escalation_target') || 'architecture-review-board',
+        },
+      });
+    } catch {
+      this.postMessage({ type: 'orchestrationPolicyLoaded', policy: null });
+    }
+  }
+
+  private onSaveOrchestrationPolicy(policy: {
+    autoMinScore: number; supMinScore: number;
+    securityThreshold: number; archThreshold: number;
+    escScoreDrop: number; escConsecutive: number; escTarget: string;
+  }) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const meshYaml = path.join(meshPath, 'mesh.yaml');
+    try {
+      let content = fs.readFileSync(meshYaml, 'utf8');
+
+      // Replace min_score values in order (autonomous first, then supervised)
+      let minScoreIdx = 0;
+      const targets = [policy.autoMinScore, policy.supMinScore];
+      content = content.replace(/min_score:\s*\d+/g, (match) => {
+        if (minScoreIdx < targets.length) {
+          return `min_score: ${targets[minScoreIdx++]}`;
+        }
+        return match;
+      });
+
+      // Replace thresholds in order (security first, then architecture)
+      let threshIdx = 0;
+      const threshTargets = [policy.securityThreshold, policy.archThreshold];
+      content = content.replace(/threshold:\s*\d+/g, (match) => {
+        if (threshIdx < threshTargets.length) {
+          return `threshold: ${threshTargets[threshIdx++]}`;
+        }
+        return match;
+      });
+
+      // Replace escalation values
+      content = content.replace(/score_drop_threshold:\s*\d+/, `score_drop_threshold: ${policy.escScoreDrop}`);
+      content = content.replace(/consecutive_failures:\s*\d+/, `consecutive_failures: ${policy.escConsecutive}`);
+      content = content.replace(/escalation_target:\s*.+$/, `escalation_target: ${policy.escTarget}`);
+
+      fs.writeFileSync(meshYaml, content, 'utf8');
+      this.postMessage({ type: 'orchestrationPolicySaved' });
+      this.postMessage({ type: 'info', message: 'Orchestration policy saved to mesh.yaml.' });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to save policy: ${toErrorMessage(err)}` });
+    }
+  }
+
+  private onLoadAgentType() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'agentTypeLoaded', agentType: 'claude' });
+      return;
+    }
+    try {
+      const content = fs.readFileSync(path.join(meshPath, 'mesh.yaml'), 'utf8');
+      const m = content.match(/agent_type:\s*(claude|copilot|both)/m);
+      this.postMessage({ type: 'agentTypeLoaded', agentType: (m?.[1] as 'claude' | 'copilot' | 'both') || 'claude' });
+    } catch {
+      this.postMessage({ type: 'agentTypeLoaded', agentType: 'claude' });
+    }
+  }
+
+  private onSaveAgentType(agentType: 'claude' | 'copilot' | 'both') {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const meshYaml = path.join(meshPath, 'mesh.yaml');
+    try {
+      let content = fs.readFileSync(meshYaml, 'utf8');
+      if (/agent_type:\s*(claude|copilot|both)/m.test(content)) {
+        content = content.replace(/agent_type:\s*(claude|copilot|both)/m, `agent_type: ${agentType}`);
+      } else {
+        // Insert agent_type inside the portfolio: block (after description: line or last portfolio field)
+        const portfolioInsertPoint = content.match(/^(\s+description:.*$)/m);
+        if (portfolioInsertPoint) {
+          content = content.replace(portfolioInsertPoint[0], `${portfolioInsertPoint[0]}\n  agent_type: ${agentType}`);
+        } else {
+          // Fallback: insert after portfolio: line
+          const portfolioLine = content.match(/^portfolio:\s*$/m);
+          if (portfolioLine) {
+            content = content.replace(portfolioLine[0], `${portfolioLine[0]}\n  agent_type: ${agentType}`);
+          } else {
+            content = content.trimEnd() + `\nagent_type: ${agentType}\n`;
+          }
+        }
+      }
+
+      // Also ensure repo: field exists in mesh.yaml (needed for GitHub Actions workflows)
+      if (!/^\s*repo:\s/m.test(content)) {
+        try {
+          const { execFileSync } = require('child_process');
+          const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).trim();
+          const parsed = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
+          if (parsed) {
+            const repoName = parsed[2];
+            // Insert repo: inside portfolio block (after org: line)
+            const orgLine = content.match(/^(\s+org:.*$)/m);
+            if (orgLine) {
+              content = content.replace(orgLine[0], `${orgLine[0]}\n  repo: "${repoName}"`);
+            }
+          }
+        } catch { /* git not available — user will add repo manually */ }
+      }
+
+      fs.writeFileSync(meshYaml, content, 'utf8');
+      this.postMessage({ type: 'agentTypeSaved' });
+      const label = agentType === 'claude' ? 'Claude Code Action' : agentType === 'copilot' ? 'Copilot Coding Agent' : 'Both (Claude + Copilot)';
+      this.postMessage({ type: 'info', message: `Agent framework set to ${label}.` });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to save agent type: ${toErrorMessage(err)}` });
+    }
+  }
+
+  private onLoadPlatformGovernance(platformId: string) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'platformGovernanceLoaded', platformId, governance: null });
+      return;
+    }
+    try {
+      // Resolve platform directory from mesh.yaml config
+      const platformDir = this.resolvePlatformPath(platformId);
+      if (!platformDir) {
+        this.postMessage({ type: 'platformGovernanceLoaded', platformId, governance: null });
+        return;
+      }
+      const platformYaml = path.join(platformDir, 'platform.yaml');
+      if (!fs.existsSync(platformYaml)) {
+        this.postMessage({ type: 'platformGovernanceLoaded', platformId, governance: null });
+        return;
+      }
+      const content = fs.readFileSync(platformYaml, 'utf8');
+      const num = (key: string): number | undefined => {
+        const m = content.match(new RegExp(`${key}:\\s*(\\d+)`, 'm'));
+        return m ? Number(m[1]) : undefined;
+      };
+      const scalar = (key: string): string => {
+        const m = content.match(new RegExp(`${key}:\\s*(.+)$`, 'm'));
+        return m ? m[1].trim() : '';
+      };
+
+      const minimumScores: Record<string, number> = {};
+      const arch = num('architecture');
+      const sec = num('security');
+      const ops = num('operations');
+      if (arch !== undefined) { minimumScores.architecture = arch; }
+      if (sec !== undefined) { minimumScores.security = sec; }
+      if (ops !== undefined) { minimumScores.operations = ops; }
+
+      this.postMessage({
+        type: 'platformGovernanceLoaded',
+        platformId,
+        governance: {
+          minimumScores,
+          minTier: scalar('minTier'),
+          enforcementMode: scalar('enforcementMode') || 'advisory',
+        },
+      });
+    } catch {
+      this.postMessage({ type: 'platformGovernanceLoaded', platformId, governance: null });
+    }
+  }
+
+  private onSavePlatformGovernance(
+    platformId: string,
+    governance: { minimumScores: Record<string, number>; minTier: string; enforcementMode: string },
+  ) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    try {
+      const platformDir = this.resolvePlatformPath(platformId);
+      if (!platformDir) {
+        this.postMessage({ type: 'error', message: `Platform not found: ${platformId}` });
+        return;
+      }
+      const platformYaml = path.join(platformDir, 'platform.yaml');
+      let content = fs.existsSync(platformYaml) ? fs.readFileSync(platformYaml, 'utf8') : '';
+
+      // Build governance block
+      const govLines = [
+        'governance:',
+        '  minimumScores:',
+      ];
+      for (const [pillar, score] of Object.entries(governance.minimumScores)) {
+        govLines.push(`    ${pillar}: ${score}`);
+      }
+      if (governance.minTier || governance.enforcementMode) {
+        govLines.push('  orchestrationOverrides:');
+        if (governance.enforcementMode) {
+          govLines.push(`    enforcementMode: ${governance.enforcementMode}`);
+        }
+        if (governance.minTier) {
+          govLines.push(`    minTier: ${governance.minTier}`);
+        }
+      }
+      const govBlock = govLines.join('\n');
+
+      // Replace existing governance block or append
+      const govRegex = /governance:\s*\n(?:\s+\S.*\n?)*/;
+      if (govRegex.test(content)) {
+        content = content.replace(govRegex, govBlock + '\n');
+      } else {
+        content = content.trimEnd() + '\n\n' + govBlock + '\n';
+      }
+
+      fs.writeFileSync(platformYaml, content, 'utf8');
+      this.postMessage({ type: 'platformGovernanceSaved', platformId });
+      this.postMessage({ type: 'info', message: `Platform governance saved for ${platformId}.` });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to save governance: ${toErrorMessage(err)}` });
+    }
   }
 
   // --------------------------------------------------------------------------

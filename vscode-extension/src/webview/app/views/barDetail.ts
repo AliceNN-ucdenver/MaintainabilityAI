@@ -76,6 +76,12 @@ export interface BarDetailRenderState {
   } | null;
   portfolio: { portfolio: { org?: string; name?: string } } | null;
   detectedOrg: string;
+  // Cross-BAR governance context (Phase 6)
+  barLinkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[];
+  barSiblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[];
+  barPlatformOverrides: string[];
+  // Score decay info (Phase 7)
+  decayInfo: { rawComposite: number; decayedComposite: number; decayFactor: number; daysSinceAssessment: number; inGraceWindow: boolean } | null;
 }
 
 // ============================================================================
@@ -85,6 +91,15 @@ export interface BarDetailRenderState {
 export function needsPush(gitStatus: GitSyncStatus | null): boolean {
   if (!gitStatus?.isGitRepo || !gitStatus.hasRemote) { return false; }
   return !gitStatus.hasUpstream || gitStatus.ahead > 0;
+}
+
+/** Compute display tier from BAR scores (pure client-side, mirrors config-scaffold computeTier). */
+function computeDisplayTier(bar: BarSummary): 'autonomous' | 'supervised' | 'restricted' {
+  const pillars = [bar.architecture.score, bar.security.score, bar.infoRisk.score, bar.operations.score];
+  if (pillars.some(p => p < 50)) { return 'restricted'; }
+  if (bar.compositeScore >= 80) { return 'autonomous'; }
+  if (bar.compositeScore >= 50) { return 'supervised'; }
+  return 'restricted';
 }
 
 // ============================================================================
@@ -172,6 +187,33 @@ export function renderScoreRing(score: number, size: number, strokeWidth: number
           style="transition: stroke-dashoffset 0.5s ease;" />
       </svg>
       <span class="score-ring-label" style="font-size: ${fontSize}px;">${normalizedScore}</span>
+    </div>
+  `;
+}
+
+/** Render decay indicator below the score ring when scores are stale. */
+export function renderDecayIndicator(decayInfo: BarDetailRenderState['decayInfo']): string {
+  if (!decayInfo || decayInfo.inGraceWindow) { return ''; }
+
+  const drop = decayInfo.rawComposite - decayInfo.decayedComposite;
+  if (drop <= 0) { return ''; }
+
+  const days = Math.round(decayInfo.daysSinceAssessment);
+  const severity = drop >= 20 ? 'critical' : drop >= 10 ? 'warning' : 'info';
+  const colorVar = severity === 'critical' ? 'var(--failing)' : severity === 'warning' ? 'var(--warning)' : 'var(--text-muted)';
+
+  // Show tier impact if decay changes the tier
+  const rawTier = decayInfo.rawComposite >= 80 ? 'autonomous' : decayInfo.rawComposite >= 50 ? 'supervised' : 'restricted';
+  const decayedTier = decayInfo.decayedComposite >= 80 ? 'autonomous' : decayInfo.decayedComposite >= 50 ? 'supervised' : 'restricted';
+  const tierChanged = rawTier !== decayedTier;
+
+  return `
+    <div class="decay-indicator" style="text-align:center; margin-top:4px; font-size:11px; color:${colorVar};">
+      <span title="Score has decayed ${drop} points over ${days} days since last assessment">
+        &#9202; ${decayInfo.rawComposite} &#8594; ${decayInfo.decayedComposite} (-${drop})
+      </span>
+      <div style="color:var(--text-muted); font-size:10px;">${days}d since assessment</div>
+      ${tierChanged ? `<span class="tier-impact-badge" style="font-size:10px; padding:1px 6px; border-radius:3px; background:${colorVar}; color:var(--bg); margin-top:2px; display:inline-block;">tier: ${rawTier} &#8594; ${decayedTier}</span>` : ''}
     </div>
   `;
 }
@@ -630,6 +672,9 @@ export function renderLinkedRepos(
     const matchedFolder = openWorkspaceFolders.find(f => f === displayName || f.endsWith('/' + displayName) || f.endsWith('\\' + displayName));
     const isOpen = !!matchedFolder;
     const activeClass = isOpen ? ' linked-repo-active' : '';
+    const deployBtn = isOpen
+      ? `<button class="btn-deploy-governance btn-ghost btn-sm" data-repo-url="${escapeAttr(url)}" data-bar-path="${escapeAttr(barPath)}" data-local-path="${escapeAttr(matchedFolder!)}" title="Deploy Red Queen governance files to this repo" style="font-size: 10px; padding: 2px 6px; white-space: nowrap;">Deploy Gov</button>`
+      : '';
     const activeLabel = isOpen
       ? '<span class="linked-repo-badge" title="Open Security Scorecard">open &#8599;</span>'
       : '<span class="linked-repo-chevron">&rsaquo;</span>';
@@ -641,6 +686,7 @@ export function renderLinkedRepos(
           <div class="linked-repo-name">${escapeHtml(displayName)}</div>
           <div class="linked-repo-url">${escapeHtml(url)}</div>
         </div>
+        ${deployBtn}
         ${activeLabel}
       </div>
     `;
@@ -656,13 +702,101 @@ export function renderLinkedRepos(
 }
 
 // ============================================================================
+// Render — Cross-BAR Dependencies + Platform Context (Phase 6)
+// ============================================================================
+
+function renderCrossBarDependencies(linked: BarDetailRenderState['barLinkedBars']): string {
+  if (linked.length === 0) { return ''; }
+  return `
+    <div class="section-header">Cross-BAR Dependencies</div>
+    <div class="cross-bar-list">
+      ${linked.map(l => `
+        <div class="cross-bar-row" data-bar-name="${escapeAttr(l.barName)}" data-bar-path="${escapeAttr(l.barPath)}">
+          <span class="cross-bar-name">${escapeHtml(l.barName)}</span>
+          <span class="cross-bar-rel">${escapeHtml(l.relationship)}</span>
+          <span class="tier-badge ${l.tier}">${l.tier}</span>
+          <span class="cross-bar-score">${l.compositeScore}%</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px; margin-bottom: 12px;">
+      Changes to shared interfaces must be coordinated with linked BARs.
+    </div>
+  `;
+}
+
+function renderPlatformContext(
+  siblings: BarDetailRenderState['barSiblingBars'],
+  overrides: BarDetailRenderState['barPlatformOverrides'],
+): string {
+  if (siblings.length === 0 && overrides.length === 0) { return ''; }
+  return `
+    <div class="section-header">Platform Context</div>
+    ${siblings.length > 0 ? `
+      <div class="sibling-bar-list">
+        ${siblings.map(b => `
+          <div class="sibling-bar-row" data-bar-name="${escapeAttr(b.name)}" data-bar-path="${escapeAttr(b.path)}">
+            <span class="sibling-bar-name">${escapeHtml(b.name)}</span>
+            <span class="tier-badge ${b.tier}">${b.tier}</span>
+            <span class="sibling-bar-score">${b.compositeScore}%</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+    ${overrides.length > 0 ? `
+      <div style="margin-top: 8px; font-size: 11px;">
+        <div style="font-weight: 500; margin-bottom: 4px; color: var(--text-muted);">Platform Overrides</div>
+        <ul style="margin: 0; padding-left: 16px; color: var(--text-muted); font-size: 11px;">
+          ${overrides.map(o => `<li>${escapeHtml(o)}</li>`).join('')}
+        </ul>
+      </div>
+    ` : ''}
+  `;
+}
+
+// ============================================================================
 // Render — Component Picker
 // ============================================================================
+
+function renderGovernancePreflightBanner(bar: BarSummary): string {
+  const tier = computeDisplayTier(bar);
+  const banners: Record<string, { bg: string; border: string; icon: string; label: string; desc: string }> = {
+    autonomous: { bg: 'rgba(63, 185, 80, 0.1)', border: 'rgba(63, 185, 80, 0.3)', icon: '&#x2714;', label: 'Autonomous', desc: 'Full agent autonomy \u2014 auto-edit mode' },
+    supervised: { bg: 'rgba(210, 153, 34, 0.1)', border: 'rgba(210, 153, 34, 0.3)', icon: '&#x26A0;', label: 'Supervised', desc: 'Changes require human review before merge' },
+    restricted: { bg: 'rgba(248, 81, 73, 0.1)', border: 'rgba(248, 81, 73, 0.3)', icon: '&#x26D4;', label: 'Restricted', desc: 'Plan-only mode \u2014 human approval required' },
+  };
+  const b = banners[tier];
+  const pillars = [
+    { name: 'Arch', score: bar.architecture.score },
+    { name: 'Sec', score: bar.security.score },
+    { name: 'Risk', score: bar.infoRisk.score },
+    { name: 'Ops', score: bar.operations.score },
+  ];
+  const pillarHtml = pillars.map(p =>
+    `<span style="color: ${p.score < 50 ? '#f85149' : 'var(--text-muted)'}">${p.name}: ${p.score}%</span>`
+  ).join(' &middot; ');
+
+  const constraints: string[] = [];
+  if (bar.security.score < 60) { constraints.push('Security prompt packs mandated'); }
+  if (bar.architecture.score < 70) { constraints.push('Architecture compliance packs mandated'); }
+
+  return `<div class="governance-preflight" style="background: ${b.bg}; border: 1px solid ${b.border}; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+      <span style="font-size: 14px;">${b.icon}</span>
+      <span style="font-weight: 600;">Governance: ${b.label}</span>
+      <span style="color: var(--text-muted); margin-left: auto;">Score: ${bar.compositeScore}%</span>
+    </div>
+    <div style="color: var(--text-muted);">${pillarHtml}</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${b.desc}</div>
+    ${constraints.length > 0 ? `<div style="margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">${constraints.map(c => `<span style="font-size: 10px; padding: 1px 6px; border-radius: 8px; background: rgba(210, 153, 34, 0.15); color: #d29922;">${c}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
 
 export function renderComponentPicker(
   barPath: string,
   componentPicker: BarDetailRenderState['componentPicker'],
   portfolioOrg: string,
+  bar?: BarSummary,
 ): string {
   const cp = componentPicker;
   if (!cp || cp.barPath !== barPath) { return ''; }
@@ -684,6 +818,7 @@ export function renderComponentPicker(
         <span style="font-weight: 600;">Select Component to Implement</span>
         <button class="btn-ghost btn-sm" id="component-picker-cancel">&times;</button>
       </div>
+      ${bar ? renderGovernancePreflightBanner(bar) : ''}
       <div class="component-list">
         ${cp.components.map(c => `
           <div class="component-row${c.id === cp.selectedId ? ' selected' : ''}" data-component-id="${escapeAttr(c.id)}" data-suggested-repo="${escapeAttr(c.suggestedRepo)}">
@@ -740,6 +875,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
           <span class="strategy-badge ${bar.strategy} editable-badge" data-field="strategy" data-value="${bar.strategy}" data-bar-path="${escapeAttr(bar.path)}" title="Click to change strategy">${bar.strategy}</span>
           <span class="crit-badge ${bar.criticality} editable-badge" data-field="criticality" data-value="${bar.criticality}" data-bar-path="${escapeAttr(bar.path)}" title="Click to change criticality">${bar.criticality}</span>
           <span class="lifecycle-badge editable-badge" data-field="lifecycle" data-value="${bar.lifecycle}" data-bar-path="${escapeAttr(bar.path)}" title="Click to change lifecycle">${bar.lifecycle}</span>
+          <span class="tier-badge ${computeDisplayTier(bar)}" title="Governance tier (score-based)">${computeDisplayTier(bar)}</span>
           <span style="font-size: 12px; color: var(--text-muted);">${bar.repoCount} repo${bar.repoCount !== 1 ? 's' : ''}</span>
           <button class="btn-ghost btn-sm" id="btn-edit-app-yaml" data-bar-path="${escapeAttr(bar.path)}" title="Edit app.yaml">&#9998; Edit</button>
           ${s.gitStatus?.isGitRepo ? (() => {
@@ -764,6 +900,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
       <div class="bar-detail-score">
         ${renderScoreRing(bar.compositeScore, 80, 10)}
         ${trendArrow(s.scoreTrend as GovernanceTrend)}
+        ${renderDecayIndicator(s.decayInfo)}
       </div>
     </div>
 
@@ -796,6 +933,8 @@ export function renderBarDetail(s: BarDetailRenderState): string {
     )}
 
     ${renderLinkedRepos(bar.repos || [], bar.path, s.openWorkspaceFolders)}
+    ${renderCrossBarDependencies(s.barLinkedBars)}
+    ${renderPlatformContext(s.barSiblingBars, s.barPlatformOverrides)}
 
     ${s.calmData ? `
     <div class="white-rabbit-row" style="margin-bottom: 16px;">
@@ -813,7 +952,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
         <span style="opacity: 0.7;">Prompt Packs</span>
       </div>
     </div>
-    ${renderComponentPicker(bar.path, s.componentPicker, portfolioOrg)}
+    ${renderComponentPicker(bar.path, s.componentPicker, portfolioOrg, bar)}
     ` : ''}
 
     ${s.currentRepoTree.length > 0 ? `
@@ -1202,6 +1341,22 @@ export function getBarDetailStyles(): string {
       }
       .linked-repos-empty { font-size: 11px; color: var(--text-dim); font-style: italic; padding: 8px 0; }
 
+      /* Cross-BAR Dependencies + Platform Context (Phase 6) */
+      .cross-bar-list, .sibling-bar-list { margin-bottom: 8px; }
+      .cross-bar-row, .sibling-bar-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 6px 10px; cursor: pointer; border-radius: var(--radius-sm);
+        border: 1px solid var(--border); margin-bottom: 4px;
+        transition: background 0.15s; font-size: 12px;
+      }
+      .cross-bar-row:hover, .sibling-bar-row:hover { background: var(--surface-hover); }
+      .cross-bar-name, .sibling-bar-name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .cross-bar-rel {
+        font-size: 10px; padding: 1px 6px; border-radius: 8px;
+        background: rgba(139, 92, 246, 0.12); color: var(--accent);
+      }
+      .cross-bar-score, .sibling-bar-score { font-size: 11px; color: var(--text-muted); min-width: 32px; text-align: right; }
+
       /* Component Picker (Implement based on architecture) */
       .component-picker { padding: 16px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; background: var(--surface); }
       .component-picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 13px; }
@@ -1491,6 +1646,21 @@ export function attachBarDetailEvents(
     document.addEventListener('keydown', escHandler);
   }
 
+  // ---------- Deploy Governance to Repo ----------
+  document.querySelectorAll('.btn-deploy-governance').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Don't trigger row click (open scorecard)
+      const el = btn as HTMLElement;
+      const repoUrl = el.dataset.repoUrl;
+      const barPath = el.dataset.barPath;
+      const localPath = el.dataset.localPath;
+      if (!repoUrl || !barPath) { return; }
+      (btn as HTMLButtonElement).disabled = true;
+      (btn as HTMLButtonElement).textContent = 'Deploying...';
+      vscode.postMessage({ type: 'deployGovernanceToRepo', repoUrl, barPath, localPath });
+    });
+  });
+
   // ---------- Linked Repo Clicks ----------
   document.querySelectorAll('.linked-repo-row').forEach(row => {
     row.addEventListener('click', () => {
@@ -1508,6 +1678,17 @@ export function attachBarDetailEvents(
       } else {
         // Repo not in workspace — trigger clone/open flow
         vscode.postMessage({ type: 'openRepoInContext', repoUrl, barPath });
+      }
+    });
+  });
+
+  // ---------- Cross-BAR / Sibling BAR navigation ----------
+  document.querySelectorAll('.cross-bar-row, .sibling-bar-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const el = row as HTMLElement;
+      const targetBarPath = el.dataset.barPath;
+      if (targetBarPath) {
+        vscode.postMessage({ type: 'drillIntoBar', barPath: targetBarPath });
       }
     });
   });

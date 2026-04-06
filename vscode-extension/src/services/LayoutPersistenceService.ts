@@ -39,7 +39,7 @@ export function readLayoutFile(barPath: string, diagramType: 'context' | 'logica
  * Write a layout file for a given BAR and diagram type.
  * Creates the architecture directory if needed.
  */
-export function writeLayoutFile(barPath: string, diagramType: 'context' | 'logical', layout: LayoutFileData): void {
+export function writeLayoutFile(barPath: string, diagramType: 'context' | 'logical' | 'platform', layout: LayoutFileData): void {
   const archDir = path.join(barPath, 'architecture');
   if (!fs.existsSync(archDir)) {
     fs.mkdirSync(archDir, { recursive: true });

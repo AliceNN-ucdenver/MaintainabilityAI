@@ -21,6 +21,13 @@ const SDLC_FILES = [
   { label: 'Security Policy', path: '.github/SECURITY.md' },
   { label: 'Repo Metadata', path: '.github/repo-metadata.yml' },
   { label: 'Prompt Packs', path: 'prompts/owasp' },
+  // Red Queen governance files
+  { label: 'Red Queen Policy', path: '.redqueen/policy.json' },
+  { label: 'Red Queen Decision', path: '.redqueen/decision.json' },
+  { label: 'Red Queen Hooks', path: '.redqueen/hooks/validate-tool.js' },
+  { label: 'MCP Config', path: '.mcp.json' },
+  { label: 'Red Queen Review', path: '.github/workflows/redqueen-review.yml' },
+  { label: 'AGENTS.md', path: 'AGENTS.md' },
 ];
 
 const OWASP_LABELS = [

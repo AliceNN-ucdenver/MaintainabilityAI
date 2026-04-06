@@ -51,6 +51,16 @@ const state = {
   // Workspace folders (shared across panels)
   workspaceFolders: [] as { name: string; path: string }[],
   selectedFolder: '',
+  // Phase 6 — Governance bridge data
+  governanceData: null as {
+    barId: string; barName: string; platformId: string; compositeScore: number;
+    criticality: string; tier: string; effectiveTier: string;
+    pillarScores: { architecture: number; security: number; infoRisk: number; operations: number };
+    promptInjections?: { pillar: string; score: number; threshold: number; packs: string[]; constraints: string[] }[];
+    platformOverrides?: string[]; reasoning?: string[];
+    review?: { agents: number; human_approval: boolean };
+    permissions?: { mode: string; allow: string[]; deny: string[] };
+  } | null,
 };
 
 const contentEl = document.getElementById('phaseContent')!;
@@ -90,6 +100,49 @@ function goToPhase(phase: Phase) {
 }
 
 // ============================================================================
+// Governance Posture (Phase 6)
+// ============================================================================
+
+function renderGovernancePosture(): string {
+  const gov = state.governanceData;
+  if (!gov) { return ''; }
+
+  const tierColors: Record<string, string> = {
+    autonomous: '#2ea043',
+    supervised: '#d29922',
+    restricted: '#f85149',
+  };
+  const tierColor = tierColors[gov.effectiveTier] || '#888';
+  const pillars = gov.pillarScores;
+  const pillarEntries = [
+    { name: 'Arch', score: pillars.architecture },
+    { name: 'Sec', score: pillars.security },
+    { name: 'Risk', score: pillars.infoRisk },
+    { name: 'Ops', score: pillars.operations },
+  ];
+  const constraints: string[] = [];
+  if (gov.promptInjections) {
+    for (const inj of gov.promptInjections) {
+      constraints.push(...inj.constraints);
+    }
+  }
+
+  return `
+    <div style="background: var(--surface-raised, #1e1e2e); border: 1px solid ${tierColor}40; border-left: 3px solid ${tierColor}; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+        <span style="background: ${tierColor}22; color: ${tierColor}; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; text-transform: uppercase;">${escapeHtml(gov.effectiveTier)}</span>
+        <span style="font-weight: 500;">${escapeHtml(gov.barName)}</span>
+        <span style="color: var(--text-secondary);">${gov.compositeScore}%</span>
+      </div>
+      <div style="display: flex; gap: 12px; color: var(--text-secondary); font-size: 11px;">
+        ${pillarEntries.map(p => `<span style="${p.score < 50 ? 'color: #f85149; font-weight: 600;' : ''}">${p.name}: ${p.score}%</span>`).join('')}
+      </div>
+      ${constraints.length > 0 ? `<div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap;">${constraints.map(c => `<span style="background: var(--surface-hover); padding: 1px 6px; border-radius: 3px; font-size: 10px; color: var(--text-secondary);">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
+    </div>
+  `;
+}
+
+// ============================================================================
 // Phase 1: Input & Generate
 // ============================================================================
 
@@ -98,6 +151,8 @@ function renderInputPhase() {
 
   contentEl.innerHTML = `
     <h2>Describe Your Feature${repoHint}</h2>
+
+    ${renderGovernancePosture()}
 
     <div class="two-col">
       <div>
@@ -281,6 +336,7 @@ function renderReviewPhase() {
 
   contentEl.innerHTML = `
     <h2>Review Generated RCTRO${reviewRepoHint}</h2>
+    ${renderGovernancePosture()}
     <div class="rctro-preview" id="rctro-preview">${escapeHtml(state.rctroMarkdown)}</div>
 
     <div class="review-actions">
@@ -390,6 +446,11 @@ function renderSubmitPhase() {
 // ============================================================================
 
 function renderAssignPhase() {
+  const gov = state.governanceData;
+  const isRestricted = gov?.effectiveTier === 'restricted';
+  const isSupervised = gov?.effectiveTier === 'supervised';
+  const requiresApproval = gov?.review?.human_approval === true;
+
   contentEl.innerHTML = `
     <h2>Assign an AI Agent</h2>
     <p style="color: var(--text-secondary); margin-bottom: 4px;">
@@ -397,14 +458,21 @@ function renderAssignPhase() {
     </p>
     <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">Choose who should implement this feature:</p>
 
+    ${gov ? `<div style="background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px;">
+      ${isRestricted ? '<div style="color: #f85149; font-weight: 500; margin-bottom: 4px;">Restricted tier — primary agent only, secondary agent disabled</div>' : ''}
+      ${isSupervised ? '<div style="color: #d29922; font-weight: 500; margin-bottom: 4px;">Supervised mode — reviewer agent auto-assigned per governance policy</div>' : ''}
+      ${requiresApproval ? '<div style="color: var(--text-secondary); margin-top: 4px;">Human approval required before merge</div>' : ''}
+    </div>` : ''}
+
     <div class="agent-cards">
       <div class="agent-card" id="assign-claude">
         <h4>Claude / Alice</h4>
         <p>Posts <code>@claude</code> comment to trigger the 2-phase remediation workflow: plan first, then implement after approval.</p>
       </div>
-      <div class="agent-card" id="assign-copilot">
+      <div class="agent-card${isRestricted ? ' disabled' : ''}" id="assign-copilot"${isRestricted ? ' title="Restricted tier — primary agent only"' : ''}>
         <h4>Copilot</h4>
         <p>Posts a comment assigning the implementation to GitHub Copilot. The RCTRO prompt serves as the spec.</p>
+        ${isRestricted ? '<div style="color: #f85149; font-size: 11px; margin-top: 4px;">Disabled by governance policy</div>' : ''}
       </div>
       <div class="agent-card" id="assign-skip">
         <h4>Skip</h4>
@@ -434,6 +502,7 @@ function renderAssignPhase() {
   });
 
   document.getElementById('assign-copilot')!.addEventListener('click', () => {
+    if (state.governanceData?.effectiveTier === 'restricted') { return; }
     vscode.postMessage({ type: 'assignAgent', agent: 'copilot' });
   });
 
@@ -642,30 +711,43 @@ function selectIssueFromHub(issueNumber: number, issueUrl: string) {
 // Pack Rendering (used by Input phase)
 // ============================================================================
 
+function getMandatedPackIds(): Set<string> {
+  const ids = new Set<string>();
+  if (state.governanceData?.promptInjections) {
+    for (const inj of state.governanceData.promptInjections) {
+      for (const pack of inj.packs) { ids.add(pack); }
+    }
+  }
+  return ids;
+}
+
 function renderPromptPacks(packs: PromptPackInfo[]) {
   const owasp = packs.filter(p => p.category === 'owasp');
   const maint = packs.filter(p => p.category === 'maintainability');
   const stride = packs.filter(p => p.category === 'threat-modeling');
+  const mandated = getMandatedPackIds();
 
   const owaspEl = document.getElementById('owasp-packs');
   const maintEl = document.getElementById('maint-packs');
   const strideEl = document.getElementById('stride-packs');
 
-  if (owaspEl) { owaspEl.innerHTML = owasp.map(p => checkbox(p)).join(''); }
-  if (maintEl) { maintEl.innerHTML = maint.map(p => checkbox(p)).join(''); }
-  if (strideEl) { strideEl.innerHTML = stride.map(p => checkbox(p)).join(''); }
+  if (owaspEl) { owaspEl.innerHTML = owasp.map(p => checkbox(p, mandated.has(p.id))).join(''); }
+  if (maintEl) { maintEl.innerHTML = maint.map(p => checkbox(p, mandated.has(p.id))).join(''); }
+  if (strideEl) { strideEl.innerHTML = stride.map(p => checkbox(p, mandated.has(p.id))).join(''); }
 
   attachPackLimitListeners();
   enforcePackLimit();
 }
 
-function checkbox(pack: PromptPackInfo): string {
+function checkbox(pack: PromptPackInfo, mandated = false): string {
   const safeId = escapeAttr(pack.id);
   const safeCat = escapeAttr(pack.category);
   const safeName = escapeHtml(pack.name);
-  return `<div class="checkbox-item">
-    <input type="checkbox" id="pack-${safeId}" data-category="${safeCat}" value="${safeId}" />
-    <label for="pack-${safeId}">${safeName}</label>
+  const checkedAttr = mandated ? ' checked disabled' : '';
+  const lockIcon = mandated ? ' <span title="Mandated by governance policy" style="opacity: 0.7;">&#128274;</span>' : '';
+  return `<div class="checkbox-item${mandated ? ' mandated' : ''}">
+    <input type="checkbox" id="pack-${safeId}" data-category="${safeCat}" value="${safeId}"${checkedAttr} />
+    <label for="pack-${safeId}">${safeName}${lockIcon}</label>
   </div>`;
 }
 
@@ -1057,6 +1139,12 @@ window.addEventListener('message', (event) => {
       }
       // Re-render hub to show/update the folder dropdown
       if (state.viewMode === 'hub') { renderIssueListHub(); }
+      break;
+
+    case 'governanceData':
+      state.governanceData = message.data;
+      // Re-render input phase to show governance posture if visible
+      if (state.currentPhase === 'input') { renderInputPhase(); }
       break;
 
     case 'templateLoaded': {

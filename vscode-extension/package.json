@@ -208,7 +208,8 @@
     "watch": "node esbuild.js --watch",
     "lint": "eslint src --ext ts",
     "test": "vitest run",
-    "package": "vsce package"
+    "package": "vsce package",
+    "prepare-npm": "node esbuild.js --production && mkdir -p ../packages/redqueen-mcp/dist && cp dist/mcp-server.js ../packages/redqueen-mcp/dist/"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -225,6 +226,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@octokit/rest": "^21.0.0",
     "@xyflow/react": "^12.10.1",
     "elkjs": "^0.9.3",
@@ -232,6 +234,7 @@
     "mermaid": "^11.12.3",
     "openai": "^4.68.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^3.25.76"
   }
 }

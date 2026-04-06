@@ -1,0 +1,6 @@
+decisions:
+  - id: DEC-001
+    title: "Adopt CALM architecture model"
+    status: accepted
+    date: "2026-01-15"
+    owner: "test-owner"

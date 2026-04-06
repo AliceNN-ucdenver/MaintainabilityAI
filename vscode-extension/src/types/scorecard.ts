@@ -55,6 +55,7 @@ export interface ComponentScaffoldContext {
   repoName: string;               // Just the repo name portion (e.g. "my-service")
   description: string;            // Pre-built markdown with all BAR context
   packs: PromptPackSelection;     // Pre-selected prompt packs for Rabbit Hole
+  governanceTier?: string;        // Phase 6 — governance tier from Red Queen orchestration
 }
 
 /** Persisted to globalState before workspace switch so activate() can resume the flow. */

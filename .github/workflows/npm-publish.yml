@@ -1,0 +1,80 @@
+name: Publish npm Package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'vscode-extension/src/mcp/**'
+      - 'packages/redqueen-mcp/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[npm-publish]')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Install dependencies
+        working-directory: vscode-extension
+        run: npm ci
+
+      - name: Lint
+        working-directory: vscode-extension
+        run: npm run lint
+
+      - name: Test
+        working-directory: vscode-extension
+        run: npx vitest run --passWithNoTests
+
+      - name: Build MCP server bundle
+        working-directory: vscode-extension
+        run: node esbuild.js --production
+
+      - name: Prepare npm package
+        run: |
+          mkdir -p packages/redqueen-mcp/dist
+          cp vscode-extension/dist/mcp-server.js packages/redqueen-mcp/dist/
+
+      - name: Bump patch version
+        id: bump
+        working-directory: packages/redqueen-mcp
+        run: |
+          npm version patch --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/redqueen-mcp/package.json
+          git commit -m "chore(mcp): bump to ${{ steps.bump.outputs.version }} [npm-publish]"
+          git push
+
+      - name: Publish to npm
+        working-directory: packages/redqueen-mcp
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create git tag
+        run: |
+          git tag "mcp-v${{ steps.bump.outputs.version }}"
+          git push origin "mcp-v${{ steps.bump.outputs.version }}"

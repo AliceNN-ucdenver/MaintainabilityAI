@@ -1,0 +1,83 @@
+id: PF-TEST-001
+name: "Test Portfolio"
+org: test-org
+owner: test-owner
+description: "Test governance mesh for unit tests"
+architecture_dsl: calm
+capability_model: insurance
+agent_type: claude
+
+scoring:
+  passing_threshold: 75
+  warning_threshold: 50
+
+platforms:
+  - id: PLT-TEST
+    name: "Test Platform"
+    path: platforms/test-platform
+    owner: "test-owner"
+
+orchestration:
+  version: 1
+  permission_tiers:
+    autonomous:
+      min_score: 80
+      permissions:
+        mode: auto-edit
+        allow: [Edit, Write, Bash, Read, Glob, Grep]
+        deny: []
+      review:
+        agents: 1
+        human_approval: false
+      threat_access: open
+    supervised:
+      min_score: 50
+      permissions:
+        mode: ask-edit
+        allow: [Edit, Read, Glob, Grep]
+        deny: []
+      review:
+        agents: 1
+        human_approval: true
+      threat_access: summary
+    restricted:
+      min_score: 0
+      permissions:
+        mode: plan
+        allow: [Read, Glob, Grep]
+        deny: [Bash, Write]
+      review:
+        agents: 2
+        human_approval: true
+        escalation: true
+      threat_access: restricted
+  prompt_injection:
+    security:
+      threshold: 60
+      packs: [owasp-top-10, secure-coding]
+      constraints: [All changes must pass security review]
+    architecture:
+      threshold: 70
+      packs: [calm-compliance]
+      constraints: [Changes must align with CALM model]
+  criticality_multipliers:
+    critical:
+      score_threshold_boost: 15
+      require_multi_agent: true
+      require_human_approval: true
+    high:
+      score_threshold_boost: 10
+      require_human_approval: true
+    medium:
+      score_threshold_boost: 0
+    low:
+      score_threshold_boost: -10
+  agent_preferences:
+    implementation:
+      primary: claude-code
+    review:
+      primary: claude-code
+  escalation:
+    score_drop_threshold: 10
+    consecutive_failures: 3
+    escalation_target: architecture-review-board

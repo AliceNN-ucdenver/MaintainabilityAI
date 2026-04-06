@@ -1,0 +1,4 @@
+functions:
+  - name: response-time
+    type: performance
+    threshold: "p95 < 200ms"

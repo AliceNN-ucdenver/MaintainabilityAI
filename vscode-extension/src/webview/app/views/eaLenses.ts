@@ -186,7 +186,7 @@ export function attachEaLensEvents(
     tab.addEventListener('click', () => {
       const lens = (tab as HTMLElement).dataset.lens as EaLens;
       if (lens) {
-        setState({ activeLens: lens, capabilityDrillPath: [], currentPlatformId: null });
+        setState({ activeLens: lens, capabilityDrillPath: [], currentPlatformId: null, showPlatformArch: false, platformCalmData: null });
         // Load policies on first switch to policies tab
         if (lens === 'policies' && (getState().policies as unknown[]).length === 0) {
           vscode.postMessage({ type: 'loadPolicies' });

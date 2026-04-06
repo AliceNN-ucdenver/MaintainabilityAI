@@ -20,6 +20,10 @@ import {
 } from '../templates/codeRepoTemplates';
 import { promptPackService } from '../services/PromptPackService';
 import { readRepoMetadata } from '../services/RepoMetadata';
+import { MeshService } from '../services/MeshService';
+import { MeshReader } from '../core/mesh-reader';
+import { RedQueenService } from '../services/RedQueenService';
+import { scaffoldAgentConfig } from '../mcp/config-scaffold';
 import type { ComponentScaffoldContext } from '../types';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
 import { execFileAsync } from '../utils/exec';
@@ -336,6 +340,47 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     }
 
     this.postMessage({ type: 'step', id: 'write', status: 'done', message: `${created} files written` });
+
+    // Step 3b: Governance files from Red Queen
+    if (selectedIds.has('governance')) {
+      try {
+        const meshPath = MeshService.getMeshPath();
+        if (meshPath) {
+          this.postMessage({ type: 'step', id: 'governance', status: 'running', message: 'Generating governance files...' });
+          // Determine BAR name: from component context, existing decision.json, or first BAR in mesh
+          let barName = this.componentContext?.barName;
+          if (!barName) {
+            try {
+              const existingDecision = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.redqueen', 'decision.json'), 'utf8'));
+              barName = existingDecision?.barName;
+            } catch { /* no existing decision */ }
+          }
+          if (barName) {
+            const reader = new MeshReader(meshPath);
+            const redQueen = new RedQueenService();
+            const result = scaffoldAgentConfig(reader, barName, redQueen);
+            if (!('error' in result)) {
+              let govCreated = 0;
+              for (const [relPath, content] of Object.entries(result.files)) {
+                const fullPath = path.join(workspaceRoot, relPath);
+                const dir = path.dirname(fullPath);
+                if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+                fs.writeFileSync(fullPath, content, 'utf8');
+                govCreated++;
+              }
+              const tier = this.componentContext?.governanceTier || 'unknown';
+              this.postMessage({ type: 'step', id: 'governance', status: 'done', message: `${govCreated} governance files (${tier} tier)` });
+            } else {
+              this.postMessage({ type: 'step', id: 'governance', status: 'done', message: 'Governance: BAR not found in mesh' });
+            }
+          } else {
+            this.postMessage({ type: 'step', id: 'governance', status: 'done', message: 'Governance: no BAR context — scaffold from Looking Glass component picker' });
+          }
+        } else {
+          this.postMessage({ type: 'step', id: 'governance', status: 'done', message: 'Governance: no mesh configured' });
+        }
+      } catch { /* governance injection is best-effort */ }
+    }
 
     // Step 4: Git + GitHub (if requested)
     if (config.createRepo) {
@@ -947,12 +992,14 @@ const FILES = [
   { id: 'security', label: 'Security Policy', desc: '.github/SECURITY.md', checked: true },
   { id: 'prompt-packs', label: 'Prompt Packs', desc: '.cheshire/prompts/ — OWASP, maintainability, and STRIDE packs', checked: true },
   { id: 'copilot-setup', label: 'Copilot Agent Setup', desc: '.github/copilot-setup-steps.yml — Pre-install deps before agent firewall', checked: true },
+  { id: 'governance', label: 'Governance (Red Queen)', desc: '.redqueen/ — Agent config, decision.json, and orchestration policy from mesh', checked: true },
 ];
 
 const STEPS = [
   { id: 'detect', label: 'Detect tech stack' },
   { id: 'generate', label: 'Generate scaffold files' },
   { id: 'write', label: 'Write files to disk' },
+  { id: 'governance', label: 'Governance files (Red Queen)' },
   { id: 'git', label: 'Initialize git & commit' },
   { id: 'github', label: 'Create GitHub repository' },
   { id: 'secrets', label: 'Configure repository secrets' },
@@ -976,10 +1023,12 @@ FILES.forEach(f => {
     cb.checked = !cb.checked;
     div.classList.toggle('checked', cb.checked);
     updateRunBtn();
+    updateStepVisibility();
   });
   div.querySelector('input').addEventListener('change', () => {
     div.classList.toggle('checked', div.querySelector('input').checked);
     updateRunBtn();
+    updateStepVisibility();
   });
   fileGrid.appendChild(div);
 });
@@ -1017,6 +1066,8 @@ document.getElementById('configureSecretsToggle').addEventListener('change', () 
 function updateStepVisibility() {
   const createRepo = document.getElementById('createRepoToggle').checked;
   const configSecrets = document.getElementById('configureSecretsToggle').checked;
+  const govChecked = document.querySelector('#fileGrid input[data-id="governance"]');
+  document.getElementById('step-governance').style.display = (govChecked && govChecked.checked) ? '' : 'none';
   document.getElementById('step-git').style.display = createRepo ? '' : 'none';
   document.getElementById('step-github').style.display = createRepo ? '' : 'none';
   document.getElementById('step-secrets').style.display = (createRepo && configSecrets) ? '' : 'none';
@@ -1188,6 +1239,7 @@ window.addEventListener('message', (event) => {
 
     case 'componentMode':
       isComponentMode = true;
+      updateStepVisibility();
       if (msg.repoName) {
         // Pre-fill target folder to HOME/repoName
         const homeDir = msg.homeDir || '';

@@ -157,12 +157,28 @@ const state = {
   settingsPreferredModel: '',
   settingsDriftWeights: { critical: 15, high: 5, medium: 2, low: 1 } as { critical: number; high: number; medium: number; low: number },
   settingsReinitConfirmStep: 0,  // 0=default, 1=warning shown
+  // Orchestration policy editor (mesh-level)
+  orchPolicy: null as { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } | null,
+  // Agent framework for governance review workflows
+  agentType: 'claude' as 'claude' | 'copilot' | 'both',
+  // Platform governance editor
+  platGovEditing: null as string | null,  // platformId being edited
+  platGov: null as { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } | null,
+  // Cross-BAR governance context (Phase 6)
+  barLinkedBars: [] as { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[],
+  barSiblingBars: [] as { name: string; id: string; path: string; compositeScore: number; tier: string }[],
+  barPlatformOverrides: [] as string[],
+  // Phase 7 — Score decay info
+  decayInfo: null as { rawComposite: number; decayedComposite: number; decayFactor: number; daysSinceAssessment: number; inGraceWindow: boolean } | null,
   // Absolem — multi-turn CALM refinement agent
   absolemOpen: false,
   absolemMessages: [] as { role: 'user' | 'assistant'; content: string }[],
   absolemStreaming: '',
   absolemStatus: 'idle' as 'idle' | 'thinking' | 'reviewing-patches',
   absolemPatches: null as { patches: { op: string; target: string; field?: string; value?: unknown }[]; description: string } | null,
+  // Platform architecture (cross-BAR diagram)
+  platformCalmData: null as CalmDataPayload,
+  showPlatformArch: false,
   // CALM component picker (Implement based on architecture)
   componentPicker: null as {
     barPath: string;
@@ -1054,6 +1070,19 @@ function getStyles(): string {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 150; background: rgba(0,0,0,0.5);
       }
+      .modal-overlay {
+        position: fixed; z-index: 190; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center;
+      }
+      .modal-box {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 20px 24px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5); max-height: 80vh; overflow-y: auto;
+      }
+      .modal-header {
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .modal-header h3 { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
       .repo-picker-modal {
         position: fixed; z-index: 200; top: 50%; left: 50%;
         transform: translate(-50%, -50%);
@@ -1189,6 +1218,26 @@ async function renderMermaidDiagrams() {
 }
 
 function mountReactDiagramIfNeeded() {
+  // Platform architecture diagram (cross-BAR view)
+  if (state.view === 'portfolio' && state.showPlatformArch && state.platformCalmData && state.currentPlatformId) {
+    mountDiagramCanvas('reactflow-platform-mount', {
+      calmData: state.platformCalmData as CalmArchitecture,
+      diagramType: 'platform' as 'context' | 'logical' | 'platform',
+      savedLayout: null,
+      onLayoutChange: () => { /* platform layout persistence not yet implemented */ },
+      onExportPng: () => { /* platform export not yet implemented */ },
+      onCalmMutation: (patch: CalmPatch[], updatedCalm: CalmArchitecture) => {
+        state.platformCalmData = updatedCalm;
+        vscode.postMessage({
+          type: 'platformCalmMutation',
+          platformId: state.currentPlatformId!,
+          patch,
+        });
+      },
+    });
+    return;
+  }
+
   // Both context and logical views use the same unified calmData (bar.arch.json)
   const calmJson = state.calmData;
 
@@ -1271,17 +1320,23 @@ function renderView(): string {
     `;
   }
 
+  let content = '';
   switch (state.view) {
-    case 'no-mesh': return renderNoMesh();
-    case 'portfolio': return renderPortfolio();
-    case 'bar-detail': return renderBarDetail(state);
-    case 'init-mesh': return renderInitMeshForm();
-    case 'add-platform': return renderAddPlatformForm();
-    case 'create-bar': return renderCreateBarForm();
-    case 'org-scanner': return renderOrgScanner();
-    case 'settings': return renderSettings();
-    default: return renderNoMesh();
+    case 'no-mesh': content = renderNoMesh(); break;
+    case 'portfolio': content = renderPortfolio(); break;
+    case 'bar-detail': content = renderBarDetail(state); break;
+    case 'init-mesh': content = renderInitMeshForm(); break;
+    case 'add-platform': content = renderAddPlatformForm(); break;
+    case 'create-bar': content = renderCreateBarForm(); break;
+    case 'org-scanner': content = renderOrgScanner(); break;
+    case 'settings': content = renderSettings(); break;
+    default: content = renderNoMesh(); break;
   }
+  // Overlay: platform governance editor modal
+  if (state.platGovEditing) {
+    content += renderPlatformGovernanceEditor();
+  }
+  return content;
 }
 
 // ============================================================================
@@ -1326,7 +1381,7 @@ function renderPortfolio(): string {
       ? renderBusinessCapabilityView(state, (bars: BarSummary[]) => renderAppTileGrid(bars, state.gitStatus, needsPush(state.gitStatus), renderScoreRing))
       : state.activeLens === 'policies'
       ? renderPoliciesLensContent(state, (msg) => vscode.postMessage(msg))
-      : renderApplicationLensContent(p, state.currentPlatformId, state.barFilter, state.searchQuery, state.gitStatus, needsPush(state.gitStatus), renderScoreRing)}
+      : renderApplicationLensContent(p, state.currentPlatformId, state.barFilter, state.searchQuery, state.gitStatus, needsPush(state.gitStatus), renderScoreRing, state.showPlatformArch)}
   `;
 }
 
@@ -1479,6 +1534,79 @@ function renderRepoPickerModal(): string {
     </div>`;
 }
 
+// ============================================================================
+// Platform Governance Editor (modal overlay)
+// ============================================================================
+
+function renderPlatformGovernanceEditor(): string {
+  const g = state.platGov;
+  const platformId = state.platGovEditing;
+  const platform = state.portfolio?.platforms.find(p => p.id === platformId);
+  const platformName = platform?.name || platformId || '';
+
+  if (!g) {
+    return `
+      <div class="modal-overlay" id="plat-gov-overlay">
+        <div class="modal-box" style="max-width: 420px;">
+          <div class="modal-header">
+            <h3>Platform Governance: ${escapeHtml(platformName)}</h3>
+            <button class="btn-ghost" id="plat-gov-close">&times;</button>
+          </div>
+          <p class="text-muted">Loading governance policy...</p>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="modal-overlay" id="plat-gov-overlay">
+      <div class="modal-box" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3>Platform Governance: ${escapeHtml(platformName)}</h3>
+          <button class="btn-ghost" id="plat-gov-close">&times;</button>
+        </div>
+        <div style="margin-top: 12px;">
+          <div style="font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px;">Minimum Pillar Scores</div>
+          <div class="settings-row">
+            <div class="settings-label">Architecture</div>
+            <input type="number" id="plat-gov-arch" class="settings-number" value="${g.minimumScores.architecture ?? ''}" min="0" max="100" placeholder="—" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Security</div>
+            <input type="number" id="plat-gov-sec" class="settings-number" value="${g.minimumScores.security ?? ''}" min="0" max="100" placeholder="—" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Operations</div>
+            <input type="number" id="plat-gov-ops" class="settings-number" value="${g.minimumScores.operations ?? ''}" min="0" max="100" placeholder="—" />
+          </div>
+
+          <div style="font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-top: 16px; margin-bottom: 8px;">Orchestration Overrides</div>
+          <div class="settings-row">
+            <div class="settings-label">Min Tier</div>
+            <select id="plat-gov-min-tier" class="settings-select">
+              <option value=""${!g.minTier ? ' selected' : ''}>— (no override)</option>
+              <option value="autonomous"${g.minTier === 'autonomous' ? ' selected' : ''}>autonomous</option>
+              <option value="supervised"${g.minTier === 'supervised' ? ' selected' : ''}>supervised</option>
+              <option value="restricted"${g.minTier === 'restricted' ? ' selected' : ''}>restricted</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Enforcement Mode</div>
+            <select id="plat-gov-enforcement" class="settings-select">
+              <option value="advisory"${g.enforcementMode === 'advisory' ? ' selected' : ''}>advisory</option>
+              <option value="strict"${g.enforcementMode === 'strict' ? ' selected' : ''}>strict</option>
+            </select>
+          </div>
+
+          <div class="settings-row" style="justify-content: flex-end; margin-top: 16px; gap: 8px;">
+            <button class="btn-secondary" id="plat-gov-reset">Reset to Defaults</button>
+            <button class="btn-secondary" id="plat-gov-cancel">Cancel</button>
+            <button class="btn-primary" id="plat-gov-save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 // renderPortfolioHeader — delegated to views/portfolio.ts
 
 // ============================================================================
@@ -1503,6 +1631,8 @@ function renderSettings(): string {
       ${renderSettingsLlmModel()}
       ${renderSettingsMeshSecrets()}
       ${renderSettingsDriftWeights()}
+      ${renderSettingsOrchestration()}
+      ${renderSettingsGovernanceCourt()}
       ${renderSettingsDangerZone()}
     </div>
   `;
@@ -1626,6 +1756,85 @@ function renderSettingsDriftWeights(): string {
       </div>
       <div class="settings-row" style="justify-content: flex-start; margin-top: 12px;">
         <button id="btn-save-drift-weights" class="btn-primary">Save Weights</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSettingsOrchestration(): string {
+  const o = state.orchPolicy;
+  if (!o) {
+    return `
+      <div class="settings-section">
+        <h3>Orchestration Policy</h3>
+        <p class="text-muted">Agent governance tiers, prompt injection thresholds, and escalation rules. Saved to <code>mesh.yaml</code>.</p>
+        <div class="settings-row" style="justify-content: flex-start;">
+          <button id="btn-load-orch-policy" class="btn-secondary">Load Policy</button>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="settings-section">
+      <h3>Orchestration Policy</h3>
+      <p class="text-muted">Agent governance tiers, prompt injection thresholds, and escalation rules. Saved to <code>mesh.yaml</code>.</p>
+      <div style="margin-top: 8px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Permission Tiers</div>
+      <div class="settings-row">
+        <div class="settings-label"><span class="tier-badge autonomous">autonomous</span> min score</div>
+        <input type="number" id="orch-auto-min" class="settings-number" value="${o.autoMinScore}" min="0" max="100" />
+      </div>
+      <div class="settings-row">
+        <div class="settings-label"><span class="tier-badge supervised">supervised</span> min score</div>
+        <input type="number" id="orch-sup-min" class="settings-number" value="${o.supMinScore}" min="0" max="100" />
+      </div>
+      <div style="margin-top: 12px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Prompt Injection Thresholds</div>
+      <div class="settings-row">
+        <div class="settings-label">Security pillar threshold</div>
+        <input type="number" id="orch-sec-threshold" class="settings-number" value="${o.securityThreshold}" min="0" max="100" />
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Architecture pillar threshold</div>
+        <input type="number" id="orch-arch-threshold" class="settings-number" value="${o.archThreshold}" min="0" max="100" />
+      </div>
+      <div style="margin-top: 12px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Escalation</div>
+      <div class="settings-row">
+        <div class="settings-label">Score drop threshold</div>
+        <input type="number" id="orch-esc-drop" class="settings-number" value="${o.escScoreDrop}" min="1" max="50" />
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Consecutive failures</div>
+        <input type="number" id="orch-esc-failures" class="settings-number" value="${o.escConsecutive}" min="1" max="10" />
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Escalation target</div>
+        <input type="text" id="orch-esc-target" class="settings-input" value="${escapeAttr(o.escTarget)}" />
+      </div>
+      <div class="settings-row" style="justify-content: flex-start; margin-top: 12px; gap: 8px;">
+        <button id="btn-save-orch-policy" class="btn-primary">Save Policy</button>
+        <button id="btn-reset-orch-policy" class="btn-secondary">Reset to Defaults</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSettingsGovernanceCourt(): string {
+  const claude = state.agentType === 'claude' ? ' selected' : '';
+  const copilot = state.agentType === 'copilot' ? ' selected' : '';
+  const both = state.agentType === 'both' ? ' selected' : '';
+  return `
+    <div class="settings-section">
+      <h3>Governance Court</h3>
+      <p class="text-muted">Agent framework used for PR review workflows. This determines which action runs security and architecture review steps. <strong>Both</strong> runs one step per agent — consensus is computed across all reviews. Saved to <code>mesh.yaml</code>.</p>
+      <div class="settings-row">
+        <div class="settings-label">Agent Framework</div>
+        <select id="select-agent-type" class="settings-select" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
+          <option value="claude"${claude}>Claude Code Action</option>
+          <option value="copilot"${copilot}>Copilot Coding Agent</option>
+          <option value="both"${both}>Both (Claude + Copilot)</option>
+        </select>
+      </div>
+      <div class="settings-row" style="justify-content: flex-start; margin-top: 8px;">
+        <button id="btn-save-agent-type" class="btn-primary">Save</button>
       </div>
     </div>
   `;
@@ -2098,6 +2307,7 @@ function attachEventHandlers() {
     vscode.postMessage({ type: 'checkWorkflowStatus' });
     vscode.postMessage({ type: 'listModels' });
     vscode.postMessage({ type: 'loadDriftWeights' });
+    vscode.postMessage({ type: 'loadAgentType' });
     render();
   });
 
@@ -2140,6 +2350,104 @@ function attachEventHandlers() {
     const weights = { critical, high, medium, low };
     state.settingsDriftWeights = weights;
     vscode.postMessage({ type: 'saveDriftWeights', weights });
+  });
+
+  // Settings: load orchestration policy
+  document.getElementById('btn-load-orch-policy')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'loadOrchestrationPolicy' });
+  });
+
+  // Settings: save orchestration policy
+  document.getElementById('btn-save-orch-policy')?.addEventListener('click', () => {
+    const policy = {
+      autoMinScore: parseInt((document.getElementById('orch-auto-min') as HTMLInputElement)?.value || '80', 10),
+      supMinScore: parseInt((document.getElementById('orch-sup-min') as HTMLInputElement)?.value || '50', 10),
+      securityThreshold: parseInt((document.getElementById('orch-sec-threshold') as HTMLInputElement)?.value || '60', 10),
+      archThreshold: parseInt((document.getElementById('orch-arch-threshold') as HTMLInputElement)?.value || '70', 10),
+      escScoreDrop: parseInt((document.getElementById('orch-esc-drop') as HTMLInputElement)?.value || '10', 10),
+      escConsecutive: parseInt((document.getElementById('orch-esc-failures') as HTMLInputElement)?.value || '3', 10),
+      escTarget: (document.getElementById('orch-esc-target') as HTMLInputElement)?.value || 'architecture-review-board',
+    };
+    state.orchPolicy = policy;
+    vscode.postMessage({ type: 'saveOrchestrationPolicy', policy });
+  });
+
+  // Settings: save agent type (Governance Court)
+  document.getElementById('btn-save-agent-type')?.addEventListener('click', () => {
+    const select = document.getElementById('select-agent-type') as HTMLSelectElement;
+    const agentType = (select?.value || 'claude') as 'claude' | 'copilot' | 'both';
+    state.agentType = agentType;
+    vscode.postMessage({ type: 'saveAgentType', agentType });
+  });
+
+  // Settings: reset orchestration policy to defaults
+  document.getElementById('btn-reset-orch-policy')?.addEventListener('click', () => {
+    state.orchPolicy = {
+      autoMinScore: 80,
+      supMinScore: 50,
+      securityThreshold: 60,
+      archThreshold: 70,
+      escScoreDrop: 10,
+      escConsecutive: 3,
+      escTarget: 'architecture-review-board',
+    };
+    render();
+  });
+
+  // Platform governance editor — pencil button on platform cards
+  document.querySelectorAll('.platform-gov-edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Don't drill into platform
+      const platformId = (btn as HTMLElement).dataset.platformId;
+      if (platformId) {
+        state.platGovEditing = platformId;
+        state.platGov = null;
+        render();
+        vscode.postMessage({ type: 'loadPlatformGovernance', platformId });
+      }
+    });
+  });
+
+  // Platform governance editor — close/cancel/save
+  document.getElementById('plat-gov-close')?.addEventListener('click', () => {
+    state.platGovEditing = null;
+    state.platGov = null;
+    render();
+  });
+  document.getElementById('plat-gov-cancel')?.addEventListener('click', () => {
+    state.platGovEditing = null;
+    state.platGov = null;
+    render();
+  });
+  document.getElementById('plat-gov-overlay')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'plat-gov-overlay') {
+      state.platGovEditing = null;
+      state.platGov = null;
+      render();
+    }
+  });
+  document.getElementById('plat-gov-reset')?.addEventListener('click', () => {
+    state.platGov = {
+      minimumScores: {},
+      minTier: '',
+      enforcementMode: 'advisory',
+    };
+    render();
+  });
+  document.getElementById('plat-gov-save')?.addEventListener('click', () => {
+    const platformId = state.platGovEditing;
+    if (!platformId) { return; }
+    const governance = {
+      minimumScores: {
+        architecture: parseInt((document.getElementById('plat-gov-arch') as HTMLInputElement)?.value || '0', 10),
+        security: parseInt((document.getElementById('plat-gov-sec') as HTMLInputElement)?.value || '0', 10),
+        operations: parseInt((document.getElementById('plat-gov-ops') as HTMLInputElement)?.value || '0', 10),
+      },
+      minTier: (document.getElementById('plat-gov-min-tier') as HTMLSelectElement)?.value || '',
+      enforcementMode: (document.getElementById('plat-gov-enforcement') as HTMLSelectElement)?.value || 'advisory',
+    };
+    state.platGov = governance;
+    vscode.postMessage({ type: 'savePlatformGovernance', platformId, governance });
   });
 
   // Settings: reinitialize mesh (first click — show warning)
@@ -2926,6 +3234,8 @@ window.addEventListener('message', (event) => {
       state.scoreHistory = barData.scoreHistory || [];
       state.scoreTrend = barData.scoreTrend || 'new';
       state.pillarTrends = barData.pillarTrends || null;
+      // Phase 7 — Score decay info
+      state.decayInfo = ((message as Record<string, unknown>).decayInfo as typeof state.decayInfo) || null;
 
       state.isLoading = false;
       state.errorMessage = '';
@@ -3588,10 +3898,68 @@ window.addEventListener('message', (event) => {
       if (state.view === 'settings') { render(); }
       break;
 
+    // Phase 5 — Orchestration + Platform Governance
+    case 'orchestrationPolicyLoaded':
+      state.orchPolicy = (message as { policy: typeof state.orchPolicy }).policy;
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'orchestrationPolicySaved':
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'agentTypeLoaded':
+      state.agentType = (message as { agentType: 'claude' | 'copilot' | 'both' }).agentType;
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'agentTypeSaved':
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'platformGovernanceLoaded': {
+      const pgMsg = message as { platformId: string; governance: typeof state.platGov };
+      if (state.platGovEditing === pgMsg.platformId) {
+        state.platGov = pgMsg.governance;
+        render();
+      }
+      break;
+    }
+
+    case 'platformGovernanceSaved': {
+      const psMsg = message as { platformId: string };
+      if (state.platGovEditing === psMsg.platformId) {
+        state.platGovEditing = null;
+        state.platGov = null;
+      }
+      render();
+      break;
+    }
+
+    // Phase 6 — Cross-BAR governance context
+    case 'barGovernanceContext': {
+      const bgMsg = message as { barPath: string; linkedBars: typeof state.barLinkedBars; siblingBars: typeof state.barSiblingBars; platformOverrides: string[] };
+      state.barLinkedBars = bgMsg.linkedBars;
+      state.barSiblingBars = bgMsg.siblingBars;
+      state.barPlatformOverrides = bgMsg.platformOverrides;
+      if (state.view === 'barDetail') { render(); }
+      break;
+    }
+
     case 'meshReinitialized':
       state.view = 'portfolio';
       render();
       break;
+
+    // Phase 4 — Platform architecture
+    case 'platformArchData': {
+      const platformId = message.platformId as string;
+      if (state.currentPlatformId === platformId) {
+        state.platformCalmData = message.calmData as CalmDataPayload;
+        render();
+      }
+      break;
+    }
   }
 });
 

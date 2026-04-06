@@ -11,6 +11,11 @@ import { ScorecardService } from '../services/ScorecardService';
 import { ScorecardHistoryService } from '../services/ScorecardHistoryService';
 import { TechStackDetector } from '../services/TechStackDetector';
 import { FolderStateService } from '../services/FolderStateService';
+import { readGovernanceDecision, findBarForRepoUrl } from '../utils/governanceBridge';
+import { MeshService } from '../services/MeshService';
+import { MeshReader } from '../core/mesh-reader';
+import { RedQueenService } from '../services/RedQueenService';
+import { scaffoldAgentConfig } from '../mcp/config-scaffold';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
 import { generateAliceRemediationWorkflow } from '../templates/codeRepoTemplates';
 import { execFileAsync } from '../utils/exec';
@@ -161,6 +166,9 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       case 'commitAndPush':
         await this.onCommitAndPush();
         break;
+      case 'resyncGovernance':
+        await this.onResyncGovernance();
+        break;
     }
   }
 
@@ -200,6 +208,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
 
     await this.onRefresh();
     this.onCheckSync();
+    this.sendGovernanceData();
 
     // Query GitHub for agent status, then poll every 30s
     if (this.currentRepo) {
@@ -253,12 +262,94 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     }
 
     await this.onRefresh();
+    this.sendGovernanceData();
 
     // Immediately check agent status and sync for the new folder
     if (this.currentRepo) {
       this.checkForActiveIssues();
     }
     this.onCheckSync();
+  }
+
+  private sendGovernanceData() {
+    if (this.selectedFolderPath) {
+      try {
+        const data = readGovernanceDecision(this.selectedFolderPath);
+        if (data) {
+          this.postMessage({ type: 'governanceData', data, detectedBar: null });
+        } else {
+          // No decision.json — try to auto-detect BAR from repo URL
+          let detectedBar: { barName: string; barPath: string } | null = null;
+          try {
+            const meshPath = MeshService.getMeshPath();
+            const remoteUrl = this.currentRepo?.remoteUrl;
+            if (meshPath && remoteUrl) {
+              detectedBar = findBarForRepoUrl(meshPath, remoteUrl);
+            }
+          } catch { /* auto-detect is best-effort */ }
+          this.postMessage({ type: 'governanceData', data: null, detectedBar });
+        }
+      } catch { /* governance bridge is best-effort */ }
+    }
+  }
+
+  private async onResyncGovernance() {
+    const folderPath = this.selectedFolderPath;
+    if (!folderPath) { return; }
+
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      vscode.window.showWarningMessage('No governance mesh configured. Open Looking Glass to set up a mesh.');
+      return;
+    }
+
+    // Find BAR name from existing decision.json or auto-detect from repo URL
+    let barName: string | undefined;
+    try {
+      const existing = readGovernanceDecision(folderPath);
+      barName = existing?.barName;
+    } catch { /* no existing */ }
+
+    if (!barName) {
+      // Try auto-detect from repo URL → BAR repos list
+      try {
+        const remoteUrl = this.currentRepo?.remoteUrl;
+        if (remoteUrl) {
+          const detected = findBarForRepoUrl(meshPath, remoteUrl);
+          barName = detected?.barName;
+        }
+      } catch { /* auto-detect is best-effort */ }
+    }
+
+    if (!barName) {
+      vscode.window.showWarningMessage('No governance context found and could not detect BAR for this repository.');
+      return;
+    }
+
+    try {
+      const reader = new MeshReader(meshPath);
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, barName, redQueen);
+      if ('error' in result) {
+        vscode.window.showWarningMessage(`Governance resync failed: ${result.error}`);
+        return;
+      }
+
+      let updated = 0;
+      for (const [relPath, content] of Object.entries(result.files)) {
+        const fullPath = path.join(folderPath, relPath);
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+        fs.writeFileSync(fullPath, content, 'utf8');
+        updated++;
+      }
+
+      // Re-send updated governance data to webview
+      this.sendGovernanceData();
+      vscode.window.showInformationMessage(`Governance files resynced: ${updated} files updated`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Governance resync error: ${toErrorMessage(err)}`);
+    }
   }
 
   private async onCheckSync() {

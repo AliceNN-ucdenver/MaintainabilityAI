@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/finos/architecture-as-code/main/calm/draft/2024-04/meta/calm.json",
+  "nodes": [
+    {
+      "unique-id": "bar-good",
+      "node-type": "bar",
+      "bar-id": "test-bar-good",
+      "name": "Test Bar Good",
+      "description": "Well-governed BAR"
+    },
+    {
+      "unique-id": "bar-empty",
+      "node-type": "bar",
+      "bar-id": "test-bar-empty",
+      "name": "Test Bar Empty",
+      "description": "Bare-minimum BAR with no artifacts"
+    },
+    {
+      "unique-id": "shared-mq",
+      "node-type": "shared-infrastructure",
+      "name": "Platform Message Queue",
+      "description": "Shared RabbitMQ instance"
+    }
+  ],
+  "relationships": [
+    {
+      "unique-id": "good-to-mq",
+      "relationship-type": {
+        "connects": {
+          "source": { "node": "bar-good" },
+          "destination": { "node": "shared-mq" }
+        }
+      }
+    },
+    {
+      "unique-id": "poor-to-mq",
+      "relationship-type": {
+        "connects": {
+          "source": { "node": "bar-empty" },
+          "destination": { "node": "shared-mq" }
+        }
+      }
+    },
+    {
+      "unique-id": "good-to-poor",
+      "relationship-type": {
+        "connects": {
+          "source": { "node": "bar-good" },
+          "destination": { "node": "bar-empty" }
+        }
+      }
+    }
+  ]
+}

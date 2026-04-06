@@ -68,7 +68,9 @@ export type ExtensionMessage =
   | { type: 'metadataSaved' }
   | { type: 'issuesLoaded'; issues: GitHubIssueListItem[]; hasMore: boolean; page: number }
   | { type: 'prefillDescription'; description: string; packs?: { owasp: string[]; maintainability: string[]; threatModeling: string[] } }
-  | { type: 'workspaceFolders'; folders: { name: string; path: string }[]; selectedPath?: string };
+  | { type: 'workspaceFolders'; folders: { name: string; path: string }[]; selectedPath?: string }
+  // Phase 6 — Governance bridge data for Rabbit Hole
+  | { type: 'governanceData'; data: import('../utils/governanceBridge').GovernanceBridgeData | null };
 
 // ============================================================================
 // Scorecard Webview Message Protocol
@@ -97,7 +99,8 @@ export type ScorecardWebviewMessage =
   | { type: 'pushRepo' }
   | { type: 'commitAndPush' }
   | { type: 'openScaffold' }
-  | { type: 'configureSecrets' };
+  | { type: 'configureSecrets' }
+  | { type: 'resyncGovernance' };
 
 export type ScorecardExtensionMessage =
   | { type: 'scorecardData'; data: ScorecardData }
@@ -114,7 +117,9 @@ export type ScorecardExtensionMessage =
   | { type: 'workspaceFolders'; folders: { name: string; path: string }[] }
   | { type: 'agentStatusUpdate'; status: AgentStatusInfo | null }
   | { type: 'syncStatus'; behind: number; ahead: number; branch: string; dirty: boolean }
-  | { type: 'repoSynced' };
+  | { type: 'repoSynced' }
+  // Phase 6 — Governance bridge data for Scorecard
+  | { type: 'governanceData'; data: import('../utils/governanceBridge').GovernanceBridgeData | null; detectedBar?: { barName: string; barPath: string } | null };
 
 // ============================================================================
 // Oraculum (Architecture Review) Types
@@ -241,6 +246,7 @@ export type LookingGlassWebviewMessage =
   | { type: 'openRepoInContext'; repoUrl: string; barPath: string }
   | { type: 'openScorecard'; folderPath: string }
   | { type: 'scaffoldComponent'; repoUrl: string; barPath: string }
+  | { type: 'deployGovernanceToRepo'; repoUrl: string; barPath: string; localPath?: string }
   | { type: 'loadPolicies' }
   | { type: 'savePolicy'; filename: string; content: string }
   | { type: 'lookupNistControl'; controlId: string }
@@ -249,8 +255,11 @@ export type LookingGlassWebviewMessage =
   // Phase 2 — CALM editing
   | { type: 'calmMutation'; barPath: string; patch: { op: string; target: string; field?: string; value?: unknown }[] }
   | { type: 'applyArchetype'; barPath: string; archetypeId: 'three-tier' | 'event-driven' | 'data-pipeline'; appName: string }
-  | { type: 'saveLayout'; barPath: string; diagramType: 'context' | 'logical'; layout: unknown }
+  | { type: 'saveLayout'; barPath: string; diagramType: 'context' | 'logical' | 'platform'; layout: unknown }
   | { type: 'exportPng'; barPath: string; diagramType: string; pngDataUrl: string }
+  // Phase 4 — Platform architecture
+  | { type: 'loadPlatformArchitecture'; platformId: string }
+  | { type: 'platformCalmMutation'; platformId: string; patch: { op: string; target: string; field?: string; value?: unknown }[] }
   // Oraculum integration
   | { type: 'openOraculum'; barPath: string }
   | { type: 'summarizeTopFindings'; barPath: string }
@@ -275,11 +284,19 @@ export type LookingGlassWebviewMessage =
   | { type: 'implementComponent'; barPath: string; componentId: string; repoName: string; componentName: string; componentType: string; componentDescription: string }
   | { type: 'saveWorkspace'; name: string }
   | { type: 'configureMeshSecrets' }
-  | { type: 'refreshPromptPacks' };
+  | { type: 'refreshPromptPacks' }
+  // Red Queen — orchestration + platform governance editors
+  | { type: 'loadOrchestrationPolicy' }
+  | { type: 'saveOrchestrationPolicy'; policy: { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } }
+  | { type: 'loadPlatformGovernance'; platformId: string }
+  | { type: 'savePlatformGovernance'; platformId: string; governance: { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } }
+  // Red Queen — Governance Court agent type
+  | { type: 'loadAgentType' }
+  | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
-  | { type: 'barDetail'; bar: BarSummary; decisions: GovernanceDecision[]; repoTree: string[]; diagrams?: MermaidDiagrams; adrs?: AdrRecord[]; calmData?: object | null; layouts?: { context: object | null; logical: object | null }; savedThreatModel?: ThreatModelResult | null }
+  | { type: 'barDetail'; bar: BarSummary; decisions: GovernanceDecision[]; repoTree: string[]; diagrams?: MermaidDiagrams; adrs?: AdrRecord[]; calmData?: object | null; layouts?: { context: object | null; logical: object | null }; savedThreatModel?: ThreatModelResult | null; decayInfo?: { rawComposite: number; decayedComposite: number; decayFactor: number; daysSinceAssessment: number; inGraceWindow: boolean } }
   | { type: 'meshInitialized'; path: string; repoUrl?: string }
   | { type: 'platformAdded'; id: string; name: string }
   | { type: 'barScaffolded'; id: string; name: string; path: string }
@@ -342,4 +359,16 @@ export type LookingGlassExtensionMessage =
   | { type: 'absolemError'; barPath: string; message: string }
   // CALM component picker
   | { type: 'calmComponents'; components: { id: string; name: string; type: string; description: string; suggestedRepo: string }[] }
-  | { type: 'meshRepoDetected'; owner: string; repo: string };
+  | { type: 'meshRepoDetected'; owner: string; repo: string }
+  // Phase 4 — Platform architecture
+  | { type: 'platformArchData'; platformId: string; calmData: object }
+  // Phase 5 — Orchestration + Platform governance
+  | { type: 'orchestrationPolicyLoaded'; policy: { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } | null }
+  | { type: 'orchestrationPolicySaved' }
+  | { type: 'platformGovernanceLoaded'; platformId: string; governance: { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } | null }
+  | { type: 'platformGovernanceSaved'; platformId: string }
+  // Red Queen — Governance Court agent type
+  | { type: 'agentTypeLoaded'; agentType: 'claude' | 'copilot' | 'both' }
+  | { type: 'agentTypeSaved' }
+  // Phase 6 — Cross-BAR governance context
+  | { type: 'barGovernanceContext'; barPath: string; linkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[]; siblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[]; platformOverrides: string[] };

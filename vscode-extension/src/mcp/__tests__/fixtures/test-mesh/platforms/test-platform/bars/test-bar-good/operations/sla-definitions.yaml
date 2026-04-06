@@ -1,0 +1,3 @@
+sla:
+  - name: availability
+    target: "99.9%"

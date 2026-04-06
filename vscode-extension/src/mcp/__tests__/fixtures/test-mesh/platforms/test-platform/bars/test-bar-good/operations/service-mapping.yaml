@@ -1,0 +1,3 @@
+services:
+  - name: test-api
+    tier: tier-1

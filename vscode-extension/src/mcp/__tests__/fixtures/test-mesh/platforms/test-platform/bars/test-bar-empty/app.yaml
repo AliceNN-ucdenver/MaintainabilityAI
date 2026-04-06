@@ -1,0 +1,10 @@
+id: APP-TEST-002
+name: "Test Bar Empty"
+portfolio: PF-TEST-001
+platform: PLT-TEST
+criticality: low
+lifecycle: build
+strategy: reassess
+owner: "test-owner"
+description: "A bare-minimum BAR with no artifacts"
+repos: []

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/finos/architecture-as-code/main/calm/draft/2024-04/meta/calm.json",
+  "nodes": [
+    {
+      "unique-id": "test-api",
+      "name": "Test API",
+      "description": "REST API service",
+      "node-type": "service"
+    },
+    {
+      "unique-id": "test-db",
+      "name": "Test Database",
+      "description": "PostgreSQL database",
+      "node-type": "database"
+    }
+  ],
+  "relationships": [
+    {
+      "unique-id": "api-to-db",
+      "relationship-type": {
+        "connects": {
+          "source": { "node": "test-api" },
+          "destination": { "node": "test-db" }
+        }
+      }
+    }
+  ]
+}

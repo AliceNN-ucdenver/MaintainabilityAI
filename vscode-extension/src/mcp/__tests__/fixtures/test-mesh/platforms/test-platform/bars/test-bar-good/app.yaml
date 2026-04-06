@@ -1,0 +1,11 @@
+id: APP-TEST-001
+name: "Test Bar Good"
+portfolio: PF-TEST-001
+platform: PLT-TEST
+criticality: high
+lifecycle: run
+strategy: advance
+owner: "test-owner"
+description: "A well-governed BAR with all artifacts"
+repos:
+    - "https://github.com/test-org/test-repo"

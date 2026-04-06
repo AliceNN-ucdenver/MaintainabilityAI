@@ -1,0 +1,39 @@
+{
+  "name": "@maintainabilityai/redqueen-mcp",
+  "version": "0.1.1",
+  "description": "Red Queen Governance MCP Server — AI coding agent governance via CALM architecture",
+  "license": "MIT",
+  "author": "MaintainabilityAI",
+  "homepage": "https://maintainability.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AliceNN-ucdenver/MaintainabilityAI",
+    "directory": "packages/redqueen-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues"
+  },
+  "keywords": [
+    "mcp",
+    "governance",
+    "calm",
+    "architecture",
+    "security",
+    "ai-agents",
+    "claude",
+    "copilot"
+  ],
+  "bin": {
+    "redqueen-mcp": "./bin/redqueen-mcp.js"
+  },
+  "main": "./dist/mcp-server.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

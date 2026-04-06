@@ -940,3 +940,209 @@ export function generateImdbLiteDecorator(): string {
     },
   }, null, 2);
 }
+
+// --------------------------------------------------------------------------
+// Sample data: IMDB Celebs (Celebrity news & profiles — second BAR on IMDB Lite platform)
+// --------------------------------------------------------------------------
+
+export function generateSampleImdbCelebsArch(): string {
+  return JSON.stringify({
+    $schema: 'https://calm.finos.org/release/1.2/meta/core.json',
+    nodes: [
+      {
+        'unique-id': 'celeb-fan',
+        'node-type': 'actor',
+        name: 'Celebrity Fan',
+        description: 'End user who browses celebrity profiles, reads entertainment news, and explores filmographies.',
+      },
+      {
+        'unique-id': 'celebs-system',
+        'node-type': 'system',
+        name: 'IMDB Celebs',
+        description: 'Celebrity news and facts application providing celebrity profiles, filmographies, and entertainment news.',
+        'data-classification': 'Public',
+      },
+      {
+        'unique-id': 'celeb-api',
+        'node-type': 'service',
+        name: 'Celebs API',
+        description: 'Express REST API providing endpoints for celebrity profiles, filmographies, news feeds, and celebrity facts.',
+        interfaces: [{ 'unique-id': 'celeb-api-http', host: 'localhost', port: 8081 }],
+      },
+      {
+        'unique-id': 'celeb-frontend',
+        'node-type': 'service',
+        name: 'Celebs Frontend',
+        description: 'React SPA for browsing celebrity profiles, news, and filmography details.',
+        interfaces: [{ 'unique-id': 'celeb-frontend-http', host: 'localhost', port: 3002 }],
+      },
+      {
+        'unique-id': 'celeb-db',
+        'node-type': 'database',
+        name: 'Celebs MongoDB',
+        description: 'Document database storing celebrity profiles, news articles, and filmography data.',
+        interfaces: [{ 'unique-id': 'celeb-mongo-conn', host: 'localhost', port: 27017, database: 'imdb_celebs' }],
+      },
+      {
+        'unique-id': 'news-feed',
+        'node-type': 'system',
+        name: 'Entertainment News Feed',
+        description: 'External RSS/API feed for entertainment news aggregation.',
+      },
+    ],
+    relationships: [
+      {
+        'unique-id': 'fan-uses-celebs',
+        description: 'Celebrity fan browses profiles and reads entertainment news.',
+        'relationship-type': { interacts: { actor: 'celeb-fan', nodes: ['celebs-system'] } },
+        protocol: 'HTTPS',
+      },
+      { 'unique-id': 'celebs-composed-of-frontend', description: 'IMDB Celebs composed of Celebs Frontend.', 'relationship-type': { 'composed-of': { container: 'celebs-system', nodes: ['celeb-frontend'] } } },
+      { 'unique-id': 'celebs-composed-of-api', description: 'IMDB Celebs composed of Celebs API.', 'relationship-type': { 'composed-of': { container: 'celebs-system', nodes: ['celeb-api'] } } },
+      { 'unique-id': 'celebs-composed-of-db', description: 'IMDB Celebs composed of Celebs MongoDB.', 'relationship-type': { 'composed-of': { container: 'celebs-system', nodes: ['celeb-db'] } } },
+      {
+        'unique-id': 'celeb-frontend-to-api',
+        description: 'Celebs frontend calls Celebs API for all data operations.',
+        'relationship-type': { connects: { source: { node: 'celeb-frontend' }, destination: { node: 'celeb-api', interfaces: ['celeb-api-http'] } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'celeb-api-to-db',
+        description: 'Celebs API reads and writes celebrity profiles and news data.',
+        'relationship-type': { connects: { source: { node: 'celeb-api' }, destination: { node: 'celeb-db', interfaces: ['celeb-mongo-conn'] } } },
+        protocol: 'mongodb',
+      },
+      {
+        'unique-id': 'celebs-to-newsfeed',
+        description: 'Celebs system aggregates entertainment news from external feed.',
+        'relationship-type': { connects: { source: { node: 'celebs-system' }, destination: { node: 'news-feed' } } },
+        protocol: 'HTTPS',
+      },
+    ],
+    flows: [
+      {
+        'unique-id': 'browse-celeb-profile',
+        name: 'Browse Celebrity Profile',
+        description: 'Celebrity fan browses a celebrity\'s profile, views filmography, and reads celebrity facts.',
+        steps: [
+          { 'step-number': 1, 'source-node': 'celeb-fan', 'destination-node': 'celeb-frontend', description: 'Browse celebrity list' },
+          { 'step-number': 2, 'source-node': 'celeb-frontend', 'destination-node': 'celeb-api', description: 'GET /celebrities, GET /celebrities/:id' },
+          { 'step-number': 3, 'source-node': 'celeb-api', 'destination-node': 'celeb-db', description: 'Query celebrity documents with filmography' },
+        ],
+      },
+      {
+        'unique-id': 'read-celeb-news',
+        name: 'Read Celebrity News',
+        description: 'Celebrity fan reads the latest entertainment news.',
+        steps: [
+          { 'step-number': 1, 'source-node': 'celeb-fan', 'destination-node': 'celeb-frontend', description: 'Open news feed' },
+          { 'step-number': 2, 'source-node': 'celeb-frontend', 'destination-node': 'celeb-api', description: 'GET /news' },
+          { 'step-number': 3, 'source-node': 'celeb-api', 'destination-node': 'celeb-db', description: 'Query cached news articles' },
+          { 'step-number': 4, 'source-node': 'celeb-api', 'destination-node': 'news-feed', description: 'Refresh from external RSS feed' },
+        ],
+      },
+    ],
+  }, null, 2);
+}
+
+export function generateImdbCelebsDecorator(): string {
+  return JSON.stringify({
+    $schema: 'https://calm.finos.org/release/1.2/meta/decorator.json',
+    $id: 'https://bar.example.com/imdb-celebs/capability-map.decorator.json',
+    'unique-id': 'imdb-celebs-capability-map',
+    name: 'IMDB Celebs Capability Map',
+    description: 'Business capability hierarchy for the IMDB Celebs celebrity news and profiles application.',
+    'decorator-type': 'business-capability',
+    definitions: {
+      'celebrity-content': {
+        level: 'L1', name: 'Celebrity Content', description: 'Celebrity profiles, filmographies, and entertainment news.',
+        children: {
+          'celebrity-profiles': {
+            level: 'L2', name: 'Celebrity Profiles', description: 'Celebrity biography and filmography data.',
+            children: {
+              'profile-browse': { level: 'L3', name: 'Profile Browse', description: 'Browse and search celebrity profiles.' },
+              filmography: { level: 'L3', name: 'Filmography', description: 'Complete filmography for each celebrity.' },
+            },
+          },
+          'entertainment-news': {
+            level: 'L2', name: 'Entertainment News', description: 'Aggregated entertainment news feed.',
+            children: {
+              'news-feed': { level: 'L3', name: 'News Feed', description: 'Latest entertainment news articles.' },
+              'news-aggregation': { level: 'L3', name: 'News Aggregation', description: 'RSS/API aggregation from external sources.' },
+            },
+          },
+        },
+      },
+    },
+  }, null, 2);
+}
+
+// --------------------------------------------------------------------------
+// Sample data: IMDB Lite Platform Architecture (cross-BAR relationships)
+// --------------------------------------------------------------------------
+
+export function generateSampleImdbPlatformArch(): string {
+  return JSON.stringify({
+    $schema: 'https://raw.githubusercontent.com/finos/architecture-as-code/main/calm/draft/2024-04/meta/calm.json',
+    nodes: [
+      {
+        'unique-id': 'bar-imdb-app',
+        'node-type': 'bar',
+        'bar-id': 'imdb-lite-application',
+        name: 'IMDB Lite Application',
+        description: 'Movie database application — catalog, reviews, and ratings.',
+      },
+      {
+        'unique-id': 'bar-imdb-celebs',
+        'node-type': 'bar',
+        'bar-id': 'imdb-celebs',
+        name: 'IMDB Celebs',
+        description: 'Celebrity news and facts — profiles, filmographies, and entertainment news.',
+      },
+      {
+        'unique-id': 'shared-identity',
+        'node-type': 'shared-infrastructure',
+        name: 'IMDB Identity Service',
+        description: 'Shared authentication and user management service used by both IMDB Lite and Celebs applications.',
+      },
+      {
+        'unique-id': 'shared-cdn',
+        'node-type': 'shared-infrastructure',
+        name: 'Image CDN',
+        description: 'Shared CDN for movie posters, actor headshots, and celebrity images.',
+      },
+    ],
+    relationships: [
+      {
+        'unique-id': 'imdb-app-to-celebs',
+        description: 'IMDB Lite links to Celebs for actor/celebrity cross-references.',
+        'relationship-type': { connects: { source: { node: 'bar-imdb-app' }, destination: { node: 'bar-imdb-celebs' } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'imdb-app-to-identity',
+        description: 'IMDB Lite uses shared identity service for JWT authentication.',
+        'relationship-type': { connects: { source: { node: 'bar-imdb-app' }, destination: { node: 'shared-identity' } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'celebs-to-identity',
+        description: 'Celebs uses shared identity service for user authentication.',
+        'relationship-type': { connects: { source: { node: 'bar-imdb-celebs' }, destination: { node: 'shared-identity' } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'imdb-app-to-cdn',
+        description: 'IMDB Lite loads movie poster images from shared CDN.',
+        'relationship-type': { connects: { source: { node: 'bar-imdb-app' }, destination: { node: 'shared-cdn' } } },
+        protocol: 'HTTPS',
+      },
+      {
+        'unique-id': 'celebs-to-cdn',
+        description: 'Celebs loads celebrity headshots and photos from shared CDN.',
+        'relationship-type': { connects: { source: { node: 'bar-imdb-celebs' }, destination: { node: 'shared-cdn' } } },
+        protocol: 'HTTPS',
+      },
+    ],
+  }, null, 2);
+}

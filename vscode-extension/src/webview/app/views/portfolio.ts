@@ -225,7 +225,10 @@ export function renderPlatformCards(platforms: PlatformSummary[]): string {
 
     return `
       <div class="platform-card" data-platform-id="${escapeAttr(p.id)}">
-        <div class="platform-name">${escapeHtml(p.name)}</div>
+        <div class="platform-name">
+          ${escapeHtml(p.name)}
+          <button class="btn-ghost btn-icon platform-gov-edit" data-platform-id="${escapeAttr(p.id)}" title="Edit platform governance">&#9998;</button>
+        </div>
         <div class="platform-meta">
           <span>${p.barCount} BAR${p.barCount !== 1 ? 's' : ''}</span>
           <span class="platform-health-badge ${healthClass}">${p.compositeHealth}%</span>
@@ -472,10 +475,11 @@ export function renderApplicationLensContent(
   gitStatus: GitSyncStatus | null,
   needsPushVal: boolean,
   renderScoreRing: (score: number, size: number, strokeWidth: number) => string,
+  showPlatformArch?: boolean,
 ): string {
   // If drilled into a platform, show app tiles for that platform
   if (currentPlatformId) {
-    return renderApplicationPlatformDrillDown(p, currentPlatformId, barFilter, searchQuery, gitStatus, needsPushVal, renderScoreRing);
+    return renderApplicationPlatformDrillDown(p, currentPlatformId, barFilter, searchQuery, gitStatus, needsPushVal, renderScoreRing, showPlatformArch);
   }
   // Top-level: summary + platform cards (no flat BAR table)
   return `
@@ -502,6 +506,7 @@ export function renderApplicationPlatformDrillDown(
   gitStatus: GitSyncStatus | null,
   needsPushVal: boolean,
   renderScoreRing: (score: number, size: number, strokeWidth: number) => string,
+  showPlatformArch?: boolean,
 ): string {
   const platform = p.platforms.find(pl => pl.id === currentPlatformId);
   if (!platform) {
@@ -511,6 +516,21 @@ export function renderApplicationPlatformDrillDown(
   const filteredBars = getFilteredBars(platform.bars, barFilter, searchQuery);
   const healthClass = platform.compositeHealth >= 75 ? 'health-good' : platform.compositeHealth >= 50 ? 'health-warn' : 'health-bad';
   const orgName = p.portfolio.org || p.portfolio.name;
+
+  const archSection = showPlatformArch
+    ? `<div class="platform-arch-section">
+        <div class="section-header" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Platform Architecture</span>
+          <button id="btn-close-platform-arch" class="btn-secondary btn-sm">Close</button>
+        </div>
+        <div class="reactflow-diagram-container" style="height: 500px; position: relative; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+          <div id="reactflow-platform-mount"
+               data-diagram-type="platform"
+               data-platform-id="${escapeAttr(currentPlatformId)}"
+               style="width: 100%; height: 100%;"></div>
+        </div>
+      </div>`
+    : '';
 
   return `
     <div class="app-lens-breadcrumb">
@@ -527,7 +547,12 @@ export function renderApplicationPlatformDrillDown(
         <div class="label">Platform Health</div>
         <div class="value ${healthClass}">${platform.compositeHealth}%</div>
       </div>
+      <div class="summary-card platform-arch-card" id="btn-platform-arch">
+        <div class="label">Architecture</div>
+        <div class="value" style="font-size: 18px;">&#9672; View</div>
+      </div>
     </div>
+    ${archSection}
     <div class="section-header">Governance Domain Health</div>
     ${renderDomainHealthBars(platform.bars)}
     <div class="section-header" style="display: flex; align-items: center; justify-content: space-between;">
@@ -843,6 +868,7 @@ export function attachPortfolioEvents(
     barFilter: string;
     searchQuery: string;
     currentPlatformId: string | null;
+    showPlatformArch?: boolean;
   },
   setState: (updates: Record<string, unknown>) => void,
   render: () => void,
@@ -932,9 +958,27 @@ export function attachPortfolioEvents(
   document.getElementById('app-lens-breadcrumb-back')?.addEventListener('click', () => {
     setState({
       currentPlatformId: null,
+      showPlatformArch: false,
+      platformCalmData: null,
       searchQuery: '',
       barFilter: 'all',
     });
+    render();
+  });
+
+  // Platform architecture view toggle
+  document.getElementById('btn-platform-arch')?.addEventListener('click', () => {
+    const s = getState();
+    if (s.currentPlatformId) {
+      setState({ showPlatformArch: true });
+      vscode.postMessage({ type: 'loadPlatformArchitecture', platformId: s.currentPlatformId });
+      render();
+    }
+  });
+
+  // Close platform architecture
+  document.getElementById('btn-close-platform-arch')?.addEventListener('click', () => {
+    setState({ showPlatformArch: false, platformCalmData: null });
     render();
   });
 }
@@ -1056,11 +1100,22 @@ export function getPortfolioStyles(): string {
         transform: translateY(-1px);
       }
       .platform-card .platform-name {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         font-size: 14px;
         font-weight: 600;
         color: var(--text);
         margin-bottom: 8px;
       }
+      .platform-gov-edit {
+        font-size: 12px;
+        padding: 2px 4px;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .platform-card:hover .platform-gov-edit { opacity: 0.7; }
+      .platform-gov-edit:hover { opacity: 1 !important; }
       .platform-card .platform-meta {
         display: flex;
         justify-content: space-between;
@@ -1080,6 +1135,18 @@ export function getPortfolioStyles(): string {
       .platform-health-badge.good { background: rgba(63, 185, 80, 0.15); color: var(--passing); }
       .platform-health-badge.warn { background: rgba(210, 153, 34, 0.15); color: var(--warning); }
       .platform-health-badge.bad { background: rgba(248, 81, 73, 0.15); color: var(--failing); }
+
+      /* ---- Platform Architecture Card ---- */
+      .platform-arch-card {
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      .platform-arch-card:hover {
+        border-color: var(--accent);
+      }
+      .platform-arch-section {
+        margin-bottom: 20px;
+      }
 
       .platform-pillars {
         display: grid;
@@ -1229,6 +1296,20 @@ export function getPortfolioStyles(): string {
       .strategy-badge.extract  { background: rgba(210, 153, 34, 0.15); color: #d29922; }
       .strategy-badge.advance  { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
       .strategy-badge.prune    { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+
+      /* ---- Governance Tier Badges ---- */
+      .tier-badge {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        padding: 2px 8px;
+        border-radius: 10px;
+      }
+      .tier-badge.autonomous { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+      .tier-badge.supervised { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+      .tier-badge.restricted { background: rgba(248, 81, 73, 0.15); color: #f85149; }
 
       /* ---- Design Drift Indicator ---- */
       .drift-indicator, .drift-indicator-compact {

@@ -1,0 +1,3 @@
+baseline:
+  - control: "Encrypt at rest"
+    status: required

@@ -24,14 +24,19 @@ const LOGICAL_ITEMS: PaletteItem[] = [
   { rfType: 'networkNode', calmNodeType: 'network', label: 'Network', icon: '⇌' },
 ];
 
+const PLATFORM_ITEMS: PaletteItem[] = [
+  { rfType: 'barNode', calmNodeType: 'bar', label: 'BAR', icon: '⬡' },
+  { rfType: 'sharedInfraNode', calmNodeType: 'shared-infrastructure', label: 'Shared Infra', icon: '⧉' },
+];
+
 export interface NodePaletteProps {
-  diagramType: 'context' | 'logical';
+  diagramType: 'context' | 'logical' | 'platform';
 }
 
 export function NodePalette({ diagramType }: NodePaletteProps) {
   const [expanded, setExpanded] = useState(false);
   const v = getCssVars();
-  const items = diagramType === 'context' ? CONTEXT_ITEMS : LOGICAL_ITEMS;
+  const items = diagramType === 'context' ? CONTEXT_ITEMS : diagramType === 'platform' ? PLATFORM_ITEMS : LOGICAL_ITEMS;
 
   const onDragStart = useCallback((e: React.DragEvent, item: PaletteItem) => {
     e.dataTransfer.setData('application/reactflow-node-type', item.rfType);

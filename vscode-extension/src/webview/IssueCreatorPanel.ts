@@ -290,6 +290,19 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
       this.pendingDescription = undefined;
       this.pendingPacks = undefined;
     }
+
+    // Phase 6 — Send governance bridge data if available
+    this.sendGovernanceData();
+  }
+
+  private sendGovernanceData() {
+    if (this.folderPath) {
+      try {
+        const { readGovernanceDecision } = require('../utils/governanceBridge');
+        const data = readGovernanceDecision(this.folderPath);
+        this.postMessage({ type: 'governanceData', data });
+      } catch { /* governance bridge is best-effort */ }
+    }
   }
 
   private sendWorkspaceFolders(selectedPath?: string) {
@@ -316,6 +329,9 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
 
     // Re-detect stack
     await this.onDetectStack();
+
+    // Re-read governance data for new folder
+    this.sendGovernanceData();
   }
 
   private async onListModels() {

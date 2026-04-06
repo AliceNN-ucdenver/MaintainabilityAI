@@ -52,8 +52,22 @@ function webviewEntry(entryPoint, outfile, extras = {}) {
   };
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const mcpServerConfig = {
+  entryPoints: ['src/mcp/server.ts'],
+  bundle: true,
+  outfile: 'dist/mcp-server.js',
+  external: ['vscode'],
+  format: 'cjs',
+  platform: 'node',
+  target: 'node20',
+  sourcemap: !production,
+  minify: production,
+};
+
 const configs = [
   extensionConfig,
+  mcpServerConfig,
   webviewEntry('src/webview/app/main.ts', 'main.js'),
   webviewEntry('src/webview/app/scorecard.ts', 'scorecard.js'),
   webviewEntry('src/webview/app/lookingGlass.ts', 'lookingGlass.js', { jsx: 'automatic', plugins: [inlineCssPlugin] }),
