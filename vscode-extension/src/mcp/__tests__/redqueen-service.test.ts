@@ -4,7 +4,7 @@ import * as path from 'path';
 import { MeshReader } from '../../core/mesh-reader';
 import { RedQueenService } from '../../services/RedQueenService';
 import type { BarSummary } from '../../types';
-import type { OrchestrationPolicy, PlatformGovernancePolicy, PermissionTier, GovernanceTimestamps } from '../../types/redqueen';
+import type { OrchestrationPolicy, PermissionTier, GovernanceTimestamps } from '../../types/redqueen';
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'test-mesh');
 

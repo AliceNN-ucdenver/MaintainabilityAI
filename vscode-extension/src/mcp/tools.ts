@@ -1024,7 +1024,9 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
       };
 
       // Read existing score history for delta computation
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const historyPath = require('path').join(barPath, 'score-history.yaml');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fs = require('fs');
       let previous = current; // Default: no delta if no history
       let trend = 'new' as string;

@@ -13,9 +13,8 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
 import { MeshReader } from '../core/mesh-reader';
 import { registerResources } from './resources';
 import { registerTools } from './tools';

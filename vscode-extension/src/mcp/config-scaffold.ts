@@ -680,7 +680,7 @@ function generateReviewStep(
 function generateRedQueenReviewWorkflow(
   agentType: 'claude' | 'copilot' | 'both',
   meshRepo: string,
-  tier: GovernanceTier,
+  _tier: GovernanceTier,
 ): string {
   const lines: string[] = [];
 
@@ -1004,8 +1004,9 @@ export function scaffoldAgentConfig(
       let detected = false;
       if (fs.existsSync(path.join(meshPath, '.git'))) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
           const { execFileSync } = require('child_process');
-          const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).trim();
+          const remoteUrl = (execFileSync as (cmd: string, args: string[], opts: Record<string, unknown>) => Buffer)('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
           const parsed = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
           if (parsed) { meshRepo = parsed[1]; detected = true; }
         } catch { /* git not available or no remote */ }

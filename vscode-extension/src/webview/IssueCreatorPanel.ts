@@ -298,6 +298,7 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
   private sendGovernanceData() {
     if (this.folderPath) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { readGovernanceDecision } = require('../utils/governanceBridge');
         const data = readGovernanceDecision(this.folderPath);
         this.postMessage({ type: 'governanceData', data });

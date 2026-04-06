@@ -213,7 +213,7 @@ export class RedQueenService {
 
     // 1.5. Apply score decay if timestamps provided
     let effectiveComposite = bar.compositeScore;
-    let effectivePillars = {
+    const effectivePillars = {
       architecture: bar.architecture.score,
       security: bar.security.score,
       'information-risk': bar.infoRisk.score,

@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { resolveConsensus } from '../utils/consensus';
-import { computeDecayedScore, computeDecayedPillarScores, DEFAULT_DECAY_CONFIG } from '../utils/score-decay';
+import { computeDecayedScore, computeDecayedPillarScores } from '../utils/score-decay';
 import { createAuditEntry, appendAuditLog, readAuditLog, computeScoreDelta, generateCorrelationId } from '../utils/audit-logger';
 import type { ReviewVerdict, GovernanceTimestamps } from '../../types/redqueen';
 

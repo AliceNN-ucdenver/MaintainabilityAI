@@ -2754,6 +2754,7 @@ Policy file: ${filename}
       // Also ensure repo: field exists in mesh.yaml (needed for GitHub Actions workflows)
       if (!/^\s*repo:\s/m.test(content)) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
           const { execFileSync } = require('child_process');
           const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).trim();
           const parsed = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
