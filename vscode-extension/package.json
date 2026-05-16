@@ -210,6 +210,7 @@
     "typecheck": "npm run typecheck:extension && npm run typecheck:webview",
     "typecheck:extension": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --noEmit --pretty false",
     "typecheck:webview": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --project tsconfig.webview.json --pretty false",
+    "pretest": "npm run build",
     "test": "vitest run",
     "fitness": "vitest run src/mcp/__tests__/architecture-fitness.test.ts",
     "knip": "knip --no-progress",

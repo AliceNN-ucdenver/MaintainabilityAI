@@ -14,6 +14,9 @@ permissions:
 env:
   # Required: add this in GitHub → Settings → Secrets and variables → Actions → New repository secret
   SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  # Intentional vulnerable training fixtures are scanned in workshop exercises,
+  # but excluded from the production repository SAST gate.
+  SNYK_CODE_EXCLUDES: examples/owasp,examples/agents
   # Optional: uncomment and set if you want to pin scans to a specific Snyk org
   # SNYK_ORG: your-snyk-org-slug
 
@@ -90,7 +93,7 @@ jobs:
           if [ -n "${SNYK_ORG}" ]; then
             EXTRA_ARGS="--org=${SNYK_ORG}"
           fi
-          snyk code test --severity-threshold=medium --json $EXTRA_ARGS > snyk-code.json || true
+          snyk code test --severity-threshold=medium --exclude="${SNYK_CODE_EXCLUDES}" --json $EXTRA_ARGS > snyk-code.json || true
           echo "Snyk code scan completed."
 
       # --- Optional: Upload SARIF for GitHub Code Scanning (Snyk Code only) ---
@@ -103,7 +106,7 @@ jobs:
       #     if [ -n "${SNYK_ORG}" ]; then
       #       EXTRA_ARGS="--org=${SNYK_ORG}"
       #     fi
-      #     snyk code test --sarif $EXTRA_ARGS > snyk-code.sarif || true
+      #     snyk code test --sarif --exclude="${SNYK_CODE_EXCLUDES}" $EXTRA_ARGS > snyk-code.sarif || true
       #
       # - name: Upload SARIF to GitHub Code Scanning
       #   if: always() && hashFiles('snyk-code.sarif') != ''
