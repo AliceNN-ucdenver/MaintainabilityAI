@@ -62,12 +62,6 @@ export interface GitHubIssueListItem {
   url: string;
 }
 
-// ============================================================================
-// LLM Provider Types
-// ============================================================================
-
-export type LlmProviderType = 'vscode-lm' | 'claude' | 'openai';
-
 export interface AvailableModel {
   id: string;           // e.g., "copilot-codex"
   family: string;       // e.g., "codex" — used as the value for selectChatModels

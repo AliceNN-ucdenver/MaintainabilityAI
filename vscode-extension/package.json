@@ -206,8 +206,16 @@
     "vscode:prepublish": "npm run build",
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src --ext ts,tsx",
+    "typecheck": "npm run typecheck:extension && npm run typecheck:webview",
+    "typecheck:extension": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --noEmit --pretty false",
+    "typecheck:webview": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --project tsconfig.webview.json --pretty false",
     "test": "vitest run",
+    "fitness": "vitest run src/mcp/__tests__/architecture-fitness.test.ts",
+    "knip": "knip --no-progress",
+    "audit": "npm audit --audit-level=high",
+    "package:check": "node scripts/check-package.mjs",
+    "quality": "npm run lint && npm run typecheck && npm run fitness && npm test && npm run knip && npm run audit && npm run build && npm run package:check",
     "package": "vsce package",
     "prepare-npm": "node esbuild.js --production && mkdir -p ../packages/redqueen-mcp/dist && cp dist/mcp-server.js ../packages/redqueen-mcp/dist/"
   },
@@ -219,10 +227,11 @@
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "@vscode/vsce": "^3.0.0",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.0",
     "eslint": "^8.57.0",
+    "knip": "^6.14.1",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^4.1.6"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",

@@ -13,7 +13,7 @@ export interface ContainerNodeData extends CalmNodeData {
 }
 
 export function ContainerNode({ id, data, width, height }: NodeProps) {
-  const d = data as ContainerNodeData;
+  const d = data as unknown as ContainerNodeData;
   const v = getCssVars();
   const collapsed = d.collapsed || false;
   const w = width || 300;

@@ -42,7 +42,7 @@ import { logger } from '../utils/Logger';
 import { toErrorMessage } from '../utils/errors';
 import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
-import { computeTier, scaffoldAgentConfig } from '../mcp/config-scaffold';
+import { computeTier, scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
 import { computeDecayedScore } from '../mcp/utils/score-decay';
 import type { GovernanceTimestamps } from '../types/redqueen';
 
@@ -2124,14 +2124,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
         return;
       }
 
-      let written = 0;
-      for (const [relPath, content] of Object.entries(result.files)) {
-        const fullPath = path.join(localPath, relPath);
-        const dir = path.dirname(fullPath);
-        if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
-        fs.writeFileSync(fullPath, content, 'utf8');
-        written++;
-      }
+      const written = writeScaffoldFiles(localPath, result.files);
 
       vscode.window.showInformationMessage(`Governance files deployed to ${path.basename(localPath)}: ${written} files written`);
       // Refresh BAR detail to reflect updated state

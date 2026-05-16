@@ -1,13 +1,13 @@
 # The Red Queen — Governance-Enforced Agent Intelligence
 
-**Version:** 0.11.0 — Phase 6 Complete
-**Date:** March 8, 2026
+**Version:** 0.13.2 — Hybrid MCP Runner Architecture
+**Date:** May 16, 2026
 **Author:** Shawn McCarthy, VP & Chief Architect, Global Architecture, Risk and Governance
 
 > *"Now, here, you see, it takes all the running you can do, to keep in the same place. If you want to get somewhere else, you must run at least twice as fast as that!"*
 > — The Red Queen, Through the Looking Glass, Chapter 2
 
-> **Status:** Phase 6 Complete (Phases 1-6 Complete)
+> **Status:** Phase 8 Complete (MCP package, scaffold, hooks, review workflow). Phase 9 hard merge gate and break-glass remain deferred.
 > **Depends on:** GovernanceScorer (Complete), PromptPackService (Complete), Oraculum (Complete), Absolem (Complete)
 > **Subsumes:** governance-grin.md (The Grin MCP server is now a component of The Red Queen)
 
@@ -15,6 +15,8 @@
 
 | Version | Date | Sections Modified | Summary |
 |---------|------|-------------------|---------|
+| 0.13.2 | 2026-05-16 | 7, 11, 14, 16, 17 | Hybrid MCP runner architecture. Generated repos now keep a self-contained governance harness (`.mcp.json`, `.redqueen/mcp-runner.js`, policy/decision snapshots, hooks, workflows, manifest) while resolving the live governance mesh by reference at runtime. The runner checks `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, `MESH_PATH`, `./governance-mesh`, then manifest defaults before launching `@maintainabilityai/redqueen-mcp`. `--doctor` validates the runner chain and live mesh availability. Scaffolding correctness fixes: Copilot-only repos receive implementation workflows, `agent_type: both` gets separate Claude/Copilot reviewer instruction files, and generated hooks fail closed on malformed policy/input. |
+| 0.13.1 | 2026-05-16 | 16, 17 | First-run hardening. Generated `.mcp.json` now passes `--mesh-path` and `RED_QUEEN_MESH_PATH`. MCP server accepts `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, and legacy `MESH_PATH`. Scaffold writers chmod hook scripts and expose `--doctor --repo` for required-file, executable-bit, hook-schema, MCP mesh, policy, and manifest checks. Claude/Copilot hook adapters set `AGENT_TYPE`, normalize tool payloads, enforce restricted plan-first edits, and compile CALM relationships into static hook policy. Consensus fails closed on missing or malformed verdicts and exits non-zero on `deny` or `request-changes`. Tests: 220 passing. |
 | 0.13.0 | 2026-03-08 | 16, 17 | Phase 8 complete (package + distribution). `@maintainabilityai/redqueen-mcp` npm package with bin entry point for `npx` usage. Quick Start Guide README. Build pipeline (`scripts/prepare-npm-package.sh`, `prepare-npm` script). npm publish GitHub workflow (`.github/workflows/npm-publish.yml`) with auto-bump, `mcp-v*` tags, `[npm-publish]` guard. Copilot hooks: `generateCopilotHooksJson()` → `.github/hooks/redqueen.json`, `generateValidateToolSh()` → `.redqueen/hooks/validate-tool.sh` shared bash wrapper. Claude Code Action implementation workflow: `generateImplementationWorkflow()` → `.github/workflows/redqueen-implement.yml` (issue-labeled trigger). Hook command refs updated `.js` → `.sh` in `generateClaudeSettings()` and `RedQueenService.generateSettings()`. Hard enforcement gate (`redqueen-action`) and break-glass deferred to Phase 9. 25 tools, 219 tests passing. |
 | 0.12.0 | 2026-03-08 | 7, 9, 16, 17 | Phase 7 complete. Review Board: `generateRedQueenReviewWorkflow()` generates agent-agnostic PR review workflow for claude/copilot/both; `resolveConsensus()` with any-flag-escalates/unanimous/majority rules; inline subagent definitions (security-reviewer.md, architecture-reviewer.md); self-contained consensus.js script scaffolded into code repos; `assembleReviewBoard()` in RedQueenService. Feedback Loop: `score_snapshot` MCP tool (T7, tool count 24→25); `audit-logger.ts` with JSONL append-only log, correlation fields, `computeScoreDelta()`. Score Decay: `score-decay.ts` with exponential decay (half-life 90d, grace 14d, min floor); `evaluatePolicy()` accepts optional `GovernanceTimestamps` for decay-adjusted tier decisions; decay visualization in Looking Glass BAR detail (`renderDecayIndicator()`). Agent type setting (claude/copilot/both) in Looking Glass Settings. 25 tools, 215 tests passing. |
 | 0.11.2 | 2026-03-08 | 9, 16 | Rewrote Section 9 (Multi-Agent Review Board) — agent-agnostic step-based architecture. Single `pull_request` workflow with sequential steps: security review, architecture review, deterministic consensus. Same workflow structure for Claude and Copilot teams — only `uses:` action differs. `redqueen-consensus` GitHub Action runs `resolveConsensus()` as pure TypeScript. Complements existing CodeQL/Snyk CI jobs. Updated Phase 7 checklist: review workflow template, consensus action, role-specific prompts, `agent-type` config. Updated Phase 8 checklist: reorganized into package/scaffold/gate/break-glass sections. |
@@ -287,7 +289,7 @@ interface CrossRepoTransition {
 | T6 | `compare_bars` | Read | Side-by-side comparison of two BARs across all four pillars |
 | T7 | `score_snapshot` | Write | Trigger a governance score snapshot |
 | T8 | `validate_calm` | Read | Run CalmValidator against architecture file |
-| T9 | `validate_action` | Enforce | **NeMo-backed**: Validate a proposed agent action against CALM flows, controls, and interface contracts |
+| T9 | `validate_action` | Enforce | **TypeScript policy engine**: Validate a proposed agent action against tier, path, security, CALM flow, control, and platform-impact rules |
 | T10 | `get_constraints` | Read | Get active governance constraints for a BAR (tier, permissions, prompt packs) |
 | T11 | `get_platform_architecture` | Read | Read platform-level CALM model (platform.arch.json) with nodes, relationships, and linked BAR metadata |
 | T12 | `blast_radius` | Read | Compute cross-BAR impact for a given BAR — linked BARs, shared infrastructure, and platform-level connection analysis |
@@ -315,7 +317,7 @@ server.registerTool(
 );
 ```
 
-#### T9: validate_action (NeMo-Backed Enforcement)
+#### T9: validate_action (Policy-Engine Enforcement)
 
 The most critical tool — the deterministic enforcement point for all agent governance.
 
@@ -324,7 +326,7 @@ server.registerTool(
   'validate_action',
   {
     title: 'Validate Agent Action',
-    description: 'Validate a proposed action against CALM governance constraints. Returns approval, denial, or conditional approval with required modifications. This tool uses deterministic NeMo Guardrails — not LLM judgment — to enforce governance.',
+    description: 'Validate a proposed action against CALM governance constraints. Returns approval, denial, or conditional approval with required modifications. This tool uses the deterministic Red Queen policy engine — not LLM judgment — to evaluate governance.',
     inputSchema: z.object({
       barId: z.string().describe('BAR the action targets'),
       actionType: z.enum([
@@ -2144,11 +2146,8 @@ jobs:
 
       - name: Start Red Queen MCP Server
         run: |
-          npx @maintainabilityai/redqueen-mcp &
+          node .redqueen/mcp-runner.js &
           sleep 2
-        env:
-          MESH_PATH: ${{ github.workspace }}/governance-mesh
-          NEMO_GUARDRAILS_URL: http://localhost:8100  # NeMo sidecar
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -2171,16 +2170,14 @@ jobs:
 {
   "mcpServers": {
     "redqueen": {
-      "command": "npx",
-      "args": ["-y", "@maintainabilityai/redqueen-mcp"],
-      "env": {
-        "MESH_PATH": "${GOVERNANCE_MESH_PATH:-./governance-mesh}",
-        "NEMO_GUARDRAILS_URL": "${NEMO_URL:-http://localhost:8100}"
-      }
+      "command": "node",
+      "args": [".redqueen/mcp-runner.js"]
     }
   }
 }
 ```
+
+**.redqueen/mcp-runner.js (committed to repo):** resolves the live governance mesh from `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, `MESH_PATH`, `./governance-mesh`, then `.redqueen/config-manifest.yaml`, and launches `@maintainabilityai/redqueen-mcp` with the resolved `--mesh-path`.
 
 ### 7.4 Copilot Coding Agent Configuration
 
@@ -2199,19 +2196,8 @@ steps:
 
   - name: Start Red Queen MCP Server
     run: |
-      npx @maintainabilityai/redqueen-mcp --port 3100 &
+      node .redqueen/mcp-runner.js &
       sleep 2
-    env:
-      MESH_PATH: ${{ github.workspace }}/governance-mesh
-      NEMO_GUARDRAILS_URL: http://localhost:8100
-
-  - name: Start NeMo Guardrails Sidecar
-    run: |
-      pip install nemoguardrails
-      nemoguardrails server --port 8100 --config-dir $MESH_PATH/.guardrails &
-      sleep 3
-    env:
-      MESH_PATH: ${{ github.workspace }}/governance-mesh
 ```
 
 **Repo Settings → MCP Servers (JSON configured in GitHub UI):**
@@ -2265,13 +2251,13 @@ Your permission tier is determined by the BAR's governance score:
 ## Required Validations
 
 - All proposed structural changes: `validate_action()`
-- Cross-repo interface modifications: `validate_interface_contract()`
+- Cross-repo interface modifications: use `validate_action()` plus platform context today; machine-checkable contract validation lands in Phase 9
 - Before creating a PR: `governance_gaps()` to check for issues
 ```
 
 ### 7.6 Hook Generation (Layer 1 Enforcement)
 
-During repository scaffolding, the Red Queen generates preToolUse hooks for **both** agents, ensuring identical Layer 1 enforcement regardless of which agent is assigned to a PR.
+During repository scaffolding, the Red Queen generates hooks for **both** agents. Each agent gets its own adapter format, but both invoke the same validator.
 
 **Claude Code Action** (`.claude/settings.json`):
 
@@ -2284,7 +2270,7 @@ During repository scaffolding, the Red Queen generates preToolUse hooks for **bo
         "hooks": [
           {
             "type": "command",
-            "command": "./.redqueen/hooks/validate-tool.sh"
+            "command": "AGENT_TYPE=claude ./.redqueen/hooks/validate-tool.sh"
           }
         ]
       }
@@ -2297,20 +2283,26 @@ During repository scaffolding, the Red Queen generates preToolUse hooks for **bo
 
 ```json
 {
-  "hooks": [
-    {
-      "type": "preToolUse",
-      "tools": ["bash", "edit", "view"],
-      "script": "./.redqueen/hooks/validate-tool.sh"
-    }
-  ]
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "bash|create|edit|view",
+        "bash": "AGENT_TYPE=copilot ./.redqueen/hooks/validate-tool.sh",
+        "command": "AGENT_TYPE=copilot ./.redqueen/hooks/validate-tool.sh",
+        "env": { "AGENT_TYPE": "copilot" },
+        "timeoutSec": 30
+      }
+    ]
+  }
 }
 ```
 
 Both hooks call the same shared validation script (`.redqueen/hooks/validate-tool.sh`). The script reads tool name and arguments from stdin (JSON), performs fast checks against CALM flow constraints, and returns the appropriate response format per agent:
 
 - **Claude Code:** exit code 0 = approve, exit code 2 = deny (stderr is shown to agent)
-- **Copilot:** JSON stdout `{"permissionDecision":"approve"|"deny", "permissionDecisionReason":"..."}`
+- **Copilot:** JSON stdout `{"permissionDecision":"allow"|"deny", "permissionDecisionReason":"..."}`
 
 The shared script detects which agent is calling it via the `AGENT_TYPE` environment variable (set by the respective workflow) and formats its response accordingly. The validation logic — CALM constraint checking, path restriction enforcement, and risk tier evaluation — is identical.
 
@@ -2576,10 +2568,8 @@ jobs:
 
       - name: Start Red Queen MCP Server
         run: |
-          npx @maintainabilityai/redqueen-mcp &
+          node .redqueen/mcp-runner.js &
           sleep 2
-        env:
-          MESH_PATH: ${{ github.workspace }}/governance-mesh
 
       - name: Determine review depth
         id: review-depth
@@ -3171,7 +3161,8 @@ When the ScaffoldPanel runs, it injects governance artifacts into the scaffolded
 | `.claude/settings.json` | Tier-scoped permissions — auto-edit/ask-edit/plan mode, allow/deny lists | `generateSettings()` |
 | `.claude/agents/security-reviewer.md` | Security review subagent definition (if security score < threshold) | `generateSubagentDefinitions()` |
 | `.claude/agents/architecture-reviewer.md` | Architecture review subagent definition (if architecture score < threshold) | `generateSubagentDefinitions()` |
-| `.mcp.json` | Red Queen MCP server configuration | Static template + mesh path |
+| `.mcp.json` | Red Queen MCP server configuration | Static template pointing to repo-local runner |
+| `.redqueen/mcp-runner.js` | Portable MCP launcher; resolves live mesh from env, CI checkout, or manifest | `generateMcpRunnerJs()` |
 | `AGENTS.md` | Shared governance instructions for Claude and Copilot | `generateAgentsMd()` |
 | `.github/copilot-setup-steps.yml` | Copilot coding agent environment setup | Static template |
 
@@ -3429,6 +3420,7 @@ Repo Picker → ScaffoldPanel
     │ ├─ .claude/settings.json (tier-scoped permissions)
     │ ├─ .claude/agents/ (subagent definitions for weak pillars)
     │ ├─ .mcp.json (Red Queen MCP server)
+    │ ├─ .redqueen/mcp-runner.js (live mesh resolver + MCP launcher)
     │ ├─ AGENTS.md (governance instructions)
     │ └─ .github/copilot-setup-steps.yml (Copilot environment)
     │
@@ -3634,7 +3626,7 @@ export class RedQueenService {
 **Struck (NeMo replaced by policy-engine.ts in Phase 3):**
 - ~~`validateAction()`~~ — implemented as `validate_action` MCP tool via `policy-engine.ts`
 - ~~`buildGuardrailsConfig()`~~ — replaced by `generateStaticPolicy()` in `policy-engine.ts`
-- ~~`validateInterfaceContract()`~~ — deferred to Phase 8 CI gate
+- ~~`validateInterfaceContract()`~~ — deferred to Phase 9 CI gate
 - ~~`resolveFlowAcrossBars()`~~ — implemented as `findLinkedBars()` in `mesh-reader.ts`
 - ~~`generateSubagentDefinitions()`~~ — deferred to Phase 7
 - ~~`applyConfiguration()`~~ — scaffold writes files directly via `config-scaffold.ts`
@@ -4270,6 +4262,8 @@ During repository scaffolding, the Red Queen generates a `.redqueen/config-manif
 # Generated by Red Queen scaffold — do not edit manually
 version: 1
 generated: "2026-03-02T14:30:00Z"
+mesh_path: "./governance-mesh"
+mesh_checkout_path: "./governance-mesh"
 fingerprints:
   claude:
     source: ".mcp.json"
@@ -4294,20 +4288,23 @@ fingerprints:
     copilot_source: ".github/hooks/redqueen.json"
     claude_sha256: "c9d0e1f2..."
     copilot_sha256: "d3e4f5a6..."
+  runner:
+    source: ".redqueen/mcp-runner.js"
+    sha256: "f7a8b9c0..."
 ```
 
-The fingerprint covers the MCP server name, URL/command, required tools, and required environment variable names (not values).
+The fingerprint covers the MCP server name, command, repo-local runner, hook configuration, and required environment variable names (not values). The manifest records the portable mesh checkout path, not a developer-specific absolute source path.
 
 #### 14.5.2 Validation Points
 
 **Layer 1 — Hook `sessionStart` (Advisory):**
 
-The preToolUse hook (for both agents) performs a fast config check on session start. The hook computes a SHA-256 hash of the current `.mcp.json` (for Claude) and compares it to the expected fingerprint in the manifest. On mismatch, the hook outputs a warning but does not block — Layer 1 is advisory for config drift.
+The preToolUse hook (for both agents) performs a fast config check on session start. The hook computes SHA-256 hashes of `.mcp.json`, `.redqueen/mcp-runner.js`, and hook config files, then compares them to the expected fingerprints in the manifest. On mismatch, the hook outputs a warning but does not block — Layer 1 is advisory for config drift.
 
 **Layer 3 — CI Gate (Hard Enforcement):**
 
 The `redqueen-action` CI gate performs hard validation:
-- **Claude Code Action:** hashes `.mcp.json` in the PR branch and compares to the manifest. A mismatch blocks the merge.
+- **Claude Code Action:** hashes `.mcp.json` and `.redqueen/mcp-runner.js` in the PR branch and compares them to the manifest. A mismatch blocks the merge.
 - **Copilot:** uses the GitHub API (`gh api repos/{owner}/{repo}/copilot/mcp-servers`) to read the current MCP server configuration from Repo Settings and compares to the manifest. Configuration modified outside of a PR fails with:
 
 > Governance configuration drift detected: Copilot MCP server configuration in Repo Settings does not match `.redqueen/config-manifest.yaml`. Expected fingerprint: `abc123...` Current fingerprint: `def456...` Run `npx redqueen scaffold --repo <name>` to reconcile.
@@ -4355,7 +4352,7 @@ jobs:
 | D12 | Policy suggestions are advisory, not auto-applied | Governance policy changes require human judgment. The Red Queen surfaces data-driven suggestions, but a human architect decides. |
 | D13 | `architecture_query` uses MCP sampling for LLM reasoning | Avoids requiring a separate LLM API key on the server. The query + CALM model are sent as a sampling request to the client's LLM. |
 | D14 | ~~Dynamic Colang 2.0 config~~ Static policy from CALM model per-BAR | ~~NeMo~~ STRUCK (v0.8.0): Each BAR's governance data generates a static `policy.json` during scaffold. The policy engine evaluates live CALM model data at Layer 2. This ensures policy rules always reflect the current architecture. |
-| D15 | `AGENTS.md` as shared governance instructions | Both Claude Code and Copilot coding agent read `AGENTS.md`. This file instructs both agents to call `validate_action` before structural changes and `validate_interface_contract` for cross-repo changes. |
+| D15 | `AGENTS.md` as shared governance instructions | Both Claude Code and Copilot coding agent read `AGENTS.md`. This file instructs both agents to call `validate_action` before structural changes. Machine-checkable interface contract validation is deferred to the Phase 9 CI gate. |
 | D16 | Custom `calm://` URI scheme for all resources | Domain-specific URIs make resources self-describing. Follows EventCatalog's `eventcatalog://` pattern. |
 | D17 | Three-level policy hierarchy (portfolio → platform → BAR) with tighten-only semantics | Platforms need governance authority over their BARs (shared infrastructure, minimum scores, tier caps), but cannot loosen portfolio-level rules. BAR overrides cannot loosen platform rules. This prevents governance erosion while allowing context-specific tightening. |
 | D18 | Governance woven into Cheshire Cat UX, not a separate workflow | Users should not need a "governance mode" — governance context (tier badges, mandated packs, pre-submission summaries, policy event streams) appears naturally in every panel they already use. Reduces friction and ensures governance is never bypassed by simply not opening a governance panel. |
@@ -4373,11 +4370,12 @@ jobs:
 | D30 | Pinned, proven diff engines per contract artifact type | "Programmatic schema diffing" is only robust if the breaking change rules are well-defined and reproducible. Each artifact type maps to a specific engine (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL, etc.) with pinned versions and documented rulesets. False-positive suppression is per-BAR via engine-native config files, not custom logic. |
 | D31 | Audit trail integrity via correlation IDs and append-only storage | Audit events include `correlationId` (SHA-256 of key fields), `prNumber`, `commitSha`, and `workflowRunId` for full traceability. The Red Queen emits events; the organization's observability stack stores them. For CI, GitHub Actions log immutability provides tamper-evidence. For production, append-only storage (S3 Object Lock, immutable archives) is recommended. |
 | D32 | Break-glass anti-normalization via escalating friction and budgets | Without active controls, break-glass becomes the normal path. Escalating CODEOWNER requirements per successive override, quarterly budgets with automatic tier downgrade on exhaustion, 14-day follow-up SLAs with score penalties, and self-approve prevention ensure break-glass remains the exception. |
-| D33 | Copilot hooks parity enables symmetric Layer 1 enforcement | Copilot coding agent now supports preToolUse hooks via `.github/hooks/*.json`. The Red Queen scaffolds hooks for both agents calling the same validation logic, eliminating the enforcement asymmetry between Claude Code and Copilot. All three layers now apply to both agents. |
+| D33 | Copilot hooks parity enables shared Layer 1 validation | Copilot coding agent now supports PreToolUse hooks via `.github/hooks/*.json`. The Red Queen scaffolds agent-specific hook adapters for Claude Code and Copilot that call the same validator. Layers 1-2 apply today; the Phase 9 CI gate is the hard merge boundary. |
 | D34 | stdio transport as primary MCP deployment model in CI | Both agents spawn MCP servers as local stdio child processes within the GitHub Actions runner. No network dependency, no separate SLA, no cold start. HTTP transport applies to VS Code Extension integration and future remote deployments, not the primary CI use case. |
 | D35 | Configuration fingerprinting for MCP drift detection | Copilot's MCP config lives in Repo Settings UI (not committed). SHA-256 fingerprints in `.redqueen/config-manifest.yaml` detect drift at three points: sessionStart hooks (advisory), CI gate (hard enforcement), and weekly scheduled checks (proactive). Reconciliation via `npx redqueen scaffold --repo`. |
 | D36 | Severity-weighted consensus for multi-agent review boards | Any deny is a deny — union of concerns, not majority vote. Highest severity from any reviewer becomes the combined verdict. Disagreements are surfaced transparently in PR comments with both opinions visible. Break-glass provides the release valve for false positives. |
 | D37 | Tree-sitter for AST-based language coverage with grammar extensibility | TypeScript/JavaScript and Python first (widest blast radius). Teams register additional tree-sitter grammars via `.redqueen/config-manifest.yaml`. Unsupported languages default to "structural" risk tier with regex fallback against critical patterns. |
+| D38 | Self-contained repo harness, live mesh by reference | Code repos must run governance without the VS Code extension or user-specific absolute paths, but the full governance mesh must remain the single source of truth. The scaffold commits `.mcp.json`, `.redqueen/mcp-runner.js`, policy/decision snapshots, hooks, workflows, and manifest fingerprints. The runner resolves a local live mesh at runtime instead of copying the mesh into every repo. |
 
 ---
 
@@ -4420,7 +4418,7 @@ jobs:
 - T3 `blast_radius` → Phase 4 ✅ (implemented as T12 `blast_radius` with platform-level cross-BAR analysis)
 - T7 `score_snapshot` → Phase 7 (write operation, part of feedback loop)
 - T12 `flow_impact` / T13 `get_orchestration_decision` → Repurposed in Phase 4: T11 `get_platform_architecture`, T12 `blast_radius`, T13 `validate_platform_calm`
-- AST-based semantic diff → Phase 8 CI gate (tree-sitter analysis belongs in `redqueen-action`)
+- AST-based semantic diff → Phase 9 CI gate (tree-sitter analysis belongs in `redqueen-action`)
 - Risk classification in `blast_radius` → Phase 5 (requires orchestration policy context)
 
 **Struck — will not implement (local-only architecture, no remote dependency):**
@@ -4452,7 +4450,7 @@ jobs:
 - [x] Integration tests: 9 tests (validate_action approve/deny/CALM, get_constraints)
 - [x] All 100 tests passing, build succeeds
 
-**Value:** Deterministic governance enforcement via three layers: fast hooks (~50ms), rich agent tools (~200ms), and CI gate backstop (Phase 8). Pure TypeScript, no Python sidecar.
+**Value:** Deterministic governance control via fast hooks and rich MCP agent tools today. The CI hard gate is the Phase 9 non-bypassable merge boundary. Pure TypeScript, no Python sidecar.
 
 ### Phase 4: Cross-Repo & Platform Governance ✅
 
@@ -4475,11 +4473,11 @@ jobs:
 - [x] All 122 tests passing, build succeeds
 
 **Deferred to later phases:**
-- Machine-checkable contract artifact validation (OpenAPI, protobuf, GraphQL, AsyncAPI diff) → Phase 8 CI gate
+- Machine-checkable contract artifact validation (OpenAPI, protobuf, GraphQL, AsyncAPI diff) → Phase 9 CI gate
 - Cross-repo notification system (GitHub Issues) → Phase 5 (orchestration)
 - Risk classification in `blast_radius` → Phase 5 (requires orchestration policy context)
-- Per-BAR false-positive suppression files for diff engines → Phase 8
-- CI edge cases (generated specs, multi-file `$ref`, monorepo multi-spec) → Phase 8
+- Per-BAR false-positive suppression files for diff engines → Phase 9
+- CI edge cases (generated specs, multi-file `$ref`, monorepo multi-spec) → Phase 9
 
 **Value:** Platform-level architectural awareness across BARs. Agents see cross-BAR relationships, shared infrastructure, and blast radius before making changes. PLAT-001 policy rule provides deterministic enforcement for shared-node modifications. Platform CALM visualization in Looking Glass enables architectural governance at the platform level.
 
@@ -4506,7 +4504,7 @@ jobs:
 - [x] All 165 tests passing, build clean
 
 **Deferred to later phases:**
-- Cross-repo notification system (GitHub Issues) → Phase 8
+- Cross-repo notification system (GitHub Issues) → Phase 9
 - Risk classification in `blast_radius` → needs orchestration context but deferred until needed
 
 **Pulled forward from Phase 6:**
@@ -4572,13 +4570,13 @@ jobs:
 **Deferred to later phases:**
 - Agent memory read/write → Phase 9+
 - Policy suggestion engine → Phase 9+
-- Critical failure score reset logic → Phase 8 (with break-glass)
+- Critical failure score reset logic → Phase 9 (with break-glass)
 
 **Value:** Agent-agnostic PR review with step-based architecture — same workflow structure for Claude and Copilot teams, same MCP tools, deterministic consensus. Score decay ensures governance health reflects current reality. Continuous improvement via feedback loops.
 
 **Testability note:** Phase 8 packages the MCP server as `@maintainabilityai/redqueen-mcp`. End-to-end testing is now possible: scaffold governance into a code repo, push to GitHub, create a PR, and verify the review workflow runs with consensus. Hard enforcement gate and break-glass override are deferred to Phase 9.
 
-### Phase 8: CI/CD Deployment + Hard Enforcement ✅ (Complete — package + distribution)
+### Phase 8: CI/CD Deployment + Hook Scaffolding ✅ (Complete — package + distribution)
 
 **Package + Distribution:** ✅
 - [x] Create `@maintainabilityai/redqueen-mcp` npm package (`packages/redqueen-mcp/`)
@@ -4590,13 +4588,16 @@ jobs:
 - [x] Build pipeline script (`scripts/prepare-npm-package.sh`, `prepare-npm` script)
 
 **Scaffolding** (extends Phase 6+7 governance deployment): ✅
-- [x] Scaffold `.mcp.json` and `AGENTS.md` into code repos via ScaffoldPanel (done in Phase 6)
-- [x] Scaffold `.claude/settings.json` PreToolUse hooks — updated command to `.sh` (Section 7.6)
-- [x] Scaffold `.github/hooks/redqueen.json` Copilot preToolUse hooks (`generateCopilotHooksJson()`)
-- [x] Scaffold `.redqueen/hooks/validate-tool.sh` shared validation script (`generateValidateToolSh()`)
-- [x] Scaffold `.redqueen/config-manifest.yaml` configuration fingerprints (done in Phase 6)
-- [x] Scaffold `.github/workflows/redqueen-implement.yml` implementation workflow
+- [x] Scaffold `.mcp.json`, `.redqueen/mcp-runner.js`, and `AGENTS.md` into code repos via ScaffoldPanel (done in Phase 6, runner added in 0.13.2)
+- [x] Scaffold `.claude/settings.json` PreToolUse hooks — command sets `AGENT_TYPE=claude` and invokes `.sh` (Section 7.6)
+- [x] Scaffold `.github/hooks/redqueen.json` Copilot PreToolUse hooks (`generateCopilotHooksJson()`) — versioned hook schema with `AGENT_TYPE=copilot`
+- [x] Scaffold `.redqueen/hooks/validate-tool.sh` shared validation script (`generateValidateToolSh()`) and chmod generated hook scripts
+- [x] Scaffold `.redqueen/hooks/validate-tool.js` adapter — normalizes Claude/Copilot payloads, enforces restricted plan-first edits, and checks compiled CALM relationships when source/target are present
+- [x] Scaffold `.redqueen/config-manifest.yaml` configuration fingerprints with `mesh_checkout_path` for portable MCP resolution
+- [x] Scaffold `.github/workflows/redqueen-implement.yml` implementation workflow for Claude, Copilot, or both
 - [x] ~~Scaffold `redqueen-review.yml` review workflow~~ — Done in Phase 7
+- [x] Add CLI `--doctor --repo` scaffold validation for required files, executable hooks, MCP runner mesh resolution, hook schema, policy rules, and manifest fingerprints
+- [x] Add `--output` path writer that uses the same chmod-aware writer as VS Code deploy/resync
 
 **Hard Enforcement Gate** — deferred to Phase 9 — `redqueen-action` as required status check (Section 14.3):
 - [ ] Create `maintainabilityai/redqueen-action` GitHub Action
@@ -4617,7 +4618,7 @@ jobs:
 - [ ] Add break-glass budget tracking and automatic tier downgrade on exhaustion
 - [ ] Add break-glass visibility to Looking Glass BAR detail and platform dashboard
 
-**Value:** Zero-friction deployment with hard enforcement boundary. The CI gate ensures governance is enforced regardless of agent cooperation. Step-based review workflow works identically for Claude and Copilot teams. Break-glass provides controlled override with escalating accountability.
+**Value:** Zero-friction deployment with first-run validation. Hooks provide fast feedback, MCP tools provide rich deterministic validation, and the review workflow fails closed on missing/malformed verdicts. The Phase 9 CI gate will be the hard enforcement boundary that runs regardless of agent cooperation. Break-glass provides controlled override with escalating accountability.
 
 ---
 
@@ -4687,7 +4688,7 @@ jobs:
 | `src/types/index.ts` | Re-export redqueen.ts types |
 | `src/types/webview.ts` | Added 8 message types for orchestration/governance editors (Phase 5); `governanceData` + `barGovernanceContext` + `resyncGovernance` messages (Phase 6); `agentTypeLoaded/Saved`, `decayInfo` in `barDetail` (Phase 7) |
 | `src/types/scorecard.ts` | Added `governanceTier` to `ComponentScaffoldContext` (Phase 6) |
-| `src/mcp/config-scaffold.ts` | Optional `RedQueenService` param, governance-context.md generation (Phase 5); `decision.json` in scaffold output (Phase 6); `generateRedQueenReviewWorkflow()`, `generateConsensusScript()`, `generateSubagentDefinition()`, review workflow files in `scaffoldAgentConfig()` (Phase 7); `generateCopilotHooksJson()`, `generateValidateToolSh()`, `generateImplementationWorkflow()`, hook command `.js` → `.sh` (Phase 8) |
+| `src/mcp/config-scaffold.ts` | Optional `RedQueenService` param, governance-context.md generation (Phase 5); `decision.json` in scaffold output (Phase 6); `generateRedQueenReviewWorkflow()`, `generateConsensusScript()`, `generateSubagentDefinition()`, review workflow files in `scaffoldAgentConfig()` (Phase 7); `generateCopilotHooksJson()`, `generateValidateToolSh()`, `generateImplementationWorkflow()`, hook command `.js` → `.sh`, chmod-aware `writeScaffoldFiles()`, repo-local `generateMcpRunnerJs()`, Copilot/both reviewer split, Copilot implementation workflow, fail-closed hook errors, and `validateScaffoldedRepo()` doctor checks (Phase 8) |
 | `src/mcp/server.ts` | Instantiate `RedQueenService`, pass to `registerTools` (Phase 5) |
 | `src/webview/LookingGlassPanel.ts` | Red Queen tier badge, cross-BAR dependency panel, platform context panel, policy editor, platform architecture handlers (`requestPlatformArch`, `savePlatformArch`), orchestration policy load/save, platform governance load/save (Phase 5); governance tier in `buildScaffoldDescription()`, `barGovernanceContext` with barPath/path for navigation, `onDeployGovernanceToRepo()` for linked repo governance deployment (Phase 6); agent type load/save, `decayInfo` computation in `onDrillIntoBar()` (Phase 7) |
 | `src/webview/OracularPanel.ts` | Multi-agent review board, consensus UI, governance-configured review depth |
@@ -4721,10 +4722,13 @@ jobs:
 | `.claude/settings.json` | Governance-scoped permissions + PreToolUse hook for Layer 1 enforcement (Section 7.6) |
 | `.claude/agents/security-reviewer.md` | Security review subagent (Phase 7) |
 | `.claude/agents/architecture-reviewer.md` | Architecture review subagent (Phase 7) |
+| `.github/copilot-agents/security-reviewer.md` | Copilot security reviewer instructions with Copilot-specific verdict path (Phase 8) |
+| `.github/copilot-agents/architecture-reviewer.md` | Copilot architecture reviewer instructions with Copilot-specific verdict path (Phase 8) |
 | `.github/workflows/redqueen-review.yml` | Agent-agnostic PR review workflow — generated by `generateRedQueenReviewWorkflow()` (Phase 7) |
 | `.redqueen/consensus.js` | Self-contained consensus resolution script for GitHub Actions (Phase 7) |
 | `.redqueen/audit-log.jsonl` | Append-only audit log for governance events (Phase 7) |
-| `.mcp.json` | Red Queen MCP server configuration |
+| `.mcp.json` | Red Queen MCP server configuration pointing to the repo-local MCP runner |
+| `.redqueen/mcp-runner.js` | Portable live-mesh resolver and MCP launcher |
 | `.redqueen/decision.json` | Serialized OrchestrationDecision for code-repo panels (Phase 6) |
 | `AGENTS.md` | Shared governance instructions for all agents |
 | `.github/copilot-setup-steps.yml` | Copilot coding agent environment setup |

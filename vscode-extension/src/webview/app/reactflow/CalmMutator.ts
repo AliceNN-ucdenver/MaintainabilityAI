@@ -16,13 +16,6 @@ export interface CalmPatch {
   value?: unknown;   // the new node/relationship/field value; for updateComposedOf: string[] | null
 }
 
-export interface CalmValidationError {
-  severity: 'error' | 'warning' | 'info';
-  message: string;
-  path: string;
-  nodeId?: string;
-}
-
 export interface MutationResult {
   calm: CalmArchitecture;
   patch: CalmPatch[];
@@ -167,7 +160,7 @@ export function updateNodeField(
 ): MutationResult {
   const updatedNodes = calm.nodes.map(n => {
     if (n['unique-id'] !== nodeId) return n;
-    return setNestedField(n, field, value) as CalmNode;
+    return setNestedField(n, field, value);
   });
 
   return {
@@ -184,7 +177,7 @@ export function updateRelationshipField(
 ): MutationResult {
   const updatedRelationships = calm.relationships.map(r => {
     if (r['unique-id'] !== relId) return r;
-    return setNestedField(r, field, value) as CalmRelationship;
+    return setNestedField(r, field, value);
   });
 
   return {
@@ -198,7 +191,7 @@ export function updateRelationshipField(
 // ============================================================================
 
 export function createDefaultNode(
-  diagramType: 'context' | 'logical',
+  diagramType: 'context' | 'logical' | 'platform',
   calmNodeType: CalmNode['node-type'],
 ): CalmNode {
   const id = generateNodeId(diagramType, calmNodeType);
@@ -208,6 +201,8 @@ export function createDefaultNode(
     service: 'Service',
     database: 'Data Store',
     network: 'Network',
+    bar: 'BAR',
+    'shared-infrastructure': 'Shared Infrastructure',
   };
 
   return {
@@ -219,7 +214,7 @@ export function createDefaultNode(
 }
 
 export function createDefaultRelationship(
-  diagramType: 'context' | 'logical',
+  diagramType: 'context' | 'logical' | 'platform',
   sourceId: string,
   targetId: string,
   calm?: CalmArchitecture,
@@ -245,7 +240,7 @@ export function createDefaultRelationship(
   const id = generateRelationshipId('connects');
   return {
     'unique-id': id,
-    description: diagramType === 'context' ? 'Uses' : 'Calls',
+    description: diagramType === 'context' ? 'Uses' : diagramType === 'platform' ? 'Connects' : 'Calls',
     'relationship-type': {
       connects: {
         source: { node: sourceId },
@@ -447,13 +442,13 @@ export function addNodeToContainer(
 // Helpers
 // ============================================================================
 
-function setNestedField(obj: Record<string, unknown>, fieldPath: string, value: unknown): Record<string, unknown> {
-  const result = { ...obj };
+function setNestedField<T extends object>(obj: T, fieldPath: string, value: unknown): T {
+  const result = { ...(obj as Record<string, unknown>) };
   const parts = fieldPath.split('.');
 
   if (parts.length === 1) {
     result[parts[0]] = value;
-    return result;
+    return result as unknown as T;
   }
 
   // Navigate to the parent of the target field
@@ -471,5 +466,5 @@ function setNestedField(obj: Record<string, unknown>, fieldPath: string, value: 
   }
 
   current[parts[parts.length - 1]] = value;
-  return result;
+  return result as unknown as T;
 }

@@ -14,11 +14,65 @@ import { createAuditEntry, appendAuditLog, computeScoreDelta } from './utils/aud
 import type { EvaluationContext } from './policy-engine';
 import type { RedQueenService } from '../services/RedQueenService';
 
+const findBarsSchema: z.ZodRawShape = {
+  name: z.string().optional().describe('Partial name match (case-insensitive)'),
+  platform: z.string().optional().describe('Platform ID or name filter'),
+  criticality: z.enum(['critical', 'high', 'medium', 'low']).optional().describe('Criticality level filter'),
+  minScore: z.number().min(0).max(100).optional().describe('Minimum composite score'),
+  maxScore: z.number().min(0).max(100).optional().describe('Maximum composite score'),
+  status: z.enum(['passing', 'warning', 'failing', 'unknown']).optional().describe('Filter by overall governance status (based on lowest pillar)'),
+};
+
+interface FindBarsArgs {
+  name?: string;
+  platform?: string;
+  criticality?: 'critical' | 'high' | 'medium' | 'low';
+  minScore?: number;
+  maxScore?: number;
+  status?: 'passing' | 'warning' | 'failing' | 'unknown';
+}
+
+const validateActionSchema: z.ZodRawShape = {
+  barName: z.string().describe('Name of the BAR this action targets'),
+  actionType: z.enum([
+    'create_service', 'modify_service', 'add_dependency',
+    'add_database_connection', 'modify_interface', 'add_endpoint',
+    'modify_authentication', 'modify_encryption', 'change_data_flow',
+    'modify_infrastructure', 'update_config', 'general',
+  ]).describe('Type of structural change being proposed'),
+  description: z.string().describe('What the agent intends to do'),
+  filePath: z.string().optional().describe('File being modified'),
+  toolName: z.string().optional().describe('Tool being used (Edit, Write, Bash)'),
+  sourceNode: z.string().optional().describe('CALM node ID of the source (for connection changes)'),
+  targetNode: z.string().optional().describe('CALM node ID of the target (for connection changes)'),
+};
+
+interface ValidateActionArgs {
+  barName: string;
+  actionType: string;
+  description: string;
+  filePath?: string;
+  toolName?: string;
+  sourceNode?: string;
+  targetNode?: string;
+}
+
+type ToolRegistrar = (
+  name: string,
+  description: string,
+  paramsSchema: z.ZodRawShape,
+  handler: (args: Record<string, never>) => Promise<unknown>
+) => void;
+
 export function registerTools(server: McpServer, reader: MeshReader, redQueen?: RedQueenService): void {
+  // Keep MCP/Zod runtime validation, but avoid recursively expanding the SDK
+  // registration generics across every tool during the extension typecheck.
+  const tool = server.tool.bind(server) as ToolRegistrar;
+
   // --------------------------------------------------------------------------
   // get_bar_score — Score a specific BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_bar_score',
     'Get governance pillar scores (architecture, security, risk, operations) for a specific BAR',
     {
@@ -59,7 +113,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // list_bars — List all BARs with scores
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'list_bars',
     'List all BARs across all platforms with their governance scores',
     {},
@@ -90,7 +144,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // list_platforms — List all platforms
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'list_platforms',
     'List all platforms in the governance mesh',
     {},
@@ -108,7 +162,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_architecture — Read CALM architecture model for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_architecture',
     'Read the CALM architecture model (bar.arch.json) for a specific BAR',
     {
@@ -140,7 +194,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_threats — Read threat model for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_threats',
     'Read the threat model (threat-model.yaml) for a specific BAR',
     {
@@ -165,7 +219,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_controls — Read security controls for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_controls',
     'Read the security controls (security-controls.yaml) for a specific BAR',
     {
@@ -190,7 +244,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_fitness_functions — Read fitness function definitions
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_fitness_functions',
     'Read fitness function definitions (fitness-functions.yaml) for a specific BAR',
     {
@@ -215,7 +269,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_review_history — Read review history for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_review_history',
     'Read Oraculum review history and governance score trends for a specific BAR',
     {
@@ -248,7 +302,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_policy — Read a specific policy document
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_policy',
     'Read a specific governance policy document by filename',
     {
@@ -274,7 +328,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_mesh_summary — Get portfolio overview
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_mesh_summary',
     'Get a portfolio-level summary including total BARs, health, governance coverage, and platform breakdown',
     {},
@@ -315,18 +369,12 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // find_bars (T1) — Search BARs with filters
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'find_bars',
     'Search BARs by name, platform, criticality, score range, or governance status. Returns matching BARs with scores.',
-    {
-      name: z.string().optional().describe('Partial name match (case-insensitive)'),
-      platform: z.string().optional().describe('Platform ID or name filter'),
-      criticality: z.enum(['critical', 'high', 'medium', 'low']).optional().describe('Criticality level filter'),
-      minScore: z.number().min(0).max(100).optional().describe('Minimum composite score'),
-      maxScore: z.number().min(0).max(100).optional().describe('Maximum composite score'),
-      status: z.enum(['passing', 'warning', 'failing']).optional().describe('Filter by overall governance status (based on lowest pillar)'),
-    },
-    async ({ name, platform, criticality, minScore, maxScore, status }) => {
+    findBarsSchema,
+    async (args) => {
+      const { name, platform, criticality, minScore, maxScore, status } = args as FindBarsArgs;
       let bars = reader.listBars();
 
       if (name) {
@@ -350,7 +398,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
         bars = bars.filter(b => {
           const worstStatus = [b.architecture.status, b.security.status, b.infoRisk.status, b.operations.status]
             .reduce((worst, s) => {
-              const order = { failing: 0, warning: 1, passing: 2 };
+              const order: Record<string, number> = { failing: 0, warning: 1, passing: 2, unknown: 3 };
               return order[s] < order[worst] ? s : worst;
             });
           return worstStatus === status;
@@ -383,7 +431,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_bar_context (T2) — Comprehensive BAR context bundle
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_bar_context',
     'Get comprehensive BAR context in one call: manifest, scores, architecture, threats, controls, ADRs. Ideal for agents starting work on a BAR.',
     {
@@ -447,14 +495,15 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // governance_gaps (T4) — Identify governance gaps
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'governance_gaps',
     'Identify governance gaps across BARs: missing artifacts, weak scores, low quality. Optionally filter by BAR name or pillar.',
     {
       barName: z.string().optional().describe('Filter to a specific BAR'),
       pillar: z.enum(['architecture', 'security', 'infoRisk', 'operations']).optional().describe('Filter to a specific pillar'),
     },
-    async ({ barName, pillar }) => {
+    async (args) => {
+      const { barName, pillar } = args as { barName?: string; pillar?: 'architecture' | 'security' | 'infoRisk' | 'operations' };
       const gaps = reader.findGovernanceGaps({ barName, pillar });
 
       return {
@@ -477,7 +526,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // compare_bars (T6) — Side-by-side BAR comparison
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'compare_bars',
     'Side-by-side comparison of two BARs across all four governance pillars.',
     {
@@ -520,7 +569,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // validate_calm (T8) — Validate CALM architecture structure
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'validate_calm',
     'Validate CALM architecture file (bar.arch.json) for structural correctness: required fields, unique IDs, valid node references.',
     {
@@ -546,7 +595,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_adrs — Read ADRs for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_adrs',
     'Read all Architectural Decision Records (ADRs) for a specific BAR',
     {
@@ -575,7 +624,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // scaffold_agent_config — Generate agent config files for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'scaffold_agent_config',
     'Generate agent configuration files (.mcp.json, .claude/settings.json, AGENTS.md, hooks) for a BAR based on its governance scores and tier. Files are returned as content — write them to the code repo.',
     {
@@ -613,7 +662,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_permission_tier — Query what tier a BAR is in and why
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_permission_tier',
     'Get the governance permission tier for a BAR and the reasoning behind it.',
     {
@@ -676,24 +725,12 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // validate_action (T9) — Validate a proposed action against governance rules
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'validate_action',
     'Validate a proposed action against CALM governance constraints. Returns approval, denial, or conditional approval with required modifications. Uses deterministic policy rules — not LLM judgment.',
-    {
-      barName: z.string().describe('Name of the BAR this action targets'),
-      actionType: z.enum([
-        'create_service', 'modify_service', 'add_dependency',
-        'add_database_connection', 'modify_interface', 'add_endpoint',
-        'modify_authentication', 'modify_encryption', 'change_data_flow',
-        'modify_infrastructure', 'update_config', 'general',
-      ]).describe('Type of structural change being proposed'),
-      description: z.string().describe('What the agent intends to do'),
-      filePath: z.string().optional().describe('File being modified'),
-      toolName: z.string().optional().describe('Tool being used (Edit, Write, Bash)'),
-      sourceNode: z.string().optional().describe('CALM node ID of the source (for connection changes)'),
-      targetNode: z.string().optional().describe('CALM node ID of the target (for connection changes)'),
-    },
-    async ({ barName, actionType, description, filePath, toolName, sourceNode, targetNode }) => {
+    validateActionSchema,
+    async (args) => {
+      const { barName, actionType, description, filePath, toolName, sourceNode, targetNode } = args as unknown as ValidateActionArgs;
       const bar = reader.getBar(barName);
       if (!bar) {
         return {
@@ -764,7 +801,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_constraints (T10) — Get active governance constraints for a BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_constraints',
     'Get active governance constraints for a BAR: permission tier, allowed tools, security-critical paths, and constraints. Call this at session start to understand your boundaries.',
     {
@@ -801,13 +838,14 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_platform_architecture (T11) — Read platform-level CALM model
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_platform_architecture',
     'Read the platform-level CALM architecture model (platform.arch.json) showing cross-BAR relationships and shared infrastructure.',
     {
       platformName: z.string().describe('Platform name or ID'),
     },
-    async ({ platformName }) => {
+    async (args) => {
+      const { platformName } = args as unknown as { platformName: string };
       // Try direct ID match first, then name match
       const platforms = reader.listPlatforms();
       const platform = platforms.find(p =>
@@ -849,7 +887,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // blast_radius (T12) — Find cross-BAR impact for a given BAR
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'blast_radius',
     'Find all BARs and shared infrastructure connected to a given BAR via the platform architecture. Shows cross-BAR impact for proposed changes.',
     {
@@ -905,13 +943,14 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // validate_platform_calm (T13) — Validate platform CALM structure
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'validate_platform_calm',
     'Validate platform-level CALM architecture file (platform.arch.json) for structural correctness: valid node types, bar-id references, valid relationships.',
     {
       platformName: z.string().describe('Platform name or ID to validate'),
     },
-    async ({ platformName }) => {
+    async (args) => {
+      const { platformName } = args as unknown as { platformName: string };
       const platforms = reader.listPlatforms();
       const platform = platforms.find(p =>
         p.id === platformName ||
@@ -944,7 +983,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // --------------------------------------------------------------------------
   // get_orchestration_decision — Full policy-driven orchestration decision
   // --------------------------------------------------------------------------
-  server.tool(
+  tool(
     'get_orchestration_decision',
     'Get the full orchestration decision for a BAR: effective tier, permissions, prompt injections, threat model access, platform overrides, cross-BAR links, and reasoning audit trail.',
     {
@@ -994,7 +1033,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
   // ==========================================================================
 
   // score_snapshot — trigger governance score snapshot
-  server.tool(
+  tool(
     'score_snapshot',
     'Trigger a governance score snapshot for a BAR. Records current scores to score-history.yaml, computes delta from last snapshot, and writes an audit log entry.',
     {
@@ -1003,7 +1042,13 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
       prNumber: z.number().optional().describe('PR number that triggered this snapshot'),
       commitSha: z.string().optional().describe('Git commit SHA'),
     },
-    async ({ barName, correlationId, prNumber, commitSha }) => {
+    async (args) => {
+      const { barName, correlationId, prNumber, commitSha } = args as unknown as {
+        barName: string;
+        correlationId?: string;
+        prNumber?: number;
+        commitSha?: string;
+      };
       const bar = reader.getBar(barName);
       if (!bar) {
         return {

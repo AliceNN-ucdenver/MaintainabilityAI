@@ -8,7 +8,6 @@ export type PillarStatus = 'passing' | 'warning' | 'failing' | 'unknown';
 export type RationalizationStrategy = 'reassess' | 'extract' | 'advance' | 'prune';
 export type ArchitectureDsl = 'calm' | 'markdown';
 export type CapabilityModelType = 'insurance' | 'banking' | 'custom';
-export type EaLens = 'business' | 'application' | 'policies' | 'data' | 'technology' | 'integration';
 
 export interface CapabilityDefinition {
   level: 'L1' | 'L2' | 'L3';

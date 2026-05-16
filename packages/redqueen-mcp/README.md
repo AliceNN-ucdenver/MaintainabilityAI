@@ -48,11 +48,18 @@ npx @maintainabilityai/redqueen-mcp --mesh-path /path/to/governance-mesh
 npx @maintainabilityai/redqueen-mcp \
   --mesh-path /path/to/governance-mesh \
   --scaffold \
-  --bar "My Service"
+  --bar "My Service" \
+  --output /path/to/code-repo
+
+# Verify the generated repo before committing
+npx @maintainabilityai/redqueen-mcp \
+  --doctor \
+  --repo /path/to/code-repo
 ```
 
 This generates:
-- `.mcp.json` — MCP server configuration for Claude Code
+- `.mcp.json` — MCP server configuration that launches the repo-local runner
+- `.redqueen/mcp-runner.js` — Resolves the live governance mesh and starts `@maintainabilityai/redqueen-mcp`
 - `.claude/settings.json` — PreToolUse hook configuration
 - `.redqueen/hooks/validate-tool.js` — Hook validator script
 - `.redqueen/hooks/validate-tool.sh` — Shell wrapper (shared entry point)
@@ -66,7 +73,7 @@ This generates:
 
 ## Configuration
 
-### Claude Code (`.mcp.json`)
+### Claude Code and MCP (`.mcp.json`)
 
 The scaffold generates this automatically, or configure manually:
 
@@ -74,15 +81,14 @@ The scaffold generates this automatically, or configure manually:
 {
   "mcpServers": {
     "redqueen": {
-      "command": "npx",
-      "args": [
-        "@maintainabilityai/redqueen-mcp",
-        "--mesh-path", "/path/to/governance-mesh"
-      ]
+      "command": "node",
+      "args": [".redqueen/mcp-runner.js"]
     }
   }
 }
 ```
+
+The runner keeps the code repo self-contained without copying the full governance mesh. It resolves the live mesh in this order: `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, `MESH_PATH`, `./governance-mesh`, then `.redqueen/config-manifest.yaml`.
 
 ### GitHub Copilot
 
@@ -100,7 +106,7 @@ steps:
 
   - name: Start Red Queen MCP Server
     run: |
-      npx @maintainabilityai/redqueen-mcp --mesh-path ${{ github.workspace }}/governance-mesh &
+      node .redqueen/mcp-runner.js &
       sleep 2
 ```
 
@@ -154,10 +160,12 @@ mkdir -p governance-mesh/bars/my-app
 cd /path/to/your-code-repo
 npx @maintainabilityai/redqueen-mcp \
   --mesh-path /path/to/governance-mesh \
-  --scaffold --bar "My App"
+  --scaffold \
+  --bar "My App" \
+  --output "$PWD"
 
-# 3. Verify generated files
-ls -la .redqueen/ .claude/ .github/
+# 3. Verify generated files and hook executability
+npx @maintainabilityai/redqueen-mcp --doctor --repo "$PWD"
 
 # 4. Push to GitHub and create a PR
 git add . && git commit -m "Add Red Queen governance"
@@ -177,8 +185,9 @@ Red Queen implements the **CALM (Common Architecture Language Model)** governanc
    - **Autonomous** (80%+): Agent operates freely within boundaries
    - **Supervised** (50-79%): Changes require human review
    - **Restricted** (<50%): Plan-first, implement after approval
-4. **Hook Enforcement** — PreToolUse hooks validate agent actions against governance policy in real-time
-5. **Review Board** — Multi-agent review with consensus resolution on PRs
+4. **Hook Enforcement** — PreToolUse hooks validate fast static policy before agent tool calls
+5. **MCP Validation** — `validate_action` performs richer CALM-aware checks against the live mesh
+6. **Review Board** — Multi-agent review with fail-closed consensus resolution on PRs
 
 ## License
 

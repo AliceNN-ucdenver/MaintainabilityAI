@@ -246,15 +246,6 @@ export function computeHash(content: string): string {
   return crypto.createHash('md5').update(content).digest('hex');
 }
 
-/**
- * Read a file and compute its hash.
- */
-export function hashFile(filePath: string): string | null {
-  if (!fs.existsSync(filePath)) return null;
-  const content = fs.readFileSync(filePath, 'utf-8');
-  return computeHash(content);
-}
-
 // ============================================================================
 // Helpers
 // ============================================================================

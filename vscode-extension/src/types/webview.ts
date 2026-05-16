@@ -136,16 +136,6 @@ export interface ReviewScope {
   additionalContext?: string;
 }
 
-export interface ReviewFinding {
-  pillar: ReviewPillar;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
-  location: string;
-  expected: string;
-  actual: string;
-  action: string;
-}
-
 export type OracularWebviewMessage =
   | { type: 'ready' }
   | { type: 'submitReview'; barPath: string; scope: ReviewScope; title: string }

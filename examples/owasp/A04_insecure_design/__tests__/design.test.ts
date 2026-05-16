@@ -2,8 +2,14 @@ import { generateResetToken } from '../insecure';
 
 describe('A04 Insecure Design', () => {
   it('should demonstrate predictable token generation (to be fixed)', () => {
+    const now = jest.spyOn(Date, 'now')
+      .mockReturnValueOnce(1778953003691)
+      .mockReturnValueOnce(1778953003692);
+
     const token1 = generateResetToken('user@example.com');
     const token2 = generateResetToken('user@example.com');
+    now.mockRestore();
+
     // Insecure: tokens are predictable and guessable
     // After remediation, use cryptographically secure random tokens with expiry
     expect(token1).toBeDefined();

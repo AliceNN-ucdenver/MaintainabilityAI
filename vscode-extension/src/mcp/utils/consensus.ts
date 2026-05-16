@@ -24,13 +24,24 @@ export function resolveConsensus(
 ): ConsensusResult {
   if (verdicts.length === 0) {
     return {
-      finalVerdict: 'approve',
+      finalVerdict: 'deny',
       verdicts: [],
-      mergedFindings: [],
+      mergedFindings: [
+        {
+          id: 'RQ-REVIEW-001',
+          category: 'risk',
+          severity: 'high',
+          title: 'Required review verdict missing',
+          description: 'No reviewer produced a ReviewVerdict JSON file. Red Queen fails closed so missing agent output cannot approve a PR.',
+          location: '.redqueen/verdicts/',
+          recommendation: 'Re-run the Red Queen Review workflow and inspect the failed reviewer step.',
+          references: ['Red Queen review board'],
+        },
+      ],
       mergedCaveats: [],
-      reasoning: ['No verdicts provided — defaulting to approve'],
-      requiresHumanReview: false,
-      highestSeverity: null,
+      reasoning: ['No verdicts provided; failing closed'],
+      requiresHumanReview: true,
+      highestSeverity: 'high',
     };
   }
 
@@ -101,7 +112,7 @@ export function resolveConsensus(
   }
 
   // Determine if human review is required
-  const requiresHumanReview = finalVerdict === 'deny' ||
+  const requiresHumanReview = finalVerdict !== 'approve' ||
     highestSeverity === 'critical' ||
     mergedFindings.filter(f => f.severity === 'critical' || f.severity === 'high').length > 3;
 

@@ -125,6 +125,7 @@ app.use((req, res, next) => {
 // A08 - Integrity Failures: No signature verification
 app.post('/api/upload', (req, res) => {
   const { fileData, fileName } = req.body;
+  void fileData;
 
   // No integrity check on uploaded data
   // No file type validation

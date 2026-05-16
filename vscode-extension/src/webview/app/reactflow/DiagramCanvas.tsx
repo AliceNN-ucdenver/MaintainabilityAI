@@ -23,7 +23,7 @@ import '@xyflow/react/dist/style.css';
 
 import type { CalmArchitecture, CalmNodeData, CalmNode, CalmControl } from './CalmAdapter';
 import { calmContextToReactFlow, calmLogicalToReactFlow, calmPlatformToReactFlow, calmNodeToReactFlowNode, relationshipToReactFlowEdge } from './CalmAdapter';
-import type { DiagramLayout } from './LayoutTypes';
+import type { DiagramLayout, DiagramType } from './LayoutTypes';
 import { createEmptyLayout } from './LayoutTypes';
 import { computeElkLayout } from './ElkLayout';
 import { getCssVars, invalidateStyleCache } from './nodes/nodeStyles';
@@ -55,7 +55,7 @@ export type { CapabilityNode, CapabilityModelSummary };
 
 export interface DiagramCanvasProps {
   calmData: CalmArchitecture;
-  diagramType: 'context' | 'logical' | 'platform';
+  diagramType: DiagramType;
   savedLayout: DiagramLayout | null;
   onLayoutChange: (layout: DiagramLayout) => void;
   onExportPng: (dataUrl: string) => void;
@@ -95,8 +95,8 @@ function addBidirectionalMarkers(edges: Edge[], v: Record<string, string>): Edge
 }
 
 function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange, onExportPng, onCalmMutation, readOnly, capabilityModel }: DiagramCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [layoutReady, setLayoutReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const reactFlowInstance = useReactFlow();
@@ -222,7 +222,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
     if (node.type === 'containerNode') return; // containers can't be reparented
 
     const currentNodes = reactFlowInstance.getNodes();
-    const calmId = (node.data as CalmNodeData).calmId;
+    const calmId = (node.data as unknown as CalmNodeData).calmId;
     const allPatches: CalmPatch[] = [];
 
     const droppedNode = reactFlowInstance.getNode(node.id);
@@ -244,7 +244,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
           if (n.id !== node.id) return n;
           return { ...n, position: relPos, parentId: newContainer.id, extent: 'parent' as const };
         }));
-        const containerCalmId = (newContainer.data as CalmNodeData).calmId;
+        const containerCalmId = (newContainer.data as unknown as CalmNodeData).calmId;
         const result = CalmMutator.addNodeToContainer(currentCalmRef.current, calmId, containerCalmId);
         currentCalmRef.current = result.calm;
         allPatches.push(...result.patch);
@@ -274,7 +274,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
           return { ...n, position: relPos, parentId: container.id, extent: 'parent' as const };
         }));
 
-        const containerCalmId = (container.data as CalmNodeData).calmId;
+        const containerCalmId = (container.data as unknown as CalmNodeData).calmId;
         const result = CalmMutator.addNodeToContainer(currentCalmRef.current, calmId, containerCalmId);
         currentCalmRef.current = result.calm;
         allPatches.push(...result.patch);
@@ -319,7 +319,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
     if (readOnly || !onCalmMutation) return;
     const allPatches: CalmPatch[] = [];
     for (const node of deletedNodes) {
-      const calmId = (node.data as CalmNodeData).calmId;
+      const calmId = (node.data as unknown as CalmNodeData).calmId;
       const result = CalmMutator.removeNode(currentCalmRef.current, calmId);
       currentCalmRef.current = result.calm;
       allPatches.push(...result.patch);
@@ -468,7 +468,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
 
     // Update ReactFlow node data for visual refresh
     setNodes(nds => nds.map(n => {
-      const patch = patches.find(p => p.target === (n.data as CalmNodeData).calmId);
+      const patch = patches.find(p => p.target === (n.data as unknown as CalmNodeData).calmId);
       if (!patch || !patch.field) return n;
       const updatedData = { ...n.data } as Record<string, unknown>;
       // Map CALM field names to CalmNodeData field names
@@ -519,7 +519,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
         rfNode = { ...rfNode, position: relPos, parentId: container.id, extent: 'parent' as const };
 
         // Create composed-of relationship
-        const containerCalmId = (container.data as CalmNodeData).calmId;
+        const containerCalmId = (container.data as unknown as CalmNodeData).calmId;
         const composedResult = CalmMutator.addNodeToContainer(
           currentCalmRef.current, newCalmNode['unique-id'], containerCalmId,
         );
@@ -563,8 +563,8 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
     const targetNode = reactFlowInstance.getNode(connection.target);
     if (!sourceNode || !targetNode) return;
 
-    const sourceId = (sourceNode.data as CalmNodeData).calmId;
-    const targetId = (targetNode.data as CalmNodeData).calmId;
+    const sourceId = (sourceNode.data as unknown as CalmNodeData).calmId;
+    const targetId = (targetNode.data as unknown as CalmNodeData).calmId;
 
     const newRel = CalmMutator.createDefaultRelationship(diagramType, sourceId, targetId, currentCalmRef.current);
     const result = CalmMutator.addRelationship(currentCalmRef.current, newRel);
@@ -720,7 +720,7 @@ function DiagramCanvasInner({ calmData, diagramType, savedLayout, onLayoutChange
       {/* Inline name editor overlay */}
       {editingNodeId && (
         <InlineNameEditor
-          defaultValue={(reactFlowInstance.getNode(editingNodeId)?.data as CalmNodeData)?.name || 'New Node'}
+          defaultValue={(reactFlowInstance.getNode(editingNodeId)?.data as unknown as CalmNodeData)?.name || 'New Node'}
           position={editingNodePos}
           onConfirm={handleNameConfirm}
           onCancel={() => setEditingNodeId(null)}

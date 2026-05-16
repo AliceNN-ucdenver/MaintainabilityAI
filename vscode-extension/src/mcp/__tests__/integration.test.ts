@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -6,14 +8,27 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const FIXTURES = path.join(__dirname, 'fixtures', 'test-mesh');
 const SERVER_PATH = path.join(__dirname, '..', '..', '..', 'dist', 'mcp-server.js');
 
+function resourceText(content: { text: string } | { blob: string }): string {
+  if ('text' in content) {
+    return content.text;
+  }
+  throw new Error('Expected text resource content');
+}
+
 describe('Red Queen MCP Server Integration', () => {
   let client: Client;
   let transport: StdioClientTransport;
+  let tmpRoot: string;
+  let meshPath: string;
 
   beforeAll(async () => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-integration-'));
+    meshPath = path.join(tmpRoot, 'test-mesh');
+    fs.cpSync(FIXTURES, meshPath, { recursive: true });
+
     transport = new StdioClientTransport({
       command: 'node',
-      args: [SERVER_PATH, '--mesh-path', FIXTURES],
+      args: [SERVER_PATH, '--mesh-path', meshPath],
     });
     client = new Client({ name: 'test-client', version: '1.0' });
     await client.connect(transport);
@@ -21,6 +36,9 @@ describe('Red Queen MCP Server Integration', () => {
 
   afterAll(async () => {
     await client.close();
+    if (tmpRoot) {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 
   // --------------------------------------------------------------------------
@@ -51,14 +69,14 @@ describe('Red Queen MCP Server Integration', () => {
     it('reads calm://mesh/summary', async () => {
       const { contents } = await client.readResource({ uri: 'calm://mesh/summary' });
       expect(contents).toHaveLength(1);
-      const data = JSON.parse(contents[0].text as string);
+      const data = JSON.parse(resourceText(contents[0]));
       expect(data.portfolio.id).toBe('PF-TEST-001');
       expect(data.totalBars).toBe(2);
     });
 
     it('reads calm://mesh/bars', async () => {
       const { contents } = await client.readResource({ uri: 'calm://mesh/bars' });
-      const bars = JSON.parse(contents[0].text as string);
+      const bars = JSON.parse(resourceText(contents[0]));
       expect(bars).toHaveLength(2);
       expect(bars.some((b: { name: string }) => b.name === 'Test Bar Good')).toBe(true);
     });
@@ -808,9 +826,12 @@ describe('Red Queen MCP Server Integration', () => {
       const hooks = data.files.find((f: { path: string }) => f.path === '.github/hooks/redqueen.json');
       expect(hooks).toBeDefined();
       const parsed = JSON.parse(hooks.content);
-      expect(parsed.hooks).toBeInstanceOf(Array);
-      expect(parsed.hooks[0].type).toBe('preToolUse');
-      expect(parsed.hooks[0].script).toContain('validate-tool.sh');
+      expect(parsed.version).toBe(1);
+      expect(parsed.hooks.preToolUse).toBeInstanceOf(Array);
+      expect(parsed.hooks.preToolUse[0].type).toBe('command');
+      expect(parsed.hooks.preToolUse[0].matcher).toContain('edit');
+      expect(parsed.hooks.preToolUse[0].command).toContain('AGENT_TYPE=copilot');
+      expect(parsed.hooks.preToolUse[0].command).toContain('validate-tool.sh');
     });
 
     it('scaffold includes validate-tool.sh shell wrapper', async () => {

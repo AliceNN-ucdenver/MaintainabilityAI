@@ -56,7 +56,7 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
       <p style="margin: 4px 0 0 0; font-size: 13px; color: #818cf8; font-weight: 600;">Governed by The Red Queen</p>
     </div>
   </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous GitHub Actions agent with full MCP access — resources, tools, and prompts. Deterministic governance enforcement via NeMo Guardrails.</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous GitHub Actions agent with full MCP access — resources, tools, and prompts. Governed by Red Queen MCP validation, pre-tool hooks, and fail-closed review consensus.</p>
   <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
   <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">Autonomous issue remediation · Governed PRs · Cross-repo enforcement · CI/CD governance</p>
   <a href="/docs/agents/claude-code-action" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: auto; align-self: flex-start;">View Guide →</a>
@@ -70,7 +70,7 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
       <p style="margin: 4px 0 0 0; font-size: 13px; color: #818cf8; font-weight: 600;">Governed by The Red Queen</p>
     </div>
   </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous GitHub agent with MCP tools (no resources/prompts). Same governance enforcement, different config mechanism.</p>
+  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous GitHub agent with MCP tools. Same governance mesh and policy engine, different hook/config adapter.</p>
   <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
   <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">Autonomous issue remediation · Governed PRs · Teams already using Copilot</p>
   <a href="/docs/agents/copilot-coding-agent" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: auto; align-self: flex-start;">View Guide →</a>
@@ -117,7 +117,7 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
 
 <div style="color: #e2e8f0; font-weight: 600;">Governance</div>
 <div style="color: #94a3b8;">Prompt packs + human judgment</div>
-<div style="color: #94a3b8;">The Red Queen: MCP + NeMo Guardrails</div>
+<div style="color: #94a3b8;">The Red Queen: MCP + hooks + policy engine</div>
 
 <div style="color: #e2e8f0; font-weight: 600;">Enforcement</div>
 <div style="color: #94a3b8;">Advisory (prompts guide)</div>
@@ -161,7 +161,7 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
 
 <div style="color: #e2e8f0;">Cross-repo changes</div>
 <div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #c4b5fd;">Claude Code Action</span></div>
-<div style="color: #94a3b8;">Full MCP resources + interface contract validation</div>
+<div style="color: #94a3b8;">Full MCP context + Phase 9 interface contract gate</div>
 
 <div style="color: #e2e8f0;">Dependency upgrades</div>
 <div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>

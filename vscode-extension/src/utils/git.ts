@@ -35,13 +35,3 @@ export async function getCurrentBranch(cwd: string): Promise<string> {
     return 'main';
   }
 }
-
-/** Detect GitHub repo info + branch from a directory's git remote. */
-export async function detectGitHubRepo(cwd: string): Promise<(GitRepoInfo & { branch: string; remoteUrl: string }) | null> {
-  const url = await getRemoteOriginUrl(cwd);
-  if (!url) { return null; }
-  const parsed = parseGitHubUrl(url);
-  if (!parsed) { return null; }
-  const branch = await getCurrentBranch(cwd);
-  return { ...parsed, branch, remoteUrl: url };
-}

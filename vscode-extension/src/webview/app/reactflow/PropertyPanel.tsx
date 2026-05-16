@@ -33,7 +33,7 @@ export function PropertyPanel({ selectedNode, selectedEdge, onFieldChange, onClo
 
   if (!selectedNode && !selectedEdge) return null;
 
-  const nodeData = selectedNode ? selectedNode.data as CalmNodeData : null;
+  const nodeData = selectedNode ? selectedNode.data as unknown as CalmNodeData : null;
 
   return (
     <div style={{
@@ -154,7 +154,7 @@ function NodeProperties({
   capabilityModel: CapabilityModelSummary | null;
   onNavigate: (view: PanelView) => void;
 }) {
-  const d = node.data as CalmNodeData;
+  const d = node.data as unknown as CalmNodeData;
   const v = getCssVars();
 
   // Read interfaces from CALM data

@@ -1,26 +1,28 @@
 # Red Queen Quick Start Guide — IMDB Celebs End-to-End Test
 
-This guide walks through testing the full Red Queen governance pipeline using the **IMDB Celebs** BAR (score: 5/100 = restricted tier) and a new `celeb-api` repo. The low score triggers full review board enforcement — security AND architecture reviews with consensus.
+This guide walks through testing the Red Queen governance pipeline using the **IMDB Celebs** BAR (score: 5/100 = restricted tier) and a new `celeb-api` repo. The low score triggers restricted-tier hooks, security and architecture review steps, and fail-closed consensus.
 
 **What you'll do:**
 1. Configure the governance mesh for agent orchestration
 2. Create the `celeb-api` repo on GitHub
 3. Scaffold governance files into it
 4. Push to GitHub and create a PR
-5. Verify the full governance review workflow triggers
+5. Verify the governance review workflow triggers
+
+> **Enforcement boundary:** Today Red Queen ships two working control points: pre-tool hooks for fast local/agent feedback and MCP `validate_action` for deterministic architecture validation. The generated review workflow fails closed when reviewers do not produce verdicts, but hard merge blocking requires you to mark the workflow as a required status check. The standalone `redqueen-action` hard gate is planned for Phase 9.
 
 ---
 
 ## Prerequisites
 
-- [x] `@maintainabilityai/redqueen-mcp` published to npm (v0.1.1+)
+- [x] `@maintainabilityai/redqueen-mcp` published to npm (v0.1.3+ for `--output` + `--doctor`)
 - [x] A governance mesh directory (local path — can be anywhere on your machine)
 - [x] `npm login` completed
 - [x] `NPM_TOKEN` GitHub secret set
 - [ ] `ANTHROPIC_API_KEY` GitHub secret (needed for Claude review steps)
 - [ ] `GOVERNANCE_MESH_TOKEN` GitHub secret (PAT with read access to your governance mesh repo)
 
-> **Path conventions:** This guide uses `$MESH_PATH` for your governance mesh and `$REPO_PATH` for the code repo. Substitute your actual paths. On GitHub Actions, the mesh is always checked out to a deterministic path (`${{ github.workspace }}/governance-mesh`) by the workflow — no local path assumptions there.
+> **Path conventions:** This guide uses `$MESH_PATH` for your governance mesh and `$REPO_PATH` for the code repo. Substitute your actual paths. Scaffolded repos include a self-contained `.redqueen/mcp-runner.js`; it resolves the live mesh from `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, `MESH_PATH`, or a local `./governance-mesh` checkout. On GitHub Actions, the mesh is checked out to `${{ github.workspace }}/governance-mesh` by the workflow.
 >
 > **Example:**
 > ```bash
@@ -219,10 +221,10 @@ npx @maintainabilityai/redqueen-mcp \
 
 Expected:
 ```
-BAR: IMDB Celebs | Tier: restricted | Files: 16
+BAR: IMDB Celebs | Tier: restricted | Files: 17
 ```
 
-If you get fewer than 16 files, the review workflow and implementation workflow are missing — check that `agent_type` is set correctly.
+If you get fewer than 17 files, the MCP runner, review workflow, or implementation workflow is missing — check that `agent_type` is set correctly. If `agent_type: both`, expect additional Copilot reviewer instruction files.
 
 ---
 
@@ -260,61 +262,25 @@ git checkout -b feature/redqueen-governance
 npx @maintainabilityai/redqueen-mcp \
   --mesh-path $MESH_PATH \
   --scaffold \
-  --bar "IMDB Celebs" 2>/dev/null > /tmp/scaffold.json
+  --bar "IMDB Celebs" \
+  --output "$REPO_PATH"
 
-# Check what we got
-node -e "
-  const d = JSON.parse(require('fs').readFileSync('/tmp/scaffold.json','utf8'));
-  console.log('BAR:', d.barName);
-  console.log('Tier:', d.tier);
-  console.log('Files:', Object.keys(d.files).length);
-  console.log();
-  Object.keys(d.files).forEach(f => console.log('  ' + f));
-"
+# First-run health check. This verifies required files, executable hooks,
+# MCP runner mesh resolution, Copilot hook shape, policy rules, and manifest fingerprints.
+npx @maintainabilityai/redqueen-mcp \
+  --doctor \
+  --repo "$REPO_PATH"
 ```
 
 Expected output:
-```
-BAR: IMDB Celebs
-Tier: restricted
-Files: 16
-
-  .mcp.json
-  .claude/settings.json
-  AGENTS.md
-  .redqueen/governance-context.md
-  .redqueen/decision.json
-  .redqueen/hooks/validate-tool.js
-  .redqueen/hooks/validate-tool.sh
-  .redqueen/policy.json
-  .github/hooks/redqueen.json
-  .github/copilot-governance-steps.yml
-  .github/workflows/redqueen-review.yml
-  .redqueen/consensus.js
-  .claude/agents/security-reviewer.md
-  .claude/agents/architecture-reviewer.md
-  .github/workflows/redqueen-implement.yml
-  .redqueen/config-manifest.yaml
-```
-
-### Write the files to disk
-
-```bash
-node -e "
-const data = JSON.parse(require('fs').readFileSync('/tmp/scaffold.json', 'utf8'));
-const path = require('path');
-const fs = require('fs');
-for (const [filePath, content] of Object.entries(data.files)) {
-  const fullPath = path.resolve(filePath);
-  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-  fs.writeFileSync(fullPath, content);
-  console.log('  wrote', filePath);
+```json
+{
+  "ok": true,
+  "errors": []
 }
-"
-
-# Make the shell wrapper executable
-chmod +x .redqueen/hooks/validate-tool.sh
 ```
+
+The scaffold writes the hook wrapper and MCP runner as executable. You should not need a manual `chmod`. The code repo does **not** copy the full governance mesh; it carries a compiled policy snapshot for fast hooks and uses the runner to connect MCP tools to the live mesh.
 
 ---
 
@@ -388,8 +354,8 @@ git add .
 git commit -m "Add Red Queen governance scaffolding
 
 Scaffolded from governance mesh (IMDB Celebs BAR).
-Score: 5/100 — restricted tier — full review enforcement.
-Includes: MCP config, PreToolUse hooks, review workflow,
+Score: 5/100 — restricted tier — fail-closed review consensus.
+Includes: MCP config + runner, PreToolUse hooks, review workflow,
 implementation workflow, subagent definitions, governance context.
 
 🤖 AI-assisted with Claude Code using Red Queen scaffold"
@@ -405,7 +371,7 @@ gh pr create \
   --body "## Summary
 - Scaffolded Red Queen governance files from the governance mesh
 - **BAR: IMDB Celebs** — Composite Score: 5/100 — **Restricted Tier**
-- Full review enforcement: security + architecture reviews with consensus
+- Restricted-tier review: security + architecture reviewers with consensus
 - PreToolUse hook enforcement for both Claude Code and Copilot
 - Automated PR review workflow (redqueen-review.yml)
 - Issue implementation workflow (redqueen-implement.yml)
@@ -519,25 +485,45 @@ The workflow will:
 ```bash
 cd $REPO_PATH
 
-# Test: allowed tool call (Edit on normal file)
-echo '{"tool_name":"Edit","tool_input":{"file_path":"src/health.js"}}' | \
-  node .redqueen/hooks/validate-tool.js
-
 # Test: read-only tools are always allowed
 echo '{"tool_name":"Read","tool_input":{"file_path":"package.json"}}' | \
-  node .redqueen/hooks/validate-tool.js
+  ./.redqueen/hooks/validate-tool.sh
+
+# Test: restricted tier blocks Edit until approval is recorded
+set +e
+echo '{"tool_name":"Edit","tool_input":{"file_path":"src/health.js"}}' | \
+  ./.redqueen/hooks/validate-tool.sh
+echo "exit=$?"
+set -e
+
+# Test: approved restricted-tier edit is allowed
+echo '{"tool_name":"Edit","tool_input":{"file_path":"src/health.js"}}' | \
+  REDQUEEN_PLAN_APPROVED=true ./.redqueen/hooks/validate-tool.sh
+
+# Test: restricted tier denies Bash
+set +e
+echo '{"tool_name":"Bash","tool_input":{"command":"npm install left-pad"}}' | \
+  ./.redqueen/hooks/validate-tool.sh
+echo "exit=$?"
+set -e
+
+# Test: Copilot hook mode returns permissionDecision JSON instead of exit-code blocking
+echo '{"toolName":"bash","toolArgs":{"command":"npm test"}}' | \
+  AGENT_TYPE=copilot ./.redqueen/hooks/validate-tool.sh
 ```
 
-Expected output (allowed):
+Expected allowed output contains:
 ```json
-{"hookSpecificOutput":{"hookEventName":"PreToolUse"}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}
 ```
+
+Expected restricted-tier denials exit with `2` for Claude-style hooks and return `"permissionDecision":"deny"` for Copilot-style hooks.
 
 ---
 
 ## Step 10: CALM Flow Validation Experiment
 
-This experiment demonstrates that Red Queen enforces architectural constraints **at every tier** — even autonomous BARs can't silently bypass their CALM architecture model.
+This experiment demonstrates deterministic CALM validation through the MCP `validate_action` tool. Hooks provide fast static blocking; MCP validation provides richer architecture feedback. The Phase 9 CI gate will be the non-bypassable merge boundary.
 
 The IMDB Celebs CALM model declares these valid connections:
 
@@ -657,7 +643,7 @@ Claude will call `validate_action` and get denied. The agent should then propose
 | API → News Feed | "Fetch RSS articles" | Approved | Declared relationship |
 | Frontend → News Feed | "Direct RSS from React" | **Denied** | No CALM relationship |
 
-This enforcement happens at **every tier** — autonomous, supervised, and restricted. The tier controls *how much friction* (hooks, reviews, permissions), but CALM architectural constraints are **always enforced**. A high-scoring BAR earns trust to operate with less oversight, but it still can't violate its own declared architecture.
+The same CALM rule applies at every tier — autonomous, supervised, and restricted. The tier controls *how much friction* (hooks, reviews, permissions), while `validate_action` evaluates declared architecture relationships the same way for every BAR.
 
 ---
 
@@ -665,12 +651,12 @@ This enforcement happens at **every tier** — autonomous, supervised, and restr
 
 | Step | Expected Result |
 |------|----------------|
-| Scaffold | 16 governance files generated, tier = restricted |
+| Scaffold | Governance files generated, tier = restricted, `--doctor` returns `ok: true` |
 | decision.json | `effectiveTier: "restricted"`, score 5 |
 | AGENTS.md | Restricted instructions: "Plan first, implement after approval" |
 | settings.json | Hooks on Edit, Write, Bash, **and Read** (restricted matches more) |
 | redqueen-review.yml | Both security + architecture reviews enabled |
-| PR review | Claude reviews diff, consensus posted as PR comment |
+| PR review | Claude reviews diff, consensus posted as PR comment; workflow fails closed on missing verdicts |
 | Implementation | Claude creates branch + PR from labeled issue |
 | CALM valid flow | `celeb-frontend → celeb-api` = approved |
 | CALM invalid flow | `celeb-frontend → celeb-db` = **denied** (CALM-004) |

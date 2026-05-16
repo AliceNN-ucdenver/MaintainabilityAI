@@ -35,17 +35,9 @@ jobs:
         working-directory: vscode-extension
         run: npm ci
 
-      - name: Lint
+      - name: Run quality gate
         working-directory: vscode-extension
-        run: npm run lint
-
-      - name: Build MCP server bundle
-        working-directory: vscode-extension
-        run: node esbuild.js --production
-
-      - name: Test
-        working-directory: vscode-extension
-        run: npx vitest run --passWithNoTests
+        run: npm run quality
 
       - name: Prepare npm package
         run: |

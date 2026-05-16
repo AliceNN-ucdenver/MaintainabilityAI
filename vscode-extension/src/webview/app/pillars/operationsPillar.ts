@@ -16,7 +16,3 @@ export function renderOperationsDetail(): string {
 export function attachOperationsEvents(): void {
   // No events yet
 }
-
-export function getOperationsStyles(): string {
-  return '';
-}

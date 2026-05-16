@@ -1,11 +1,14 @@
 .vscode/**
 src/**
 test/**
+scripts/**
 node_modules/**
+design/**
 .gitignore
-tsconfig.json
+tsconfig*.json
 esbuild.js
 **/*.ts
-!dist/**
-dist/**/*.map
+**/*.map
+DEMO_SCRIPT.md
+knip.json
 *.vsix

@@ -204,6 +204,8 @@ Backstage catalogs services - it doesn't understand their architecture. Port.io 
   </div>
 </div>
 
+Start with the working path: [Red Queen quickstart](/docs/quickstart-redqueen) scaffolds hooks, a repo-local MCP runner, review workflows, and the first-run doctor into a real repository. The code repo carries the governance harness; the live governance mesh remains the source of truth and is resolved at runtime.
+
 ### The Problem With Prompts
 
 Every governance tool today - including ours - relies on prompts to guide AI agents. "Please follow the architecture." "Please respect these security controls." "Please don't add direct database connections."
@@ -222,11 +224,11 @@ This is the fundamental gap. And we're closing it.
 <div style="display: grid; grid-template-rows: auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto;">
 <div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">Layer 1: PreToolUse Hooks — Millisecond Inline Blocking</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Before any agent tool fires, lightweight hooks evaluate governance constraints and block violations inline. Zero latency overhead. Both Claude Code (<code>.claude/settings.json</code>) and Copilot Coding Agent (<code>.github/hooks/</code>) support preToolUse hooks natively — same validation logic, symmetric enforcement, no MCP round-trip required.</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Before an agent tool runs, lightweight hooks evaluate static governance rules and block tool, path, restricted-tier, and declared CALM connection violations inline. Claude Code (<code>.claude/settings.json</code>) and Copilot Coding Agent (<code>.github/hooks/</code>) use agent-specific adapters that call the same validator, with no MCP round-trip required for the fast path.</div>
 </div>
 <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: The Grin (MCP Server) + The Red Queen's Court — Contextual Validation</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">14 calm:// resources and 25 MCP tools make your governance mesh queryable by any AI agent. The Red Queen's Court policy engine enforces constraints deterministically — not LLM suggestions. CALM flows, controls, interface contracts, and threat model mitigations enforced via TypeScript rule evaluation. An agent <strong>cannot</strong> bypass a flow constraint.</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">14 calm:// resources and 25 MCP tools make your governance mesh queryable by AI agents. The Red Queen's Court policy engine evaluates constraints deterministically — not as LLM suggestions. Today it covers tier, path, security-critical files, CALM flows, platform impact, and control-aware warnings through TypeScript rule evaluation. The agent receives an auditable allow, conditional, or deny decision.</div>
 </div>
 <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: CI Required Status Check — Hard Merge Gate <span style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">(Phase 9)</span></div>
@@ -235,7 +237,7 @@ This is the fundamental gap. And we're closing it.
 </div>
 </div>
 
-### Deterministic Governance - Prompts Advise, Guardrails Enforce
+### Deterministic Governance - Prompts Advise, Policy Decides
 
 Your CALM architecture declares that **web-frontend** connects to **api-gateway**, which connects to **user-database**. A three-tier flow. Clean separation.
 
@@ -288,15 +290,15 @@ This isn't an LLM judging whether the change is okay. It's a deterministic polic
   <text x="730" y="96" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Conditional</text>
   <text x="730" y="116" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Deny</text>
   <!-- Bottom rail labels -->
-  <text x="400" y="160" text-anchor="middle" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1" font-family="system-ui, sans-serif">FIVE RAIL CATEGORIES EVALUATED</text>
+  <text x="400" y="160" text-anchor="middle" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1" font-family="system-ui, sans-serif">GOVERNANCE RAILS EVALUATED</text>
   <rect x="50" y="173" width="130" height="26" rx="6" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.25)"/>
   <text x="115" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Flow Constraints</text>
   <rect x="190" y="173" width="130" height="26" rx="6" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.25)"/>
   <text x="255" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Control Adherence</text>
   <rect x="330" y="173" width="130" height="26" rx="6" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.25)"/>
-  <text x="395" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Interface Contracts</text>
+  <text x="395" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Path Controls</text>
   <rect x="470" y="173" width="130" height="26" rx="6" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.25)"/>
-  <text x="535" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Threat Model</text>
+  <text x="535" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Platform Impact</text>
   <rect x="610" y="173" width="130" height="26" rx="6" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.25)"/>
   <text x="675" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Permission Tiers</text>
   <!-- Badge -->
@@ -304,17 +306,17 @@ This isn't an LLM judging whether the change is okay. It's a deterministic polic
   <text x="400" y="225" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600" font-family="system-ui, sans-serif">DETERMINISTIC  ·  AUDITABLE</text>
 </svg>
 
-**Five rails** enforce your governance: **Flow Constraints** (no undeclared connections), **Control Adherence** (NIST controls enforced - no endpoint without auth), **Interface Contracts** (cross-repo semantics respected), **Threat Model** (STRIDE mitigations validated), and **Permission Tiers** (agent autonomy bounded by governance scores).
+**Six rails** guide and enforce governance today: **Permission Tiers** (agent autonomy bounded by governance scores), **Path Controls** (generated governance files stay read-only), **Security-Critical Paths** (restricted-tier agents cannot modify sensitive areas), **CALM Flow Constraints** (declared relationships are checked), **Control Warnings** (security-control impact is surfaced), and **Platform Impact** (shared nodes trigger coordination warnings). Interface contract diffing and deeper STRIDE mitigation enforcement move into the Phase 9 hard gate.
 
-### Cross-Repo Semantic Governance - The Breakthrough
+### Cross-Repo Semantic Governance - The Breakthrough We Are Building
 
 This is the capability that doesn't exist anywhere else in the market.
 
 Modern applications span multiple repositories. A frontend. An API. A database. Infrastructure-as-code. They're connected through CALM flows and interface contracts. But every governance tool today treats each repo independently.
 
-**The Red Queen governs across repository boundaries.**
+**The Red Queen is moving governance across repository boundaries.**
 
-When your CALM model declares a flow from **checkout-ui** (frontend repo) through **order-api** (API repo) to **order-database** (API repo), The Red Queen understands the full dependency graph. Interface contracts are **machine-checkable** — OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff. An agent working on the frontend that tries to call an endpoint not declared on the API's interface? **Interface contract violation.** The Red Queen blocks the change and creates a coordination issue in the API repo.
+When your CALM model declares a flow from **checkout-ui** through **order-api** to **order-database**, Red Queen can already reason over the graph and warn on shared platform impact. Phase 9 extends this into machine-checkable interface contracts — OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff — so cross-repo contract violations can fail a required check and create coordination work in the owning repo.
 
 <svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
   <defs>
@@ -343,9 +345,9 @@ When your CALM model declares a flow from **checkout-ui** (frontend repo) throug
   <rect x="290" y="120" width="220" height="32" rx="6" fill="rgba(139,92,246,0.15)" stroke="rgba(139,92,246,0.4)"/>
   <text x="400" y="141" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600" font-family="monospace">validate_action</text>
   <rect x="290" y="162" width="220" height="32" rx="6" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.4)"/>
-  <text x="400" y="183" text-anchor="middle" fill="#d8b4fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Interface Contract Rule</text>
+  <text x="400" y="183" text-anchor="middle" fill="#d8b4fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Contract Diff (Phase 9)</text>
   <rect x="325" y="204" width="150" height="24" rx="12" fill="rgba(248,113,113,0.15)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="400" y="220" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700" font-family="system-ui, sans-serif">DENIED - Contract Violation</text>
+  <text x="400" y="220" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700" font-family="system-ui, sans-serif">PHASE 9 GATE</text>
   <!-- Repo B: order-api -->
   <rect x="570" y="48" width="200" height="110" rx="10" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-dasharray="4"/>
   <text x="670" y="68" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="600" font-family="system-ui, sans-serif">order-api repo</text>
@@ -363,16 +365,16 @@ When your CALM model declares a flow from **checkout-ui** (frontend repo) throug
 
 | Agent Change | Red Queen Response |
 |---|---|
-| Frontend calls undeclared API endpoint | **Denied** - interface **order-api-v2** doesn't include that endpoint |
-| API changes response format | **Conditional** - frontend-app consumes this interface, update frontend or update contract first |
-| Database drops a column | **Denied** - blast radius: 4 nodes, 2 BARs, 1 flow. Requires migration ADR. |
-| New service without auth middleware | **Blocked** - control **ctrl-auth-001** requires OAuth2 on all endpoints |
+| Frontend calls undeclared API endpoint | **Phase 9 gate** - interface **order-api-v2** does not include that endpoint |
+| API changes response format | **Phase 9 conditional** - frontend-app consumes this interface, update frontend or update contract first |
+| Database drops a column | **Phase 9 deny** - blast radius: 4 nodes, 2 BARs, 1 flow. Requires migration ADR. |
+| New service touches shared platform node | **Available now** - `validate_action` surfaces platform-impact coordination warnings |
 
 ### Agent-Agnostic - One Control Plane, Every Agent
 
 Organizations use Claude Code *and* Copilot Coding Agent. Different config files. Different instruction formats. Different hook mechanisms.
 
-**The Red Queen doesn't care.** Both agents support preToolUse hooks — Layer 1 enforcement is symmetric. Both call the same MCP tools. Both hit the same policy engine. Both are governed by the same CALM model. One hook file for Copilot Coding Agent (`.github/hooks/`), one for Claude Code (`.claude/settings.json`) — the enforcement is identical. Configuration fingerprints detect drift at every layer.
+**The Red Queen doesn't care which agent is holding the keyboard.** Claude Code and Copilot Coding Agent get their own hook configuration, both adapters invoke the same validator, and both can call the same MCP tools against the same CALM model. A repo-local MCP runner resolves the live mesh from env, CI checkout, or manifest defaults; configuration fingerprints and the scaffold doctor catch drift before the setup quietly rots.
 
 ### Progressive Autonomy - Governance Earns Trust
 
@@ -388,12 +390,12 @@ Three permission tiers, driven by governance scores:
 <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 20px;">
 <div style="font-size: 14px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Supervised</div>
 <div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">50-79%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Agents need human checkpoints. OWASP and STRIDE packs auto-injected for weak pillars. Cross-repo changes require validate_interface_contract.</div>
+<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Agents need human checkpoints. OWASP and STRIDE packs are injected for weak pillars. Structural changes are routed through <code>validate_action</code>; machine-checkable interface contract gates arrive in Phase 9.</div>
 </div>
 <div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 20px;">
 <div style="font-size: 14px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Restricted</div>
 <div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">0-49%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Maximum oversight. Plan-first mode. Multi-agent review board. The policy engine blocks infrastructure changes entirely. Every action auditable.</div>
+<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Maximum oversight. Plan-first mode. Multi-agent review board. Hooks block Bash and Write, and Edit requires recorded approval. Every decision is auditable.</div>
 </div>
 </div>
 </div>
@@ -425,11 +427,11 @@ Everything above - Looking Glass, Absolem, Oraculum, Cheshire, The Red Queen - i
 </div>
 <div style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #d8b4fe;">The Red Queen's Court (Policy Engine)</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Enforces</strong> constraints as deterministic rules, not suggestions. CALM flow transitions, NIST control adherence, interface contracts, threat model mitigations, and permission boundaries — all evaluated by a pure TypeScript policy engine running in-process.</div>
+<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Evaluates</strong> constraints as deterministic rules, not suggestions. Permission boundaries, generated-file paths, security-critical files, CALM flow transitions, control-aware warnings, and platform impact are evaluated by a pure TypeScript policy engine running in-process.</div>
 </div>
 <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">The Grin (MCP Server)</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Exposes</strong> architecture intelligence to every AI agent via 14 calm:// resources and 25 MCP tools. Claude Code, Copilot Coding Agent, Cursor, GitHub Actions — any MCP client gets the same governance context. Published as <code>@maintainabilityai/redqueen-mcp</code> on npm for zero-config <code>npx</code> usage.</div>
+<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Exposes</strong> architecture intelligence to every AI agent via 14 calm:// resources and 25 MCP tools. Claude Code, Copilot Coding Agent, Cursor, GitHub Actions — any MCP client gets the same governance context. Published as <code>@maintainabilityai/redqueen-mcp</code> on npm; scaffolded repos launch it through a portable local runner.</div>
 </div>
 <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 16px;">
 <div style="font-size: 16px; font-weight: 700; color: #93c5fd;">Looking Glass + Absolem + Oraculum</div>
@@ -520,7 +522,7 @@ No other tool connects all five layers. That's the impossible thing we built.
 </div>
 <div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
 <div style="font-size: 15px; font-weight: 700; color: #86efac;">♛ The Red Queen <span style="font-size: 10px; font-weight: 600; color: #4ade80; text-transform: uppercase; letter-spacing: 1px;">Phases 1-8</span></div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Unified governance intelligence and enforcement — MCP server (The Grin) with 25 tools and 14 calm:// resources, The Red Queen's Court TypeScript policy engine for deterministic enforcement (6 rule types: TIER, PATH, SEC, CALM, CTRL, PLAT), progressive autonomy agent orchestration with 3 permission tiers, score decay with trust battery, multi-agent review boards with severity-weighted consensus, PreToolUse hook generation for both Claude Code and Copilot Coding Agent, GitHub Actions workflow generation, audit logging with correlation IDs, and <a href="https://www.npmjs.com/package/@maintainabilityai/redqueen-mcp" style="color: #86efac;">npm package</a> for zero-config <code>npx</code> usage.</div>
+<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Unified governance intelligence and enforcement — MCP server (The Grin) with 25 tools and 14 calm:// resources, The Red Queen's Court TypeScript policy engine for deterministic enforcement (6 rule types: TIER, PATH, SEC, CALM, CTRL, PLAT), progressive autonomy agent orchestration with 3 permission tiers, score decay with trust battery, multi-agent review boards with severity-weighted consensus, PreToolUse hook generation for both Claude Code and Copilot Coding Agent, GitHub Actions workflow generation, audit logging with correlation IDs, repo-local MCP runner generation, and <a href="https://www.npmjs.com/package/@maintainabilityai/redqueen-mcp" style="color: #86efac;">npm package</a> distribution.</div>
 </div>
 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
 <div style="width: 14px; height: 14px; border-radius: 50%; background: #818cf8; flex-shrink: 0;"></div>

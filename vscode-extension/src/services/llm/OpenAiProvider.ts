@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import type { LlmProvider, RctroPrompt, TechStack } from '../../types';
 import { RCTRO_SYSTEM_PROMPT } from './LlmService';
 import { TechStackDetector } from '../TechStackDetector';
-import { toErrorMessage } from '../../utils/errors';
+import { parseRctroResponse } from './RctroParser';
 
 export class OpenAiProvider implements LlmProvider {
   readonly name = 'OpenAI';
@@ -48,48 +48,6 @@ export class OpenAiProvider implements LlmProvider {
     });
 
     const text = response.choices[0]?.message?.content || '';
-    return this.parseRctroResponse(text);
-  }
-
-  private parseRctroResponse(text: string): RctroPrompt {
-    // Strategy 1: extract from ```json ... ``` code fence
-    let jsonStr: string | undefined;
-    const fenceMatch = text.match(/```(?:json)?\s*\n([\s\S]*?)\n\s*```/);
-    if (fenceMatch) {
-      jsonStr = fenceMatch[1].trim();
-    }
-
-    // Strategy 2: find the outermost { ... } brace pair
-    if (!jsonStr) {
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        jsonStr = text.substring(firstBrace, lastBrace + 1);
-      }
-    }
-
-    if (!jsonStr) {
-      throw new Error(`Failed to parse LLM response as RCTRO JSON — no JSON found. Raw response:\n${text.substring(0, 500)}`);
-    }
-
-    try {
-      const parsed = JSON.parse(jsonStr);
-      return {
-        title: parsed.title || undefined,
-        role: parsed.role || '',
-        context: parsed.context || '',
-        task: parsed.task || '',
-        requirements: Array.isArray(parsed.requirements)
-          ? parsed.requirements.map((r: Record<string, unknown>) => ({
-              title: String(r.title || ''),
-              details: Array.isArray(r.details) ? r.details.map(String) : [],
-              validation: String(r.validation || ''),
-            }))
-          : [],
-        output: parsed.output || '',
-      };
-    } catch (err) {
-      throw new Error(`Failed to parse LLM response as RCTRO JSON. Error: ${toErrorMessage(err)}\nRaw response:\n${text.substring(0, 500)}`);
-    }
+    return parseRctroResponse(text);
   }
 }

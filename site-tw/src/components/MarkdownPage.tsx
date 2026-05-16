@@ -299,8 +299,6 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               }
             };
 
-            // Insert button after the header text
-            // @ts-ignore - TypeScript inference issue, headerElement is guaranteed non-null here
             headerElement.appendChild(copyBtn);
           }
         });
@@ -353,11 +351,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
           rehypePlugins={[rehypeRaw, rehypeSlug]}
           components={{
             // Style code blocks
-            // @ts-ignore - TypeScript inference issue, inline exists
-            code({ node, inline, className, children, ...props }) {
-              const match = /language-(\w+)/.exec(className || '');
-              const lang = match ? match[1] : '';
-
+            code({ node: _node, inline, className, children, ...props }) {
               if (inline) {
                 return (
                   <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm" {...props}>
@@ -375,7 +369,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               );
             },
             // Style links
-            a({ node, children, href, ...props }) {
+            a({ node: _node, children, href, ...props }) {
               const isExternal = href?.startsWith('http');
               return (
                 <a
@@ -390,7 +384,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               );
             },
             // Style tables
-            table({ node, children, ...props }) {
+            table({ node: _node, children, ...props }) {
               return (
                 <div className="overflow-x-auto my-6">
                   <table className="min-w-full border border-slate-700 rounded-lg" {...props}>
@@ -399,21 +393,21 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
                 </div>
               );
             },
-            thead({ node, children, ...props }) {
+            thead({ node: _node, children, ...props }) {
               return (
                 <thead className="bg-slate-900" {...props}>
                   {children}
                 </thead>
               );
             },
-            th({ node, children, ...props }) {
+            th({ node: _node, children, ...props }) {
               return (
                 <th className="border border-slate-700 px-4 py-2 text-left font-semibold text-brand" {...props}>
                   {children}
                 </th>
               );
             },
-            td({ node, children, ...props }) {
+            td({ node: _node, children, ...props }) {
               return (
                 <td className="border border-slate-800 px-4 py-2 text-slate-300" {...props}>
                   {children}
@@ -421,21 +415,21 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               );
             },
             // Style headings
-            h1({ node, children, ...props }) {
+            h1({ node: _node, children, ...props }) {
               return (
                 <h1 className="text-4xl font-bold mt-8 mb-4 text-white" {...props}>
                   {children}
                 </h1>
               );
             },
-            h2({ node, children, ...props }) {
+            h2({ node: _node, children, ...props }) {
               return (
                 <h2 className="text-3xl font-bold mt-8 mb-4 text-white" {...props}>
                   {children}
                 </h2>
               );
             },
-            h3({ node, children, ...props }) {
+            h3({ node: _node, children, ...props }) {
               return (
                 <h3 className="text-2xl font-bold mt-6 mb-3 text-white" {...props}>
                   {children}
@@ -443,7 +437,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               );
             },
             // Style blockquotes
-            blockquote({ node, children, ...props }) {
+            blockquote({ node: _node, children, ...props }) {
               return (
                 <blockquote className="border-l-4 border-brand pl-4 my-4 italic text-slate-400" {...props}>
                   {children}
@@ -451,14 +445,14 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               );
             },
             // Style lists
-            ul({ node, children, ...props }) {
+            ul({ node: _node, children, ...props }) {
               return (
                 <ul className="list-disc list-inside space-y-2 text-slate-300 my-4" {...props}>
                   {children}
                 </ul>
               );
             },
-            ol({ node, children, ...props }) {
+            ol({ node: _node, children, ...props }) {
               return (
                 <ol className="list-decimal list-inside space-y-2 text-slate-300 my-4" {...props}>
                   {children}

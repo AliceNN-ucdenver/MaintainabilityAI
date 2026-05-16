@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { MeshReader, parsePortfolioConfig, parsePlatformConfig } from '../../core/mesh-reader';
-import { scaffoldAgentConfig, computeTier } from '../config-scaffold';
+import { scaffoldAgentConfig, computeTier, validateScaffoldedRepo, writeScaffoldFiles } from '../config-scaffold';
 import { evaluate, matchesPattern, generateStaticPolicy, buildConstraintsSummary } from '../policy-engine';
+import { RedQueenService } from '../../services/RedQueenService';
 import type { EvaluationContext } from '../policy-engine';
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'test-mesh');
@@ -270,6 +274,7 @@ describe('Config Scaffold', () => {
 
       // Check all expected files are generated
       expect(result.files['.mcp.json']).toBeDefined();
+      expect(result.files['.redqueen/mcp-runner.js']).toBeDefined();
       expect(result.files['.claude/settings.json']).toBeDefined();
       expect(result.files['AGENTS.md']).toBeDefined();
       expect(result.files['.redqueen/hooks/validate-tool.js']).toBeDefined();
@@ -283,7 +288,13 @@ describe('Config Scaffold', () => {
 
       const mcpJson = JSON.parse(result.files['.mcp.json']);
       expect(mcpJson.mcpServers.redqueen).toBeDefined();
-      expect(mcpJson.mcpServers.redqueen.command).toBe('npx');
+      expect(mcpJson.mcpServers.redqueen.command).toBe('node');
+      expect(mcpJson.mcpServers.redqueen.args).toEqual(['.redqueen/mcp-runner.js']);
+
+      const runner = result.files['.redqueen/mcp-runner.js'];
+      expect(runner).toContain('RED_QUEEN_MESH_PATH');
+      expect(runner).toContain('./governance-mesh');
+      expect(runner).toContain('@maintainabilityai/redqueen-mcp');
     });
 
     it('AGENTS.md reflects governance tier', () => {
@@ -311,6 +322,7 @@ describe('Config Scaffold', () => {
       expect(result.manifest.tier).toBe('autonomous');
       expect(result.manifest.files.length).toBeGreaterThanOrEqual(5);
       expect(result.manifest.files.every(f => f.sha256.length === 64)).toBe(true);
+      expect(result.files['.redqueen/config-manifest.yaml']).toContain('mesh_checkout_path: "./governance-mesh"');
     });
 
     it('returns error for unknown BAR', () => {
@@ -324,6 +336,53 @@ describe('Config Scaffold', () => {
 
       const copilotSteps = result.files['.github/copilot-governance-steps.yml'];
       expect(copilotSteps).toContain('test-org/governance-mesh');
+      expect(copilotSteps).toContain('node .redqueen/mcp-runner.js');
+    });
+
+    it('separates Claude and Copilot reviewer instructions when agent_type is both', () => {
+      const tmpMesh = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-mesh-both-'));
+      try {
+        fs.cpSync(FIXTURES, tmpMesh, { recursive: true });
+        const meshYamlPath = path.join(tmpMesh, 'mesh.yaml');
+        fs.writeFileSync(
+          meshYamlPath,
+          fs.readFileSync(meshYamlPath, 'utf8').replace('agent_type: claude', 'agent_type: both'),
+          'utf8',
+        );
+        const bothReader = new MeshReader(tmpMesh);
+        const result = scaffoldAgentConfig(bothReader, 'Test Bar Good');
+        if ('error' in result) { throw new Error(result.error); }
+
+        expect(result.files['.claude/agents/security-reviewer.md']).toContain('.redqueen/verdicts/claude-security.json');
+        expect(result.files['.github/copilot-agents/security-reviewer.md']).toContain('.redqueen/verdicts/copilot-security.json');
+        expect(result.files['.github/copilot-agents/security-reviewer.md']).not.toContain('.redqueen/verdicts/claude-security.json');
+        expect(result.files['.github/workflows/redqueen-review.yml']).toContain('.github/copilot-agents/security-reviewer.md');
+      } finally {
+        fs.rmSync(tmpMesh, { recursive: true, force: true });
+      }
+    });
+
+    it('includes implementation workflow for Copilot-only scaffolds', () => {
+      const tmpMesh = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-mesh-copilot-'));
+      try {
+        fs.cpSync(FIXTURES, tmpMesh, { recursive: true });
+        const meshYamlPath = path.join(tmpMesh, 'mesh.yaml');
+        fs.writeFileSync(
+          meshYamlPath,
+          fs.readFileSync(meshYamlPath, 'utf8').replace('agent_type: claude', 'agent_type: copilot'),
+          'utf8',
+        );
+        const copilotReader = new MeshReader(tmpMesh);
+        const result = scaffoldAgentConfig(copilotReader, 'Test Bar Good');
+        if ('error' in result) { throw new Error(result.error); }
+
+        expect(result.files['.github/workflows/redqueen-implement.yml']).toContain('github/copilot-coding-agent@v1');
+        expect(result.files['.github/workflows/redqueen-implement.yml']).not.toContain('anthropics/claude-code-action@v1');
+        expect(result.files['.github/copilot-agents/security-reviewer.md']).toContain('"agent": "copilot"');
+        expect(result.files['.claude/agents/security-reviewer.md']).toBeUndefined();
+      } finally {
+        fs.rmSync(tmpMesh, { recursive: true, force: true });
+      }
     });
 
     it('generates policy.json with static rules', () => {
@@ -336,6 +395,11 @@ describe('Config Scaffold', () => {
       expect(policy.rules.toolRestrictions).toBeDefined();
       expect(policy.rules.securityCriticalPaths.length).toBeGreaterThan(0);
       expect(policy.rules.readOnlyPaths.length).toBeGreaterThan(0);
+      expect(policy.rules.allowedConnections).toContainEqual({
+        source: 'test-api',
+        target: 'test-db',
+        relationshipId: 'api-to-db',
+      });
     });
 
     it('restricted BAR policy.json denies Bash and Write', () => {
@@ -356,6 +420,61 @@ describe('Config Scaffold', () => {
       expect(hookScript).toContain('#!/usr/bin/env node');
       expect(hookScript).toContain('policy.json');
       expect(hookScript).toContain('permissionDecision');
+    });
+
+    it('writes executable hooks and passes scaffold doctor', () => {
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, 'Test Bar Good', redQueen);
+      if ('error' in result) { return; }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-scaffold-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const meshDir = path.join(tmpDir, 'governance-mesh');
+        fs.mkdirSync(meshDir);
+        fs.copyFileSync(path.join(FIXTURES, 'mesh.yaml'), path.join(meshDir, 'mesh.yaml'));
+
+        const wrapperMode = fs.statSync(path.join(tmpDir, '.redqueen/hooks/validate-tool.sh')).mode;
+        expect(wrapperMode & 0o111).not.toBe(0);
+        const runnerMode = fs.statSync(path.join(tmpDir, '.redqueen/mcp-runner.js')).mode;
+        expect(runnerMode & 0o111).not.toBe(0);
+
+        const doctor = validateScaffoldedRepo(tmpDir);
+        expect(doctor.ok).toBe(true);
+        expect(doctor.errors).toHaveLength(0);
+
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        const bashPayload = JSON.stringify({
+          tool_name: 'Bash',
+          tool_input: { command: 'npm test' },
+        });
+        const denied = spawnSync(wrapperPath, {
+          input: bashPayload,
+          encoding: 'utf8',
+          cwd: tmpDir,
+        });
+        expect(denied.status).toBe(2);
+        expect(denied.stderr).toContain('requires approval');
+
+        const malformed = spawnSync(wrapperPath, {
+          input: '{not-json',
+          encoding: 'utf8',
+          cwd: tmpDir,
+        });
+        expect(malformed.status).toBe(2);
+        expect(malformed.stderr).toContain('failing closed');
+
+        const approved = spawnSync(wrapperPath, {
+          input: bashPayload,
+          encoding: 'utf8',
+          cwd: tmpDir,
+          env: { ...process.env, REDQUEEN_TOOL_APPROVED: 'true' },
+        });
+        expect(approved.status).toBe(0);
+        expect(approved.stdout).toContain('"permissionDecision":"allow"');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
 
     it('AGENTS.md references validate_action and get_constraints', () => {

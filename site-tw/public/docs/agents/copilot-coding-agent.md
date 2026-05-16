@@ -13,7 +13,7 @@ GitHub Copilot Coding Agent is an autonomous AI agent that runs on GitHub — tr
 The Copilot Coding Agent receives an issue or task, checks out your code, and implements changes autonomously. MaintainabilityAI adds governance enforcement through the same three-layer stack used by Claude Code Action:
 
 1. **The Grin (MCP Server)** — Exposes governance mesh as queryable tools
-2. **NeMo Guardrails** — Deterministic enforcement via Colang 2.0 state machines
+2. **The Red Queen's Court** — Deterministic enforcement via TypeScript policy checks
 3. **Red Queen Policy Engine** — Score-driven agent orchestration
 
 Both agents call the **same validate\_action tool** and get **identical governance enforcement**. One governance mesh, two agents.
@@ -27,12 +27,14 @@ Both agents call the **same validate\_action tool** and get **identical governan
 <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px 20px; font-size: 14px;">
 <div style="color: #7dd3fc; font-weight: 600;">Repo Settings UI</div>
 <div style="color: #94a3b8;">MCP server configuration (JSON) — equivalent to Claude's .mcp.json</div>
+<div style="color: #7dd3fc; font-weight: 600;">.redqueen/mcp-runner.js</div>
+<div style="color: #94a3b8;">Repo-local runner that resolves the live governance mesh and launches Red Queen MCP</div>
 <div style="color: #7dd3fc; font-weight: 600;">AGENTS.md</div>
 <div style="color: #94a3b8;">Shared agent instructions (read by both Claude and Copilot agents)</div>
 <div style="color: #7dd3fc; font-weight: 600;">copilot-instructions.md</div>
 <div style="color: #94a3b8;">Optional Copilot-specific instructions</div>
 <div style="color: #7dd3fc; font-weight: 600;">copilot-setup-steps.yml</div>
-<div style="color: #94a3b8;">Environment setup workflow — installs MCP server + NeMo sidecar</div>
+<div style="color: #94a3b8;">Environment setup workflow — checks out the mesh and starts the repo-local MCP runner</div>
 </div>
 
 </div>
@@ -65,13 +67,7 @@ The copilot-setup-steps.yml file runs before the agent starts, setting up the go
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Start Red Queen MCP Server<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">run:</span> |<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;npm install -g @maintainabilityai/red-queen-mcp<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;red-queen-mcp --mesh-path ./governance-mesh --port 3100 &amp;<br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Start NeMo Guardrails<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">run:</span> |<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pip install nemoguardrails<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nemoguardrails server --config ./guardrails --port 8100 &amp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node .redqueen/mcp-runner.js &amp;
 
 </div>
 
@@ -116,7 +112,7 @@ The copilot-setup-steps.yml file runs before the agent starts, setting up the go
 <div style="text-align: center;">Built-in</div>
 <div style="text-align: center;">Via copilot-setup-steps.yml</div>
 
-<div style="color: #e2e8f0;">NeMo enforcement</div>
+<div style="color: #e2e8f0;">Red Queen enforcement</div>
 <div style="text-align: center;">✅ Identical</div>
 <div style="text-align: center;">✅ Identical</div>
 </div>
@@ -154,7 +150,7 @@ Same tools as Claude Code Action:
 <div style="color: #94a3b8;">Red Queen decision (tier, permissions, prompt packs)</div>
 <div style="color: #4ade80; font-weight: 700;">validate\_action</div>
 <div style="color: #4ade80; font-weight: 600;">Enforce</div>
-<div style="color: #94a3b8;">NeMo-backed validation against CALM model</div>
+<div style="color: #94a3b8;">Policy-engine validation against CALM model</div>
 <div style="color: #4ade80; font-weight: 700;">validate\_interface\_contract</div>
 <div style="color: #4ade80; font-weight: 600;">Enforce</div>
 <div style="color: #94a3b8;">Cross-repo interface adherence</div>
@@ -241,7 +237,7 @@ Before making changes:<br/>
 
 </div>
 
-**Either way**: The governance enforcement is identical. Both agents call the same validate\_action tool, hit the same NeMo guardrails, and are governed by the same CALM model.
+**Either way**: The governance enforcement is identical. Both agents call the same validate\_action tool, hit the same Red Queen policy engine, and are governed by the same CALM model.
 
 ---
 

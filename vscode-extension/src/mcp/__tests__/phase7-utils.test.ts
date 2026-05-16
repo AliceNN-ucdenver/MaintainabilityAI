@@ -46,10 +46,11 @@ function makeTimestamps(daysAgo: number): GovernanceTimestamps {
 // ============================================================================
 
 describe('resolveConsensus', () => {
-  it('returns approve for empty verdicts', () => {
+  it('fails closed for empty verdicts', () => {
     const result = resolveConsensus([]);
-    expect(result.finalVerdict).toBe('approve');
-    expect(result.requiresHumanReview).toBe(false);
+    expect(result.finalVerdict).toBe('deny');
+    expect(result.requiresHumanReview).toBe(true);
+    expect(result.mergedFindings[0].id).toBe('RQ-REVIEW-001');
   });
 
   it('returns approve when all verdicts approve', () => {

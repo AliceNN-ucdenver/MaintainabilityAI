@@ -2,8 +2,9 @@
 // Computes positions for ReactFlow nodes using the Eclipse Layout Kernel
 
 import ELK from 'elkjs/lib/elk.bundled.js';
+import type { ElkNode } from 'elkjs/lib/elk-api';
 import type { Node, Edge } from '@xyflow/react';
-import type { DiagramLayout } from './LayoutTypes';
+import type { DiagramLayout, DiagramType } from './LayoutTypes';
 
 const elk = new ELK();
 
@@ -11,7 +12,7 @@ export interface ElkLayoutOptions {
   direction: 'DOWN' | 'RIGHT';
   nodeSpacing: number;
   layerSpacing: number;
-  diagramType?: 'context' | 'logical';
+  diagramType?: DiagramType;
 }
 
 // Diagram-type-specific defaults
@@ -83,9 +84,9 @@ export async function computeElkLayout(
     }
   }
 
-  function buildElkNode(node: Node): Record<string, unknown> {
+  function buildElkNode(node: Node): ElkNode {
     const children = parentMap.get(node.id);
-    const elkNode: Record<string, unknown> = {
+    const elkNode: ElkNode = {
       id: node.id,
       width: node.width || 200,
       height: node.height || 80,
@@ -108,7 +109,7 @@ export async function computeElkLayout(
     return elkNode;
   }
 
-  const elkGraph = {
+  const elkGraph: ElkNode = {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
@@ -140,16 +141,16 @@ export async function computeElkLayout(
     // Extract positions from ELK result
     const elkPositions = new Map<string, { x: number; y: number; width: number; height: number }>();
 
-    const extractPositions = (elkNode: Record<string, unknown>, offsetX = 0, offsetY = 0) => {
-      const id = elkNode.id as string;
-      const x = (elkNode.x as number || 0) + offsetX;
-      const y = (elkNode.y as number || 0) + offsetY;
-      const w = elkNode.width as number || 200;
-      const h = elkNode.height as number || 80;
+    const extractPositions = (elkNode: ElkNode, offsetX = 0, offsetY = 0) => {
+      const id = elkNode.id;
+      const x = (elkNode.x || 0) + offsetX;
+      const y = (elkNode.y || 0) + offsetY;
+      const w = elkNode.width || 200;
+      const h = elkNode.height || 80;
       elkPositions.set(id, { x, y, width: w, height: h });
 
       if (elkNode.children) {
-        for (const child of elkNode.children as Record<string, unknown>[]) {
+        for (const child of elkNode.children) {
           // Children positions are relative to parent in ELK
           // but ReactFlow with parentId also uses relative positioning
           extractPositions(child, 0, 0);
@@ -159,7 +160,7 @@ export async function computeElkLayout(
 
     if (layoutResult.children) {
       for (const child of layoutResult.children) {
-        extractPositions(child as Record<string, unknown>);
+        extractPositions(child);
       }
     }
 

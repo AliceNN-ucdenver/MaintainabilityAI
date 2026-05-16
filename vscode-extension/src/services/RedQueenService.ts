@@ -592,7 +592,7 @@ export class RedQueenService {
             hooks: [
               {
                 type: 'command',
-                command: './.redqueen/hooks/validate-tool.sh',
+                command: 'AGENT_TYPE=claude ./.redqueen/hooks/validate-tool.sh',
               },
             ],
           },

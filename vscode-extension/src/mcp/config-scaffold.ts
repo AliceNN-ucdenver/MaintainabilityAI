@@ -42,6 +42,22 @@ export interface ConfigManifest {
   files: { path: string; sha256: string }[];
 }
 
+export interface ScaffoldDoctorIssue {
+  severity: 'error' | 'warning';
+  path?: string;
+  message: string;
+}
+
+export interface ScaffoldDoctorResult {
+  ok: boolean;
+  repoPath: string;
+  checkedAt: string;
+  errors: ScaffoldDoctorIssue[];
+  warnings: ScaffoldDoctorIssue[];
+}
+
+const DEFAULT_MESH_CHECKOUT_PATH = './governance-mesh';
+
 // ============================================================================
 // Tier calculation
 // ============================================================================
@@ -66,18 +82,132 @@ function generateMcpJson(meshPath: string, customTemplate?: string): string {
     return customTemplate.replace(/\{\{MESH_PATH\}\}/g, meshPath);
   }
 
-  // Default template — uses npx for portability, env var for mesh path
+  // Default template — committed repos launch a local runner. The runner
+  // resolves the live mesh from env, CI checkout, or manifest defaults before
+  // starting the npm MCP package. This keeps config portable without copying
+  // the governance mesh into every code repo.
   return JSON.stringify({
     mcpServers: {
       redqueen: {
-        command: 'npx',
-        args: ['-y', '@maintainabilityai/redqueen-mcp'],
-        env: {
-          MESH_PATH: '${GOVERNANCE_MESH_PATH:-./governance-mesh}',
-        },
+        command: 'node',
+        args: ['.redqueen/mcp-runner.js'],
       },
     },
   }, null, 2) + '\n';
+}
+
+function generateMcpRunnerJs(): string {
+  return `#!/usr/bin/env node
+/**
+ * The Red Queen MCP Runner
+ *
+ * Repo-local launcher for the live governance mesh. The code repo keeps a
+ * self-contained governance harness; the governance mesh remains the source of
+ * truth and is resolved locally at runtime.
+ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+const repoRoot = path.resolve(__dirname, '..');
+const manifestPath = path.join(repoRoot, '.redqueen', 'config-manifest.yaml');
+const envKeys = ['RED_QUEEN_MESH_PATH', 'GOVERNANCE_MESH_PATH', 'MESH_PATH'];
+
+function readManifestValue(key) {
+  if (!fs.existsSync(manifestPath)) { return null; }
+  const prefix = key + ':';
+  const lines = fs.readFileSync(manifestPath, 'utf8').split(/\\r?\\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.slice(prefix.length).trim().replace(/^["']|["']$/g, '');
+    }
+  }
+  return null;
+}
+
+function resolvePath(value) {
+  if (!value) { return null; }
+  const cleaned = String(value).trim().replace(/^["']|["']$/g, '');
+  if (!cleaned) { return null; }
+  return path.isAbsolute(cleaned) ? cleaned : path.resolve(repoRoot, cleaned);
+}
+
+function isGovernanceMesh(candidate) {
+  return Boolean(candidate && fs.existsSync(path.join(candidate, 'mesh.yaml')));
+}
+
+function addCandidate(candidates, source, value) {
+  const resolved = resolvePath(value);
+  if (resolved) {
+    candidates.push({ source, path: resolved });
+  }
+}
+
+function resolveMeshPath() {
+  const candidates = [];
+  for (const key of envKeys) {
+    addCandidate(candidates, key, process.env[key]);
+  }
+
+  addCandidate(candidates, 'repo checkout', '${DEFAULT_MESH_CHECKOUT_PATH}');
+  addCandidate(
+    candidates,
+    'manifest',
+    readManifestValue('mesh_checkout_path') || readManifestValue('mesh_path')
+  );
+
+  const seen = new Set();
+  const checked = [];
+  for (const candidate of candidates) {
+    if (seen.has(candidate.path)) { continue; }
+    seen.add(candidate.path);
+    checked.push(candidate);
+    if (isGovernanceMesh(candidate.path)) {
+      return { resolved: candidate, checked };
+    }
+  }
+
+  return { resolved: null, checked };
+}
+
+const result = resolveMeshPath();
+if (!result.resolved) {
+  process.stderr.write('[Red Queen] Unable to resolve governance mesh.\\n');
+  process.stderr.write('[Red Queen] Tried:\\n');
+  for (const candidate of result.checked) {
+    process.stderr.write('  - ' + candidate.source + ': ' + candidate.path + '\\n');
+  }
+  process.stderr.write('[Red Queen] Set RED_QUEEN_MESH_PATH or checkout the mesh to ./governance-mesh.\\n');
+  process.exit(1);
+}
+
+const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const args = [
+  '-y',
+  '@maintainabilityai/redqueen-mcp',
+  '--mesh-path',
+  result.resolved.path,
+  ...process.argv.slice(2),
+];
+
+const child = spawn(command, args, {
+  cwd: repoRoot,
+  stdio: 'inherit',
+  env: { ...process.env, RED_QUEEN_MESH_PATH: result.resolved.path },
+});
+
+child.on('error', (err) => {
+  process.stderr.write('[Red Queen] Failed to start MCP server: ' + err.message + '\\n');
+  process.exit(1);
+});
+
+child.on('exit', (code) => {
+  process.exit(code === null ? 1 : code);
+});
+`;
 }
 
 function generateClaudeSettings(tier: GovernanceTier): string {
@@ -95,7 +225,7 @@ function generateClaudeSettings(tier: GovernanceTier): string {
           hooks: [
             {
               type: 'command',
-              command: './.redqueen/hooks/validate-tool.sh',
+              command: 'AGENT_TYPE=claude ./.redqueen/hooks/validate-tool.sh',
             },
           ],
         },
@@ -187,8 +317,8 @@ function generateValidateToolJs(): string {
  * Reads .redqueen/policy.json (pre-computed static rules from the mesh)
  * and evaluates tool calls against governance constraints.
  *
- * Exit code 0 + JSON stdout = allow/deny decision
- * Exit code 2 = block (stderr shown to agent)
+ * Claude Code: exit code 2 + stderr blocks a tool call.
+ * Copilot: stdout JSON permissionDecision blocks/allows a tool call.
  */
 'use strict';
 
@@ -203,66 +333,168 @@ process.stdin.on('end', () => {
   try {
     const input = JSON.parse(inputData);
     const decision = validate(input);
-    process.stdout.write(JSON.stringify(decision));
-    process.exit(0);
+    emitDecision(input, decision);
   } catch (err) {
-    // On error, allow (fail-open for hooks)
-    process.stderr.write('[Red Queen] Hook error: ' + err.message + '\\n');
-    process.exit(0);
+    emitHookError(err);
   }
 });
 
-function validate(input) {
-  const toolName = input.tool_name || '';
-  const toolInput = input.tool_input || {};
+function emitHookError(err) {
+  const message = err && err.message ? err.message : String(err);
+  const reason = '[Red Queen] Hook validation error; failing closed: ' + message;
+  const agent = (process.env.AGENT_TYPE || '').toLowerCase();
 
-  // Skip validation for read-only tools
-  const readOnlyTools = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Agent'];
-  if (readOnlyTools.includes(toolName)) {
-    return { hookSpecificOutput: { hookEventName: 'PreToolUse' } };
+  if (agent === 'copilot') {
+    process.stdout.write(JSON.stringify({
+      permissionDecision: 'deny',
+      permissionDecisionReason: reason,
+    }));
+    process.exit(0);
   }
+
+  process.stderr.write(reason + '\\n');
+  process.exit(2);
+}
+
+function emitDecision(input, decision) {
+  const agent = detectAgent(input);
+
+  if (agent === 'copilot') {
+    process.stdout.write(JSON.stringify({
+      permissionDecision: decision.allowed ? 'allow' : 'deny',
+      permissionDecisionReason: decision.reason,
+    }));
+    process.exit(0);
+  }
+
+  if (!decision.allowed) {
+    process.stderr.write(decision.reason + '\\n');
+    process.exit(2);
+  }
+
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'allow',
+    },
+  }));
+  process.exit(0);
+}
+
+function detectAgent(input) {
+  const envAgent = (process.env.AGENT_TYPE || '').toLowerCase();
+  if (envAgent === 'copilot' || envAgent === 'claude') { return envAgent; }
+
+  // Copilot camelCase hook payloads use toolName/toolArgs. Claude and VS Code
+  // compatible payloads use tool_name/tool_input.
+  if (input.toolName || input.toolArgs) { return 'copilot'; }
+  return 'claude';
+}
+
+function parseToolInput(value) {
+  if (!value) { return {}; }
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch { return { command: value }; }
+  }
+  return value;
+}
+
+function canonicalToolName(toolName) {
+  const normalized = String(toolName || '').toLowerCase();
+  const map = {
+    bash: 'Bash',
+    powershell: 'Bash',
+    terminal_command: 'Bash',
+    create: 'Write',
+    write: 'Write',
+    file_create: 'Write',
+    edit: 'Edit',
+    file_edit: 'Edit',
+    view: 'Read',
+    read: 'Read',
+    glob: 'Glob',
+    grep: 'Grep',
+    web_fetch: 'WebFetch',
+    webfetch: 'WebFetch',
+    web_search: 'WebSearch',
+    websearch: 'WebSearch',
+    task: 'Agent',
+    agent: 'Agent',
+  };
+  return map[normalized] || toolName || '';
+}
+
+function validate(input) {
+  const rawToolName = input.tool_name || input.toolName || '';
+  const toolName = canonicalToolName(rawToolName);
+  const toolInput = parseToolInput(input.tool_input || input.toolArgs || {});
 
   // Load policy.json
   const policyPath = path.join(process.cwd(), '.redqueen', 'policy.json');
   if (!fs.existsSync(policyPath)) {
-    // No policy file — allow (advisory mode)
-    return { hookSpecificOutput: { hookEventName: 'PreToolUse' } };
+    return {
+      allowed: false,
+      reason: '[Red Queen] Missing .redqueen/policy.json; failing closed. Re-run the Red Queen scaffold or doctor.',
+    };
   }
 
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
   const tier = policy.tier;
   const rules = policy.rules || {};
 
+  // Skip validation for read-only tools after policy is loaded successfully.
+  const readOnlyTools = ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Agent'];
+  if (readOnlyTools.includes(toolName)) {
+    return { allowed: true, reason: '[Red Queen] Read-only tool allowed.' };
+  }
+
   // Check tool restrictions for this tier
   const tierRules = rules.toolRestrictions && rules.toolRestrictions[tier];
   if (tierRules) {
     if (tierRules.deny && tierRules.deny.includes(toolName)) {
       return {
-        hookSpecificOutput: {
-          hookEventName: 'PreToolUse',
-          permissionDecision: 'deny',
-          permissionDecisionReason:
-            '[Red Queen] Tool "' + toolName + '" is denied for ' + tier +
-            '-tier BARs (score: ' + policy.compositeScore + '/100). ' +
-            'Improve governance scores or get approval first.',
-        },
+        allowed: false,
+        reason:
+          '[Red Queen] Tool "' + toolName + '" is denied for ' + tier +
+          '-tier BARs (score: ' + policy.compositeScore + '/100). ' +
+          'Improve governance scores or get approval first.',
       };
     }
   }
 
+  if (tier === 'restricted' && toolName === 'Edit' &&
+      process.env.REDQUEEN_PLAN_APPROVED !== 'true' &&
+      toolInput.redqueenApproved !== true) {
+    return {
+      allowed: false,
+      reason:
+        '[Red Queen] Restricted-tier BARs are plan-first. Edit is blocked until ' +
+        'human approval is recorded (set REDQUEEN_PLAN_APPROVED=true for approved runs).',
+    };
+  }
+
+  const hasApproval = process.env.REDQUEEN_TOOL_APPROVED === 'true' ||
+    process.env.REDQUEEN_PLAN_APPROVED === 'true' ||
+    toolInput.redqueenApproved === true;
+  if (tierRules && tierRules.requireApproval && tierRules.requireApproval.includes(toolName) && !hasApproval) {
+    return {
+      allowed: false,
+      reason:
+        '[Red Queen] Tool "' + toolName + '" requires approval for ' + tier +
+        '-tier BARs. Record approval with REDQUEEN_TOOL_APPROVED=true or toolInput.redqueenApproved=true.',
+    };
+  }
+
   // Check file path restrictions
-  const filePath = toolInput.file_path || toolInput.command || '';
+  const filePath = toolInput.file_path || toolInput.filePath || toolInput.path || toolInput.command || '';
   if (filePath && rules.readOnlyPaths) {
     for (const pattern of rules.readOnlyPaths) {
       if (matchGlob(filePath, pattern)) {
         return {
-          hookSpecificOutput: {
-            hookEventName: 'PreToolUse',
-            permissionDecision: 'deny',
-            permissionDecisionReason:
-              '[Red Queen] File "' + filePath + '" is governance-managed (read-only). ' +
-              'Re-run scaffold_agent_config to update.',
-          },
+          allowed: false,
+          reason:
+            '[Red Queen] File "' + filePath + '" is governance-managed (read-only). ' +
+            'Re-run scaffold_agent_config to update.',
         };
       }
     }
@@ -273,20 +505,33 @@ function validate(input) {
     for (const pattern of rules.securityCriticalPaths) {
       if (matchGlob(filePath, pattern)) {
         return {
-          hookSpecificOutput: {
-            hookEventName: 'PreToolUse',
-            permissionDecision: 'deny',
-            permissionDecisionReason:
-              '[Red Queen] File "' + filePath + '" is security-critical and cannot be ' +
-              'modified by restricted-tier agents.',
-          },
+          allowed: false,
+          reason:
+            '[Red Queen] File "' + filePath + '" is security-critical and cannot be ' +
+            'modified by restricted-tier agents.',
         };
       }
     }
   }
 
+  const sourceNode = toolInput.sourceNode || toolInput.source_node;
+  const targetNode = toolInput.targetNode || toolInput.target_node;
+  if (sourceNode && targetNode && Array.isArray(rules.allowedConnections)) {
+    const allowed = rules.allowedConnections.some(function (conn) {
+      return conn.source === sourceNode && conn.target === targetNode;
+    });
+    if (!allowed) {
+      return {
+        allowed: false,
+        reason:
+          '[Red Queen] CALM-004: No declared CALM relationship permits ' +
+          sourceNode + ' -> ' + targetNode + '. Route through a declared interface or update the architecture first.',
+      };
+    }
+  }
+
   // Allow
-  return { hookSpecificOutput: { hookEventName: 'PreToolUse' } };
+  return { allowed: true, reason: '[Red Queen] Policy checks passed.' };
 }
 
 function matchGlob(filePath, pattern) {
@@ -301,26 +546,45 @@ function matchGlob(filePath, pattern) {
 `;
 }
 
-function generatePolicyJson(bar: BarSummary): string {
-  const policy = generateStaticPolicy(bar);
+function generatePolicyJson(reader: MeshReader, bar: BarSummary, tier?: GovernanceTier): string {
+  const calmModel = reader.readFlows(bar.path);
+  const policy = generateStaticPolicy(bar, calmModel ? {
+    nodes: calmModel.nodes as Array<{ 'unique-id': string; name: string; 'node-type'?: string }>,
+    relationships: calmModel.relationships as Array<{
+      'unique-id': string;
+      'relationship-type'?: {
+        connects?: {
+          source?: { node: string };
+          destination?: { node: string; interfaces?: unknown[] };
+        };
+      };
+    }>,
+    flows: calmModel.flows,
+  } : undefined, tier);
   return JSON.stringify(policy, null, 2) + '\n';
 }
 
 function generateCopilotHooksJson(tier: GovernanceTier): string {
-  const matchers: Record<GovernanceTier, string[]> = {
-    autonomous: ['file_edit', 'terminal_command'],
-    supervised: ['file_edit', 'terminal_command'],
-    restricted: ['file_edit', 'terminal_command', 'file_read'],
+  const matchers: Record<GovernanceTier, string> = {
+    autonomous: 'bash|create|edit',
+    supervised: 'bash|create|edit',
+    restricted: 'bash|create|edit|view',
   };
 
   return JSON.stringify({
-    hooks: [
-      {
-        type: 'preToolUse',
-        tools: matchers[tier],
-        script: './.redqueen/hooks/validate-tool.sh',
-      },
-    ],
+    version: 1,
+    hooks: {
+      preToolUse: [
+        {
+          type: 'command',
+          matcher: matchers[tier],
+          bash: 'AGENT_TYPE=copilot ./.redqueen/hooks/validate-tool.sh',
+          command: 'AGENT_TYPE=copilot ./.redqueen/hooks/validate-tool.sh',
+          env: { AGENT_TYPE: 'copilot' },
+          timeoutSec: 30,
+        },
+      ],
+    },
   }, null, 2) + '\n';
 }
 
@@ -340,6 +604,232 @@ exec node "\${SCRIPT_DIR}/validate-tool.js"
 `;
 }
 
+export function writeScaffoldFiles(outputDir: string, files: Record<string, string>): number {
+  let written = 0;
+  for (const [filePath, content] of Object.entries(files)) {
+    const fullPath = path.join(outputDir, filePath);
+    const dir = path.dirname(fullPath);
+    if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+    fs.writeFileSync(fullPath, content, 'utf8');
+    if (
+      filePath === '.redqueen/mcp-runner.js' ||
+      filePath === '.redqueen/hooks/validate-tool.sh' ||
+      filePath === '.redqueen/hooks/validate-tool.js'
+    ) {
+      fs.chmodSync(fullPath, 0o755);
+    }
+    written++;
+  }
+  return written;
+}
+
+function readManifestValue(manifest: string, key: string): string | undefined {
+  const prefix = `${key}:`;
+  for (const line of manifest.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.slice(prefix.length).trim().replace(/^["']|["']$/g, '');
+    }
+  }
+  return undefined;
+}
+
+function resolveRepoRelativePath(repoPath: string, value: string | undefined): string | undefined {
+  if (!value) { return undefined; }
+  const cleaned = value.trim().replace(/^["']|["']$/g, '');
+  if (!cleaned) { return undefined; }
+  return path.isAbsolute(cleaned) ? cleaned : path.resolve(repoPath, cleaned);
+}
+
+function resolveScaffoldMeshPath(repoPath: string): { path?: string; source?: string; checked: Array<{ source: string; path: string }> } {
+  const candidates: Array<{ source: string; value?: string }> = [
+    { source: 'RED_QUEEN_MESH_PATH', value: process.env.RED_QUEEN_MESH_PATH },
+    { source: 'GOVERNANCE_MESH_PATH', value: process.env.GOVERNANCE_MESH_PATH },
+    { source: 'MESH_PATH', value: process.env.MESH_PATH },
+    { source: 'repo checkout', value: DEFAULT_MESH_CHECKOUT_PATH },
+  ];
+
+  const manifestPath = path.join(repoPath, '.redqueen/config-manifest.yaml');
+  if (fs.existsSync(manifestPath)) {
+    const manifest = fs.readFileSync(manifestPath, 'utf8');
+    candidates.push({
+      source: 'manifest',
+      value: readManifestValue(manifest, 'mesh_checkout_path') || readManifestValue(manifest, 'mesh_path'),
+    });
+  }
+
+  const checked: Array<{ source: string; path: string }> = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const resolved = resolveRepoRelativePath(repoPath, candidate.value);
+    if (!resolved || seen.has(resolved)) { continue; }
+    seen.add(resolved);
+    checked.push({ source: candidate.source, path: resolved });
+    if (fs.existsSync(path.join(resolved, 'mesh.yaml'))) {
+      return { path: resolved, source: candidate.source, checked };
+    }
+  }
+
+  return { checked };
+}
+
+export function validateScaffoldedRepo(repoPath: string): ScaffoldDoctorResult {
+  const errors: ScaffoldDoctorIssue[] = [];
+  const warnings: ScaffoldDoctorIssue[] = [];
+
+  function add(
+    severity: 'error' | 'warning',
+    message: string,
+    relativePath?: string,
+  ): void {
+    (severity === 'error' ? errors : warnings).push({ severity, path: relativePath, message });
+  }
+
+  function exists(relativePath: string): boolean {
+    return fs.existsSync(path.join(repoPath, relativePath));
+  }
+
+  function readJson(relativePath: string): unknown | null {
+    const fullPath = path.join(repoPath, relativePath);
+    if (!fs.existsSync(fullPath)) {
+      add('error', 'Required Red Queen file is missing.', relativePath);
+      return null;
+    }
+    try {
+      return JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+    } catch (err) {
+      add('error', `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`, relativePath);
+      return null;
+    }
+  }
+
+  const requiredFiles = [
+    '.mcp.json',
+    '.claude/settings.json',
+    'AGENTS.md',
+    '.redqueen/decision.json',
+    '.redqueen/policy.json',
+    '.redqueen/mcp-runner.js',
+    '.redqueen/hooks/validate-tool.js',
+    '.redqueen/hooks/validate-tool.sh',
+    '.github/hooks/redqueen.json',
+    '.github/workflows/redqueen-review.yml',
+    '.redqueen/consensus.js',
+    '.redqueen/config-manifest.yaml',
+  ];
+
+  for (const relativePath of requiredFiles) {
+    if (!exists(relativePath)) {
+      add('error', 'Required Red Queen scaffold file is missing.', relativePath);
+    }
+  }
+
+  const wrapperPath = path.join(repoPath, '.redqueen/hooks/validate-tool.sh');
+  if (fs.existsSync(wrapperPath)) {
+    const mode = fs.statSync(wrapperPath).mode;
+    if ((mode & 0o111) === 0) {
+      add('error', 'Hook wrapper is not executable. Run chmod +x or resync governance files.', '.redqueen/hooks/validate-tool.sh');
+    }
+  }
+
+  const runnerPath = path.join(repoPath, '.redqueen/mcp-runner.js');
+  if (fs.existsSync(runnerPath)) {
+    const runner = fs.readFileSync(runnerPath, 'utf8');
+    if (!runner.includes('@maintainabilityai/redqueen-mcp') || !runner.includes('RED_QUEEN_MESH_PATH')) {
+      add('error', 'MCP runner must launch @maintainabilityai/redqueen-mcp and resolve RED_QUEEN_MESH_PATH.', '.redqueen/mcp-runner.js');
+    }
+  }
+
+  const mcp = readJson('.mcp.json') as {
+    mcpServers?: { redqueen?: { command?: string; args?: string[]; env?: Record<string, string> } };
+  } | null;
+  const redqueen = mcp?.mcpServers?.redqueen;
+  if (redqueen) {
+    const args = redqueen.args || [];
+    const usesRunner = redqueen.command === 'node' && args.includes('.redqueen/mcp-runner.js');
+    if (!usesRunner) {
+      add('error', 'MCP config must launch the repo-local .redqueen/mcp-runner.js.', '.mcp.json');
+    }
+  }
+
+  const meshResolution = resolveScaffoldMeshPath(repoPath);
+  if (!meshResolution.path) {
+    const tried = meshResolution.checked.map(c => `${c.source}: ${c.path}`).join('; ');
+    add(
+      'error',
+      `Unable to resolve governance mesh for MCP runner. Set RED_QUEEN_MESH_PATH or checkout the mesh to ${DEFAULT_MESH_CHECKOUT_PATH}. Tried: ${tried || 'no paths'}.`,
+      '.redqueen/mcp-runner.js',
+    );
+  }
+
+  const claude = readJson('.claude/settings.json') as {
+    hooks?: { PreToolUse?: Array<{ hooks?: Array<{ command?: string }> }> };
+  } | null;
+  const claudeCommand = claude?.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command || '';
+  if (claudeCommand && !claudeCommand.includes('AGENT_TYPE=claude')) {
+    add('warning', 'Claude hook command does not set AGENT_TYPE=claude.', '.claude/settings.json');
+  }
+
+  const copilot = readJson('.github/hooks/redqueen.json') as {
+    version?: number;
+    hooks?: { PreToolUse?: Array<{ command?: string; bash?: string }>; preToolUse?: Array<{ command?: string; bash?: string }> };
+  } | null;
+  if (copilot) {
+    if (copilot.version !== 1) {
+      add('error', 'Copilot hooks file must set version: 1.', '.github/hooks/redqueen.json');
+    }
+    const preToolUse = copilot.hooks?.PreToolUse || copilot.hooks?.preToolUse;
+    if (!Array.isArray(preToolUse) || preToolUse.length === 0) {
+      add('error', 'Copilot hooks file must define a PreToolUse/preToolUse hook array.', '.github/hooks/redqueen.json');
+    } else {
+      const command = preToolUse[0]?.command || preToolUse[0]?.bash || '';
+      if (!command.includes('AGENT_TYPE=copilot')) {
+        add('warning', 'Copilot hook command does not set AGENT_TYPE=copilot.', '.github/hooks/redqueen.json');
+      }
+    }
+  }
+
+  const decision = readJson('.redqueen/decision.json') as {
+    effectiveTier?: string;
+  } | null;
+
+  const policy = readJson('.redqueen/policy.json') as {
+    tier?: string;
+    rules?: { allowedConnections?: unknown; toolRestrictions?: unknown };
+  } | null;
+  if (policy) {
+    if (!policy.rules?.toolRestrictions) {
+      add('error', 'Policy is missing tier tool restrictions.', '.redqueen/policy.json');
+    }
+    if (!Array.isArray(policy.rules?.allowedConnections)) {
+      add('warning', 'Policy has no compiled CALM connection list; hook CALM checks will be limited.', '.redqueen/policy.json');
+    }
+    if (decision?.effectiveTier && policy.tier !== decision.effectiveTier) {
+      add('error', `Policy tier (${policy.tier || 'missing'}) does not match orchestration decision tier (${decision.effectiveTier}).`, '.redqueen/policy.json');
+    }
+  }
+
+  if (exists('.redqueen/config-manifest.yaml')) {
+    const manifest = fs.readFileSync(path.join(repoPath, '.redqueen/config-manifest.yaml'), 'utf8');
+    if (!readManifestValue(manifest, 'mesh_checkout_path')) {
+      add('warning', 'Config manifest does not declare mesh_checkout_path for portable MCP resolution.', '.redqueen/config-manifest.yaml');
+    }
+    for (const relativePath of ['.mcp.json', '.redqueen/mcp-runner.js', '.claude/settings.json', '.github/hooks/redqueen.json']) {
+      if (!manifest.includes(`path: "${relativePath}"`)) {
+        add('warning', `Config manifest does not fingerprint ${relativePath}.`, '.redqueen/config-manifest.yaml');
+      }
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    repoPath,
+    checkedAt: new Date().toISOString(),
+    errors,
+    warnings,
+  };
+}
+
 function generateImplementationWorkflow(
   agentType: 'claude' | 'copilot' | 'both',
   meshRepo: string,
@@ -350,7 +840,7 @@ function generateImplementationWorkflow(
   lines.push('# Red Queen Implementation Workflow');
   lines.push('# Auto-generated by The Red Queen — do not edit manually');
   lines.push(`# Agent framework: ${agentType}`);
-  lines.push('# Triggered when an issue is labeled "implement" or "claude-code"');
+  lines.push('# Triggered when an issue is labeled "implement", "claude-code", or "copilot"');
   lines.push('');
   lines.push('name: Red Queen Implement');
   lines.push('');
@@ -367,7 +857,7 @@ function generateImplementationWorkflow(
   lines.push('jobs:');
   lines.push('  implement:');
   lines.push('    runs-on: ubuntu-latest');
-  lines.push(`    if: github.event.label.name == 'implement' || github.event.label.name == 'claude-code'`);
+  lines.push(`    if: github.event.label.name == 'implement' || github.event.label.name == 'claude-code' || github.event.label.name == 'copilot'`);
   lines.push('    steps:');
 
   // Step 1: Checkout code + governance mesh
@@ -486,7 +976,7 @@ steps:
 
   - name: Start Red Queen MCP Server
     run: |
-      npx @maintainabilityai/redqueen-mcp --mesh-path \${{ github.workspace }}/governance-mesh &
+      node .redqueen/mcp-runner.js &
       sleep 2
 `;
 }
@@ -637,6 +1127,9 @@ function generateReviewStep(
   const scopeLabel = scope === 'security' ? 'Security' : 'Architecture';
   const agentLabel = agentType === 'claude' ? 'Claude' : 'Copilot';
   const verdictFile = `.redqueen/verdicts/${agentType}-${scope}.json`;
+  const instructionsFile = agentType === 'claude'
+    ? `.claude/agents/${scope}-reviewer.md`
+    : `.github/copilot-agents/${scope}-reviewer.md`;
 
   if (agentType === 'claude') {
     return `
@@ -649,7 +1142,7 @@ function generateReviewStep(
           direct_prompt: |
             You are the ${scopeLabel} Reviewer for The Red Queen governance system.
 
-            Read .claude/agents/${scope}-reviewer.md for your full instructions.
+            Read ${instructionsFile} for your full instructions.
             Read .redqueen/governance-context.md for the governance posture.
             Read .redqueen/decision.json for the orchestration decision.
 
@@ -668,7 +1161,7 @@ function generateReviewStep(
           instructions: |
             You are the ${scopeLabel} Reviewer for The Red Queen governance system.
 
-            Read .claude/agents/${scope}-reviewer.md for your full instructions.
+            Read ${instructionsFile} for your full instructions.
             Read .redqueen/governance-context.md for the governance posture.
             Read .redqueen/decision.json for the orchestration decision.
 
@@ -720,7 +1213,7 @@ function generateRedQueenReviewWorkflow(
   // Step 1: Start MCP server
   lines.push(`      - name: Start Red Queen MCP Server`);
   lines.push(`        run: |`);
-  lines.push(`          npx @maintainabilityai/redqueen-mcp --mesh-path \${{ github.workspace }}/governance-mesh &`);
+  lines.push(`          node .redqueen/mcp-runner.js &`);
   lines.push(`          sleep 2`);
   lines.push(``);
 
@@ -765,7 +1258,7 @@ function generateRedQueenReviewWorkflow(
   // Consensus step
   lines.push(`      - name: Red Queen Consensus`);
   lines.push(`        id: consensus`);
-  lines.push(`        if: steps.review-depth.outputs.tier != 'autonomous'`);
+  lines.push(`        if: always() && steps.review-depth.outputs.tier != 'autonomous'`);
   lines.push(`        run: node .redqueen/consensus.js`);
   lines.push(`        env:`);
   lines.push(`          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}`);
@@ -774,7 +1267,7 @@ function generateRedQueenReviewWorkflow(
 
   // Post summary
   lines.push(`      - name: Post review summary`);
-  lines.push(`        if: steps.review-depth.outputs.tier != 'autonomous'`);
+  lines.push(`        if: always() && steps.review-depth.outputs.tier != 'autonomous'`);
   lines.push(`        uses: actions/github-script@v7`);
   lines.push(`        with:`);
   lines.push(`          script: |`);
@@ -829,13 +1322,22 @@ const SEVERITY_RANK = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
 function resolveConsensus(verdicts) {
   if (verdicts.length === 0) {
     return {
-      finalVerdict: 'approve',
+      finalVerdict: 'deny',
       verdicts: [],
-      mergedFindings: [],
+      mergedFindings: [{
+        id: 'RQ-REVIEW-001',
+        category: 'governance',
+        severity: 'high',
+        title: 'Required review verdict missing',
+        description: 'No reviewer produced a ReviewVerdict JSON file. Red Queen fails closed so missing agent output cannot approve a PR.',
+        location: '.redqueen/verdicts/',
+        recommendation: 'Re-run the Red Queen Review workflow and inspect the failed reviewer step.',
+        references: ['Red Queen review board'],
+      }],
       mergedCaveats: [],
-      reasoning: ['No verdicts provided'],
-      requiresHumanReview: false,
-      highestSeverity: null,
+      reasoning: ['No verdicts provided; failing closed'],
+      requiresHumanReview: true,
+      highestSeverity: 'high',
     };
   }
 
@@ -878,7 +1380,7 @@ function resolveConsensus(verdicts) {
     }
   }
 
-  const requiresHumanReview = finalVerdict === 'deny' ||
+  const requiresHumanReview = finalVerdict !== 'approve' ||
     highestSeverity === 'critical' ||
     mergedFindings.filter(f => f.severity === 'critical' || f.severity === 'high').length > 3;
 
@@ -901,6 +1403,25 @@ try {
           verdicts.push(JSON.parse(fs.readFileSync(path.join(verdictsDir, file), 'utf8')));
         } catch (e) {
           console.error('[Red Queen] Failed to parse verdict: ' + file + ' — ' + e.message);
+          verdicts.push({
+            reviewer: 'redqueen-consensus',
+            agent: 'deterministic',
+            scope: 'governance',
+            verdict: 'deny',
+            confidence: 100,
+            findings: [{
+              id: 'RQ-REVIEW-002',
+              category: 'governance',
+              severity: 'high',
+              title: 'Malformed review verdict',
+              description: 'A reviewer verdict file could not be parsed as JSON: ' + file,
+              location: path.join('.redqueen', 'verdicts', file),
+              recommendation: 'Fix the reviewer output format and rerun the workflow.',
+              references: ['Red Queen ReviewVerdict schema'],
+            }],
+            caveats: [],
+            summary: 'Malformed reviewer verdict failed closed.',
+          });
         }
       }
     }
@@ -916,7 +1437,7 @@ try {
     ' (' + result.mergedFindings.length + ' findings, ' +
     verdicts.length + ' verdicts)');
 
-  if (result.finalVerdict === 'deny') {
+  if (result.finalVerdict === 'deny' || result.finalVerdict === 'request-changes') {
     process.exit(1);
   }
 } catch (err) {
@@ -961,6 +1482,7 @@ export function scaffoldAgentConfig(
 
   // Generate files — use policy-driven generators when available
   files['.mcp.json'] = generateMcpJson(meshPath, customMcpTemplate || undefined);
+  files['.redqueen/mcp-runner.js'] = generateMcpRunnerJs();
 
   if (decision && redQueen) {
     const policy = redQueen.loadPolicy(reader);
@@ -988,31 +1510,27 @@ export function scaffoldAgentConfig(
 
   files['.redqueen/hooks/validate-tool.js'] = generateValidateToolJs();
   files['.redqueen/hooks/validate-tool.sh'] = generateValidateToolSh();
-  files['.redqueen/policy.json'] = generatePolicyJson(bar);
+  files['.redqueen/policy.json'] = generatePolicyJson(reader, bar, tier);
   files['.github/hooks/redqueen.json'] = generateCopilotHooksJson(tier);
 
   // Read mesh portfolio config for the org/repo reference
   const portfolio = reader.readPortfolioConfig();
   if (portfolio) {
     // Resolve mesh repo: explicit repo field → detect from git remote → fallback to org/governance-mesh
-    let meshRepo: string;
+    let meshRepo = `${portfolio.org}/governance-mesh`;
     if (portfolio.repo) {
       // If repo field contains a slash, use as-is; otherwise prepend org
       meshRepo = portfolio.repo.includes('/') ? portfolio.repo : `${portfolio.org}/${portfolio.repo}`;
     } else {
       // Try to detect from git remote — only if meshPath is a standalone git repo
-      let detected = false;
       if (fs.existsSync(path.join(meshPath, '.git'))) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
           const { execFileSync } = require('child_process');
           const remoteUrl = (execFileSync as (cmd: string, args: string[], opts: Record<string, unknown>) => Buffer)('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
           const parsed = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
-          if (parsed) { meshRepo = parsed[1]; detected = true; }
+          if (parsed) { meshRepo = parsed[1]; }
         } catch { /* git not available or no remote */ }
-      }
-      if (!detected) {
-        meshRepo = `${portfolio.org}/governance-mesh`;
       }
     }
     files['.github/copilot-governance-steps.yml'] = generateCopilotSetupStepsGovernance(meshRepo);
@@ -1028,16 +1546,15 @@ export function scaffoldAgentConfig(
         files['.claude/agents/security-reviewer.md'] = generateSubagentDefinition('security-reviewer', 'claude');
         files['.claude/agents/architecture-reviewer.md'] = generateSubagentDefinition('architecture-reviewer', 'claude');
       }
-      // Copilot-specific subagent definitions (when "both", Copilot gets separate copies)
-      if (agentType === 'copilot') {
-        files['.claude/agents/security-reviewer.md'] = generateSubagentDefinition('security-reviewer', 'copilot');
-        files['.claude/agents/architecture-reviewer.md'] = generateSubagentDefinition('architecture-reviewer', 'copilot');
+      // Copilot-specific reviewer definitions use separate paths so "both"
+      // never makes Copilot inherit Claude verdict filenames or metadata.
+      if (agentType === 'copilot' || agentType === 'both') {
+        files['.github/copilot-agents/security-reviewer.md'] = generateSubagentDefinition('security-reviewer', 'copilot');
+        files['.github/copilot-agents/architecture-reviewer.md'] = generateSubagentDefinition('architecture-reviewer', 'copilot');
       }
 
       // Phase 8: Implementation workflow (issue → branch → PR)
-      if (agentType === 'claude' || agentType === 'both') {
-        files['.github/workflows/redqueen-implement.yml'] = generateImplementationWorkflow(agentType, meshRepo, tier);
-      }
+      files['.github/workflows/redqueen-implement.yml'] = generateImplementationWorkflow(agentType, meshRepo, tier);
     }
   }
 
@@ -1046,7 +1563,7 @@ export function scaffoldAgentConfig(
     generatedAt: new Date().toISOString(),
     barId: bar.id,
     barName: bar.name,
-    meshPath,
+    meshPath: DEFAULT_MESH_CHECKOUT_PATH,
     tier,
     compositeScore: bar.compositeScore,
     files: Object.entries(files).map(([filePath, content]) => ({
@@ -1070,6 +1587,7 @@ function generateConfigManifestYaml(manifest: ConfigManifest): string {
     `bar_id: ${manifest.barId}`,
     `bar_name: "${manifest.barName}"`,
     `mesh_path: "${manifest.meshPath}"`,
+    `mesh_checkout_path: "${manifest.meshPath}"`,
     `tier: ${manifest.tier}`,
     `composite_score: ${manifest.compositeScore}`,
     '',

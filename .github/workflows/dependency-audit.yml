@@ -1,0 +1,66 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vscode-extension/package.json'
+      - 'vscode-extension/package-lock.json'
+      - 'site-tw/package.json'
+      - 'site-tw/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vscode-extension/package.json'
+      - 'vscode-extension/package-lock.json'
+      - 'site-tw/package.json'
+      - 'site-tw/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site-tw/package-lock.json
+            vscode-extension/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Audit root dependencies
+        run: npm run audit
+
+      - name: Install site dependencies
+        working-directory: site-tw
+        run: npm ci
+
+      - name: Audit site dependencies
+        working-directory: site-tw
+        run: npm run audit
+
+      - name: Install extension dependencies
+        working-directory: vscode-extension
+        run: npm ci
+
+      - name: Audit extension dependencies
+        working-directory: vscode-extension
+        run: npm run audit

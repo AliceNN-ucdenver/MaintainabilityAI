@@ -27,27 +27,6 @@ export interface AgentStatusInfo {
   workflowRun?: { name: string; url: string };
 }
 
-// ============================================================================
-// Scaffold Types
-// ============================================================================
-
-export interface ScaffoldOptions {
-  includeClaudeMd: boolean;
-  includeCopilotMd: boolean;
-  includeChatgptMd: boolean;
-  includeAgentsMd: boolean;
-  includeAliceRemediation: boolean;
-  includeCodeql: boolean;
-  includeCodeqlToIssues: boolean;
-  includeFitnessFunctions: boolean;
-  includePromptHashes: boolean;
-  includePrTemplate: boolean;
-  includeSecurityPolicy: boolean;
-  includeAutomation: boolean;
-  includePromptPacks: boolean;
-  selectedOwaspPacks: string[];
-}
-
 export interface ComponentScaffoldContext {
   barPath: string;
   barName: string;
@@ -171,10 +150,4 @@ export interface OutdatedDependency {
   name: string;
   ageDays: number;
   currentVersion: string;
-}
-
-export interface PmatDepsResult {
-  totalDeps: number;
-  outdatedCount: number;
-  details: { name: string; current: string; latest: string; ageDays: number }[];
 }

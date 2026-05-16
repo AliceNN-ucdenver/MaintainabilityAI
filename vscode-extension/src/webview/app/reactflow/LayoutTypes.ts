@@ -14,9 +14,11 @@ export interface EdgeLayout {
   labelPosition?: { x: number; y: number };
 }
 
+export type DiagramType = 'context' | 'logical' | 'platform';
+
 export interface DiagramLayout {
   version: '1.0';
-  diagramType: 'context' | 'logical';
+  diagramType: DiagramType;
   viewport: { x: number; y: number; zoom: number };
   nodes: Record<string, NodeLayout>;
   edges: Record<string, EdgeLayout>;
@@ -25,7 +27,7 @@ export interface DiagramLayout {
   lastModified: string;
 }
 
-export function createEmptyLayout(diagramType: 'context' | 'logical'): DiagramLayout {
+export function createEmptyLayout(diagramType: DiagramType): DiagramLayout {
   return {
     version: '1.0',
     diagramType,

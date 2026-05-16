@@ -12,14 +12,13 @@
  *   node dist/mcp-server.js --mesh-path /path/to/mesh --scaffold --bar "My BAR" [--output ./repo]
  */
 import * as fs from 'fs';
-import * as path from 'path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { MeshReader } from '../core/mesh-reader';
 import { registerResources } from './resources';
 import { registerTools } from './tools';
 import { registerPrompts } from './prompts';
-import { scaffoldAgentConfig } from './config-scaffold';
+import { scaffoldAgentConfig, validateScaffoldedRepo, writeScaffoldFiles } from './config-scaffold';
 import { RedQueenService } from '../services/RedQueenService';
 
 // ============================================================================
@@ -43,6 +42,12 @@ function getMeshPath(): string {
 
   if (process.env.RED_QUEEN_MESH_PATH) {
     return process.env.RED_QUEEN_MESH_PATH;
+  }
+  if (process.env.GOVERNANCE_MESH_PATH) {
+    return process.env.GOVERNANCE_MESH_PATH;
+  }
+  if (process.env.MESH_PATH) {
+    return process.env.MESH_PATH;
   }
 
   process.stderr.write(
@@ -77,12 +82,8 @@ function runScaffold(meshPath: string): void {
   process.stderr.write(`Scaffolding agent config for ${result.barName} (tier: ${result.tier})\n`);
 
   if (outputDir) {
-    // Write files to disk
-    for (const [filePath, content] of Object.entries(result.files)) {
-      const fullPath = path.join(outputDir, filePath);
-      const dir = path.dirname(fullPath);
-      if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
-      fs.writeFileSync(fullPath, content, 'utf8');
+    writeScaffoldFiles(outputDir, result.files);
+    for (const filePath of Object.keys(result.files)) {
       process.stderr.write(`  wrote: ${filePath}\n`);
     }
     process.stderr.write(`\n${Object.keys(result.files).length} files written to ${outputDir}\n`);
@@ -95,6 +96,15 @@ function runScaffold(meshPath: string): void {
       files: result.files,
       manifest: result.manifest,
     }, null, 2) + '\n');
+  }
+}
+
+function runDoctor(): void {
+  const repoPath = getArg('repo') || process.cwd();
+  const result = validateScaffoldedRepo(repoPath);
+  process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+  if (!result.ok) {
+    process.exit(1);
   }
 }
 
@@ -137,6 +147,11 @@ async function runServer(meshPath: string): Promise<void> {
 // ============================================================================
 
 async function main() {
+  if (hasFlag('doctor')) {
+    runDoctor();
+    return;
+  }
+
   const meshPath = getMeshPath();
 
   // Validate mesh path exists

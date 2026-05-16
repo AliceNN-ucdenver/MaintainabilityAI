@@ -62,10 +62,6 @@ export async function checkAllPrerequisites(): Promise<ToolStatus[]> {
   return Promise.all(TOOLS.map(checkTool));
 }
 
-export async function checkGhCli(): Promise<ToolStatus> {
-  return checkTool(TOOLS[0]);
-}
-
 /**
  * Require a specific tool before proceeding. Shows an error with install link if missing.
  * Returns true if the tool is available.

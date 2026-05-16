@@ -13,18 +13,37 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MeshReader } from '../core/mesh-reader';
 
+const architectureReviewSchema: z.ZodRawShape = {
+  barName: z.string().describe('Name of the BAR to review'),
+  scope: z.enum(['full', 'architecture', 'security', 'risk', 'operations']).optional().describe('Review scope (default: full)'),
+};
+
+interface ArchitectureReviewArgs {
+  barName: string;
+  scope?: 'full' | 'architecture' | 'security' | 'risk' | 'operations';
+}
+
+type PromptRegistrar = (
+  name: string,
+  description: string,
+  paramsSchema: z.ZodRawShape,
+  handler: (args: Record<string, unknown>) => Promise<unknown>
+) => void;
+
 export function registerPrompts(server: McpServer, reader: MeshReader): void {
+  // Keep prompt schemas as runtime validators while preventing SDK/Zod generic
+  // expansion from dominating the extension typecheck.
+  const prompt = server.prompt.bind(server) as PromptRegistrar;
+
   // --------------------------------------------------------------------------
   // P1: architecture-review
   // --------------------------------------------------------------------------
-  server.prompt(
+  prompt(
     'architecture-review',
     'Complete architecture review prompt for a BAR — includes CALM model, scores, ADRs, and fitness functions.',
-    {
-      barName: z.string().describe('Name of the BAR to review'),
-      scope: z.enum(['full', 'architecture', 'security', 'risk', 'operations']).optional().describe('Review scope (default: full)'),
-    },
-    async ({ barName, scope }) => {
+    architectureReviewSchema,
+    async (args) => {
+      const { barName, scope } = args as unknown as ArchitectureReviewArgs;
       const bar = reader.getBar(barName);
       if (!bar) {
         return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text: `Error: BAR not found: ${barName}` } }] };
@@ -107,14 +126,15 @@ export function registerPrompts(server: McpServer, reader: MeshReader): void {
   // --------------------------------------------------------------------------
   // P2: remediation-plan
   // --------------------------------------------------------------------------
-  server.prompt(
+  prompt(
     'remediation-plan',
     'Generate a remediation plan for governance gaps in a BAR.',
     {
       barName: z.string().describe('Name of the BAR'),
       pillar: z.enum(['architecture', 'security', 'infoRisk', 'operations']).optional().describe('Focus on a specific pillar'),
     },
-    async ({ barName, pillar }) => {
+    async (args) => {
+      const { barName, pillar } = args as unknown as { barName: string; pillar?: 'architecture' | 'security' | 'infoRisk' | 'operations' };
       const bar = reader.getBar(barName);
       if (!bar) {
         return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text: `Error: BAR not found: ${barName}` } }] };
@@ -192,13 +212,14 @@ export function registerPrompts(server: McpServer, reader: MeshReader): void {
   // --------------------------------------------------------------------------
   // P3: threat-assessment
   // --------------------------------------------------------------------------
-  server.prompt(
+  prompt(
     'threat-assessment',
     'Assess security posture using CALM architecture, controls, and threat model.',
     {
       barName: z.string().describe('Name of the BAR to assess'),
     },
-    async ({ barName }) => {
+    async (args) => {
+      const { barName } = args as unknown as { barName: string };
       const bar = reader.getBar(barName);
       if (!bar) {
         return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text: `Error: BAR not found: ${barName}` } }] };
@@ -259,14 +280,15 @@ export function registerPrompts(server: McpServer, reader: MeshReader): void {
   // --------------------------------------------------------------------------
   // P4: adr-proposal
   // --------------------------------------------------------------------------
-  server.prompt(
+  prompt(
     'adr-proposal',
     'Draft an Architectural Decision Record (ADR) based on BAR architecture context.',
     {
       barName: z.string().describe('Name of the BAR'),
       title: z.string().describe('Title of the proposed architectural decision'),
     },
-    async ({ barName, title }) => {
+    async (args) => {
+      const { barName, title } = args as unknown as { barName: string; title: string };
       const bar = reader.getBar(barName);
       if (!bar) {
         return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text: `Error: BAR not found: ${barName}` } }] };

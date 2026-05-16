@@ -8,15 +8,6 @@ import type { VsCodeApi } from './shared';
 import type { AdrLinkType, AdrLink, AdrCharacteristics, AdrRecord } from '../types';
 export type { AdrRecord };
 
-// Absolem state passed from lookingGlass.ts
-export interface AbsolemState {
-  open: boolean;
-  messages: { role: 'user' | 'assistant'; content: string }[];
-  streaming: string;
-  status: 'idle' | 'thinking' | 'reviewing-patches';
-  patches: { patches: { op: string; target: string; field?: string; value?: unknown }[]; description: string } | null;
-}
-
 export interface ArchitectureDiagrams {
   sequence?: string;
   capability?: string;

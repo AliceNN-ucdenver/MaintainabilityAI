@@ -65,10 +65,3 @@ export function updateDiagramCanvasProps(props: DiagramCanvasProps): boolean {
 export function isDiagramCanvasMounted(): boolean {
   return currentRoot !== null;
 }
-
-/**
- * Get the current mount container ID (for debugging).
- */
-export function getMountedContainerId(): string | null {
-  return currentContainerId;
-}

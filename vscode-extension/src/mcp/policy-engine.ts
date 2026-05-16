@@ -92,6 +92,11 @@ export interface StaticPolicy {
     }>;
     securityCriticalPaths: string[];
     readOnlyPaths: string[];
+    allowedConnections: Array<{
+      source: string;
+      target: string;
+      relationshipId: string;
+    }>;
   };
 }
 
@@ -496,13 +501,31 @@ export function evaluate(ctx: EvaluationContext): PolicyDecision {
  * Generate a static policy JSON from a BAR's governance data.
  * This is written to .redqueen/policy.json in the code repo during scaffold.
  */
-export function generateStaticPolicy(bar: BarSummary): StaticPolicy {
-  const tier = computeTier(bar);
+export function generateStaticPolicy(
+  bar: BarSummary,
+  calmModel?: EvaluationContext['calmModel'],
+  tierOverride?: GovernanceTier,
+): StaticPolicy {
+  const tier = tierOverride || computeTier(bar);
 
   // Extract security-critical paths from threat model if available
   // For now, use defaults — can be extended to parse threat YAML
   const securityCriticalPaths = [...DEFAULT_SECURITY_CRITICAL_PATHS];
   const readOnlyPaths = [...DEFAULT_READ_ONLY_PATHS];
+  const allowedConnections: StaticPolicy['rules']['allowedConnections'] = [];
+
+  for (const rel of calmModel?.relationships || []) {
+    const connects = rel['relationship-type']?.connects;
+    const source = connects?.source?.node;
+    const target = connects?.destination?.node;
+    if (source && target) {
+      allowedConnections.push({
+        source,
+        target,
+        relationshipId: rel['unique-id'],
+      });
+    }
+  }
 
   return {
     barId: bar.id,
@@ -517,6 +540,7 @@ export function generateStaticPolicy(bar: BarSummary): StaticPolicy {
       },
       securityCriticalPaths,
       readOnlyPaths,
+      allowedConnections,
     },
   };
 }

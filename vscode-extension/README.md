@@ -288,9 +288,14 @@ npm run build
 # Watch mode
 npm run watch
 
+# Full hardening gate
+npm run quality
+
 # Package as VSIX
 npm run package
 ```
+
+`npm run quality` runs linting, extension and webview TypeScript typechecks, architecture fitness functions, Vitest, Knip dead-code checks, high-severity npm audit, production build, and a VSIX package contents smoke test.
 
 ---
 

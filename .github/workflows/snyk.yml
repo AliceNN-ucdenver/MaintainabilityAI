@@ -28,7 +28,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install jq (for summaries)
@@ -46,8 +46,20 @@ jobs:
           snyk auth "${SNYK_TOKEN}"
 
       # Install dependencies only if there's a package.json at repo root
-      - name: Install dependencies (if package.json present)
+      - name: Install root dependencies (if package.json present)
         if: hashFiles('package.json') != ''
+        run: |
+          npm ci || npm install
+
+      - name: Install extension dependencies (if package.json present)
+        if: hashFiles('vscode-extension/package.json') != ''
+        working-directory: vscode-extension
+        run: |
+          npm ci || npm install
+
+      - name: Install site dependencies (if package.json present)
+        if: hashFiles('site-tw/package.json') != ''
+        working-directory: site-tw
         run: |
           npm ci || npm install
 
@@ -66,7 +78,7 @@ jobs:
           if [ -n "${SNYK_ORG}" ]; then
             EXTRA_ARGS="--org=${SNYK_ORG}"
           fi
-          snyk test --severity-threshold=medium --json $EXTRA_ARGS > snyk-deps.json || true
+          snyk test --all-projects --severity-threshold=medium --json $EXTRA_ARGS > snyk-deps.json || true
           echo "Snyk dependency scan completed."
 
       # --- Static App Security Testing (SAST) ---
@@ -111,9 +123,9 @@ jobs:
           echo ""
           echo "=== Dependency Scan (SCA) ==="
           if [ -f snyk-deps.json ]; then
-            COUNT=$(jq '[.vulnerabilities[]?] | length' snyk-deps.json 2>/dev/null || echo 0)
+            COUNT=$(jq '[if type == "array" then .[]?.vulnerabilities[]? else .vulnerabilities[]? end] | length' snyk-deps.json 2>/dev/null || echo 0)
             echo "Total dependency vulns: ${COUNT}"
-            jq -r '.vulnerabilities[]? | ("[\(.severity|ascii_upcase)] " + .title + " in " + (.packageName // "unknown") + (if .from then " → " + (.from|join(" > ")) else "" end))' snyk-deps.json 2>/dev/null || echo "No vulnerabilities or error parsing results"
+            jq -r '(if type == "array" then .[]?.vulnerabilities[]? else .vulnerabilities[]? end) | ("[\(.severity|ascii_upcase)] " + .title + " in " + (.packageName // "unknown") + (if .from then " → " + (.from|join(" > ")) else "" end))' snyk-deps.json 2>/dev/null || echo "No vulnerabilities or error parsing results"
           else
             echo "No dependency results (no lockfile or scan skipped)."
           fi
@@ -140,13 +152,13 @@ jobs:
             snyk-code.sarif
           if-no-files-found: ignore
 
-      # --- Soft gate: warn on high/critical, do not fail build ---
-      - name: Warn on high/critical issues (non-blocking)
+      # --- Hard gate: fail on high/critical findings ---
+      - name: Fail on high/critical issues
         if: always()
         run: |
           HIGH_VULNS=0
           if [ -f snyk-deps.json ]; then
-            HIGH_VULNS=$(jq '[.vulnerabilities[]? | select(.severity == "high" or .severity == "critical")] | length' snyk-deps.json 2>/dev/null || echo 0)
+            HIGH_VULNS=$(jq '[if type == "array" then .[]?.vulnerabilities[]? else .vulnerabilities[]? end | select(.severity == "high" or .severity == "critical")] | length' snyk-deps.json 2>/dev/null || echo 0)
           fi
 
           HIGH_CODE=0
@@ -159,8 +171,8 @@ jobs:
           echo "High-severity code issues (errors): ${HIGH_CODE}"
 
           if [ "$HIGH_VULNS" -gt 0 ] || [ "$HIGH_CODE" -gt 0 ]; then
-            echo "⚠️  Warning: High/critical issues detected. See artifacts and logs for details."
-            echo "This workflow does not block PRs, but issues should be addressed."
+            echo "❌ High/critical issues detected. See artifacts and logs for details."
+            exit 1
           else
             echo "✅ No high/critical issues detected."
           fi

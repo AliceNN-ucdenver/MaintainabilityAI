@@ -10,6 +10,7 @@ import { deployStatusBadge } from './components/html';
 import { mountDiagramCanvas, unmountDiagramCanvas, updateDiagramCanvasProps, isDiagramCanvasMounted } from './reactflow/ReactBridge';
 import type { CalmArchitecture } from './reactflow/CalmAdapter';
 import type { CalmPatch } from './reactflow/CalmMutator';
+import type { DiagramLayout } from './reactflow/LayoutTypes';
 import { renderPoliciesLensContent, renderNistPopup, attachPolicyEvents, getPolicyStyles } from './views/policies';
 import { renderEaLensTabs, renderBusinessCapabilityView, attachEaLensEvents, getEaLensStyles } from './views/eaLenses';
 import {
@@ -3712,7 +3713,7 @@ window.addEventListener('message', (event) => {
       // External file change — replace in-memory CALM data and update the diagram
       const updatedCalm = (message as Record<string, unknown>).calmData;
       if (updatedCalm) {
-        state.calmData = updatedCalm;
+        state.calmData = updatedCalm as CalmDataPayload;
         // If a React canvas is already mounted, update its props without destroying the root
         if ((state.activeTab === 'context' || state.activeTab === 'logical') && isDiagramCanvasMounted()) {
           const diagramType = state.activeTab as 'context' | 'logical';
@@ -3942,7 +3943,7 @@ window.addEventListener('message', (event) => {
       state.barLinkedBars = bgMsg.linkedBars;
       state.barSiblingBars = bgMsg.siblingBars;
       state.barPlatformOverrides = bgMsg.platformOverrides;
-      if (state.view === 'barDetail') { render(); }
+      if (state.view === 'bar-detail') { render(); }
       break;
     }
 

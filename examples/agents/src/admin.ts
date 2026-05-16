@@ -4,13 +4,14 @@
  */
 
 import { Pool } from 'pg';
+import * as fs from 'fs';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/mydb'
 });
 
 // A01 - Broken Access Control: No role verification
-export async function deleteUser(userId: string, requestorId: string) {
+export async function deleteUser(userId: string, _requestorId: string) {
   // No check if requestor is admin
   // No check if requestor is deleting themselves
 
@@ -23,7 +24,7 @@ export async function deleteUser(userId: string, requestorId: string) {
 }
 
 // A01 - Broken Access Control: Insecure Direct Object Reference (IDOR)
-export async function getUserData(userId: string, requestorId: string) {
+export async function getUserData(userId: string, _requestorId: string) {
   // No ownership or permission check
   // Anyone can access anyone's data
 
@@ -39,7 +40,7 @@ export async function getUserData(userId: string, requestorId: string) {
 }
 
 // A01 - Broken Access Control: Mass assignment vulnerability
-export async function updateUser(userId: string, updates: any) {
+export async function updateUser(userId: string, updates: Record<string, string>) {
   // No field allowlist
   // Attacker can modify role, permissions, etc.
 
@@ -59,13 +60,12 @@ export async function readUserFile(userId: string, filename: string) {
   // No path sanitization
   // Allows directory traversal: ../../../etc/passwd
 
-  const fs = require('fs');
   const path = `/var/uploads/${userId}/${filename}`;
 
   try {
     const content = fs.readFileSync(path, 'utf8');
     return { success: true, content };
-  } catch (error) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }

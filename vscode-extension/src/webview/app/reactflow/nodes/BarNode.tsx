@@ -7,7 +7,7 @@ import { getCssVars, NODE_DEFAULTS } from './nodeStyles';
 import { NodeHandles } from './NodeHandles';
 
 export function BarNode({ data }: NodeProps) {
-  const d = data as CalmNodeData & { compositeScore?: number; tier?: string };
+  const d = data as unknown as CalmNodeData & { compositeScore?: number; tier?: string };
   const v = getCssVars();
 
   // Tier color: autonomous=green, supervised=yellow, restricted=red

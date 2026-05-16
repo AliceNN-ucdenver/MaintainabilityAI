@@ -24,7 +24,7 @@ const SDLC_FILES = [
   // Red Queen governance files
   { label: 'Red Queen Policy', path: '.redqueen/policy.json' },
   { label: 'Red Queen Decision', path: '.redqueen/decision.json' },
-  { label: 'Red Queen Hooks', path: '.redqueen/hooks/validate-tool.js' },
+  { label: 'Red Queen Hooks', path: '.redqueen/hooks/validate-tool.sh' },
   { label: 'MCP Config', path: '.mcp.json' },
   { label: 'Red Queen Review', path: '.github/workflows/redqueen-review.yml' },
   { label: 'AGENTS.md', path: 'AGENTS.md' },

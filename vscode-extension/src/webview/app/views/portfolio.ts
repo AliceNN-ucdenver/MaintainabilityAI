@@ -7,8 +7,7 @@
 import { escapeHtml, escapeAttr } from '../pillars/shared';
 import type {
   VsCodeApi, BarSummary, PlatformSummary, PortfolioSummary,
-  GovernancePillarScore, GovernanceTrend, GovernanceScoreSnapshot,
-  ReviewRecord, GitSyncStatus,
+  GovernanceTrend, GovernanceScoreSnapshot, ReviewRecord, GitSyncStatus,
 } from '../types';
 
 // ============================================================================
@@ -80,16 +79,6 @@ export function getFilteredBars(
   }
 
   return filtered;
-}
-
-export function getPillarByKey(bar: BarSummary, key: string): GovernancePillarScore | null {
-  switch (key) {
-    case 'architecture': return bar.architecture;
-    case 'security': return bar.security;
-    case 'information-risk': return bar.infoRisk;
-    case 'operations': return bar.operations;
-    default: return null;
-  }
 }
 
 // ============================================================================
@@ -306,96 +295,6 @@ export function renderFilterChips(barFilter: string): string {
       `).join('')}
     </div>
   `;
-}
-
-// ============================================================================
-// Render — BAR Table
-// ============================================================================
-
-export function renderBarTable(
-  bars: BarSummary[],
-  gitStatus: GitSyncStatus | null,
-  needsPush: boolean,
-): string {
-  if (bars.length === 0) {
-    return '<div class="empty-state"><p>No matching applications found.</p></div>';
-  }
-
-  const rows = bars.map(bar => {
-    // Git sync cell
-    let syncCell = '<span style="color: var(--text-dim);">--</span>';
-    if (gitStatus?.isGitRepo) {
-      const barGs = gitStatus.barStatus[bar.path];
-      if (barGs?.isDirty) {
-        syncCell = `<span class="sync-dot out-of-sync" title="${barGs.dirtyFileCount} unsaved file${barGs.dirtyFileCount !== 1 ? 's' : ''}">${barGs.dirtyFileCount}</span>`;
-      } else if (needsPush) {
-        syncCell = '<span class="sync-dot out-of-sync" title="Not pushed to remote">&#x2191;</span>';
-      } else {
-        syncCell = '<span class="sync-dot synced">&#10003;</span>';
-      }
-    }
-
-    return `
-      <tr class="bar-row" data-bar-path="${escapeAttr(bar.path)}">
-        <td class="bar-name">${escapeHtml(bar.name)}</td>
-        <td><span class="strategy-badge ${bar.strategy}">${bar.strategy}</span></td>
-        <td><span class="crit-badge ${bar.criticality}">${bar.criticality}</span></td>
-        <td style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">${bar.repoCount}</td>
-        <td>${renderPillarInline(bar.architecture)}</td>
-        <td>${renderPillarInline(bar.security)}</td>
-        <td>${renderPillarInline(bar.infoRisk)}</td>
-        <td>${renderPillarInline(bar.operations)}</td>
-        <td>${renderDriftBadge(bar)}</td>
-        <td style="font-family: var(--font-mono); font-size: 11px;">${bar.adrCount > 0 ? `<span style="color: var(--accent);">${bar.adrCount}</span>` : '<span style="color: var(--text-dim);">0</span>'}</td>
-        <td style="font-family: var(--font-mono); font-size: 11px;">${bar.pendingDecisions > 0 ? `<span style="color: var(--warning);">${bar.pendingDecisions}</span>` : '<span style="color: var(--text-dim);">0</span>'}</td>
-        <td style="text-align: center;">${syncCell}</td>
-      </tr>
-    `;
-  }).join('');
-
-  return `
-    <table class="bar-table">
-      <thead>
-        <tr>
-          <th>Application</th>
-          <th>Strategy</th>
-          <th>Criticality</th>
-          <th>Repos</th>
-          <th>Arch</th>
-          <th>Security</th>
-          <th>Info Risk</th>
-          <th>Operations</th>
-          <th>Drift</th>
-          <th>ADRs</th>
-          <th>Decisions</th>
-          <th>Sync</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-}
-
-// ============================================================================
-// Render — Pillar Inline & Drift Badge
-// ============================================================================
-
-export function renderPillarInline(pillar: GovernancePillarScore): string {
-  return `<span class="pillar-dot ${pillar.status}" title="${pillar.status}"></span><span class="pillar-score-inline">${pillar.score}</span>`;
-}
-
-export function renderDriftBadge(bar: BarSummary): string {
-  const reviews = bar.reviews;
-  if (!reviews || reviews.length === 0) {
-    return '<span style="font-size: 11px; color: var(--text-dim);">—</span>';
-  }
-  const latest = reviews[reviews.length - 1];
-  const score = bar.latestDriftScore ?? latest.driftScore;
-  const color = score >= 75 ? 'var(--passing)' : score >= 50 ? 'var(--warning)' : 'var(--failing)';
-  const issueLink = latest.issueUrl
-    ? ` <a class="drift-link" href="#" data-url="${escapeAttr(latest.issueUrl)}" title="Open review #${latest.issueNumber}">#${latest.issueNumber}</a>`
-    : '';
-  return `<span style="font-family: var(--font-mono); font-size: 11px; color: ${color}; font-weight: 600;">${score}</span>${issueLink}`;
 }
 
 // ============================================================================

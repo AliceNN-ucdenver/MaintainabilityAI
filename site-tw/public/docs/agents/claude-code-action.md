@@ -19,8 +19,8 @@ MaintainabilityAI governs Claude Code Action through **The Red Queen** — a thr
 <div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Exposes your governance mesh as queryable MCP resources and tools. Claude Code Action gets full architecture context — models, scores, threats, controls, flows — in a single call.</div>
 </div>
 <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: NeMo Guardrails (Colang 2.0)</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">NVIDIA's Colang 2.0 DSL enforces governance constraints as <strong>state machines</strong>. CALM flows, NIST controls, interface contracts, and threat model mitigations are enforced deterministically. The agent <strong>cannot</strong> bypass a flow constraint.</div>
+<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: The Red Queen's Court</div>
+<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">A pure TypeScript policy engine enforces governance constraints deterministically. CALM flows, NIST controls, interface contracts, and threat model mitigations are checked before action. The agent <strong>cannot</strong> bypass a flow constraint.</div>
 </div>
 <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 20px;">
 <div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: Red Queen Policy Engine</div>
@@ -29,7 +29,7 @@ MaintainabilityAI governs Claude Code Action through **The Red Queen** — a thr
 </div>
 </div>
 
-Unlike in-editor Claude Code where a human reviews each change, Claude Code Action is **deterministically governed**. NeMo Guardrails enforce your architecture as state machines — the agent literally cannot create connections not declared in your CALM model.
+Unlike in-editor Claude Code where a human reviews each change, Claude Code Action is **deterministically governed**. The Red Queen's TypeScript policy engine enforces your architecture as declared CALM constraints, so the agent cannot create connections that are not declared in your model.
 
 ---
 
@@ -39,7 +39,9 @@ Unlike in-editor Claude Code where a human reviews each change, Claude Code Acti
 
 <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px 20px; font-size: 14px;">
 <div style="color: #7dd3fc; font-weight: 600;">.mcp.json</div>
-<div style="color: #94a3b8;">MCP server connection to The Grin</div>
+<div style="color: #94a3b8;">MCP server config that launches the repo-local Red Queen runner</div>
+<div style="color: #7dd3fc; font-weight: 600;">.redqueen/mcp-runner.js</div>
+<div style="color: #94a3b8;">Portable resolver for the live governance mesh and npm MCP server</div>
 <div style="color: #7dd3fc; font-weight: 600;">CLAUDE.md</div>
 <div style="color: #94a3b8;">Agent instructions — dynamically generated per-BAR by Red Queen based on governance scores</div>
 <div style="color: #7dd3fc; font-weight: 600;">.claude/settings.json</div>
@@ -123,7 +125,7 @@ Both Claude Code Action and Copilot Coding Agent call the same tools:
 <div style="color: #94a3b8;">Full Red Queen decision for a BAR (tier, permissions, prompt packs)</div>
 <div style="color: #4ade80; font-weight: 700;">validate\_action</div>
 <div style="color: #4ade80; font-weight: 600;">Enforce</div>
-<div style="color: #94a3b8;">NeMo-backed validation against CALM flows, controls, interface contracts</div>
+<div style="color: #94a3b8;">Policy-engine validation against CALM flows, controls, interface contracts</div>
 <div style="color: #4ade80; font-weight: 700;">validate\_interface\_contract</div>
 <div style="color: #4ade80; font-weight: 600;">Enforce</div>
 <div style="color: #94a3b8;">Cross-repo interface adherence validation</div>
@@ -144,7 +146,7 @@ Governance scores directly drive agent autonomy:
 <div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 20px;">
 <div style="font-size: 14px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Autonomous</div>
 <div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">80-100%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Auto-edit mode. Can edit src/\*\*, run tests/lint/build. NeMo Guardrails still enforce flow and control constraints.</div>
+<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Auto-edit mode. Can edit src/\*\*, run tests/lint/build. Red Queen policy checks still enforce flow and control constraints.</div>
 </div>
 <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 20px;">
 <div style="font-size: 14px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Supervised</div>
@@ -154,7 +156,7 @@ Governance scores directly drive agent autonomy:
 <div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 20px;">
 <div style="font-size: 14px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Restricted</div>
 <div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">0-49%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Plan mode only. 2 agent reviews + human approval. NeMo blocks infrastructure changes entirely.</div>
+<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Plan mode only. 2 agent reviews + human approval. Red Queen blocks unapproved infrastructure changes.</div>
 </div>
 </div>
 </div>
@@ -163,7 +165,7 @@ Governance scores directly drive agent autonomy:
 
 ---
 
-## Five NeMo Guardrails
+## Five Red Queen Policy Checks
 
 <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
 
@@ -246,13 +248,7 @@ When your CALM model declares a flow across repositories (e.g., checkout-ui → 
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Start Red Queen MCP Server<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">run:</span> |<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;npm install -g @maintainabilityai/red-queen-mcp<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;red-queen-mcp --mesh-path ./governance-mesh --port 3100 &amp;<br/>
-<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Start NeMo Guardrails<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">run:</span> |<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pip install nemoguardrails<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nemoguardrails server --config ./guardrails --port 8100 &amp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node .redqueen/mcp-runner.js &amp;<br/>
 <br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Run Claude Code Action<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">uses:</span> anthropics/claude-code-action@v1<br/>
@@ -263,7 +259,7 @@ When your CALM model declares a flow across repositories (e.g., checkout-ui → 
 
 </div>
 
-The MCP server and NeMo sidecar start before Claude Code Action runs. The agent calls validate\_action before any structural change, and NeMo enforces governance constraints deterministically.
+The repo-local MCP runner starts before Claude Code Action runs. The agent calls validate\_action before any structural change, and The Red Queen's Court enforces governance constraints deterministically.
 
 ---
 
@@ -284,7 +280,7 @@ The MCP server and NeMo sidecar start before Claude Code Action runs. The agent 
 <div style="text-align: center;">❌</div>
 <div style="text-align: center;">✅</div>
 
-<div style="color: #e2e8f0;">NeMo Guardrails</div>
+<div style="color: #e2e8f0;">Red Queen Policy Checks</div>
 <div style="text-align: center;">❌</div>
 <div style="text-align: center;">✅</div>
 

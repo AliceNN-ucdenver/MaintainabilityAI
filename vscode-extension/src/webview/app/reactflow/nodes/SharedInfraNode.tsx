@@ -7,7 +7,7 @@ import { getCssVars, NODE_DEFAULTS } from './nodeStyles';
 import { NodeHandles } from './NodeHandles';
 
 export function SharedInfraNode({ data }: NodeProps) {
-  const d = data as CalmNodeData;
+  const d = data as unknown as CalmNodeData;
   const v = getCssVars();
 
   return (

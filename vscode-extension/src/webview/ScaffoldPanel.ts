@@ -23,7 +23,7 @@ import { readRepoMetadata } from '../services/RepoMetadata';
 import { MeshService } from '../services/MeshService';
 import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
-import { scaffoldAgentConfig } from '../mcp/config-scaffold';
+import { scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
 import type { ComponentScaffoldContext } from '../types';
 import { IssueCreatorPanel } from './IssueCreatorPanel';
 import { execFileAsync } from '../utils/exec';
@@ -360,14 +360,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
             const redQueen = new RedQueenService();
             const result = scaffoldAgentConfig(reader, barName, redQueen);
             if (!('error' in result)) {
-              let govCreated = 0;
-              for (const [relPath, content] of Object.entries(result.files)) {
-                const fullPath = path.join(workspaceRoot, relPath);
-                const dir = path.dirname(fullPath);
-                if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
-                fs.writeFileSync(fullPath, content, 'utf8');
-                govCreated++;
-              }
+              const govCreated = writeScaffoldFiles(workspaceRoot, result.files);
               const tier = this.componentContext?.governanceTier || 'unknown';
               this.postMessage({ type: 'step', id: 'governance', status: 'done', message: `${govCreated} governance files (${tier} tier)` });
             } else {

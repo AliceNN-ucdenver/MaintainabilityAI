@@ -217,9 +217,9 @@ flowchart LR
 <div style="margin-top: 24px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
   <img src="../../images/redqueen.png" alt="The Red Queen" style="width: 200px; height: 200px; border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.4); flex-shrink: 0;" />
   <div style="flex: 1; min-width: 240px;">
-    <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">Coming Next: The Red Queen</div>
+    <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">Available Now: The Red Queen</div>
     <p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0 0 12px 0;">
-      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong style="color: #f87171;">deterministic governance enforcement</strong> — an MCP server for architecture awareness, NeMo Guardrails for constraint enforcement, and a policy engine that ties agent autonomy to governance scores.
+      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong style="color: #f87171;">deterministic governance control points</strong> — MCP architecture awareness, pre-tool hooks, scaffold doctor checks, fail-closed review consensus, and a TypeScript policy engine that ties agent autonomy to governance scores.
     </p>
     <a href="/docs/impossible-things#whats-coming-the-red-queen---governance-enforced-agent-intelligence" style="color: #f87171; font-size: 13px; font-weight: 600; text-decoration: none;">Read the Red Queen roadmap →</a>
   </div>
@@ -758,4 +758,3 @@ As <a href="https://www.deloitte.com/nz/en/services/consulting/perspectives/ai-a
     Begin with Phase 1: Design Intent →
   </a>
 </div>
-

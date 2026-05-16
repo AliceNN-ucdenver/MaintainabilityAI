@@ -6,30 +6,6 @@
 
 export type ArchetypeId = 'three-tier' | 'event-driven' | 'data-pipeline';
 
-export interface ArchetypeInfo {
-  id: ArchetypeId;
-  name: string;
-  description: string;
-}
-
-export const ARCHETYPES: ArchetypeInfo[] = [
-  {
-    id: 'three-tier',
-    name: 'Three-Tier Web Application',
-    description: 'Classic layered architecture: web client, API server, auth service, database, identity provider.',
-  },
-  {
-    id: 'event-driven',
-    name: 'Event-Driven Microservices',
-    description: 'API gateway, message broker, independent services, event store. Async messaging patterns.',
-  },
-  {
-    id: 'data-pipeline',
-    name: 'Data Pipeline',
-    description: 'Ingestion, transformation, serving layers with orchestrator. Batch and streaming flows.',
-  },
-];
-
 const SCHEMA = 'https://calm.finos.org/release/1.2/meta/core.json';
 
 export function generateArchetype(id: ArchetypeId, appName: string, appId: string): string {

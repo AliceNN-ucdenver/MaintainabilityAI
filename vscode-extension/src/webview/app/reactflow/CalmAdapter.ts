@@ -25,7 +25,7 @@ export interface CalmDecoratorMapping {
 
 export interface CalmNode {
   'unique-id': string;
-  'node-type': 'system' | 'actor' | 'service' | 'database' | 'network';
+  'node-type': 'system' | 'actor' | 'service' | 'database' | 'network' | 'bar' | 'shared-infrastructure';
   name: string;
   description?: string;
   interfaces?: CalmInterface[];
