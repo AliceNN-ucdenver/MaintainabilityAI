@@ -1,8 +1,14 @@
-# Complexity Reduction — Maintainability Prompt Pack
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/maintainability/">Maintainability</a><span class="sep">/</span><span>Complexity reduction</span></div>
+    <div class="docs-eyebrow">Maintainability · Complexity <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Complexity reduction</h1>
+    <p class="docs-hero-copy">is the practice of refactoring high-complexity code into simpler, more maintainable functions using patterns like Extract Method, Guard Clauses, and Strategy Pattern. High complexity (cyclomatic >10) correlates with exponentially higher defect rates.</p>
+    <span class="docs-hero-flourish">&ldquo;You used to be much more &mdash; <em>simpler</em>.&rdquo; Bring back the muchness.</span>
+  </div>
+</div>
 
-> **Complexity Reduction** is the practice of refactoring high-complexity code into simpler, more maintainable functions using patterns like Extract Method, Guard Clauses, and Strategy Pattern. High complexity (cyclomatic >10) correlates with exponentially higher defect rates.
-
----
 
 ## 🎯 What is Complexity Reduction?
 
@@ -32,13 +38,13 @@
 
 ## Prompt 1: Analyze Code Complexity
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Scans functions for cyclomatic complexity violations, deep nesting, and long parameter lists</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Scans functions for cyclomatic complexity violations, deep nesting, and long parameter lists</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a code quality engineer analyzing TypeScript/JavaScript code for complexity violations.
@@ -91,13 +97,13 @@ Provide a prioritized list of complexity violations with:
 
 ## Prompt 2: Refactor with Extract Method Pattern
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Splits a high-complexity function into smaller focused functions using Extract Method</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Splits a high-complexity function into smaller focused functions using Extract Method</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a refactoring expert reducing cyclomatic complexity using the Extract Method pattern.
@@ -161,13 +167,13 @@ Provide refactored TypeScript code with:
 
 ## Prompt 3: Reduce Nesting with Guard Clauses
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Flattens deeply nested conditionals into guard clauses with early returns</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Flattens deeply nested conditionals into guard clauses with early returns</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a refactoring expert specializing in reducing nested conditionals using Guard Clauses.
@@ -244,13 +250,13 @@ Provide refactored TypeScript code with:
 
 ## Prompt 4: Apply Strategy Pattern for Complex Conditionals
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Replaces large switch/if-else chains with a Strategy Pattern dictionary lookup</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Replaces large switch/if-else chains with a Strategy Pattern dictionary lookup</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a software architect refactoring complex switch/if-else chains using the Strategy Pattern.
@@ -320,54 +326,54 @@ Provide complete refactored code with:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After refactoring for complexity reduction, verify:</div>
+<div class="docs-heading">After refactoring for complexity reduction, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(251, 146, 60, 0.15); border-left: 4px solid #fb923c; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Complexity Metrics</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Complexity Metrics</div>
+  <div class="docs-copy">
     ✓ All functions have cyclomatic complexity ≤10<br/>
     ✓ Critical functions have complexity ≤8<br/>
     ✓ No functions exceed 50 lines<br/>
     ✓ No nesting deeper than 3 levels<br/>
     ✓ No functions with >4 parameters<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Run ts-complexity or ESLint complexity rule and confirm zero violations
+    <strong class="docs-strong">Test:</strong> Run ts-complexity or ESLint complexity rule and confirm zero violations
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Behavior Preservation</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Behavior Preservation</div>
+  <div class="docs-copy">
     ✓ All existing tests pass without modification<br/>
     ✓ No changes to public API or function signatures<br/>
     ✓ Error handling remains equivalent<br/>
     ✓ Edge cases still handled correctly<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Run full test suite before and after refactoring and diff the results
+    <strong class="docs-strong">Test:</strong> Run full test suite before and after refactoring and diff the results
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Code Quality</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Code Quality</div>
+  <div class="docs-copy">
     ✓ Extracted functions have descriptive names<br/>
     ✓ Guard clauses used for validation<br/>
     ✓ JSDoc comments explain intent<br/>
     ✓ TypeScript strict mode passes (no any)<br/>
     ✓ ESLint passes with no warnings<br/>
-    <strong style="color: #94a3b8;">Test:</strong> run npm run lint and verify zero warnings or errors
+    <strong class="docs-strong">Test:</strong> run npm run lint and verify zero warnings or errors
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Testing</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Testing</div>
+  <div class="docs-copy">
     ✓ Refactored code has equivalent or better test coverage<br/>
     ✓ New helper functions have unit tests<br/>
     ✓ Complexity fitness function passes in CI/CD<br/>
-    <strong style="color: #94a3b8;">Test:</strong> run npm test --coverage and confirm coverage did not decrease
+    <strong class="docs-strong">Test:</strong> run npm test --coverage and confirm coverage did not decrease
   </div>
 </div>
 

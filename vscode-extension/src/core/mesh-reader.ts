@@ -10,6 +10,7 @@ import * as path from 'path';
 import { GovernanceScorer } from '../services/GovernanceScorer';
 import { BarService } from '../services/BarService';
 import { CapabilityModelService } from '../services/CapabilityModelService';
+import { readThreatModelFromBar, type ParsedThreatModel } from './threat-model-reader';
 import type {
   ArchitectureDsl,
   CapabilityModelType,
@@ -336,6 +337,19 @@ export class MeshReader {
     }
 
     return adrs.sort((a, b) => a.filename.localeCompare(b.filename));
+  }
+
+  // ==========================================================================
+  // Threat Model (STRIDE)
+  // ==========================================================================
+
+  /**
+   * Read + parse `<barPath>/security/threat-model.yaml`. Returns null when the
+   * file is absent or contains no parseable threats. Used by the Research +
+   * PRD agents to ground threat-aware questions and security requirements.
+   */
+  readThreatModel(barPath: string): ParsedThreatModel | null {
+    return readThreatModelFromBar(barPath);
   }
 
   // ==========================================================================

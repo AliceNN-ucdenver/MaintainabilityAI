@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">SDLC phases and security gates</title>
+  <desc id="d">A left-to-right pipeline runs through six phases — design, implement, verify, govern, deploy, evolve — with a measurable security gate between every step. Each gate names the artifact, owner, and pass condition.</desc>
+  <defs>
+    <linearGradient id="pipeBG" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0b1224" stop-opacity=".0"/>
+      <stop offset=".5" stop-color="#0e1a30" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#0b1224" stop-opacity=".0"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset=".2" stop-color="#fbbf24"/>
+      <stop offset=".4" stop-color="#fb7185"/>
+      <stop offset=".6" stop-color="#818cf8"/>
+      <stop offset=".8" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#93c5fd}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .phNum{font:900 16px -apple-system,system-ui,sans-serif;fill:#0b1224;text-anchor:middle}
+      .phName{font:900 18px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .phLane{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase;fill:#94a3b8;text-anchor:middle}
+      .gateLbl{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase;fill:#cbd5e1}
+      .gateOwner{font:700 12px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .gateBody{font:500 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .gatePass{font:700 12px -apple-system,system-ui,sans-serif;fill:#6ee7b7}
+    </style>
+  </defs>
+
+  <rect x="0" y="180" width="1280" height="540" fill="url(#pipeBG)"/>
+
+  <text x="64" y="74" class="eyebrow">SDLC framework</text>
+  <text x="64" y="118" class="heroTitle">Phases and security gates</text>
+  <text x="64" y="148" class="heroSub">Every phase has an owner, an artifact, and a measurable gate. Failed gates loop back; passed gates produce evidence.</text>
+
+  <!-- Phase row centered on y=300, 6 nodes evenly across width 1200 (left 60, right 1240) -->
+  <g>
+    <!-- Rail line -->
+    <line x1="120" y1="300" x2="1160" y2="300" stroke="url(#rail)" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- 6 phase dots equally spaced -->
+    <!-- positions: 130, 336, 542, 748, 954, 1160 (step ~206) -->
+    <g>
+      <!-- helper macro repeated per phase -->
+      <g transform="translate(130,300)">
+        <circle r="34" fill="rgba(15,23,42,0.95)" stroke="#60a5fa" stroke-width="3"/>
+        <text class="phNum" y="6">1</text>
+        <text class="phLane" y="-58">Phase 1</text>
+        <text class="phName" y="60" fill="#93c5fd">Design</text>
+      </g>
+      <g transform="translate(336,300)">
+        <circle r="34" fill="rgba(15,23,42,0.95)" stroke="#fbbf24" stroke-width="3"/>
+        <text class="phNum" y="6">2</text>
+        <text class="phLane" y="-58">Phase 2</text>
+        <text class="phName" y="60" fill="#fcd34d">Implement</text>
+      </g>
+      <g transform="translate(542,300)">
+        <circle r="34" fill="rgba(15,23,42,0.95)" stroke="#fb7185" stroke-width="3"/>
+        <text class="phNum" y="6">3</text>
+        <text class="phLane" y="-58">Phase 3</text>
+        <text class="phName" y="60" fill="#fda4af">Verify</text>
+      </g>
+      <g transform="translate(748,300)">
+        <circle r="34" fill="rgba(15,23,42,0.95)" stroke="#818cf8" stroke-width="3"/>
+        <text class="phNum" y="6">4</text>
+        <text class="phLane" y="-58">Phase 4</text>
+        <text class="phName" y="60" fill="#a5b4fc">Govern</text>
+      </g>
+      <g transform="translate(954,300)">
+        <circle r="34" fill="rgba(15,23,42,0.95)" stroke="#34d399" stroke-width="3"/>
+        <text class="phNum" y="6">5</text>
+        <text class="phLane" y="-58">Phase 5</text>
+        <text class="phName" y="60" fill="#6ee7b7">Deploy</text>
+      </g>
+      <g transform="translate(1160,300)">
+        <circle r="34" fill="rgba(15,23,42,0.95)" stroke="#22d3ee" stroke-width="3"/>
+        <text class="phNum" y="6">6</text>
+        <text class="phLane" y="-58">Phase 6</text>
+        <text class="phName" y="60" fill="#67e8f9">Evolve</text>
+      </g>
+    </g>
+
+    <!-- Gate marks BETWEEN phases (vertical bar + chip below the rail) -->
+    <!-- Gate positions: 233, 439, 645, 851, 1057 -->
+    <g>
+      <!-- Gate A: Design → Implement -->
+      <g transform="translate(233,300)">
+        <line x1="0" y1="-46" x2="0" y2="46" stroke="rgba(148,163,184,0.45)" stroke-width="2" stroke-dasharray="3 4"/>
+        <rect x="-100" y="80" width="200" height="120" rx="10" fill="rgba(15,23,42,0.85)" stroke="rgba(96,165,250,0.35)"/>
+        <rect x="-100" y="80" width="200" height="3" rx="10" fill="#60a5fa"/>
+        <text x="0" y="106" text-anchor="middle" class="gateLbl" fill="#93c5fd">Gate · Design</text>
+        <text x="-86" y="132" class="gateOwner">Threat coverage</text>
+        <text x="-86" y="152" class="gateBody">STRIDE + OWASP map</text>
+        <text x="-86" y="172" class="gateBody">all assets identified</text>
+        <text x="-86" y="192" class="gatePass">≥ 95% covered</text>
+      </g>
+      <!-- Gate B: Implement → Verify -->
+      <g transform="translate(439,300)">
+        <line x1="0" y1="-46" x2="0" y2="46" stroke="rgba(148,163,184,0.45)" stroke-width="2" stroke-dasharray="3 4"/>
+        <rect x="-100" y="80" width="200" height="120" rx="10" fill="rgba(15,23,42,0.85)" stroke="rgba(251,191,36,0.35)"/>
+        <rect x="-100" y="80" width="200" height="3" rx="10" fill="#fbbf24"/>
+        <text x="0" y="106" text-anchor="middle" class="gateLbl" fill="#fcd34d">Gate · Implement</text>
+        <text x="-86" y="132" class="gateOwner">Tests pass locally</text>
+        <text x="-86" y="152" class="gateBody">Prompt pack used</text>
+        <text x="-86" y="172" class="gateBody">AI usage disclosed</text>
+        <text x="-86" y="192" class="gatePass">0 lint errors</text>
+      </g>
+      <!-- Gate C: Verify → Govern -->
+      <g transform="translate(645,300)">
+        <line x1="0" y1="-46" x2="0" y2="46" stroke="rgba(148,163,184,0.45)" stroke-width="2" stroke-dasharray="3 4"/>
+        <rect x="-100" y="80" width="200" height="120" rx="10" fill="rgba(15,23,42,0.85)" stroke="rgba(251,113,133,0.35)"/>
+        <rect x="-100" y="80" width="200" height="3" rx="10" fill="#fb7185"/>
+        <text x="0" y="106" text-anchor="middle" class="gateLbl" fill="#fda4af">Gate · Verify</text>
+        <text x="-86" y="132" class="gateOwner">CodeQL + Snyk clean</text>
+        <text x="-86" y="152" class="gateBody">Fitness functions</text>
+        <text x="-86" y="172" class="gateBody">pass thresholds</text>
+        <text x="-86" y="192" class="gatePass">0 high / critical</text>
+      </g>
+      <!-- Gate D: Govern → Deploy -->
+      <g transform="translate(851,300)">
+        <line x1="0" y1="-46" x2="0" y2="46" stroke="rgba(148,163,184,0.45)" stroke-width="2" stroke-dasharray="3 4"/>
+        <rect x="-100" y="80" width="200" height="120" rx="10" fill="rgba(15,23,42,0.85)" stroke="rgba(129,140,248,0.35)"/>
+        <rect x="-100" y="80" width="200" height="3" rx="10" fill="#818cf8"/>
+        <text x="0" y="106" text-anchor="middle" class="gateLbl" fill="#a5b4fc">Gate · Govern</text>
+        <text x="-86" y="132" class="gateOwner">Golden Rules check</text>
+        <text x="-86" y="152" class="gateBody">Human approval +</text>
+        <text x="-86" y="172" class="gateBody">evidence attached</text>
+        <text x="-86" y="192" class="gatePass">CODEOWNER sign-off</text>
+      </g>
+      <!-- Gate E: Deploy → Evolve -->
+      <g transform="translate(1057,300)">
+        <line x1="0" y1="-46" x2="0" y2="46" stroke="rgba(148,163,184,0.45)" stroke-width="2" stroke-dasharray="3 4"/>
+        <rect x="-100" y="80" width="200" height="120" rx="10" fill="rgba(15,23,42,0.85)" stroke="rgba(52,211,153,0.35)"/>
+        <rect x="-100" y="80" width="200" height="3" rx="10" fill="#34d399"/>
+        <text x="0" y="106" text-anchor="middle" class="gateLbl" fill="#6ee7b7">Gate · Deploy</text>
+        <text x="-86" y="132" class="gateOwner">Smoke + rollback</text>
+        <text x="-86" y="152" class="gateBody">SLO observed</text>
+        <text x="-86" y="172" class="gateBody">no error spike</text>
+        <text x="-86" y="192" class="gatePass">p95 within budget</text>
+      </g>
+    </g>
+
+    <!-- Feedback arc from Evolve back to Design -->
+    <path d="M 1160 250 C 1160 200, 130 200, 130 250" fill="none" stroke="rgba(103,232,249,0.45)" stroke-width="1.6" stroke-dasharray="4 5" marker-end="url(#backArr)"/>
+    <defs>
+      <marker id="backArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+        <path d="M0 0 10 5 0 10z" fill="#67e8f9"/>
+      </marker>
+    </defs>
+    <text x="640" y="190" text-anchor="middle" class="gateLbl" fill="#67e8f9">Feedback loop · production learning returns to design</text>
+  </g>
+
+  <text x="640" y="690" text-anchor="middle" class="heroSub" font-size="14">Failed evidence loops back to the previous phase. Passed evidence becomes the input to the next.</text>
+</svg>

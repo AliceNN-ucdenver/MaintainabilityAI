@@ -91,7 +91,7 @@ This repo deploys **two** sites as one GitHub Pages artifact:
 
 ### Governance Documentation (`/docs/governance/`)
 
-- **[`vibe-golden-rules.md`](docs/governance/vibe-golden-rules.md)**: Comprehensive guide to the 6 Golden Rules with examples, patterns, and metrics
+- **[`governed-golden-rules.md`](docs/governance/governed-golden-rules.md)**: Comprehensive guide to the 6 Golden Rules with examples, patterns, and metrics
 - **[`framework.md`](site-tw/public/docs/framework.md)**: Complete SDLC framework with integrated 6-layer security pipeline
 
 ### TypeScript & Testing Configuration
@@ -191,7 +191,7 @@ See [`/AGENTS.md`](AGENTS.md) for coordinating multiple AI agents:
 
 ## Security Workflow ("Golden Rules of Vibe Coding")
 
-When working with this codebase, follow the security-first approach documented in [`docs/governance/vibe-golden-rules.md`](docs/governance/vibe-golden-rules.md):
+When working with this codebase, follow the security-first approach documented in [`docs/governance/governed-golden-rules.md`](docs/governance/governed-golden-rules.md):
 
 1. **Be specific** — Clearly define intent and security constraints in prompts
 2. **Trust but verify** — Never merge AI-generated code without understanding it
@@ -296,7 +296,7 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
   - Golden Rules summary
   - Quick start and deployment guides
 
-- **[`docs/governance/vibe-golden-rules.md`](docs/governance/vibe-golden-rules.md)**: Comprehensive governance guide (17KB)
+- **[`docs/governance/governed-golden-rules.md`](docs/governance/governed-golden-rules.md)**: Comprehensive governance guide (17KB)
 - **[`docs/framework.md`](site-tw/public/docs/framework.md)**: Complete framework with integrated security pipeline
 - **[`docs/workshop/`](docs/workshop/)**: Workshop curriculum modules
 
@@ -334,7 +334,7 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
 5. **Documentation First**:
    - Check prompt packs before implementing
    - Reference framework.md Security Pipeline section for pipeline understanding
-   - Use vibe-golden-rules.md for governance guidance
+   - Use governed-golden-rules.md for governance guidance
 
 ### Repository Maturity
 
@@ -381,7 +381,7 @@ MaintainabilityAI/
 │  │  ├─ index.md                         # Maintainability overview
 │  │  ├─ fitness-functions.md             # Automated quality gates
 │  │  └─ evolutionary-architecture.md     # Incremental change patterns
-│  ├─ governance/vibe-golden-rules.md     # 6 Golden Rules guide
+│  ├─ governance/governed-golden-rules.md     # 6 Golden Rules guide
 │  └─ workshop/part1-3.md                 # Workshop curriculum
 ├─ site-tw/                               # Tailwind marketing site
 ├─ scripts/build-docs.mjs                 # Markdown → HTML compiler

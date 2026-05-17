@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Top hat — vision">
+  <title>Top hat — the impossible things</title>
+  <defs>
+    <radialGradient id="hatGlow" cx="50%" cy="40%" r="55%">
+      <stop offset="0" stop-color="#67e8f9" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#67e8f9" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="url(#hatGlow)"/>
+  <!-- hat body -->
+  <rect x="32" y="22" width="36" height="48" rx="3" fill="#0b1224" stroke="#a5f3fc" stroke-width="2"/>
+  <!-- hat brim -->
+  <ellipse cx="50" cy="74" rx="34" ry="6" fill="#0b1224" stroke="#a5f3fc" stroke-width="2"/>
+  <!-- band -->
+  <rect x="32" y="58" width="36" height="8" fill="#22d3ee" opacity=".75"/>
+  <!-- ticket "6/1" -->
+  <rect x="56" y="36" width="14" height="10" rx="1.5" fill="#fbbf24"/>
+  <text x="63" y="44" text-anchor="middle" font-family="system-ui" font-size="6.5" font-weight="800" fill="#0b1224">6/1</text>
+  <!-- subtle highlight -->
+  <line x1="36" y1="28" x2="36" y2="64" stroke="#67e8f9" stroke-width="1" opacity=".4"/>
+</svg>

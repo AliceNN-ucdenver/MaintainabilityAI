@@ -1,50 +1,37 @@
-<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 6</div>
-
-# Phase 6: Evolution
-
-<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4); border: 1px solid rgba(244, 114, 182, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">6&#xFE0F;&#x20E3;</div>
-    <div>
-      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Evolution</h2>
-      <div style="font-size: 16px; color: #fce7f3; margin-top: 8px;">Metrics, Iteration & Continuous Improvement</div>
-    </div>
-  </div>
-  <div style="color: #fce7f3; font-size: 15px; line-height: 1.7;">
-    Collect metrics, refine prompt packs, manage technical debt, update fitness functions, and feed learnings back into Phase 1 for the next feature cycle.
+<div class="docs-hero docs-hero-cyan">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 6</span></div>
+    <div class="docs-eyebrow">Phase 6 of 6 · Evolve <span class="docs-hero-meta">~1 min read</span></div>
+    <h1 class="docs-hero-title">Evolution &mdash; the loop that makes design sharper</h1>
+    <p class="docs-hero-copy">Collect metrics, refine prompt packs, retire technical debt, tighten fitness functions, and feed every lesson back into Phase 1. The lifecycle stays useful because it learns.</p>
+    <span class="docs-hero-flourish">&ldquo;It&rsquo;s no use going back to yesterday &mdash; the system was a different person then.&rdquo;</span>
   </div>
 </div>
 
 ## Phase Overview
 
-```mermaid
-flowchart LR
-    A[Production] --> B[Collect Metrics]
-    B --> C[Analyze Patterns]
-    C --> D[Refine Prompts]
-    C --> E[Update Fitness Functions]
-    C --> F[Reduce Tech Debt]
-    D --> G[Phase 1: Next Feature]
-    E --> G
-    F --> G
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/phase6-evolution.svg" alt="Evolution flow from production metrics through prompt refinement, fitness updates, debt reduction, and the next design phase." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Evolution turns production signals into better prompts, better gates, and better architecture.</figcaption>
+</figure>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Cadence</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Weekly + Quarterly</div>
+<div class="docs-grid docs-grid-compact">
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Cadence</div>
+    <div class="docs-heading">Weekly + Quarterly</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Full Team</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Actors</div>
+    <div class="docs-heading">Full Team</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Outputs</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Updated prompts, thresholds, dependency upgrades</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Outputs</div>
+    <div class="docs-copy">Updated prompts, thresholds, dependency upgrades</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Goal</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Continuous improvement across all phases</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Goal</div>
+    <div class="docs-copy">Continuous improvement across all phases</div>
   </div>
 </div>
 
@@ -54,11 +41,11 @@ flowchart LR
 
 Track three categories of metrics from production:
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Security Metrics</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Security Metrics</div>
+  <div class="docs-copy">
     Vulnerability remediation time<br/>
     Security scan pass rate<br/>
     Attack prevention rate<br/>
@@ -66,9 +53,9 @@ Track three categories of metrics from production:
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Quality Metrics</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Quality Metrics</div>
+  <div class="docs-copy">
     Defect density<br/>
     Test coverage trend<br/>
     Fitness function compliance<br/>
@@ -76,9 +63,9 @@ Track three categories of metrics from production:
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Efficiency Metrics</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Efficiency Metrics</div>
+  <div class="docs-copy">
     Time to delivery<br/>
     AI acceptance rate<br/>
     Prompt reuse rate<br/>
@@ -94,8 +81,8 @@ Track three categories of metrics from production:
 
 Refine prompts based on success/failure patterns.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
-<div style="font-size: 12px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Prompt Refinement</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">RCTRO Prompt — Prompt Refinement</div>
 
 ```
 Role: You are a prompt engineer improving OWASP security prompts.
@@ -133,7 +120,7 @@ Updated prompt pack (vN+1) with changelog and projected success rate.
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #f9a8d4; font-weight: 600; padding: 8px 0;">Example: Prompt improvement cycle</summary>
+<summary class="docs-details-summary">Example: Prompt improvement cycle</summary>
 
 ```markdown
 ## A03 Injection Prevention Prompt
@@ -157,8 +144,8 @@ Updated prompt pack (vN+1) with changelog and projected success rate.
 
 Keep dependencies fresh (< 3 months old) to prevent A06 vulnerabilities.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
-<div style="font-size: 12px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Dependency Upgrade</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">RCTRO Prompt — Dependency Upgrade</div>
 
 ```
 Role: You are a technical debt engineer managing dependency freshness.
@@ -218,7 +205,7 @@ Adjust thresholds based on team data:
 
 ## Step 5: Quarterly Review
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
+<div class="docs-card docs-card-muted">
 
 ```markdown
 ## Q[X] Evolution Review
@@ -243,7 +230,7 @@ Adjust thresholds based on team data:
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #f9a8d4; font-weight: 600; padding: 8px 0;">Example: Document Sharing evolution metrics</summary>
+<summary class="docs-details-summary">Example: Document Sharing evolution metrics</summary>
 
 ```markdown
 ## Document Sharing — Q1 Evolution Review
@@ -279,24 +266,24 @@ Adjust thresholds based on team data:
 
 ## Phase Handoff → Phase 1
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(236, 72, 153, 0.3);">
-<div style="background: linear-gradient(135deg, #831843 0%, #ec4899 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
-  <span style="font-size: 24px;">6&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
-  <span style="font-size: 24px;">1&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Evolution → Design (Cycle Complete)</span>
+<div class="docs-card docs-card-muted">
+<div class="docs-flex-block">
+  <span class="docs-copy">6&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">→</span>
+  <span class="docs-copy">1&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">Evolution → Design (Cycle Complete)</span>
 </div>
-<div style="padding: 24px;">
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+<div>
+  <div class="docs-card-kicker">Handoff Checklist</div>
+  <div class="docs-copy">
     <div>✅ Metrics collected and analyzed</div>
     <div>✅ Prompt packs updated to v[X]</div>
     <div>✅ Dependencies upgraded (all < 3 months)</div>
     <div>✅ Fitness function thresholds reviewed</div>
     <div>✅ Technical debt items prioritized</div>
   </div>
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Improvements Applied</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+  <div class="docs-card-kicker">Improvements Applied</div>
+  <div class="docs-copy">
     <div>[list prompt/threshold/process changes]</div>
   </div>
 </div>
@@ -304,7 +291,7 @@ Adjust thresholds based on team data:
 
 ---
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
-  <a href="/docs/sdlc/phase5-deployment" style="color: #6ee7b7; font-size: 14px; text-decoration: none;">← Phase 5: Deployment</a>
-  <a href="/docs/sdlc/phase1-design" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 1: Design → (Complete the cycle!)</a>
+<div class="docs-flex-block">
+  <a href="/docs/sdlc/phase5-deployment" class="markdown-link">← Phase 5: Deployment</a>
+  <a href="/docs/sdlc/phase1-design" class="docs-button-primary">Phase 1: Design → (Complete the cycle!)</a>
 </div>

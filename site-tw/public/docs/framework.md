@@ -1,82 +1,82 @@
-# MaintainabilityAI: Complete Integration Framework
-
-> **The comprehensive security-first AI-assisted development framework that integrates OWASP Top 10, Evolutionary Architecture, Multi-Agent Orchestration, and the complete SDLC.**
+<div class="docs-hero docs-hero-indigo">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Framework</span></div>
+    <div class="docs-eyebrow">Complete integration <span class="docs-hero-meta">~5 min read</span></div>
+    <h1 class="docs-hero-title">One framework for security-first, architecture-aware AI engineering</h1>
+    <p class="docs-hero-copy">OWASP Top 10, evolutionary architecture, multi-agent orchestration, and the complete SDLC — woven into one operating model your team and your agents can share.</p>
+    <span class="docs-hero-flourish">&ldquo;If you don&rsquo;t know where you&rsquo;re going, any architecture will get you there.&rdquo;</span>
+  </div>
+</div>
 
 ---
 
 ## Framework Overview
 
-MaintainabilityAI provides an end-to-end methodology for building secure, maintainable software with AI assistance:
+The framework starts with one principle: <strong>architecture decisions and security controls must live where code is written, not where architects sit.</strong> Everything else (the prompt packs, the fitness functions, the multi-agent rails) is built to make that principle operational for both humans and agents.
 
-```mermaid
-flowchart TD
-    A[Security First:<br/>OWASP Top 10 + STRIDE] --> E[Complete Framework]
-    B[AI Agents:<br/>In-Editor + Agentic] --> E
-    C[SDLC Phases:<br/>Design → Deploy] --> E
-    D[VSCode Extension:<br/>Looking Glass + Cheshire Cat] --> E
-
-    E --> F[Secure Software]
-    E --> G[High Velocity]
-    E --> H[Low Tech Debt]
-
-    style E fill:#4CAF50
-    style F fill:#2196F3
-    style G fill:#2196F3
-    style H fill:#2196F3
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/framework-overview.svg" alt="Four inputs converge into the MaintainabilityAI framework and produce secure software, higher velocity, and lower technical debt." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Open standards (CALM, OWASP, STRIDE, RCTRO, fitness functions) feed three capabilities (Looking Glass, Cheshire Cat, Red Queen) into one outcome: governed, reviewable, auditable AI engineering at velocity.</figcaption>
+</figure>
 
 The framework follows a **continuous 6-phase lifecycle** integrating security, AI agents, and quality gates at every phase. A [VSCode extension](/docs/sdlc/#maintainabilityai--the-vscode-extension) brings it all into your editor, and the [SDLC Overview](/docs/sdlc/) provides the complete phase-by-phase guide.
 
+<div class="docs-panel">
+  <p class="docs-panel-copy"><strong>Operating model.</strong> Architects own the CALM model, threat library, and fitness thresholds. Developers work inside those boundaries with prompt packs scaffolded into the repo. Agents validate every structural action against the Red Queen policy engine before acting. CODEOWNER review remains the last gate. Every allow/deny decision lands in an audit trail suitable for SOC&nbsp;2, ISO&nbsp;27001, NIST&nbsp;800-53, PCI&nbsp;DSS, OWASP Agentic Top 10, NIST AI RMF, ISO 42001, and the EU AI Act &mdash; see the full <a href="/docs/governance/compliance-mapping" class="markdown-link">compliance mapping</a> for clause-by-clause artifacts.</p>
+</div>
+
 ---
 
-## Framework Components
+## Follow the Operating Model
 
-<!-- Supporting Framework Elements -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 40px 0;">
+Each step builds on the one before. Skip the early foundation work and later gates become rubber stamps. Start by making the architecture and threat model explicit, then select the right security prompts, enforce measurable quality gates, and finally let agents work inside those boundaries.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #ef4444; border-radius: 12px; padding: 28px;">
-  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">OWASP Top 10</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    10 comprehensive prompt packs covering all OWASP categories. Each follows RCTRO format: Role → Context → Task → Requirements → Output.
-  </div>
-  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
-    A01–A10 • Attack scenarios • Secure patterns • Validation checklists
-  </div>
-  <a href="/docs/prompts/owasp/" style="color: #fca5a5; font-size: 14px; text-decoration: none; font-weight: 600;">Browse OWASP Packs →</a>
-</div>
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 28px;">
-  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">STRIDE Threat Modeling</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    AI-powered security design with Microsoft's STRIDE methodology. Maps threats to OWASP vulnerabilities in minutes.
+<a href="/docs/sdlc/phase1-design" class="docs-card docs-card-indigo">
+  <div class="docs-card-kicker">Step 1</div>
+  <div class="docs-heading">Design the boundary</div>
+  <div class="docs-copy">
+    Use Phase 1 to define architecture context, map trust boundaries, and run STRIDE threat modeling before implementation begins.
   </div>
-  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
-    Spoofing • Tampering • Repudiation • Info Disclosure • DoS • Elevation
+  <div class="docs-muted">
+    CALM context • STRIDE threats • OWASP mapping • security requirements
   </div>
-  <a href="/docs/sdlc/phase1-design" style="color: #c4b5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Phase 1: Design →</a>
-</div>
+</a>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #10b981; border-radius: 12px; padding: 28px;">
-  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Fitness Functions</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    Automated quality gates that prevent architectural erosion. Standards enforced in CI/CD, not just in reviewers' heads.
+<a href="/docs/prompts/owasp/" class="docs-card docs-card-rose">
+  <div class="docs-card-kicker">Step 2</div>
+  <div class="docs-heading">Choose the security controls</div>
+  <div class="docs-copy">
+    Apply the OWASP prompt packs that match the threats you found. Each pack follows RCTRO format so humans and agents get the same implementation contract.
   </div>
-  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
-    Complexity ≤10 • Coverage ≥80% • Deps &lt;90 days • p95 &lt;200ms
+  <div class="docs-muted">
+    A01-A10 • attack scenarios • secure patterns • validation checklists
   </div>
-  <a href="/docs/maintainability/" style="color: #86efac; font-size: 14px; text-decoration: none; font-weight: 600;">Maintainability Docs →</a>
-</div>
+</a>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #6366f1; border-radius: 12px; padding: 28px;">
-  <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">AI Agent Orchestration</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
-    Two modes: <strong style="color: #93c5fd;">In-Editor</strong> (Claude Code | Copilot) for human-guided implementation, and <strong style="color: #c4b5fd;">Agentic</strong> (Claude Code Action | Copilot Coding Agent) for autonomous, governance-enforced workflows.
+<a href="/docs/maintainability/" class="docs-card docs-card-emerald">
+  <div class="docs-card-kicker">Step 3</div>
+  <div class="docs-heading">Enforce fitness functions</div>
+  <div class="docs-copy">
+    Convert quality expectations into automated gates so complexity, coverage, dependency freshness, security, and performance stay visible in CI.
   </div>
-  <div style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
-    In-Editor • Agentic • Multi-agent review boards • RCTRO-formatted issues
+  <div class="docs-muted">
+    Complexity <=10 • coverage >=80% • dependency freshness • p95 budgets
   </div>
-  <a href="/docs/agents/" style="color: #a5b4fc; font-size: 14px; text-decoration: none; font-weight: 600;">Agent Guides →</a>
-</div>
+</a>
+
+<a href="/docs/agents/" class="docs-card docs-card-cyan">
+  <div class="docs-card-kicker">Step 4</div>
+  <div class="docs-heading">Govern the agents</div>
+  <div class="docs-copy">
+    Use in-editor agents for human-guided implementation and coding agents for governed automation, with Red Queen controls keeping architecture rules enforceable.
+  </div>
+  <div class="docs-muted">
+    Claude Code • Copilot Coding Agent • RCTRO issues • review boards
+  </div>
+</a>
 
 </div>
 
@@ -86,28 +86,10 @@ The framework follows a **continuous 6-phase lifecycle** integrating security, A
 
 MaintainabilityAI implements a **6-layer security pipeline** that catches vulnerabilities at every stage of development:
 
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant IDE as IDE<br/>(AI Assistant)
-    participant Local as Local<br/>(Lint/Test)
-    participant Git as Pre-commit<br/>(Snyk)
-    participant CI as CI/CD<br/>(CodeQL/Snyk)
-    participant Human as Human Review
-    participant Prod as Production
-
-    Dev->>IDE: Prompt with security constraints
-    IDE-->>Dev: Secure code generation
-    Dev->>Local: npm test && npm run lint
-    Local-->>Dev: ✅ Quality checks pass
-    Dev->>Git: git commit
-    Git-->>Dev: ✅ Security scan pass
-    Dev->>CI: git push (PR)
-    CI-->>Dev: ✅ CodeQL + Snyk pass
-    Dev->>Human: Request review
-    Human-->>Dev: ✅ Golden Rules applied
-    Human->>Prod: Merge & Deploy
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/security-pipeline.svg" alt="Seven-stage security pipeline from developer prompt to production deployment." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Defense in depth turns prompts, tests, scans, reviews, and production monitoring into one continuous control path.</figcaption>
+</figure>
 
 ### The Six Layers
 
@@ -115,14 +97,14 @@ sequenceDiagram
 
 Click any layer to see how it applies to this real feature:
 
-<div style="display: grid; gap: 16px; margin: 24px 0;">
+<div class="docs-layer-stack">
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #ef4444;">
-  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">Layer 1: IDE Security — Prevention at the Source</summary>
-  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Use security-first prompts with OWASP categories. <strong>Prevents 60-70% of vulnerabilities</strong> before they're written.</div>
+<details class="docs-details docs-card docs-card-rose">
+  <summary class="docs-details-summary">Layer 1: IDE Security &middot; Prevention at the Source</summary>
+  <div class="docs-copy">Use security-first prompts with OWASP categories. <strong>Prevents 60-70% of vulnerabilities</strong> before they're written.</div>
 
-  <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 8px; padding: 20px; margin: 16px 0;">
-    <div style="color: #f1f5f9; font-size: 15px; font-weight: 600; margin-bottom: 16px;">RCTRO Prompt for Document Sharing:</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-heading">RCTRO Prompt for Document Sharing:</div>
 
 ```
 Role: Security engineer implementing secure document sharing.
@@ -160,20 +142,19 @@ including attack vector tests (SQL injection, IDOR).
 
   </div>
 
-  <div style="font-size: 14px; line-height: 1.7; color: #cbd5e1;">
-    <strong style="color: #f1f5f9;">What AI generates:</strong> Code with authorization checks, parameterized queries, input validation, and audit logs built in from the start.
+  <div class="docs-copy">
+    <strong class="docs-strong">What AI generates:</strong> Code with authorization checks, parameterized queries, input validation, and audit logs built in from the start.
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #f97316;">
-  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">Layer 2: Local Checks — Fast Feedback Loop</summary>
-  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">ESLint catches dangerous patterns. Jest validates security controls with attack payloads.</div>
+<details class="docs-details docs-card docs-card-orange">
+  <summary class="docs-details-summary">Layer 2: Local Checks &middot; Fast Feedback Loop</summary>
+  <div class="docs-copy">ESLint catches dangerous patterns. Jest validates security controls with attack payloads.</div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">npm run lint
+  <div class="docs-card docs-card-muted">
+    <pre class="markdown-pre">npm run lint
 ✅ No eval() usage, no type-unsafe operations
 ✅ Complexity: Max 8 (threshold: 10)
-
 npm test
 ✅ SQL injection blocked: "'; DROP TABLE--"
 ✅ IDOR attack blocked: Different user's doc
@@ -182,36 +163,32 @@ npm test
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #eab308;">
-  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">Layer 3: Pre-commit Hooks — Last Defense Before Repo</summary>
-  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Snyk scans for hardcoded secrets and vulnerable patterns. Blocks commits that introduce risks.</div>
+<details class="docs-details docs-card docs-card-amber">
+  <summary class="docs-details-summary">Layer 3: Pre-commit Hooks &middot; Last Defense Before Repo</summary>
+  <div class="docs-copy">Snyk scans for hardcoded secrets and vulnerable patterns. Blocks commits that introduce risks.</div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;">git commit -m "feat: add document sharing"
-
+  <div class="docs-card docs-card-muted">
+    <pre class="markdown-pre">git commit -m "feat: add document sharing"
 Running pre-commit hooks...
 ✅ No hardcoded secrets detected
 ✅ No vulnerable patterns found
 ✅ All dependencies clean
-
 [main abc123] feat: add document sharing</pre>
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #22c55e;">
-  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">Layer 4: CI/CD Gates — Automated Deep Analysis</summary>
-  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">CodeQL deep analysis, Snyk CVE scanning, fitness function validation.</div>
+<details class="docs-details docs-card docs-card-emerald">
+  <summary class="docs-details-summary">Layer 4: CI/CD Gates &middot; Automated Deep Analysis</summary>
+  <div class="docs-copy">CodeQL deep analysis, Snyk CVE scanning, fitness function validation.</div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;"><strong>CodeQL Security Analysis:</strong>
+  <div class="docs-card docs-card-muted">
+    <pre class="markdown-pre"><strong>CodeQL Security Analysis:</strong>
 ✅ SQL injection: None detected
 ✅ Access control: All checks present
 ✅ Hardcoded secrets: None
-
 <strong>Snyk Dependency Scan:</strong>
 ✅ 0 high/critical CVEs
 ✅ All packages &lt;2 months old
-
 <strong>Fitness Functions:</strong>
 ✅ Complexity ≤10: Pass
 ✅ Coverage ≥80%: Pass (95%)
@@ -219,35 +196,33 @@ Running pre-commit hooks...
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #06b6d4;">
-  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">Layer 5: Human Review — Critical Thinking</summary>
-  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Apply Golden Rules: trust but verify, understand every line, validate business logic.</div>
+<details class="docs-details docs-card docs-card-cyan">
+  <summary class="docs-details-summary">Layer 5: Human Review &middot; Critical Thinking</summary>
+  <div class="docs-copy">Apply Golden Rules: trust but verify, understand every line, validate business logic.</div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <div style="font-size: 13px; line-height: 1.8; color: #cbd5e1;">
-      ✅ <strong style="color: #f1f5f9;">Understand every line:</strong> Can explain code to teammate<br/>
-      ✅ <strong style="color: #f1f5f9;">Verify security controls:</strong> Authorization, validation, error handling present<br/>
-      ✅ <strong style="color: #f1f5f9;">Check edge cases:</strong> What if email invalid? User deleted? Doc already shared?<br/>
-      ✅ <strong style="color: #f1f5f9;">AI disclosure:</strong> Commit labeled AI-assisted with tool and prompt pack<br/>
-      ✅ <strong style="color: #f1f5f9;">Business logic:</strong> Does this actually solve the user's problem securely?
+  <div class="docs-card docs-card-muted">
+    <div class="docs-copy">
+      ✅ <strong class="docs-strong">Understand every line:</strong> Can explain code to teammate<br/>
+      ✅ <strong class="docs-strong">Verify security controls:</strong> Authorization, validation, error handling present<br/>
+      ✅ <strong class="docs-strong">Check edge cases:</strong> What if email invalid? User deleted? Doc already shared?<br/>
+      ✅ <strong class="docs-strong">AI disclosure:</strong> Commit labeled AI-assisted with tool and prompt pack<br/>
+      ✅ <strong class="docs-strong">Business logic:</strong> Does this actually solve the user's problem securely?
     </div>
   </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; color: #f1f5f9; cursor: pointer; border-left: 4px solid #8b5cf6;">
-  <summary style="font-size: 24px; font-weight: 700; margin-bottom: 8px; cursor: pointer; list-style: none;">Layer 6: Production Monitoring — Runtime Protection</summary>
-  <div style="color: #cbd5e1; font-size: 14px; margin: 16px 0 12px 0;">Monitor security events, alert on anomalies, feed learnings back into prompts.</div>
+<details class="docs-details docs-card docs-card-indigo">
+  <summary class="docs-details-summary">Layer 6: Production Monitoring &middot; Runtime Protection</summary>
+  <div class="docs-copy">Monitor security events, alert on anomalies, feed learnings back into prompts.</div>
 
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 16px; margin: 16px 0;">
-    <pre style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; color: #f1f5f9;"><strong>Week 1 Production Metrics:</strong>
+  <div class="docs-card docs-card-muted">
+    <pre class="markdown-pre"><strong>Week 1 Production Metrics:</strong>
 🎉 1,200+ documents shared/day
 ⚡ p95 latency: 145ms (threshold: 200ms)
-
 <strong>Security Events:</strong>
 🛡️ 23 IDOR attempts/day → All blocked
 🛡️ 5 SQL injection attempts/day → All blocked
 🛡️ 0 unauthorized data access
-
 <strong>Action Items:</strong>
 → Update A01 prompt with real attack patterns
 → Add alert for IDOR attempts &gt;50/day</pre>
@@ -260,38 +235,38 @@ Running pre-commit hooks...
 
 ---
 
-## The VSCode Extension — Framework in Your Editor
+## The VSCode Extension &middot; Framework in Your Editor
 
-Everything above lives in documentation until you bring it into the developer workflow. The **MaintainabilityAI VSCode extension** does exactly that — two panels that operationalize the entire framework.
+Everything above lives in documentation until you bring it into the developer workflow. The **MaintainabilityAI VSCode extension** does exactly that: two panels that operationalize the entire framework.
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 24px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #3b82f6; border-radius: 12px; padding: 24px;">
-  <div style="font-size: 18px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">The Looking Glass — Governance & Architecture</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">The Looking Glass &middot; Governance & Architecture</div>
+  <div class="docs-copy">
     Portfolio → Platform → BAR hierarchy with live governance scoring across four pillars. Interactive CALM architecture diagrams with ELK.js auto-layout. Absolem AI assistant for drift analysis, gap detection, and architecture questions.
   </div>
-  <a href="/docs/sdlc/#looking-glass" style="color: #93c5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Looking Glass details →</a>
+  <a href="/docs/sdlc/#looking-glass" class="markdown-link">Looking Glass details →</a>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-left: 4px solid #a78bfa; border-radius: 12px; padding: 24px;">
-  <div style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">The Cheshire Cat — Code & Security</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 12px;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">The Cheshire Cat &middot; Code & Security</div>
+  <div class="docs-copy">
     One-command SDLC scaffolding with CLAUDE.md, CodeQL workflows, and OWASP prompt packs. RCTRO-formatted issue generation with embedded prompt pack guidance. Six-metric security scorecard with one-click remediation.
   </div>
-  <a href="/docs/sdlc/#cheshire-cat" style="color: #c4b5fd; font-size: 14px; text-decoration: none; font-weight: 600;">Cheshire Cat details →</a>
+  <a href="/docs/sdlc/#cheshire-cat" class="markdown-link">Cheshire Cat details →</a>
 </div>
 
 </div>
 
-<div style="margin-top: 20px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-  <img src="../images/redqueen.png" alt="The Red Queen" style="width: 100px; height: 100px; border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.4); flex-shrink: 0;" />
-  <div style="flex: 1; min-width: 240px;">
-    <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">Available Now: The Red Queen</div>
-    <p style="color: #cbd5e1; font-size: 13px; line-height: 1.6; margin: 0 0 12px 0;">
-      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong style="color: #f87171;">deterministic governance control points</strong> — MCP architecture awareness, pre-tool hooks, scaffold doctor checks, fail-closed review consensus, and a TypeScript policy engine that ties agent autonomy to governance scores.
+<div class="docs-flex-block">
+  <img src="../images/redqueen.png" alt="The Red Queen" class="docs-inline-image" />
+  <div>
+    <div class="docs-heading">Available Now: The Red Queen</div>
+    <p class="docs-copy">
+      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong class="docs-strong">deterministic governance control points</strong>: MCP architecture awareness, pre-tool hooks, scaffold doctor checks, fail-closed review consensus, and a TypeScript policy engine that ties agent autonomy to governance scores.
     </p>
-    <a href="/docs/impossible-things#whats-coming-the-red-queen---governance-enforced-agent-intelligence" style="color: #f87171; font-size: 13px; font-weight: 600; text-decoration: none;">Read the Red Queen roadmap →</a>
+    <a href="/docs/impossible-things#the-red-queen---governance-enforced-agent-intelligence" class="markdown-link">Read the Red Queen architecture →</a>
   </div>
 </div>
 
@@ -299,33 +274,33 @@ Everything above lives in documentation until you bring it into the developer wo
 
 ## Framework Resources
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Core Documentation</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    <a href="/docs/sdlc/" style="color: #93c5fd; text-decoration: none;">SDLC Overview</a> — 6-phase lifecycle<br/>
-    <a href="/docs/maintainability/" style="color: #93c5fd; text-decoration: none;">Maintainability</a> — Fitness functions<br/>
-    <a href="/docs/prompts/owasp/" style="color: #93c5fd; text-decoration: none;">OWASP Packs</a> — Security prompts<br/>
-    <a href="/docs/governance/vibe-golden-rules" style="color: #93c5fd; text-decoration: none;">Golden Rules</a> — AI governance
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Core Documentation</div>
+  <div class="docs-copy">
+    <a href="/docs/sdlc/" class="markdown-link">SDLC Overview</a>: 6-phase lifecycle<br/>
+    <a href="/docs/maintainability/" class="markdown-link">Maintainability</a>: Fitness functions<br/>
+    <a href="/docs/prompts/owasp/" class="markdown-link">OWASP Packs</a>: Security prompts<br/>
+    <a href="/docs/governance/governed-golden-rules" class="markdown-link">Golden Rules</a>: AI governance
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Learning Resources</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    <a href="/docs/workshop/" style="color: #93c5fd; text-decoration: none;">Workshop</a> — 8-part training<br/>
-    <a href="/docs/agents/" style="color: #93c5fd; text-decoration: none;">AI Agents</a> — In-Editor & Agentic guides<br/>
-    <a href="/docs/prompts/maintainability/" style="color: #93c5fd; text-decoration: none;">Maintainability Packs</a> — Architecture prompts
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Learning Resources</div>
+  <div class="docs-copy">
+    <a href="/docs/workshop/" class="markdown-link">Workshop</a>: Parts 1-4 live, Parts 5-8 roadmap<br/>
+    <a href="/docs/agents/" class="markdown-link">AI Agents</a>: In-Editor & Agentic guides<br/>
+    <a href="/docs/prompts/maintainability/" class="markdown-link">Maintainability Packs</a>: Architecture prompts
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">Extension & Vision</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    <a href="/docs/sdlc/#maintainabilityai--the-vscode-extension" style="color: #93c5fd; text-decoration: none;">VSCode Extension</a> — Looking Glass + Cheshire Cat<br/>
-    <a href="/docs/impossible-things" style="color: #93c5fd; text-decoration: none;">Impossible Things</a> — Art of the Possible<br/>
-    <a href="/docs/agents/alice" style="color: #93c5fd; text-decoration: none;">Alice</a> — Agentic AI proof of concept
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Extension & Vision</div>
+  <div class="docs-copy">
+    <a href="/docs/sdlc/#maintainabilityai--the-vscode-extension" class="markdown-link">VSCode Extension</a>: Looking Glass + Cheshire Cat<br/>
+    <a href="/docs/impossible-things" class="markdown-link">Impossible Things</a>: Art of the Possible<br/>
+    <a href="/docs/agents/alice" class="markdown-link">Alice</a>: Agentic AI proof of concept
   </div>
 </div>
 

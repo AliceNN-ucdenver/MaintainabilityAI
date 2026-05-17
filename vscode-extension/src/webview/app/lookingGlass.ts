@@ -162,6 +162,27 @@ const state = {
   orchPolicy: null as { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } | null,
   // Agent framework for governance review workflows
   agentType: 'claude' as 'claude' | 'copilot' | 'both',
+  // Research Settings (Tavily + Anthropic/OpenAI + non-secret prefs)
+  researchSettings: null as {
+    secrets: {
+      id: 'anthropic' | 'openai' | 'tavily';
+      label: string;
+      envName: string;
+      hasVsCodeValue: boolean;
+      hasGitHubSecret: boolean | null;
+    }[];
+    prefs: {
+      llmProvider: 'anthropic' | 'openai';
+      guardrails: 'strict' | 'default' | 'lenient';
+      grounding: 'strict' | 'default' | 'lenient';
+      groundingThreshold: number;
+      maxIterations: number;
+      costCapTokens: number;
+    };
+    meshRepo: { owner: string; repo: string } | null;
+  } | null,
+  /** Per-secret transient action status: shows the result of the last Test/Push for ~5s. */
+  researchSecretStatus: {} as Record<string, { kind: 'success' | 'error' | 'busy'; message: string }>,
   // Platform governance editor
   platGovEditing: null as string | null,  // platformId being edited
   platGov: null as { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } | null,
@@ -518,6 +539,92 @@ function getStyles(): string {
         text-align: center;
       }
       .settings-number:focus { outline: none; border-color: var(--accent); }
+
+      /* Research Settings — per-secret rows + status pills */
+      .settings-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10.5px;
+        font-weight: 500;
+        line-height: 1.4;
+        margin-right: 6px;
+        border: 1px solid transparent;
+      }
+      .settings-pill-success {
+        background: rgba(34, 197, 94, 0.12);
+        color: #4ade80;
+        border-color: rgba(34, 197, 94, 0.35);
+      }
+      .settings-pill-warn {
+        background: rgba(234, 179, 8, 0.10);
+        color: #facc15;
+        border-color: rgba(234, 179, 8, 0.30);
+      }
+      .settings-pill-error {
+        background: rgba(239, 68, 68, 0.10);
+        color: #f87171;
+        border-color: rgba(239, 68, 68, 0.30);
+      }
+      .settings-pill-muted {
+        background: var(--surface-raised);
+        color: var(--text-muted);
+        border-color: var(--border);
+      }
+      .settings-research-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 8px;
+        margin-bottom: 16px;
+      }
+      .settings-research-secret {
+        padding: 12px;
+        background: var(--surface-raised);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+      }
+      .settings-research-secret-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .settings-research-secret-name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .settings-research-secret-env {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .settings-research-secret-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .settings-research-secret-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .settings-research-secret-actions button[disabled] {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .settings-research-prefs-heading {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin-top: 16px;
+        margin-bottom: 4px;
+      }
 
       .status-badge {
         display: inline-block;
@@ -1631,6 +1738,7 @@ function renderSettings(): string {
       ${renderSettingsPromptPacks()}
       ${renderSettingsLlmModel()}
       ${renderSettingsMeshSecrets()}
+      ${renderSettingsResearch()}
       ${renderSettingsDriftWeights()}
       ${renderSettingsOrchestration()}
       ${renderSettingsGovernanceCourt()}
@@ -1647,13 +1755,23 @@ function settingsRepoHint(): string {
 function renderSettingsWorkflow(): string {
   const statusLabel = deployStatusBadge(state.settingsWorkflowExists);
 
-  const buttonLabel = state.settingsWorkflowExists ? 'Redeploy Workflow' : 'Deploy Workflow';
+  const buttonLabel = state.settingsWorkflowExists ? 'Redeploy All Workflows' : 'Deploy Workflows';
   const buttonClass = state.settingsWorkflowExists ? 'btn-secondary' : 'btn-primary';
 
   return `
     <div class="settings-section">
-      <h3>Oraculum Workflow ${settingsRepoHint()}</h3>
-      <p class="text-muted">The <code>oraculum-review.yml</code> GitHub Action workflow enables automated architecture reviews.</p>
+      <h3>Mesh Workflows ${settingsRepoHint()}</h3>
+      <p class="text-muted">
+        Looking Glass writes five GitHub Action workflows into this mesh repo's
+        <code>.github/workflows/</code>:
+      </p>
+      <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc;">
+        <li><code>oraculum-review.yml</code> — automated architecture review on labeled issues</li>
+        <li><code>archeologist.yml</code> — research agent (market / repo archaeology)</li>
+        <li><code>prd.yml</code> — PRD agent with grounding loop</li>
+        <li><code>label-on-merge.yml</code> — research → PRD → spec-ready bus handler</li>
+        <li><code>notify-code-repos.yml</code> — dispatches spec-ready to target code repos</li>
+      </ul>
       <div class="settings-row">
         <div class="settings-label">Status</div>
         <div>${statusLabel}</div>
@@ -1671,8 +1789,12 @@ function renderSettingsPromptPacks(): string {
     <div class="settings-section">
       <h3>Prompt Packs</h3>
       <p class="text-muted">
-        Refresh bundled prompt packs in <code>.caterpillar/prompts/</code>.
-        This overwrites existing packs with the latest versions shipped with the extension.
+        Refresh bundled prompt packs in <code>.caterpillar/prompts/</code>. Includes
+        Oraculum review packs, plus the research / PRD agent packs
+        (<code>research/query-plan.md</code>, <code>research/synthesis.md</code>,
+        <code>prd/synthesis.md</code>, etc.) used by <code>archeologist.yml</code>
+        and <code>prd.yml</code>.
+        Overwrites bundled packs with the latest shipped version.
         Custom packs you added manually are not affected.
       </p>
       <div class="settings-row" style="justify-content: flex-start;">
@@ -1728,6 +1850,125 @@ function renderSettingsMeshSecrets(): string {
       </p>
       <div class="settings-row" style="justify-content: flex-start;">
         <button id="btn-configure-mesh-secrets" class="btn-primary">Configure Secrets</button>
+      </div>
+    </div>
+  `;
+}
+
+function statusPill(set: boolean | null, label: string): string {
+  if (set === null) {
+    return `<span class="settings-pill settings-pill-muted" title="Not checked (no GitHub access or no mesh repo configured)">${escapeHtml(label)}: ?</span>`;
+  }
+  return set
+    ? `<span class="settings-pill settings-pill-success">${escapeHtml(label)}: set</span>`
+    : `<span class="settings-pill settings-pill-warn">${escapeHtml(label)}: not set</span>`;
+}
+
+function actionPill(status?: { kind: 'success' | 'error' | 'busy'; message: string }): string {
+  if (!status) { return ''; }
+  const cls = status.kind === 'success' ? 'settings-pill-success'
+            : status.kind === 'error'   ? 'settings-pill-error'
+            : 'settings-pill-muted';
+  const prefix = status.kind === 'busy' ? '… ' : status.kind === 'success' ? '✓ ' : '✗ ';
+  return `<span class="settings-pill ${cls}" style="margin-left: 8px;">${prefix}${escapeHtml(status.message)}</span>`;
+}
+
+function renderSettingsResearch(): string {
+  const rs = state.researchSettings;
+  if (!rs) {
+    return `
+      <div class="settings-section">
+        <h3>Research + PRD Agents</h3>
+        <p class="text-muted">Loading research settings…</p>
+      </div>`;
+  }
+
+  const meshRepoHint = rs.meshRepo
+    ? `<span class="text-muted" style="font-size: 11px; margin-left: 8px;">${escapeHtml(rs.meshRepo.owner)}/${escapeHtml(rs.meshRepo.repo)}</span>`
+    : `<span class="text-muted" style="font-size: 11px; margin-left: 8px;">(no mesh repo detected)</span>`;
+
+  const secretRows = rs.secrets.map(s => {
+    const status = state.researchSecretStatus[s.id];
+    const ghDisabled = !rs.meshRepo || !s.hasVsCodeValue;
+    const testDisabled = !s.hasVsCodeValue;
+    return `
+      <div class="settings-research-secret">
+        <div class="settings-research-secret-head">
+          <div>
+            <div class="settings-research-secret-name">${escapeHtml(s.label)}</div>
+            <div class="settings-research-secret-env"><code>${escapeHtml(s.envName)}</code></div>
+          </div>
+          <div class="settings-research-secret-status">
+            ${statusPill(s.hasVsCodeValue, 'VS Code')}
+            ${statusPill(s.hasGitHubSecret, 'GitHub')}
+          </div>
+        </div>
+        <div class="settings-research-secret-actions">
+          <button class="btn-secondary btn-research-set" data-secret-id="${escapeAttr(s.id)}">Set value</button>
+          <button class="btn-secondary btn-research-test" data-secret-id="${escapeAttr(s.id)}" ${testDisabled ? 'disabled' : ''}>Test</button>
+          <button class="btn-secondary btn-research-push" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''}>Push to GitHub</button>
+          ${actionPill(status)}
+        </div>
+      </div>`;
+  }).join('');
+
+  const p = rs.prefs;
+  const providerOpt = (val: string, label: string) =>
+    `<option value="${val}"${p.llmProvider === val ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+  const modeOpt = (cur: string, val: string) =>
+    `<option value="${val}"${cur === val ? ' selected' : ''}>${escapeHtml(val)}</option>`;
+
+  return `
+    <div class="settings-section">
+      <h3>Research + PRD Agents ${meshRepoHint}</h3>
+      <p class="text-muted">
+        Keys for the Archeologist (research) and PRD agents. Each key lives in two places: VS Code workspace settings (for local dev runs) and the mesh GitHub repo secrets (for workflow runs). Use <strong>Push to GitHub</strong> to sync.
+      </p>
+
+      <div class="settings-research-grid">
+        ${secretRows}
+      </div>
+
+      <h4 class="settings-research-prefs-heading">Run-time preferences</h4>
+      <p class="text-muted" style="margin-bottom: 12px;">Defaults applied to every research / PRD dispatch. Per-run overrides will be available in the New Research form.</p>
+
+      <div class="settings-row">
+        <div class="settings-label">LLM provider</div>
+        <select id="research-pref-provider" class="settings-select">
+          ${providerOpt('anthropic', 'Anthropic (Claude)')}
+          ${providerOpt('openai', 'OpenAI (GPT)')}
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Guardrails mode</div>
+        <select id="research-pref-guardrails" class="settings-select">
+          ${modeOpt(p.guardrails, 'strict')}
+          ${modeOpt(p.guardrails, 'default')}
+          ${modeOpt(p.guardrails, 'lenient')}
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">PRD grounding mode</div>
+        <select id="research-pref-grounding" class="settings-select">
+          ${modeOpt(p.grounding, 'strict')}
+          ${modeOpt(p.grounding, 'default')}
+          ${modeOpt(p.grounding, 'lenient')}
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Grounding threshold</div>
+        <input type="number" id="research-pref-threshold" class="settings-number" step="0.01" min="0.5" max="1" value="${p.groundingThreshold}" />
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">PRD max iterations</div>
+        <input type="number" id="research-pref-iterations" class="settings-number" step="1" min="1" max="5" value="${p.maxIterations}" />
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Cost cap (tokens)</div>
+        <input type="number" id="research-pref-cost" class="settings-number" step="10000" min="10000" value="${p.costCapTokens}" />
+      </div>
+      <div class="settings-row" style="justify-content: flex-start; margin-top: 12px;">
+        <button id="btn-save-research-prefs" class="btn-primary">Save Preferences</button>
       </div>
     </div>
   `;
@@ -2309,6 +2550,7 @@ function attachEventHandlers() {
     vscode.postMessage({ type: 'listModels' });
     vscode.postMessage({ type: 'loadDriftWeights' });
     vscode.postMessage({ type: 'loadAgentType' });
+    vscode.postMessage({ type: 'loadResearchSettings' });
     render();
   });
 
@@ -2340,6 +2582,54 @@ function attachEventHandlers() {
   // Settings: configure mesh secrets
   document.getElementById('btn-configure-mesh-secrets')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'configureMeshSecrets' });
+  });
+
+  // Research Settings — Set / Test / Push per-secret + Save Preferences
+  document.querySelectorAll('.btn-research-set').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = ((btn as HTMLElement).dataset.secretId || '') as 'anthropic' | 'openai' | 'tavily';
+      if (!id) { return; }
+      const def = state.researchSettings?.secrets.find(s => s.id === id);
+      const label = def?.label || id;
+      const value = window.prompt(`Enter ${label} (will be saved to VS Code settings):`) || '';
+      if (!value) { return; }
+      state.researchSecretStatus[id] = { kind: 'busy', message: 'Saving…' };
+      render();
+      vscode.postMessage({ type: 'saveResearchSecret', id, value: value.trim() });
+    });
+  });
+
+  document.querySelectorAll('.btn-research-test').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = ((btn as HTMLElement).dataset.secretId || '') as 'anthropic' | 'openai' | 'tavily';
+      if (!id) { return; }
+      state.researchSecretStatus[id] = { kind: 'busy', message: 'Testing…' };
+      render();
+      vscode.postMessage({ type: 'testResearchSecret', id });
+    });
+  });
+
+  document.querySelectorAll('.btn-research-push').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = ((btn as HTMLElement).dataset.secretId || '') as 'anthropic' | 'openai' | 'tavily';
+      if (!id) { return; }
+      state.researchSecretStatus[id] = { kind: 'busy', message: 'Pushing…' };
+      render();
+      vscode.postMessage({ type: 'pushResearchSecret', id });
+    });
+  });
+
+  document.getElementById('btn-save-research-prefs')?.addEventListener('click', () => {
+    const provider = (document.getElementById('research-pref-provider') as HTMLSelectElement)?.value as 'anthropic' | 'openai';
+    const guardrails = (document.getElementById('research-pref-guardrails') as HTMLSelectElement)?.value as 'strict' | 'default' | 'lenient';
+    const grounding = (document.getElementById('research-pref-grounding') as HTMLSelectElement)?.value as 'strict' | 'default' | 'lenient';
+    const groundingThreshold = parseFloat((document.getElementById('research-pref-threshold') as HTMLInputElement)?.value || '0.85');
+    const maxIterations = parseInt((document.getElementById('research-pref-iterations') as HTMLInputElement)?.value || '3', 10);
+    const costCapTokens = parseInt((document.getElementById('research-pref-cost') as HTMLInputElement)?.value || '200000', 10);
+    vscode.postMessage({
+      type: 'saveResearchPrefs',
+      prefs: { llmProvider: provider, guardrails, grounding, groundingThreshold, maxIterations, costCapTokens },
+    });
   });
 
   // Settings: save drift weights
@@ -3916,6 +4206,58 @@ window.addEventListener('message', (event) => {
 
     case 'agentTypeSaved':
       if (state.view === 'settings') { render(); }
+      break;
+
+    case 'researchSettings':
+      state.researchSettings = (message as { payload: typeof state.researchSettings }).payload;
+      state.researchSecretStatus = {};
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'researchSecretSaved': {
+      const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; hasValue: boolean };
+      if (state.researchSettings) {
+        const s = state.researchSettings.secrets.find(x => x.id === msg.id);
+        if (s) { s.hasVsCodeValue = msg.hasValue; }
+      }
+      state.researchSecretStatus[msg.id] = { kind: 'success', message: 'Saved.' };
+      if (state.view === 'settings') { render(); }
+      window.setTimeout(() => {
+        delete state.researchSecretStatus[msg.id];
+        if (state.view === 'settings') { render(); }
+      }, 4000);
+      break;
+    }
+
+    case 'researchTestResult': {
+      const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
+      state.researchSecretStatus[msg.id] = { kind: msg.ok ? 'success' : 'error', message: msg.message };
+      if (state.view === 'settings') { render(); }
+      window.setTimeout(() => {
+        delete state.researchSecretStatus[msg.id];
+        if (state.view === 'settings') { render(); }
+      }, 6000);
+      break;
+    }
+
+    case 'researchSecretPushed': {
+      const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
+      if (msg.ok && state.researchSettings) {
+        const s = state.researchSettings.secrets.find(x => x.id === msg.id);
+        if (s && s.hasGitHubSecret !== null) { s.hasGitHubSecret = true; }
+      }
+      state.researchSecretStatus[msg.id] = { kind: msg.ok ? 'success' : 'error', message: msg.message };
+      if (state.view === 'settings') { render(); }
+      window.setTimeout(() => {
+        delete state.researchSecretStatus[msg.id];
+        if (state.view === 'settings') { render(); }
+      }, 6000);
+      break;
+    }
+
+    case 'researchPrefsSaved':
+      // Tiny UX nudge — re-fetch settings to confirm persisted shape
+      vscode.postMessage({ type: 'loadResearchSettings' });
       break;
 
     case 'platformGovernanceLoaded': {

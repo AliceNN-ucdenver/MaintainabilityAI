@@ -1,8 +1,14 @@
-# STRIDE: Information Disclosure — Threat Modeling Prompt Pack
+<div class="docs-hero docs-hero-amber">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/threat-modeling/">STRIDE</a><span class="sep">/</span><span>Information disclosure</span></div>
+    <div class="docs-eyebrow">STRIDE · Info disclosure <span class="docs-hero-meta">~7 min read</span></div>
+    <h1 class="docs-hero-title">Information disclosure</h1>
+    <p class="docs-hero-copy">is exposing sensitive data to unauthorized parties. This STRIDE category focuses on confidentiality failures where systems leak personally identifiable information (PII), credentials, business secrets, or technical details that aid attackers.</p>
+    <span class="docs-hero-flourish">The Caterpillar speaks in smoke. Your errors shouldn&rsquo;t.</span>
+  </div>
+</div>
 
-> **Information Disclosure** is exposing sensitive data to unauthorized parties. This STRIDE category focuses on confidentiality failures where systems leak personally identifiable information (PII), credentials, business secrets, or technical details that aid attackers.
-
----
 
 ## 🎯 What is Information Disclosure?
 
@@ -28,13 +34,13 @@
 
 ## Prompt: Identify Information Disclosure Threats in Architecture
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Identify where sensitive data (PII, credentials, secrets) could leak through APIs, errors, or storage</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Identify where sensitive data (PII, credentials, secrets) could leak through APIs, errors, or storage</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security architect specializing in data privacy, access control, and cryptography. Your task is to perform STRIDE threat modeling focusing on Information Disclosure (I) threats.
@@ -326,93 +332,93 @@ Additional controls:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #3b82f6;">
+<div class="docs-card docs-card-blue">
 
-<div style="font-size: 18px; font-weight: 700; color: #93c5fd; margin-bottom: 20px;">Before merging AI-generated Information Disclosure threat mitigation code, verify:</div>
+<div class="docs-heading">Before merging AI-generated Information Disclosure threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Access Control and Authorization</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Access Control and Authorization</div>
+  <div class="docs-copy">
     ✓ Every API endpoint returning user data verifies requesting user is authorized to access that specific resource<br/>
     ✓ Centralized authorization middleware checks resource ownership before fetching data<br/>
     ✓ Never trust client-provided IDs without validation<br/>
     ✓ Deny-by-default policies implemented where access must be explicitly granted<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Log in as User A, capture API requests, change resource IDs to User B's resources, and verify access denial with 403 Forbidden
+    <strong class="docs-strong">Test:</strong> Log in as User A, capture API requests, change resource IDs to User B's resources, and verify access denial with 403 Forbidden
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Data Minimization and Field Filtering</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Data Minimization and Field Filtering</div>
+  <div class="docs-copy">
     ✓ APIs return only minimum data necessary for specific use case<br/>
     ✓ Never return entire database rows with SELECT * queries<br/>
     ✓ Explicitly list fields in queries and filter sensitive data (SSN, full credit card numbers, passwords) from responses<br/>
     ✓ Response schemas define exactly which fields are exposed<br/>
     ✓ Separate read models used for different contexts (admin vs user vs public)<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Inspect API responses and verify no sensitive fields present, check database queries specify exact columns not SELECT *
+    <strong class="docs-strong">Test:</strong> Inspect API responses and verify no sensitive fields present, check database queries specify exact columns not SELECT *
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Error Handling and Information Leakage</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Error Handling and Information Leakage</div>
+  <div class="docs-copy">
     ✓ Production applications never expose stack traces, SQL queries, file paths, or technology details in error responses<br/>
     ✓ Global error handlers return generic messages to clients while logging details server-side<br/>
     ✓ NODE_ENV=production set to disable verbose errors<br/>
     ✓ Custom error classes created for expected errors (validation, not found) with safe messages<br/>
     ✓ Error monitoring services used for internal debugging<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Send malformed requests and verify error responses are generic, check stack traces never appear in API responses
+    <strong class="docs-strong">Test:</strong> Send malformed requests and verify error responses are generic, check stack traces never appear in API responses
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Encryption at Rest</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-cyan">
+  <div class="docs-heading">Encryption at Rest</div>
+  <div class="docs-copy">
     ✓ All sensitive data encrypted in databases, file storage, backups, and caches<br/>
     ✓ AES-256-GCM used for encryption with keys managed by AWS KMS, Azure Key Vault, or HashiCorp Vault<br/>
     ✓ Never store encryption keys in code or environment variables alongside the data<br/>
     ✓ Encryption enabled for databases (PostgreSQL TDE, MySQL encryption), S3 buckets (SSE-KMS), and EBS volumes<br/>
     ✓ Backups encrypted before uploading to storage<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Inspect database files, S3 objects, and backup files to verify encryption enabled, attempt to access raw data without decryption keys
+    <strong class="docs-strong">Test:</strong> Inspect database files, S3 objects, and backup files to verify encryption enabled, attempt to access raw data without decryption keys
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Encryption in Transit</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Encryption in Transit</div>
+  <div class="docs-copy">
     ✓ All communication uses TLS 1.3 or 1.2 with strong cipher suites<br/>
     ✓ TLS 1.0/1.1 and weak ciphers (RC4, DES) disabled<br/>
     ✓ HTTPS Strict Transport Security (HSTS) enabled with max-age=31536000; includeSubDomains; preload<br/>
     ✓ Certificate pinning used in mobile apps<br/>
     ✓ WebSocket connections use WSS (not WS)<br/>
     ✓ Internal service-to-service communication uses TLS<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Use SSL Labs or testssl.sh to scan domain, verify A or A+ rating with TLS 1.3 support and no weak ciphers
+    <strong class="docs-strong">Test:</strong> Use SSL Labs or testssl.sh to scan domain, verify A or A+ rating with TLS 1.3 support and no weak ciphers
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Secrets Management</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Secrets Management</div>
+  <div class="docs-copy">
     ✓ Never hardcode API keys, database passwords, encryption keys, or OAuth secrets in source code<br/>
     ✓ Environment variables loaded from secure vaults (AWS Secrets Manager, Azure Key Vault, Doppler)<br/>
     ✓ Secrets rotated quarterly<br/>
     ✓ Secret scanning implemented in CI/CD (trufflehog, git-secrets) to prevent accidental commits<br/>
     ✓ Separate secrets used for each environment (dev, staging, prod)<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Search codebase for hardcoded secrets using regex, verify secrets loaded from environment variables or vault services
+    <strong class="docs-strong">Test:</strong> Search codebase for hardcoded secrets using regex, verify secrets loaded from environment variables or vault services
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Logging and Monitoring Privacy</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Logging and Monitoring Privacy</div>
+  <div class="docs-copy">
     ✓ Logs never contain passwords, session tokens, credit card numbers, SSNs, or API keys<br/>
     ✓ Automatic PII redaction implemented using regex patterns or libraries<br/>
     ✓ Log only identifiers (user ID, transaction ID) instead of sensitive values<br/>
     ✓ All log statements reviewed to ensure compliance<br/>
     ✓ Log sampling configured for high-volume endpoints to reduce storage costs while maintaining security visibility<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Search logs for sensitive patterns (credit card regex, SSN format), verify PII is masked or absent, test authentication failures don't log passwords
+    <strong class="docs-strong">Test:</strong> Search logs for sensitive patterns (credit card regex, SSN format), verify PII is masked or absent, test authentication failures don't log passwords
   </div>
 </div>
 

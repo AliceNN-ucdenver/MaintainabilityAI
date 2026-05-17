@@ -3,34 +3,12 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import './styles.css';
 import Layout from './components/Layout';
-import HomePage from './pages/HomePage';
-import WorkshopPage from './pages/WorkshopPage';
-import MarkdownPage from './components/MarkdownPage';
+import PageLoading from './components/PageLoading';
+import { safeRedirectPath } from './lib/redirects';
 
-function safeRedirectPath(value: string | null): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(value, window.location.origin);
-    if (parsed.origin !== window.location.origin) {
-      return null;
-    }
-
-    const path = parsed.pathname;
-    const isAllowedPath =
-      path === '/' ||
-      path === '/agenda' ||
-      path === '/agenda.html' ||
-      path === '/docs' ||
-      path.startsWith('/docs/');
-
-    return isAllowedPath ? `${parsed.pathname}${parsed.search}${parsed.hash}` : null;
-  } catch {
-    return null;
-  }
-}
+const HomePage = React.lazy(() => import('./pages/HomePage'));
+const WorkshopPage = React.lazy(() => import('./pages/WorkshopPage'));
+const MarkdownPage = React.lazy(() => import('./components/MarkdownPage'));
 
 // Component to handle GitHub Pages SPA redirect
 function RedirectHandler() {
@@ -65,18 +43,18 @@ function App() {
     <BrowserRouter>
       <RedirectHandler />
       <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="agenda.html" element={<WorkshopPage />} />
-          <Route path="agenda" element={<WorkshopPage />} />
-          {/* Docs routes */}
-          <Route path="docs/*" element={<MarkdownPage />} />
+      <React.Suspense fallback={<PageLoading />}>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="agenda.html" element={<WorkshopPage />} />
+            <Route path="agenda" element={<WorkshopPage />} />
+            <Route path="docs/*" element={<MarkdownPage />} />
 
-          {/* Catch-all for backwards compatibility */}
-          <Route path="*" element={<MarkdownPage />} />
-        </Route>
-      </Routes>
+            <Route path="*" element={<MarkdownPage />} />
+          </Route>
+        </Routes>
+      </React.Suspense>
     </BrowserRouter>
   );
 }

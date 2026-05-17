@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">MaintainabilityAI framework overview</title>
+  <desc id="d">Three layers stack from open standards at the base, through three product capabilities — Looking Glass, Cheshire Cat, Red Queen — into governed engineering outcomes at the top.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="0%" r="80%">
+      <stop offset="0" stop-color="#0f1832" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pillarLG" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".0"/>
+      <stop offset=".4" stop-color="#22d3ee" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="pillarCC" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#34d399" stop-opacity=".0"/>
+      <stop offset=".4" stop-color="#34d399" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="pillarRQ" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#fb7185" stop-opacity=".0"/>
+      <stop offset=".4" stop-color="#fb7185" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#fb7185" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="capBand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset=".5" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#fb7185"/>
+    </linearGradient>
+    <marker id="arrU" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#67e8f9"/>
+    </marker>
+    <marker id="arrUp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      .lvlEyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#67e8f9}
+      .lvlLabel{font:800 14px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#cbd5e1}
+      .chip{font:600 13px -apple-system,system-ui,sans-serif;fill:#cbd5e1}
+      .chipMuted{font:600 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .pillarName{font:900 22px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .pillarSub{font:500 13px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .topLabel{font:800 26px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .baseRule{stroke:rgba(148,163,184,0.22);stroke-width:1;stroke-dasharray:3 4}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#bg)"/>
+
+  <text x="64" y="74" class="lvlEyebrow">Framework</text>
+  <text x="64" y="118" class="heroTitle">Architecture-aware AI engineering</text>
+  <text x="64" y="148" class="heroSub">Open standards feed three product capabilities. Capabilities feed governed engineering outcomes.</text>
+
+  <!-- OUTCOMES band -->
+  <text x="64" y="210" class="lvlLabel">Outcome</text>
+  <rect x="64" y="220" width="1152" height="58" rx="14" fill="rgba(15,23,42,0.6)" stroke="rgba(103,232,249,0.32)"/>
+  <text x="84" y="256" class="topLabel">Governed, reviewable, auditable AI engineering at velocity</text>
+
+  <!-- CAPABILITIES — three pillars -->
+  <text x="64" y="312" class="lvlLabel">Capabilities</text>
+
+  <g transform="translate(112,320)">
+    <rect x="0" y="0" width="320" height="200" rx="18" fill="url(#pillarLG)" stroke="rgba(34,211,238,0.55)"/>
+    <rect x="0" y="0" width="320" height="3" rx="18" fill="#22d3ee"/>
+    <circle cx="36" cy="36" r="16" fill="rgba(34,211,238,0.18)" stroke="#22d3ee" stroke-width="1.5"/>
+    <circle cx="36" cy="36" r="6" fill="#22d3ee"/>
+    <text x="64" y="42" class="pillarName">Looking Glass</text>
+    <text x="20" y="78" class="chip" fill="#67e8f9">Architecture awareness</text>
+    <text x="20" y="110" class="pillarSub">Portfolio governance scoring on</text>
+    <text x="20" y="130" class="pillarSub">four pillars. Interactive CALM</text>
+    <text x="20" y="150" class="pillarSub">diagrams. Absolem AI advisor.</text>
+    <text x="20" y="170" class="pillarSub">Oraculum automated review.</text>
+  </g>
+
+  <g transform="translate(480,320)">
+    <rect x="0" y="0" width="320" height="200" rx="18" fill="url(#pillarCC)" stroke="rgba(52,211,153,0.55)"/>
+    <rect x="0" y="0" width="320" height="3" rx="18" fill="#34d399"/>
+    <path d="M20 40 Q28 24 36 40 Q44 24 52 40 Z" fill="rgba(52,211,153,0.18)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="76" y="42" class="pillarName">Cheshire Cat</text>
+    <text x="20" y="78" class="chip" fill="#6ee7b7">Secure SDLC scaffolding</text>
+    <text x="20" y="110" class="pillarSub">Repo scorecards. OWASP and</text>
+    <text x="20" y="130" class="pillarSub">STRIDE prompt packs. CodeQL +</text>
+    <text x="20" y="150" class="pillarSub">Snyk workflows. RCTRO issue</text>
+    <text x="20" y="170" class="pillarSub">generation from intent.</text>
+  </g>
+
+  <g transform="translate(848,320)">
+    <rect x="0" y="0" width="320" height="200" rx="18" fill="url(#pillarRQ)" stroke="rgba(251,113,133,0.55)"/>
+    <rect x="0" y="0" width="320" height="3" rx="18" fill="#fb7185"/>
+    <path d="M22 40 L28 24 L34 38 L40 22 L46 38 L52 24 L58 40 Z" fill="rgba(251,113,133,0.18)" stroke="#fb7185" stroke-width="1.5"/>
+    <text x="78" y="42" class="pillarName">Red Queen</text>
+    <text x="20" y="78" class="chip" fill="#fda4af">Deterministic agent control</text>
+    <text x="20" y="110" class="pillarSub">PreToolUse hooks. MCP policy</text>
+    <text x="20" y="130" class="pillarSub">validation. Multi-agent review.</text>
+    <text x="20" y="150" class="pillarSub">Progressive autonomy by trust</text>
+    <text x="20" y="170" class="pillarSub">score. Phase 9 CI hard gate.</text>
+  </g>
+
+  <!-- capabilities → outcomes -->
+  <g fill="none" stroke="rgba(103,232,249,0.55)" stroke-width="1.6">
+    <path d="M272 320 L272 282" marker-end="url(#arrU)"/>
+    <path d="M640 320 L640 282" marker-end="url(#arrU)"/>
+    <path d="M1008 320 L1008 282" marker-end="url(#arrU)"/>
+  </g>
+
+  <!-- FOUNDATION -->
+  <text x="64" y="552" class="lvlLabel">Foundation</text>
+  <line x1="64" y1="560" x2="1216" y2="560" class="baseRule"/>
+  <rect x="64" y="576" width="1152" height="2" rx="1" fill="url(#capBand)" opacity=".6"/>
+
+  <g transform="translate(0,592)">
+    <g transform="translate(96,0)">
+      <rect width="170" height="60" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(96,165,250,0.45)"/>
+      <text x="85" y="26" text-anchor="middle" class="chip" fill="#93c5fd">FINOS CALM 1.2</text>
+      <text x="85" y="46" text-anchor="middle" class="chipMuted">Architecture model</text>
+    </g>
+    <g transform="translate(290,0)">
+      <rect width="170" height="60" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(251,113,133,0.45)"/>
+      <text x="85" y="26" text-anchor="middle" class="chip" fill="#fda4af">OWASP Top 10</text>
+      <text x="85" y="46" text-anchor="middle" class="chipMuted">Security controls</text>
+    </g>
+    <g transform="translate(484,0)">
+      <rect width="170" height="60" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(251,191,36,0.45)"/>
+      <text x="85" y="26" text-anchor="middle" class="chip" fill="#fcd34d">STRIDE</text>
+      <text x="85" y="46" text-anchor="middle" class="chipMuted">Threat modeling</text>
+    </g>
+    <g transform="translate(678,0)">
+      <rect width="170" height="60" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(129,140,248,0.45)"/>
+      <text x="85" y="26" text-anchor="middle" class="chip" fill="#a5b4fc">RCTRO prompts</text>
+      <text x="85" y="46" text-anchor="middle" class="chipMuted">Role · Context · Task</text>
+    </g>
+    <g transform="translate(872,0)">
+      <rect width="170" height="60" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(52,211,153,0.45)"/>
+      <text x="85" y="26" text-anchor="middle" class="chip" fill="#6ee7b7">Fitness functions</text>
+      <text x="85" y="46" text-anchor="middle" class="chipMuted">Quality gates</text>
+    </g>
+    <g transform="translate(1066,0)">
+      <rect width="120" height="60" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(167,139,250,0.45)"/>
+      <text x="60" y="26" text-anchor="middle" class="chip" fill="#c4b5fd">NIST 800-53</text>
+      <text x="60" y="46" text-anchor="middle" class="chipMuted">Mapped</text>
+    </g>
+  </g>
+
+  <!-- foundation → capabilities -->
+  <g fill="none" stroke="rgba(148,163,184,0.4)" stroke-width="1.2" stroke-dasharray="2 4">
+    <path d="M272 576 L272 538" marker-end="url(#arrUp)"/>
+    <path d="M640 576 L640 538" marker-end="url(#arrUp)"/>
+    <path d="M1008 576 L1008 538" marker-end="url(#arrUp)"/>
+  </g>
+</svg>

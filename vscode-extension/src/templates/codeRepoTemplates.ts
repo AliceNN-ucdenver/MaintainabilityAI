@@ -370,3 +370,43 @@ export function generateOraculumWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'oraculum-review.yml');
 }
 
+// ============================================================================
+// Mesh Workflows — Research + PRD Agent Pipeline (Caterpillar / Looking Glass)
+// ============================================================================
+
+export function generateArcheologistWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'archeologist.yml');
+}
+
+export function generatePrdWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'prd.yml');
+}
+
+export function generateLabelOnMergeWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'label-on-merge.yml');
+}
+
+export function generateNotifyCodeReposWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'notify-code-repos.yml');
+}
+
+/**
+ * Canonical list of every workflow Looking Glass writes into the mesh repo's
+ * .github/workflows/ directory. Order is deterministic — used for both write
+ * and existence checks so the UI's deployed/not-deployed state is consistent.
+ */
+export interface MeshWorkflowSpec {
+  /** Relative path inside the mesh repo, e.g. ".github/workflows/archeologist.yml" */
+  relativePath: string;
+  /** Generator that returns the file contents */
+  generate: (extensionPath: string) => string;
+}
+
+export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
+  { relativePath: '.github/workflows/oraculum-review.yml',   generate: generateOraculumWorkflow },
+  { relativePath: '.github/workflows/archeologist.yml',      generate: generateArcheologistWorkflow },
+  { relativePath: '.github/workflows/prd.yml',               generate: generatePrdWorkflow },
+  { relativePath: '.github/workflows/label-on-merge.yml',    generate: generateLabelOnMergeWorkflow },
+  { relativePath: '.github/workflows/notify-code-repos.yml', generate: generateNotifyCodeReposWorkflow },
+];
+

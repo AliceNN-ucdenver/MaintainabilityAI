@@ -203,6 +203,21 @@ export class GitHubService {
     }
   }
 
+  /**
+   * Returns the set of Actions secret names configured on the repo, or null if
+   * the call fails (no auth, no access, network error). Names only — values are
+   * not exposed by the GitHub API.
+   */
+  async listRepoSecretNames(owner: string, repo: string): Promise<Set<string> | null> {
+    try {
+      const client = await this.getClient();
+      const { data } = await client.rest.actions.listRepoSecrets({ owner, repo, per_page: 100 });
+      return new Set(data.secrets.map(s => s.name));
+    } catch {
+      return null;
+    }
+  }
+
   async setRepoSecret(
     owner: string,
     repo: string,

@@ -1,8 +1,14 @@
-# Vulnerable and Outdated Components — OWASP A06 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Vulnerable &amp; outdated components</span></div>
+    <div class="docs-eyebrow">A06 · Vulnerable components <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Vulnerable &amp; outdated components</h1>
+    <p class="docs-hero-copy">occurs when applications use libraries, frameworks, or other software modules with known vulnerabilities. This includes outdated dependencies, components without security patches, unmaintained libraries, and code loaded from untrusted sources without integrity verification.</p>
+    <span class="docs-hero-flourish">&ldquo;Curiouser and curiouser&rdquo; &mdash; pin, patch, monitor.</span>
+  </div>
+</div>
 
-> **OWASP A06: Vulnerable and Outdated Components** occurs when applications use libraries, frameworks, or other software modules with known vulnerabilities. This includes outdated dependencies, components without security patches, unmaintained libraries, and code loaded from untrusted sources without integrity verification.
-
----
 
 ## 🎯 What is A06?
 
@@ -25,19 +31,19 @@
 **Primary**: **Tampering** (compromised dependencies inject malicious code)
 **Secondary**: **Elevation of Privilege** (exploiting CVEs for system access), **Information Disclosure** (vulnerable libraries leak sensitive data)
 
-See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege), and [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure)
+See also: [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering), [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege), and [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure)
 
 ---
 
 ## Prompt 1: Analyze Code for Vulnerable Component Issues
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Scans dependencies, CDN scripts, and dynamic code for outdated or vulnerable components — returns prioritized findings</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Scans dependencies, CDN scripts, and dynamic code for outdated or vulnerable components — returns prioritized findings</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in vulnerable and outdated components (OWASP A06).
@@ -93,13 +99,13 @@ Provide a prioritized list of vulnerable components (Critical > High > Medium) w
 
 ## Prompt 2: Implement Secure Dependency Management
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates pinned dependencies, SRI verification, safe code loading, and vulnerability scanning setup</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates pinned dependencies, SRI verification, safe code loading, and vulnerability scanning setup</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive secure dependency management for a web application (OWASP A06 remediation).
@@ -180,8 +186,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -215,8 +221,8 @@ export async function loadRemoteConfig(url: string) {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -442,54 +448,54 @@ export function getSecureCSP(): string {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated dependency management code:</div>
+<div class="docs-heading">Before merging AI-generated dependency management code:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Version Pinning & Scanning</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Version Pinning & Scanning</div>
+  <div class="docs-copy">
     ✓ All package.json versions pinned exactly (no ^ or ~)<br/>
     ✓ package-lock.json contains integrity hashes<br/>
     ✓ npm audit passes with 0 high/critical vulnerabilities<br/>
     ✓ CI/CD fails builds when audit threshold exceeded<br/>
     ✓ Dependabot or Renovate configured for automated update PRs<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> run npm install, verify lock unchanged; run npm audit, verify exit 0
+    ✓ <strong class="docs-strong">Test:</strong> run npm install, verify lock unchanged; run npm audit, verify exit 0
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Subresource Integrity & CSP</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Subresource Integrity & CSP</div>
+  <div class="docs-copy">
     ✓ Every external script/stylesheet has integrity SHA-384+ and crossorigin="anonymous"<br/>
     ✓ CSP includes require-sri-for and restricts script-src to specific CDNs<br/>
     ✓ SRI hashes regenerated and verified before deploy<br/>
     ✓ Registry of trusted resources maintained with current hashes<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> modify integrity hash by one char, verify browser refuses to load script
+    ✓ <strong class="docs-strong">Test:</strong> modify integrity hash by one char, verify browser refuses to load script
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">No Dynamic Code Execution</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">No Dynamic Code Execution</div>
+  <div class="docs-copy">
     ✓ No eval(), Function(), vm.runInContext() with remote/user content<br/>
     ✓ JSON data parsed with JSON.parse(), modules loaded with import()<br/>
     ✓ Dynamic config validated with Zod schema after parsing<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> grep codebase for eval() and Function() — zero matches
+    ✓ <strong class="docs-strong">Test:</strong> grep codebase for eval() and Function() — zero matches
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Dependency Hygiene & Supply Chain</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Dependency Hygiene & Supply Chain</div>
+  <div class="docs-copy">
     ✓ Unused dependencies removed (run depcheck)<br/>
     ✓ No packages unmaintained for 2+ years<br/>
     ✓ npm audit signatures verified; package publishers checked<br/>
     ✓ package-lock.json committed for reproducible builds<br/>
     ✓ Quarterly dependency review scheduled<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> run npx depcheck, verify clean; run npm outdated, verify no major gaps
+    ✓ <strong class="docs-strong">Test:</strong> run npx depcheck, verify clean; run npm outdated, verify no major gaps
   </div>
 </div>
 

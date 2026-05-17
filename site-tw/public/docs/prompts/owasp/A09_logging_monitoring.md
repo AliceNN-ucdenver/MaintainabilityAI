@@ -1,8 +1,14 @@
-# Security Logging and Monitoring Failures — OWASP A09 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Security logging &amp; monitoring failures</span></div>
+    <div class="docs-eyebrow">A09 · Logging &amp; monitoring <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Security logging &amp; monitoring failures</h1>
+    <p class="docs-hero-copy">occurs when applications fail to properly log security events, detect breaches, or alert on suspicious activity.</p>
+    <span class="docs-hero-flourish">If a tree falls and nothing logs it &mdash; it never happened.</span>
+  </div>
+</div>
 
-> **OWASP A09: Security Logging and Monitoring Failures** occurs when applications fail to properly log security events, detect breaches, or alert on suspicious activity. This includes logging sensitive data (passwords, tokens), missing security event logs, unstructured logs difficult to analyze, no alerting on suspicious patterns, and insufficient log retention for forensic analysis.
-
----
 
 ## 🎯 What is A09?
 
@@ -27,19 +33,19 @@
 **Primary**: **Repudiation** (attackers deny actions due to lack of audit trail)
 **Secondary**: **Information Disclosure** (logs expose sensitive data like passwords or PII)
 
-See also: [STRIDE: Repudiation](/docs/prompts/stride/repudiation) and [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure)
+See also: [STRIDE: Repudiation](/docs/prompts/threat-modeling/repudiation) and [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure)
 
 ---
 
 ## Prompt 1: Analyze Code for Logging and Monitoring Failures
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Finds sensitive data in logs, missing security events, unstructured logging, and PII exposure — returns prioritized findings</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Finds sensitive data in logs, missing security events, unstructured logging, and PII exposure — returns prioritized findings</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in logging and monitoring failures (OWASP A09).
@@ -95,13 +101,13 @@ Provide a prioritized list of logging vulnerabilities (Critical > High > Medium)
 
 ## Prompt 2: Implement Secure Logging and Monitoring
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates Winston structured logging, PII masking, security event tracking, real-time alerting, and test coverage</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates Winston structured logging, PII masking, security event tracking, real-time alerting, and test coverage</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive security logging and monitoring (OWASP A09 remediation).
@@ -197,8 +203,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -233,8 +239,8 @@ export function deleteUser(adminId: string, userId: string) {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -629,55 +635,55 @@ export function validateInput(input: string, schema: any, ipAddress: string) {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated logging code:</div>
+<div class="docs-heading">Before merging AI-generated logging code:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Structured Logging & Sensitive Data</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Structured Logging & Sensitive Data</div>
+  <div class="docs-copy">
     ✓ All logging uses Winston (or similar) with JSON format — no console.log<br/>
     ✓ Passwords, tokens, API keys, session IDs never logged<br/>
     ✓ Emails masked (u***@domain), IPs masked (x.x.x.***)<br/>
     ✓ Sanitization is recursive for nested objects<br/>
     ✓ Separate log files: error.log, security.log, combined.log<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> grep codebase for console.log verify replaced; search logs for literal passwords/tokens verify none
+    ✓ <strong class="docs-strong">Test:</strong> grep codebase for console.log verify replaced; search logs for literal passwords/tokens verify none
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Security Event Coverage</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Security Event Coverage</div>
+  <div class="docs-copy">
     ✓ All auth events logged: login success/failure, logout, session expiry<br/>
     ✓ Authorization failures logged with userId, resource, action, IP<br/>
     ✓ Validation failures and rate-limit violations logged<br/>
     ✓ Privilege changes (role modifications, user deletion) have audit trail<br/>
     ✓ Standardized SecurityEventType enum — not freeform strings<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> trigger failed login, access denied, validation error — verify all logged with context
+    ✓ <strong class="docs-strong">Test:</strong> trigger failed login, access denied, validation error — verify all logged with context
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Alerting & Retention</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Alerting & Retention</div>
+  <div class="docs-copy">
     ✓ Real-time alerts for brute force (>5 failures/5 min), privilege escalation, admin access denied<br/>
     ✓ Alert destinations configured (Sentry, DataDog, PagerDuty, Slack)<br/>
     ✓ Alert throttling prevents notification flooding<br/>
     ✓ Log rotation: 10MB max, 30-day general / 90-day security retention<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> trigger 6 failed logins from same IP — verify alert fires within 1 minute
+    ✓ <strong class="docs-strong">Test:</strong> trigger 6 failed logins from same IP — verify alert fires within 1 minute
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Log Integrity & Monitoring</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Log Integrity & Monitoring</div>
+  <div class="docs-copy">
     ✓ Append-only file permissions; centralized aggregation to SIEM<br/>
     ✓ Log signing (HMAC-SHA256) for tamper detection<br/>
     ✓ Every log answers: who, what, where, when, outcome<br/>
     ✓ Request/trace ID for cross-service correlation<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> verify log file permissions (640+); attempt modification verify detection; test log shipping
+    ✓ <strong class="docs-strong">Test:</strong> verify log file permissions (640+); attempt modification verify detection; test log shipping
   </div>
 </div>
 

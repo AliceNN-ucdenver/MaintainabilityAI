@@ -193,6 +193,41 @@ export interface CalmPatch {
 }
 
 // ============================================================================
+// Research Settings — surfaced in the Looking Glass Settings panel
+// ============================================================================
+
+export type ResearchSecretId = 'anthropic' | 'openai' | 'tavily';
+
+/** Per-secret status: which storage tiers it is set in. */
+export interface ResearchSecretStatus {
+  id: ResearchSecretId;
+  label: string;
+  envName: string;
+  /** Set in VS Code workspace configuration. */
+  hasVsCodeValue: boolean;
+  /** Present on the configured mesh GitHub repo's Actions secrets.
+   *  `null` when we could not list repo secrets (no auth, network error). */
+  hasGitHubSecret: boolean | null;
+}
+
+/** Non-secret runtime preferences for the research + PRD pipelines. */
+export interface ResearchPrefs {
+  llmProvider: 'anthropic' | 'openai';
+  guardrails: 'strict' | 'default' | 'lenient';
+  grounding: 'strict' | 'default' | 'lenient';
+  groundingThreshold: number;
+  maxIterations: number;
+  costCapTokens: number;
+}
+
+export interface ResearchSettingsPayload {
+  secrets: ResearchSecretStatus[];
+  prefs: ResearchPrefs;
+  /** owner/repo of the mesh GitHub repo, when detected. Drives Push-to-GitHub. */
+  meshRepo: { owner: string; repo: string } | null;
+}
+
+// ============================================================================
 // Looking Glass Message Protocol
 // ============================================================================
 
@@ -275,6 +310,12 @@ export type LookingGlassWebviewMessage =
   | { type: 'saveWorkspace'; name: string }
   | { type: 'configureMeshSecrets' }
   | { type: 'refreshPromptPacks' }
+  // Research Settings — Tavily + Anthropic/OpenAI keys + non-secret prefs
+  | { type: 'loadResearchSettings' }
+  | { type: 'saveResearchSecret'; id: ResearchSecretId; value: string }
+  | { type: 'testResearchSecret'; id: ResearchSecretId }
+  | { type: 'pushResearchSecret'; id: ResearchSecretId }
+  | { type: 'saveResearchPrefs'; prefs: ResearchPrefs }
   // Red Queen — orchestration + platform governance editors
   | { type: 'loadOrchestrationPolicy' }
   | { type: 'saveOrchestrationPolicy'; policy: { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } }
@@ -360,5 +401,11 @@ export type LookingGlassExtensionMessage =
   // Red Queen — Governance Court agent type
   | { type: 'agentTypeLoaded'; agentType: 'claude' | 'copilot' | 'both' }
   | { type: 'agentTypeSaved' }
+  // Research Settings
+  | { type: 'researchSettings'; payload: ResearchSettingsPayload }
+  | { type: 'researchSecretSaved'; id: ResearchSecretId; hasValue: boolean }
+  | { type: 'researchTestResult'; id: ResearchSecretId; ok: boolean; message: string }
+  | { type: 'researchSecretPushed'; id: ResearchSecretId; ok: boolean; message: string }
+  | { type: 'researchPrefsSaved' }
   // Phase 6 — Cross-BAR governance context
   | { type: 'barGovernanceContext'; barPath: string; linkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[]; siblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[]; platformOverrides: string[] };

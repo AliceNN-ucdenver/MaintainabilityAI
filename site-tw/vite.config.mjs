@@ -7,6 +7,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Mermaid's parser is loaded only on docs pages that render diagrams.
+    // Keep the warning budget above that lazy chunk while preserving normal warnings.
+    chunkSizeWarningLimit: 700,
     // Copy markdown files to dist
     rollupOptions: {
       output: {

@@ -1,0 +1,110 @@
+name: "Notify Code Repos (spec-ready dispatch)"
+
+# Fires a repository_dispatch at each target code repo when a PRD PR is labeled
+# spec-ready. The target repo's spec-ready-handler.yml (scaffolded by Cheshire
+# Cat) receives the dispatch and creates an RCTRO implementation issue.
+#
+# Required mesh repo secret: GOVERNANCE_MESH_TOKEN — PAT with repo scope on the
+# target code repos.
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      prd_path:
+        required: true
+        description: "Path to the published PRD doc (e.g. platforms/imdb-lite/bars/APP-IMDB-002/prds/celeb-following-2026-05.md)"
+      target_repos:
+        required: true
+        description: "Comma-separated owner/repo list (e.g. AliceN-ucdenver/celeb-api,AliceN-ucdenver/celeb-web)"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify:
+    if: |
+      (github.event_name == 'pull_request' && github.event.label.name == 'spec-ready') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mesh repo
+        uses: actions/checkout@v4
+
+      - name: Resolve PRD manifest and target repos
+        id: resolve
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const evt = context.eventName;
+
+            let prd_path = '';
+            let target_repos = [];
+            let prd_pr_url = '';
+
+            if (evt === 'workflow_dispatch') {
+              prd_path = context.payload.inputs.prd_path;
+              target_repos = context.payload.inputs.target_repos.split(',').map(s => s.trim()).filter(Boolean);
+            } else {
+              const pr = context.payload.pull_request;
+              prd_pr_url = pr.html_url;
+              const filesResp = await github.rest.pulls.listFiles({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                per_page: 100,
+              });
+              const manifest = filesResp.data.find(f => f.filename.endsWith('.manifest.json'));
+              if (manifest) {
+                const raw = fs.readFileSync(manifest.filename, 'utf8');
+                const parsed = JSON.parse(raw);
+                target_repos = (parsed.target_repos || []).map(String);
+                prd_path = manifest.filename.replace(/\.manifest\.json$/, '.md');
+              } else {
+                core.setFailed('No .manifest.json file found in PRD PR — cannot resolve target repos.');
+                return;
+              }
+            }
+
+            core.setOutput('prd_path', prd_path);
+            core.setOutput('prd_pr_url', prd_pr_url);
+            core.setOutput('target_repos', JSON.stringify(target_repos));
+
+      - name: Dispatch to each target code repo
+        if: success()
+        env:
+          GOVERNANCE_MESH_TOKEN: ${{ secrets.GOVERNANCE_MESH_TOKEN }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GOVERNANCE_MESH_TOKEN }}
+          script: |
+            const target_repos = JSON.parse('${{ steps.resolve.outputs.target_repos }}');
+            const prd_path = '${{ steps.resolve.outputs.prd_path }}';
+            const prd_pr_url = '${{ steps.resolve.outputs.prd_pr_url }}';
+
+            for (const slug of target_repos) {
+              const [owner, repo] = slug.split('/');
+              if (!owner || !repo) {
+                core.warning(`Skipping malformed target repo: ${slug}`);
+                continue;
+              }
+              try {
+                await github.rest.repos.createDispatchEvent({
+                  owner,
+                  repo,
+                  event_type: 'spec-ready',
+                  client_payload: {
+                    mesh_repo: `${context.repo.owner}/${context.repo.repo}`,
+                    prd_path,
+                    prd_pr_url,
+                  },
+                });
+                core.info(`Dispatched spec-ready to ${slug}`);
+              } catch (err) {
+                core.warning(`Failed to dispatch to ${slug}: ${err.message}`);
+              }
+            }

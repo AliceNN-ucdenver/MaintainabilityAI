@@ -1,48 +1,37 @@
-<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 4</div>
-
-# Phase 4: Governance
-
-<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(168, 85, 247, 0.4); border: 1px solid rgba(192, 132, 252, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">4&#xFE0F;&#x20E3;</div>
-    <div>
-      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Governance</h2>
-      <div style="font-size: 16px; color: #e9d5ff; margin-top: 8px;">Human Code Review & Golden Rules</div>
-    </div>
-  </div>
-  <div style="color: #e9d5ff; font-size: 15px; line-height: 1.7;">
-    Human-in-the-loop review applying the 6 Golden Rules, OWASP compliance validation, and threat coverage verification before merge. This is the "30% layer" where humans validate AI work.
+<div class="docs-hero docs-hero-indigo">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 4</span></div>
+    <div class="docs-eyebrow">Phase 4 of 6 · Govern <span class="docs-hero-meta">~2 min read</span></div>
+    <h1 class="docs-hero-title">Governance &mdash; the human at the last gate</h1>
+    <p class="docs-hero-copy">Human-in-the-loop review with the six Golden Rules, OWASP compliance, threat-coverage check, and CODEOWNER sign-off. The 30% layer where judgment ratifies what the agent produced.</p>
+    <span class="docs-hero-flourish">&ldquo;Off with their <s>heads</s> &mdash; the override needs a reason.&rdquo;</span>
   </div>
 </div>
 
 ## Phase Overview
 
-```mermaid
-flowchart LR
-    A[Verification Complete] --> B[Open PR]
-    B --> C[Automated Checks]
-    C --> D[Human Security Review]
-    D --> E[Apply Golden Rules]
-    E -->|Approve| F[Phase 5: Deployment]
-    E -->|Reject| G[Fix → Phase 2]
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/phase4-governance.svg" alt="Governance flow from verified work through pull request, automated checks, human review, Golden Rules, and deployment approval." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Humans review the highest-value decisions with automated evidence already attached.</figcaption>
+</figure>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Duration</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">15-45 min</div>
+<div class="docs-grid docs-grid-compact">
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Duration</div>
+    <div class="docs-heading">15-45 min</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">Engineer + Reviewer</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Actors</div>
+    <div class="docs-heading">Engineer + Reviewer</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Mode</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Manual review + AI-assisted validation</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Mode</div>
+    <div class="docs-copy">Manual review + AI-assisted validation</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Gate</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">All 6 Golden Rules + OWASP compliance</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Gate</div>
+    <div class="docs-copy">All 6 Golden Rules + OWASP compliance</div>
   </div>
 </div>
 
@@ -53,7 +42,7 @@ flowchart LR
 Use the PR template that includes AI disclosure, OWASP coverage, and verification results.
 
 <details>
-<summary style="cursor: pointer; color: #d8b4fe; font-weight: 600; padding: 8px 0;">PR template</summary>
+<summary class="docs-details-summary">PR template</summary>
 
 ```markdown
 ## Feature Description
@@ -96,62 +85,44 @@ Use the PR template that includes AI disclosure, OWASP coverage, and verificatio
 
 ## Step 2: Golden Rules Validation
 
-Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules) against the PR:
+Reviewer checks each of the [6 Golden Rules](/docs/governance/governed-golden-rules) against the PR:
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <a href="/docs/governance/vibe-golden-rules#rule-1" style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px; text-decoration: none; display: block;">Rule 1: Be Specific</a>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
-    OWASP prompt packs referenced in commits?<br/>
-    Tech stack constraints specified?<br/>
-    Security requirements explicit?
-  </div>
+<div class="docs-card docs-card-blue">
+  <div class="docs-card-kicker">Rule 1</div>
+  <h3 class="docs-card-title"><a href="/docs/governance/governed-golden-rules#rule-1" class="markdown-link">Be specific</a></h3>
+  <p class="docs-card-body">OWASP prompt packs referenced in commits? Tech stack constraints specified? Security requirements explicit?</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
-  <a href="/docs/governance/vibe-golden-rules#rule-2" style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px; text-decoration: none; display: block;">Rule 2: Trust But Verify</a>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
-    Reviewer understands every function?<br/>
-    OWASP controls correctly implemented?<br/>
-    No unexplained "magic" code?
-  </div>
+<div class="docs-card docs-card-rose">
+  <div class="docs-card-kicker">Rule 2</div>
+  <h3 class="docs-card-title"><a href="/docs/governance/governed-golden-rules#rule-2" class="markdown-link">Trust but verify</a></h3>
+  <p class="docs-card-body">Reviewer understands every function? OWASP controls correctly implemented? No unexplained &ldquo;magic&rdquo; code?</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <a href="/docs/governance/vibe-golden-rules#rule-3" style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px; text-decoration: none; display: block;">Rule 3: Junior Dev Treatment</a>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
-    Code follows team patterns?<br/>
-    No over-engineering or unnecessary complexity?<br/>
-    Tests are comprehensive (not just happy path)?
-  </div>
+<div class="docs-card docs-card-amber">
+  <div class="docs-card-kicker">Rule 3</div>
+  <h3 class="docs-card-title"><a href="/docs/governance/governed-golden-rules#rule-3" class="markdown-link">Junior-dev treatment</a></h3>
+  <p class="docs-card-body">Code follows team patterns? No over-engineering or unnecessary complexity? Tests are comprehensive (not just happy path)?</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #a855f7;">
-  <a href="/docs/governance/vibe-golden-rules#rule-4" style="font-size: 15px; font-weight: 700; color: #d8b4fe; margin-bottom: 8px; text-decoration: none; display: block;">Rule 4: Isolate AI Changes</a>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
-    Commits labeled with AI-assisted tag?<br/>
-    AI tool identified?<br/>
-    PR has AI disclosure section?
-  </div>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-card-kicker">Rule 4</div>
+  <h3 class="docs-card-title"><a href="/docs/governance/governed-golden-rules#rule-4" class="markdown-link">Isolate AI changes</a></h3>
+  <p class="docs-card-body">Commits labelled with AI-assisted tag? AI tool identified? PR has AI disclosure section?</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #10b981;">
-  <a href="/docs/governance/vibe-golden-rules#rule-5" style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px; text-decoration: none; display: block;">Rule 5: Document Rationale</a>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
-    Inline comments explain "why" not "what"?<br/>
-    OWASP categories referenced in code?<br/>
-    Threat IDs linked to controls?
-  </div>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-card-kicker">Rule 5</div>
+  <h3 class="docs-card-title"><a href="/docs/governance/governed-golden-rules#rule-5" class="markdown-link">Document rationale</a></h3>
+  <p class="docs-card-body">Inline comments explain &ldquo;why&rdquo; not &ldquo;what&rdquo;? OWASP categories referenced in code? Threat IDs linked to controls?</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ec4899;">
-  <a href="/docs/governance/vibe-golden-rules#rule-6" style="font-size: 15px; font-weight: 700; color: #f9a8d4; margin-bottom: 8px; text-decoration: none; display: block;">Rule 6: Share Winning Prompts</a>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
-    Prompt produced secure code on first try?<br/>
-    Reusable for future features?<br/>
-    Added to team prompt library?
-  </div>
+<div class="docs-card docs-card-pink">
+  <div class="docs-card-kicker">Rule 6</div>
+  <h3 class="docs-card-title"><a href="/docs/governance/governed-golden-rules#rule-6" class="markdown-link">Share winning prompts</a></h3>
+  <p class="docs-card-body">Prompt produced secure code on first try? Reusable for future features? Added to team prompt library?</p>
 </div>
 
 </div>
@@ -162,8 +133,8 @@ Reviewer checks each of the [6 Golden Rules](/docs/governance/vibe-golden-rules)
 
 Use AI to validate OWASP compliance against the implementation.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(168, 85, 247, 0.3);">
-<div style="font-size: 12px; color: #d8b4fe; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — OWASP Compliance Review</div>
+<div class="docs-card docs-card-indigo">
+<div class="docs-card-kicker">RCTRO Prompt — OWASP Compliance Review</div>
 
 ```
 Role: You are a security code reviewer validating OWASP compliance.
@@ -223,7 +194,7 @@ Result: [X]/[Y] threats mitigated
 
 PR can be approved when ALL criteria are met:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(168, 85, 247, 0.3);">
+<div class="docs-card docs-card-indigo">
 
 **Technical**
 - All automated checks pass (ESLint, Jest, CodeQL, Snyk)
@@ -251,24 +222,24 @@ PR can be approved when ALL criteria are met:
 
 ## Phase Handoff → Phase 5
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(168, 85, 247, 0.3);">
-<div style="background: linear-gradient(135deg, #581c87 0%, #a855f7 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
-  <span style="font-size: 24px;">4&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
-  <span style="font-size: 24px;">5&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Governance → Deployment</span>
+<div class="docs-card docs-card-indigo">
+<div class="docs-flex-block">
+  <span class="docs-copy">4&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">→</span>
+  <span class="docs-copy">5&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">Governance → Deployment</span>
 </div>
-<div style="padding: 24px;">
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+<div>
+  <div class="docs-card-kicker">Handoff Checklist</div>
+  <div class="docs-copy">
     <div>✅ All 6 Golden Rules validated</div>
     <div>✅ OWASP compliance reviewed (A01, A03, A09)</div>
     <div>✅ [X]/[X] threats verified with code + tests</div>
     <div>✅ AI disclosure documented</div>
     <div>✅ PR approved by [Reviewer]</div>
   </div>
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Artifacts</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+  <div class="docs-card-kicker">Artifacts</div>
+  <div class="docs-copy">
     <div>Approved PR: [link] · Threat coverage matrix: [attached]</div>
   </div>
 </div>
@@ -276,7 +247,7 @@ PR can be approved when ALL criteria are met:
 
 ---
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
-  <a href="/docs/sdlc/phase3-verification" style="color: #fca5a5; font-size: 14px; text-decoration: none;">← Phase 3: Verification</a>
-  <a href="/docs/sdlc/phase5-deployment" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 5: Deployment →</a>
+<div class="docs-flex-block">
+  <a href="/docs/sdlc/phase3-verification" class="markdown-link">← Phase 3: Verification</a>
+  <a href="/docs/sdlc/phase5-deployment" class="docs-button-primary">Phase 5: Deployment →</a>
 </div>

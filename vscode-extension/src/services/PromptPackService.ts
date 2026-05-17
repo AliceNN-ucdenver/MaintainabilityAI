@@ -445,6 +445,8 @@ export class PromptPackService {
 
   /**
    * Copy bundled looking-glass packs → mesh .caterpillar/prompts/.
+   * Recurses subdirectories (research/, prd/, …) so the research+PRD agent
+   * packs land at .caterpillar/prompts/research/* and .caterpillar/prompts/prd/*.
    * Idempotent: skips files that already exist (preserves user customizations).
    */
   seedMeshPrompts(meshPath: string, force = false): void {
@@ -455,16 +457,26 @@ export class PromptPackService {
     if (!fs.existsSync(sourceDir)) { return; }
 
     try {
-      const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile()) { continue; }
-        const target = path.join(promptsDir, entry.name);
-        if (force || !fs.existsSync(target)) {
-          fs.copyFileSync(path.join(sourceDir, entry.name), target);
-        }
-      }
+      this.copyPromptTree(sourceDir, promptsDir, force);
     } catch (err) {
       logger.warn(`Failed to seed mesh prompts: ${err}`);
+    }
+  }
+
+  private copyPromptTree(srcDir: string, destDir: string, force: boolean): void {
+    fs.mkdirSync(destDir, { recursive: true });
+    const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const src = path.join(srcDir, entry.name);
+      const dest = path.join(destDir, entry.name);
+      if (entry.isDirectory()) {
+        this.copyPromptTree(src, dest, force);
+        continue;
+      }
+      if (!entry.isFile()) { continue; }
+      if (force || !fs.existsSync(dest)) {
+        fs.copyFileSync(src, dest);
+      }
     }
   }
 

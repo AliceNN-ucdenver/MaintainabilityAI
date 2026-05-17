@@ -1,8 +1,13 @@
-# Claude Code Action — Agentic Guide
-
-> <span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> Autonomous GitHub agent, governance-enforced via GitHub Actions
->
-> Looking for the interactive in-editor assistant? See [Claude Code](/docs/agents/claude).
+<div class="docs-hero docs-hero-cyan">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Claude Code Action</span></div>
+    <div class="docs-eyebrow">Agentic · governed by The Red Queen <span class="docs-hero-meta">~4 min read</span></div>
+    <h1 class="docs-hero-title">Claude Code Action &mdash; autonomous in GitHub</h1>
+    <p class="docs-hero-copy">Runs via <code>anthropics/claude-code-action@v1</code> on issues, comments, or schedules. Full MCP access &mdash; resources, tools, prompts &mdash; with PreToolUse hooks and fail-closed review consensus enforcing the governance contract.</p>
+    <span class="docs-hero-flourish">Autonomy without judgment is just velocity into a wall.</span>
+  </div>
+</div>
 
 Claude Code Action is an autonomous AI agent that runs via anthropics/claude-code-action@v1 in GitHub Actions. It's triggered by issues, PR comments, or scheduled workflows and operates **without human interaction** until PR review.
 
@@ -12,19 +17,19 @@ MaintainabilityAI governs Claude Code Action through **The Red Queen** — a thr
 
 ## How MaintainabilityAI Governs It
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
-<div style="display: grid; grid-template-rows: auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto;">
-<div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">Layer 1: The Grin (MCP Server)</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Exposes your governance mesh as queryable MCP resources and tools. Claude Code Action gets full architecture context — models, scores, threats, controls, flows — in a single call.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-grid">
+<div class="docs-card docs-card-cyan">
+<div class="docs-heading">Layer 1: The Grin (MCP Server)</div>
+<div class="docs-muted">Exposes your governance mesh as queryable MCP resources and tools. Claude Code Action gets full architecture context — models, scores, threats, controls, flows — in a single call.</div>
 </div>
-<div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: The Red Queen's Court</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">A pure TypeScript policy engine enforces governance constraints deterministically. CALM flows, NIST controls, interface contracts, and threat model mitigations are checked before action. The agent <strong>cannot</strong> bypass a flow constraint.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-heading">Layer 2: The Red Queen's Court</div>
+<div class="docs-muted">A pure TypeScript policy engine enforces governance constraints deterministically. CALM flows, NIST controls, interface contracts, and threat model mitigations are checked before action. The agent <strong>cannot</strong> bypass a flow constraint.</div>
 </div>
-<div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: Red Queen Policy Engine</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Score-driven agent orchestration. Permission tiers, dynamic CLAUDE.md generation, multi-agent review boards, cross-repo governance, and feedback loops. Governance scores become the control plane for agent behavior.</div>
+<div class="docs-card docs-card-indigo">
+<div class="docs-heading">Layer 3: Red Queen Policy Engine</div>
+<div class="docs-muted">Score-driven agent orchestration. Permission tiers, dynamic CLAUDE.md generation, multi-agent review boards, cross-repo governance, and feedback loops. Governance scores become the control plane for agent behavior.</div>
 </div>
 </div>
 </div>
@@ -35,19 +40,19 @@ Unlike in-editor Claude Code where a human reviews each change, Claude Code Acti
 
 ## Configuration Files
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: auto 1fr; gap: 12px 20px; font-size: 14px;">
-<div style="color: #7dd3fc; font-weight: 600;">.mcp.json</div>
-<div style="color: #94a3b8;">MCP server config that launches the repo-local Red Queen runner</div>
-<div style="color: #7dd3fc; font-weight: 600;">.redqueen/mcp-runner.js</div>
-<div style="color: #94a3b8;">Portable resolver for the live governance mesh and npm MCP server</div>
-<div style="color: #7dd3fc; font-weight: 600;">CLAUDE.md</div>
-<div style="color: #94a3b8;">Agent instructions — dynamically generated per-BAR by Red Queen based on governance scores</div>
-<div style="color: #7dd3fc; font-weight: 600;">.claude/settings.json</div>
-<div style="color: #94a3b8;">Permission settings (allowed tools, edit permissions)</div>
-<div style="color: #7dd3fc; font-weight: 600;">AGENTS.md</div>
-<div style="color: #94a3b8;">Shared instructions read by both Claude Code Action and Copilot Coding Agent</div>
+<div class="docs-grid">
+<div class="docs-heading">.mcp.json</div>
+<div class="docs-muted">MCP server config that launches the repo-local Red Queen runner</div>
+<div class="docs-heading">.redqueen/mcp-runner.js</div>
+<div class="docs-muted">Portable resolver for the live governance mesh and npm MCP server</div>
+<div class="docs-heading">CLAUDE.md</div>
+<div class="docs-muted">Agent instructions — dynamically generated per-BAR by Red Queen based on governance scores</div>
+<div class="docs-heading">.claude/settings.json</div>
+<div class="docs-muted">Permission settings (allowed tools, edit permissions)</div>
+<div class="docs-heading">AGENTS.md</div>
+<div class="docs-muted">Shared instructions read by both Claude Code Action and Copilot Coding Agent</div>
 </div>
 
 </div>
@@ -60,36 +65,36 @@ The Red Queen generates CLAUDE.md dynamically based on the BAR's governance scor
 
 Claude Code Action can read **resources** — rich, structured data from your governance mesh:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: auto auto 1fr; gap: 8px 20px; font-size: 13px;">
-<div style="color: #e2e8f0; font-weight: 600;">Portfolio Summary</div>
-<div style="color: #7dd3fc;">calm://portfolio</div>
-<div style="color: #94a3b8;">All BARs with scores and health indicators</div>
-<div style="color: #e2e8f0; font-weight: 600;">Platform List</div>
-<div style="color: #7dd3fc;">calm://portfolio/platforms</div>
-<div style="color: #94a3b8;">Platforms with aggregated scores</div>
-<div style="color: #e2e8f0; font-weight: 600;">Platform Detail</div>
-<div style="color: #7dd3fc;">calm://platforms/\{id\}</div>
-<div style="color: #94a3b8;">BARs within a specific platform</div>
-<div style="color: #e2e8f0; font-weight: 600;">BAR Summary</div>
-<div style="color: #7dd3fc;">calm://bars/\{id\}</div>
-<div style="color: #94a3b8;">Scores, metadata, linked BARs</div>
-<div style="color: #e2e8f0; font-weight: 600;">Architecture</div>
-<div style="color: #7dd3fc;">calm://bars/\{id\}/architecture</div>
-<div style="color: #94a3b8;">Full CALM 1.2 JSON model</div>
-<div style="color: #e2e8f0; font-weight: 600;">Scores</div>
-<div style="color: #7dd3fc;">calm://bars/\{id\}/scores</div>
-<div style="color: #94a3b8;">Four-pillar scores with history</div>
-<div style="color: #e2e8f0; font-weight: 600;">Threats</div>
-<div style="color: #7dd3fc;">calm://bars/\{id\}/threats</div>
-<div style="color: #94a3b8;">STRIDE threat model</div>
-<div style="color: #e2e8f0; font-weight: 600;">Controls</div>
-<div style="color: #7dd3fc;">calm://bars/\{id\}/controls</div>
-<div style="color: #94a3b8;">NIST-mapped security controls</div>
-<div style="color: #e2e8f0; font-weight: 600;">Flows</div>
-<div style="color: #7dd3fc;">calm://bars/\{id\}/flows</div>
-<div style="color: #94a3b8;">CALM flows and relationships</div>
+<div class="docs-grid">
+<div class="docs-heading">Portfolio Summary</div>
+<div>calm://portfolio</div>
+<div class="docs-muted">All BARs with scores and health indicators</div>
+<div class="docs-heading">Platform List</div>
+<div>calm://portfolio/platforms</div>
+<div class="docs-muted">Platforms with aggregated scores</div>
+<div class="docs-heading">Platform Detail</div>
+<div>calm://platforms/\{id\}</div>
+<div class="docs-muted">BARs within a specific platform</div>
+<div class="docs-heading">BAR Summary</div>
+<div>calm://bars/\{id\}</div>
+<div class="docs-muted">Scores, metadata, linked BARs</div>
+<div class="docs-heading">Architecture</div>
+<div>calm://bars/\{id\}/architecture</div>
+<div class="docs-muted">Full CALM 1.2 JSON model</div>
+<div class="docs-heading">Scores</div>
+<div>calm://bars/\{id\}/scores</div>
+<div class="docs-muted">Four-pillar scores with history</div>
+<div class="docs-heading">Threats</div>
+<div>calm://bars/\{id\}/threats</div>
+<div class="docs-muted">STRIDE threat model</div>
+<div class="docs-heading">Controls</div>
+<div>calm://bars/\{id\}/controls</div>
+<div class="docs-muted">NIST-mapped security controls</div>
+<div class="docs-heading">Flows</div>
+<div>calm://bars/\{id\}/flows</div>
+<div class="docs-muted">CALM flows and relationships</div>
 </div>
 
 </div>
@@ -102,33 +107,33 @@ Claude Code Action can read **resources** — rich, structured data from your go
 
 Both Claude Code Action and Copilot Coding Agent call the same tools:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: auto auto 1fr; gap: 8px 20px; font-size: 13px;">
-<div style="color: #e2e8f0; font-weight: 600;">find\_bars</div>
-<div style="color: #94a3b8;">Query</div>
-<div style="color: #94a3b8;">Search BARs by name, platform, criticality, score range</div>
-<div style="color: #e2e8f0; font-weight: 600;">get\_bar\_context</div>
-<div style="color: #94a3b8;">Query</div>
-<div style="color: #94a3b8;">Comprehensive context bundle (architecture, scores, threats, ADRs, controls, flows)</div>
-<div style="color: #e2e8f0; font-weight: 600;">blast\_radius</div>
-<div style="color: #94a3b8;">Analysis</div>
-<div style="color: #94a3b8;">Downstream impact analysis across relationships and BARs</div>
-<div style="color: #e2e8f0; font-weight: 600;">governance\_gaps</div>
-<div style="color: #94a3b8;">Analysis</div>
-<div style="color: #94a3b8;">Missing artifacts, weak scores, overdue reviews</div>
-<div style="color: #e2e8f0; font-weight: 600;">flow\_impact</div>
-<div style="color: #94a3b8;">Analysis</div>
-<div style="color: #94a3b8;">Downstream impact of a change on linked BARs</div>
-<div style="color: #e2e8f0; font-weight: 600;">get\_orchestration\_decision</div>
-<div style="color: #94a3b8;">Query</div>
-<div style="color: #94a3b8;">Full Red Queen decision for a BAR (tier, permissions, prompt packs)</div>
-<div style="color: #4ade80; font-weight: 700;">validate\_action</div>
-<div style="color: #4ade80; font-weight: 600;">Enforce</div>
-<div style="color: #94a3b8;">Policy-engine validation against CALM flows, controls, interface contracts</div>
-<div style="color: #4ade80; font-weight: 700;">validate\_interface\_contract</div>
-<div style="color: #4ade80; font-weight: 600;">Enforce</div>
-<div style="color: #94a3b8;">Cross-repo interface adherence validation</div>
+<div class="docs-grid">
+<div class="docs-heading">find\_bars</div>
+<div class="docs-muted">Query</div>
+<div class="docs-muted">Search BARs by name, platform, criticality, score range</div>
+<div class="docs-heading">get\_bar\_context</div>
+<div class="docs-muted">Query</div>
+<div class="docs-muted">Comprehensive context bundle (architecture, scores, threats, ADRs, controls, flows)</div>
+<div class="docs-heading">blast\_radius</div>
+<div class="docs-muted">Analysis</div>
+<div class="docs-muted">Downstream impact analysis across relationships and BARs</div>
+<div class="docs-heading">governance\_gaps</div>
+<div class="docs-muted">Analysis</div>
+<div class="docs-muted">Missing artifacts, weak scores, overdue reviews</div>
+<div class="docs-heading">flow\_impact</div>
+<div class="docs-muted">Analysis</div>
+<div class="docs-muted">Downstream impact of a change on linked BARs</div>
+<div class="docs-heading">get\_orchestration\_decision</div>
+<div class="docs-muted">Query</div>
+<div class="docs-muted">Full Red Queen decision for a BAR (tier, permissions, prompt packs)</div>
+<div class="docs-heading">validate\_action</div>
+<div class="docs-heading">Enforce</div>
+<div class="docs-muted">Policy-engine validation against CALM flows, controls, interface contracts</div>
+<div class="docs-heading">validate\_interface\_contract</div>
+<div class="docs-heading">Enforce</div>
+<div class="docs-muted">Cross-repo interface adherence validation</div>
 </div>
 
 </div>
@@ -141,22 +146,22 @@ Enforcement tools return **Allow**, **Conditional** (with requirements), or **De
 
 Governance scores directly drive agent autonomy:
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
-<div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Autonomous</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">80-100%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Auto-edit mode. Can edit src/\*\*, run tests/lint/build. Red Queen policy checks still enforce flow and control constraints.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-grid">
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Autonomous</div>
+<div class="docs-heading">80-100%</div>
+<div class="docs-muted">Auto-edit mode. Can edit src/\*\*, run tests/lint/build. Red Queen policy checks still enforce flow and control constraints.</div>
 </div>
-<div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Supervised</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">50-79%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Ask-edit mode. Requires human approval. OWASP and STRIDE packs auto-injected for weak pillars.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Supervised</div>
+<div class="docs-heading">50-79%</div>
+<div class="docs-muted">Ask-edit mode. Requires human approval. OWASP and STRIDE packs auto-injected for weak pillars.</div>
 </div>
-<div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Restricted</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">0-49%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Plan mode only. 2 agent reviews + human approval. Red Queen blocks unapproved infrastructure changes.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Restricted</div>
+<div class="docs-heading">0-49%</div>
+<div class="docs-muted">Plan mode only. 2 agent reviews + human approval. Red Queen blocks unapproved infrastructure changes.</div>
 </div>
 </div>
 </div>
@@ -167,28 +172,28 @@ Governance scores directly drive agent autonomy:
 
 ## Five Red Queen Policy Checks
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; gap: 16px;">
-<div style="display: flex; gap: 16px; align-items: baseline;">
-<div style="color: #c4b5fd; font-weight: 700; font-size: 14px; min-width: 160px;">Flow Constraints</div>
-<div style="color: #94a3b8; font-size: 13px;">CALM flow transitions are law. No undeclared connections between components.</div>
+<div class="docs-grid">
+<div class="docs-flex-block">
+<div class="docs-heading">Flow Constraints</div>
+<div class="docs-muted">CALM flow transitions are law. No undeclared connections between components.</div>
 </div>
-<div style="display: flex; gap: 16px; align-items: baseline;">
-<div style="color: #c4b5fd; font-weight: 700; font-size: 14px; min-width: 160px;">Control Adherence</div>
-<div style="color: #94a3b8; font-size: 13px;">NIST controls enforced. No endpoint without authentication if control requires it.</div>
+<div class="docs-flex-block">
+<div class="docs-heading">Control Adherence</div>
+<div class="docs-muted">NIST controls enforced. No endpoint without authentication if control requires it.</div>
 </div>
-<div style="display: flex; gap: 16px; align-items: baseline;">
-<div style="color: #c4b5fd; font-weight: 700; font-size: 14px; min-width: 160px;">Interface Contracts</div>
-<div style="color: #94a3b8; font-size: 13px;">Cross-repo semantics respected. Frontend changes must match the API's interface spec.</div>
+<div class="docs-flex-block">
+<div class="docs-heading">Interface Contracts</div>
+<div class="docs-muted">Cross-repo semantics respected. Frontend changes must match the API's interface spec.</div>
 </div>
-<div style="display: flex; gap: 16px; align-items: baseline;">
-<div style="color: #c4b5fd; font-weight: 700; font-size: 14px; min-width: 160px;">Threat Model</div>
-<div style="color: #94a3b8; font-size: 13px;">STRIDE mitigations validated. Changes introducing new threats are flagged or blocked.</div>
+<div class="docs-flex-block">
+<div class="docs-heading">Threat Model</div>
+<div class="docs-muted">STRIDE mitigations validated. Changes introducing new threats are flagged or blocked.</div>
 </div>
-<div style="display: flex; gap: 16px; align-items: baseline;">
-<div style="color: #c4b5fd; font-weight: 700; font-size: 14px; min-width: 160px;">Permission Tiers</div>
-<div style="color: #94a3b8; font-size: 13px;">Score-based boundaries. Restricted-tier agents cannot modify infrastructure.</div>
+<div class="docs-flex-block">
+<div class="docs-heading">Permission Tiers</div>
+<div class="docs-muted">Score-based boundaries. Restricted-tier agents cannot modify infrastructure.</div>
 </div>
 </div>
 
@@ -202,24 +207,24 @@ All enforcement is **deterministic** — finite state machines evaluating the CA
 
 When your CALM model declares a flow across repositories (e.g., checkout-ui → order-api → order-database), the Red Queen understands the full dependency graph.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; gap: 16px;">
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #334155;">
-<div style="color: #e2e8f0; font-size: 14px;">Frontend calls undeclared API endpoint</div>
-<div><span style="color: #f87171; font-weight: 700;">Denied</span> <span style="color: #94a3b8; font-size: 13px;">— interface doesn't include that endpoint</span></div>
+<div class="docs-grid">
+<div class="docs-grid">
+<div class="docs-copy">Frontend calls undeclared API endpoint</div>
+<div><span class="docs-copy">Denied</span> <span class="docs-copy">— interface doesn't include that endpoint</span></div>
 </div>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #334155;">
-<div style="color: #e2e8f0; font-size: 14px;">API changes response format</div>
-<div><span style="color: #fbbf24; font-weight: 700;">Conditional</span> <span style="color: #94a3b8; font-size: 13px;">— downstream BAR consumes this interface, update it first</span></div>
+<div class="docs-grid">
+<div class="docs-copy">API changes response format</div>
+<div><span class="docs-copy">Conditional</span> <span class="docs-copy">— downstream BAR consumes this interface, update it first</span></div>
 </div>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #334155;">
-<div style="color: #e2e8f0; font-size: 14px;">Database drops a column</div>
-<div><span style="color: #f87171; font-weight: 700;">Denied</span> <span style="color: #94a3b8; font-size: 13px;">— blast radius: 4 nodes, 2 BARs. Requires migration ADR.</span></div>
+<div class="docs-grid">
+<div class="docs-copy">Database drops a column</div>
+<div><span class="docs-copy">Denied</span> <span class="docs-copy">— blast radius: 4 nodes, 2 BARs. Requires migration ADR.</span></div>
 </div>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-<div style="color: #e2e8f0; font-size: 14px;">New service without auth middleware</div>
-<div><span style="color: #f87171; font-weight: 700;">Blocked</span> <span style="color: #94a3b8; font-size: 13px;">— control requires OAuth2 on all endpoints</span></div>
+<div class="docs-grid">
+<div class="docs-copy">New service without auth middleware</div>
+<div><span class="docs-copy">Blocked</span> <span class="docs-copy">— control requires OAuth2 on all endpoints</span></div>
 </div>
 </div>
 
@@ -229,31 +234,31 @@ When your CALM model declares a flow across repositories (e.g., checkout-ui → 
 
 ## GitHub Actions Workflow
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #6366f1;">
+<div class="docs-card docs-card-indigo">
 
-<p style="color: #6366f1; font-weight: 700; font-size: 14px; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">claude-code-governance.yml</p>
+<p class="docs-copy">claude-code-governance.yml</p>
 
-<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 20px; font-size: 13px; color: #e2e8f0; line-height: 1.8; font-family: monospace;">
+<div class="docs-card docs-card-muted">
 
-<span style="color: #7dd3fc;">name:</span> Claude Code Governance<br/>
-<span style="color: #7dd3fc;">on:</span><br/>
-&nbsp;&nbsp;<span style="color: #7dd3fc;">issues:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">types:</span> [opened, labeled]<br/>
+<span class="docs-copy">name:</span> Claude Code Governance<br/>
+<span class="docs-copy">on:</span><br/>
+&nbsp;&nbsp;<span class="docs-copy">issues:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">types:</span> [opened, labeled]<br/>
 <br/>
-<span style="color: #7dd3fc;">jobs:</span><br/>
-&nbsp;&nbsp;<span style="color: #7dd3fc;">claude-fix:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">runs-on:</span> ubuntu-latest<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">steps:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">uses:</span> actions/checkout@v4<br/>
+<span class="docs-copy">jobs:</span><br/>
+&nbsp;&nbsp;<span class="docs-copy">claude-fix:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">runs-on:</span> ubuntu-latest<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">steps:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="docs-copy">uses:</span> actions/checkout@v4<br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Start Red Queen MCP Server<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">run:</span> |<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="docs-copy">name:</span> Start Red Queen MCP Server<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">run:</span> |<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node .redqueen/mcp-runner.js &amp;<br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Run Claude Code Action<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">uses:</span> anthropics/claude-code-action@v1<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">with:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">anthropic\_api\_key:</span> $\{\{ secrets.ANTHROPIC\_API\_KEY \}\}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="docs-copy">name:</span> Run Claude Code Action<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">uses:</span> anthropics/claude-code-action@v1<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">with:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">anthropic\_api\_key:</span> $\{\{ secrets.ANTHROPIC\_API\_KEY \}\}
 
 </div>
 
@@ -265,40 +270,40 @@ The repo-local MCP runner starts before Claude Code Action runs. The agent calls
 
 ## What Claude Code Action Has That In-Editor Doesn't
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px 24px; font-size: 13px;">
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Capability</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155; text-align: center;">In-Editor</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155; text-align: center;">Agentic</div>
+<div class="docs-grid">
+<div class="docs-heading">Capability</div>
+<div class="docs-center-block">In-Editor</div>
+<div class="docs-center-block">Agentic</div>
 
-<div style="color: #e2e8f0;">MCP Resources (calm://)</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>MCP Resources (calm://)</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 
-<div style="color: #e2e8f0;">MCP Prompts</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>MCP Prompts</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 
-<div style="color: #e2e8f0;">Red Queen Policy Checks</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>Red Queen Policy Checks</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 
-<div style="color: #e2e8f0;">PreToolUse/PostToolUse Hooks</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>PreToolUse/PostToolUse Hooks</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 
-<div style="color: #e2e8f0;">Dynamic CLAUDE.md</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>Dynamic CLAUDE.md</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 
-<div style="color: #e2e8f0;">Cross-repo enforcement</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>Cross-repo enforcement</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 
-<div style="color: #e2e8f0;">Permission tiers</div>
-<div style="text-align: center;">❌</div>
-<div style="text-align: center;">✅</div>
+<div>Permission tiers</div>
+<div class="docs-center-block">❌</div>
+<div class="docs-center-block">✅</div>
 </div>
 
 </div>

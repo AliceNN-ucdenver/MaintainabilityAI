@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Validator loop — implement, validate, revise</title>
+  <desc id="d">Two agents in an explicit feedback loop. The Implementer produces a diff; the Validator runs security and quality checks. A pass advances to human approval; a fail returns with a structured findings packet for revision.</desc>
+  <defs>
+    <radialGradient id="vlBg" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#0a1e15" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="goArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#6ee7b7"/>
+    </marker>
+    <marker id="backFailArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#fb7185"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#6ee7b7}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .agName{font:900 22px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .agRole{font:600 13px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+      .agSpec{font:500 11px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .edgeLbl{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase;text-anchor:middle}
+      .panelHdr{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#cbd5e1}
+      .findItem{font:600 12px -apple-system,system-ui,sans-serif;fill:#cbd5e1}
+      .findCount{font:900 14px -apple-system,system-ui,sans-serif;fill:#fda4af;text-anchor:end}
+      .approvedTxt{font:900 18px -apple-system,system-ui,sans-serif;fill:#6ee7b7;text-anchor:middle}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#vlBg)"/>
+
+  <text x="64" y="74" class="eyebrow">Agent validation</text>
+  <text x="64" y="118" class="heroTitle">Implement, validate, revise</text>
+  <text x="64" y="148" class="heroSub">Validator feedback keeps autonomous implementation inside the architectural contract.</text>
+
+  <!-- Task chip top-left -->
+  <g transform="translate(96,230)">
+    <rect width="240" height="68" rx="14" fill="rgba(251,191,36,0.1)" stroke="#fbbf24"/>
+    <text x="20" y="32" font="800 13px -apple-system,system-ui,sans-serif" font-size="13" font-weight="800" font-family="-apple-system,system-ui,sans-serif" letter-spacing="2.5px" fill="#fcd34d" text-transform="uppercase">Task</text>
+    <text x="20" y="54" class="agRole">RCTRO + acceptance criteria</text>
+  </g>
+  <g fill="none" stroke="rgba(148,163,184,0.5)" stroke-width="1.5">
+    <path d="M336 264 L420 350" marker-end="url(#goArr)"/>
+  </g>
+
+  <!-- Implementer (large circle, left) -->
+  <g transform="translate(440,400)">
+    <circle r="100" fill="rgba(15,23,42,0.95)" stroke="#fbbf24" stroke-width="3"/>
+    <circle r="100" fill="rgba(251,191,36,0.08)"/>
+    <text y="-10" class="agName" fill="#fcd34d">Implementer</text>
+    <text y="14" class="agRole">produce diff</text>
+    <text y="40" class="agSpec">Claude Code · Copilot Coding Agent</text>
+  </g>
+
+  <!-- Validator (large circle, right) -->
+  <g transform="translate(840,400)">
+    <circle r="100" fill="rgba(15,23,42,0.95)" stroke="#34d399" stroke-width="3"/>
+    <circle r="100" fill="rgba(52,211,153,0.08)"/>
+    <text y="-10" class="agName" fill="#6ee7b7">Validator</text>
+    <text y="14" class="agRole">security + quality</text>
+    <text y="40" class="agSpec">tests · CodeQL · Snyk · fitness</text>
+  </g>
+
+  <!-- Diff arrow (left → right, top) -->
+  <g fill="none" stroke="#6ee7b7" stroke-width="2.2">
+    <path d="M 540 360 C 600 320, 680 320, 740 360" marker-end="url(#goArr)"/>
+  </g>
+  <text x="640" y="312" class="edgeLbl" fill="#6ee7b7">diff + tests</text>
+
+  <!-- Findings arrow (right → left, bottom) -->
+  <g fill="none" stroke="#fb7185" stroke-width="2.2" stroke-dasharray="6 4">
+    <path d="M 740 440 C 680 480, 600 480, 540 440" marker-end="url(#backFailArr)"/>
+  </g>
+  <text x="640" y="500" class="edgeLbl" fill="#fda4af">findings + revision asks</text>
+
+  <!-- Approval path (validator → human, right side) -->
+  <g fill="none" stroke="#6ee7b7" stroke-width="2.2">
+    <path d="M 940 400 L 1050 400" marker-end="url(#goArr)"/>
+  </g>
+  <text x="990" y="386" class="edgeLbl" fill="#6ee7b7">pass</text>
+
+  <!-- Human approval chip (right side) -->
+  <g transform="translate(1060,360)">
+    <rect width="180" height="84" rx="14" fill="rgba(52,211,153,0.12)" stroke="#34d399"/>
+    <text x="90" y="34" class="approvedTxt">Human OK</text>
+    <text x="90" y="58" class="agRole">CODEOWNER signs</text>
+    <text x="90" y="74" class="agSpec">with rationale</text>
+  </g>
+
+  <!-- Findings panel below (showing what comes back) -->
+  <g transform="translate(96,560)">
+    <rect width="1088" height="116" rx="14" fill="rgba(15,23,42,0.7)" stroke="rgba(251,113,133,0.3)"/>
+    <text x="20" y="32" class="panelHdr" fill="#fda4af">Structured findings packet — what the validator returns on a fail</text>
+
+    <g transform="translate(20,52)">
+      <text class="findItem">A03 · unbounded SQL query in share lookup</text>
+      <text x="500" class="findCount">1 critical</text>
+    </g>
+    <g transform="translate(20,74)">
+      <text class="findItem">A01 · missing ownership check before share</text>
+      <text x="500" class="findCount">1 critical</text>
+    </g>
+    <g transform="translate(20,96)">
+      <text class="findItem">complexity 14 in ShareController.handle — gate is ≤ 10</text>
+      <text x="500" class="findCount">1 fail</text>
+    </g>
+
+    <g transform="translate(560,52)">
+      <text class="findItem" fill="#94a3b8">Each finding includes file, line, recommended fix,</text>
+    </g>
+    <g transform="translate(560,74)">
+      <text class="findItem" fill="#94a3b8">and the prompt-pack section to consult. The implementer</text>
+    </g>
+    <g transform="translate(560,96)">
+      <text class="findItem" fill="#94a3b8">addresses every finding before re-running the loop.</text>
+    </g>
+  </g>
+</svg>

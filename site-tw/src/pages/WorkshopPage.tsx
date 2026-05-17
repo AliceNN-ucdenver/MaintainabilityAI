@@ -1,146 +1,136 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { workshopOutcomes, workshopRoadmapParts } from '../content/siteContent';
 
 export default function WorkshopPage() {
   return (
-    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <div className="mb-8 sm:mb-12">
-        <Link to="/" className="text-brand hover:text-indigo-400 inline-flex items-center gap-2 mb-4 sm:mb-6 text-sm sm:text-base">
-          ← Back to Home
-        </Link>
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight">Workshop: Agentic, Secure AI Engineering</h1>
-        <p className="mt-4 text-base sm:text-lg md:text-xl text-slate-300 max-w-3xl">
-          An 8-part, hands-on workshop for teams learning security-first AI-assisted development.
-          From vibe coding to production-grade agentic workflows with OWASP + Maintainability integration.
-        </p>
-      </div>
-
-      {/* Workshop Info Cards */}
-      <div className="mt-8 grid md:grid-cols-3 gap-4 mb-12">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
-          <div className="text-brand font-bold text-sm mb-1">Duration</div>
-          <div className="text-2xl font-bold">8 × 90min</div>
-          <div className="text-slate-400 text-sm mt-1">Full-day or weekly series</div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
-          <div className="text-brand font-bold text-sm mb-1">Audience</div>
-          <div className="text-2xl font-bold">Jr → Sr</div>
-          <div className="text-slate-400 text-sm mt-1">Developers & architects</div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
-          <div className="text-brand font-bold text-sm mb-1">Format</div>
-          <div className="text-2xl font-bold">Hands-On</div>
-          <div className="text-slate-400 text-sm mt-1">70% lab, 30% lecture</div>
-        </div>
-      </div>
-
-      {/* Call to Action for Workshop Overview */}
-      <div className="rounded-2xl border-2 border-brand bg-gradient-to-br from-indigo-950/50 to-slate-900 p-6 sm:p-8 mb-8 sm:mb-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
-          <div className="text-center md:text-left">
-            <h2 className="text-xl sm:text-2xl font-bold mb-2">Start the Workshop</h2>
-            <p className="text-slate-300 text-sm sm:text-base">
-              Get hands-on with our 4-part workshop series. Learn security-first AI development with real code examples.
-            </p>
-          </div>
-          <Link to="/docs/workshop" className="px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-brand text-slate-900 font-bold text-base sm:text-lg hover:bg-indigo-400 transition whitespace-nowrap w-full md:w-auto text-center">
-            Begin Workshop →
+    <main>
+      <section className="site-hero">
+        <div className="site-shell relative py-12 md:py-20">
+          <Link to="/" className="site-link mb-6 inline-flex items-center gap-2 text-sm sm:text-base">
+            Back to Home
           </Link>
-        </div>
-      </div>
 
-      {/* Full agenda content - render as markdown for now */}
-      <div className="text-slate-300">
-
-        <div className="rounded-2xl border-2 border-brand bg-gradient-to-br from-indigo-950/50 to-slate-900 p-8 mb-12">
-          <h2 className="text-3xl font-bold mb-6">Workshop Overview</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-bold text-xl mb-3 text-brand">What You'll Learn</h3>
-              <ul className="space-y-2 text-slate-300">
-                <li>✓ Security-first prompt engineering (OWASP integration)</li>
-                <li>✓ Maintainability-first prompting (fitness functions, complexity limits)</li>
-                <li>✓ OWASP Top 10 remediation with AI</li>
-                <li>✓ Fitness function implementation</li>
-                <li>✓ Multi-agent security workflows</li>
-                <li>✓ CodeQL + Snyk integration</li>
-                <li>✓ Golden Rules governance</li>
-              </ul>
+          <div className="workshop-hero-grid">
+            <div className="site-shell-narrow">
+              <p className="site-eyebrow-cyan">Workshop agenda</p>
+              <h1 className="site-page-title">Agentic engineering, secure by design.</h1>
+              <p className="site-lede max-w-3xl md:text-xl">
+                A team workshop that moves developers from AI experimentation into governed delivery: prompt discipline, OWASP remediation, fitness functions, and architecture-aware agent control.
+              </p>
             </div>
-            <div>
-              <h3 className="font-bold text-xl mb-3 text-brand">What You'll Take Home</h3>
-              <ul className="space-y-2 text-slate-300">
-                <li>✓ Complete OWASP A01-A10 prompt pack</li>
-                <li>✓ Maintainability prompt packs (fitness functions, dependency hygiene, Strangler Fig, technical debt)</li>
-                <li>✓ Team prompt library starter kit</li>
-                <li>✓ CodeQL + Snyk CI/CD workflows</li>
-                <li>✓ Fitness function test suite</li>
-                <li>✓ Multi-agent orchestration templates</li>
-              </ul>
+
+            <figure className="workshop-hero-figure">
+              <img
+                src="/images/alice-bot.png"
+                alt="MaintainabilityAI workshop guide"
+                className="workshop-hero-image"
+              />
+              <figcaption className="workshop-hero-caption">
+                A guided path from prompt discipline to governed agentic delivery.
+              </figcaption>
+            </figure>
+          </div>
+
+          <div className="mt-10 grid md:grid-cols-3 gap-4">
+            <div className="site-card-compact">
+              <div className="text-brand font-bold text-sm mb-1">Delivery</div>
+              <div className="text-2xl font-bold">Flexible</div>
+              <div className="text-slate-400 text-sm mt-1">Full-day, weekly series, or custom team path</div>
+            </div>
+            <div className="site-card-compact">
+              <div className="text-brand font-bold text-sm mb-1">Audience</div>
+              <div className="text-2xl font-bold">Developers + architects</div>
+              <div className="text-slate-400 text-sm mt-1">Junior to senior, with security partners welcome</div>
+            </div>
+            <div className="site-card-compact">
+              <div className="text-brand font-bold text-sm mb-1">Current status</div>
+              <div className="text-2xl font-bold">All 8 parts live</div>
+              <div className="text-slate-400 text-sm mt-1">Complete agentic SDLC, orientation through capstone</div>
             </div>
           </div>
         </div>
+      </section>
 
-        <section className="mb-12">
-          <h2 className="text-3xl font-bold mb-6">8-Part Curriculum</h2>
-          <div className="space-y-4">
-            <Link to="/docs/workshop/part1-spectrum" className="block rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-brand/50 transition">
-              <h3 className="font-bold text-xl mb-2">Part 1: The Spectrum (Vibe → AI-Assisted → Agentic)</h3>
-              <p className="text-slate-400">Understand the three modes of AI-assisted development and when to use each.</p>
-            </Link>
-
-            <Link to="/docs/workshop/part2-security-prompting" className="block rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-brand/50 transition">
-              <h3 className="font-bold text-xl mb-2">Part 2: Security-First Prompting with OWASP</h3>
-              <p className="text-slate-400">Master the anatomy of security-first prompts with OWASP Top 10 integration.</p>
-            </Link>
-
-            <Link to="/docs/workshop/part3-live-remediation" className="block rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-brand/50 transition">
-              <h3 className="font-bold text-xl mb-2">Part 3: Live Remediation (A03 Injection)</h3>
-              <p className="text-slate-400">Step-by-step SQL injection remediation using real vulnerable code.</p>
-            </Link>
-
-            <Link to="/docs/workshop/part4-fitness-functions" className="block rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-brand/50 transition">
-              <h3 className="font-bold text-xl mb-2">Part 4: Fitness Functions (Automated Quality Gates)</h3>
-              <p className="text-slate-400">Implement Evolutionary Architecture fitness functions to prevent technical debt.</p>
-            </Link>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6">
-              <h3 className="font-bold text-xl mb-2">Part 5: CodeQL + Snyk (Full Security Pipeline)</h3>
-              <p className="text-slate-400">Master both CodeQL (SAST) and Snyk (SCA + SAST) for comprehensive security scanning.</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6">
-              <h3 className="font-bold text-xl mb-2">Part 6: Building Your Team Prompt Library</h3>
-              <p className="text-slate-400">Create hybrid prompts combining security + maintainability requirements.</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6">
-              <h3 className="font-bold text-xl mb-2">Part 7: Multi-Agent Security Orchestration</h3>
-              <p className="text-slate-400">Coordinate multiple AI agents for complex security workflows.</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6">
-              <h3 className="font-bold text-xl mb-2">Part 8: Governance & Golden Rules</h3>
-              <p className="text-slate-400">Implement the Golden Rules framework for responsible AI-assisted development.</p>
+      <section className="site-shell site-section-tight">
+        <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-10">
+          <div>
+            <p className="site-eyebrow">Learner path</p>
+            <h2 className="site-heading">The docs workshop is the canonical path.</h2>
+            <p className="site-lede text-base">
+              This page explains the team journey and delivery shape. The workshop docs carry the actual step-by-step learner experience, exercises, resources, and next steps.
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <Link to="/docs/workshop" className="site-button-primary">
+                Open Workshop Docs
+              </Link>
+              <a href="https://chiefarcheologist.com/contact" className="site-button-secondary">
+                Discuss Delivery
+              </a>
             </div>
           </div>
-        </section>
 
-        <section className="mt-16 text-center border-t border-slate-800 pt-12">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Team?</h2>
-          <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-            Available for on-site or remote delivery. Customizable to your tech stack and team size.
+          <div className="site-card">
+            <h3 className="text-2xl font-bold mb-4">What teams take away</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {workshopOutcomes.map((outcome) => (
+                <div key={outcome} className="border-l-2 border-brand pl-4 text-slate-300">
+                  {outcome}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="site-band-top">
+        <div className="site-shell site-section-tight">
+          <div className="grid lg:grid-cols-[1fr_0.9fr] gap-10 items-center">
+            <div>
+              <p className="site-eyebrow">Capstone direction</p>
+              <h2 className="site-heading">One coherent finish line.</h2>
+              <p className="site-lede">
+                The final arc should converge on one app, one threat model, one prompt library, one PR, one fitness gate, and one governance review. That gives learners a memorable path from concept to controlled agentic delivery.
+              </p>
+            </div>
+            <div className="site-card-muted">
+              <h3 className="text-2xl font-bold mb-4">Recommended next step</h3>
+              <p className="text-slate-300 mb-6">
+                Start with Part 1 if your team is new to the framework. Jump to Part 4 if your team already uses AI coding tools and needs measurable quality gates.
+              </p>
+              <Link to="/docs/workshop/part1-spectrum" className="site-button-primary w-full">
+                Start Part 1
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="site-shell site-section-tight">
+        <div className="max-w-3xl">
+          <p className="site-eyebrow-cyan">Roadmap</p>
+          <h2 className="site-heading">Next: Research + PRD agents.</h2>
+          <p className="site-lede text-base">
+            With all 8 workshop parts live, the framework now extends upstream of implementation. Two new mesh-side agents take a plain-English brief and produce an audit-grade research doc and a grounded PRD — the inputs Cheshire turns into RCTRO issues for the coding agents.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://chiefarcheologist.com/contact" className="px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
-              Contact Chief Archeologist
-            </a>
-            <Link to="/docs/workshop" className="px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 font-semibold text-lg transition">
-              Start Workshop
-            </Link>
-          </div>
-        </section>
-      </div>
+        </div>
+
+        <div className="mt-8 grid md:grid-cols-2 gap-4">
+          {workshopRoadmapParts.map(({ part, title, subtitle, body, href }) => {
+            const card = (
+              <div className="site-card-compact border-cyan-400/25 bg-cyan-400/5 h-full">
+                <div className="text-xs text-cyan-300 font-semibold uppercase tracking-[0.18em]">{part}</div>
+                <h3 className="mt-2 text-xl font-bold text-white">{title}</h3>
+                {subtitle ? <div className="mt-1 text-xs text-cyan-200/80">{subtitle}</div> : null}
+                <p className="mt-3 text-sm text-slate-400 leading-relaxed">{body}</p>
+              </div>
+            );
+            return href
+              ? <Link key={part + title} to={href} className="block hover:opacity-95 transition-opacity">{card}</Link>
+              : <div key={part + title}>{card}</div>;
+          })}
+        </div>
+      </section>
     </main>
   );
 }

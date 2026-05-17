@@ -6,18 +6,20 @@ export default function Layout() {
 
   return (
     <div className="bg-slate-950 text-slate-100 min-h-screen">
-      <header className="border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className="site-header">
+        <div className="site-shell flex items-center justify-between py-4">
           <Link to="/" className="font-extrabold text-xl sm:text-2xl tracking-tight">
             <span className="text-brand">Maintainability</span>.ai
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-6 text-slate-300">
-            <Link className="hover:text-white" to="/agenda">Workshop</Link>
-            <Link className="hover:text-white" to="/docs/">Docs</Link>
-            <a className="hover:text-white" href="https://github.com/AliceNN-ucdenver/MaintainabilityAI">GitHub</a>
-            <a className="px-4 py-2 rounded-lg bg-brand text-slate-900 font-semibold hover:bg-indigo-400" href="https://chiefarcheologist.com/contact">Contact</a>
+            <Link className="site-nav-link" to="/docs/impossible-things">Vision</Link>
+            <Link className="site-nav-link" to="/docs/framework">Framework</Link>
+            <Link className="site-nav-link" to="/docs/">Docs</Link>
+            <Link className="site-nav-link" to="/agenda">Workshop</Link>
+            <a className="site-nav-link" href="https://github.com/AliceNN-ucdenver/MaintainabilityAI">GitHub</a>
+            <a className="site-button-primary px-4 py-2" href="https://chiefarcheologist.com/contact">Contact</a>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -41,27 +43,41 @@ export default function Layout() {
           <div className="md:hidden border-t border-slate-800 bg-slate-900">
             <nav className="flex flex-col px-4 py-4 space-y-3">
               <Link
-                className="text-slate-300 hover:text-white py-2"
-                to="/agenda"
+                className="site-mobile-link"
+                to="/docs/impossible-things"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Workshop
+                Vision
               </Link>
               <Link
-                className="text-slate-300 hover:text-white py-2"
+                className="site-mobile-link"
+                to="/docs/framework"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Framework
+              </Link>
+              <Link
+                className="site-mobile-link"
                 to="/docs/"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Docs
               </Link>
+              <Link
+                className="site-mobile-link"
+                to="/agenda"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Workshop
+              </Link>
               <a
-                className="text-slate-300 hover:text-white py-2"
+                className="site-mobile-link"
                 href="https://github.com/AliceNN-ucdenver/MaintainabilityAI"
               >
                 GitHub
               </a>
               <a
-                className="px-4 py-3 rounded-lg bg-brand text-slate-900 font-semibold hover:bg-indigo-400 text-center"
+                className="site-button-primary"
                 href="https://chiefarcheologist.com/contact"
               >
                 Contact
@@ -74,7 +90,7 @@ export default function Layout() {
       <Outlet />
 
       <footer className="border-t border-slate-800 bg-slate-950">
-        <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="site-shell py-10">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div>
               <h4 className="font-bold text-lg mb-4 text-brand">Maintainability.ai</h4>
@@ -86,22 +102,25 @@ export default function Layout() {
             <div>
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-slate-400 text-sm">
-                <li><Link to="/docs/" className="hover:text-white">Documentation</Link></li>
-                <li><Link to="/agenda" className="hover:text-white">Workshop</Link></li>
-                <li><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="hover:text-white">GitHub</a></li>
-                <li><Link to="/docs/impossible-things" className="hover:text-white">Impossible Things</Link></li>
-                <li><Link to="/docs/governance/vibe-golden-rules" className="hover:text-white">Golden Rules</Link></li>
+                <li><Link to="/docs/impossible-things" className="site-footer-link">Vision</Link></li>
+                <li><Link to="/docs/framework" className="site-footer-link">Framework</Link></li>
+                <li><Link to="/docs/" className="site-footer-link">Documentation</Link></li>
+                <li><Link to="/agenda" className="site-footer-link">Workshop</Link></li>
+                <li><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="site-footer-link">GitHub</a></li>
+                <li><Link to="/docs/governance/governed-golden-rules" className="site-footer-link">Golden Rules</Link></li>
+                <li><Link to="/docs/governance/compliance-mapping" className="site-footer-link">Compliance Mapping</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold mb-4">Framework</h4>
               <ul className="space-y-2 text-slate-400 text-sm">
-                <li><Link to="/docs/sdlc/" className="hover:text-white">SDLC Phases</Link></li>
-                <li><Link to="/docs/prompts/threat-modeling/" className="hover:text-white">Threat Modeling Prompts</Link></li>
-                <li><Link to="/docs/prompts/owasp/" className="hover:text-white">OWASP Prompts</Link></li>
-                <li><Link to="/docs/prompts/maintainability/" className="hover:text-white">Maintainability Prompts</Link></li>
-                <li><Link to="/docs/framework" className="hover:text-white">Framework Guide</Link></li>
+                <li><Link to="/docs/framework" className="site-footer-link">Framework Guide</Link></li>
+                <li><Link to="/docs/sdlc/" className="site-footer-link">SDLC Phases</Link></li>
+                <li><Link to="/docs/prompts/threat-modeling/" className="site-footer-link">Threat Modeling Prompts</Link></li>
+                <li><Link to="/docs/prompts/owasp/" className="site-footer-link">OWASP Prompts</Link></li>
+                <li><Link to="/docs/prompts/maintainability/" className="site-footer-link">Maintainability Prompts</Link></li>
+                <li><Link to="/docs/quickstart-redqueen" className="site-footer-link">Red Queen Quickstart</Link></li>
               </ul>
             </div>
           </div>

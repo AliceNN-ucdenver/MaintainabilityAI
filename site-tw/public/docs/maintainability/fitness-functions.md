@@ -1,9 +1,11 @@
-# Architectural Fitness Functions
-
-<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);">
-  <div style="text-align: center;">
-    <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Fitness Functions</h2>
-    <div style="font-size: 15px; color: #d1fae5; margin-top: 12px;">An architectural fitness function is an objective function used to assess how close an architecture is to achieving a desired architectural characteristic. They are automated, repeatable, and run continuously in CI to prevent drift.</div>
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/maintainability/">Maintainability</a><span class="sep">/</span><span>Fitness functions</span></div>
+    <div class="docs-eyebrow">Maintainability · automated quality gates <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Architectural fitness functions</h1>
+    <p class="docs-hero-copy">An objective function that measures how close an architecture is to a desired characteristic. Automated, repeatable, and run continuously in CI &mdash; so drift is detected before it becomes debt.</p>
+    <span class="docs-hero-flourish">&ldquo;If you don&rsquo;t know where you&rsquo;re going, any architecture will get you there.&rdquo;</span>
   </div>
 </div>
 
@@ -11,7 +13,7 @@
 
 ## Quick Reference
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981; overflow-x: auto;">
+<div class="docs-card docs-card-emerald">
 
 | Fitness Function | Metric | Threshold | Tool | Enforcement |
 |------------------|--------|-----------|------|-------------|
@@ -31,12 +33,12 @@ Cyclomatic complexity measures the number of independent paths through a functio
 
 ESLint enforces this at the linting stage. CodeQL custom queries catch functions that slip through. Both run in CI as blocking gates.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">ESLint Complexity Rules</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Configure max complexity, function length, nesting depth, and parameter count</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">ESLint Complexity Rules</span><br/>
+<span class="docs-copy">Configure max complexity, function length, nesting depth, and parameter count</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```javascript
 // .eslintrc.cjs
@@ -54,12 +56,12 @@ module.exports = {
 </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">CodeQL Custom Query</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Flag functions exceeding the complexity threshold during SAST analysis</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">CodeQL Custom Query</span><br/>
+<span class="docs-copy">Flag functions exceeding the complexity threshold during SAST analysis</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```ql
 // .github/codeql/high-complexity-functions.ql
@@ -81,12 +83,12 @@ All dependencies must be upgraded within 3 months of release. This ensures secur
 
 The fitness function parses the output of npm outdated, compares each installed version's publish date against a 3-month window, and fails the build if any package falls outside it.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Dependency Freshness Script</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Automated check that flags packages older than 3 months</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Dependency Freshness Script</span><br/>
+<span class="docs-copy">Automated check that flags packages older than 3 months</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```javascript
 // scripts/dependency-freshness.js
@@ -129,12 +131,12 @@ function checkDependencyFreshness() {
 </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Upgrade All The Things Kata</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">A weekly ritual for keeping dependencies current across patch, minor, and major versions</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Upgrade All The Things Kata</span><br/>
+<span class="docs-copy">A weekly ritual for keeping dependencies current across patch, minor, and major versions</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```markdown
 Weekly Upgrade Workflow:
@@ -176,12 +178,12 @@ The security fitness function aggregates findings from CodeQL (SAST) and Snyk (S
 
 Lower-severity findings are tracked but do not block. Acceptable risks can be suppressed with documented justification and an expiration date in the Snyk policy file.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Security Compliance Function</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Combines CodeQL and Snyk results and enforces zero high/critical findings</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Security Compliance Function</span><br/>
+<span class="docs-copy">Combines CodeQL and Snyk results and enforces zero high/critical findings</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // scripts/security-fitness.ts
@@ -223,12 +225,12 @@ Jest enforces coverage thresholds at two levels: 80% globally and 100% for secur
 
 Coverage reports upload to CI artifacts for trend analysis across builds.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Jest Coverage Configuration</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Global 80% threshold with 100% override for security-critical paths</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Jest Coverage Configuration</span><br/>
+<span class="docs-copy">Global 80% threshold with 100% override for security-critical paths</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // jest.config.ts
@@ -260,12 +262,12 @@ export default {
 </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">CI Coverage Reporting</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generate coverage in CI and upload to Codecov for trend tracking</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">CI Coverage Reporting</span><br/>
+<span class="docs-copy">Generate coverage in CI and upload to Codecov for trend tracking</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```yaml
 - name: Test Coverage
@@ -288,12 +290,12 @@ Performance fitness functions measure p95 response times and detect query scalin
 
 These run as Jest test suites alongside functional tests and report as CI warnings rather than blocking gates, since performance can vary across CI runner hardware.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Performance Test Suite</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">p95 latency check and N+1 query detection as Jest tests</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Performance Test Suite</span><br/>
+<span class="docs-copy">p95 latency check and N+1 query detection as Jest tests</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // __tests__/performance.test.ts
@@ -343,12 +345,12 @@ CodeQL custom queries extend the security fitness function beyond built-in rules
 
 The Snyk policy file documents accepted risks with expiration dates, keeping the suppression list auditable and time-bounded.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">CodeQL Custom Queries for OWASP</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Detect SQL injection via concatenation (A03) and hardcoded secrets (A02, A05)</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">CodeQL Custom Queries for OWASP</span><br/>
+<span class="docs-copy">Detect SQL injection via concatenation (A03) and hardcoded secrets (A02, A05)</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```ql
 // .github/codeql/sql-injection.ql (A03)
@@ -371,12 +373,12 @@ select s, "Potential hardcoded secret detected"
 </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Snyk Policy File</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Document accepted risks with expiration dates for auditable suppression</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Snyk Policy File</span><br/>
+<span class="docs-copy">Document accepted risks with expiration dates for auditable suppression</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```yaml
 # .snyk
@@ -399,55 +401,55 @@ patch: {}
 
 ## Fitness Function Dashboard
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Complexity</div>
-  <div style="font-size: 32px; color: #93c5fd; font-weight: 800;">8.2</div>
-  <div style="font-size: 13px; color: #64748b; margin-top: 4px;">avg cyclomatic</div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(100, 116, 139, 0.2);">
-    <span style="font-size: 12px; color: #94a3b8;">Goal: ≤10</span>
-    <span style="font-size: 12px; color: #86efac; font-weight: 600;">PASS</span>
+<div class="docs-card docs-card-blue">
+  <div class="docs-card-kicker">Complexity</div>
+  <div class="docs-icon">8.2</div>
+  <div class="docs-muted">avg cyclomatic</div>
+  <div class="docs-flex-block">
+    <span class="docs-copy">Goal: ≤10</span>
+    <span class="docs-copy">PASS</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-  <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Dependency Freshness</div>
-  <div style="font-size: 32px; color: #86efac; font-weight: 800;">1.8 mo</div>
-  <div style="font-size: 13px; color: #64748b; margin-top: 4px;">avg package age</div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(100, 116, 139, 0.2);">
-    <span style="font-size: 12px; color: #94a3b8;">Goal: <3 months</span>
-    <span style="font-size: 12px; color: #86efac; font-weight: 600;">PASS</span>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-card-kicker">Dependency Freshness</div>
+  <div class="docs-icon">1.8 mo</div>
+  <div class="docs-muted">avg package age</div>
+  <div class="docs-flex-block">
+    <span class="docs-copy">Goal: <3 months</span>
+    <span class="docs-copy">PASS</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Security Compliance</div>
-  <div style="font-size: 32px; color: #fca5a5; font-weight: 800;">0</div>
-  <div style="font-size: 13px; color: #64748b; margin-top: 4px;">high/critical findings</div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(100, 116, 139, 0.2);">
-    <span style="font-size: 12px; color: #94a3b8;">Goal: 0</span>
-    <span style="font-size: 12px; color: #86efac; font-weight: 600;">PASS</span>
+<div class="docs-card docs-card-rose">
+  <div class="docs-card-kicker">Security Compliance</div>
+  <div class="docs-icon">0</div>
+  <div class="docs-muted">high/critical findings</div>
+  <div class="docs-flex-block">
+    <span class="docs-copy">Goal: 0</span>
+    <span class="docs-copy">PASS</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #a855f7;">
-  <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Test Coverage</div>
-  <div style="font-size: 32px; color: #d8b4fe; font-weight: 800;">87%</div>
-  <div style="font-size: 13px; color: #64748b; margin-top: 4px;">line coverage</div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(100, 116, 139, 0.2);">
-    <span style="font-size: 12px; color: #94a3b8;">Goal: ≥80%</span>
-    <span style="font-size: 12px; color: #86efac; font-weight: 600;">PASS</span>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-card-kicker">Test Coverage</div>
+  <div class="docs-icon">87%</div>
+  <div class="docs-muted">line coverage</div>
+  <div class="docs-flex-block">
+    <span class="docs-copy">Goal: ≥80%</span>
+    <span class="docs-copy">PASS</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Performance</div>
-  <div style="font-size: 32px; color: #fcd34d; font-weight: 800;">145ms</div>
-  <div style="font-size: 13px; color: #64748b; margin-top: 4px;">p95 response time</div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(100, 116, 139, 0.2);">
-    <span style="font-size: 12px; color: #94a3b8;">Goal: <200ms</span>
-    <span style="font-size: 12px; color: #86efac; font-weight: 600;">PASS</span>
+<div class="docs-card docs-card-amber">
+  <div class="docs-card-kicker">Performance</div>
+  <div class="docs-icon">145ms</div>
+  <div class="docs-muted">p95 response time</div>
+  <div class="docs-flex-block">
+    <span class="docs-copy">Goal: <200ms</span>
+    <span class="docs-copy">PASS</span>
   </div>
 </div>
 
@@ -457,12 +459,12 @@ patch: {}
 
 ## Resources
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Further Reading</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
-    <a href="/docs/maintainability/evolutionary-architecture" style="color: #86efac; text-decoration: none;">Evolutionary Architecture</a> -- Incremental change patterns (Strangler Fig, Feature Flags, Branch by Abstraction) and refactoring with AI assistance.<br/>
-    <a href="/docs/sdlc/phase3-verification" style="color: #86efac; text-decoration: none;">SDLC Phase 3: Verification</a> -- The 4 verification gates (Local Tests, CodeQL, Snyk, Fitness Functions) and CI configuration.<br/>
-    <a href="https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/" style="color: #86efac; text-decoration: none;">Building Evolutionary Architectures</a> (O'Reilly) -- The definitive reference on fitness functions, incremental change, and guided architecture evolution by Neal Ford, Rebecca Parsons, and Patrick Kua.
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Further Reading</div>
+  <div class="docs-copy">
+    <a href="/docs/maintainability/evolutionary-architecture" class="markdown-link">Evolutionary Architecture</a> -- Incremental change patterns (Strangler Fig, Feature Flags, Branch by Abstraction) and refactoring with AI assistance.<br/>
+    <a href="/docs/sdlc/phase3-verification" class="markdown-link">SDLC Phase 3: Verification</a> -- The 4 verification gates (Local Tests, CodeQL, Snyk, Fitness Functions) and CI configuration.<br/>
+    <a href="https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/" class="markdown-link">Building Evolutionary Architectures</a> (O'Reilly) -- The definitive reference on fitness functions, incremental change, and guided architecture evolution by Neal Ford, Rebecca Parsons, and Patrick Kua.
   </div>
 </div>
 

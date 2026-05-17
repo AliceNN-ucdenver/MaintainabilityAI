@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Hourglass — maintainability over time">
+  <title>Hourglass — fitness functions over time</title>
+  <defs>
+    <radialGradient id="hgGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#6ee7b7" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#6ee7b7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hgSand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="url(#hgGlow)"/>
+  <!-- top cap -->
+  <rect x="28" y="18" width="44" height="6" rx="2" fill="#6ee7b7"/>
+  <!-- bottom cap -->
+  <rect x="28" y="76" width="44" height="6" rx="2" fill="#6ee7b7"/>
+  <!-- glass outline -->
+  <path d="M30 24 L70 24 L70 30 Q70 38 56 48 L56 52 Q70 62 70 70 L70 76 L30 76 L30 70 Q30 62 44 52 L44 48 Q30 38 30 30 Z"
+        fill="rgba(15,23,42,0.7)" stroke="#a5f3fc" stroke-width="2"/>
+  <!-- top sand (less remaining) -->
+  <path d="M34 30 L66 30 Q60 40 56 46 L44 46 Q40 40 34 30 Z" fill="url(#hgSand)" opacity=".85"/>
+  <!-- falling grain -->
+  <line x1="50" y1="48" x2="50" y2="60" stroke="#34d399" stroke-width="1.5"/>
+  <!-- bottom sand (growing) -->
+  <path d="M34 76 L34 70 Q40 64 50 64 Q60 64 66 70 L66 76 Z" fill="url(#hgSand)"/>
+</svg>

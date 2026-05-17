@@ -1,8 +1,14 @@
-# Insecure Design — OWASP A04 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Insecure design</span></div>
+    <div class="docs-eyebrow">A04 · Insecure design <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Insecure design</h1>
+    <p class="docs-hero-copy">occurs when security flaws are introduced during the design phase, before any code is written. This includes missing or ineffective security controls, business logic flaws, and failure to use threat modeling or secure design patterns. Unlike implementation bugs, these are fundamental architectural weaknesses.</p>
+    <span class="docs-hero-flourish">&ldquo;Begin at the beginning&rdquo; &mdash; threat model before code.</span>
+  </div>
+</div>
 
-> **OWASP A04: Insecure Design** occurs when security flaws are introduced during the design phase, before any code is written. This includes missing or ineffective security controls, business logic flaws, and failure to use threat modeling or secure design patterns. Unlike implementation bugs, these are fundamental architectural weaknesses.
-
----
 
 ## 🎯 What is Insecure Design?
 
@@ -25,19 +31,19 @@
 **Primary**: **Spoofing** (predictable tokens enable impersonation)
 **Secondary**: **Information Disclosure** (design flaws leak system state), **Tampering** (business logic bypass)
 
-See also: [STRIDE: Spoofing](/docs/prompts/stride/spoofing), [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure), and [STRIDE: Tampering](/docs/prompts/stride/tampering)
+See also: [STRIDE: Spoofing](/docs/prompts/threat-modeling/spoofing), [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure), and [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering)
 
 ---
 
 ## Prompt 1: Analyze Code for Insecure Design Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Identifies predictable tokens, missing rate limits, business logic flaws, and design weaknesses</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Identifies predictable tokens, missing rate limits, business logic flaws, and design weaknesses</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security architect specializing in insecure design vulnerabilities (OWASP A04).
@@ -93,13 +99,13 @@ Provide a prioritized list of design vulnerabilities (Critical > High > Medium) 
 
 ## Prompt 2: Implement Secure Design Patterns
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates secure token management, rate limiting, expiration, and business logic validation</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates secure token management, rate limiting, expiration, and business logic validation</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security architect implementing comprehensive secure design patterns for a web application (OWASP A04 remediation).
@@ -181,8 +187,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -210,8 +216,8 @@ export function requestPasswordReset(email: string): string {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -367,51 +373,51 @@ export function validateTransfer(fromUserId: string, toUserId: string, amount: n
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated secure design code, verify:</div>
+<div class="docs-heading">Before merging AI-generated secure design code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Token Unpredictability & Storage</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Token Unpredictability & Storage</div>
+  <div class="docs-copy">
     ✓ All tokens generated via crypto.randomBytes(32) — never from email, timestamp, or sequential IDs<br/>
     ✓ Tokens stored as hashes (bcrypt or SHA-256), never plaintext<br/>
     ✓ No patterns visible when collecting multiple token samples<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Generate 100 tokens — verify no patterns or predictable elements; inspect storage — only hashes present
+    <strong class="docs-strong">Test:</strong> Generate 100 tokens — verify no patterns or predictable elements; inspect storage — only hashes present
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Expiration & One-Time Use</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Expiration & One-Time Use</div>
+  <div class="docs-copy">
     ✓ Reset tokens expire within 15-30 minutes; session tokens within hours/days<br/>
     ✓ Expiration validated on every use via creation timestamp<br/>
     ✓ Tokens marked as used after successful verification — reuse rejected<br/>
     ✓ Reuse attempts logged as security events<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Use token past expiration — rejected; use token twice — second attempt fails with logged event
+    <strong class="docs-strong">Test:</strong> Use token past expiration — rejected; use token twice — second attempt fails with logged event
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Rate Limiting & Business Logic</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Rate Limiting & Business Logic</div>
+  <div class="docs-copy">
     ✓ Rate limits on all sensitive operations (3-5 resets/hour, 5-10 logins/15min)<br/>
     ✓ Generic error messages when limits exceeded<br/>
     ✓ Negative quantities, self-transfers, and excessive amounts rejected server-side<br/>
     ✓ Multi-step workflows validate state transitions (no step skipping)<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Exceed rate limit — blocked with generic error; attempt negative quantity or self-transfer — rejected
+    <strong class="docs-strong">Test:</strong> Exceed rate limit — blocked with generic error; attempt negative quantity or self-transfer — rejected
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth & Logging</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Defense in Depth & Logging</div>
+  <div class="docs-copy">
     ✓ Multiple independent layers: rate limit + expiration + one-time use + hashing<br/>
     ✓ Each layer fails independently without compromising others<br/>
     ✓ All security events logged with masked identifiers, never token values<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Disable one layer — others still protect; trigger security events — logs contain masked data only
+    <strong class="docs-strong">Test:</strong> Disable one layer — others still protect; trigger security events — logs contain masked data only
   </div>
 </div>
 

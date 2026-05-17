@@ -1,8 +1,14 @@
-# Injection — OWASP A03 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Injection</span></div>
+    <div class="docs-eyebrow">A03 · Injection <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Injection</h1>
+    <p class="docs-hero-copy">occurs when untrusted data is sent to an interpreter as part of a command or query. This includes SQL, NoSQL, OS command, LDAP, and other injection attacks where user-supplied data is interpreted as code or commands, leading to data theft, modification, or complete system compromise.</p>
+    <span class="docs-hero-flourish">&ldquo;Sentence first, query second&rdquo; &mdash; parameterise before you execute.</span>
+  </div>
+</div>
 
-> **OWASP A03: Injection** occurs when untrusted data is sent to an interpreter as part of a command or query. This includes SQL, NoSQL, OS command, LDAP, and other injection attacks where user-supplied data is interpreted as code or commands, leading to data theft, modification, or complete system compromise.
-
----
 
 ## 🎯 What is Injection?
 
@@ -25,19 +31,19 @@
 **Primary**: **Tampering** (attackers inject malicious data to modify commands)
 **Secondary**: **Information Disclosure** (SQL injection exposes database contents), **Elevation of Privilege** (command injection gains system access)
 
-See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure), and [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege)
+See also: [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering), [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure), and [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege)
 
 ---
 
 ## Prompt 1: Analyze Code for Injection Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Scans your codebase for SQL, NoSQL, command, and template injection vulnerabilities</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Scans your codebase for SQL, NoSQL, command, and template injection vulnerabilities</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in injection vulnerabilities (OWASP A03).
@@ -92,13 +98,13 @@ Provide a prioritized list of vulnerabilities (Critical > High > Medium) with sp
 
 ## Prompt 2: Implement Injection Prevention
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates parameterized queries, Zod validation schemas, and safe error handling</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates parameterized queries, Zod validation schemas, and safe error handling</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive injection prevention for a web application (OWASP A03 remediation).
@@ -168,8 +174,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -197,8 +203,8 @@ export async function findUserMongo(filter: any) {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -286,50 +292,50 @@ export function sanitizeFilename(filename: string): string {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated injection prevention code, verify:</div>
+<div class="docs-heading">Before merging AI-generated injection prevention code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Parameterized Queries</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Parameterized Queries</div>
+  <div class="docs-copy">
     ✓ Every query uses $1, $2, $3 or ? placeholders — never string concatenation<br/>
     ✓ SQL structure and user data completely separated<br/>
     ✓ ORM methods used correctly; WHERE, ORDER BY, LIMIT values parameterized<br/>
-    <strong style="color: #94a3b8;">Test:</strong> SQL injection payloads like ' OR '1'='1 and ; DROP TABLE users-- treated as literal strings
+    <strong class="docs-strong">Test:</strong> SQL injection payloads like ' OR '1'='1 and ; DROP TABLE users-- treated as literal strings
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Input Validation</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Input Validation</div>
+  <div class="docs-copy">
     ✓ All input passes Zod schema validation before use<br/>
     ✓ Allowlist regex, length limits, and auto-trimming enforced<br/>
     ✓ Server-side validation — never trust client-side alone<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Invalid characters, overlong strings, and malformed data all rejected before reaching the database
+    <strong class="docs-strong">Test:</strong> Invalid characters, overlong strings, and malformed data all rejected before reaching the database
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Safe APIs & Error Handling</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Safe APIs & Error Handling</div>
+  <div class="docs-copy">
     ✓ No eval(), Function(), or exec() with user input<br/>
     ✓ File operations validate filenames against allowlist<br/>
     ✓ Error responses generic — no SQL syntax, table names, or paths exposed<br/>
     ✓ Detailed errors logged server-side only<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Trigger DB errors — client sees only generic messages; grep for eval/exec with user input
+    <strong class="docs-strong">Test:</strong> Trigger DB errors — client sees only generic messages; grep for eval/exec with user input
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Defense in Depth</div>
+  <div class="docs-copy">
     ✓ Multiple layers: parameterization + validation + least privilege<br/>
     ✓ Least-privilege DB accounts with minimal permissions<br/>
     ✓ Rate limiting to slow attack attempts; WAF rules for common patterns<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Removing one layer does not expose the vulnerability — multiple independent protections exist
+    <strong class="docs-strong">Test:</strong> Removing one layer does not expose the vulnerability — multiple independent protections exist
   </div>
 </div>
 

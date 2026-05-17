@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Crown — Red Queen governance">
+  <title>Crown — Red Queen governance enforcement</title>
+  <defs>
+    <radialGradient id="crGlow" cx="50%" cy="55%" r="55%">
+      <stop offset="0" stop-color="#fb7185" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#fb7185" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="crBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#9f1239"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="url(#crGlow)"/>
+  <!-- crown body -->
+  <path d="M20 70 L20 44 L32 56 L42 32 L50 50 L58 32 L68 56 L80 44 L80 70 Z"
+        fill="url(#crBody)" stroke="#fecdd3" stroke-width="2" stroke-linejoin="round"/>
+  <!-- base rim -->
+  <rect x="20" y="68" width="60" height="8" rx="2" fill="#9f1239" stroke="#fecdd3" stroke-width="2"/>
+  <!-- jewels -->
+  <circle cx="42" cy="34" r="2.5" fill="#fbbf24"/>
+  <circle cx="58" cy="34" r="2.5" fill="#fbbf24"/>
+  <circle cx="50" cy="50" r="3" fill="#fde047"/>
+  <!-- spade emblem on rim center -->
+  <path d="M50 64 L52 60 Q55 62 55 64 Q55 66 52 66 L48 66 Q45 66 45 64 Q45 62 48 60 Z" fill="#0b1224"/>
+</svg>

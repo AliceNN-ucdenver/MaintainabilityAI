@@ -1,0 +1,184 @@
+name: "Archeologist (Research Agent)"
+
+# The Archeologist runs the research pipeline:
+#   validate_brief -> gather_mesh_context -> plan_queries -> tavily/arxiv/uspto/hn ->
+#   dedupe_and_rank -> synthesize_report -> publish -> verify_and_trigger
+#
+# Path (research | archaeology) is chosen by the brief.
+# Outputs land in <scope>/research/ and audit JSONL in .research-audit/.
+# Triggers: research-request label, @claude please research comment, workflow_dispatch.
+#
+# Prompt packs read by the runner (from this mesh repo):
+#   .caterpillar/prompts/research/query-plan.md
+#   .caterpillar/prompts/research/synthesis.md
+#   .caterpillar/prompts/research/synthesis-archaeology.md
+#   .caterpillar/prompts/research/gap-analysis.md
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      brief:
+        required: true
+        description: "Plain-English research brief"
+      scope_level:
+        type: choice
+        description: "Scope: portfolio / platform / bar"
+        options: [portfolio, platform, bar]
+        default: bar
+      scope_id:
+        required: false
+        description: "BAR id or platform slug (omit for portfolio scope)"
+      path:
+        type: choice
+        description: "Research path: market research | repo archaeology"
+        options: [research, archaeology]
+        default: research
+      target_repo:
+        required: false
+        description: "Archaeology path only: owner/repo to clone and analyze"
+      guardrails:
+        type: choice
+        description: "Guardrails mode"
+        options: [strict, default, lenient]
+        default: default
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  research:
+    name: "Archeologist pipeline"
+    # Mirrors the oraculum-review.yml pattern: the issue_comment branch requires
+    # BOTH the `research-request` label AND a `@claude please research` mention
+    # so that comments on oraculum-review (or any other) issues cannot fire the
+    # research agent. The `labeled` branch fires only on the specific label.
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'research-request') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.state == 'open' &&
+       contains(github.event.issue.labels.*.name, 'research-request') &&
+       contains(github.event.comment.body, '@claude please research')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout mesh repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Parse trigger
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const evt = context.eventName;
+            let brief = '';
+            let scope_level = 'bar';
+            let scope_id = '';
+            let path = 'research';
+            let target_repo = '';
+            let guardrails = 'default';
+            let issue_number = '';
+
+            if (evt === 'workflow_dispatch') {
+              const i = context.payload.inputs;
+              brief = i.brief;
+              scope_level = i.scope_level || 'bar';
+              scope_id = i.scope_id || '';
+              path = i.path || 'research';
+              target_repo = i.target_repo || '';
+              guardrails = i.guardrails || 'default';
+            } else if (evt === 'issues') {
+              const issue = context.payload.issue;
+              brief = issue.title + '\n\n' + (issue.body || '');
+              issue_number = String(issue.number);
+              const scopeMatch = (issue.body || '').match(/scope:\s*(portfolio|platform|bar)\s*\n\s*scope_id:\s*([\w-]+)/i);
+              if (scopeMatch) { scope_level = scopeMatch[1].toLowerCase(); scope_id = scopeMatch[2]; }
+              const pathMatch = (issue.body || '').match(/path:\s*(research|archaeology)/i);
+              if (pathMatch) { path = pathMatch[1].toLowerCase(); }
+              const repoMatch = (issue.body || '').match(/target_repo:\s*([\w./-]+)/i);
+              if (repoMatch) { target_repo = repoMatch[1]; }
+            } else if (evt === 'issue_comment') {
+              const body = context.payload.comment.body || '';
+              const m = body.match(/@claude please research\s+(.+)/i);
+              brief = m ? m[1].trim() : body;
+              issue_number = String(context.payload.issue.number);
+            }
+
+            core.setOutput('brief', brief);
+            core.setOutput('scope_level', scope_level);
+            core.setOutput('scope_id', scope_id);
+            core.setOutput('path', path);
+            core.setOutput('target_repo', target_repo);
+            core.setOutput('guardrails', guardrails);
+            core.setOutput('issue_number', issue_number);
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install research runner
+        run: npm install --no-save @maintainabilityai/research-runner@latest
+
+      - name: Run Archeologist pipeline
+        id: research
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx research-runner archeologist \
+            --brief "${{ steps.parse.outputs.brief }}" \
+            --scope-level "${{ steps.parse.outputs.scope_level }}" \
+            --scope-id "${{ steps.parse.outputs.scope_id }}" \
+            --path "${{ steps.parse.outputs.path }}" \
+            --target-repo "${{ steps.parse.outputs.target_repo }}" \
+            --guardrails "${{ steps.parse.outputs.guardrails }}" \
+            --output research/ \
+            --audit .research-audit/ \
+            --emit-pr-body /tmp/pr-body.md
+
+      - name: Open PR with research output
+        if: success()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: research/${{ steps.research.outputs.run_id }}
+          title: "Research: ${{ steps.research.outputs.topic }}"
+          body-path: /tmp/pr-body.md
+          labels: |
+            research
+            ai-assisted
+          commit-message: |
+            research: ${{ steps.research.outputs.topic }}
+
+            Run ID: ${{ steps.research.outputs.run_id }}
+
+      - name: Comment on triggering issue
+        if: success() && steps.parse.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = parseInt('${{ steps.parse.outputs.issue_number }}', 10);
+            if (!issue_number) return;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body: `Archeologist run complete. Opened research PR for review. Run ID: \`${{ steps.research.outputs.run_id }}\`.`
+            });

@@ -1,8 +1,14 @@
-# Cryptographic Failures — OWASP A02 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Cryptographic failures</span></div>
+    <div class="docs-eyebrow">A02 · Cryptographic failures <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Cryptographic failures</h1>
+    <p class="docs-hero-copy">occurs when applications fail to properly protect sensitive data through encryption. This includes using weak algorithms, hardcoding secrets, transmitting data without encryption, storing passwords in plaintext, and failing to implement authenticated encryption.</p>
+    <span class="docs-hero-flourish">&ldquo;Speak in cipher,&rdquo; said the Queen &mdash; and use modern algorithms.</span>
+  </div>
+</div>
 
-> **OWASP A02: Cryptographic Failures** occurs when applications fail to properly protect sensitive data through encryption. This includes using weak algorithms, hardcoding secrets, transmitting data without encryption, storing passwords in plaintext, and failing to implement authenticated encryption.
-
----
 
 ## 🎯 What is Cryptographic Failures?
 
@@ -25,19 +31,19 @@
 **Primary**: **Information Disclosure** (sensitive data exposed through weak encryption)
 **Secondary**: **Tampering** (lack of authenticated encryption allows data modification)
 
-See also: [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure) and [STRIDE: Tampering](/docs/prompts/stride/tampering)
+See also: [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure) and [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering)
 
 ---
 
 ## Prompt 1: Analyze Code for Cryptographic Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Scans your codebase for weak encryption, hardcoded secrets, and password hashing issues</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Scans your codebase for weak encryption, hardcoded secrets, and password hashing issues</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in cryptographic vulnerabilities (OWASP A02).
@@ -92,13 +98,13 @@ Provide a prioritized list of vulnerabilities (Critical > High > Medium) with sp
 
 ## Prompt 2: Implement Secure Cryptography
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates AES-256-GCM encryption, bcrypt password hashing, and key management code</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates AES-256-GCM encryption, bcrypt password hashing, and key management code</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive cryptographic controls for a web application (OWASP A02 remediation).
@@ -168,8 +174,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -190,8 +196,8 @@ export function hashPassword(password: string): string {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -279,51 +285,51 @@ export function generateSecureToken(bytes: number = 32): string {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #dc2626;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated cryptographic code, verify:</div>
+<div class="docs-heading">Before merging AI-generated cryptographic code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div class="docs-grid">
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Encryption Algorithm</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Encryption Algorithm</div>
+  <div class="docs-copy">
     ✓ Only AES-256-GCM used for symmetric encryption (no DES, 3DES, RC4, ECB)<br/>
     ✓ GCM mode provides both confidentiality and authenticity<br/>
     ✓ Uses Node.js crypto module, no custom implementations<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Encrypt data and verify output includes IV + auth tag + ciphertext; tampering fails decryption
+    <strong class="docs-strong">Test:</strong> Encrypt data and verify output includes IV + auth tag + ciphertext; tampering fails decryption
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Key Management & IV Generation</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Key Management & IV Generation</div>
+  <div class="docs-copy">
     ✓ All keys from environment variables, never hardcoded<br/>
     ✓ Keys validated as exactly 32 bytes (256 bits) on startup<br/>
     ✓ Fresh random IV via crypto.randomBytes(16) per encryption<br/>
     ✓ All randomness from crypto.randomBytes, never Math.random()<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Remove key from env — app fails fast; encrypt same text twice — outputs differ
+    <strong class="docs-strong">Test:</strong> Remove key from env — app fails fast; encrypt same text twice — outputs differ
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Password Hashing</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Password Hashing</div>
+  <div class="docs-copy">
     ✓ bcrypt with cost factor >= 12 (no MD5, SHA1, plaintext)<br/>
     ✓ bcrypt.compare() for constant-time verification<br/>
     ✓ Passwords never logged or stored unhashed<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Hash same password twice — hashes differ; bcrypt.compare succeeds for valid, fails for invalid
+    <strong class="docs-strong">Test:</strong> Hash same password twice — hashes differ; bcrypt.compare succeeds for valid, fails for invalid
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Data in Transit & Logging</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Data in Transit & Logging</div>
+  <div class="docs-copy">
     ✓ All sensitive data over TLS 1.2+, HSTS enforced in production<br/>
     ✓ No sensitive data in URL query parameters<br/>
     ✓ Logs never contain passwords, keys, tokens, or credit cards<br/>
     ✓ Error messages generic — no crypto implementation details leaked<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt HTTP on sensitive endpoints — rejected; trigger errors — logs show only generic messages
+    <strong class="docs-strong">Test:</strong> Attempt HTTP on sensitive endpoints — rejected; trigger errors — logs show only generic messages
   </div>
 </div>
 

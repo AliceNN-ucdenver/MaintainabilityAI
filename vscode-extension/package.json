@@ -173,6 +173,49 @@
           "default": "",
           "description": "OpenAI API key (required if provider is 'openai')"
         },
+        "maintainabilityai.llm.tavilyApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Tavily API key (used by the Archeologist research agent for web search). Get one at https://tavily.com/"
+        },
+        "maintainabilityai.research.llmProvider": {
+          "type": "string",
+          "enum": ["anthropic", "openai"],
+          "default": "anthropic",
+          "description": "Default LLM provider for the Archeologist and PRD agents. Per-run override available."
+        },
+        "maintainabilityai.research.guardrails": {
+          "type": "string",
+          "enum": ["strict", "default", "lenient"],
+          "default": "default",
+          "description": "Guardrail mode applied to pre-call and post-call LLM checks in the research/PRD pipelines."
+        },
+        "maintainabilityai.research.grounding": {
+          "type": "string",
+          "enum": ["strict", "default", "lenient"],
+          "default": "default",
+          "description": "PRD grounding mode. Strict = block on any below-threshold expert score; lenient = warn only."
+        },
+        "maintainabilityai.research.groundingThreshold": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1,
+          "default": 0.85,
+          "description": "Minimum grounding score (0.5-1.0) required to publish a PRD without re-iterating."
+        },
+        "maintainabilityai.research.maxIterations": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "default": 3,
+          "description": "Maximum PRD refinement loop iterations before the convergence guard fires."
+        },
+        "maintainabilityai.research.costCapTokens": {
+          "type": "number",
+          "minimum": 10000,
+          "default": 200000,
+          "description": "Default per-run token budget for the research and PRD pipelines (warn before exceeding)."
+        },
         "maintainabilityai.llm.model": {
           "type": "string",
           "default": "",

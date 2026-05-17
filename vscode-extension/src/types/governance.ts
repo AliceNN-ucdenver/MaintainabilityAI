@@ -396,3 +396,49 @@ export interface ExistingStructureContext {
     }>;
   }>;
 }
+
+// ============================================================================
+// Governance Tier — derived from BAR pillar + composite scores.
+// Canonical impl lives in core/tier.ts to avoid mcp/ ↔ services/ cycles.
+// ============================================================================
+
+export type GovernanceTier = 'autonomous' | 'supervised' | 'restricted';
+
+// ============================================================================
+// Research + PRD Agent Inputs — surfaces consumed by the Archeologist and
+// PRD agents (see docs/design/research-and-prd-agents.md).
+// ============================================================================
+
+/**
+ * Structural gap signals the scorer detects on a BAR. These tell the
+ * Archeologist's `ask_experts` node which mesh artifacts are missing, so it
+ * can frame clarifying questions that, when answered, would close the gap.
+ */
+export type MeshGapKind =
+  | 'no_threat_model'
+  | 'no_controls_mapping'
+  | 'no_adrs'
+  | 'stale_research'
+  | 'missing_prd_for_planned_feature'
+  | 'low_architecture_pillar'
+  | 'low_security_pillar';
+
+/** Lightweight metadata for a research doc on disk (one entry per `<bar>/research/<file>.md`). */
+export interface ResearchDocSummary {
+  /** Filename without `.md` extension. Used as the stable `research_id`. */
+  id: string;
+  /** Filename including extension. */
+  filename: string;
+  /** Topic derived from the first H1 heading in the doc, falling back to a humanised filename. */
+  topic: string;
+  /** ISO timestamp from the file's mtime (the agent uses this for staleness checks). */
+  publishedAt: string;
+  /** Path relative to barPath, e.g. `research/<file>.md`. */
+  relativePath: string;
+}
+
+/** Same as ResearchDocSummary plus a flag indicating an accompanying `.manifest.json`. */
+export interface PrdDocSummary extends ResearchDocSummary {
+  /** True when `<id>.manifest.json` exists in the same directory. */
+  hasManifest: boolean;
+}

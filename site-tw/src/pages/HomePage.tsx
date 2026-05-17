@@ -1,416 +1,249 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import {
+  availableWorkshopParts,
+  storySteps,
+  systemLayers,
+  workshopRoadmapParts,
+} from '../content/siteContent';
 
 export default function HomePage() {
   return (
-    <>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-700/20 via-fuchsia-600/10 to-cyan-500/10 blur-3xl"></div>
-        <div className="max-w-6xl mx-auto px-6 py-24 md:py-32 relative">
-          <div className="max-w-4xl">
-            <h1 className="text-5xl md:text-7xl font-black leading-tight">
-              Secure, Maintainable <span className="text-brand">AI Engineering</span>
+    <main>
+      <section className="site-hero home-hero min-h-[82vh]">
+        <div className="home-hero-scene" aria-hidden="true">
+          <div className="home-hero-orbit home-hero-orbit-one"></div>
+          <div className="home-hero-orbit home-hero-orbit-two"></div>
+          <div className="home-hero-line home-hero-line-one"></div>
+          <div className="home-hero-line home-hero-line-two"></div>
+          <div className="home-hero-node home-hero-node-architecture">
+            <span>Architecture</span>
+            <strong>CALM + BARs</strong>
+          </div>
+          <div className="home-hero-node home-hero-node-security">
+            <span>Security</span>
+            <strong>OWASP + STRIDE</strong>
+          </div>
+          <div className="home-hero-node home-hero-node-evidence">
+            <span>Evidence</span>
+            <strong>Tests + scans</strong>
+          </div>
+          <div className="home-hero-brain">
+            <span>MaintainabilityAI</span>
+            <strong>Governance brain</strong>
+            <em>policy, context, gates</em>
+          </div>
+          <div className="home-hero-agent">GitHub coding agents</div>
+        </div>
+        <div className="site-hero-overlay"></div>
+        <div className="site-shell relative py-20 md:py-28">
+          <div className="home-hero-content">
+            <p className="site-eyebrow-cyan">
+              Architecture-first governance for agentic coding
+            </p>
+            <h1 className="site-hero-title home-hero-title">
+              Give AI agents the context, constraints, and controls they need to ship safely.
             </h1>
-            <p className="mt-6 text-xl md:text-2xl text-slate-300 max-w-3xl leading-relaxed">
-              From prompt to production. We help engineering orgs ship faster <strong className="text-white">without</strong> sacrificing security or maintainability.
+            <p className="site-lede max-w-3xl text-xl text-slate-200 md:text-2xl">
+              MaintainabilityAI turns CALM architecture, OWASP prompt packs, fitness functions, and Red Queen policy into the control plane for human and autonomous software engineering.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row flex-wrap gap-4">
-              <Link to="/docs/sdlc" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-brand text-slate-900 font-bold text-lg hover:bg-indigo-400 transition">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                SDLC
+              <Link to="/docs/framework" className="site-button-primary-large">
+                See the Framework
               </Link>
-              <Link to="/agenda" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 font-semibold text-lg transition">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Workshop Agenda
+              <Link to="/docs/workshop" className="site-button-cyan-large">
+                Start the Workshop
               </Link>
-              <Link to="/docs/" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-slate-700 hover:bg-slate-900 font-semibold text-lg transition">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                Docs
-              </Link>
-              <Link to="/docs/impossible-things" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-slate-700 hover:bg-slate-900 font-semibold text-lg transition">
-                <span className="text-xl">🎩</span>
-                Impossible Things
-              </Link>
+              <a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" className="site-button-secondary-large">
+                Install the Extension
+              </a>
+            </div>
+          </div>
+
+          <div className="mt-16 grid gap-3 sm:grid-cols-3 max-w-4xl">
+            <div className="site-metric border-emerald-400/40 bg-emerald-400/10">
+              <div className="site-metric-value text-emerald-300">70%</div>
+              <p className="mt-1 text-sm text-emerald-50">AI handles boilerplate, CRUD, and scaffolding well.</p>
+            </div>
+            <div className="site-metric border-rose-400/40 bg-rose-400/10">
+              <div className="site-metric-value text-rose-300">30%</div>
+              <p className="mt-1 text-sm text-rose-50">Architecture, security posture, and governance still decide outcomes.</p>
+            </div>
+            <div className="site-metric border-cyan-400/40 bg-cyan-400/10">
+              <div className="site-metric-value text-cyan-300">1</div>
+              <p className="mt-1 text-sm text-cyan-50">Control plane shared by developers, reviewers, and coding agents.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Why Now */}
-      <section className="border-t border-slate-800 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
+      <section className="site-band-bottom">
+        <div className="site-shell site-section-tight">
+          <div className="grid md:grid-cols-[0.9fr_1.1fr] gap-10 items-start">
+            <div>
+              <p className="site-eyebrow">What this is</p>
+              <h2 className="site-heading">The missing brain between your architecture and your AI coding agents.</h2>
+            </div>
+            <div className="space-y-4 text-lg text-slate-300 leading-relaxed">
+              <p>
+                Prompt packs help, but prompts are advisory. MaintainabilityAI makes the architecture model, security controls, and quality gates visible to the people and agents doing the work.
+              </p>
+              <p>
+                The result is a practical external-facing framework: teach the team, scaffold the repo, guide the agent, validate the change, and keep improving the system with measurable feedback.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="site-shell site-section">
+        <div className="max-w-3xl">
+          <p className="site-eyebrow">The system</p>
+          <h2 className="site-heading">Three capabilities, one governed workflow.</h2>
+          <p className="site-lede text-slate-400">
+            Looking Glass gives agents the architectural map. Cheshire turns secure intent into implementation-ready artifacts. Red Queen enforces the rules when autonomy increases.
+          </p>
+        </div>
+
+        <div className="mt-10 grid lg:grid-cols-3 gap-6">
+          {systemLayers.map((layer) => (
+            <Link key={layer.title} to={layer.href} className="site-system-card">
+              <div className="aspect-[16/10] bg-slate-950 overflow-hidden">
+                <img src={layer.image} alt={`${layer.title} preview`} className="site-system-image" />
+              </div>
+              <div className="p-6">
+                <div className="text-xs uppercase tracking-[0.18em] text-cyan-300 font-semibold">{layer.label}</div>
+                <h3 className="mt-2 text-2xl font-bold text-white">{layer.title}</h3>
+                <p className="mt-3 text-slate-300 leading-relaxed">{layer.body}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="site-band">
+        <div className="site-shell site-section">
           <div className="max-w-3xl">
-            <h2 className="text-3xl md:text-4xl font-bold">Why Now?</h2>
-            <p className="mt-6 text-xl text-slate-300 leading-relaxed">
-              AI accelerates everything—<strong className="text-white">good code and bad</strong>. Teams need <strong className="text-brand">standards, prompts, and pipelines</strong> that turn LLM speed into reliable, secure outcomes.
-            </p>
-            <p className="mt-4 text-lg text-slate-400 leading-relaxed">
-              Without governance, AI becomes a security liability. With the right framework, it's a force multiplier that maintains quality at velocity.
-            </p>
+            <p className="site-eyebrow">Human path</p>
+            <h2 className="site-heading">A site journey that matches how teams adopt the work.</h2>
+          </div>
+          <div className="mt-10 grid md:grid-cols-4 gap-4">
+            {storySteps.map((step, index) => (
+              <Link key={step.title} to={step.href} className="site-card-link">
+                <div className="text-brand text-sm font-bold">0{index + 1}</div>
+                <h3 className="mt-3 text-xl font-bold">{step.title}</h3>
+                <p className="mt-3 text-sm text-slate-400 leading-relaxed">{step.body}</p>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* What We Do */}
-      <section className="max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">What We Do</h2>
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="rounded-2xl border border-slate-800 p-8 bg-slate-900/50 hover:border-brand/50 transition">
-            <div className="text-4xl mb-4">🎯</div>
-            <h3 className="font-bold text-2xl mb-3">Prompt Engineering</h3>
-            <p className="text-slate-300 leading-relaxed">
-              Security-first prompt packs aligned to <strong className="text-white">OWASP Top 10</strong>. Turn vague requests into precise, secure implementations.
+      <section className="site-shell site-section">
+        <div className="grid lg:grid-cols-[0.95fr_1.05fr] gap-10">
+          <div>
+            <p className="site-eyebrow">Workshop</p>
+            <h2 className="site-heading">Teach the full arc from prompt discipline to governed autonomy.</h2>
+            <p className="site-lede">
+              The canonical learner path lives in the docs workshop. The agenda page stays focused on delivery format, audience, and outcomes for teams deciding whether to bring the workshop in.
             </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 p-8 bg-slate-900/50 hover:border-brand/50 transition">
-            <div className="text-4xl mb-4">🤖</div>
-            <h3 className="font-bold text-2xl mb-3">Agentic Workflows</h3>
-            <p className="text-slate-300 leading-relaxed">
-              Claude Code and Copilot patterns with <strong className="text-white">architecture-aware guardrails</strong>. In-editor and agentic workflows that understand your governance model.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 p-8 bg-slate-900/50 hover:border-brand/50 transition">
-            <div className="text-4xl mb-4">🛡️</div>
-            <h3 className="font-bold text-2xl mb-3">CI/CD Security Gates</h3>
-            <p className="text-slate-300 leading-relaxed">
-              <strong className="text-white">CodeQL, Snyk, ESLint</strong> wired into your pipeline. Catch vulnerabilities before they ship, automatically.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 mt-8">
-          <div className="rounded-2xl border border-indigo-800/50 p-8 bg-gradient-to-br from-indigo-950/50 to-slate-900/50 hover:border-brand/50 transition">
-            <div className="text-4xl mb-4">🪞</div>
-            <h3 className="font-bold text-2xl mb-3">Looking Glass Governance</h3>
-            <p className="text-slate-300 leading-relaxed">
-              A <strong className="text-white">VS Code extension</strong> that gives every developer and agent a live view of threat models, architecture records, security policies, and governance scores.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-indigo-800/50 p-8 bg-gradient-to-br from-indigo-950/50 to-slate-900/50 hover:border-brand/50 transition">
-            <div className="text-4xl mb-4">🐱</div>
-            <h3 className="font-bold text-2xl mb-3">Cheshire Cat Scaffolding</h3>
-            <p className="text-slate-300 leading-relaxed">
-              <strong className="text-white">Structured SDLC artifacts</strong> with workflow guardrails for code security, test coverage, technical debt, dependency freshness, and complexity management.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Our Approach */}
-      <section className="border-t border-slate-800 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Approach</h2>
-          <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
-            Comprehensive training and resources for teams adopting AI-assisted development
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="rounded-xl border border-slate-800 p-6 bg-slate-950/50">
-              <h3 className="font-bold text-xl mb-2">AI-Assisted Development Workshop</h3>
-              <p className="text-slate-400 text-sm mb-3">4-part series with 4 more in development, junior → senior friendly</p>
-              <p className="text-slate-300">
-                Hands-on training covering the spectrum from vibe coding to agentic workflows. Includes live OWASP remediation exercises and team prompt library creation.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 p-6 bg-slate-950/50">
-              <h3 className="font-bold text-xl mb-2">Prompt Exchange Kit</h3>
-              <p className="text-slate-400 text-sm mb-3">STRIDE + OWASP + Maintainability packs</p>
-              <p className="text-slate-300">
-                Production-ready prompt templates for STRIDE threat modeling, OWASP Top 10, and Evolutionary Architecture patterns. Optimized for Claude Code and GitHub Copilot.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 p-6 bg-slate-950/50">
-              <h3 className="font-bold text-xl mb-2">Secure SDLC Implementation</h3>
-              <p className="text-slate-400 text-sm mb-3">CodeQL/Snyk gates + policies</p>
-              <p className="text-slate-300">
-                End-to-end security pipeline setup with automated gates, PR templates, and security policies. Turn your CI/CD into a security enforcement layer.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 p-6 bg-slate-950/50">
-              <h3 className="font-bold text-xl mb-2">Agentic Enablement</h3>
-              <p className="text-slate-400 text-sm mb-3">Claude Code / Copilot patterns</p>
-              <p className="text-slate-300">
-                Custom CLAUDE.md standards, agent orchestration patterns, and multi-agent security workflows. Maximize AI productivity while maintaining guardrails.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 p-6 bg-slate-950/50 md:col-span-2">
-              <h3 className="font-bold text-xl mb-2">Org Change & Governance</h3>
-              <p className="text-slate-400 text-sm mb-3">Policies, metrics, adoption playbooks</p>
-              <p className="text-slate-300">
-                The Golden Rules framework for AI governance, metrics dashboards, and adoption playbooks. Transform your organization's approach to AI-assisted development with measurable outcomes.
-              </p>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <Link to="/docs/workshop" className="site-button-primary">
+                Begin Learner Path
+              </Link>
+              <Link to="/agenda" className="site-button-secondary">
+                View Team Agenda
+              </Link>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Framework in Action */}
-      <section className="max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Framework in Action</h2>
-        <p className="text-center text-slate-400 mb-12 max-w-2xl mx-auto">
-          Battle-tested, production-ready, and open source — covering the full AI-assisted development spectrum
-        </p>
-
-        {/* Stats Row */}
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-            <div className="text-brand text-4xl font-black mb-2">10/10</div>
-            <h4 className="font-bold text-lg mb-2">OWASP Coverage</h4>
-            <p className="text-slate-400 text-sm">
-              Complete prompt packs for all OWASP Top 10 (2021) categories with vulnerable examples and tests
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-            <div className="text-brand text-4xl font-black mb-2">100%</div>
-            <h4 className="font-bold text-lg mb-2">Test Coverage</h4>
-            <p className="text-slate-400 text-sm">
-              Every OWASP category includes security tests, vulnerable code samples, and remediation guidance
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-            <div className="text-brand text-4xl font-black mb-2">6</div>
-            <h4 className="font-bold text-lg mb-2">SDLC Phases</h4>
-            <p className="text-slate-400 text-sm">
-              Design through Evolution — every phase integrates AI agents, security scanning, and governance gates
-            </p>
-          </div>
-        </div>
-
-        {/* AI Taxonomy */}
-        <div className="mt-8">
-          <h3 className="font-bold text-2xl mb-6 text-center">Three Layers of AI Integration</h3>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="rounded-xl border border-blue-800/50 p-6 bg-gradient-to-br from-blue-950/30 to-slate-950">
-              <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-blue-500/20 text-blue-300 mb-4">In-Editor</span>
-              <h4 className="font-bold text-lg mb-2">Copilot</h4>
-              <p className="text-slate-400 text-sm">
-                Inline completions and chat-driven implementation. Security-first prompt packs guide every suggestion toward OWASP-compliant code.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-purple-800/50 p-6 bg-gradient-to-br from-purple-950/30 to-slate-950">
-              <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 mb-4">Agentic</span>
-              <h4 className="font-bold text-lg mb-2">Claude Code + Copilot Coding Agent</h4>
-              <p className="text-slate-400 text-sm">
-                Autonomous multi-step workflows in GitHub Actions. Agents implement features, fix vulnerabilities, and review PRs — governed by architecture-aware guardrails.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-indigo-800/50 p-6 bg-gradient-to-br from-indigo-950/30 to-slate-950">
-              <span className="inline-block px-3 py-1 rounded-md text-xs font-semibold bg-indigo-500/20 text-indigo-300 mb-4">Extension</span>
-              <h4 className="font-bold text-lg mb-2">Cheshire Cat + Looking Glass</h4>
-              <p className="text-slate-400 text-sm">
-                VS Code extension providing live governance dashboards, CALM architecture editing, threat model visualization, and scaffolding with governance context baked in.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Open Source Foundation */}
-        <div className="mt-12 rounded-2xl border border-slate-700 bg-slate-900/50 p-8">
-          <h3 className="font-bold text-2xl mb-4">Open Source Foundation</h3>
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="space-y-5">
             <div>
-              <h4 className="font-semibold text-lg mb-3 text-brand">Starter Kit</h4>
-              <ul className="space-y-2 text-slate-300">
-                <li>✓ Vulnerable TypeScript samples (A01-A10)</li>
-                <li>✓ Security test suites with attack vectors</li>
-                <li>✓ STRIDE + OWASP + Maintainability prompt packs</li>
-                <li>✓ CI/CD workflows (CodeQL + Snyk)</li>
-                <li>✓ Workshop curriculum (4 parts live, 4 planned)</li>
-              </ul>
+              <div className="text-sm uppercase tracking-[0.18em] text-emerald-300 font-semibold">Available now: All 8 parts</div>
+              <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                {availableWorkshopParts.map(({ part, title, body }) => (
+                  <div key={part} className="site-card-compact border-emerald-400/25 bg-emerald-400/5">
+                    <div className="text-xs text-emerald-300 font-semibold">{part}</div>
+                    <h3 className="mt-1 font-bold text-white">{title}</h3>
+                    <p className="mt-2 text-sm text-slate-400">{body}</p>
+                  </div>
+                ))}
+              </div>
             </div>
+
             <div>
-              <h4 className="font-semibold text-lg mb-3 text-brand">Governance &amp; Docs</h4>
-              <ul className="space-y-2 text-slate-300">
-                <li>✓ 6 Golden Rules governance framework</li>
-                <li>✓ 6-phase SDLC with security pipeline</li>
-                <li>✓ Fitness functions + evolutionary architecture</li>
-                <li>✓ Agent instruction standards (CLAUDE.md, AGENTS.md)</li>
-                <li>✓ PR templates with AI disclosure</li>
-              </ul>
+              <div className="text-sm uppercase tracking-[0.18em] text-cyan-300 font-semibold">Roadmap: Research + PRD agents</div>
+              <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                {workshopRoadmapParts.map(({ part, title, subtitle, body, href }) => {
+                  const card = (
+                    <div key={part + title} className="site-card-compact border-cyan-400/20 bg-cyan-400/5 h-full">
+                      <div className="text-xs text-cyan-300 font-semibold">{part}</div>
+                      <h3 className="mt-1 font-bold text-white">{title}</h3>
+                      {subtitle ? <div className="mt-1 text-xs text-cyan-200/80">{subtitle}</div> : null}
+                      <p className="mt-2 text-sm text-slate-400">{body}</p>
+                    </div>
+                  );
+                  return href
+                    ? <Link key={part + title} to={href} className="block hover:opacity-95 transition-opacity">{card}</Link>
+                    : card;
+                })}
+              </div>
             </div>
-          </div>
-          <div className="mt-6">
-            <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
-              View on GitHub
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-            </a>
           </div>
         </div>
       </section>
 
-      {/* Prompt Pack Libraries */}
-      <section className="border-t border-slate-800 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Security & Maintainability Prompt Packs</h2>
-          <p className="text-center text-slate-400 mb-12 max-w-3xl mx-auto">
-            Production-ready AI prompts for secure, maintainable code generation. Each pack includes role definition, context, requirements, validation checklists, and tool-specific variations.
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Threat Modeling (STRIDE) */}
-            <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-8 hover:border-brand/50 transition">
-              <div className="text-5xl mb-4">🎯</div>
-              <h3 className="font-bold text-2xl mb-3">STRIDE Threat Modeling</h3>
-              <p className="text-slate-300 leading-relaxed mb-6">
-                AI-powered threat detection <strong className="text-white">before code is written</strong>. Systematic identification using Microsoft's 6-category STRIDE framework.
-              </p>
-              <ul className="space-y-2 text-slate-400 text-sm mb-6">
-                <li>✓ 6 STRIDE categories (Spoofing → Elevation)</li>
-                <li>✓ Auto-maps threats to OWASP controls</li>
-                <li>✓ Early threat detection before code is written</li>
-                <li>✓ Integrates with OWASP controls</li>
-              </ul>
-              <Link to="/docs/prompts/threat-modeling" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
-                View STRIDE Prompt Packs
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* OWASP Top 10 */}
-            <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-8 hover:border-brand/50 transition">
-              <div className="text-5xl mb-4">🛡️</div>
-              <h3 className="font-bold text-2xl mb-3">OWASP Top 10 (2021)</h3>
-              <p className="text-slate-300 leading-relaxed mb-6">
-                Security-first prompts for <strong className="text-white">10 critical vulnerability categories</strong>. Embed OWASP requirements directly into AI code generation.
-              </p>
-              <ul className="space-y-2 text-slate-400 text-sm mb-6">
-                <li>✓ Complete A01-A10 coverage</li>
-                <li>✓ Parameterized queries, RBAC, crypto</li>
-                <li>✓ Before/after code examples</li>
-                <li>✓ Attack vector test suites</li>
-              </ul>
-              <Link to="/docs/prompts/owasp" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
-                View OWASP Prompt Packs
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* Evolutionary Architecture */}
-            <div className="rounded-2xl border border-slate-700 bg-slate-950/50 p-8 hover:border-brand/50 transition">
-              <div className="text-5xl mb-4">📐</div>
-              <h3 className="font-bold text-2xl mb-3">Evolutionary Architecture</h3>
-              <p className="text-slate-300 leading-relaxed mb-6">
-                Maintainability patterns for <strong className="text-white">long-lived systems</strong>. AI-assisted refactoring with automated fitness functions.
-              </p>
-              <ul className="space-y-2 text-slate-400 text-sm mb-6">
-                <li>✓ Fitness functions (complexity ≤10)</li>
-                <li>✓ Dependency hygiene (≤90 days)</li>
-                <li>✓ Strangler Fig migrations</li>
-                <li>✓ Technical debt tracking</li>
-              </ul>
-              <Link to="/docs/prompts/maintainability" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold">
-                View Maintainability Packs
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
+      <section className="site-band">
+        <div className="site-shell site-section">
+          <div className="max-w-3xl">
+            <p className="site-eyebrow">Reusable assets</p>
+            <h2 className="site-heading">Prompt packs and docs that support the same operating model.</h2>
+            <p className="site-lede">
+              STRIDE starts the design conversation. OWASP shapes the secure implementation. Maintainability packs keep the architecture evolvable after the first release.
+            </p>
           </div>
 
-          <div className="mt-12 text-center">
-            <p className="text-slate-400 mb-4">All prompt packs optimized for Claude Code and GitHub Copilot — in-editor and agentic workflows</p>
-            <Link to="/docs/" className="inline-flex items-center gap-2 text-brand hover:text-indigo-400 font-semibold text-lg">
-              Browse Complete Documentation
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
+          <div className="mt-10 grid md:grid-cols-3 gap-6">
+            <Link to="/docs/prompts/threat-modeling" className="docs-card docs-card-orange">
+              <h3 className="docs-card-title docs-card-title-lg">STRIDE Threat Modeling</h3>
+              <p className="docs-card-body">Design-phase prompts that turn architecture context into threat scenarios and OWASP control mappings.</p>
+            </Link>
+            <Link to="/docs/prompts/owasp" className="docs-card docs-card-rose">
+              <h3 className="docs-card-title docs-card-title-lg">OWASP Top 10</h3>
+              <p className="docs-card-body">Implementation prompts, attack vectors, review checklists, and validation steps for secure code generation.</p>
+            </Link>
+            <Link to="/docs/prompts/maintainability" className="docs-card docs-card-emerald">
+              <h3 className="docs-card-title docs-card-title-lg">Evolutionary Architecture</h3>
+              <p className="docs-card-body">Fitness functions, dependency hygiene, technical debt, and refactoring prompts for long-lived systems.</p>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* How We Work */}
-      <section className="border-t border-slate-800 bg-slate-900/30">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">How We Work</h2>
-
-          <div className="grid md:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-brand text-slate-900 font-black text-2xl flex items-center justify-center mx-auto mb-4">1</div>
-              <h4 className="font-bold text-lg mb-2">Assess</h4>
-              <p className="text-slate-400 text-sm">
-                Evaluate current AI usage, security posture, and team readiness
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-brand text-slate-900 font-black text-2xl flex items-center justify-center mx-auto mb-4">2</div>
-              <h4 className="font-bold text-lg mb-2">Pilot</h4>
-              <p className="text-slate-400 text-sm">
-                Run workshop with 1-2 teams, establish prompt library and CI gates
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-brand text-slate-900 font-black text-2xl flex items-center justify-center mx-auto mb-4">3</div>
-              <h4 className="font-bold text-lg mb-2">Rollout</h4>
-              <p className="text-slate-400 text-sm">
-                Scale governance framework, templates, and policies across org
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-brand text-slate-900 font-black text-2xl flex items-center justify-center mx-auto mb-4">4</div>
-              <h4 className="font-bold text-lg mb-2">Optimize</h4>
-              <p className="text-slate-400 text-sm">
-                Metrics-driven iteration on prompts, policies, and processes
-              </p>
-            </div>
+      <section id="contact" className="site-shell site-section">
+        <div className="grid lg:grid-cols-[1fr_0.8fr] gap-10 items-center">
+          <div>
+            <p className="site-eyebrow">Ready path</p>
+            <h2 className="site-heading">Start with the framework, then bring the workshop to your team.</h2>
+            <p className="site-lede">
+              The public docs are open for self-guided teams. The workshop and extension help organizations turn the framework into daily practice across developers, reviewers, and GitHub coding agents.
+            </p>
           </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="max-w-6xl mx-auto px-6 py-20">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Get Started?</h2>
-          <p className="text-xl text-slate-300 mb-8">
-            Let's discuss how we can help your team ship faster without compromising security.
-          </p>
-
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="https://chiefarcheologist.com/contact" className="px-6 sm:px-8 py-4 rounded-xl bg-brand text-slate-900 hover:bg-indigo-400 transition font-bold text-base sm:text-lg text-center">
+          <div className="site-card">
+            <div className="flex flex-col gap-3">
+              <a href="https://chiefarcheologist.com/contact" className="site-button-primary">
                 Contact Chief Archeologist
               </a>
-              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="px-6 sm:px-8 py-4 rounded-xl border-2 border-slate-700 hover:border-brand hover:bg-slate-900 transition font-semibold text-base sm:text-lg text-center">
+              <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="site-button-secondary">
                 Explore on GitHub
               </a>
-              <Link to="/docs/workshop" className="px-6 sm:px-8 py-4 rounded-xl border-2 border-brand text-brand hover:bg-brand/10 transition font-semibold text-base sm:text-lg text-center">
-                Start Workshop
+              <Link to="/docs/impossible-things" className="site-button-cyan">
+                Read Impossible Things
               </Link>
             </div>
           </div>
-
-          <p className="mt-8 text-slate-500 text-sm">
-            All services available for remote delivery or on-site workshops
-          </p>
         </div>
       </section>
-    </>
+    </main>
   );
 }

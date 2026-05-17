@@ -1,6 +1,13 @@
-# Multi-Agent Orchestration Guide
-
-> Coordinate multiple AI agents for complex security-first development workflows. Each agent has specialized strengths — orchestration gets you the best of all of them.
+<div class="docs-hero docs-hero-violet">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Multi-agent</span></div>
+    <div class="docs-eyebrow">Agentic · orchestration patterns <span class="docs-hero-meta">~4 min read</span></div>
+    <h1 class="docs-hero-title">Multi-agent &mdash; specialists at the Queen&rsquo;s court</h1>
+    <p class="docs-hero-copy">Sequential pipelines, parallel workstreams, validator loops, and consensus review boards. When one agent isn&rsquo;t enough, these are the orchestration shapes that make handoffs auditable.</p>
+    <span class="docs-hero-flourish">Five agents, one verdict. The court keeps its rules.</span>
+  </div>
+</div>
 
 ---
 
@@ -20,16 +27,10 @@ Complex tasks often require:
 
 Each agent builds on the previous agent's output.
 
-```mermaid
-flowchart LR
-    A[Threat Modeler] --> B[Architect]
-    B --> C[Implementer]
-    C --> D[Tester]
-    D --> E[Reviewer]
-    E --> F[Deploy]
-    D --Fail--> C
-    E --Fail--> C
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/agent-sequential-pipeline.svg" alt="Sequential multi-agent pipeline from threat modeler to deployment with review feedback loops." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">A sequential pipeline lets each agent sharpen the artifact before the next role acts.</figcaption>
+</figure>
 
 **Typical assignment**: Claude Code (architecture + tests) → Copilot (implementation) → Claude Code Action or Copilot Coding Agent (automated review)
 
@@ -37,16 +38,10 @@ flowchart LR
 
 Independent tasks run simultaneously, then merge.
 
-```mermaid
-flowchart TD
-    A[Design Complete] --> B[Agent 1: Auth Module]
-    A --> C[Agent 2: Data Layer]
-    A --> D[Agent 3: API Layer]
-    B --> E[Integration]
-    C --> E
-    D --> E
-    E --> F[Agent 4: Integration Tests]
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/agent-parallel-execution.svg" alt="Parallel agent execution across auth, data, and API workstreams before integration testing." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Parallel agents work safely when the design contract and integration boundary are explicit.</figcaption>
+</figure>
 
 **When to use**: Microservice development, multi-module features with clear boundaries.
 
@@ -54,13 +49,10 @@ flowchart TD
 
 One agent generates, another validates — tight feedback until approval.
 
-```mermaid
-flowchart LR
-    A[Implementer Agent] --> B[Code Generation]
-    B --> C[Validator Agent]
-    C -->|Issues Found| A
-    C -->|Approved| D[Next Phase]
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/agent-validator-loop.svg" alt="Validator loop where an implementer agent generates code and a validator agent approves or sends issues back." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Separate generation from validation for security-critical changes.</figcaption>
+</figure>
 
 **When to use**: Security-critical features where implementation and review must be separate concerns.
 
@@ -68,17 +60,10 @@ flowchart LR
 
 Multiple agents review the same code from different angles. All must approve.
 
-```mermaid
-flowchart TD
-    A[Implementation] --> B[Security Review]
-    A --> C[Quality Review]
-    A --> D[Performance Review]
-    B --> E{Consensus?}
-    C --> E
-    D --> E
-    E -->|Yes| F[Approve]
-    E -->|No| G[Aggregate Feedback → Revise]
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/agent-consensus-validation.svg" alt="Consensus validation across security, quality, and performance reviewers before approval or revision." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">High-risk work should pass multiple review lenses before it merges.</figcaption>
+</figure>
 
 **When to use**: High-risk changes where security, quality, and performance all matter.
 
@@ -90,9 +75,9 @@ This is the recommended pattern for security-critical features.
 
 ### Phase 1: Threat Modeling (Claude Code)
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #6366f1;">
+<div class="docs-card docs-card-indigo">
 
-<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a threat modeling specialist using STRIDE methodology.
 
@@ -110,9 +95,9 @@ Threat inventory as JSON with OWASP category mapping (e.g., T1: Spoofing → A01
 
 ### Phase 2: Implementation (Copilot or Claude Code)
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<div class="docs-card docs-card-emerald">
 
-<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a security engineer implementing threat mitigations.
 
@@ -135,9 +120,9 @@ Implementation with threat mitigations mapped in code comments.
 
 ### Phase 3: Validation (Claude Code)
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<div class="docs-card docs-card-amber">
 
-<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a security validator performing independent review.
 
@@ -169,9 +154,9 @@ The validator identifies gaps (e.g., "T4: No rate limiting"). The implementer fi
 
 When passing work between agents, use this template to prevent context loss:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 2px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7; font-family: monospace;">
+<div class="docs-card docs-card-indigo">
 
 ===== AGENT HANDOFF =====<br/>
 FROM: [Agent Name/Role]<br/>
@@ -221,11 +206,11 @@ The two-tier model creates powerful orchestration possibilities:
 
 ## Quick Reference Workflows
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 24px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #6366f1; margin-top: 0; font-size: 16px; font-weight: 700;">Secure Feature Development</h3>
-<p style="color: #e2e8f0; font-size: 13px; line-height: 1.8; margin: 0;">
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">Secure Feature Development</h3>
+<p class="docs-copy">
 1. Claude Code: Threat model (interactive)<br/>
 2. Copilot: Implementation (in-editor)<br/>
 3. Claude Code: Test generation (interactive)<br/>
@@ -233,9 +218,9 @@ The two-tier model creates powerful orchestration possibilities:
 </p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">Large-Scale Refactoring</h3>
-<p style="color: #e2e8f0; font-size: 13px; line-height: 1.8; margin: 0;">
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">Large-Scale Refactoring</h3>
+<p class="docs-copy">
 1. Claude Code: Analyze codebase, create plan<br/>
 2. Multiple agents in parallel: Implementation<br/>
 3. Claude Code: Integration tests<br/>
@@ -243,9 +228,9 @@ The two-tier model creates powerful orchestration possibilities:
 </p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #f59e0b; margin-top: 0; font-size: 16px; font-weight: 700;">Security Remediation</h3>
-<p style="color: #e2e8f0; font-size: 13px; line-height: 1.8; margin: 0;">
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">Security Remediation</h3>
+<p class="docs-copy">
 1. CodeQL/Snyk: Identify vulnerabilities<br/>
 2. Alice Agent: Autonomous fixes with human approval<br/>
 3. Claude Code: Generate security tests<br/>
@@ -253,9 +238,9 @@ The two-tier model creates powerful orchestration possibilities:
 </p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #8b5cf6; margin-top: 0; font-size: 16px; font-weight: 700;">Dependency Upgrades</h3>
-<p style="color: #e2e8f0; font-size: 13px; line-height: 1.8; margin: 0;">
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">Dependency Upgrades</h3>
+<p class="docs-copy">
 1. Claude Code: Breaking change analysis<br/>
 2. Copilot: Code updates per package<br/>
 3. Claude Code: Regression tests<br/>
@@ -269,31 +254,31 @@ The two-tier model creates powerful orchestration possibilities:
 
 ## Best Practices
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 24px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #4ade80;">
-<p style="color: #4ade80; font-weight: 700; font-size: 14px; margin: 0 0 8px 0;">Clear handoffs</p>
-<p style="color: #94a3b8; font-size: 13px; margin: 0;">Use the structured format. Context loss is the #1 failure mode.</p>
+<div class="docs-card docs-card-muted">
+<p class="docs-copy">Clear handoffs</p>
+<p class="docs-copy">Use the structured format. Context loss is the #1 failure mode.</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #4ade80;">
-<p style="color: #4ade80; font-weight: 700; font-size: 14px; margin: 0 0 8px 0;">Different agent for validation</p>
-<p style="color: #94a3b8; font-size: 13px; margin: 0;">Never use the same agent to implement and validate.</p>
+<div class="docs-card docs-card-muted">
+<p class="docs-copy">Different agent for validation</p>
+<p class="docs-copy">Never use the same agent to implement and validate.</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #4ade80;">
-<p style="color: #4ade80; font-weight: 700; font-size: 14px; margin: 0 0 8px 0;">Automated checks in the loop</p>
-<p style="color: #94a3b8; font-size: 13px; margin: 0;">Include CodeQL, Snyk, ESLint as non-agent validators.</p>
+<div class="docs-card docs-card-muted">
+<p class="docs-copy">Automated checks in the loop</p>
+<p class="docs-copy">Include CodeQL, Snyk, ESLint as non-agent validators.</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #4ade80;">
-<p style="color: #4ade80; font-weight: 700; font-size: 14px; margin: 0 0 8px 0;">Label everything</p>
-<p style="color: #94a3b8; font-size: 13px; margin: 0;">Commits include which agent was used for traceability.</p>
+<div class="docs-card docs-card-muted">
+<p class="docs-copy">Label everything</p>
+<p class="docs-copy">Commits include which agent was used for traceability.</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #4ade80;">
-<p style="color: #4ade80; font-weight: 700; font-size: 14px; margin: 0 0 8px 0;">Human final review</p>
-<p style="color: #94a3b8; font-size: 13px; margin: 0;">Humans resolve conflicts between agents and make final approval.</p>
+<div class="docs-card docs-card-muted">
+<p class="docs-copy">Human final review</p>
+<p class="docs-copy">Humans resolve conflicts between agents and make final approval.</p>
 </div>
 
 </div>

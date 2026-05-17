@@ -1,8 +1,14 @@
-# Single Responsibility Principle — Maintainability Prompt Pack
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/maintainability/">Maintainability</a><span class="sep">/</span><span>Single responsibility principle</span></div>
+    <div class="docs-eyebrow">Maintainability · SRP <span class="docs-hero-meta">~4 min read</span></div>
+    <h1 class="docs-hero-title">Single responsibility principle</h1>
+    <p class="docs-hero-copy">states that a class, function, or module should have one, and only one, reason to change. When responsibilities are mixed, changes to one concern ripple through code handling unrelated concerns.</p>
+    <span class="docs-hero-flourish">One function. One reason to change. The Queen demands it.</span>
+  </div>
+</div>
 
-> **Single Responsibility Principle (SRP)** states that a class, function, or module should have one, and only one, reason to change. When responsibilities are mixed, changes to one concern ripple through code handling unrelated concerns.
-
----
 
 ## 🎯 What is the Single Responsibility Principle?
 
@@ -38,13 +44,13 @@
 
 ## Prompt 1: Identify SRP Violations
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Finds functions and classes handling multiple concerns that should be separated</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Finds functions and classes handling multiple concerns that should be separated</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a software architect analyzing code for violations of the Single Responsibility Principle.
@@ -117,13 +123,13 @@ Provide an SRP violation report with:
 
 ## Prompt 2: Split Functions by Responsibility
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Refactors a multi-responsibility function into focused single-purpose functions with an orchestrator</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Refactors a multi-responsibility function into focused single-purpose functions with an orchestrator</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a refactoring expert splitting multi-responsibility functions into focused, single-purpose functions.
@@ -204,13 +210,13 @@ Provide refactored code with:
 
 ## Prompt 3: Apply Layered Architecture
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Restructures mixed-concern code into clean layers: routes, services, repositories, and validators</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Restructures mixed-concern code into clean layers: routes, services, repositories, and validators</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a software architect implementing layered architecture to enforce Single Responsibility Principle across a codebase.
@@ -284,13 +290,13 @@ Provide complete refactored code with:
 
 ## Prompt 4: Separate Cross-Cutting Concerns
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Extracts logging, auth, error handling, and metrics into reusable middleware and decorators</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Extracts logging, auth, error handling, and metrics into reusable middleware and decorators</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a software engineer extracting cross-cutting concerns (logging, authentication, error handling) from business logic using middleware and decorators.
@@ -371,53 +377,53 @@ Provide complete refactored code with:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After applying SRP refactoring, verify:</div>
+<div class="docs-heading">After applying SRP refactoring, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Single Responsibility</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Single Responsibility</div>
+  <div class="docs-copy">
     ✓ Each function has ONE clear purpose<br/>
     ✓ Function names describe what they do (no "and" in names)<br/>
     ✓ Each class has ONE reason to change<br/>
     ✓ No mixing of validation, business logic, and data access in one function<br/>
-    <strong style="color: #94a3b8;">Test:</strong> For each function, ask "what does this do?" — if the answer uses "and", it needs splitting
+    <strong class="docs-strong">Test:</strong> For each function, ask "what does this do?" — if the answer uses "and", it needs splitting
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Layered Architecture</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Layered Architecture</div>
+  <div class="docs-copy">
     ✓ Routes handle HTTP only (no business logic or SQL)<br/>
     ✓ Services handle business logic only (no SQL or res.json())<br/>
     ✓ Repositories handle data access only (no business rules)<br/>
     ✓ Validators handle validation only (no side effects)<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Grep routes for SQL keywords and services for res.json() — neither should appear
+    <strong class="docs-strong">Test:</strong> Grep routes for SQL keywords and services for res.json() — neither should appear
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Separation of Concerns</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Separation of Concerns</div>
+  <div class="docs-copy">
     ✓ Pure functions (calculations, validation) separate from side effects (DB, email)<br/>
     ✓ Cross-cutting concerns (logging, auth) extracted to middleware/decorators<br/>
     ✓ Infrastructure (DB, external APIs) abstracted behind interfaces<br/>
     ✓ Domain models have no framework dependencies<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Business logic tests should require zero mocks for infrastructure
+    <strong class="docs-strong">Test:</strong> Business logic tests should require zero mocks for infrastructure
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Testability</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Testability</div>
+  <div class="docs-copy">
     ✓ Business logic testable without database<br/>
     ✓ Each layer testable in isolation<br/>
     ✓ Dependencies injectable (can mock in tests)<br/>
     ✓ Cross-cutting concerns can be disabled in tests<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Write a unit test for a service function that uses no database connection
+    <strong class="docs-strong">Test:</strong> Write a unit test for a service function that uses no database connection
   </div>
 </div>
 

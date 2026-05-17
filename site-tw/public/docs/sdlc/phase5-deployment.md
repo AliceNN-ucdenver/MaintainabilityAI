@@ -1,50 +1,37 @@
-<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 5</div>
-
-# Phase 5: Deployment
-
-<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4); border: 1px solid rgba(52, 211, 153, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">5&#xFE0F;&#x20E3;</div>
-    <div>
-      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Deployment</h2>
-      <div style="font-size: 16px; color: #d1fae5; margin-top: 8px;">Automated CI/CD with Security Re-scanning</div>
-    </div>
-  </div>
-  <div style="color: #d1fae5; font-size: 15px; line-height: 1.7;">
-    Merge triggers automated build, security re-scan, staging deployment, smoke tests, and production release. Monitoring and rollback procedures ensure safe delivery.
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/rabbit.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 5</span></div>
+    <div class="docs-eyebrow">Phase 5 of 6 · Deploy <span class="docs-hero-meta">~1 min read</span></div>
+    <h1 class="docs-hero-title">Deployment &mdash; forward with a one-click reverse</h1>
+    <p class="docs-hero-copy">Merge triggers build, security rescan, staging smoke tests, canary release, and observation. Every step has a rollback path because production never stops asking questions.</p>
+    <span class="docs-hero-flourish">&ldquo;I&rsquo;m late, I&rsquo;m late!&rdquo; &mdash; the White Rabbit ships with a rollback.</span>
   </div>
 </div>
 
 ## Phase Overview
 
-```mermaid
-flowchart LR
-    A[Merge to Main] --> B[Build]
-    B --> C[Security Re-scan]
-    C --> D[Deploy Staging]
-    D --> E[Smoke Tests]
-    E -->|Pass| F[Deploy Production]
-    E -->|Fail| G[Rollback]
-    F --> H[Monitor]
-    H -->|Errors| G
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/phase5-deployment.svg" alt="Deployment flow from merge to build, rescan, staging, smoke tests, production, monitoring, and rollback." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Deployment keeps security scanning and rollback readiness in the release path.</figcaption>
+</figure>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Duration</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">10-30 min</div>
+<div class="docs-grid docs-grid-compact">
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Duration</div>
+    <div class="docs-heading">10-30 min</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">GitHub Actions, Sentry</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Actors</div>
+    <div class="docs-heading">GitHub Actions, Sentry</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Mode</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Automated (CI/CD pipeline)</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Mode</div>
+    <div class="docs-copy">Automated (CI/CD pipeline)</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Gate</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Smoke tests pass + monitoring healthy</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Gate</div>
+    <div class="docs-copy">Smoke tests pass + monitoring healthy</div>
   </div>
 </div>
 
@@ -55,7 +42,7 @@ flowchart LR
 Merge to main triggers the deployment pipeline automatically.
 
 <details>
-<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">GitHub Actions deployment workflow</summary>
+<summary class="docs-details-summary">GitHub Actions deployment workflow</summary>
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -118,8 +105,8 @@ jobs:
 
 Run smoke tests and health checks against the deployed environment.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(16, 185, 129, 0.3);">
-<div style="font-size: 12px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Smoke Test Generation</div>
+<div class="docs-card docs-card-emerald">
+<div class="docs-card-kicker">RCTRO Prompt — Smoke Test Generation</div>
 
 ```
 Role: You are a deployment engineer writing production smoke tests.
@@ -157,7 +144,7 @@ Executable test suite (Jest or curl commands) for CI/CD pipeline.
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Smoke test suite</summary>
+<summary class="docs-details-summary">Example: Smoke test suite</summary>
 
 ```typescript
 describe('Production Smoke Tests', () => {
@@ -186,7 +173,7 @@ describe('Production Smoke Tests', () => {
 </details>
 
 <details>
-<summary style="cursor: pointer; color: #6ee7b7; font-weight: 600; padding: 8px 0;">Example: Document Sharing deployment checklist</summary>
+<summary class="docs-details-summary">Example: Document Sharing deployment checklist</summary>
 
 ```markdown
 ## Document Sharing — Deployment Validation
@@ -218,29 +205,29 @@ describe('Production Smoke Tests', () => {
 
 Configure monitoring for security events and performance degradation.
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Security Alerts</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Security Alerts</div>
+  <div class="docs-copy">
     Auth failures >100/min → notify security team<br/>
     Injection attempts >10/hr → notify + investigate<br/>
     Critical CVE deployed → auto-rollback
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Performance Alerts</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Performance Alerts</div>
+  <div class="docs-copy">
     p95 latency >200ms → investigate<br/>
     Error rate >1% → notify on-call<br/>
     Error rate >5% → auto-rollback
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Error Tracking</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Error Tracking</div>
+  <div class="docs-copy">
     Sentry/Datadog for exception tracking<br/>
     PII redacted before capture<br/>
     Alerts on new error types post-deploy
@@ -267,24 +254,24 @@ git revert HEAD && git push origin main
 
 ## Phase Handoff → Phase 6
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(16, 185, 129, 0.3);">
-<div style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
-  <span style="font-size: 24px;">5&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
-  <span style="font-size: 24px;">6&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Deployment → Evolution</span>
+<div class="docs-card docs-card-emerald">
+<div class="docs-flex-block">
+  <span class="docs-copy">5&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">→</span>
+  <span class="docs-copy">6&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">Deployment → Evolution</span>
 </div>
-<div style="padding: 24px;">
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+<div>
+  <div class="docs-card-kicker">Handoff Checklist</div>
+  <div class="docs-copy">
     <div>✅ Build + security re-scan passed</div>
     <div>✅ Staging smoke tests passed</div>
     <div>✅ Production deployment successful</div>
     <div>✅ Health checks healthy</div>
     <div>✅ Monitoring active</div>
   </div>
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Artifacts</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+  <div class="docs-card-kicker">Artifacts</div>
+  <div class="docs-copy">
     <div>Deployment URL: [production URL] · Monitoring dashboard: [link] · Rollback version: [previous version]</div>
   </div>
 </div>
@@ -292,7 +279,7 @@ git revert HEAD && git push origin main
 
 ---
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
-  <a href="/docs/sdlc/phase4-governance" style="color: #d8b4fe; font-size: 14px; text-decoration: none;">← Phase 4: Governance</a>
-  <a href="/docs/sdlc/phase6-evolution" style="display: inline-block; background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 6: Evolution →</a>
+<div class="docs-flex-block">
+  <a href="/docs/sdlc/phase4-governance" class="markdown-link">← Phase 4: Governance</a>
+  <a href="/docs/sdlc/phase6-evolution" class="docs-button-primary">Phase 6: Evolution →</a>
 </div>

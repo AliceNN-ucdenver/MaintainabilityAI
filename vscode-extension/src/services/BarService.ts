@@ -9,11 +9,15 @@ import type {
   GovernanceDecision,
   GovernanceScoreSnapshot,
   GovernanceTrend,
+  GovernanceTier,
   PillarFindingCounts,
+  PrdDocSummary,
   RationalizationStrategy,
+  ResearchDocSummary,
   ReviewRecord,
 } from '../types';
 import { GovernanceScorer } from './GovernanceScorer';
+import { computeTier as computeTierImpl } from '../core/tier';
 import {
   generateAppYaml,
   generateConceptualView,
@@ -647,6 +651,36 @@ export class BarService {
   }
 
   /**
+   * List research docs in `<barPath>/research/` — produced by the Archeologist.
+   * Returns metadata only (id, topic, mtime, relative path); does not read body.
+   */
+  listResearch(barPath: string): ResearchDocSummary[] {
+    return scanDocDir<ResearchDocSummary>(barPath, 'research', () => ({}));
+  }
+
+  /**
+   * List PRD docs in `<barPath>/prds/` — produced by the PRD agent.
+   * Each entry includes `hasManifest` to indicate whether the matching
+   * `<id>.manifest.json` exists (which carries the spec-ready payload).
+   */
+  listPrds(barPath: string): PrdDocSummary[] {
+    return scanDocDir<PrdDocSummary>(barPath, 'prds', filename => {
+      const id = filename.replace(/\.md$/, '');
+      const manifestPath = path.join(barPath, 'prds', `${id}.manifest.json`);
+      return { hasManifest: fs.existsSync(manifestPath) };
+    });
+  }
+
+  /**
+   * Derive the governance tier for a BAR from its pillar + composite scores.
+   * Thin wrapper around the canonical impl in core/tier.ts so consumers can
+   * import from BarService instead of reaching into mcp/.
+   */
+  computeTier(bar: BarSummary): GovernanceTier {
+    return computeTierImpl(bar);
+  }
+
+  /**
    * Create a new ADR file. Auto-assigns the next sequence number.
    */
   createAdr(barPath: string, adr: AdrRecord): AdrRecord {
@@ -1051,4 +1085,56 @@ export class BarService {
       }
     } catch { /* ignore unreadable dirs */ }
   }
+}
+
+// ============================================================================
+// Doc-directory scanner — shared by listResearch / listPrds
+// ============================================================================
+
+/**
+ * Scan `<barPath>/<subdir>/*.md` and return ResearchDocSummary-shaped entries.
+ * The augment callback adds subtype-specific fields (e.g., `hasManifest` for PRDs).
+ */
+function scanDocDir<T extends ResearchDocSummary>(
+  barPath: string,
+  subdir: 'research' | 'prds',
+  augment: (filename: string) => Omit<T, keyof ResearchDocSummary>,
+): T[] {
+  const dir = path.join(barPath, subdir);
+  if (!fs.existsSync(dir)) { return []; }
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const summaries: T[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) { continue; }
+    const filePath = path.join(dir, entry.name);
+    const id = entry.name.replace(/\.md$/, '');
+    let publishedAt = new Date(0).toISOString();
+    let topic = id.replace(/[-_]/g, ' ');
+    try {
+      const stat = fs.statSync(filePath);
+      publishedAt = stat.mtime.toISOString();
+      const content = fs.readFileSync(filePath, 'utf8');
+      const headingMatch = content.match(/^#\s+(.+)$/m);
+      if (headingMatch) { topic = headingMatch[1].trim(); }
+    } catch { /* fall back to filename topic + epoch */ }
+
+    const base: ResearchDocSummary = {
+      id,
+      filename: entry.name,
+      topic,
+      publishedAt,
+      relativePath: `${subdir}/${entry.name}`,
+    };
+    summaries.push({ ...base, ...augment(entry.name) } as T);
+  }
+
+  // Newest first
+  return summaries.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }

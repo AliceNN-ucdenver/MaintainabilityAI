@@ -8,6 +8,7 @@ import { GitHubService, githubService } from '../services/GitHubService';
 import { promptPackService } from '../services/PromptPackService';
 import { TechStackDetector } from '../services/TechStackDetector';
 import { IssueMonitorService } from '../services/IssueMonitorService';
+import { readGovernanceDecision } from '../utils/governanceBridge';
 import { FolderStateService } from '../services/FolderStateService';
 import { ISSUE_TEMPLATES } from '../templates/issueTemplates';
 import { readRepoMetadata, writeRepoMetadata, mergeMetadata } from '../services/RepoMetadata';
@@ -298,8 +299,6 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
   private sendGovernanceData() {
     if (this.folderPath) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { readGovernanceDecision } = require('../utils/governanceBridge');
         const data = readGovernanceDecision(this.folderPath);
         this.postMessage({ type: 'governanceData', data });
       } catch { /* governance bridge is best-effort */ }

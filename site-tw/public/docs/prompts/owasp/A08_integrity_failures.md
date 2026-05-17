@@ -1,8 +1,14 @@
-# Software and Data Integrity Failures — OWASP A08 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Software &amp; data integrity failures</span></div>
+    <div class="docs-eyebrow">A08 · Integrity failures <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Software &amp; data integrity failures</h1>
+    <p class="docs-hero-copy">occurs when code and infrastructure do not protect against integrity violations. This includes unsigned software updates, insecure deserialization, CI/CD pipeline compromises, and missing integrity verification for critical data or code.</p>
+    <span class="docs-hero-flourish">Trust nothing the Hatter sends &mdash; verify signatures and provenance.</span>
+  </div>
+</div>
 
-> **OWASP A08: Software and Data Integrity Failures** occurs when code and infrastructure do not protect against integrity violations. This includes unsigned software updates, insecure deserialization, CI/CD pipeline compromises, and missing integrity verification for critical data or code.
-
----
 
 ## 🎯 What is A08?
 
@@ -25,19 +31,19 @@
 **Primary**: **Tampering** (malicious code injected through compromised supply chain)
 **Secondary**: **Elevation of Privilege** (malicious updates gain system access), **Repudiation** (unsigned changes have no accountability)
 
-See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege), and [STRIDE: Repudiation](/docs/prompts/stride/repudiation)
+See also: [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering), [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege), and [STRIDE: Repudiation](/docs/prompts/threat-modeling/repudiation)
 
 ---
 
 ## Prompt 1: Analyze Code for Integrity Failures
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Finds unsigned plugins, insecure deserialization, missing checksums, and CI/CD gaps — returns prioritized findings</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Finds unsigned plugins, insecure deserialization, missing checksums, and CI/CD gaps — returns prioritized findings</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in software and data integrity failures (OWASP A08).
@@ -94,13 +100,13 @@ Provide a prioritized list of integrity failures (Critical > High > Medium) with
 
 ## Prompt 2: Implement Integrity Verification
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates HMAC signing, checksum verification, safe deserialization, timestamped data, and CI/CD artifact signing</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates HMAC signing, checksum verification, safe deserialization, timestamped data, and CI/CD artifact signing</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive integrity verification for a web application (OWASP A08 remediation).
@@ -185,8 +191,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -212,8 +218,8 @@ export function deserialize(data: string): any {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -511,56 +517,56 @@ jobs:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated integrity verification code:</div>
+<div class="docs-heading">Before merging AI-generated integrity verification code:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Signatures & Checksums</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Signatures & Checksums</div>
+  <div class="docs-copy">
     ✓ All plugins and updates verified with HMAC-SHA256 before execution<br/>
     ✓ SHA-256 checksums calculated and compared for all downloads<br/>
     ✓ Signing keys in env vars or secret manager — never hardcoded<br/>
     ✓ Constant-time comparison for all signature/checksum checks<br/>
     ✓ Missing or invalid signatures cause immediate rejection<br/>
     ✓ All verification failures logged as security events<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> tamper one byte of plugin content, verify signature check fails and logs integrity violation
+    ✓ <strong class="docs-strong">Test:</strong> tamper one byte of plugin content, verify signature check fails and logs integrity violation
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Safe Deserialization & Replay Prevention</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Safe Deserialization & Replay Prevention</div>
+  <div class="docs-copy">
     ✓ No eval(), Function(), or unsafe yaml.load() with external data<br/>
     ✓ JSON.parse() + Zod schema validation for all deserialization<br/>
     ✓ Signed data includes timestamp; reject if older than 5 minutes<br/>
     ✓ Nonces used for high-security replay prevention<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> attempt malicious payload deserialization verify rejection; create signed data, wait past expiry, verify rejected
+    ✓ <strong class="docs-strong">Test:</strong> attempt malicious payload deserialization verify rejection; create signed data, wait past expiry, verify rejected
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Supply Chain & CI/CD Security</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Supply Chain & CI/CD Security</div>
+  <div class="docs-copy">
     ✓ package-lock.json integrity hashes verified on install (npm ci)<br/>
     ✓ GitHub Action versions pinned to commit SHAs, not @main<br/>
     ✓ Build artifacts signed with HMAC or GPG; verified before deploy<br/>
     ✓ Deployment fails if signature verification fails<br/>
     ✓ Signed commits required from contributors<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> modify lock integrity hash verify npm ci fails; deploy unsigned artifact verify rejection
+    ✓ <strong class="docs-strong">Test:</strong> modify lock integrity hash verify npm ci fails; deploy unsigned artifact verify rejection
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Integrity Metadata & Logging</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Integrity Metadata & Logging</div>
+  <div class="docs-copy">
     ✓ Trusted resource registry maintained with name, version, signature, checksum<br/>
     ✓ Metadata stored in version control for auditability<br/>
     ✓ All integrity events logged (success and failure) with resource details<br/>
     ✓ Alerts configured for integrity failures (may indicate active attack)<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> add resource without proper metadata, verify loading fails with clear error
+    ✓ <strong class="docs-strong">Test:</strong> add resource without proper metadata, verify loading fails with clear error
   </div>
 </div>
 

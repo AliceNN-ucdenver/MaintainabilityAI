@@ -1,8 +1,14 @@
-# STRIDE: Spoofing Identity — Threat Modeling Prompt Pack
+<div class="docs-hero docs-hero-amber">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/threat-modeling/">STRIDE</a><span class="sep">/</span><span>Spoofing identity</span></div>
+    <div class="docs-eyebrow">STRIDE · Spoofing <span class="docs-hero-meta">~6 min read</span></div>
+    <h1 class="docs-hero-title">Spoofing identity</h1>
+    <p class="docs-hero-copy">is pretending to be someone or something else to gain unauthorized access. This STRIDE category focuses on authentication failures where attackers impersonate legitimate users, systems, or services.</p>
+    <span class="docs-hero-flourish">&ldquo;Who in the world am <em>I</em>?&rdquo; &mdash; the question every authn check answers.</span>
+  </div>
+</div>
 
-> **Spoofing** is pretending to be someone or something else to gain unauthorized access. This STRIDE category focuses on authentication failures where attackers impersonate legitimate users, systems, or services.
-
----
 
 ## 🎯 What is Spoofing?
 
@@ -28,13 +34,13 @@
 
 ## Prompt: Identify Spoofing Threats in Architecture
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Analyze your architecture for identity spoofing threats across authentication, sessions, and API keys</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Analyze your architecture for identity spoofing threats across authentication, sessions, and API keys</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security architect specializing in authentication and identity management. Your task is to perform STRIDE threat modeling focusing on Spoofing (S) threats.
@@ -224,87 +230,87 @@ Additional controls:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #8b5cf6;">
+<div class="docs-card docs-card-indigo">
 
-<div style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">Before merging AI-generated Spoofing threat mitigation code, verify:</div>
+<div class="docs-heading">Before merging AI-generated Spoofing threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Password and Credential Storage</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Password and Credential Storage</div>
+  <div class="docs-copy">
     ✓ System never stores passwords in plaintext or uses weak hashing algorithms like MD5 or SHA-1<br/>
     ✓ All passwords hashed with bcrypt at cost factor 12 or higher (approximately 250ms computation time)<br/>
     ✓ Password policies enforce minimum complexity requirements: 12+ characters with mixed case, numbers, symbols<br/>
     ✓ Credentials are never logged, transmitted in URLs, or exposed in error messages<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt login with weak passwords like password123 and verify rejection, inspect database to confirm hashed passwords
+    <strong class="docs-strong">Test:</strong> Attempt login with weak passwords like password123 and verify rejection, inspect database to confirm hashed passwords
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Token and Session Management</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Token and Session Management</div>
+  <div class="docs-copy">
     ✓ JWT secrets stored in environment variables, never hardcoded in source code or client bundles<br/>
     ✓ Secrets are cryptographically random with at least 256 bits of entropy<br/>
     ✓ All tokens have expiration timestamps: 15 minutes for access tokens, 7 days for refresh tokens<br/>
     ✓ Session cookies use HttpOnly, Secure, and SameSite=Strict flags to prevent XSS and CSRF attacks<br/>
     ✓ Tokens invalidated on logout and refresh token rotation is implemented<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Inspect cookies in browser DevTools to verify security flags, try replaying expired token and confirm rejection
+    <strong class="docs-strong">Test:</strong> Inspect cookies in browser DevTools to verify security flags, try replaying expired token and confirm rejection
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Password Reset and Account Recovery</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Password Reset and Account Recovery</div>
+  <div class="docs-copy">
     ✓ Password reset tokens generated using crypto.randomBytes(32) or equivalent, producing 256 bits of unpredictable randomness<br/>
     ✓ Tokens expire within 15-30 minutes and are single-use only (invalidated after consumption)<br/>
     ✓ Rate limiting enforced at 5 reset requests per hour per email address<br/>
     ✓ System sends email notifications whenever passwords are changed for unauthorized reset detection<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Request multiple resets rapidly and verify rate limiting blocks excessive requests, check token expiration and reuse prevention
+    <strong class="docs-strong">Test:</strong> Request multiple resets rapidly and verify rate limiting blocks excessive requests, check token expiration and reuse prevention
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Multi-Factor Authentication</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Multi-Factor Authentication</div>
+  <div class="docs-copy">
     ✓ For high-value accounts (admin, financial), multi-factor authentication is mandatory, not optional<br/>
     ✓ System supports TOTP via authenticator apps, SMS codes, or hardware keys<br/>
     ✓ Backup codes generated at enrollment for account recovery<br/>
     ✓ MFA cannot be bypassed through alternate authentication paths like password reset or remember this device shortcuts<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt login to admin account without MFA and verify access denial, try bypassing MFA through password reset flow
+    <strong class="docs-strong">Test:</strong> Attempt login to admin account without MFA and verify access denial, try bypassing MFA through password reset flow
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">API and Service Authentication</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">API and Service Authentication</div>
+  <div class="docs-copy">
     ✓ API keys are 32+ characters of random data, stored hashed in database, and rotated every 90 days<br/>
     ✓ For service-to-service communication, use mutual TLS or OAuth client credentials flow instead of static API keys<br/>
     ✓ Never embed API keys in mobile apps or client-side JavaScript where they can be extracted<br/>
     ✓ Key scoping implemented to limit what each API key can access<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Extract API key from mobile app binary and verify minimal permissions, attempt to use key outside intended scope
+    <strong class="docs-strong">Test:</strong> Extract API key from mobile app binary and verify minimal permissions, attempt to use key outside intended scope
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Brute Force and Account Lockout</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-cyan">
+  <div class="docs-heading">Brute Force and Account Lockout</div>
+  <div class="docs-copy">
     ✓ Login endpoints implement progressive delays or account lockout after 5 failed authentication attempts<br/>
     ✓ Lockouts last 15-30 minutes or require email verification to unlock<br/>
     ✓ CAPTCHA added after 3 failed attempts to block automated attacks<br/>
     ✓ Monitoring for distributed brute force attacks across multiple accounts with IP-based rate limiting<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt brute force login with 10 incorrect passwords, verify account locks and CAPTCHA appears
+    <strong class="docs-strong">Test:</strong> Attempt brute force login with 10 incorrect passwords, verify account locks and CAPTCHA appears
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Authentication Logging and Monitoring</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Authentication Logging and Monitoring</div>
+  <div class="docs-copy">
     ✓ All authentication events logged with timestamp, IP address, User-Agent, success/failure status, and user identifier<br/>
     ✓ Logs sent to centralized logging system (ELK, Splunk, CloudWatch) for correlation<br/>
     ✓ Alerts configured for suspicious patterns: logins from new geolocations, multiple failed attempts, concurrent sessions from different IPs, privilege escalation<br/>
     ✓ PII like passwords is never logged<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Review authentication logs and verify actionable forensic data, test that password values never appear in any log
+    <strong class="docs-strong">Test:</strong> Review authentication logs and verify actionable forensic data, test that password values never appear in any log
   </div>
 </div>
 

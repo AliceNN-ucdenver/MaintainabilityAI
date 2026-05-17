@@ -376,8 +376,16 @@ describe('Config Scaffold', () => {
         const result = scaffoldAgentConfig(copilotReader, 'Test Bar Good');
         if ('error' in result) { throw new Error(result.error); }
 
-        expect(result.files['.github/workflows/redqueen-implement.yml']).toContain('github/copilot-coding-agent@v1');
-        expect(result.files['.github/workflows/redqueen-implement.yml']).not.toContain('anthropics/claude-code-action@v1');
+        // Copilot Coding Agent is invoked by assigning the Copilot bot to the issue,
+        // not via a `uses:` action. See
+        // https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent
+        const implementYml = result.files['.github/workflows/redqueen-implement.yml'];
+        expect(implementYml).toContain('Assign issue to Copilot Coding Agent');
+        expect(implementYml).toContain('uses: actions/github-script@v7');
+        expect(implementYml).toContain('addAssignees');
+        expect(implementYml).toContain('"Copilot"');
+        expect(implementYml).not.toContain('github/copilot-coding-agent@v1');
+        expect(implementYml).not.toContain('anthropics/claude-code-action@v1');
         expect(result.files['.github/copilot-agents/security-reviewer.md']).toContain('"agent": "copilot"');
         expect(result.files['.claude/agents/security-reviewer.md']).toBeUndefined();
       } finally {

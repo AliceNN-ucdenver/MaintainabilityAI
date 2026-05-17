@@ -1,8 +1,13 @@
-# Copilot Coding Agent — Agentic Guide
-
-> <span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> Autonomous GitHub agent, governance-enforced via GitHub Actions
->
-> Looking for the interactive in-editor assistant? See [GitHub Copilot](/docs/agents/copilot).
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Copilot Coding Agent</span></div>
+    <div class="docs-eyebrow">Agentic · governed by The Red Queen <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Copilot Coding Agent &mdash; autonomous in GitHub</h1>
+    <p class="docs-hero-copy">Same governance mesh and policy engine as Claude Code Action &mdash; different hook adapter and config format. Drop-in for teams already standardized on Copilot, with the Red Queen rails still in place.</p>
+    <span class="docs-hero-flourish">Two grins, one set of rules. The court does not care which agent you brought.</span>
+  </div>
+</div>
 
 GitHub Copilot Coding Agent is an autonomous AI agent that runs on GitHub — triggered by issues, PR comments, or scheduled workflows. Like Claude Code Action, MaintainabilityAI governs it through **The Red Queen**.
 
@@ -22,19 +27,19 @@ Both agents call the **same validate\_action tool** and get **identical governan
 
 ## Configuration Files
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: auto 1fr; gap: 12px 20px; font-size: 14px;">
-<div style="color: #7dd3fc; font-weight: 600;">Repo Settings UI</div>
-<div style="color: #94a3b8;">MCP server configuration (JSON) — equivalent to Claude's .mcp.json</div>
-<div style="color: #7dd3fc; font-weight: 600;">.redqueen/mcp-runner.js</div>
-<div style="color: #94a3b8;">Repo-local runner that resolves the live governance mesh and launches Red Queen MCP</div>
-<div style="color: #7dd3fc; font-weight: 600;">AGENTS.md</div>
-<div style="color: #94a3b8;">Shared agent instructions (read by both Claude and Copilot agents)</div>
-<div style="color: #7dd3fc; font-weight: 600;">copilot-instructions.md</div>
-<div style="color: #94a3b8;">Optional Copilot-specific instructions</div>
-<div style="color: #7dd3fc; font-weight: 600;">copilot-setup-steps.yml</div>
-<div style="color: #94a3b8;">Environment setup workflow — checks out the mesh and starts the repo-local MCP runner</div>
+<div class="docs-grid">
+<div class="docs-heading">Repo Settings UI</div>
+<div class="docs-muted">MCP server configuration (JSON) — equivalent to Claude's .mcp.json</div>
+<div class="docs-heading">.redqueen/mcp-runner.js</div>
+<div class="docs-muted">Repo-local runner that resolves the live governance mesh and launches Red Queen MCP</div>
+<div class="docs-heading">AGENTS.md</div>
+<div class="docs-muted">Shared agent instructions (read by both Claude and Copilot agents)</div>
+<div class="docs-heading">copilot-instructions.md</div>
+<div class="docs-muted">Optional Copilot-specific instructions</div>
+<div class="docs-heading">copilot-setup-steps.yml</div>
+<div class="docs-muted">Environment setup workflow — checks out the mesh and starts the repo-local MCP runner</div>
 </div>
 
 </div>
@@ -43,30 +48,30 @@ Both agents call the **same validate\_action tool** and get **identical governan
 
 The copilot-setup-steps.yml file runs before the agent starts, setting up the governance infrastructure:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<div class="docs-card docs-card-emerald">
 
-<p style="color: #10b981; font-weight: 700; font-size: 14px; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">copilot-setup-steps.yml</p>
+<p class="docs-copy">copilot-setup-steps.yml</p>
 
-<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 20px; font-size: 13px; color: #e2e8f0; line-height: 1.8; font-family: monospace;">
+<div class="docs-card docs-card-muted">
 
-<span style="color: #7dd3fc;">name:</span> Copilot Setup Steps<br/>
-<span style="color: #7dd3fc;">on:</span> workflow\_dispatch<br/>
+<span class="docs-copy">name:</span> Copilot Setup Steps<br/>
+<span class="docs-copy">on:</span> workflow\_dispatch<br/>
 <br/>
-<span style="color: #7dd3fc;">jobs:</span><br/>
-&nbsp;&nbsp;<span style="color: #7dd3fc;">setup:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">runs-on:</span> ubuntu-latest<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">steps:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">uses:</span> actions/checkout@v4<br/>
+<span class="docs-copy">jobs:</span><br/>
+&nbsp;&nbsp;<span class="docs-copy">setup:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">runs-on:</span> ubuntu-latest<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">steps:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="docs-copy">uses:</span> actions/checkout@v4<br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Checkout Governance Mesh<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">uses:</span> actions/checkout@v4<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">with:</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">repository:</span> your-org/governance-mesh<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">path:</span> governance-mesh<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">token:</span> $\{\{ secrets.COPILOT\_MCP\_MESH\_TOKEN \}\}<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="docs-copy">name:</span> Checkout Governance Mesh<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">uses:</span> actions/checkout@v4<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">with:</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">repository:</span> your-org/governance-mesh<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">path:</span> governance-mesh<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">token:</span> $\{\{ secrets.COPILOT\_MCP\_MESH\_TOKEN \}\}<br/>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #7dd3fc;">name:</span> Start Red Queen MCP Server<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #7dd3fc;">run:</span> |<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span class="docs-copy">name:</span> Start Red Queen MCP Server<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="docs-copy">run:</span> |<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node .redqueen/mcp-runner.js &amp;
 
 </div>
@@ -77,44 +82,44 @@ The copilot-setup-steps.yml file runs before the agent starts, setting up the go
 
 ## Key Differences from Claude Code Action
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: 1fr auto auto; gap: 8px 24px; font-size: 13px;">
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Capability</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155; text-align: center;">Claude Code Action</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155; text-align: center;">Copilot Coding Agent</div>
+<div class="docs-grid">
+<div class="docs-heading">Capability</div>
+<div class="docs-center-block">Claude Code Action</div>
+<div class="docs-center-block">Copilot Coding Agent</div>
 
-<div style="color: #e2e8f0;">MCP Resources (calm://)</div>
-<div style="text-align: center;">✅ Full access</div>
-<div style="text-align: center;">❌</div>
+<div>MCP Resources (calm://)</div>
+<div class="docs-center-block">✅ Full access</div>
+<div class="docs-center-block">❌</div>
 
-<div style="color: #e2e8f0;">MCP Prompts</div>
-<div style="text-align: center;">✅ Governance-aware</div>
-<div style="text-align: center;">❌</div>
+<div>MCP Prompts</div>
+<div class="docs-center-block">✅ Governance-aware</div>
+<div class="docs-center-block">❌</div>
 
-<div style="color: #e2e8f0;">MCP Tools</div>
-<div style="text-align: center;">✅ All 13 tools</div>
-<div style="text-align: center;">✅ All 13 tools</div>
+<div>MCP Tools</div>
+<div class="docs-center-block">✅ All 13 tools</div>
+<div class="docs-center-block">✅ All 13 tools</div>
 
-<div style="color: #e2e8f0;">Config mechanism</div>
-<div style="text-align: center;">.mcp.json file</div>
-<div style="text-align: center;">Repo Settings UI (JSON)</div>
+<div>Config mechanism</div>
+<div class="docs-center-block">.mcp.json file</div>
+<div class="docs-center-block">Repo Settings UI (JSON)</div>
 
-<div style="color: #e2e8f0;">Agent instructions</div>
-<div style="text-align: center;">CLAUDE.md + AGENTS.md</div>
-<div style="text-align: center;">copilot-instructions.md + AGENTS.md</div>
+<div>Agent instructions</div>
+<div class="docs-center-block">CLAUDE.md + AGENTS.md</div>
+<div class="docs-center-block">copilot-instructions.md + AGENTS.md</div>
 
-<div style="color: #e2e8f0;">Hook support</div>
-<div style="text-align: center;">✅ PreToolUse/PostToolUse</div>
-<div style="text-align: center;">❌</div>
+<div>Hook support</div>
+<div class="docs-center-block">✅ PreToolUse/PostToolUse</div>
+<div class="docs-center-block">❌</div>
 
-<div style="color: #e2e8f0;">Environment setup</div>
-<div style="text-align: center;">Built-in</div>
-<div style="text-align: center;">Via copilot-setup-steps.yml</div>
+<div>Environment setup</div>
+<div class="docs-center-block">Built-in</div>
+<div class="docs-center-block">Via copilot-setup-steps.yml</div>
 
-<div style="color: #e2e8f0;">Red Queen enforcement</div>
-<div style="text-align: center;">✅ Identical</div>
-<div style="text-align: center;">✅ Identical</div>
+<div>Red Queen enforcement</div>
+<div class="docs-center-block">✅ Identical</div>
+<div class="docs-center-block">✅ Identical</div>
 </div>
 
 </div>
@@ -127,33 +132,33 @@ The copilot-setup-steps.yml file runs before the agent starts, setting up the go
 
 Same tools as Claude Code Action:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: auto auto 1fr; gap: 8px 20px; font-size: 13px;">
-<div style="color: #e2e8f0; font-weight: 600;">find\_bars</div>
-<div style="color: #94a3b8;">Query</div>
-<div style="color: #94a3b8;">Search BARs by name, platform, criticality, score range</div>
-<div style="color: #e2e8f0; font-weight: 600;">get\_bar\_context</div>
-<div style="color: #94a3b8;">Query</div>
-<div style="color: #94a3b8;">Architecture, scores, threats, ADRs, controls, flows — all in one call</div>
-<div style="color: #e2e8f0; font-weight: 600;">blast\_radius</div>
-<div style="color: #94a3b8;">Analysis</div>
-<div style="color: #94a3b8;">Downstream impact across relationships and BARs</div>
-<div style="color: #e2e8f0; font-weight: 600;">governance\_gaps</div>
-<div style="color: #94a3b8;">Analysis</div>
-<div style="color: #94a3b8;">Missing artifacts, weak scores, overdue reviews</div>
-<div style="color: #e2e8f0; font-weight: 600;">flow\_impact</div>
-<div style="color: #94a3b8;">Analysis</div>
-<div style="color: #94a3b8;">Downstream impact on linked BARs</div>
-<div style="color: #e2e8f0; font-weight: 600;">get\_orchestration\_decision</div>
-<div style="color: #94a3b8;">Query</div>
-<div style="color: #94a3b8;">Red Queen decision (tier, permissions, prompt packs)</div>
-<div style="color: #4ade80; font-weight: 700;">validate\_action</div>
-<div style="color: #4ade80; font-weight: 600;">Enforce</div>
-<div style="color: #94a3b8;">Policy-engine validation against CALM model</div>
-<div style="color: #4ade80; font-weight: 700;">validate\_interface\_contract</div>
-<div style="color: #4ade80; font-weight: 600;">Enforce</div>
-<div style="color: #94a3b8;">Cross-repo interface adherence</div>
+<div class="docs-grid">
+<div class="docs-heading">find\_bars</div>
+<div class="docs-muted">Query</div>
+<div class="docs-muted">Search BARs by name, platform, criticality, score range</div>
+<div class="docs-heading">get\_bar\_context</div>
+<div class="docs-muted">Query</div>
+<div class="docs-muted">Architecture, scores, threats, ADRs, controls, flows — all in one call</div>
+<div class="docs-heading">blast\_radius</div>
+<div class="docs-muted">Analysis</div>
+<div class="docs-muted">Downstream impact across relationships and BARs</div>
+<div class="docs-heading">governance\_gaps</div>
+<div class="docs-muted">Analysis</div>
+<div class="docs-muted">Missing artifacts, weak scores, overdue reviews</div>
+<div class="docs-heading">flow\_impact</div>
+<div class="docs-muted">Analysis</div>
+<div class="docs-muted">Downstream impact on linked BARs</div>
+<div class="docs-heading">get\_orchestration\_decision</div>
+<div class="docs-muted">Query</div>
+<div class="docs-muted">Red Queen decision (tier, permissions, prompt packs)</div>
+<div class="docs-heading">validate\_action</div>
+<div class="docs-heading">Enforce</div>
+<div class="docs-muted">Policy-engine validation against CALM model</div>
+<div class="docs-heading">validate\_interface\_contract</div>
+<div class="docs-heading">Enforce</div>
+<div class="docs-muted">Cross-repo interface adherence</div>
 </div>
 
 </div>
@@ -164,22 +169,22 @@ Same tools as Claude Code Action:
 
 Identical to Claude Code Action — governance scores drive agent autonomy:
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 24px 0;">
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
-<div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Autonomous</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">80-100%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Auto-edit mode, can edit src/\*\*, run tests/lint/build</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-grid">
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Autonomous</div>
+<div class="docs-heading">80-100%</div>
+<div class="docs-muted">Auto-edit mode, can edit src/\*\*, run tests/lint/build</div>
 </div>
-<div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Supervised</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">50-79%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Requires human approval, OWASP packs auto-injected</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Supervised</div>
+<div class="docs-heading">50-79%</div>
+<div class="docs-muted">Requires human approval, OWASP packs auto-injected</div>
 </div>
-<div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Restricted</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">0-49%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Plan mode only, 2 agent reviews + human approval required</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Restricted</div>
+<div class="docs-heading">0-49%</div>
+<div class="docs-muted">Plan mode only, 2 agent reviews + human approval required</div>
 </div>
 </div>
 </div>
@@ -190,11 +195,11 @@ Identical to Claude Code Action — governance scores drive agent autonomy:
 
 Both Claude Code Action and Copilot Coding Agent read AGENTS.md for shared governance instructions:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<p style="color: #6EE7F9; font-weight: 700; font-size: 16px; margin: 0 0 16px 0;">Governance Workflow</p>
+<p class="docs-copy">Governance Workflow</p>
 
-<p style="color: #e2e8f0; font-size: 14px; line-height: 1.8; margin: 0 0 16px 0;">
+<p class="docs-copy">
 Before making changes:<br/>
 1. Call get\_bar\_context for architecture, scores, and constraints<br/>
 2. Call get\_orchestration\_decision for your permission tier<br/>
@@ -203,10 +208,10 @@ Before making changes:<br/>
 5. Call governance\_gaps() before creating a PR
 </p>
 
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">
-<strong style="color: #4ade80;">Autonomous</strong> (80%+): Implement freely within src/ ·
-<strong style="color: #fbbf24;">Supervised</strong> (50-79%): Changes require human review ·
-<strong style="color: #f87171;">Restricted</strong> (&lt;50%): Plan first, implement only after approval
+<p class="docs-copy">
+<strong class="docs-strong">Autonomous</strong> (80%+): Implement freely within src/ ·
+<strong class="docs-strong">Supervised</strong> (50-79%): Changes require human review ·
+<strong class="docs-strong">Restricted</strong> (&lt;50%): Plan first, implement only after approval
 </p>
 
 </div>
@@ -215,20 +220,20 @@ Before making changes:<br/>
 
 ## When to Use Copilot Coding Agent vs Claude Code Action
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-<p style="color: #10b981; font-weight: 700; font-size: 15px; margin: 0 0 12px 0;">Choose Copilot Coding Agent when:</p>
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.8; margin: 0;">
+<div class="docs-card docs-card-emerald">
+<p class="docs-copy">Choose Copilot Coding Agent when:</p>
+<p class="docs-copy">
 - Your team already uses GitHub Copilot<br/>
 - The task doesn't require rich architecture context (resources)<br/>
 - You want consistent tooling with your in-editor Copilot experience
 </p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #6366f1;">
-<p style="color: #6366f1; font-weight: 700; font-size: 15px; margin: 0 0 12px 0;">Choose Claude Code Action when:</p>
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.8; margin: 0;">
+<div class="docs-card docs-card-indigo">
+<p class="docs-copy">Choose Claude Code Action when:</p>
+<p class="docs-copy">
 - You need full MCP resource access (architecture models, threat data, score history)<br/>
 - Cross-repo governance is critical (interface contract validation benefits from resource context)<br/>
 - You want PreToolUse/PostToolUse hooks for additional validation

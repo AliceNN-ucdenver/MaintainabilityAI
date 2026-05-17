@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Sequential agent pipeline</title>
+  <desc id="d">A relay race: five specialized agents — threat modeler, implementer, validator, reviewer, release — pass a structured handoff baton from one to the next. Each handoff is named evidence, not a vague conclusion.</desc>
+  <defs>
+    <radialGradient id="seqBg" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#0d1228" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="trackG" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fb7185"/>
+      <stop offset=".25" stop-color="#fbbf24"/>
+      <stop offset=".5" stop-color="#34d399"/>
+      <stop offset=".75" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <marker id="seqArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#cbd5e1"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#a5b4fc}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .agName{font:900 17px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .agRole{font:600 11px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .handTitle{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#cbd5e1}
+      .handBody{font:500 11px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .handBatch{font:800 11px -apple-system,system-ui,sans-serif;fill:#fcd34d}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#seqBg)"/>
+
+  <text x="64" y="74" class="eyebrow">Agent orchestration</text>
+  <text x="64" y="118" class="heroTitle">Sequential agent pipeline</text>
+  <text x="64" y="148" class="heroSub">Each agent does one job well and hands the next agent named evidence — not a hopeful conclusion.</text>
+
+  <!-- Top track with 5 agent nodes -->
+  <g>
+    <!-- track line -->
+    <rect x="120" y="310" width="1040" height="4" rx="2" fill="url(#trackG)" opacity=".85"/>
+    <!-- positions: 168, 396, 624, 852, 1080 -->
+
+    <g transform="translate(168,312)">
+      <circle r="44" fill="rgba(15,23,42,0.95)" stroke="#fb7185" stroke-width="3"/>
+      <text class="agName" y="6" fill="#fda4af">Threat</text>
+      <text class="agName" y="26" fill="#fda4af" font-size="14">modeler</text>
+      <text class="agRole" y="68">Phase 1 specialist</text>
+    </g>
+    <g transform="translate(396,312)">
+      <circle r="44" fill="rgba(15,23,42,0.95)" stroke="#fbbf24" stroke-width="3"/>
+      <text class="agName" y="6" fill="#fcd34d">Implementer</text>
+      <text class="agRole" y="68">Phase 2 builder</text>
+    </g>
+    <g transform="translate(624,312)">
+      <circle r="44" fill="rgba(15,23,42,0.95)" stroke="#34d399" stroke-width="3"/>
+      <text class="agName" y="6" fill="#6ee7b7">Validator</text>
+      <text class="agRole" y="68">Phase 3 checks</text>
+    </g>
+    <g transform="translate(852,312)">
+      <circle r="44" fill="rgba(15,23,42,0.95)" stroke="#818cf8" stroke-width="3"/>
+      <text class="agName" y="6" fill="#a5b4fc">Reviewer</text>
+      <text class="agRole" y="68">Phase 4 judgment</text>
+    </g>
+    <g transform="translate(1080,312)">
+      <circle r="44" fill="rgba(15,23,42,0.95)" stroke="#22d3ee" stroke-width="3"/>
+      <text class="agName" y="6" fill="#67e8f9">Release</text>
+      <text class="agRole" y="68">Phase 5 ship</text>
+    </g>
+
+    <!-- arrows between -->
+    <g fill="none" stroke="rgba(203,213,225,0.6)" stroke-width="1.5">
+      <path d="M216 312 L348 312" marker-end="url(#seqArr)"/>
+      <path d="M444 312 L576 312" marker-end="url(#seqArr)"/>
+      <path d="M672 312 L804 312" marker-end="url(#seqArr)"/>
+      <path d="M900 312 L1032 312" marker-end="url(#seqArr)"/>
+    </g>
+  </g>
+
+  <!-- Handoff cards under each transition -->
+  <g transform="translate(0,420)">
+    <g transform="translate(228,0)">
+      <rect width="180" height="180" rx="14" fill="rgba(15,23,42,0.78)" stroke="rgba(251,191,36,0.4)"/>
+      <rect width="180" height="3" rx="14" fill="#fbbf24"/>
+      <text x="14" y="32" class="handTitle">Handoff 1</text>
+      <text x="14" y="58" class="handBatch">threat-model.md</text>
+      <text x="14" y="80" class="handBody">+ OWASP mapping</text>
+      <text x="14" y="98" class="handBody">+ controls per asset</text>
+      <text x="14" y="116" class="handBody">+ test scenarios</text>
+      <text x="14" y="138" class="handBody">prompt pack list ready</text>
+      <text x="14" y="156" class="handBody">for the implementer</text>
+    </g>
+    <g transform="translate(456,0)">
+      <rect width="180" height="180" rx="14" fill="rgba(15,23,42,0.78)" stroke="rgba(52,211,153,0.4)"/>
+      <rect width="180" height="3" rx="14" fill="#34d399"/>
+      <text x="14" y="32" class="handTitle">Handoff 2</text>
+      <text x="14" y="58" class="handBatch">pull-request.diff</text>
+      <text x="14" y="80" class="handBody">+ AI-disclosed commit</text>
+      <text x="14" y="98" class="handBody">+ tests added</text>
+      <text x="14" y="116" class="handBody">+ design link in PR</text>
+      <text x="14" y="138" class="handBody">validator runs the</text>
+      <text x="14" y="156" class="handBody">attack vectors</text>
+    </g>
+    <g transform="translate(684,0)">
+      <rect width="180" height="180" rx="14" fill="rgba(15,23,42,0.78)" stroke="rgba(129,140,248,0.4)"/>
+      <rect width="180" height="3" rx="14" fill="#818cf8"/>
+      <text x="14" y="32" class="handTitle">Handoff 3</text>
+      <text x="14" y="58" class="handBatch">evidence-bundle.json</text>
+      <text x="14" y="80" class="handBody">+ CodeQL + Snyk reports</text>
+      <text x="14" y="98" class="handBody">+ fitness fn results</text>
+      <text x="14" y="116" class="handBody">+ coverage delta</text>
+      <text x="14" y="138" class="handBody">reviewer reads, asks</text>
+      <text x="14" y="156" class="handBody">questions, decides</text>
+    </g>
+    <g transform="translate(912,0)">
+      <rect width="180" height="180" rx="14" fill="rgba(15,23,42,0.78)" stroke="rgba(34,211,238,0.4)"/>
+      <rect width="180" height="3" rx="14" fill="#22d3ee"/>
+      <text x="14" y="32" class="handTitle">Handoff 4</text>
+      <text x="14" y="58" class="handBatch">approval-signed.sig</text>
+      <text x="14" y="80" class="handBody">+ CODEOWNER signature</text>
+      <text x="14" y="98" class="handBody">+ rationale comment</text>
+      <text x="14" y="116" class="handBody">+ ADR link</text>
+      <text x="14" y="138" class="handBody">release pipeline only</text>
+      <text x="14" y="156" class="handBody">ships signed approvals</text>
+    </g>
+  </g>
+
+  <text x="640" y="670" text-anchor="middle" class="heroSub" font-size="14">If a handoff is missing evidence, the pipeline fails — no agent says &quot;trust me.&quot;</text>
+</svg>

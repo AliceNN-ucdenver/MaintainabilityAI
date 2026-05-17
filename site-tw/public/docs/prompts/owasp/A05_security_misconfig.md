@@ -1,8 +1,14 @@
-# Security Misconfiguration — OWASP A05 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Security misconfiguration</span></div>
+    <div class="docs-eyebrow">A05 · Security misconfiguration <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Security misconfiguration</h1>
+    <p class="docs-hero-copy">occurs when applications fail to implement proper security settings, use insecure defaults, expose verbose error messages, or lack security hardening. This includes permissive CORS policies, missing security headers, default credentials, and environment-specific configuration failures.</p>
+    <span class="docs-hero-flourish">Defaults are the rabbit hole &mdash; harden every config you ship.</span>
+  </div>
+</div>
 
-> **OWASP A05: Security Misconfiguration** occurs when applications fail to implement proper security settings, use insecure defaults, expose verbose error messages, or lack security hardening. This includes permissive CORS policies, missing security headers, default credentials, and environment-specific configuration failures.
-
----
 
 ## 🎯 What is Security Misconfiguration?
 
@@ -25,19 +31,19 @@
 **Primary**: **Information Disclosure** (verbose errors expose internals)
 **Secondary**: **Tampering** (permissive CORS enables CSRF), **Elevation of Privilege** (default credentials grant admin access)
 
-See also: [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure), [STRIDE: Tampering](/docs/prompts/stride/tampering), and [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege)
+See also: [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure), [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering), and [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege)
 
 ---
 
 ## Prompt 1: Analyze Code for Security Misconfiguration Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Scans your server config for permissive CORS, missing headers, verbose errors, and insecure defaults</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Scans your server config for permissive CORS, missing headers, verbose errors, and insecure defaults</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer specializing in security misconfiguration vulnerabilities (OWASP A05).
@@ -94,13 +100,13 @@ Provide a prioritized list of misconfigurations (Critical > High > Medium) with 
 
 ## Prompt 2: Implement Secure Configuration
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates helmet.js headers, CORS allowlisting, safe error handling, and env-specific config</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates helmet.js headers, CORS allowlisting, safe error handling, and env-specific config</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive secure configuration for a web application (OWASP A05 remediation).
@@ -181,8 +187,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -215,8 +221,8 @@ app.use((err: Error, req, res, next) => {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -380,52 +386,52 @@ export { app };
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated security configuration code, verify:</div>
+<div class="docs-heading">Before merging AI-generated security configuration code, verify:</div>
 
-<div style="display: grid; gap: 20px;">
+<div class="docs-grid">
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">CORS & Security Headers</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">CORS & Security Headers</div>
+  <div class="docs-copy">
     ✓ Explicit origin allowlist from env vars — never wildcard *<br/>
     ✓ CSP restricts resources to trusted sources; HSTS with max-age >= 1 year<br/>
     ✓ X-Frame-Options: DENY; X-Content-Type-Options: nosniff<br/>
     ✓ X-Powered-By disabled; exposed headers minimal<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Request from allowed origin succeeds, non-allowed fails; curl verifies all security headers present
+    <strong class="docs-strong">Test:</strong> Request from allowed origin succeeds, non-allowed fails; curl verifies all security headers present
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Error Handling & Environment Config</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Error Handling & Environment Config</div>
+  <div class="docs-copy">
     ✓ Production errors generic — no stack traces, file paths, or SQL syntax<br/>
     ✓ Full error details logged server-side only<br/>
     ✓ Environment-specific configs: debug/verbose logging disabled in production<br/>
     ✓ Required env vars validated at startup with fail-fast behavior<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Trigger errors in production mode — client sees only generic messages; missing env var — app fails to start
+    <strong class="docs-strong">Test:</strong> Trigger errors in production mode — client sees only generic messages; missing env var — app fails to start
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Cookies & Credentials</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Cookies & Credentials</div>
+  <div class="docs-copy">
     ✓ Cookies: httpOnly, secure (in prod), sameSite strict/lax, generic name<br/>
     ✓ Session ID regenerated after login to prevent fixation<br/>
     ✓ No hardcoded credentials — all secrets from env vars or vault<br/>
     ✓ Secret scanning in CI/CD to prevent accidental commits<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Inspect cookies in DevTools for correct flags; grep codebase for "password=", "apiKey:", "secret:"
+    <strong class="docs-strong">Test:</strong> Inspect cookies in DevTools for correct flags; grep codebase for "password=", "apiKey:", "secret:"
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Defense in Depth</div>
+  <div class="docs-copy">
     ✓ Multiple independent layers: CORS + headers + error handling + rate limiting + cookies<br/>
     ✓ Directory listing disabled; custom 404 pages; no version info in responses<br/>
     ✓ Each layer functions independently — one failure does not compromise all<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Run OWASP ZAP or Mozilla Observatory to verify comprehensive configuration
+    <strong class="docs-strong">Test:</strong> Run OWASP ZAP or Mozilla Observatory to verify comprehensive configuration
   </div>
 </div>
 

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Spade card — prompt packs">
+  <title>Card spade — the Queen's prompt packs</title>
+  <defs>
+    <radialGradient id="spGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#fda4af" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#fda4af" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="url(#spGlow)"/>
+  <!-- playing card frame -->
+  <rect x="22" y="14" width="56" height="72" rx="6" fill="#0b1224" stroke="#fecdd3" stroke-width="2"/>
+  <!-- top-left rank -->
+  <text x="28" y="28" font-family="serif" font-weight="800" font-size="11" fill="#fb7185">A</text>
+  <path d="M28 32 L31 30 L34 32 Q34 35 31 36 L28 36 Q28 33 31 30" fill="#fb7185" transform="translate(-1 1) scale(0.55)"/>
+  <!-- bottom-right (rotated) -->
+  <g transform="rotate(180 72 72)">
+    <text x="68" y="58" font-family="serif" font-weight="800" font-size="11" fill="#fb7185">A</text>
+  </g>
+  <!-- big spade in center -->
+  <path d="M50 32 L62 50 Q66 60 56 64 Q52 65 50 60 Q48 65 44 64 Q34 60 38 50 Z" fill="#fb7185"/>
+  <rect x="46" y="62" width="8" height="10" fill="#fb7185"/>
+  <path d="M40 76 Q50 70 60 76 Z" fill="#fb7185"/>
+</svg>

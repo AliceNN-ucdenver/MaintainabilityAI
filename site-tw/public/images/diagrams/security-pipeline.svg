@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Security pipeline — defense in depth</title>
+  <desc id="d">Six concentric defense layers protect the production crown jewel at the centre. From the outermost layer inward: threat modeling, prompt packs, local checks, SAST, dependency scans, and human approval. Each layer catches a different class of failure before production.</desc>
+  <defs>
+    <radialGradient id="sceneBg" cx="50%" cy="60%" r="60%">
+      <stop offset="0" stop-color="#1a0a15" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fb7185" stop-opacity=".5"/>
+      <stop offset=".7" stop-color="#fb7185" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#fb7185" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#fda4af}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .ringLbl{font:800 13px -apple-system,system-ui,sans-serif;letter-spacing:1.5px;text-transform:uppercase}
+      .ringDesc{font:500 13px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .coreLbl{font:900 22px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .coreSub{font:500 13px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+      .legendHdr{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#cbd5e1}
+      .legendName{font:800 14px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .legendBody{font:500 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#sceneBg)"/>
+
+  <text x="64" y="74" class="eyebrow">Defense in depth</text>
+  <text x="64" y="118" class="heroTitle">Security pipeline</text>
+  <text x="64" y="148" class="heroSub">Each ring catches a different class of failure. Production stays at the centre, protected by six layers.</text>
+
+  <!-- Concentric rings, centred at (400, 440), spaced ~30px -->
+  <g transform="translate(400,440)">
+    <!-- glow -->
+    <circle r="250" fill="url(#coreGlow)"/>
+    <!-- rings outer→inner -->
+    <circle r="240" fill="none" stroke="rgba(96,165,250,0.4)" stroke-width="2"/>
+    <circle r="240" fill="rgba(96,165,250,0.05)"/>
+    <circle r="200" fill="none" stroke="rgba(251,191,36,0.45)" stroke-width="2"/>
+    <circle r="200" fill="rgba(251,191,36,0.04)"/>
+    <circle r="162" fill="none" stroke="rgba(34,211,238,0.45)" stroke-width="2"/>
+    <circle r="162" fill="rgba(34,211,238,0.05)"/>
+    <circle r="124" fill="none" stroke="rgba(129,140,248,0.5)" stroke-width="2"/>
+    <circle r="124" fill="rgba(129,140,248,0.06)"/>
+    <circle r="86" fill="none" stroke="rgba(52,211,153,0.5)" stroke-width="2"/>
+    <circle r="86" fill="rgba(52,211,153,0.06)"/>
+    <circle r="48" fill="rgba(251,113,133,0.18)" stroke="#fb7185" stroke-width="2"/>
+
+    <!-- core text -->
+    <text y="-4" class="coreLbl">Production</text>
+    <text y="20" class="coreSub">crown jewel</text>
+
+    <!-- inline ring labels: top arc tags -->
+    <text x="0" y="-220" text-anchor="middle" class="ringLbl" fill="#93c5fd">1 · Threat model</text>
+    <text x="0" y="-184" text-anchor="middle" class="ringLbl" fill="#fcd34d">2 · Prompt pack</text>
+    <text x="0" y="-148" text-anchor="middle" class="ringLbl" fill="#67e8f9">3 · Local checks</text>
+    <text x="0" y="-110" text-anchor="middle" class="ringLbl" fill="#a5b4fc">4 · SAST</text>
+    <text x="0" y="-72" text-anchor="middle" class="ringLbl" fill="#6ee7b7">5 · Deps</text>
+    <text x="0" y="-40" text-anchor="middle" class="ringLbl" fill="#fda4af">6 · Human</text>
+  </g>
+
+  <!-- legend on right -->
+  <g transform="translate(760,260)">
+    <text x="0" y="0" class="legendHdr">Defense layers</text>
+
+    <g transform="translate(0,28)">
+      <circle cx="10" cy="14" r="6" fill="#60a5fa"/>
+      <text x="28" y="14" class="legendName">Threat modeling</text>
+      <text x="28" y="34" class="legendBody">Map abuse cases before any code is written — STRIDE + OWASP.</text>
+    </g>
+    <g transform="translate(0,86)">
+      <circle cx="10" cy="14" r="6" fill="#fbbf24"/>
+      <text x="28" y="14" class="legendName">Prompt pack</text>
+      <text x="28" y="34" class="legendBody">RCTRO contract gives AI agents declared constraints and outputs.</text>
+    </g>
+    <g transform="translate(0,144)">
+      <circle cx="10" cy="14" r="6" fill="#22d3ee"/>
+      <text x="28" y="14" class="legendName">Local checks</text>
+      <text x="28" y="34" class="legendBody">ESLint, Jest, pre-commit hooks — the fastest feedback loop.</text>
+    </g>
+    <g transform="translate(0,202)">
+      <circle cx="10" cy="14" r="6" fill="#818cf8"/>
+      <text x="28" y="14" class="legendName">SAST</text>
+      <text x="28" y="34" class="legendBody">CodeQL and Snyk code analysis on every PR for deep source risk.</text>
+    </g>
+    <g transform="translate(0,260)">
+      <circle cx="10" cy="14" r="6" fill="#34d399"/>
+      <text x="28" y="14" class="legendName">Dependency scan</text>
+      <text x="28" y="34" class="legendBody">Block critical CVEs and stale packages from reaching production.</text>
+    </g>
+    <g transform="translate(0,318)">
+      <circle cx="10" cy="14" r="6" fill="#fb7185"/>
+      <text x="28" y="14" class="legendName">Human approval</text>
+      <text x="28" y="34" class="legendBody">Golden Rules review with evidence attached — the last gate.</text>
+    </g>
+  </g>
+
+  <!-- footer note -->
+  <text x="640" y="690" text-anchor="middle" class="legendBody">No layer is sufficient alone. Defense in depth keeps the failure modes diverse.</text>
+</svg>

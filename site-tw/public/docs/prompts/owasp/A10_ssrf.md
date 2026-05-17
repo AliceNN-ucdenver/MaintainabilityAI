@@ -1,8 +1,14 @@
-# Server-Side Request Forgery (SSRF) — OWASP A10 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Server-side request forgery (SSRF)</span></div>
+    <div class="docs-eyebrow">A10 · SSRF <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Server-side request forgery (SSRF)</h1>
+    <p class="docs-hero-copy">occurs when applications fetch remote resources based on user-supplied URLs without proper validation. Attackers exploit SSRF to access internal services, cloud metadata endpoints, private networks, or sensitive files, bypassing firewalls and network segmentation.</p>
+    <span class="docs-hero-flourish">Don&rsquo;t follow the rabbit into the metadata endpoint.</span>
+  </div>
+</div>
 
-> **OWASP A10: Server-Side Request Forgery (SSRF)** occurs when applications fetch remote resources based on user-supplied URLs without proper validation. Attackers exploit SSRF to access internal services, cloud metadata endpoints, private networks, or sensitive files, bypassing firewalls and network segmentation.
-
----
 
 ## 🎯 What is SSRF?
 
@@ -26,19 +32,19 @@
 **Primary**: **Tampering** (attackers manipulate server to make unauthorized requests)
 **Secondary**: **Information Disclosure** (SSRF exposes internal services and metadata), **Elevation of Privilege** (accessing cloud credentials or admin interfaces)
 
-See also: [STRIDE: Tampering](/docs/prompts/stride/tampering), [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure), and [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege)
+See also: [STRIDE: Tampering](/docs/prompts/threat-modeling/tampering), [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure), and [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege)
 
 ---
 
 ## Prompt 1: Analyze Code for SSRF Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Finds unvalidated URL fetching, missing domain allowlists, private IP access, and metadata exposure — returns prioritized findings</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Finds unvalidated URL fetching, missing domain allowlists, private IP access, and metadata exposure — returns prioritized findings</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in Server-Side Request Forgery vulnerabilities (OWASP A10).
@@ -97,13 +103,13 @@ Provide a prioritized list of SSRF vulnerabilities (Critical > High > Medium) wi
 
 ## Prompt 2: Implement SSRF Prevention
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates URL validation, domain allowlist, private IP blocking, DNS resolution checks, timeout controls, and test coverage</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates URL validation, domain allowlist, private IP blocking, DNS resolution checks, timeout controls, and test coverage</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive SSRF prevention for a web application (OWASP A10 remediation).
@@ -220,8 +226,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -245,8 +251,8 @@ export async function fetchWebhook(url: string): Promise<string> {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -612,55 +618,55 @@ export async function handleWebhook(webhookUrl: string): Promise<void> {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated SSRF prevention code:</div>
+<div class="docs-heading">Before merging AI-generated SSRF prevention code:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">URL Validation & Domain Allowlist</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">URL Validation & Domain Allowlist</div>
+  <div class="docs-copy">
     ✓ All user-supplied URLs parsed with Node.js URL class<br/>
     ✓ Protocol restricted to http/https — file://, gopher://, ftp://, data: all blocked<br/>
     ✓ Deny-by-default domain allowlist; only listed domains pass<br/>
     ✓ Domains normalized to lowercase before comparison<br/>
     ✓ All blocked attempts logged with URL and timestamp<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> submit file:///etc/passwd, gopher://internal, unlisted domains — verify all blocked
+    ✓ <strong class="docs-strong">Test:</strong> submit file:///etc/passwd, gopher://internal, unlisted domains — verify all blocked
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Private IP & Metadata Blocking</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Private IP & Metadata Blocking</div>
+  <div class="docs-copy">
     ✓ RFC1918 (10/8, 172.16/12, 192.168/16), loopback (127/8), link-local (169.254/16) all blocked<br/>
     ✓ IPv6 equivalents blocked: ::1, fc00::/7, fe80::/10<br/>
     ✓ Cloud metadata endpoints blocked: 169.254.169.254, metadata.google.internal, metadata.azure.com<br/>
     ✓ Decimal/octal/hex IP representations handled (2130706433, 127.1, 0x7f000001)<br/>
     ✓ Metadata access logged as critical security event<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> attempt 127.0.0.1, 127.1, 10.0.0.1, 169.254.169.254, [::1] — verify all blocked
+    ✓ <strong class="docs-strong">Test:</strong> attempt 127.0.0.1, 127.1, 10.0.0.1, 169.254.169.254, [::1] — verify all blocked
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">DNS Validation & Redirect Handling</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">DNS Validation & Redirect Handling</div>
+  <div class="docs-copy">
     ✓ Hostname resolved via dns.promises.resolve() before HTTP request<br/>
     ✓ Every resolved IP checked against private ranges and metadata endpoints<br/>
     ✓ DNS resolution failures treated as suspicious (request rejected)<br/>
     ✓ Redirects disabled (redirect: 'error') or validated through full chain<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> domain resolving to private IP verify blocked; allowed domain redirecting to localhost verify blocked
+    ✓ <strong class="docs-strong">Test:</strong> domain resolving to private IP verify blocked; allowed domain redirecting to localhost verify blocked
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Timeouts, Size Limits & Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Timeouts, Size Limits & Defense in Depth</div>
+  <div class="docs-copy">
     ✓ 5-second timeout via AbortController on all requests<br/>
     ✓ 10MB max response size enforced via Content-Length and body read<br/>
     ✓ Generic "Failed to fetch resource" error to clients; details server-side only<br/>
     ✓ Network-level egress firewall rules complement application controls<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> slow server verify timeout; large response verify abort; verify both app and network layers block
+    ✓ <strong class="docs-strong">Test:</strong> slow server verify timeout; large response verify abort; verify both app and network layers block
   </div>
 </div>
 

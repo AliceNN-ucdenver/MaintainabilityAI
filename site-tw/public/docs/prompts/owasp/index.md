@@ -1,76 +1,87 @@
-# OWASP Top 10 (2021) — Security-First Prompt Packs
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">Prompts</a><span class="sep">/</span><span>OWASP</span></div>
+    <div class="docs-eyebrow">Prompt packs · OWASP Top 10 (2021) <span class="docs-hero-meta">~4 min read</span></div>
+    <h1 class="docs-hero-title">Security-first prompts for the Queen&rsquo;s court</h1>
+    <p class="docs-hero-copy">Ten ready-to-use prompt packs &mdash; one per OWASP category &mdash; with attack vectors, controls, and review checklists. Drop them into Claude Code, Copilot, or ChatGPT and the agent starts from a secure contract.</p>
+    <span class="docs-hero-flourish">A is for Access control. The Ace of Spades, always.</span>
+  </div>
+</div>
 
-> **AI-powered secure development** starts with security-first prompts. This collection provides ready-to-use prompt packs for each OWASP Top 10 category, designed for Claude Code, GitHub Copilot, and ChatGPT.
+<div class="docs-card docs-card-muted">
+  <div class="docs-copy"><strong>Where this fits:</strong> Use STRIDE prompts during design, then use these OWASP packs during implementation and review. The workshop introduces them in <a href="/docs/workshop/part2-security-prompting" class="markdown-link">Part 2</a> and applies them to real remediation in <a href="/docs/workshop/part3-live-remediation" class="markdown-link">Part 3</a>.</div>
+</div>
 
 ---
 
 ## 🎯 OWASP Top 10 Security Coverage Dashboard
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-compact">
 
-<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); border: 1px solid rgba(239, 68, 68, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">🔐</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Access Control</div>
+<div class="docs-card docs-card-rose">
+  <div class="docs-flex-block">
+    <div class="docs-icon">🔐</div>
+    <div class="docs-card-kicker">Access Control</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">#1</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Most critical web vulnerability</div>
-  <div style="color: #fca5a5; font-size: 12px;">A01 · IDOR · Privilege Escalation</div>
+  <div class="docs-heading">#1</div>
+  <div class="docs-copy">Most critical web vulnerability</div>
+  <div class="docs-copy">A01 · IDOR · Privilege Escalation</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(234, 88, 12, 0.3); border: 1px solid rgba(249, 115, 22, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">🔒</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Cryptography</div>
+<div class="docs-card docs-card-orange">
+  <div class="docs-flex-block">
+    <div class="docs-icon">🔒</div>
+    <div class="docs-card-kicker">Cryptography</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">#2</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Password & data encryption</div>
-  <div style="color: #fdba74; font-size: 12px;">A02 · bcrypt · AES-256-GCM</div>
+  <div class="docs-heading">#2</div>
+  <div class="docs-copy">Password & data encryption</div>
+  <div class="docs-copy">A02 · bcrypt · AES-256-GCM</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(202, 138, 4, 0.3); border: 1px solid rgba(234, 179, 8, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">💉</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Injection</div>
+<div class="docs-card docs-card-amber">
+  <div class="docs-flex-block">
+    <div class="docs-icon">💉</div>
+    <div class="docs-card-kicker">Injection</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">#3</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">SQL, NoSQL, command injection</div>
-  <div style="color: #fde047; font-size: 12px;">A03 · Parameterized Queries</div>
+  <div class="docs-heading">#3</div>
+  <div class="docs-copy">SQL, NoSQL, command injection</div>
+  <div class="docs-copy">A03 · Parameterized Queries</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(22, 163, 74, 0.3); border: 1px solid rgba(34, 197, 94, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">✅</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Coverage</div>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-flex-block">
+    <div class="docs-icon">✅</div>
+    <div class="docs-card-kicker">Coverage</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">10/10</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Complete OWASP coverage</div>
-  <div style="color: #86efac; font-size: 12px;">All categories · Ready to use</div>
+  <div class="docs-heading">10/10</div>
+  <div class="docs-copy">Complete OWASP coverage</div>
+  <div class="docs-copy">All categories · Ready to use</div>
 </div>
 
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(15, 23, 42, 0.5); border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="text-align: center; color: #f1f5f9;">
-    <div style="font-size: 48px; margin-bottom: 16px;">🛡️</div>
-    <div style="font-size: 28px; font-weight: 700; margin-bottom: 12px;">Security-First AI Development</div>
-    <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 24px;">Every prompt pack follows RCTRO: Role → Context → Task → Requirements → Output</div>
-    <div style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-center-block">
+    <div class="docs-icon">🛡️</div>
+    <div class="docs-heading">Security-First AI Development</div>
+    <div class="docs-copy">Every prompt pack follows RCTRO: Role → Context → Task → Requirements → Output</div>
+    <div class="docs-flex-block">
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #ef4444;">10</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">OWASP Categories</div>
+        <div class="docs-heading">10</div>
+        <div class="docs-card-kicker">OWASP Categories</div>
       </div>
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #f97316;">3</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">AI Platforms</div>
+        <div class="docs-heading">3</div>
+        <div class="docs-card-kicker">AI Platforms</div>
       </div>
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #eab308;">5</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Components/Pack</div>
+        <div class="docs-heading">5</div>
+        <div class="docs-card-kicker">Components/Pack</div>
       </div>
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #22c55e;">100%</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Human Review</div>
+        <div class="docs-heading">100%</div>
+        <div class="docs-card-kicker">Human Review</div>
       </div>
     </div>
   </div>
@@ -80,30 +91,30 @@
 
 ## 🎯 How to Use These Prompt Packs
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-compact">
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(239, 68, 68, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">1️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Select Category</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Choose OWASP category for your security work</div>
+<div class="docs-center-block">
+  <div class="docs-icon">1️⃣</div>
+  <div class="docs-heading">Select Category</div>
+  <div class="docs-copy">Choose OWASP category for your security work</div>
 </div>
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(249, 115, 22, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">2️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Customize Context</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Adapt for your tech stack and constraints</div>
+<div class="docs-center-block">
+  <div class="docs-icon">2️⃣</div>
+  <div class="docs-heading">Customize Context</div>
+  <div class="docs-copy">Adapt for your tech stack and constraints</div>
 </div>
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(234, 179, 8, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">3️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Generate Code</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Use Claude, Copilot, or ChatGPT</div>
+<div class="docs-center-block">
+  <div class="docs-icon">3️⃣</div>
+  <div class="docs-heading">Generate Code</div>
+  <div class="docs-copy">Use Claude, Copilot, or ChatGPT</div>
 </div>
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(34, 197, 94, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">4️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Human Review</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Validate with provided checklist</div>
+<div class="docs-center-block">
+  <div class="docs-icon">4️⃣</div>
+  <div class="docs-heading">Human Review</div>
+  <div class="docs-copy">Validate with provided checklist</div>
 </div>
 
 </div>
@@ -131,27 +142,10 @@
 
 ## 🔄 Security-First Development Workflow
 
-```mermaid
-flowchart LR
-    A[Threat Modeling] --> B[Select OWASP Pack]
-    B --> C[Customize for Stack]
-    C --> D[AI Generates Code]
-    D --> E[Human Review]
-    E --> F{Security Check}
-    F -->|Pass| G[Merge]
-    F -->|Fail| H[Refactor]
-    H --> D
-    G --> I[CI/CD Scan]
-    I --> J[Deploy]
-
-    style A fill:#dc2626,stroke:#ef4444,color:#f1f5f9
-    style B fill:#ea580c,stroke:#f97316,color:#f1f5f9
-    style C fill:#ca8a04,stroke:#eab308,color:#f1f5f9
-    style D fill:#16a34a,stroke:#22c55e,color:#f1f5f9
-    style E fill:#0ea5e9,stroke:#06b6d4,color:#f1f5f9
-    style F fill:#8b5cf6,stroke:#a78bfa,color:#f1f5f9
-    style H fill:#ef4444,stroke:#f87171,color:#f1f5f9
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/owasp-security-workflow.svg" alt="OWASP security-first workflow from threat modeling through prompt selection, AI generation, review, security checks, CI/CD, and deployment." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">OWASP prompt packs turn threat models into implementation constraints that can be reviewed and tested.</figcaption>
+</figure>
 
 **Key Stages**:
 1. **Threat Modeling**: Identify OWASP categories that apply to your feature (STRIDE analysis)
@@ -255,7 +249,7 @@ git clone https://github.com/AliceNN-ucdenver/MaintainabilityAI.git
 cd MaintainabilityAI
 
 # Navigate to prompt packs (located in documentation site)
-cd site-tw/public/docs/prompts/owasp
+cd /docs/prompts/owasp
 
 # Copy a prompt to clipboard (macOS)
 cat A03_injection.md | pbcopy
@@ -267,7 +261,7 @@ cat A03_injection.md | xclip -selection clipboard
 Get-Content A03_injection.md | Set-Clipboard
 ```
 
-**Note**: All prompt packs are stored at site-tw/public/docs/prompts/ to keep them synchronized with the online documentation.
+**Note**: All prompt packs are stored at /docs/prompts/ to keep them synchronized with the online documentation.
 
 ---
 
@@ -288,21 +282,21 @@ Found a security issue in a prompt pack? Have a better secure pattern?
 
 - **[OWASP Top 10 Official Site](https://owasp.org/Top10/)** — Full documentation
 - **[OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)** — Implementation guides
-- **[Workshop Series](/docs/workshop/)** — 8-part hands-on training
+- **[Workshop Series](/docs/workshop/)** — Parts 1-4 available now, Parts 5-8 on the governance roadmap
 - **[SDLC Integration](/docs/sdlc/)** — Embedding security in development lifecycle
 - **[Framework Guide](/docs/framework)** — Evolutionary architecture + security
 
 ---
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 40px; text-align: center; color: #f1f5f9; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 56px; margin-bottom: 16px;">🚀</div>
-  <div style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">Ready to Build Secure Software with AI?</div>
-  <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Pick an OWASP category above and start generating secure code with your AI assistant. Remember: <strong style="color: #ef4444;">AI generates, humans validate.</strong></div>
-  <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-    <a href="A03_injection" style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+<div class="docs-center-block">
+  <div class="docs-icon">🚀</div>
+  <div class="docs-heading">Ready to Build Secure Software with AI?</div>
+  <div class="docs-copy">Pick an OWASP category above and start generating secure code with your AI assistant. Remember: <strong class="docs-strong">AI generates, humans validate.</strong></div>
+  <div class="docs-flex-block">
+    <a href="A03_injection" class="docs-button-secondary">
       Start with A03: Injection →
     </a>
-    <a href="/docs/framework" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+    <a href="/docs/framework" class="docs-button-secondary">
       View Full Framework →
     </a>
   </div>

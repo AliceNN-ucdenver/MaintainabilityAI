@@ -1,11 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type {
+  BarSummary,
   GovernancePillarScore,
+  MeshGapKind,
   PillarArtifact,
   PillarStatus,
   MeshScoringConfig,
 } from '../types';
+// `BarService` is only used for its public read methods (listAdrs, listResearch).
+// Imported as a type to avoid a runtime cycle (BarService already imports
+// GovernanceScorer for its constructor default).
+import type { BarService } from './BarService';
+import { readThreatModelFromBar } from '../core/threat-model-reader';
 
 const DEFAULT_SCORING: MeshScoringConfig = {
   passingThreshold: 75,
@@ -360,4 +367,68 @@ export class GovernanceScorer {
       default: return [];
     }
   }
+
+  /**
+   * Detect structural mesh gaps for a BAR. These signals tell the Archeologist's
+   * ask_experts node which mesh artifacts are missing, so clarifying questions
+   * can be anchored to concrete deficiencies (rather than generic discovery).
+   *
+   * Returns the subset of `MeshGapKind` values that apply to this BAR. The
+   * `missing_prd_for_planned_feature` signal is intentionally NOT detected here
+   * yet — it requires a planned-features registry that doesn't exist in v1.
+   */
+  detectMeshGaps(bar: BarSummary, barPath: string, barService: BarService): MeshGapKind[] {
+    const gaps: MeshGapKind[] = [];
+
+    // Threat model: file absent OR parses to zero threats.
+    if (!readThreatModelFromBar(barPath)) {
+      gaps.push('no_threat_model');
+    }
+
+    // Controls mapping: empty / template-only fails isSubstantive (we just check presence here).
+    const controlsPath = path.join(barPath, 'security', 'security-controls.yaml');
+    if (!fileHasContent(controlsPath)) {
+      gaps.push('no_controls_mapping');
+    }
+
+    // ADRs: no markdown files in architecture/ADRs/
+    if (barService.listAdrs(barPath).length === 0) {
+      gaps.push('no_adrs');
+    }
+
+    // Stale research: any doc in research/ older than the staleness window.
+    if (researchIsStale(barService.listResearch(barPath))) {
+      gaps.push('stale_research');
+    }
+
+    // Pillar scores below the warning threshold = explicit drift signals.
+    if (bar.architecture.score < this.config.warningThreshold) {
+      gaps.push('low_architecture_pillar');
+    }
+    if (bar.security.score < this.config.warningThreshold) {
+      gaps.push('low_security_pillar');
+    }
+
+    return gaps;
+  }
+}
+
+// Internal helpers — kept at module scope to stay testable + cheap
+const STALE_RESEARCH_DAYS = 90;
+
+function fileHasContent(filePath: string): boolean {
+  try {
+    return fs.statSync(filePath).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+function researchIsStale(research: { publishedAt: string }[]): boolean {
+  if (research.length === 0) { return false; }
+  const cutoff = Date.now() - STALE_RESEARCH_DAYS * 24 * 60 * 60 * 1000;
+  return research.every(r => {
+    const t = Date.parse(r.publishedAt);
+    return Number.isFinite(t) ? t < cutoff : true;
+  });
 }

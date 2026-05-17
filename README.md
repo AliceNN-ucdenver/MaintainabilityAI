@@ -177,7 +177,7 @@ These governance principles ensure AI assistance enhances rather than compromise
 8. **Share and Reuse Effective Prompts**  
    Build a team library of proven patterns. Contribute improvements back to the community.
 
-**[Read Full Governance Guide](https://maintainability.ai/docs/governance/vibe-golden-rules)** — Detailed examples, PR checklists, and team adoption strategies.
+**[Read Full Governance Guide](https://maintainability.ai/docs/governance/governed-golden-rules)** — Detailed examples, PR checklists, and team adoption strategies.
 
 ---
 

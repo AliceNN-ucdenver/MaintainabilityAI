@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Consensus review — three reviewers, one verdict</title>
+  <desc id="d">A single change is evaluated in parallel by three specialised reviewer agents — security, quality, performance. Each casts an Approve / Revise / Reject vote with rationale. The consensus gate aggregates the votes into one decision; any reject blocks merge.</desc>
+  <defs>
+    <radialGradient id="cvBg" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#181028" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="cvArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#c4b5fd"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#c4b5fd}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .inputName{font:800 16px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .inputMeta{font:500 12px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .revName{font:900 20px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .revRole{font:600 12px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+      .revCheck{font:600 11px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .voteLbl{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase;text-anchor:middle}
+      .voteApprove{fill:#6ee7b7}
+      .voteRevise{fill:#fcd34d}
+      .voteReject{fill:#fda4af}
+      .gateLbl{font:800 14px -apple-system,system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase;fill:#c4b5fd;text-anchor:middle}
+      .gateBody{font:500 12px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+      .rulesTxt{font:600 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#cvBg)"/>
+
+  <text x="64" y="74" class="eyebrow">Agent validation</text>
+  <text x="64" y="118" class="heroTitle">Consensus review</text>
+  <text x="64" y="148" class="heroSub">Three reviewers vote in parallel. Any reject blocks. Any revise loops back. All-approve ships.</text>
+
+  <!-- INPUT (left) -->
+  <g transform="translate(80,360)">
+    <rect width="200" height="80" rx="14" fill="rgba(15,23,42,0.85)" stroke="rgba(167,139,250,0.5)"/>
+    <text x="100" y="34" class="inputName">Change under review</text>
+    <text x="100" y="58" class="inputMeta">PR #247 · 312 / 84 lines</text>
+  </g>
+
+  <!-- Fanning lines from input → 3 reviewers -->
+  <g fill="none" stroke="rgba(196,181,253,0.5)" stroke-width="1.6">
+    <path d="M280 380 L 430 220" marker-end="url(#cvArr)"/>
+    <path d="M280 400 L 430 400" marker-end="url(#cvArr)"/>
+    <path d="M280 420 L 430 580" marker-end="url(#cvArr)"/>
+  </g>
+
+  <!-- 3 REVIEWERS stacked vertically -->
+  <!-- Security (top) -->
+  <g transform="translate(440,160)">
+    <rect width="380" height="120" rx="16" fill="rgba(15,23,42,0.92)" stroke="#fb7185" stroke-width="2"/>
+    <rect width="380" height="3" rx="16" fill="#fb7185"/>
+    <text x="190" y="38" class="revName" fill="#fda4af">Security reviewer</text>
+    <text x="190" y="60" class="revRole">threats · OWASP · secrets · authz</text>
+    <text x="20" y="86" class="revCheck">✓ A03 parameterized · ✓ A01 ownership check · ✓ secrets none</text>
+    <text x="20" y="104" class="revCheck">✗ A09 audit log missing on unshare path</text>
+  </g>
+  <g transform="translate(840,178)">
+    <rect width="200" height="84" rx="14" fill="rgba(252,211,77,0.1)" stroke="#fbbf24"/>
+    <text x="100" y="30" class="voteLbl voteRevise">Revise</text>
+    <text x="100" y="58" class="rulesTxt" text-anchor="middle">add audit log on unshare</text>
+    <text x="100" y="76" class="rulesTxt" text-anchor="middle">before approving</text>
+  </g>
+
+  <!-- Quality (middle) -->
+  <g transform="translate(440,340)">
+    <rect width="380" height="120" rx="16" fill="rgba(15,23,42,0.92)" stroke="#818cf8" stroke-width="2"/>
+    <rect width="380" height="3" rx="16" fill="#818cf8"/>
+    <text x="190" y="38" class="revName" fill="#a5b4fc">Quality reviewer</text>
+    <text x="190" y="60" class="revRole">complexity · boundaries · readability · tests</text>
+    <text x="20" y="86" class="revCheck">✓ complexity ≤ 8 · ✓ tests for happy + 4 attack vectors</text>
+    <text x="20" y="104" class="revCheck">✓ no leaky abstractions across modules</text>
+  </g>
+  <g transform="translate(840,358)">
+    <rect width="200" height="84" rx="14" fill="rgba(110,231,183,0.1)" stroke="#34d399"/>
+    <text x="100" y="30" class="voteLbl voteApprove">Approve</text>
+    <text x="100" y="58" class="rulesTxt" text-anchor="middle">all gates pass</text>
+    <text x="100" y="76" class="rulesTxt" text-anchor="middle">contract clean</text>
+  </g>
+
+  <!-- Performance (bottom) -->
+  <g transform="translate(440,520)">
+    <rect width="380" height="120" rx="16" fill="rgba(15,23,42,0.92)" stroke="#34d399" stroke-width="2"/>
+    <rect width="380" height="3" rx="16" fill="#34d399"/>
+    <text x="190" y="38" class="revName" fill="#6ee7b7">Performance reviewer</text>
+    <text x="190" y="60" class="revRole">latency · resource budget · N+1 risk</text>
+    <text x="20" y="86" class="revCheck">✓ p95 145ms (budget 200ms) · ✓ no new N+1 query</text>
+    <text x="20" y="104" class="revCheck">✓ payload size within limit</text>
+  </g>
+  <g transform="translate(840,538)">
+    <rect width="200" height="84" rx="14" fill="rgba(110,231,183,0.1)" stroke="#34d399"/>
+    <text x="100" y="30" class="voteLbl voteApprove">Approve</text>
+    <text x="100" y="58" class="rulesTxt" text-anchor="middle">budget respected</text>
+  </g>
+
+  <!-- Aggregation arrow to consensus gate -->
+  <g fill="none" stroke="rgba(196,181,253,0.5)" stroke-width="1.6">
+    <path d="M1040 220 C 1120 220, 1140 360, 1080 400" marker-end="url(#cvArr)"/>
+    <path d="M1040 400 L 1080 400" marker-end="url(#cvArr)"/>
+    <path d="M1040 580 C 1120 580, 1140 440, 1080 400" marker-end="url(#cvArr)"/>
+  </g>
+
+  <!-- Consensus gate (right) -->
+  <g transform="translate(1080,340)">
+    <rect width="160" height="120" rx="14" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="2"/>
+    <text x="80" y="30" class="gateLbl">Consensus</text>
+    <text x="80" y="60" class="gateBody">2 approve</text>
+    <text x="80" y="78" class="gateBody">1 revise</text>
+    <text x="80" y="100" class="voteLbl voteRevise">Revise PR</text>
+  </g>
+
+  <!-- Decision rules (bottom note) -->
+  <g transform="translate(96,670)">
+    <text class="rulesTxt">Rules: <tspan fill="#6ee7b7">all-approve → merge</tspan> · <tspan fill="#fcd34d">any-revise → loop back to implementer</tspan> · <tspan fill="#fda4af">any-reject → block merge, escalate to human</tspan></text>
+  </g>
+</svg>

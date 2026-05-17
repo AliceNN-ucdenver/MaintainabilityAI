@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Maintainability feedback loop</title>
+  <desc id="d">A horizontal sine wave traces a system's health over time. Each fitness function — complexity, coverage, dependency freshness, performance — is a dial along the wave. Where the wave dips, AI-assisted refactoring lifts it back into the green band.</desc>
+  <defs>
+    <radialGradient id="mlbg" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#0a1e15" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bandG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34d399" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity=".02"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset=".4" stop-color="#fb7185"/>
+      <stop offset=".7" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <marker id="rArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#6ee7b7"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#6ee7b7}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .axisLbl{font:600 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .bandLbl{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#6ee7b7}
+      .ffName{font:800 14px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .ffVal{font:900 22px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .ffMeta{font:500 11px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .eventLbl{font:700 12px -apple-system,system-ui,sans-serif;fill:#fda4af;text-anchor:middle}
+      .interLbl{font:700 11px -apple-system,system-ui,sans-serif;letter-spacing:1.5px;text-transform:uppercase;fill:#6ee7b7;text-anchor:middle}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#mlbg)"/>
+
+  <text x="64" y="74" class="eyebrow">Evolutionary architecture</text>
+  <text x="64" y="118" class="heroTitle">Maintainability loop</text>
+  <text x="64" y="148" class="heroSub">Fitness functions make health visible. Refactoring lifts the wave back into the green band.</text>
+
+  <!-- Time axis chart, x: 120..1180, y centerline 420 -->
+  <g>
+    <!-- green band (target zone) -->
+    <rect x="120" y="380" width="1060" height="80" fill="url(#bandG)"/>
+    <line x1="120" y1="420" x2="1180" y2="420" stroke="rgba(52,211,153,0.35)" stroke-dasharray="2 6"/>
+    <text x="1184" y="424" class="bandLbl">healthy</text>
+
+    <!-- Time axis -->
+    <line x1="120" y1="540" x2="1180" y2="540" stroke="rgba(148,163,184,0.25)"/>
+    <text x="120" y="562" class="axisLbl">v1.0</text>
+    <text x="430" y="562" class="axisLbl" text-anchor="middle">v1.4</text>
+    <text x="730" y="562" class="axisLbl" text-anchor="middle">v2.0</text>
+    <text x="1030" y="562" class="axisLbl" text-anchor="middle">v2.5</text>
+    <text x="1180" y="562" class="axisLbl" text-anchor="end">today</text>
+
+    <!-- Wave: dip → spike → refactor pulls back -->
+    <path d="M 120 420 C 220 420, 280 410, 330 432
+             C 400 460, 450 530, 520 510
+             C 580 494, 620 446, 700 420
+             C 760 402, 800 392, 870 414
+             C 940 436, 980 470, 1030 444
+             C 1090 414, 1140 408, 1180 410"
+          fill="none" stroke="url(#wave)" stroke-width="2.8" stroke-linecap="round"/>
+
+    <!-- Event markers along the wave -->
+    <g>
+      <!-- Dip -->
+      <g transform="translate(520,510)">
+        <circle r="9" fill="#fb7185"/>
+        <text class="eventLbl" y="-22">complexity creep</text>
+        <text class="eventLbl" y="-6">v1.5</text>
+      </g>
+      <!-- Refactor -->
+      <g transform="translate(720,420)">
+        <circle r="9" fill="#6ee7b7"/>
+        <text class="interLbl" y="-18">strangler fig refactor</text>
+        <text class="interLbl" y="-4">v1.8 → v2.0</text>
+      </g>
+      <!-- Dependency staleness -->
+      <g transform="translate(1030,444)">
+        <circle r="9" fill="#fbbf24"/>
+        <text class="eventLbl" y="-18" fill="#fcd34d">stale deps</text>
+        <text class="eventLbl" y="-2" fill="#fcd34d">v2.3</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom row: four fitness dials -->
+  <g transform="translate(120,592)">
+    <g transform="translate(0,0)">
+      <rect width="240" height="100" rx="14" fill="rgba(52,211,153,0.08)" stroke="rgba(52,211,153,0.35)"/>
+      <rect width="240" height="3" rx="14" fill="#34d399"/>
+      <text x="120" y="32" class="ffName">Complexity</text>
+      <text x="120" y="62" class="ffVal">≤ 10</text>
+      <text x="120" y="82" class="ffMeta">cyclomatic per function</text>
+    </g>
+    <g transform="translate(258,0)">
+      <rect width="240" height="100" rx="14" fill="rgba(34,211,238,0.08)" stroke="rgba(34,211,238,0.35)"/>
+      <rect width="240" height="3" rx="14" fill="#22d3ee"/>
+      <text x="120" y="32" class="ffName">Coverage</text>
+      <text x="120" y="62" class="ffVal">≥ 80%</text>
+      <text x="120" y="82" class="ffMeta">on changed lines</text>
+    </g>
+    <g transform="translate(516,0)">
+      <rect width="240" height="100" rx="14" fill="rgba(251,191,36,0.08)" stroke="rgba(251,191,36,0.35)"/>
+      <rect width="240" height="3" rx="14" fill="#fbbf24"/>
+      <text x="120" y="32" class="ffName">Dependency age</text>
+      <text x="120" y="62" class="ffVal">≤ 90 days</text>
+      <text x="120" y="82" class="ffMeta">3-month rule</text>
+    </g>
+    <g transform="translate(774,0)">
+      <rect width="240" height="100" rx="14" fill="rgba(129,140,248,0.08)" stroke="rgba(129,140,248,0.35)"/>
+      <rect width="240" height="3" rx="14" fill="#818cf8"/>
+      <text x="120" y="32" class="ffName">Performance p95</text>
+      <text x="120" y="62" class="ffVal">&lt; 200 ms</text>
+      <text x="120" y="82" class="ffMeta">budget per route</text>
+    </g>
+  </g>
+</svg>

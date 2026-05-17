@@ -1,8 +1,14 @@
-# STRIDE: Tampering with Data — Threat Modeling Prompt Pack
+<div class="docs-hero docs-hero-amber">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/threat-modeling/">STRIDE</a><span class="sep">/</span><span>Tampering with data</span></div>
+    <div class="docs-eyebrow">STRIDE · Tampering <span class="docs-hero-meta">~6 min read</span></div>
+    <h1 class="docs-hero-title">Tampering with data</h1>
+    <p class="docs-hero-copy">is malicious modification of data or code in transit or at rest. This STRIDE category focuses on integrity failures where attackers alter application logic, user data, or system configurations without authorization.</p>
+    <span class="docs-hero-flourish">Cards painted red don&rsquo;t fool the gardener &mdash; verify integrity end to end.</span>
+  </div>
+</div>
 
-> **Tampering** is malicious modification of data or code in transit or at rest. This STRIDE category focuses on integrity failures where attackers alter application logic, user data, or system configurations without authorization.
-
----
 
 ## 🎯 What is Tampering?
 
@@ -28,13 +34,13 @@
 
 ## Prompt: Identify Tampering Threats in Architecture
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Find data tampering risks across inputs, APIs, database queries, and deployment artifacts</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Find data tampering risks across inputs, APIs, database queries, and deployment artifacts</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security architect specializing in data integrity and secure coding. Your task is to perform STRIDE threat modeling focusing on Tampering (T) threats.
@@ -268,90 +274,90 @@ Additional controls:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f97316;">
+<div class="docs-card docs-card-orange">
 
-<div style="font-size: 18px; font-weight: 700; color: #fdba74; margin-bottom: 20px;">Before merging AI-generated Tampering threat mitigation code, verify:</div>
+<div class="docs-heading">Before merging AI-generated Tampering threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Input Validation and Injection Prevention</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Input Validation and Injection Prevention</div>
+  <div class="docs-copy">
     ✓ All user inputs validated against strict schemas defining type, length, format, and allowed characters<br/>
     ✓ Use allowlist validation (accept only known-good patterns) rather than blocklist (reject known-bad patterns)<br/>
     ✓ Database queries use parameterized statements or prepared statements, never string concatenation<br/>
     ✓ Special characters properly escaped in all contexts: SQL, HTML, JavaScript, shell commands, LDAP queries<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Submit SQL injection payloads like ' OR '1'='1 to all input fields and verify rejection or safe escaping, use sqlmap to test database endpoints
+    <strong class="docs-strong">Test:</strong> Submit SQL injection payloads like ' OR '1'='1 to all input fields and verify rejection or safe escaping, use sqlmap to test database endpoints
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Server-Side Business Logic Enforcement</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Server-Side Business Logic Enforcement</div>
+  <div class="docs-copy">
     ✓ Never trust client-provided data for security or business decisions<br/>
     ✓ All prices, quantities, permissions, and calculations performed server-side using authoritative data sources<br/>
     ✓ Server fetches product prices from database, not accepting them from client<br/>
     ✓ User roles and permissions validated on every request using server-side session data, not client-provided tokens<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Use browser DevTools or Burp Suite to modify request payloads, change prices to $0, quantities to negative numbers, or user IDs to other accounts, verify server rejects invalid values
+    <strong class="docs-strong">Test:</strong> Use browser DevTools or Burp Suite to modify request payloads, change prices to $0, quantities to negative numbers, or user IDs to other accounts, verify server rejects invalid values
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Code and Artifact Integrity</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Code and Artifact Integrity</div>
+  <div class="docs-copy">
     ✓ All deployed code, container images, and dependencies signed with cryptographic signatures<br/>
     ✓ Deployment pipeline verifies signatures before running any artifact<br/>
     ✓ SHA-256 checksums used for file integrity verification<br/>
     ✓ Third-party JavaScript libraries from CDNs include Subresource Integrity (SRI) hashes<br/>
     ✓ Package lockfiles (package-lock.json, yarn.lock) committed to prevent dependency tampering<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt to deploy unsigned artifact and verify rejection, check HTML includes SRI hashes for CDN scripts, modify dependency and confirm lockfile detects change
+    <strong class="docs-strong">Test:</strong> Attempt to deploy unsigned artifact and verify rejection, check HTML includes SRI hashes for CDN scripts, modify dependency and confirm lockfile detects change
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Transport Security and MITM Prevention</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-cyan">
+  <div class="docs-heading">Transport Security and MITM Prevention</div>
+  <div class="docs-copy">
     ✓ All communication between components uses TLS 1.3 with strong cipher suites<br/>
     ✓ Certificate validation enforced (no certificate warnings ignored)<br/>
     ✓ APIs implement certificate pinning for mobile apps to prevent MITM attacks<br/>
     ✓ Webhook receivers validate sender signatures (HMAC) to prevent payload tampering<br/>
     ✓ Internal microservices use mutual TLS for authentication<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Use mitmproxy to intercept traffic and attempt to modify requests, verify TLS connections fail if certificate is invalid, check webhook payloads include HMAC signatures
+    <strong class="docs-strong">Test:</strong> Use mitmproxy to intercept traffic and attempt to modify requests, verify TLS connections fail if certificate is invalid, check webhook payloads include HMAC signatures
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Database Access Controls</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Database Access Controls</div>
+  <div class="docs-copy">
     ✓ Database accounts used by application have minimal privileges<br/>
     ✓ Query user has only SELECT permission on most tables, with UPDATE/DELETE/INSERT restricted to specific tables<br/>
     ✓ Separate database accounts for different microservices<br/>
     ✓ Database audit logging enabled to track all modifications<br/>
     ✓ Database triggers implemented to prevent unauthorized updates to critical fields like user.role or product.price<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt to execute UPDATE or DELETE statements through application, verify only SELECT queries succeed for read-only endpoints, review database user permissions
+    <strong class="docs-strong">Test:</strong> Attempt to execute UPDATE or DELETE statements through application, verify only SELECT queries succeed for read-only endpoints, review database user permissions
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">File Upload Security</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">File Upload Security</div>
+  <div class="docs-copy">
     ✓ All file uploads validated by type (check magic bytes, not file extension), size (enforce maximum), and content (scan for malware)<br/>
     ✓ Uploaded files stored outside web root with randomized names<br/>
     ✓ Never execute uploaded files or eval their contents<br/>
     ✓ Content Security Policy (CSP) implemented to prevent execution of uploaded scripts<br/>
     ✓ Uploads scanned with antivirus before saving<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Upload file with double extension like malware.jpg.php and verify rejection or safe storage, upload SVG with embedded JavaScript and confirm no execution
+    <strong class="docs-strong">Test:</strong> Upload file with double extension like malware.jpg.php and verify rejection or safe storage, upload SVG with embedded JavaScript and confirm no execution
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Logging and Change Detection</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Logging and Change Detection</div>
+  <div class="docs-copy">
     ✓ All data modifications logged with who, what, when, where details<br/>
     ✓ Immutable audit logs stored in separate system (cannot be modified by application)<br/>
     ✓ File integrity monitoring (FIM) implemented to detect unauthorized changes to critical files<br/>
     ✓ Database has row-level versioning or audit tables tracking all changes<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Review audit logs after making data changes, verify logs include user ID, timestamp, old value, new value, and IP address, test that logs are append-only
+    <strong class="docs-strong">Test:</strong> Review audit logs after making data changes, verify logs include user ID, timestamp, old value, new value, and IP address, test that logs are append-only
   </div>
 </div>
 

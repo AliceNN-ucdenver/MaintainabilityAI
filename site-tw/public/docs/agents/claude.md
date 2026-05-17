@@ -1,8 +1,13 @@
-# Claude Code — In-Editor Guide
-
-> <span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> Human-in-the-loop, IDE-integrated
->
-> Looking for the autonomous GitHub agent? See [Claude Code Action](/docs/agents/claude-code-action).
+<div class="docs-hero docs-hero-indigo">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Claude Code</span></div>
+    <div class="docs-eyebrow">In-editor · human-in-the-loop <span class="docs-hero-meta">~4 min read</span></div>
+    <h1 class="docs-hero-title">Claude Code &mdash; complex refactoring &amp; testing</h1>
+    <p class="docs-hero-copy">Deep multi-file refactoring with security constraints, attack-vector test generation, and detailed reasoning. Strongest when the change crosses files. Looking for the autonomous GitHub agent? See <a href="/docs/agents/claude-code-action" class="markdown-link">Claude Code Action</a>.</p>
+    <span class="docs-hero-flourish">&ldquo;You used to be much more&hellip; <em>muchier</em>.&rdquo; Bring back the muchness.</span>
+  </div>
+</div>
 
 Claude Code excels at **complex, multi-file refactoring** with security constraints. It understands large codebases, coordinates changes across files, and generates comprehensive test suites with attack vectors.
 
@@ -10,11 +15,11 @@ Claude Code excels at **complex, multi-file refactoring** with security constrai
 
 ## Quick Start
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #6366f1;">
+<div class="docs-card docs-card-indigo">
 
 **Copy this prompt into Claude Code to get started:**
 
-<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 20px; margin-top: 16px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a senior security engineer specializing in OWASP compliance.
 
@@ -48,9 +53,9 @@ Refactored code + test suite + explanation of each security control applied.
 
 Always provide full context with security constraints:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<div class="docs-card docs-card-emerald">
 
-<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a security architect performing a secure data access layer refactoring.
 
@@ -82,9 +87,9 @@ Refactor the user data access layer to address OWASP A01 (Access Control) and A0
 
 Claude's differentiator — coordinating changes across multiple files:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<div class="docs-card docs-card-indigo">
 
-<div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a full-stack security engineer implementing a new feature with defense-in-depth.
 
@@ -110,9 +115,9 @@ Architecture design → implementation across all files → test suite with atta
 
 ### Comprehensive Test Generation
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<div class="docs-card docs-card-amber">
 
-<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a security test engineer generating comprehensive test suites.
 
@@ -140,23 +145,23 @@ Jest test file with test categories clearly labeled, each test documenting which
 
 ## Best Practices
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 24px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #6366f1; margin-top: 0; font-size: 16px; font-weight: 700;">1. Provide Complete Context</h3>
-<p style="color: #f87171; font-size: 13px; margin: 8px 0 4px 0;">Don't say: "Fix the security issues in this file"</p>
-<p style="color: #4ade80; font-size: 13px; margin: 4px 0 12px 0;">Do say: "Security review src/auth/login.ts — Node 18 + TypeScript + Express + PostgreSQL. Issues: SQL injection, plain text passwords, no rate limiting. Reference A03 and A07 prompt packs."</p>
-<p style="color: #94a3b8; font-size: 13px; margin: 0;">Include: tech stack, file paths, OWASP categories, specific requirements, and prompt pack references.</p>
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">1. Provide Complete Context</h3>
+<p class="docs-copy">Don't say: "Fix the security issues in this file"</p>
+<p class="docs-copy">Do say: "Security review src/auth/login.ts — Node 18 + TypeScript + Express + PostgreSQL. Issues: SQL injection, plain text passwords, no rate limiting. Reference A03 and A07 prompt packs."</p>
+<p class="docs-copy">Include: tech stack, file paths, OWASP categories, specific requirements, and prompt pack references.</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #6366f1; margin-top: 0; font-size: 16px; font-weight: 700;">2. Leverage Multi-File Understanding</h3>
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">List all files and their dependencies explicitly. Claude tracks cross-file relationships — tell it that login.ts uses authenticate.ts for token generation, register.ts uses User.ts for database access, and all share security.ts constants.</p>
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">2. Leverage Multi-File Understanding</h3>
+<p class="docs-copy">List all files and their dependencies explicitly. Claude tracks cross-file relationships — tell it that login.ts uses authenticate.ts for token generation, register.ts uses User.ts for database access, and all share security.ts constants.</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #6366f1; margin-top: 0; font-size: 16px; font-weight: 700;">3. Request Explanations</h3>
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">Always ask Claude to explain: why each security control is necessary (reference OWASP), how the refactoring prevents specific attacks, performance implications, and maintenance considerations.</p>
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">3. Request Explanations</h3>
+<p class="docs-copy">Always ask Claude to explain: why each security control is necessary (reference OWASP), how the refactoring prevents specific attacks, performance implications, and maintenance considerations.</p>
 </div>
 
 </div>
@@ -165,7 +170,7 @@ Jest test file with test categories clearly labeled, each test documenting which
 
 ## Golden Rules Integration
 
-Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Claude:
+Apply the [Golden Rules](/docs/governance/governed-golden-rules) with Claude:
 
 | Rule | Application |
 |------|-------------|
@@ -180,7 +185,7 @@ Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Claude:
 
 ## Example: Complete A03 Injection Fix
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
 | Step | Action | Details |
 |------|--------|---------|
@@ -197,5 +202,5 @@ Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Claude:
 ## Further Reading
 
 - [OWASP Prompt Packs](/docs/prompts/owasp/) — Security requirements for all categories
-- [Golden Rules](/docs/governance/vibe-golden-rules) — Governance principles
+- [Golden Rules](/docs/governance/governed-golden-rules) — Governance principles
 - [Claude Code Action Guide](/docs/agents/claude-code-action) — Autonomous agent version

@@ -30,7 +30,19 @@ export const SECRETS: SecretDefinition[] = [
     label: 'OpenAI API Key',
     description: 'OPENAI_API_KEY — For OpenAI-powered workflows',
   },
+  {
+    id: 'tavily',
+    envName: 'TAVILY_API_KEY',
+    settingKey: 'maintainabilityai.llm.tavilyApiKey',
+    prefix: 'tvly-',
+    label: 'Tavily API Key',
+    description: 'TAVILY_API_KEY — Web search backend for the Archeologist research agent',
+  },
 ];
+
+/** Subset of SECRETS that the Research + PRD agents need at run time. */
+export const RESEARCH_SECRET_IDS = ['anthropic', 'openai', 'tavily'] as const;
+export type ResearchSecretId = (typeof RESEARCH_SECRET_IDS)[number];
 
 export type SecretsTarget = 'governance' | 'workspace';
 

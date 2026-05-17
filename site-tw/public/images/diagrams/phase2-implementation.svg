@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Phase 2 — Implementation with guardrails</title>
+  <desc id="d">A coding agent sits between two guard rails. Above: design artifacts (architecture, prompt pack, fitness gates) feed in as inputs. Below: a stream of small reviewable diffs flows out toward verification. The rails (Red Queen hooks and Cheshire scaffolding) keep the agent inside the contract.</desc>
+  <defs>
+    <radialGradient id="p2bg" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#1a1208" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="agentGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbbf24" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+    </linearGradient>
+    <marker id="dn" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 5 10 10 0z" fill="#fbbf24"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#fcd34d}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .laneLbl{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#94a3b8}
+      .inputName{font:800 14px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .inputBody{font:500 11px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .agentLbl{font:900 24px -apple-system,system-ui,sans-serif;fill:#fcd34d;text-anchor:middle}
+      .agentSub{font:500 13px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+      .railLbl{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#fda4af}
+      .diffLine{font:600 12px -apple-system,system-ui,sans-serif;fill:#cbd5e1}
+      .diffAdd{font:700 12px -apple-system,system-ui,sans-serif;fill:#6ee7b7}
+      .diffMeta{font:600 11px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#p2bg)"/>
+
+  <text x="64" y="74" class="eyebrow">Phase 2</text>
+  <text x="64" y="118" class="heroTitle">Implementation with guardrails</text>
+  <text x="64" y="148" class="heroSub">The coding agent receives design artifacts and produces small reviewable diffs — bounded by Red Queen rails.</text>
+
+  <!-- INPUTS row -->
+  <text x="64" y="208" class="laneLbl">Inputs · design artifacts feed the agent</text>
+  <g>
+    <g transform="translate(96,222)">
+      <rect width="200" height="76" rx="12" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/>
+      <text x="100" y="30" class="inputName">Architecture context</text>
+      <text x="100" y="54" class="inputBody">CALM model · trust zones</text>
+    </g>
+    <g transform="translate(330,222)">
+      <rect width="200" height="76" rx="12" fill="rgba(251,113,133,0.1)" stroke="#fb7185"/>
+      <text x="100" y="30" class="inputName">OWASP prompt pack</text>
+      <text x="100" y="54" class="inputBody">RCTRO contract · category</text>
+    </g>
+    <g transform="translate(564,222)">
+      <rect width="200" height="76" rx="12" fill="rgba(52,211,153,0.1)" stroke="#34d399"/>
+      <text x="100" y="30" class="inputName">Fitness gates</text>
+      <text x="100" y="54" class="inputBody">Complexity · coverage · perf</text>
+    </g>
+    <g transform="translate(798,222)">
+      <rect width="200" height="76" rx="12" fill="rgba(129,140,248,0.1)" stroke="#818cf8"/>
+      <text x="100" y="30" class="inputName">Threat model</text>
+      <text x="100" y="54" class="inputBody">STRIDE per component</text>
+    </g>
+  </g>
+  <g fill="none" stroke="rgba(251,191,36,0.5)" stroke-width="1.6">
+    <path d="M196 298 L376 360" marker-end="url(#dn)"/>
+    <path d="M430 298 L520 360" marker-end="url(#dn)"/>
+    <path d="M664 298 L606 360" marker-end="url(#dn)"/>
+    <path d="M898 298 L760 360" marker-end="url(#dn)"/>
+  </g>
+
+  <!-- AGENT bay with rails -->
+  <g>
+    <!-- top rail -->
+    <rect x="160" y="350" width="960" height="6" rx="3" fill="url(#rail)" opacity=".8"/>
+    <text x="180" y="342" class="railLbl">Red Queen rail · PreToolUse hooks block out-of-bound actions</text>
+
+    <!-- agent core -->
+    <g transform="translate(420,380)">
+      <rect width="440" height="160" rx="20" fill="rgba(15,23,42,0.92)" stroke="rgba(251,191,36,0.7)" stroke-width="2"/>
+      <rect width="440" height="160" rx="20" fill="url(#agentGlow)"/>
+      <text x="220" y="68" class="agentLbl">AI coding agent</text>
+      <text x="220" y="98" class="agentSub">Claude Code · Copilot · Coding Agent</text>
+      <text x="220" y="128" class="agentSub">working from the design packet, not a blank canvas</text>
+    </g>
+
+    <!-- bottom rail -->
+    <rect x="160" y="572" width="960" height="6" rx="3" fill="url(#rail)" opacity=".8"/>
+    <text x="180" y="600" class="railLbl">Cheshire rail · scaffolded tests, lint, prompt packs in repo</text>
+  </g>
+
+  <!-- diff output stream -->
+  <text x="64" y="650" class="laneLbl">Output · small reviewable diffs flow to Phase 3</text>
+  <g transform="translate(96,660)">
+    <g transform="translate(0,0)">
+      <rect width="200" height="46" rx="10" fill="rgba(2,6,23,0.8)" stroke="rgba(52,211,153,0.4)"/>
+      <text x="14" y="22" class="diffAdd">+ parameterized</text>
+      <text x="14" y="38" class="diffMeta">SearchRepo.ts · A03</text>
+    </g>
+    <g transform="translate(220,0)">
+      <rect width="200" height="46" rx="10" fill="rgba(2,6,23,0.8)" stroke="rgba(52,211,153,0.4)"/>
+      <text x="14" y="22" class="diffAdd">+ zod validation</text>
+      <text x="14" y="38" class="diffMeta">SearchSchema.ts · A03</text>
+    </g>
+    <g transform="translate(440,0)">
+      <rect width="200" height="46" rx="10" fill="rgba(2,6,23,0.8)" stroke="rgba(52,211,153,0.4)"/>
+      <text x="14" y="22" class="diffAdd">+ attack-vector tests</text>
+      <text x="14" y="38" class="diffMeta">Search.test.ts · 12 cases</text>
+    </g>
+    <g transform="translate(660,0)">
+      <rect width="200" height="46" rx="10" fill="rgba(2,6,23,0.8)" stroke="rgba(52,211,153,0.4)"/>
+      <text x="14" y="22" class="diffAdd">+ generic errors</text>
+      <text x="14" y="38" class="diffMeta">errors.ts · no schema leak</text>
+    </g>
+    <g transform="translate(880,0)">
+      <rect width="200" height="46" rx="10" fill="rgba(2,6,23,0.8)" stroke="rgba(52,211,153,0.4)"/>
+      <text x="14" y="22" class="diffAdd">+ AI-assist commit</text>
+      <text x="14" y="38" class="diffMeta">disclosed · prompt linked</text>
+    </g>
+  </g>
+</svg>

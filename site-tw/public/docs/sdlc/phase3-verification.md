@@ -1,48 +1,37 @@
-<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 3</div>
-
-# Phase 3: Verification
-
-<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4); border: 1px solid rgba(248, 113, 113, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">3&#xFE0F;&#x20E3;</div>
-    <div>
-      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Verification</h2>
-      <div style="font-size: 16px; color: #fecaca; margin-top: 8px;">Automated Security Scanning & Fitness Functions</div>
-    </div>
-  </div>
-  <div style="color: #fecaca; font-size: 15px; line-height: 1.7;">
-    Validate implementation through 4 automated gates: local tests, CodeQL SAST, Snyk SCA, and fitness function enforcement. All gates must pass before human review.
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 3</span></div>
+    <div class="docs-eyebrow">Phase 3 of 6 · Verify <span class="docs-hero-meta">~1 min read</span></div>
+    <h1 class="docs-hero-title">Verification &mdash; four gates, one packet of evidence</h1>
+    <p class="docs-hero-copy">Local tests, CodeQL SAST, Snyk dependency analysis, and fitness functions. All four pass before a human is asked to look. The packet of evidence is what they see.</p>
+    <span class="docs-hero-flourish">&ldquo;Curiouser and curiouser!&rdquo; &mdash; said the scanner.</span>
   </div>
 </div>
 
 ## Phase Overview
 
-```mermaid
-flowchart LR
-    A[Implementation] --> B[Gate 1: Local Tests]
-    B --> C[Gate 2: CodeQL]
-    C --> D[Gate 3: Snyk]
-    D --> E[Gate 4: Fitness Functions]
-    E -->|All Pass| F[Phase 4: Governance]
-    E -->|Any Fail| G[Fix → Phase 2]
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/phase3-verification.svg" alt="Verification gates covering local tests, CodeQL, Snyk, and fitness functions." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Verification provides automated evidence before work reaches human governance.</figcaption>
+</figure>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Duration</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">30-60 min</div>
+<div class="docs-grid docs-grid-compact">
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Duration</div>
+    <div class="docs-heading">30-60 min</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">ESLint, Jest, CodeQL, Snyk</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Actors</div>
+    <div class="docs-heading">ESLint, Jest, CodeQL, Snyk</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Mode</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Automated (CI/CD pipeline)</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Mode</div>
+    <div class="docs-copy">Automated (CI/CD pipeline)</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Security Gate</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">0 high/critical findings across all scanners</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Security Gate</div>
+    <div class="docs-copy">0 high/critical findings across all scanners</div>
   </div>
 </div>
 
@@ -50,46 +39,46 @@ flowchart LR
 
 ## The 4 Verification Gates
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Gate 1: Local Tests</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Gate 1: Local Tests</div>
+  <div class="docs-copy">
     ESLint: 0 errors, complexity ≤ 10<br/>
     Jest: all pass, coverage ≥ 80%<br/>
     npm audit: 0 high/critical
   </div>
-  <div style="color: #64748b; font-size: 12px; margin-top: 8px;">Run: <code>npm run lint && npm test && npm audit</code></div>
+  <div class="docs-muted">Run: <code>npm run lint && npm test && npm audit</code></div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Gate 2: CodeQL (SAST)</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Gate 2: CodeQL (SAST)</div>
+  <div class="docs-copy">
     SQL injection, XSS, path traversal<br/>
     Hardcoded credentials, weak crypto<br/>
     0 high/critical findings
   </div>
-  <div style="color: #64748b; font-size: 12px; margin-top: 8px;">Runs in: GitHub Actions CI</div>
+  <div class="docs-muted">Runs in: GitHub Actions CI</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Gate 3: Snyk (SCA)</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Gate 3: Snyk (SCA)</div>
+  <div class="docs-copy">
     Known CVEs in dependencies (A06)<br/>
     License compliance<br/>
     0 high/critical vulnerabilities
   </div>
-  <div style="color: #64748b; font-size: 12px; margin-top: 8px;">Runs in: GitHub Actions CI + weekly</div>
+  <div class="docs-muted">Runs in: GitHub Actions CI + weekly</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #a855f7;">
-  <div style="font-size: 15px; font-weight: 700; color: #d8b4fe; margin-bottom: 8px;">Gate 4: Fitness Functions</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Gate 4: Fitness Functions</div>
+  <div class="docs-copy">
     Complexity ≤ 10, Coverage ≥ 80%<br/>
     Dependencies < 3 months old<br/>
     All thresholds from Phase 1 met
   </div>
-  <div style="color: #64748b; font-size: 12px; margin-top: 8px;">Run: <code>node scripts/fitness-functions.js</code></div>
+  <div class="docs-muted">Run: <code>node scripts/fitness-functions.js</code></div>
 </div>
 
 </div>
@@ -99,7 +88,7 @@ flowchart LR
 ## CI Configuration
 
 <details>
-<summary style="cursor: pointer; color: #fca5a5; font-weight: 600; padding: 8px 0;">CodeQL workflow (.github/workflows/codeql.yml)</summary>
+<summary class="docs-details-summary">CodeQL workflow (.github/workflows/codeql.yml)</summary>
 
 ```yaml
 name: CodeQL Security Analysis
@@ -126,7 +115,7 @@ jobs:
 </details>
 
 <details>
-<summary style="cursor: pointer; color: #fcd34d; font-weight: 600; padding: 8px 0;">Snyk workflow (.github/workflows/snyk.yml)</summary>
+<summary class="docs-details-summary">Snyk workflow (.github/workflows/snyk.yml)</summary>
 
 ```yaml
 name: Snyk Security Scan
@@ -153,7 +142,7 @@ jobs:
 </details>
 
 <details>
-<summary style="cursor: pointer; color: #d8b4fe; font-weight: 600; padding: 8px 0;">Fitness functions script (scripts/fitness-functions.js)</summary>
+<summary class="docs-details-summary">Fitness functions script (scripts/fitness-functions.js)</summary>
 
 ```javascript
 const { execSync } = require('child_process');
@@ -196,8 +185,8 @@ process.exit(results.every(r => r) ? 0 : 1);
 
 When a gate fails, use this RCTRO prompt to fix findings.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(239, 68, 68, 0.3);">
-<div style="font-size: 12px; color: #fca5a5; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Finding Remediation</div>
+<div class="docs-card docs-card-rose">
+<div class="docs-card-kicker">RCTRO Prompt — Finding Remediation</div>
 
 ```
 Role: You are a security engineer remediating scanner findings.
@@ -235,7 +224,7 @@ Output:
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #fca5a5; font-weight: 600; padding: 8px 0;">Example: Complexity refactoring (fitness function failure)</summary>
+<summary class="docs-details-summary">Example: Complexity refactoring (fitness function failure)</summary>
 
 ```typescript
 // ❌ Before: complexity 12
@@ -299,7 +288,7 @@ Generate this report for Phase 4 handoff:
 ```
 
 <details>
-<summary style="cursor: pointer; color: #fca5a5; font-weight: 600; padding: 8px 0;">Example: Document Sharing verification report</summary>
+<summary class="docs-details-summary">Example: Document Sharing verification report</summary>
 
 ```markdown
 # Verification Report: Document Sharing
@@ -343,23 +332,23 @@ Generate this report for Phase 4 handoff:
 
 ## Phase Handoff → Phase 4
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(239, 68, 68, 0.3);">
-<div style="background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
-  <span style="font-size: 24px;">3&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
-  <span style="font-size: 24px;">4&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Verification → Governance</span>
+<div class="docs-card docs-card-rose">
+<div class="docs-flex-block">
+  <span class="docs-copy">3&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">→</span>
+  <span class="docs-copy">4&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">Verification → Governance</span>
 </div>
-<div style="padding: 24px;">
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
+<div>
+  <div class="docs-card-kicker">Handoff Checklist</div>
+  <div class="docs-copy">
     <div>✅ All 4 verification gates passed</div>
     <div>✅ [X]% coverage with attack vector tests</div>
     <div>✅ 0 high/critical findings across all scanners</div>
     <div>✅ All threats from Phase 1 verified</div>
   </div>
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 0; font-weight: 600;">Artifacts</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
+  <div class="docs-card-kicker">Artifacts</div>
+  <div class="docs-copy">
     <div>Verification report (attached) · Files for review: [list]</div>
   </div>
 </div>
@@ -367,7 +356,7 @@ Generate this report for Phase 4 handoff:
 
 ---
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
-  <a href="/docs/sdlc/phase2-implementation" style="color: #fcd34d; font-size: 14px; text-decoration: none;">← Phase 2: Implementation</a>
-  <a href="/docs/sdlc/phase4-governance" style="display: inline-block; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 4: Governance →</a>
+<div class="docs-flex-block">
+  <a href="/docs/sdlc/phase2-implementation" class="markdown-link">← Phase 2: Implementation</a>
+  <a href="/docs/sdlc/phase4-governance" class="docs-button-primary">Phase 4: Governance →</a>
 </div>

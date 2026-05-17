@@ -43,8 +43,10 @@ const ENTRY_POINTS = [
 // Ratchet budgets: current hotspots are explicit so new complexity cannot hide.
 const DEFAULT_COMPLEXITY_BUDGET = 40;
 const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
-  'webview/app/lookingGlass.ts': 177,
-  'webview/LookingGlassPanel.ts': 82,
+  // Ratcheted upward when the Research Settings panel landed (5 new message
+  // cases with conditional bodies; 5 new dispatcher branches).
+  'webview/app/lookingGlass.ts': 194,
+  'webview/LookingGlassPanel.ts': 87,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 47,

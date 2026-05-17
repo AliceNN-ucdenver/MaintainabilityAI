@@ -1,96 +1,81 @@
-# AI Agent Guides
+<div class="docs-hero docs-hero-violet">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mushroom.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Agents</span></div>
+    <div class="docs-eyebrow">Agent guides <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Choose the agent. The governance is the same.</h1>
+    <p class="docs-hero-copy">Two categories of AI: <strong>in-editor assistants</strong> you drive directly, and <strong>agentic AI</strong> that operates autonomously on GitHub. Each gets its own guide; both run inside the Red Queen rails.</p>
+    <span class="docs-hero-flourish">&ldquo;Who are <em>you</em>?&rdquo; &mdash; said the Caterpillar.</span>
+  </div>
+</div>
 
-MaintainabilityAI works with two categories of AI: **in-editor assistants** you interact with directly, and **agentic AI** that operates autonomously on GitHub. Each requires different guidance, governance, and trust models.
+MaintainabilityAI works with two categories of AI: **in-editor assistants** you interact with directly, and **agentic AI** that operates autonomously on GitHub. Each requires different guidance, governance, and trust models &mdash; but both sit under the same Red Queen rails, so policy enforcement, audit trails, and CODEOWNER review are identical regardless of which agent holds the keyboard.
 
 ---
 
-## In-Editor AI Assistants
+## In-editor AI assistants
 
-<div style="font-size: 14px; color: #94a3b8; margin-bottom: 24px;">Human-in-the-loop. IDE-integrated. Interactive. You review every change.</div>
+<p class="docs-muted">Human-in-the-loop. IDE-integrated. Interactive. You review every change.</p>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 0 0 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #334155; display: flex; flex-direction: column;">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: white;">C</div>
-    <div>
-      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/claude" style="color: #f1f5f9; text-decoration: none;">Claude Code</a></h3>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8;">Complex Refactoring &amp; Testing</p>
-    </div>
-  </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Deep codebase understanding for multi-file refactoring, comprehensive test generation with attack vectors, and security code review.</p>
-  <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
-  <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">Large-scale security refactoring · Multi-file coordination · Test generation · Technical debt analysis</p>
-  <a href="/docs/agents/claude" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: auto; align-self: flex-start;">View Guide →</a>
-</div>
+<a href="/docs/agents/claude" class="docs-card docs-card-indigo">
+  <div class="docs-card-kicker">Claude Code</div>
+  <h3 class="docs-card-title">Complex refactoring &amp; testing</h3>
+  <p class="docs-card-body">Deep codebase understanding for multi-file refactoring, comprehensive test generation with attack vectors, and security code review.</p>
+  <p class="docs-card-body"><strong>Best for:</strong> large-scale security refactoring · multi-file coordination · test generation · technical-debt analysis.</p>
+  <p class="docs-card-body"><strong>View guide &rarr;</strong></p>
+</a>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #334155; display: flex; flex-direction: column;">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white;">⚡</div>
-    <div>
-      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/copilot" style="color: #f1f5f9; text-decoration: none;">GitHub Copilot</a></h3>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8;">In-Editor Code Generation</p>
-    </div>
-  </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">IDE-integrated real-time code completion with #codebase context. Fast iteration on single functions with security constraints.</p>
-  <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
-  <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">In-editor secure completions · Pattern following · Quick fixes · Single-function implementation</p>
-  <a href="/docs/agents/copilot" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: auto; align-self: flex-start;">View Guide →</a>
-</div>
+<a href="/docs/agents/copilot" class="docs-card docs-card-blue">
+  <div class="docs-card-kicker">GitHub Copilot</div>
+  <h3 class="docs-card-title">In-editor code generation</h3>
+  <p class="docs-card-body">Real-time IDE completion with <code>#codebase</code> context. Fast iteration on single functions with security constraints in the prompt.</p>
+  <p class="docs-card-body"><strong>Best for:</strong> in-editor secure completions · pattern following · quick fixes · single-function implementation.</p>
+  <p class="docs-card-body"><strong>View guide &rarr;</strong></p>
+</a>
 
 </div>
 
 ---
 
-## Agentic AI (Autonomous)
+## Agentic AI &mdash; autonomous
 
-<div style="font-size: 14px; color: #94a3b8; margin-bottom: 24px;">Autonomous. GitHub-native. Governance-enforced by <a href="/docs/impossible-things" style="color: #818cf8;">The Red Queen</a>.</div>
+<p class="docs-muted">Autonomous. GitHub-native. Governance-enforced by <a href="/docs/impossible-things" class="markdown-link">The Red Queen</a>.</p>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 0 0 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(99, 102, 241, 0.5); box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); display: flex; flex-direction: column;">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white;">🤖</div>
-    <div>
-      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/claude-code-action" style="color: #f1f5f9; text-decoration: none;">Claude Code Action</a></h3>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #818cf8; font-weight: 600;">Governed by The Red Queen</p>
-    </div>
-  </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous GitHub Actions agent with full MCP access — resources, tools, and prompts. Governed by Red Queen MCP validation, pre-tool hooks, and fail-closed review consensus.</p>
-  <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
-  <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">Autonomous issue remediation · Governed PRs · Cross-repo enforcement · CI/CD governance</p>
-  <a href="/docs/agents/claude-code-action" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: auto; align-self: flex-start;">View Guide →</a>
-</div>
+<a href="/docs/agents/claude-code-action" class="docs-card docs-card-cyan">
+  <div class="docs-card-kicker">Claude Code Action</div>
+  <h3 class="docs-card-title">Autonomous in GitHub Actions</h3>
+  <p class="docs-card-body">Full MCP access &mdash; resources, tools, prompts. Governed by Red Queen MCP validation, pre-tool hooks, and fail-closed review consensus.</p>
+  <p class="docs-card-body"><strong>Best for:</strong> autonomous issue remediation · governed PRs · cross-repo enforcement · CI/CD governance.</p>
+  <p class="docs-card-body"><strong>View guide &rarr;</strong></p>
+</a>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(74, 222, 128, 0.5); box-shadow: 0 0 20px rgba(74, 222, 128, 0.15); display: flex; flex-direction: column;">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981 0%, #047857 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white;">🤖</div>
-    <div>
-      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/copilot-coding-agent" style="color: #f1f5f9; text-decoration: none;">Copilot Coding Agent</a></h3>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #818cf8; font-weight: 600;">Governed by The Red Queen</p>
-    </div>
-  </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous GitHub agent with MCP tools. Same governance mesh and policy engine, different hook/config adapter.</p>
-  <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
-  <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">Autonomous issue remediation · Governed PRs · Teams already using Copilot</p>
-  <a href="/docs/agents/copilot-coding-agent" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: auto; align-self: flex-start;">View Guide →</a>
-</div>
+<a href="/docs/agents/copilot-coding-agent" class="docs-card docs-card-emerald">
+  <div class="docs-card-kicker">Copilot Coding Agent</div>
+  <h3 class="docs-card-title">Autonomous in GitHub</h3>
+  <p class="docs-card-body">Same governance mesh and policy engine; different hook and config adapter. Drop-in for teams already standardised on Copilot.</p>
+  <p class="docs-card-body"><strong>Best for:</strong> autonomous issue remediation · governed PRs · teams on Copilot.</p>
+  <p class="docs-card-body"><strong>View guide &rarr;</strong></p>
+</a>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid #6EE7F9; box-shadow: 0 0 20px rgba(110, 231, 249, 0.2); display: flex; flex-direction: column;">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-    <div style="width: 60px; height: 60px; min-width: 60px; min-height: 60px; border-radius: 50%; overflow: hidden; border: 3px solid #6EE7F9; display: flex; align-items: center; justify-content: center;">
-      <img src="/images/alice-bot.png" alt="Alice Bot" style="width: 100%; height: 100%; object-fit: cover; object-position: center center; margin: 0 !important; padding: 0; display: block;" />
-    </div>
-    <div>
-      <h3 style="margin: 0; font-size: 24px; font-weight: 700; color: #f1f5f9;"><a href="/docs/agents/alice" style="color: #f1f5f9; text-decoration: none;">Alice Agent 🐰</a></h3>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #6EE7F9; font-weight: 600;">The Good Maintainer</p>
-    </div>
-  </div>
-  <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Autonomous security remediation with two-phase workflow: Curiosity → Approval → Implementation. Built on Claude Code.</p>
-  <p style="color: #6EE7F9; font-weight: 600; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Best For</p>
-  <p style="color: #e2e8f0; font-size: 14px; margin: 0 0 16px 0;">CodeQL remediation · Legacy refactoring · Technical debt reduction · CI/CD security automation</p>
-  <a href="/docs/agents/alice" style="display: inline-block; background: linear-gradient(135deg, #6EE7F9 0%, #22d3ee 100%); color: #0f172a; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; margin-top: auto; align-self: flex-start;">Enter Wonderland →</a>
-</div>
+<a href="/docs/agents/alice" class="docs-card docs-card-rose">
+  <div class="docs-card-kicker">Alice Agent 🐰</div>
+  <h3 class="docs-card-title">The Good Maintainer</h3>
+  <p class="docs-card-body">Autonomous security remediation with a two-phase workflow: <em>curiosity &rarr; approval &rarr; implementation</em>. Built on Claude Code.</p>
+  <p class="docs-card-body"><strong>Best for:</strong> CodeQL remediation · legacy refactoring · debt reduction · CI/CD security automation.</p>
+  <p class="docs-card-body"><strong>Enter Wonderland &rarr;</strong></p>
+</a>
+
+<a href="/docs/agents/multi-agent" class="docs-card docs-card-amber">
+  <div class="docs-card-kicker">Multi-agent orchestration</div>
+  <h3 class="docs-card-title">Patterns &mdash; sequential, parallel, validator, consensus</h3>
+  <p class="docs-card-body">When one agent isn&rsquo;t enough. How specialists hand off evidence to each other inside the Red Queen rails.</p>
+  <p class="docs-card-body"><strong>Best for:</strong> security review boards · architecture-aware policy checks · risk-tier appropriate autonomy.</p>
+  <p class="docs-card-body"><strong>View guide &rarr;</strong></p>
+</a>
 
 </div>
 
@@ -100,72 +85,72 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
 
 ### In-Editor vs Agentic
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 24px; font-size: 13px;">
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;"></div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">In-Editor (Claude Code, Copilot)</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Agentic (Code Action, Coding Agent, Alice)</div>
+<div class="docs-grid">
+<div class="docs-heading"></div>
+<div class="docs-heading">In-Editor (Claude Code, Copilot)</div>
+<div class="docs-heading">Agentic (Code Action, Coding Agent, Alice)</div>
 
-<div style="color: #e2e8f0; font-weight: 600;">Interaction</div>
-<div style="color: #94a3b8;">Human reviews each change</div>
-<div style="color: #94a3b8;">Autonomous until PR review</div>
+<div class="docs-heading">Interaction</div>
+<div class="docs-muted">Human reviews each change</div>
+<div class="docs-muted">Autonomous until PR review</div>
 
-<div style="color: #e2e8f0; font-weight: 600;">Where it runs</div>
-<div style="color: #94a3b8;">VS Code / IDE</div>
-<div style="color: #94a3b8;">GitHub Actions</div>
+<div class="docs-heading">Where it runs</div>
+<div class="docs-muted">VS Code / IDE</div>
+<div class="docs-muted">GitHub Actions</div>
 
-<div style="color: #e2e8f0; font-weight: 600;">Governance</div>
-<div style="color: #94a3b8;">Prompt packs + human judgment</div>
-<div style="color: #94a3b8;">The Red Queen: MCP + hooks + policy engine</div>
+<div class="docs-heading">Governance</div>
+<div class="docs-muted">Prompt packs + human judgment</div>
+<div class="docs-muted">The Red Queen: MCP + hooks + policy engine</div>
 
-<div style="color: #e2e8f0; font-weight: 600;">Enforcement</div>
-<div style="color: #94a3b8;">Advisory (prompts guide)</div>
-<div style="color: #94a3b8;">Deterministic (guardrails enforce)</div>
+<div class="docs-heading">Enforcement</div>
+<div class="docs-muted">Advisory (prompts guide)</div>
+<div class="docs-muted">Deterministic (guardrails enforce)</div>
 
-<div style="color: #e2e8f0; font-weight: 600;">Best for</div>
-<div style="color: #94a3b8;">Interactive development, learning, complex decisions</div>
-<div style="color: #94a3b8;">Issue remediation, bulk fixes, CI/CD automation</div>
+<div class="docs-heading">Best for</div>
+<div class="docs-muted">Interactive development, learning, complex decisions</div>
+<div class="docs-muted">Issue remediation, bulk fixes, CI/CD automation</div>
 </div>
 
 </div>
 
 ### By Task Type
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
-<div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px 24px; font-size: 13px;">
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Task</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Best Choice</div>
-<div style="color: #94a3b8; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #334155;">Why</div>
+<div class="docs-grid">
+<div class="docs-heading">Task</div>
+<div class="docs-heading">Best Choice</div>
+<div class="docs-heading">Why</div>
 
-<div style="color: #e2e8f0;">Multi-file refactoring</div>
-<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>
-<div style="color: #94a3b8;">Deep codebase understanding, interactive</div>
+<div>Multi-file refactoring</div>
+<div><span class="docs-pill docs-card-blue">In-Editor</span> <span class="docs-copy">Claude Code</span></div>
+<div class="docs-muted">Deep codebase understanding, interactive</div>
 
-<div style="color: #e2e8f0;">Single function fix</div>
-<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Copilot</span></div>
-<div style="color: #94a3b8;">Fast, pattern-aware</div>
+<div>Single function fix</div>
+<div><span class="docs-pill docs-card-blue">In-Editor</span> <span class="docs-copy">Copilot</span></div>
+<div class="docs-muted">Fast, pattern-aware</div>
 
-<div style="color: #e2e8f0;">Test generation</div>
-<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>
-<div style="color: #94a3b8;">Comprehensive attack vectors</div>
+<div>Test generation</div>
+<div><span class="docs-pill docs-card-blue">In-Editor</span> <span class="docs-copy">Claude Code</span></div>
+<div class="docs-muted">Comprehensive attack vectors</div>
 
-<div style="color: #e2e8f0;">Issue remediation</div>
-<div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #c4b5fd;">Claude Code Action | Copilot Coding Agent</span></div>
-<div style="color: #94a3b8;">Autonomous, governed</div>
+<div>Issue remediation</div>
+<div><span class="docs-pill docs-card-indigo">Agentic</span> <span class="docs-copy">Claude Code Action | Copilot Coding Agent</span></div>
+<div class="docs-muted">Autonomous, governed</div>
 
-<div style="color: #e2e8f0;">Security bulk fixes</div>
-<div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #6EE7F9;">Alice Agent</span></div>
-<div style="color: #94a3b8;">Two-phase workflow, human approval</div>
+<div>Security bulk fixes</div>
+<div><span class="docs-pill docs-card-indigo">Agentic</span> <span class="docs-copy">Alice Agent</span></div>
+<div class="docs-muted">Two-phase workflow, human approval</div>
 
-<div style="color: #e2e8f0;">Cross-repo changes</div>
-<div><span style="display: inline-block; background: rgba(168, 85, 247, 0.2); color: #d8b4fe; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Agentic</span> <span style="color: #c4b5fd;">Claude Code Action</span></div>
-<div style="color: #94a3b8;">Full MCP context + Phase 9 interface contract gate</div>
+<div>Cross-repo changes</div>
+<div><span class="docs-pill docs-card-indigo">Agentic</span> <span class="docs-copy">Claude Code Action</span></div>
+<div class="docs-muted">Full MCP context + Phase 9 interface contract gate</div>
 
-<div style="color: #e2e8f0;">Dependency upgrades</div>
-<div><span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> <span style="color: #7dd3fc;">Claude Code</span></div>
-<div style="color: #94a3b8;">Breaking change analysis</div>
+<div>Dependency upgrades</div>
+<div><span class="docs-pill docs-card-blue">In-Editor</span> <span class="docs-copy">Claude Code</span></div>
+<div class="docs-muted">Breaking change analysis</div>
 </div>
 
 </div>
@@ -176,9 +161,44 @@ For complex workflows requiring multiple agents in sequence or parallel, see the
 
 ---
 
+## Permission tiers &mdash; agent autonomy is earned
+
+Not every agent gets the same keys to the keyboard. The Red Queen issues a permission tier per repository based on its current governance score &mdash; and the tier sets which actions any agent can take.
+
+<div class="docs-grid docs-grid-compact">
+  <div class="docs-card docs-card-emerald">
+    <div class="docs-card-kicker">Score 80&ndash;100</div>
+    <h3 class="docs-card-title">Autonomous</h3>
+    <p class="docs-card-body">Auto-edit mode for in-editor agents. Agentic AI can open PRs unattended. CALM flow constraints still enforced. Single-reviewer human sign-off.</p>
+  </div>
+  <div class="docs-card docs-card-amber">
+    <div class="docs-card-kicker">Score 50&ndash;79</div>
+    <h3 class="docs-card-title">Supervised</h3>
+    <p class="docs-card-body">Ask-edit mode in the IDE. Agentic AI requires human approval before merge. Security-critical files trigger Cheshire-injected OWASP packs.</p>
+  </div>
+  <div class="docs-card docs-card-rose">
+    <div class="docs-card-kicker">Score 0&ndash;49</div>
+    <h3 class="docs-card-title">Restricted</h3>
+    <p class="docs-card-body">Plan-first mode. Bash and Write are hook-blocked. Edit requires recorded approval. Multi-agent review board on every structural change.</p>
+  </div>
+</div>
+
+The same agent &mdash; Claude Code, Copilot, or an autonomous coding agent &mdash; behaves differently in a restricted-tier repo than in an autonomous-tier one. The governance score, not the agent vendor, is what changes the rules. Improve the score and your agents earn autonomy. Let it decay and they tighten.
+
+<div class="docs-cta">
+  <h2 class="docs-cta-title">Put an agent inside the rails</h2>
+  <p class="docs-cta-copy">The fastest way to feel how this works is to scaffold the Red Queen into a restricted-tier repo and watch the pre-tool hooks fire as the agent works.</p>
+  <div class="docs-actions docs-actions-center">
+    <a href="/docs/quickstart-redqueen" class="docs-button-primary">Red Queen quickstart &rarr;</a>
+    <a href="/docs/impossible-things#the-red-queen---governance-enforced-agent-intelligence" class="docs-button-secondary">Why deterministic enforcement</a>
+  </div>
+</div>
+
+---
+
 ## Further Reading
 
-- [OWASP Prompt Packs](/docs/prompts/owasp/) — Security-first prompts for all agents
-- [SDLC Framework](/docs/sdlc/) — 6-phase framework integration
-- [Golden Rules](/docs/governance/vibe-golden-rules) — Governance principles
-- [Impossible Things](/docs/impossible-things) — The Red Queen vision and architecture
+- [OWASP Prompt Packs](/docs/prompts/owasp/) &mdash; security-first prompts for all agents
+- [SDLC Framework](/docs/sdlc/) &mdash; 6-phase framework integration
+- [Golden Rules](/docs/governance/governed-golden-rules) &mdash; the human review layer
+- [Impossible Things](/docs/impossible-things) &mdash; the Red Queen vision and architecture

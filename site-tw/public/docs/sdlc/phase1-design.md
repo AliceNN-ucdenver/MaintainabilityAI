@@ -1,50 +1,37 @@
-<div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;"><a href="/docs/sdlc/" style="color: #94a3b8; text-decoration: none;">SDLC Framework</a> / Phase 1</div>
-
-# Phase 1: Design Intent
-
-<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(30, 64, 175, 0.4); border: 1px solid rgba(59, 130, 246, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="font-size: 56px;">1&#xFE0F;&#x20E3;</div>
-    <div>
-      <h2 style="margin: 0; font-size: 32px; color: #f1f5f9; font-weight: 800;">Design Intent</h2>
-      <div style="font-size: 16px; color: #bfdbfe; margin-top: 8px;">Requirements, Threat Modeling & Architecture</div>
-    </div>
-  </div>
-  <div style="color: #dbeafe; font-size: 15px; line-height: 1.7;">
-    Define requirements, identify threats via STRIDE, map to OWASP categories, design secure architecture, and establish fitness functions — all before writing code.
+<div class="docs-hero docs-hero-blue">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 1</span></div>
+    <div class="docs-eyebrow">Phase 1 of 6 · Design <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Design intent &mdash; the blueprint before the build</h1>
+    <p class="docs-hero-copy">Define requirements, identify threats with STRIDE, map them to OWASP categories, design the architecture, and set fitness functions &mdash; <strong>all before a single line of code is generated.</strong></p>
+    <span class="docs-hero-flourish">&ldquo;The rule is, jam to-morrow and jam yesterday &mdash; but never jam to-day.&rdquo; Plan today.</span>
   </div>
 </div>
 
 ## Phase Overview
 
-```mermaid
-flowchart LR
-    A[User Story] --> B[Requirements]
-    B --> C[STRIDE Threat Model]
-    C --> D[OWASP Mapping]
-    D --> E[Architecture]
-    E --> F[Fitness Functions]
-    F --> G{Design Review}
-    G -->|Approved| H[Phase 2]
-    G -->|Rejected| B
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/phase1-design.svg" alt="Design phase flow from user story through threat model, OWASP mapping, architecture, fitness functions, and review." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Design artifacts become the contract that coding agents must follow.</figcaption>
+</figure>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Duration</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">1-4 hours</div>
+<div class="docs-grid docs-grid-compact">
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Duration</div>
+    <div class="docs-heading">1-4 hours</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Actors</div>
-    <div style="font-size: 20px; color: #f1f5f9; font-weight: 700;">ChatGPT, Claude</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Actors</div>
+    <div class="docs-heading">ChatGPT, Claude</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Outputs</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Threat model, OWASP map, architecture, fitness functions</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Outputs</div>
+    <div class="docs-copy">Threat model, OWASP map, architecture, fitness functions</div>
   </div>
-  <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(100, 116, 139, 0.3);">
-    <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Security Gate</div>
-    <div style="font-size: 14px; color: #cbd5e1; line-height: 1.6;">Threat coverage >95%, all STRIDE categories addressed</div>
+  <div class="docs-card docs-card-muted">
+    <div class="docs-card-kicker">Security Gate</div>
+    <div class="docs-copy">Threat coverage >95%, all STRIDE categories addressed</div>
   </div>
 </div>
 
@@ -54,8 +41,8 @@ flowchart LR
 
 Extract structured requirements from a user story. Use the RCTRO prompt below.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
-<div style="font-size: 12px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Requirements Elicitation</div>
+<div class="docs-card docs-card-blue">
+<div class="docs-card-kicker">RCTRO Prompt — Requirements Elicitation</div>
 
 ```
 Role: You are a senior product analyst extracting security-aware requirements.
@@ -99,7 +86,7 @@ Acceptance Criteria, Out of Scope.
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Document Sharing requirements output</summary>
+<summary class="docs-details-summary">Example: Document Sharing requirements output</summary>
 
 ```markdown
 Feature: User document sharing
@@ -139,8 +126,8 @@ Feature: User document sharing
 
 Systematically identify threats across all six STRIDE categories.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
-<div style="font-size: 12px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — STRIDE Threat Model</div>
+<div class="docs-card docs-card-blue">
+<div class="docs-card-kicker">RCTRO Prompt — STRIDE Threat Model</div>
 
 ```
 Role: You are a security threat modeler using STRIDE methodology.
@@ -179,17 +166,17 @@ Structured threat model with format per threat:
 
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 16px 0;">
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Spoofing</div>
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Tampering</div>
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Repudiation</div>
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Info Disclosure</div>
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">DoS</div>
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 10px; text-align: center; font-size: 13px; color: #93c5fd; font-weight: 600;">Privilege Escalation</div>
+<div class="docs-grid">
+  <div class="docs-center-block">Spoofing</div>
+  <div class="docs-center-block">Tampering</div>
+  <div class="docs-center-block">Repudiation</div>
+  <div class="docs-center-block">Info Disclosure</div>
+  <div class="docs-center-block">DoS</div>
+  <div class="docs-center-block">Privilege Escalation</div>
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Document Sharing threat model output</summary>
+<summary class="docs-details-summary">Example: Document Sharing threat model output</summary>
 
 ```markdown
 ## STRIDE Threat Model: Document Sharing
@@ -236,7 +223,7 @@ Mitigation: Owner-only sharing, prevent re-sharing
 
 Map threats to specific OWASP prompt packs for Phase 2 implementation.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
+<div class="docs-card docs-card-muted">
 
 | OWASP Category | Threats | Prompt Pack | Key Controls |
 |---|---|---|---|
@@ -253,8 +240,8 @@ Map threats to specific OWASP prompt packs for Phase 2 implementation.
 
 Design the secure architecture addressing all identified threats.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
-<div style="font-size: 12px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 700;">RCTRO Prompt — Secure Architecture</div>
+<div class="docs-card docs-card-blue">
+<div class="docs-card-kicker">RCTRO Prompt — Secure Architecture</div>
 
 ```
 Role: You are a senior software architect designing a secure system.
@@ -303,7 +290,7 @@ authorization sequence diagram, error handling strategy.
 </div>
 
 <details>
-<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Architecture output — Data Model</summary>
+<summary class="docs-details-summary">Example: Architecture output — Data Model</summary>
 
 ```sql
 CREATE TABLE document_shares (
@@ -331,7 +318,7 @@ CREATE TABLE share_audit_log (
 </details>
 
 <details>
-<summary style="cursor: pointer; color: #93c5fd; font-weight: 600; padding: 8px 0;">Example: Architecture output — Security Controls Mapping</summary>
+<summary class="docs-details-summary">Example: Architecture output — Security Controls Mapping</summary>
 
 | Threat | Control | Pattern |
 |---|---|---|
@@ -352,50 +339,50 @@ CREATE TABLE share_audit_log (
 
 Define automated quality gates enforced in Phase 3.
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 24px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Complexity</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Complexity</div>
+  <div class="docs-copy">
     Cyclomatic complexity ≤ 10 per function<br/>
     Function length ≤ 50 lines<br/>
-    <span style="color: #94a3b8;">Enforced via: ESLint + CI</span>
+    <span class="docs-copy">Enforced via: ESLint + CI</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Security</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">Security</div>
+  <div class="docs-copy">
     Zero high/critical CodeQL + Snyk findings<br/>
     All STRIDE threats (T1-T9) mitigated<br/>
-    <span style="color: #94a3b8;">Enforced via: CodeQL + Snyk in CI</span>
+    <span class="docs-copy">Enforced via: CodeQL + Snyk in CI</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 15px; font-weight: 700; color: #fcd34d; margin-bottom: 8px;">Test Coverage</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Test Coverage</div>
+  <div class="docs-copy">
     Overall ≥ 80%, security functions 100%<br/>
     All threats have attack vector tests<br/>
-    <span style="color: #94a3b8;">Enforced via: Jest thresholds in CI</span>
+    <span class="docs-copy">Enforced via: Jest thresholds in CI</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #a855f7;">
-  <div style="font-size: 15px; font-weight: 700; color: #d8b4fe; margin-bottom: 8px;">Dependencies</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Dependencies</div>
+  <div class="docs-copy">
     All deps < 3 months old, zero known CVEs<br/>
     Security patches within 7 days<br/>
-    <span style="color: #94a3b8;">Enforced via: Snyk monitor + npm outdated</span>
+    <span class="docs-copy">Enforced via: Snyk monitor + npm outdated</span>
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Performance</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Performance</div>
+  <div class="docs-copy">
     Write ops < 200ms (p95)<br/>
     Read ops < 100ms (p95)<br/>
-    <span style="color: #94a3b8;">Enforced via: Performance tests in CI</span>
+    <span class="docs-copy">Enforced via: Performance tests in CI</span>
   </div>
 </div>
 
@@ -409,8 +396,8 @@ See [Fitness Functions guide](/docs/maintainability/fitness-functions) for imple
 
 Before proceeding to Phase 2, verify all gates pass:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-<div style="color: #cbd5e1; font-size: 14px; line-height: 2.2;">
+<div class="docs-card docs-card-muted">
+<div class="docs-copy">
 
 - [ ] All functional requirements have implementation plan
 - [ ] Non-functional requirements have measurable criteria
@@ -429,17 +416,17 @@ Before proceeding to Phase 2, verify all gates pass:
 
 ## Phase Handoff → Phase 2
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 12px; overflow: hidden; margin: 24px 0; border: 1px solid rgba(59, 130, 246, 0.3);">
-<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 16px 24px; display: flex; align-items: center; gap: 12px;">
-  <span style="font-size: 24px;">1&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 18px; font-weight: 700;">→</span>
-  <span style="font-size: 24px;">2&#xFE0F;&#x20E3;</span>
-  <span style="color: #f1f5f9; font-size: 16px; font-weight: 600; margin-left: 8px;">Design → Implementation</span>
+<div class="docs-card docs-card-blue">
+<div class="docs-flex-block">
+  <span class="docs-copy">1&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">→</span>
+  <span class="docs-copy">2&#xFE0F;&#x20E3;</span>
+  <span class="docs-copy">Design → Implementation</span>
 </div>
-<div style="padding: 24px;">
-  <div style="font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">Handoff Checklist</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 2;">
-    <div>✅ OWASP prompt packs selected: <code style="color: #93c5fd;">/prompts/owasp/[applicable packs]</code></div>
+<div>
+  <div class="docs-card-kicker">Handoff Checklist</div>
+  <div class="docs-copy">
+    <div>✅ OWASP prompt packs selected: <code class="markdown-inline-code">/docs/prompts/owasp/[applicable packs]</code></div>
     <div>✅ Threats to mitigate: T1-Tn with one-line mitigation each</div>
     <div>✅ Architecture reference: Data model, API endpoints, security controls</div>
     <div>✅ Fitness functions defined: Complexity ≤ 10, Coverage ≥ 80%, CodeQL/Snyk clean</div>
@@ -449,9 +436,9 @@ Before proceeding to Phase 2, verify all gates pass:
 
 ---
 
-<div style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">Further reading: <a href="/docs/maintainability/evolutionary-architecture" style="color: #93c5fd;">Evolutionary Architecture</a> · <a href="/docs/maintainability/fitness-functions" style="color: #93c5fd;">Fitness Functions</a></div>
+<div class="docs-muted">Further reading: <a href="/docs/maintainability/evolutionary-architecture" class="markdown-link">Evolutionary Architecture</a> · <a href="/docs/maintainability/fitness-functions" class="markdown-link">Fitness Functions</a></div>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 32px 0;">
-  <a href="/docs/sdlc/" style="color: #94a3b8; font-size: 14px; text-decoration: none;">← SDLC Overview</a>
-  <a href="/docs/sdlc/phase2-implementation" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Phase 2: Implementation →</a>
+<div class="docs-flex-block">
+  <a href="/docs/sdlc/" class="markdown-link">← SDLC Overview</a>
+  <a href="/docs/sdlc/phase2-implementation" class="docs-button-primary">Phase 2: Implementation →</a>
 </div>

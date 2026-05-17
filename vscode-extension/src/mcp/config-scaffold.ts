@@ -11,9 +11,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { execFileSync } from 'child_process';
 import { MeshReader } from '../core/mesh-reader';
 import { generateStaticPolicy } from './policy-engine';
-import type { BarSummary } from '../types';
+import type { BarSummary, GovernanceTier } from '../types';
 import type { RedQueenService } from '../services/RedQueenService';
 import type { OrchestrationDecision } from '../types/redqueen';
 
@@ -21,7 +22,8 @@ import type { OrchestrationDecision } from '../types/redqueen';
 // Types
 // ============================================================================
 
-export type GovernanceTier = 'autonomous' | 'supervised' | 'restricted';
+// GovernanceTier moved to types/governance.ts. Re-exported here for back-compat.
+export type { GovernanceTier } from '../types';
 
 export interface ScaffoldResult {
   barName: string;
@@ -59,18 +61,12 @@ export interface ScaffoldDoctorResult {
 const DEFAULT_MESH_CHECKOUT_PATH = './governance-mesh';
 
 // ============================================================================
-// Tier calculation
+// Tier calculation — canonical impl lives in core/tier.ts so it can be reused
+// from services/ without forming an mcp/ ↔ services/ import cycle.
 // ============================================================================
 
-export function computeTier(bar: BarSummary): GovernanceTier {
-  // Per-pillar override: any pillar < 50 forces restricted
-  const pillars = [bar.architecture, bar.security, bar.infoRisk, bar.operations];
-  if (pillars.some(p => p.score < 50)) { return 'restricted'; }
-
-  if (bar.compositeScore >= 80) { return 'autonomous'; }
-  if (bar.compositeScore >= 50) { return 'supervised'; }
-  return 'restricted';
-}
+import { computeTier } from '../core/tier';
+export { computeTier };
 
 // ============================================================================
 // File generators
@@ -926,21 +922,33 @@ function generateImplementationWorkflow(
   }
 
   if (agentType === 'copilot' || agentType === 'both') {
-    const stepName = agentType === 'both' ? 'Copilot Implementation (parallel)' : 'Copilot Implementation';
+    // GitHub Copilot Coding Agent is NOT invoked via a `uses:` action. It is
+    // triggered by assigning an issue to the Copilot bot user; the agent then
+    // runs in its own ephemeral GitHub Actions container using
+    // .github/copilot-setup-steps.yml for environment setup.
+    // Reference: https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent
+    const stepName = agentType === 'both' ? 'Assign issue to Copilot Coding Agent (parallel)' : 'Assign issue to Copilot Coding Agent';
     lines.push(`      - name: ${stepName}`);
-    lines.push('        uses: github/copilot-coding-agent@v1');
+    lines.push('        uses: actions/github-script@v7');
     lines.push('        with:');
-    lines.push('          instructions: |');
-    lines.push('            You are implementing a feature/fix governed by The Red Queen governance system.');
-    lines.push('');
-    lines.push('            Read `.redqueen/governance-context.md` for governance constraints.');
-    lines.push('            Read `.redqueen/decision.json` for the orchestration decision.');
-    lines.push('');
-    lines.push('            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}');
-    lines.push('            ${{ github.event.issue.body }}');
-    lines.push('');
-    lines.push('            Implement the changes, run tests, commit with AI label, push, and create a PR.');
-    lines.push('          mcp_config: .mcp.json');
+    lines.push('          script: |');
+    lines.push('            const issueNumber = context.payload.issue.number;');
+    lines.push('            try {');
+    lines.push('              await github.rest.issues.addAssignees({');
+    lines.push('                owner: context.repo.owner,');
+    lines.push('                repo: context.repo.repo,');
+    lines.push('                issue_number: issueNumber,');
+    lines.push('                assignees: ["Copilot"]');
+    lines.push('              });');
+    lines.push('              await github.rest.issues.createComment({');
+    lines.push('                owner: context.repo.owner,');
+    lines.push('                repo: context.repo.repo,');
+    lines.push('                issue_number: issueNumber,');
+    lines.push(`                body: 'Assigned to Copilot Coding Agent. The agent will pick this up in its own ephemeral GitHub Actions container and open a PR when ready.\\n\\nGovernance context: \`.redqueen/governance-context.md\`\\nOrchestration decision: \`.redqueen/decision.json\`'`);
+    lines.push('              });');
+    lines.push('            } catch (e) {');
+    lines.push(`              core.setFailed('Failed to assign Copilot Coding Agent: ' + e.message + '. Verify Copilot Coding Agent is enabled at the org level and the Copilot user has repo access.');`);
+    lines.push('            }');
     lines.push('');
   }
 
@@ -1152,21 +1160,46 @@ function generateReviewStep(
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}`;
   } else {
+    // GitHub Copilot Coding Agent reviews are triggered by commenting on the PR
+    // and assigning the Copilot bot, not by a workflow uses: step. The agent runs
+    // in its own ephemeral container and writes verdict files via its own follow-up
+    // actions. If the verdict file is missing when the consensus step runs, the
+    // review fails closed.
+    // Reference: https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent
     return `
-      - name: "${agentLabel} ${scopeLabel} Review"
+      - name: "${agentLabel} ${scopeLabel} Review (assignment)"
         id: ${stepId}
         if: steps.review-depth.outputs.run_${scope} == 'true'
-        uses: github/copilot-coding-agent@v1
+        uses: actions/github-script@v7
         with:
-          instructions: |
-            You are the ${scopeLabel} Reviewer for The Red Queen governance system.
-
-            Read ${instructionsFile} for your full instructions.
-            Read .redqueen/governance-context.md for the governance posture.
-            Read .redqueen/decision.json for the orchestration decision.
-
-            Review the PR diff and write your ReviewVerdict JSON to ${verdictFile}.
-          mcp_config: .mcp.json`;
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const body = [
+              'Copilot Coding Agent: please perform a ${scopeLabel} review of this PR as part of The Red Queen governance system.',
+              '',
+              'Reviewer instructions: ${instructionsFile}',
+              'Governance posture: .redqueen/governance-context.md',
+              'Orchestration decision: .redqueen/decision.json',
+              '',
+              'Write your ReviewVerdict JSON to ${verdictFile}.',
+              'If the verdict file is missing when the consensus step runs, the review will fail closed.'
+            ].join('\\n');
+            try {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                assignees: ["Copilot"]
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body
+              });
+            } catch (e) {
+              core.setFailed('Failed to assign Copilot Coding Agent for ${scope} review: ' + e.message + '. Verify Copilot Coding Agent is enabled and the Copilot user has repo access.');
+            }`;
   }
 }
 
@@ -1525,9 +1558,7 @@ export function scaffoldAgentConfig(
       // Try to detect from git remote — only if meshPath is a standalone git repo
       if (fs.existsSync(path.join(meshPath, '.git'))) {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { execFileSync } = require('child_process');
-          const remoteUrl = (execFileSync as (cmd: string, args: string[], opts: Record<string, unknown>) => Buffer)('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
+          const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
           const parsed = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
           if (parsed) { meshRepo = parsed[1]; }
         } catch { /* git not available or no remote */ }

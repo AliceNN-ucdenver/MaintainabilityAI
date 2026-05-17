@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Phase 3 — Verification funnel</title>
+  <desc id="d">Generated change drops through a four-stage funnel of automated security checks: unit tests, CodeQL SAST, Snyk dependency analysis, and fitness function evaluation. Only what passes all four exits as ready evidence.</desc>
+  <defs>
+    <radialGradient id="p3bg" cx="50%" cy="40%" r="55%">
+      <stop offset="0" stop-color="#1a0a15" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="funnelEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb7185" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#fb7185" stop-opacity=".25"/>
+    </linearGradient>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#fda4af}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .stageName{font:900 17px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .stageDesc{font:500 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .stageStat{font:700 12px -apple-system,system-ui,sans-serif;fill:#6ee7b7}
+      .inputLbl{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#fcd34d;text-anchor:middle}
+      .inputName{font:800 16px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .exitLbl{font:800 14px -apple-system,system-ui,sans-serif;letter-spacing:1.5px;text-transform:uppercase;fill:#6ee7b7;text-anchor:middle}
+      .exitBody{font:500 13px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#p3bg)"/>
+
+  <text x="64" y="74" class="eyebrow">Phase 3</text>
+  <text x="64" y="118" class="heroTitle">Verification funnel</text>
+  <text x="64" y="148" class="heroSub">Four automated checks narrow the change until only verifiable evidence exits to governance.</text>
+
+  <!-- INPUT pellet at top center -->
+  <g transform="translate(640,210)">
+    <rect x="-110" y="-32" width="220" height="64" rx="14" fill="rgba(251,191,36,0.12)" stroke="#fbbf24"/>
+    <text y="-6" class="inputLbl">From Phase 2</text>
+    <text y="20" class="inputName">Generated change · 50 lines</text>
+  </g>
+
+  <!-- Funnel walls (trapezoid taper from y=270 width 700 → y=560 width 280) -->
+  <g>
+    <path d="M 290 270 L 990 270 L 850 560 L 430 560 Z" fill="rgba(251,113,133,0.05)" stroke="url(#funnelEdge)" stroke-width="2"/>
+
+    <!-- Stage rails (horizontal dividers inside funnel) -->
+    <line x1="320" y1="340" x2="960" y2="340" stroke="rgba(251,113,133,0.25)" stroke-dasharray="3 4"/>
+    <line x1="350" y1="408" x2="930" y2="408" stroke="rgba(251,113,133,0.25)" stroke-dasharray="3 4"/>
+    <line x1="380" y1="478" x2="900" y2="478" stroke="rgba(251,113,133,0.25)" stroke-dasharray="3 4"/>
+  </g>
+
+  <!-- Stage 1: Unit tests -->
+  <g transform="translate(320,290)">
+    <circle cx="-10" cy="22" r="14" fill="rgba(96,165,250,0.18)" stroke="#60a5fa"/>
+    <text x="-10" y="27" text-anchor="middle" class="stageStat" fill="#93c5fd">1</text>
+    <text x="14" y="20" class="stageName">Unit tests</text>
+    <text x="14" y="40" class="stageDesc">Attack vectors · regressions · attack payloads from the prompt pack</text>
+  </g>
+  <text x="940" y="320" text-anchor="end" class="stageStat">jest · 0 failures</text>
+
+  <!-- Stage 2: CodeQL -->
+  <g transform="translate(350,358)">
+    <circle cx="-10" cy="22" r="14" fill="rgba(129,140,248,0.18)" stroke="#818cf8"/>
+    <text x="-10" y="27" text-anchor="middle" class="stageStat" fill="#a5b4fc">2</text>
+    <text x="14" y="20" class="stageName">CodeQL SAST</text>
+    <text x="14" y="40" class="stageDesc">Security-extended queries · taint analysis · authn / authz patterns</text>
+  </g>
+  <text x="910" y="388" text-anchor="end" class="stageStat">0 high · 0 critical</text>
+
+  <!-- Stage 3: Snyk -->
+  <g transform="translate(380,428)">
+    <circle cx="-10" cy="22" r="14" fill="rgba(251,113,133,0.18)" stroke="#fb7185"/>
+    <text x="-10" y="27" text-anchor="middle" class="stageStat" fill="#fda4af">3</text>
+    <text x="14" y="20" class="stageName">Snyk code + deps</text>
+    <text x="14" y="40" class="stageDesc">Dependency CVEs · SAST overlap · transitive risk score</text>
+  </g>
+  <text x="880" y="458" text-anchor="end" class="stageStat">0 critical CVEs</text>
+
+  <!-- Stage 4: Fitness -->
+  <g transform="translate(410,498)">
+    <circle cx="-10" cy="22" r="14" fill="rgba(52,211,153,0.18)" stroke="#34d399"/>
+    <text x="-10" y="27" text-anchor="middle" class="stageStat" fill="#6ee7b7">4</text>
+    <text x="14" y="20" class="stageName">Fitness functions</text>
+    <text x="14" y="40" class="stageDesc">Complexity ≤10 · coverage ≥80% · perf budget · dependency age</text>
+  </g>
+  <text x="850" y="528" text-anchor="end" class="stageStat">all gates pass</text>
+
+  <!-- EXIT chip -->
+  <g transform="translate(640,604)">
+    <rect x="-160" y="-32" width="320" height="68" rx="16" fill="rgba(52,211,153,0.12)" stroke="#34d399" stroke-width="1.5"/>
+    <text y="-6" class="exitLbl">Evidence packet</text>
+    <text y="22" class="exitBody">tests + scans + fitness → PR description</text>
+  </g>
+
+  <text x="640" y="690" text-anchor="middle" class="heroSub" font-size="14">Failed stages return to Phase 2. Passed stages become the PR's review evidence.</text>
+</svg>

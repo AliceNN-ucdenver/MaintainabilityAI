@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { configService } from './ConfigService';
+import { getMeshSha as getMeshShaImpl } from '../core/mesh-sha';
 import type {
   ArchitectureDsl,
   CapabilityModelType,
@@ -32,7 +33,7 @@ import {
   generatePlatformDecisionsYaml,
   generateSampleImdbPlatformArch,
 } from '../templates/mesh';
-import { generateOraculumWorkflow } from '../templates/codeRepoTemplates';
+import { MESH_WORKFLOWS } from '../templates/codeRepoTemplates';
 
 export { MeshReader } from '../core/mesh-reader';
 
@@ -63,6 +64,19 @@ export class MeshService {
 
   static async setMeshPath(meshPath: string): Promise<void> {
     await configService.setMeshPath(meshPath);
+  }
+
+  /**
+   * Return the current git SHA of the mesh repo (HEAD). Null when the mesh
+   * directory isn't a git repo, git isn't installed, or the call fails.
+   *
+   * Used by the Research + PRD agents' audit log to pin every artifact to a
+   * specific mesh commit — so an auditor can later check out the exact mesh
+   * state the agent read. Canonical impl lives in core/mesh-sha.ts so it can
+   * be reused from vscode-free code paths and tested without mocking vscode.
+   */
+  static getMeshSha(meshPath: string): string | null {
+    return getMeshShaImpl(meshPath);
   }
 
   // ==========================================================================
@@ -410,20 +424,40 @@ export class MeshService {
   }
 
   // ==========================================================================
-  // Oraculum (architecture review) provisioning
+  // Mesh workflow provisioning (Oraculum + Research/PRD agents)
   // ==========================================================================
 
   /**
-   * Write the Oraculum GitHub Action workflow into the mesh directory.
-   * Prompt packs are now seeded separately via promptPackService.seedMeshPrompts().
+   * Write every Looking Glass-owned GitHub Action workflow into the mesh
+   * directory's `.github/workflows/`. Always overwrites — these are
+   * extension-managed and should track the bundled version exactly.
+   *
+   * Prompt packs are seeded separately via promptPackService.seedMeshPrompts().
+   *
+   * Returns the relative paths of the files written, for commit messages and
+   * progress reporting.
    */
-  writeOraculumWorkflow(meshPath: string, extensionPath: string): void {
+  writeMeshWorkflows(meshPath: string, extensionPath: string): string[] {
     const workflowDir = path.join(meshPath, '.github', 'workflows');
     fs.mkdirSync(workflowDir, { recursive: true });
-    const workflowContent = generateOraculumWorkflow(extensionPath);
-    if (workflowContent) {
-      fs.writeFileSync(path.join(workflowDir, 'oraculum-review.yml'), workflowContent, 'utf8');
+
+    const written: string[] = [];
+    for (const spec of MESH_WORKFLOWS) {
+      const content = spec.generate(extensionPath);
+      if (!content) { continue; }
+      fs.writeFileSync(path.join(meshPath, spec.relativePath), content, 'utf8');
+      written.push(spec.relativePath);
     }
+    return written;
+  }
+
+  /**
+   * Returns true when every Looking Glass-owned workflow file exists in the
+   * mesh repo. Used by the Settings UI to decide between "Deploy" and
+   * "Redeploy" labels.
+   */
+  hasAllMeshWorkflows(meshPath: string): boolean {
+    return MESH_WORKFLOWS.every(spec => fs.existsSync(path.join(meshPath, spec.relativePath)));
   }
 
   // ==========================================================================

@@ -5,6 +5,8 @@
  * Phase 2: Advanced query + scaffold tools.
  * Phase 3: The Red Queen's Court — enforcement tools.
  */
+import * as fs from 'fs';
+import * as path from 'path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MeshReader } from '../core/mesh-reader';
@@ -1069,10 +1071,7 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
       };
 
       // Read existing score history for delta computation
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const historyPath = require('path').join(barPath, 'score-history.yaml');
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const fs = require('fs');
+      const historyPath = path.join(barPath, 'score-history.yaml');
       let previous = current; // Default: no delta if no history
       let trend = 'new' as string;
 

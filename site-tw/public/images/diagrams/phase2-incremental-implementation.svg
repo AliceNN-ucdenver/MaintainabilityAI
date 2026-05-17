@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Incremental implementation loop</title>
+  <desc id="d">A tight inner loop spins between the developer, the AI agent, and local validation. Each turn produces one small diff with evidence. The faster the loop spins, the smaller each change and the easier the review.</desc>
+  <defs>
+    <radialGradient id="p2ibg" cx="50%" cy="45%" r="55%">
+      <stop offset="0" stop-color="#0c1d18" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="loopGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#34d399" stop-opacity=".4"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="loopArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#6ee7b7"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#6ee7b7}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .nodeName{font:900 18px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .nodeRole{font:600 12px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .edgeLbl{font:700 11px -apple-system,system-ui,sans-serif;letter-spacing:1.5px;text-transform:uppercase;fill:#cbd5e1}
+      .smallEvidence{font:600 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .evHdr{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#6ee7b7}
+      .evVal{font:900 22px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .evCaption{font:500 11px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#p2ibg)"/>
+
+  <text x="64" y="74" class="eyebrow">Implementation loop</text>
+  <text x="64" y="118" class="heroTitle">Small changes, fast evidence</text>
+  <text x="64" y="148" class="heroSub">Each turn produces one slice of behaviour with its own test, lint, and review.</text>
+
+  <!-- inner loop centered at (440, 440) radius 160 -->
+  <g transform="translate(440,440)">
+    <circle r="200" fill="url(#loopGlow)"/>
+    <circle r="160" fill="none" stroke="rgba(110,231,183,0.25)" stroke-width="1.5" stroke-dasharray="2 6"/>
+
+    <!-- Three nodes equally spaced at angles -90 (top), 30, 150 -->
+    <!-- Developer (top) -->
+    <g transform="translate(0,-160)">
+      <circle r="58" fill="rgba(15,23,42,0.95)" stroke="#22d3ee" stroke-width="2"/>
+      <circle r="58" fill="rgba(34,211,238,0.1)"/>
+      <text y="-2" class="nodeName" fill="#67e8f9">Developer</text>
+      <text y="22" class="nodeRole">frames the slice</text>
+    </g>
+    <!-- AI agent (bottom-right) -->
+    <g transform="translate(139,80)">
+      <circle r="58" fill="rgba(15,23,42,0.95)" stroke="#fbbf24" stroke-width="2"/>
+      <circle r="58" fill="rgba(251,191,36,0.1)"/>
+      <text y="-2" class="nodeName" fill="#fcd34d">AI agent</text>
+      <text y="22" class="nodeRole">smallest diff</text>
+    </g>
+    <!-- Local validation (bottom-left) -->
+    <g transform="translate(-139,80)">
+      <circle r="58" fill="rgba(15,23,42,0.95)" stroke="#34d399" stroke-width="2"/>
+      <circle r="58" fill="rgba(52,211,153,0.1)"/>
+      <text y="-2" class="nodeName" fill="#6ee7b7">Local check</text>
+      <text y="22" class="nodeRole">lint · test · run</text>
+    </g>
+
+    <!-- arrow arcs between them, clockwise -->
+    <g fill="none" stroke="#6ee7b7" stroke-width="2.2">
+      <path d="M 50 -150 A 160 160 0 0 1 158 30" marker-end="url(#loopArr)"/>
+      <path d="M 100 130 A 160 160 0 0 1 -100 130" marker-end="url(#loopArr)"/>
+      <path d="M -158 30 A 160 160 0 0 1 -50 -150" marker-end="url(#loopArr)"/>
+    </g>
+
+    <!-- arc labels -->
+    <text x="124" y="-78" class="edgeLbl">prompt</text>
+    <text x="0" y="186" text-anchor="middle" class="edgeLbl">diff</text>
+    <text x="-124" y="-78" text-anchor="end" class="edgeLbl">evidence</text>
+  </g>
+
+  <!-- Right side: evidence per turn -->
+  <g transform="translate(770,260)">
+    <rect width="420" height="380" rx="18" fill="rgba(15,23,42,0.7)" stroke="rgba(110,231,183,0.35)"/>
+    <rect width="420" height="3" rx="18" fill="#34d399"/>
+    <text x="22" y="42" class="evHdr">Per-turn evidence</text>
+
+    <g transform="translate(22,68)">
+      <text class="evVal">≤ 50</text>
+      <text x="92" y="-2" class="edgeLbl" fill="#cbd5e1">lines per diff</text>
+      <text x="92" y="18" class="evCaption">reviewable in under a minute</text>
+    </g>
+    <line x1="22" y1="116" x2="398" y2="116" stroke="rgba(148,163,184,0.18)"/>
+
+    <g transform="translate(22,144)">
+      <text class="evVal">1</text>
+      <text x="46" y="-2" class="edgeLbl" fill="#cbd5e1">behaviour or control</text>
+      <text x="46" y="18" class="evCaption">one slice — no scope creep</text>
+    </g>
+    <line x1="22" y1="192" x2="398" y2="192" stroke="rgba(148,163,184,0.18)"/>
+
+    <g transform="translate(22,220)">
+      <text class="evVal">≥ 1</text>
+      <text x="68" y="-2" class="edgeLbl" fill="#cbd5e1">new test attached</text>
+      <text x="68" y="18" class="evCaption">attack-vector or fitness check</text>
+    </g>
+    <line x1="22" y1="268" x2="398" y2="268" stroke="rgba(148,163,184,0.18)"/>
+
+    <g transform="translate(22,296)">
+      <text class="evVal">100%</text>
+      <text x="106" y="-2" class="edgeLbl" fill="#cbd5e1">AI disclosure</text>
+      <text x="106" y="18" class="evCaption">commit names agent + prompt pack</text>
+    </g>
+    <line x1="22" y1="344" x2="398" y2="344" stroke="rgba(148,163,184,0.18)"/>
+
+    <text x="22" y="368" class="evCaption">If any check fails, the next turn fixes it — not a separate PR.</text>
+  </g>
+
+  <text x="640" y="690" text-anchor="middle" class="heroSub" font-size="14">Small turns make the agent reviewable. Reviewability is what unlocks autonomy.</text>
+</svg>

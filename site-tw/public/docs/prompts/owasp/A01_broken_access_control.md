@@ -1,8 +1,14 @@
-# Broken Access Control — OWASP A01 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Broken access control</span></div>
+    <div class="docs-eyebrow">A01 · Access control <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Broken access control</h1>
+    <p class="docs-hero-copy">occurs when applications fail to properly enforce authorization checks, allowing users to access resources or perform actions beyond their intended permissions. This includes IDOR (Insecure Direct Object References), privilege escalation, and missing function-level access controls.</p>
+    <span class="docs-hero-flourish">Off with their privileges &mdash; deny by default, allow with proof.</span>
+  </div>
+</div>
 
-> **OWASP A01: Broken Access Control** occurs when applications fail to properly enforce authorization checks, allowing users to access resources or perform actions beyond their intended permissions. This includes IDOR (Insecure Direct Object References), privilege escalation, and missing function-level access controls.
-
----
 
 ## 🎯 What is Broken Access Control?
 
@@ -24,19 +30,19 @@
 **Primary**: **Elevation of Privilege** (attackers gain unauthorized access)
 **Secondary**: **Information Disclosure** (unauthorized data access via IDOR)
 
-See also: [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege) and [STRIDE: Information Disclosure](/docs/prompts/stride/information-disclosure)
+See also: [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege) and [STRIDE: Information Disclosure](/docs/prompts/threat-modeling/information-disclosure)
 
 ---
 
 ## Prompt 1: Analyze Access Control Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Finds IDOR, privilege escalation, and missing authorization — returns a prioritized vulnerability report</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Finds IDOR, privilege escalation, and missing authorization — returns a prioritized vulnerability report</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in access control vulnerabilities (OWASP A01).
@@ -88,13 +94,13 @@ Provide a prioritized list of vulnerabilities (Critical > High > Medium) with sp
 
 ## Prompt 2: Implement Secure Access Control
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates authorization middleware, IDOR prevention, RBAC, audit logging, and test coverage</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates authorization middleware, IDOR prevention, RBAC, audit logging, and test coverage</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive access control for a web application (OWASP A01 remediation).
@@ -159,8 +165,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -182,8 +188,8 @@ export async function deleteAllUsers(req: Request, res: Response) {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -242,53 +248,53 @@ app.delete('/api/admin/users', requireRole(['admin']), async (req, res) => {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated access control code:</div>
+<div class="docs-heading">Before merging AI-generated access control code:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Authorization Middleware</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Authorization Middleware</div>
+  <div class="docs-copy">
     ✓ Deny-by-default — access explicitly granted<br/>
     ✓ Never trust client-provided user IDs or roles<br/>
     ✓ Missing user context → 401, wrong role → 403<br/>
     ✓ Middleware fails closed on errors<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> unauthenticated, wrong role, valid credentials
+    ✓ <strong class="docs-strong">Test:</strong> unauthenticated, wrong role, valid credentials
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">IDOR Protection</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">IDOR Protection</div>
+  <div class="docs-copy">
     ✓ Every resource access validates ownership server-side<br/>
     ✓ DB queries include ownership check or post-retrieval verify<br/>
     ✓ Admin bypass is explicit and logged<br/>
     ✓ Generic error messages — no information disclosure<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> user A accesses user B's resources by ID → 403
+    ✓ <strong class="docs-strong">Test:</strong> user A accesses user B's resources by ID → 403
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">RBAC & Privilege Escalation</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">RBAC & Privilege Escalation</div>
+  <div class="docs-copy">
     ✓ Roles centralized in config/enum, routes declare required roles<br/>
     ✓ Admin functions require role check, not just authentication<br/>
     ✓ Users cannot elevate own privileges via any interface<br/>
     ✓ Profile updates never accept role/permission fields from client<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> curl admin endpoints with non-admin tokens → 403
+    ✓ <strong class="docs-strong">Test:</strong> curl admin endpoints with non-admin tokens → 403
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Context & Logging</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Context & Logging</div>
+  <div class="docs-copy">
     ✓ User context from JWT/session only — never from request params<br/>
     ✓ Listing queries filter by ownership, never return all records<br/>
     ✓ All auth failures logged: userId, resource, IP, timestamp<br/>
     ✓ Failed attempts feed rate limiting and attack detection<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> forge auth headers, manipulate payloads → blocked and logged
+    ✓ <strong class="docs-strong">Test:</strong> forge auth headers, manipulate payloads → blocked and logged
   </div>
 </div>
 

@@ -1,10 +1,11 @@
-# Evolutionary Architecture
-
-<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);">
-  <div style="text-align: center;">
-    <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Evolutionary Architecture</h2>
-    <div style="font-size: 15px; color: #d1fae5; margin-top: 12px;">Enable incremental, guided architectural change through fitness functions, AI assistance, and systematic technical debt management.</div>
-    <div style="font-size: 13px; color: #a7f3d0; margin-top: 16px; font-style: italic;">"An evolutionary architecture supports guided, incremental change across multiple dimensions." &mdash; Ford, Parsons, Kua</div>
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/maintainability/">Maintainability</a><span class="sep">/</span><span>Evolutionary architecture</span></div>
+    <div class="docs-eyebrow">Maintainability · architecture as a product <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Evolutionary architecture &mdash; guided, incremental change</h1>
+    <p class="docs-hero-copy">&ldquo;An evolutionary architecture supports guided, incremental change across multiple dimensions.&rdquo; &mdash; Ford, Parsons, Kua. Fitness functions, AI assistance, and systematic technical-debt management make the change safe.</p>
+    <span class="docs-hero-flourish">&ldquo;If everybody minded their own business, the world would go round a great deal faster.&rdquo;</span>
   </div>
 </div>
 
@@ -12,39 +13,39 @@
 
 ## Core Principles
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Incremental Change</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">Large rewrites fail roughly 80% of the time. Small, verifiable changes succeed. Each step is validated by tests and fitness functions before the next step begins. Progress is continuous, not catastrophic.</div>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Incremental Change</div>
+  <div class="docs-copy">Large rewrites fail roughly 80% of the time. Small, verifiable changes succeed. Each step is validated by tests and fitness functions before the next step begins. Progress is continuous, not catastrophic.</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Fitness Functions Guide Evolution</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">Automated checks ensure architectural goals are maintained during change. Complexity, dependency freshness, security compliance, test coverage, and performance are continuously measured. Drift is caught before it compounds.</div>
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Fitness Functions Guide Evolution</div>
+  <div class="docs-copy">Automated checks ensure architectural goals are maintained during change. Complexity, dependency freshness, security compliance, test coverage, and performance are continuously measured. Drift is caught before it compounds.</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #8b5cf6;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Reversible Changes</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">Every change must be reversible if fitness functions fail. Dual-write phases, feature flags, and rollback plans ensure that forward progress never traps the team. Only the final deprecation step is irreversible, and it requires a backup.</div>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Reversible Changes</div>
+  <div class="docs-copy">Every change must be reversible if fitness functions fail. Dual-write phases, feature flags, and rollback plans ensure that forward progress never traps the team. Only the final deprecation step is irreversible, and it requires a backup.</div>
 </div>
 
 </div>
 
 The incremental change cycle follows a repeating pattern of small modifications validated at every step:
 
-<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 24px 0;">
-  <div style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Current State</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Small Change</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Validate with Tests</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Small Change</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Validate with Tests</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Desired State</div>
+<div class="docs-flex-block">
+  <div class="docs-heading">Current State</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Small Change</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Validate with Tests</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Small Change</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Validate with Tests</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Desired State</div>
 </div>
 
 ---
@@ -55,24 +56,24 @@ The incremental change cycle follows a repeating pattern of small modifications 
 
 Gradually replace a legacy system with a new implementation. A facade routes traffic, and features migrate one by one until the legacy system is empty and can be removed.
 
-<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 24px 0;">
-  <div style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Legacy System</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Add Facade</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Route New Features</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Migrate One by One</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Remove Legacy</div>
+<div class="docs-flex-block">
+  <div class="docs-heading">Legacy System</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Add Facade</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Route New Features</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Migrate One by One</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Remove Legacy</div>
 </div>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Example: Replace Legacy Auth (MD5 to bcrypt)</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Three-phase strangler fig migration with opportunistic user rehashing</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Example: Replace Legacy Auth (MD5 to bcrypt)</span><br/>
+<span class="docs-copy">Three-phase strangler fig migration with opportunistic user rehashing</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // Phase 1: Facade — route based on user type
@@ -117,12 +118,12 @@ export async function authenticate(username: string, password: string) {
 
 Enable or disable new behavior without a deployment. Gradually roll out to increasing percentages of users, monitoring at each step. When the rollout reaches 100% and the feature is stable, remove the flag and delete the legacy code path.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Example: Gradual Payment Processor Rollout</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Feature flag with a five-day rollout schedule from 5% to 100%</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Example: Gradual Payment Processor Rollout</span><br/>
+<span class="docs-copy">Feature flag with a five-day rollout schedule from 5% to 100%</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // Feature flag for new payment algorithm
@@ -151,12 +152,12 @@ export function processPayment(amount: number) {
 
 Introduce an abstraction layer, implement the new provider behind the same interface, switch implementations via configuration, then remove the old provider once the migration is complete.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Example: Email Provider Migration (SendGrid to SES)</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Six-step abstraction, implementation swap, and cleanup</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">Example: Email Provider Migration (SendGrid to SES)</span><br/>
+<span class="docs-copy">Six-step abstraction, implementation swap, and cleanup</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // Step 1: Create abstraction
@@ -199,12 +200,12 @@ const emailService = new SESEmailService();
 
 AI agents accelerate large-scale refactoring when given structured prompts that follow evolutionary architecture principles. The prompt below uses the RCTRO pattern to guide an incremental migration.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #3b82f6;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #93c5fd;">Refactoring Prompt: Strangler Fig Migration</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">RCTRO-structured prompt for a zero-downtime auth migration across 50 files</span>
+<details class="docs-details docs-card docs-card-blue">
+<summary class="docs-details-summary">
+<span class="docs-copy">Refactoring Prompt: Strangler Fig Migration</span><br/>
+<span class="docs-copy">RCTRO-structured prompt for a zero-downtime auth migration across 50 files</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: Refactoring engineer following evolutionary architecture principles
@@ -234,12 +235,12 @@ Output: Step-by-step migration guide with code samples
 </div>
 </details>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Fitness Functions for Refactoring Phases</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Automated checks that gate each phase of the migration</span>
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
+<span class="docs-copy">Fitness Functions for Refactoring Phases</span><br/>
+<span class="docs-copy">Automated checks that gate each phase of the migration</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```typescript
 // Phase 1: Ensure no new MD5 usage outside the legacy auth module
@@ -300,12 +301,12 @@ Debt is classified by severity and remediation timeline. Security debt is always
 | **Dependency Debt** | Packages more than 3 months old | Medium | Weekly |
 | **Test Debt** | Coverage below 80% | Low | Opportunistic |
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Debt Tracking Example (tech-debt.yml)</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">YAML format for tracking security and complexity debt with phased remediation plans</span>
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
+<span class="docs-copy">Debt Tracking Example (tech-debt.yml)</span><br/>
+<span class="docs-copy">YAML format for tracking security and complexity debt with phased remediation plans</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```yaml
 # tech-debt.yml
@@ -343,24 +344,24 @@ complexity:
 
 A weekly ritual that keeps dependency debt at zero. The cycle repeats every Monday.
 
-<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 24px 0;">
-  <div style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Audit</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Categorize</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Execute Upgrades</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Verify with Fitness Functions</div>
-  <div style="color: #64748b;">&rarr;</div>
-  <div style="background: rgba(99, 102, 241, 0.2); color: #c7d2fe; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;">Deploy</div>
+<div class="docs-flex-block">
+  <div class="docs-heading">Audit</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Categorize</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Execute Upgrades</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Verify with Fitness Functions</div>
+  <div class="docs-muted">&rarr;</div>
+  <div class="docs-heading">Deploy</div>
 </div>
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">Weekly Upgrade Ritual Steps</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Audit, categorize, execute, verify, and deploy in a repeatable Monday cycle</span>
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
+<span class="docs-copy">Weekly Upgrade Ritual Steps</span><br/>
+<span class="docs-copy">Audit, categorize, execute, verify, and deploy in a repeatable Monday cycle</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 **1. Audit dependencies**
 
@@ -416,12 +417,12 @@ git push
 
 ADRs capture the context, alternatives, and consequences of architectural decisions. They are versioned alongside the code and reference the fitness functions that enforce each decision.
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #c4b5fd;">ADR Template</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Standard template covering status, context, decision, consequences, alternatives, fitness functions, and OWASP relevance</span>
+<details class="docs-details docs-card docs-card-indigo">
+<summary class="docs-details-summary">
+<span class="docs-copy">ADR Template</span><br/>
+<span class="docs-copy">Standard template covering status, context, decision, consequences, alternatives, fitness functions, and OWASP relevance</span>
 </summary>
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 # ADR-NNN: [Title]
@@ -484,24 +485,24 @@ Deciders: [Names]
 
 ## Resources
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Fitness Functions</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">The five automated quality gates that enforce architectural characteristics: complexity, dependency freshness, security compliance, test coverage, and performance.</div>
-  <div style="margin-top: 12px;"><a href="fitness-functions.md" style="color: #86efac; font-size: 13px; font-weight: 600;">Read the fitness functions guide &rarr;</a></div>
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Fitness Functions</div>
+  <div class="docs-copy">The five automated quality gates that enforce architectural characteristics: complexity, dependency freshness, security compliance, test coverage, and performance.</div>
+  <div><a href="fitness-functions.md" class="markdown-link">Read the fitness functions guide &rarr;</a></div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">SDLC Phase 6: Evolution</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">Metrics collection, prompt library iteration, dependency upgrades, and technical debt management within the complete SDLC framework.</div>
-  <div style="margin-top: 12px;"><a href="../sdlc/phase6-evolution.md" style="color: #93c5fd; font-size: 13px; font-weight: 600;">Read the evolution phase guide &rarr;</a></div>
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">SDLC Phase 6: Evolution</div>
+  <div class="docs-copy">Metrics collection, prompt library iteration, dependency upgrades, and technical debt management within the complete SDLC framework.</div>
+  <div><a href="../sdlc/phase6-evolution.md" class="markdown-link">Read the evolution phase guide &rarr;</a></div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #8b5cf6;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Building Evolutionary Architectures</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">The O'Reilly book by Neal Ford, Rebecca Parsons, and Patrick Kua that defines the concepts of fitness functions, incremental change, and guided evolution.</div>
-  <div style="margin-top: 12px;"><a href="https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/" style="color: #c4b5fd; font-size: 13px; font-weight: 600;">View on O'Reilly &rarr;</a></div>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Building Evolutionary Architectures</div>
+  <div class="docs-copy">The O'Reilly book by Neal Ford, Rebecca Parsons, and Patrick Kua that defines the concepts of fitness functions, incremental change, and guided evolution.</div>
+  <div><a href="https://www.oreilly.com/library/view/building-evolutionary-architectures/9781491986356/" class="markdown-link">View on O'Reilly &rarr;</a></div>
 </div>
 
 </div>

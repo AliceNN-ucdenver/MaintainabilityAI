@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Continuous SDLC cycle</title>
+  <desc id="d">A circular six-phase loop: design, implement, verify, govern, deploy, evolve. Production learning feeds back into the next design pass.</desc>
+  <defs>
+    <radialGradient id="ringBg" cx="50%" cy="50%" r="60%">
+      <stop offset="0" stop-color="#0e1a30" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#67e8f9"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#67e8f9}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .hubTitle{font:900 24px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .hubKick{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3px;text-transform:uppercase;fill:#67e8f9;text-anchor:middle}
+      .hubBody{font:500 13px -apple-system,system-ui,sans-serif;fill:#cbd5e1;text-anchor:middle}
+      .phName{font:900 18px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .phBody{font:500 12px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .phNum{font:900 14px -apple-system,system-ui,sans-serif;fill:#0b1224}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#ringBg)"/>
+
+  <text x="64" y="74" class="eyebrow">Continuous SDLC</text>
+  <text x="64" y="118" class="heroTitle">Secure engineering loop</text>
+  <text x="64" y="148" class="heroSub">Six phases. One continuous cycle.</text>
+
+  <!-- Center on (640, 430), big ring radius 220 -->
+  <g transform="translate(640,430)">
+    <!-- soft glow -->
+    <circle r="270" fill="url(#hubGlow)" opacity=".5"/>
+    <!-- main ring with dashed segments -->
+    <circle r="220" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="1" stroke-dasharray="3 6"/>
+    <!-- accent arc (cyan), showing flow direction -->
+    <path d="M 220 0 A 220 220 0 1 1 -220 0.01" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+
+    <!-- hub -->
+    <circle r="86" fill="rgba(2,6,23,0.85)" stroke="rgba(103,232,249,0.5)" stroke-width="1.5"/>
+    <text y="-12" class="hubKick">control plane</text>
+    <text y="14" class="hubTitle">MaintainabilityAI</text>
+    <text y="40" class="hubBody">one operating model</text>
+
+    <!-- 6 phase nodes around the ring at angles 270, 330, 30, 90, 150, 210 -->
+    <!-- Phase 1: Design (top) -->
+    <g transform="translate(0,-220)">
+      <circle r="44" fill="rgba(15,23,42,0.92)" stroke="#60a5fa" stroke-width="2"/>
+      <circle r="44" fill="rgba(96,165,250,0.12)"/>
+      <text class="phNum" y="5" text-anchor="middle">1</text>
+      <text class="phName" y="-72" text-anchor="middle" fill="#93c5fd">Design</text>
+      <text class="phBody" y="-52" text-anchor="middle">Intent · threats · arch</text>
+    </g>
+
+    <!-- Phase 2: Implement (top-right, angle 330° from +x, i.e. -30° from up) -->
+    <g transform="translate(190.5,-110)">
+      <circle r="44" fill="rgba(15,23,42,0.92)" stroke="#fbbf24" stroke-width="2"/>
+      <circle r="44" fill="rgba(251,191,36,0.12)"/>
+      <text class="phNum" y="5" text-anchor="middle">2</text>
+      <text class="phName" x="60" y="-2" fill="#fcd34d">Implement</text>
+      <text class="phBody" x="60" y="18">Agents within guardrails</text>
+    </g>
+
+    <!-- Phase 3: Verify (bottom-right) -->
+    <g transform="translate(190.5,110)">
+      <circle r="44" fill="rgba(15,23,42,0.92)" stroke="#fb7185" stroke-width="2"/>
+      <circle r="44" fill="rgba(251,113,133,0.12)"/>
+      <text class="phNum" y="5" text-anchor="middle">3</text>
+      <text class="phName" x="60" y="-2" fill="#fda4af">Verify</text>
+      <text class="phBody" x="60" y="18">Automated evidence</text>
+    </g>
+
+    <!-- Phase 4: Govern (bottom) -->
+    <g transform="translate(0,220)">
+      <circle r="44" fill="rgba(15,23,42,0.92)" stroke="#818cf8" stroke-width="2"/>
+      <circle r="44" fill="rgba(129,140,248,0.12)"/>
+      <text class="phNum" y="5" text-anchor="middle">4</text>
+      <text class="phName" y="80" text-anchor="middle" fill="#a5b4fc">Govern</text>
+      <text class="phBody" y="100" text-anchor="middle">Human review</text>
+    </g>
+
+    <!-- Phase 5: Deploy (bottom-left) -->
+    <g transform="translate(-190.5,110)">
+      <circle r="44" fill="rgba(15,23,42,0.92)" stroke="#34d399" stroke-width="2"/>
+      <circle r="44" fill="rgba(52,211,153,0.12)"/>
+      <text class="phNum" y="5" text-anchor="middle">5</text>
+      <text class="phName" x="-60" y="-2" text-anchor="end" fill="#6ee7b7">Deploy</text>
+      <text class="phBody" x="-60" y="18" text-anchor="end">Release · observe</text>
+    </g>
+
+    <!-- Phase 6: Evolve (top-left) -->
+    <g transform="translate(-190.5,-110)">
+      <circle r="44" fill="rgba(15,23,42,0.92)" stroke="#22d3ee" stroke-width="2"/>
+      <circle r="44" fill="rgba(34,211,238,0.12)"/>
+      <text class="phNum" y="5" text-anchor="middle">6</text>
+      <text class="phName" x="-60" y="-2" text-anchor="end" fill="#67e8f9">Evolve</text>
+      <text class="phBody" x="-60" y="18" text-anchor="end">Prompts · gates tune</text>
+    </g>
+
+    <!-- flow arrows along the ring between phases -->
+    <g fill="none" stroke="#22d3ee" stroke-width="2" opacity=".75">
+      <path d="M 38 -213 A 220 220 0 0 1 152 -160" marker-end="url(#arc)"/>
+      <path d="M 213 -68 A 220 220 0 0 1 213 68" marker-end="url(#arc)"/>
+      <path d="M 152 160 A 220 220 0 0 1 38 213" marker-end="url(#arc)"/>
+      <path d="M -38 213 A 220 220 0 0 1 -152 160" marker-end="url(#arc)"/>
+      <path d="M -213 68 A 220 220 0 0 1 -213 -68" marker-end="url(#arc)"/>
+      <path d="M -152 -160 A 220 220 0 0 1 -38 -213" marker-end="url(#arc)"/>
+    </g>
+  </g>
+
+  <text x="640" y="695" text-anchor="middle" class="heroSub" font-size="14">Architecture is treated as a living product, not a one-time document.</text>
+</svg>

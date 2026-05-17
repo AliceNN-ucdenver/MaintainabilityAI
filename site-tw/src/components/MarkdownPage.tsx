@@ -1,99 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
-import mermaid from 'mermaid';
+import { markdownPathForRoute } from '../lib/docsRouting';
+import PageLoading from './PageLoading';
 
 interface MarkdownPageProps {
   path?: string;
 }
 
-// Initialize mermaid
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  themeVariables: {
-    primaryColor: '#818cf8',
-    primaryTextColor: '#f1f5f9',
-    primaryBorderColor: '#4f46e5',
-    lineColor: '#64748b',
-    secondaryColor: '#1e293b',
-    tertiaryColor: '#0f172a',
-    background: '#0f172a',
-    mainBkg: '#0f172a',
-    textColor: '#f1f5f9',
-    fontSize: '16px',
-  },
-});
-
 export default function MarkdownPage({ path }: MarkdownPageProps) {
   const location = useLocation();
+  const markdownPath = useMemo(
+    () => markdownPathForRoute(path, location.pathname),
+    [location.pathname, path]
+  );
   const [markdown, setMarkdown] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Check if we need to redirect to add trailing slash for known directories
-  useEffect(() => {
-    if (!path) {
-      const urlPath = location.pathname;
-      const knownDirectories = ['sdlc', 'workshop', 'governance', 'owasp', 'maintainability', 'threat-modeling', 'agents'];
-      const segments = urlPath.split('/');
-      const lastSegment = segments[segments.length - 1];
-      
-      // If this is a known directory without trailing slash, redirect
-      if (urlPath.startsWith('/docs/') && knownDirectories.includes(lastSegment) && !urlPath.endsWith('/')) {
-        window.history.replaceState(null, '', urlPath + '/');
-      }
-    }
-  }, [location.pathname, path]);
-
-  // Determine the markdown file path
-  const getMarkdownPath = () => {
-    if (path) return path;
-
-    // Convert URL path to markdown file path
-    let urlPath = location.pathname;
-
-    // Store whether it originally had a trailing slash (indicates directory)
-    const hadTrailingSlash = urlPath.endsWith('/');
-
-    // Remove trailing slash
-    if (urlPath.endsWith('/') && urlPath !== '/') {
-      urlPath = urlPath.slice(0, -1);
-    }
-
-    // Remove .html extension if present
-    urlPath = urlPath.replace(/\.html$/, '');
-
-    // If already has .md extension, return as-is (this fixes /docs/sdlc/index.md)
-    if (urlPath.endsWith('.md')) {
-      return urlPath;
-    }
-
-    // For root docs, try index
-    if (urlPath === '/docs') {
-      return '/docs/index.md';
-    }
-
-    // If path originally had trailing slash or is a known directory, try index.md
-    if (urlPath.startsWith('/docs/')) {
-      const knownDirectories = ['sdlc', 'workshop', 'governance', 'owasp', 'maintainability', 'threat-modeling', 'agents'];
-      const segments = urlPath.split('/');
-      const lastSegment = segments[segments.length - 1];
-
-      // Check if it's a known directory or had a trailing slash
-      if (hadTrailingSlash || knownDirectories.includes(lastSegment)) {
-        return urlPath + '/index.md';
-      }
-
-      // Otherwise assume it's a file and append .md
-      return urlPath + '.md';
-    }
-
-    return urlPath + '.md';
-  };
 
   useEffect(() => {
     const loadMarkdown = async () => {
@@ -101,23 +27,15 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
       setError(null);
 
       try {
-        const mdPath = getMarkdownPath();
-        console.log('[MarkdownPage] Loading markdown from:', mdPath);
-        console.log('[MarkdownPage] Current pathname:', location.pathname);
-
-        const response = await fetch(mdPath);
-
-        console.log('[MarkdownPage] Fetch response:', response.status, response.statusText);
+        const response = await fetch(markdownPath);
 
         if (!response.ok) {
-          throw new Error(`Failed to load ${mdPath}: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to load ${markdownPath}: ${response.status} ${response.statusText}`);
         }
 
         const text = await response.text();
-        console.log('[MarkdownPage] Loaded markdown:', text.length, 'bytes');
         setMarkdown(text);
       } catch (err) {
-        console.error('[MarkdownPage] Error loading markdown:', err);
         setError(err instanceof Error ? err.message : 'Failed to load document');
       } finally {
         setLoading(false);
@@ -125,71 +43,8 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
     };
 
     loadMarkdown();
-  }, [location.pathname, path]);
+  }, [markdownPath]);
 
-  // Render mermaid diagrams after markdown is rendered
-  useEffect(() => {
-    let isMounted = true;
-    let timeoutId: NodeJS.Timeout | null = null;
-
-    if (!loading && markdown) {
-      const renderMermaid = async () => {
-        try {
-          // Check if component is still mounted
-          if (!isMounted) return;
-
-          // Find all mermaid code blocks
-          const mermaidBlocks = document.querySelectorAll('.language-mermaid');
-
-          for (let i = 0; i < mermaidBlocks.length; i++) {
-            // Check if component is still mounted before each operation
-            if (!isMounted) return;
-
-            const block = mermaidBlocks[i] as HTMLElement;
-            const code = block.textContent || '';
-
-            // Create container for mermaid diagram
-            const container = document.createElement('div');
-            container.className = 'mermaid-diagram';
-
-            try {
-              const { svg } = await mermaid.render(`mermaid-${i}-${Date.now()}`, code);
-
-              // Check again after async operation
-              if (!isMounted) return;
-
-              container.innerHTML = svg;
-
-              // Only replace if parent still exists and is in the document
-              if (block.parentElement && document.contains(block.parentElement)) {
-                block.parentElement.replaceWith(container);
-              }
-            } catch (err) {
-              console.error('Mermaid render error:', err);
-              if (isMounted && block.parentElement && document.contains(block.parentElement)) {
-                block.parentElement.classList.add('mermaid-error');
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Error processing mermaid diagrams:', err);
-        }
-      };
-
-      // Delay to ensure DOM is ready
-      timeoutId = setTimeout(renderMermaid, 100);
-    }
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [markdown, loading]);
-
-  // Scroll to hash fragment after content renders (SPA navigation doesn't auto-scroll)
   useEffect(() => {
     if (!loading && markdown && location.hash) {
       const timeoutId = setTimeout(() => {
@@ -203,31 +58,25 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
     }
   }, [markdown, loading, location.hash]);
 
-  // Add copy-to-clipboard functionality for prompt boxes
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: NodeJS.Timeout | null = null;
-    const resetTimeouts: NodeJS.Timeout[] = [];
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const resetTimeouts: ReturnType<typeof setTimeout>[] = [];
 
     if (!loading && markdown) {
       const addCopyButtons = () => {
-        // Check if component is still mounted
         if (!isMounted) return;
 
-        // Find all prompt boxes (divs with gradient background containing code blocks)
-        const promptBoxes = document.querySelectorAll('div[style*="linear-gradient"]');
+        const promptBoxes = document.querySelectorAll<HTMLElement>('.prose div, .prose details');
 
         promptBoxes.forEach((box) => {
-          // Check if this box contains a code block with a prompt
           const codeBlock = box.querySelector('pre code');
           if (!codeBlock) return;
 
-          // Check if copy button already exists
           if (box.querySelector('.copy-prompt-btn')) return;
 
           const promptText = codeBlock.textContent || '';
 
-          // Find the header text that says "Copy this prompt..."
           const headerElements = box.querySelectorAll('strong');
           let headerElement: Element | null = null;
 
@@ -238,61 +87,34 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
           });
 
           if (headerElement && document.contains(headerElement)) {
-            // Create copy button
             const copyBtn = document.createElement('button');
             copyBtn.className = 'copy-prompt-btn';
             copyBtn.innerHTML = '📋 Copy';
-            copyBtn.style.cssText = `
-              background: rgba(16, 185, 129, 0.2);
-              border: 1px solid rgba(16, 185, 129, 0.5);
-              color: #10b981;
-              padding: 6px 12px;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 14px;
-              font-weight: 600;
-              margin-left: 12px;
-              transition: all 0.2s;
-              display: inline-block;
-              vertical-align: middle;
-            `;
 
-            // Add hover effect
-            copyBtn.onmouseenter = () => {
-              copyBtn.style.background = 'rgba(16, 185, 129, 0.3)';
-              copyBtn.style.borderColor = 'rgba(16, 185, 129, 0.7)';
-            };
-            copyBtn.onmouseleave = () => {
-              copyBtn.style.background = 'rgba(16, 185, 129, 0.2)';
-              copyBtn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-            };
-
-            // Add click handler
             copyBtn.onclick = async () => {
               try {
                 await navigator.clipboard.writeText(promptText);
 
-                // Show success feedback
                 const originalText = copyBtn.innerHTML;
                 copyBtn.innerHTML = '✅ Copied!';
-                copyBtn.style.color = '#22c55e';
+                copyBtn.classList.add('is-success');
 
                 const resetTimeout = setTimeout(() => {
                   if (isMounted && document.contains(copyBtn)) {
                     copyBtn.innerHTML = originalText;
-                    copyBtn.style.color = '#10b981';
+                    copyBtn.classList.remove('is-success');
                   }
                 }, 2000);
                 resetTimeouts.push(resetTimeout);
               } catch (err) {
                 console.error('Failed to copy:', err);
                 copyBtn.innerHTML = '❌ Failed';
-                copyBtn.style.color = '#ef4444';
+                copyBtn.classList.add('is-error');
 
                 const resetTimeout = setTimeout(() => {
                   if (isMounted && document.contains(copyBtn)) {
                     copyBtn.innerHTML = '📋 Copy';
-                    copyBtn.style.color = '#10b981';
+                    copyBtn.classList.remove('is-error');
                   }
                 }, 2000);
                 resetTimeouts.push(resetTimeout);
@@ -304,11 +126,9 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
         });
       };
 
-      // Delay to ensure DOM is ready
       timeoutId = setTimeout(addCopyButtons, 150);
     }
 
-    // Cleanup function
     return () => {
       isMounted = false;
       if (timeoutId) {
@@ -319,52 +139,40 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
   }, [markdown, loading]);
 
   if (loading) {
-    return (
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="text-center text-slate-400 min-h-screen flex items-center justify-center">
-          <div>
-            <div className="animate-pulse text-xl mb-4">Loading document...</div>
-            <div className="text-sm text-slate-500">Path: {location.pathname}</div>
-          </div>
-        </div>
-      </main>
-    );
+    return <PageLoading label="Loading document..." />;
   }
 
   if (error) {
     return (
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="rounded-2xl border border-red-800 bg-red-950/20 p-8">
+      <main className="site-shell py-12">
+        <div className="site-error-card">
           <h2 className="text-2xl font-bold text-red-400 mb-4">Document Not Found</h2>
           <p className="text-slate-300 mb-4">{error}</p>
-          <a href="/" className="text-brand hover:text-indigo-400">← Back to Home</a>
+          <a href="/" className="markdown-link">← Back to Home</a>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-12">
-      <article className="prose prose-invert prose-slate max-w-none">
+    <main className="docs-page-main">
+      <article className="docs-article prose prose-slate">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw, rehypeSlug]}
           components={{
-            // Style code blocks
-            code({ node: _node, inline, className, children, ...props }) {
-              if (inline) {
-                return (
-                  <code className="bg-slate-800 px-1.5 py-0.5 rounded text-sm" {...props}>
-                    {children}
-                  </code>
-                );
-              }
-
+            // Style code and pre separately so inline code never becomes block markup.
+            code({ node: _node, className, children, ...props }) {
               return (
-                <pre className={`bg-slate-900 rounded-lg p-4 overflow-x-auto ${className || ''}`}>
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
+                <code className={['markdown-inline-code', className].filter(Boolean).join(' ')} {...props}>
+                  {children}
+                </code>
+              );
+            },
+            pre({ node: _node, className, children, ...props }) {
+              return (
+                <pre className={['markdown-pre', className].filter(Boolean).join(' ')} {...props}>
+                  {children}
                 </pre>
               );
             },
@@ -374,7 +182,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
               return (
                 <a
                   href={href}
-                  className="text-brand hover:text-indigo-400 underline"
+                  className="markdown-link"
                   target={isExternal ? '_blank' : undefined}
                   rel={isExternal ? 'noopener noreferrer' : undefined}
                   {...props}
@@ -386,8 +194,8 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             // Style tables
             table({ node: _node, children, ...props }) {
               return (
-                <div className="overflow-x-auto my-6">
-                  <table className="min-w-full border border-slate-700 rounded-lg" {...props}>
+                <div className="markdown-table-wrap">
+                  <table className="markdown-table" {...props}>
                     {children}
                   </table>
                 </div>
@@ -395,21 +203,21 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             },
             thead({ node: _node, children, ...props }) {
               return (
-                <thead className="bg-slate-900" {...props}>
+                <thead className="markdown-thead" {...props}>
                   {children}
                 </thead>
               );
             },
             th({ node: _node, children, ...props }) {
               return (
-                <th className="border border-slate-700 px-4 py-2 text-left font-semibold text-brand" {...props}>
+                <th className="markdown-th" {...props}>
                   {children}
                 </th>
               );
             },
             td({ node: _node, children, ...props }) {
               return (
-                <td className="border border-slate-800 px-4 py-2 text-slate-300" {...props}>
+                <td className="markdown-td" {...props}>
                   {children}
                 </td>
               );
@@ -417,21 +225,21 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             // Style headings
             h1({ node: _node, children, ...props }) {
               return (
-                <h1 className="text-4xl font-bold mt-8 mb-4 text-white" {...props}>
+                <h1 className="markdown-h1" {...props}>
                   {children}
                 </h1>
               );
             },
             h2({ node: _node, children, ...props }) {
               return (
-                <h2 className="text-3xl font-bold mt-8 mb-4 text-white" {...props}>
+                <h2 className="markdown-h2" {...props}>
                   {children}
                 </h2>
               );
             },
             h3({ node: _node, children, ...props }) {
               return (
-                <h3 className="text-2xl font-bold mt-6 mb-3 text-white" {...props}>
+                <h3 className="markdown-h3" {...props}>
                   {children}
                 </h3>
               );
@@ -439,7 +247,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             // Style blockquotes
             blockquote({ node: _node, children, ...props }) {
               return (
-                <blockquote className="border-l-4 border-brand pl-4 my-4 italic text-slate-400" {...props}>
+                <blockquote className="markdown-blockquote" {...props}>
                   {children}
                 </blockquote>
               );
@@ -447,14 +255,14 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
             // Style lists
             ul({ node: _node, children, ...props }) {
               return (
-                <ul className="list-disc list-inside space-y-2 text-slate-300 my-4" {...props}>
+                <ul className="markdown-list list-disc" {...props}>
                   {children}
                 </ul>
               );
             },
             ol({ node: _node, children, ...props }) {
               return (
-                <ol className="list-decimal list-inside space-y-2 text-slate-300 my-4" {...props}>
+                <ol className="markdown-list list-decimal" {...props}>
                   {children}
                 </ol>
               );

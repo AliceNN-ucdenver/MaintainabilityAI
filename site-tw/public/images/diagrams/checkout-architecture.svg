@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
+  <title id="t">Checkout architecture — trust zones</title>
+  <desc id="d">A reference checkout topology with three trust zones — public internet, internal services, secrets vault — components like browser, CDN, API gateway, checkout API, orders DB, payment provider, and a logging pipeline, with annotated data flows showing where authn, validation, and encryption boundaries sit.</desc>
+  <defs>
+    <radialGradient id="caBg" cx="50%" cy="50%" r="60%">
+      <stop offset="0" stop-color="#0a1428" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#070a18" stop-opacity="0"/>
+    </radialGradient>
+    <marker id="caArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#67e8f9"/>
+    </marker>
+    <style>
+      .eyebrow{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:3.5px;text-transform:uppercase;fill:#67e8f9}
+      .heroTitle{font:900 38px -apple-system,system-ui,sans-serif;fill:#f8fafc}
+      .heroSub{font:500 18px -apple-system,system-ui,sans-serif;fill:#94a3b8}
+      .zoneLbl{font:800 12px -apple-system,system-ui,sans-serif;letter-spacing:3px;text-transform:uppercase}
+      .compName{font:800 14px -apple-system,system-ui,sans-serif;fill:#f8fafc;text-anchor:middle}
+      .compRole{font:500 11px -apple-system,system-ui,sans-serif;fill:#94a3b8;text-anchor:middle}
+      .flowLbl{font:700 11px -apple-system,system-ui,sans-serif;letter-spacing:1.5px;text-transform:uppercase;fill:#67e8f9}
+      .legendHdr{font:800 11px -apple-system,system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#cbd5e1}
+      .legendBody{font:500 12px -apple-system,system-ui,sans-serif;fill:#cbd5e1}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="url(#caBg)"/>
+
+  <text x="64" y="74" class="eyebrow">Example architecture</text>
+  <text x="64" y="118" class="heroTitle">Checkout security map</text>
+  <text x="64" y="148" class="heroSub">Three trust zones, seven components, four annotated data flows. The shared language for threat modeling and prompt selection.</text>
+
+  <!-- Trust zone bands -->
+  <g>
+    <!-- Public internet zone -->
+    <rect x="64" y="200" width="280" height="420" rx="14" fill="rgba(251,113,133,0.06)" stroke="rgba(251,113,133,0.3)" stroke-dasharray="4 5"/>
+    <text x="80" y="222" class="zoneLbl" fill="#fda4af">Public internet · untrusted</text>
+
+    <!-- Internal services zone -->
+    <rect x="368" y="200" width="600" height="420" rx="14" fill="rgba(96,165,250,0.06)" stroke="rgba(96,165,250,0.3)" stroke-dasharray="4 5"/>
+    <text x="384" y="222" class="zoneLbl" fill="#93c5fd">Internal services · authenticated</text>
+
+    <!-- Secrets / vendor zone -->
+    <rect x="992" y="200" width="224" height="420" rx="14" fill="rgba(251,191,36,0.06)" stroke="rgba(251,191,36,0.3)" stroke-dasharray="4 5"/>
+    <text x="1008" y="222" class="zoneLbl" fill="#fcd34d">Secrets &amp; vendor</text>
+  </g>
+
+  <!-- Components -->
+  <g>
+    <!-- Browser -->
+    <g transform="translate(124,290)">
+      <rect width="160" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#fb7185" stroke-width="1.5"/>
+      <text x="80" y="32" class="compName">Browser</text>
+      <text x="80" y="54" class="compRole">user session · CSRF token</text>
+    </g>
+    <!-- CDN -->
+    <g transform="translate(124,440)">
+      <rect width="160" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#fb7185" stroke-width="1.5"/>
+      <text x="80" y="32" class="compName">Edge CDN</text>
+      <text x="80" y="54" class="compRole">caching · WAF</text>
+    </g>
+
+    <!-- API Gateway -->
+    <g transform="translate(408,290)">
+      <rect width="180" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#22d3ee" stroke-width="1.5"/>
+      <text x="90" y="32" class="compName">API gateway</text>
+      <text x="90" y="54" class="compRole">authn · rate limit · routing</text>
+    </g>
+    <!-- Checkout API -->
+    <g transform="translate(408,440)">
+      <rect width="180" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#818cf8" stroke-width="1.5"/>
+      <text x="90" y="32" class="compName">Checkout API</text>
+      <text x="90" y="54" class="compRole">order orchestration</text>
+    </g>
+
+    <!-- Orders DB -->
+    <g transform="translate(680,290)">
+      <rect width="200" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="100" y="32" class="compName">Orders DB</text>
+      <text x="100" y="54" class="compRole">transactional data</text>
+    </g>
+    <!-- Logging -->
+    <g transform="translate(680,440)">
+      <rect width="200" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="100" y="32" class="compName">Audit pipeline</text>
+      <text x="100" y="54" class="compRole">append-only · PII masked</text>
+    </g>
+
+    <!-- Payment vendor -->
+    <g transform="translate(1024,290)">
+      <rect width="160" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="80" y="32" class="compName">Payments</text>
+      <text x="80" y="54" class="compRole">tokenised · PCI-DSS</text>
+    </g>
+    <!-- Vault -->
+    <g transform="translate(1024,440)">
+      <rect width="160" height="80" rx="12" fill="rgba(15,23,42,0.92)" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="80" y="32" class="compName">Secrets vault</text>
+      <text x="80" y="54" class="compRole">KMS · short-lived creds</text>
+    </g>
+  </g>
+
+  <!-- Flows -->
+  <g fill="none" stroke="#22d3ee" stroke-width="1.8" stroke-linecap="round">
+    <!-- Browser -> Gateway -->
+    <path d="M284 330 L408 330" marker-end="url(#caArr)"/>
+    <text x="346" y="320" text-anchor="middle" class="flowLbl">HTTPS</text>
+    <!-- CDN -> Gateway -->
+    <path d="M284 480 C 330 480, 360 410, 408 360" marker-end="url(#caArr)"/>
+    <!-- Gateway -> Checkout API -->
+    <path d="M498 370 L498 440" marker-end="url(#caArr)"/>
+    <text x="510" y="412" class="flowLbl">JWT</text>
+    <!-- Checkout API -> Orders DB -->
+    <path d="M588 460 L680 340" marker-end="url(#caArr)"/>
+    <text x="630" y="408" class="flowLbl">SQL · param</text>
+    <!-- Checkout API -> Audit -->
+    <path d="M588 480 L680 480" marker-end="url(#caArr)"/>
+    <text x="634" y="500" class="flowLbl">audit event</text>
+    <!-- Checkout API -> Payments -->
+    <path d="M588 470 C 800 470, 900 340, 1024 330" marker-end="url(#caArr)"/>
+    <text x="850" y="404" class="flowLbl">token swap · mTLS</text>
+    <!-- Checkout API -> Vault -->
+    <path d="M588 490 L1024 480" marker-end="url(#caArr)"/>
+    <text x="850" y="500" class="flowLbl">short-lived creds</text>
+  </g>
+
+  <!-- Legend bottom -->
+  <g transform="translate(64,640)">
+    <text class="legendHdr">Reading the map</text>
+    <g transform="translate(0,18)">
+      <rect width="14" height="14" rx="3" fill="none" stroke="#fb7185" stroke-dasharray="3 3"/>
+      <text x="22" y="12" class="legendBody">untrusted zone</text>
+    </g>
+    <g transform="translate(160,18)">
+      <rect width="14" height="14" rx="3" fill="none" stroke="#60a5fa" stroke-dasharray="3 3"/>
+      <text x="22" y="12" class="legendBody">internal authenticated</text>
+    </g>
+    <g transform="translate(380,18)">
+      <rect width="14" height="14" rx="3" fill="none" stroke="#fbbf24" stroke-dasharray="3 3"/>
+      <text x="22" y="12" class="legendBody">secrets / vendor</text>
+    </g>
+    <g transform="translate(580,18)">
+      <line x1="0" y1="7" x2="14" y2="7" stroke="#22d3ee" stroke-width="2"/>
+      <text x="22" y="12" class="legendBody">authenticated data flow</text>
+    </g>
+  </g>
+</svg>

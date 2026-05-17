@@ -1,848 +1,441 @@
-# Part 1: The Spectrum of AI-Assisted Development
+# Part 1: The Rabbit Hole
 
-<div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4); border: 1px solid rgba(96, 165, 250, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 16px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 40px;">1</div>
-    <div>
-      <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Part 1: The Spectrum</h2>
-      <div style="font-size: 15px; color: #dbeafe; margin-top: 8px;">Vibe → AI-Assisted → Agentic Development</div>
-    </div>
+<div class="docs-workshop-hero docs-workshop-blue">
+  <div class="docs-workshop-number">1</div>
+  <div>
+    <div class="docs-card-kicker">Workshop Part 1 · Orientation</div>
+    <h2 class="docs-workshop-title">The Rabbit Hole</h2>
+    <p class="docs-workshop-subtitle">The Spectrum of AI-Assisted Development</p>
   </div>
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
-    <div style="color: #dbeafe; font-size: 15px; line-height: 1.7;">
-      <strong style="color: #f1f5f9;">Duration:</strong> 45 minutes<br/>
-      <strong style="color: #f1f5f9;">Learning Objective:</strong> Understand the three distinct modes of AI-assisted software development and learn how to choose the right approach for your project's security and maintainability requirements.
-    </div>
+  <div class="docs-workshop-meta">
+    <strong class="docs-strong">Duration:</strong> 45 minutes<br/>
+    <strong class="docs-strong">Prerequisites:</strong> VS Code, GitHub account, the <a href="/docs/workshop/starter-pack" class="markdown-link"><code>imdb-lite-workshop-pack</code></a> cloned and running with <code>docker compose up</code><br/>
+    <strong class="docs-strong">SDLC phase:</strong> Phase 1 (Design). Stage selection happens before any code.<br/>
+    <strong class="docs-strong">Status:</strong> Available now
   </div>
 </div>
+
+> Three stages of maturity. Three autonomy tiers. By the end of this part you will know which stage suits each piece of work in front of you, why the **celeb-api** BAR starts in the strictest tier, and what humans are still uniquely responsible for in 2026-2027 even as the agents get better.
 
 ---
 
-## The Three Modes
+## What you will have built when you leave
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border-left: 4px solid #6366f1;">
-  <p style="color: #cbd5e1; font-size: 17px; line-height: 1.8; margin: 0 0 20px 0;">
-    The landscape of AI-assisted development isn't binary—<strong style="color: #f1f5f9;">it's a spectrum</strong>. At one end, we have rapid, exploratory <strong style="color: #c4b5fd;">"vibe coding"</strong> where speed trumps structure. At the other, we have <strong style="color: #fcd34d;">autonomous agentic systems</strong> executing complex multi-step tasks. In between lies the sweet spot for production engineering: <strong style="color: #6ee7b7;">AI-assisted development with human oversight</strong>.
-  </p>
-  <div style="background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; border-radius: 8px; padding: 20px; margin-top: 20px;">
-    <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0;">
-      Understanding where your project sits on this spectrum isn't just an academic exercise. <strong style="color: #fca5a5;">It's the difference between shipping secure, maintainable code and inheriting a maintenance nightmare that haunts your team for years.</strong>
-    </p>
-  </div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin: 48px 0;">
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #c4b5fd; margin-top: 0; font-size: 22px; font-weight: 700;">1. Vibe Coding</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Imagine standing in front of a blank canvas with a powerful AI assistant. You describe your vision in broad strokes, and within seconds, working code materializes. No architectural diagrams, no security reviews, no quality gates—just pure creative flow. This is vibe coding: rapid, exploratory development where the goal is to <strong>move fast and make things</strong>, not to build for longevity.
-  </p>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    The developer writes a prompt, accepts the generated code, and iterates until something works. It's exhilarating when you're prototyping a new idea on a Saturday afternoon. It's terrifying when that weekend project becomes Monday's production system.
-  </p>
-  <div style="background: rgba(139, 92, 246, 0.1); border-radius: 8px; padding: 16px; margin-top: 20px;">
-    <div style="color: #c4b5fd; font-weight: 600; margin-bottom: 8px;">Perfect for:</div>
-    <div style="color: #e2e8f0; line-height: 1.6;">
-      Quick proof-of-concepts where you're exploring feasibility rather than building for scale. Throwaway weekend projects where the only stakeholder is your curiosity. Learning new frameworks where breaking things is part of the process.
-    </div>
-  </div>
-  <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #ef4444;">
-    <div style="color: #fca5a5; font-weight: 600; margin-bottom: 8px;">⚠️ Critical Risks:</div>
-    <div style="color: #e2e8f0; line-height: 1.6;">
-      Vibe coding creates fragile "house of cards" architecture with no security considerations, rapid technical debt accumulation, and code that's nearly impossible to maintain. Without quality gates or validation, vulnerabilities slip through unnoticed.
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #10b981; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #6ee7b7; margin-top: 0; font-size: 22px; font-weight: 700;">2. AI-Assisted Engineering</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    This is where the magic happens for production systems. The developer remains firmly in control as the <strong>architect and editor</strong>, while AI acts as an incredibly productive pair programmer handling routine implementation tasks. Think of it as having a talented junior developer who types at superhuman speed but still needs your architectural guidance and security expertise.
-  </p>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    The process is methodical: you define the architecture and constraints upfront, AI generates implementation within those guardrails, and you review, test, and validate every line before it ships. Code passes through multiple quality gates—ESLint, Jest, CodeQL—and requires explicit human approval before merge.
-  </p>
-  <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 16px; margin-top: 20px;">
-    <div style="color: #6ee7b7; font-weight: 600; margin-bottom: 8px;">Perfect for:</div>
-    <div style="color: #e2e8f0; line-height: 1.6;">
-      Production systems that require long-term maintainability. Teams with security and compliance requirements who can't afford to "move fast and break things." Complex systems where domain expertise and architectural decisions separate success from disaster.
-    </div>
-  </div>
-  <div style="background: rgba(59, 130, 246, 0.1); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #3b82f6;">
-    <div style="color: #93c5fd; font-weight: 600; margin-bottom: 8px;">🎯 The Process:</div>
-    <div style="color: #e2e8f0; line-height: 1.6;">
-      Human defines architecture → AI generates within guardrails → Developer reviews and tests → Code passes quality gates → Human approves merge. This is the gold standard for security-critical systems.
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #f59e0b; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #fcd34d; margin-top: 0; font-size: 22px; font-weight: 700;">3. Autonomous Agentic Coding</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Imagine delegating an entire task—not just code generation, but planning, execution, validation, and reporting—to an AI agent that operates independently. You define what needs to be done, set acceptance criteria, and walk away. The agent creates its own implementation plan, executes multiple steps, runs validation tests, and delivers a complete pull request ready for your review.
-  </p>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    This isn't science fiction—it's the reality of modern AI coding assistants like Claude Code and GPT Engineer. The key is understanding that agentic coding is <strong>powerful but requires precise task framing</strong>. Give it a well-scoped refactoring task across 50 files, and it excels. Ask it to architect your entire system, and you'll get impressive-sounding nonsense.
-  </p>
-  <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 16px; margin-top: 20px;">
-    <div style="color: #fcd34d; font-weight: 600; margin-bottom: 8px;">Perfect for:</div>
-    <div style="color: #e2e8f0; line-height: 1.6;">
-      Well-defined refactoring tasks like migrating class components to hooks. Repetitive migrations across many files. Documentation generation and test case creation. Code modernization where the pattern is clear but the volume is overwhelming.
-    </div>
-  </div>
-  <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 16px; margin-top: 12px; border-left: 3px solid #f59e0b;">
-    <div style="color: #fcd34d; font-weight: 600; margin-bottom: 8px;">⚡ The Workflow:</div>
-    <div style="color: #e2e8f0; line-height: 1.6;">
-      Human defines task → Agent plans → Agent executes multi-step implementation → Agent validates → Agent reports results → Human reviews and approves. The agent does the heavy lifting; you ensure quality.
-    </div>
-  </div>
-</div>
-
-</div>
-
-### Comparing the Modes Side-by-Side
-
-<div style="overflow-x: auto; margin: 32px 0;">
-  <table style="width: 100%; border-collapse: collapse; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; overflow: hidden;">
-    <thead>
-      <tr style="background: rgba(59, 130, 246, 0.2); border-bottom: 2px solid rgba(59, 130, 246, 0.3);">
-        <th style="padding: 16px; text-align: left; color: #93c5fd; font-weight: 700;">Factor</th>
-        <th style="padding: 16px; text-align: left; color: #c4b5fd; font-weight: 700;">Vibe Coding</th>
-        <th style="padding: 16px; text-align: left; color: #6ee7b7; font-weight: 700;">AI-Assisted</th>
-        <th style="padding: 16px; text-align: left; color: #fcd34d; font-weight: 700;">Agentic</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Security Criticality</td>
-        <td style="padding: 16px; color: #e2e8f0;">Low (experiments only)</td>
-        <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ High (production-ready)</td>
-        <td style="padding: 16px; color: #e2e8f0;">Medium (with review)</td>
-      </tr>
-      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Code Lifespan</td>
-        <td style="padding: 16px; color: #e2e8f0;">Hours to days</td>
-        <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ Months to years</td>
-        <td style="padding: 16px; color: #e2e8f0;">Depends on task</td>
-      </tr>
-      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Team Size</td>
-        <td style="padding: 16px; color: #e2e8f0;">Individual</td>
-        <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ Teams</td>
-        <td style="padding: 16px; color: #e2e8f0;">Teams</td>
-      </tr>
-      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Compliance Needs</td>
-        <td style="padding: 16px; color: #e2e8f0;">None</td>
-        <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ High</td>
-        <td style="padding: 16px; color: #e2e8f0;">Medium</td>
-      </tr>
-      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Domain Complexity</td>
-        <td style="padding: 16px; color: #e2e8f0;">Low</td>
-        <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ High</td>
-        <td style="padding: 16px; color: #e2e8f0;">Medium</td>
-      </tr>
-      <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #cbd5e1; font-weight: 600;">Maintenance Burden</td>
-        <td style="padding: 16px; color: #e2e8f0;">None (throw away)</td>
-        <td style="padding: 16px; color: #e2e8f0; font-weight: 600;">✅ High</td>
-        <td style="padding: 16px; color: #e2e8f0;">Medium</td>
-      </tr>
-      <tr style="background: rgba(16, 185, 129, 0.05); border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-        <td style="padding: 16px; color: #a7f3d0; font-weight: 700;">⏱️ Time to Implement</td>
-        <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">30 minutes</td>
-        <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">2.5 hours</td>
-        <td style="padding: 16px; color: #a7f3d0; font-weight: 600;">1 hour (+ review)</td>
-      </tr>
-      <tr style="background: rgba(239, 68, 68, 0.05);">
-        <td style="padding: 16px; color: #fca5a5; font-weight: 700;">💥 Cost of Failure</td>
-        <td style="padding: 16px; color: #fca5a5; font-weight: 600;">6 months remediation</td>
-        <td style="padding: 16px; color: #6ee7b7; font-weight: 600;">✅ Minimal (caught early)</td>
-        <td style="padding: 16px; color: #fca5a5; font-weight: 600;">3 weeks incident response</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-<div style="background: rgba(124, 58, 237, 0.1); border-left: 4px solid #7c3aed; border-radius: 8px; padding: 24px; margin: 32px 0;">
-  <div style="color: #c4b5fd; font-size: 18px; font-weight: 700; margin-bottom: 12px;">⚖️ Golden Rule: Prevention vs. Failure</div>
-  <p style="color: #e2e8f0; line-height: 1.8; font-size: 16px; margin: 0;">
-    Spending <strong style="color: #a7f3d0;">+2 hours on security-first prompts and validation</strong> prevents <strong style="color: #fca5a5;">6 months of remediation work</strong>. The cost of prevention is always <strong style="color: #f1f5f9;">100x cheaper</strong> than the cost of failure. Choose your development mode wisely.
-  </p>
-</div>
-
-<div style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 8px; padding: 24px; margin: 32px 0;">
-  <div style="color: #6ee7b7; font-size: 18px; font-weight: 700; margin-bottom: 12px;">💡 Recommendation for Security-Critical Systems</div>
-  <p style="color: #e2e8f0; line-height: 1.7; margin: 0;">
-    Use <strong>AI-Assisted Engineering</strong> mode with security-first prompt packs (like OWASP A01-A10 in this repository), multi-layered validation (local + CI/CD), mandatory human review with security checklists, and clear AI disclosure in commits and pull requests. This is the only mode proven to deliver production-grade security at scale.
-  </p>
-</div>
+1. The MaintainabilityAI VS Code extension installed and signed in.
+2. A governance mesh initialised on your laptop.
+3. The **IMDB Lite** sample platform created in Looking Glass, with two BARs visible: `APP-IMDB-001` (movies) and `APP-IMDB-002` (celebrities).
+4. The `celeb-api` repository (from the workshop pack) scaffolded with Cheshire so you can read its first Security Scorecard. You will see it sitting at roughly **5/100, Restricted tier**.
+5. A defensible answer to "Which AI stage should this work be at?" on three sample features, plus a sense of the concrete decisions that stay in your hands in an agentic SDLC.
+6. Golden Rule 1 internalised: **Choose the stage before you choose the prompt.**
 
 ---
 
-## The 70% Problem
+## The 70/30 problem has not gone away. It evolved.
 
-Here's the uncomfortable truth that every developer working with AI must internalize: **AI excels at generating the first 70% of code, but the final 30% requires human expertise.**
+In 2024 the framing was simple. **AI handles 70% of the work brilliantly: the boilerplate, the CRUD, the scaffolding. The 30% that decides whether a system survives contact with production is still human work.**
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin: 48px 0;">
+The ratio is roughly the same in 2026-2027. What changed is what counts as "the 30%". The new 30% is *wider* than the old one because agents got better at the easy parts and gained the ability to act autonomously. More decisions now happen at machine speed, so more boundaries have to exist before the first prompt is written. Industry voices have started to call this the move "from creator to curator", or from coder to "cognitive architect", and the OWASP Top 10 for Agentic Applications (December 2025) added entirely new risk classes like Agent Goal Hijack and Tool Misuse that simply did not exist as named threats two years ago.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #3b82f6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #93c5fd; margin-top: 0; font-size: 20px; font-weight: 700;">The 70%: What AI Does Well</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    AI assistants are remarkably proficient at generating boilerplate and scaffolding—the repetitive structure that every application needs but nobody wants to write by hand. Standard CRUD operations with proper HTTP status codes and error handling. Routine data transformations like mapping API responses to internal models. Common algorithms and design patterns pulled from millions of training examples.
-  </p>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    This is where AI provides genuine productivity gains. Tasks that would take an experienced developer 30 minutes of typing can be generated in 30 seconds. The code is usually syntactically correct, follows common conventions, and "just works" for the happy path.
-  </p>
+### Where humans still add the value, with concrete examples
+
+These six areas are where a human's judgment, accountability, and authority cannot be delegated to an agent. Not in 2026. Not in 2027. Arguably not ever.
+
+<div class="docs-card docs-card-muted">
+
+**1. Architecture and intent**
+
+Declaring the CALM model that the agent's actions are checked against. Writing the IntentSpec that says *what good looks like* for this feature. Choosing strangler-fig over big-bang for a migration. Approving a new shared database. Deciding that the search endpoint must never return more than 50 rows. The agent can propose architecture. Only a human can ratify it as the system's truth.
+
+**2. Threat modeling and governance design**
+
+Running STRIDE on a new endpoint before code exists. Naming the OWASP categories the Red Queen blocks and the ones it warns on. Deciding that the `?redirect=` URL parameter must be on an allowlist so open-redirect attacks fail closed. Writing the policy that an agent cannot move data across a trust boundary without an explicit ADR. Agents enforce these rules at machine speed once written. A human has to write them.
+
+**3. Domain judgment and business tradeoffs**
+
+What users actually need versus what a survey said they wanted. Whether the cache invalidation strategy is "evict on write" or "TTL plus stale-while-revalidate", and why one of those is wrong for billing. Whether the contract change is worth the consumer migration. What counts as PII in this jurisdiction. These are not technical questions. They are judgment calls grounded in context an agent cannot have.
+
+**4. Ethics, compliance, and accountability**
+
+Signing off on PHI encryption-at-rest changes before they ship. Authorising a 90-day key rotation rollout: which keys, which services, in what order, with what rollback. Naming when EU AI Act Article 14 requires meaningful human oversight. Owning the audit trail. The signature on the bottom of the page belongs to a human, in every jurisdiction worth shipping in.
+
+**5. Trust calibration and override authority**
+
+Approving a **break-glass override** when production is on fire: scoped, time-limited, with a written reason that goes into the audit chain. Revoking an agent's autonomy after an incident. Deciding when an agent has earned more tier. Calibrating the trust battery is a human responsibility because *being trusted* is a human relationship.
+
+**6. Systems thinking and blast radius**
+
+Reasoning about what *else* a change touches. An agent sees the endpoint; you see four downstream consumers, the shared `users` table, the migration that has to ship in this order or data is lost, the new OWASP Agentic risk of Tool Misuse if the agent's scope widens to a fifth repo. Systems thinking, *how the whole behaves when you change one piece*, is the discipline that makes the other five additive instead of brittle.
+
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #f59e0b; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <h3 style="color: #fcd34d; margin-top: 0; font-size: 20px; font-weight: 700;">The 30%: What Requires Human Expertise</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    The final 30% is where human expertise becomes irreplaceable. System design and architecture decisions that require understanding trade-offs across scalability, maintainability, and cost. Complex debugging where you're hunting race conditions, memory leaks, and subtle edge cases that only manifest in production. Domain-specific knowledge about HIPAA compliance, financial regulations, or industry-specific security requirements.
-  </p>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Security threat modeling that requires adversarial thinking about what could go wrong. Performance optimization based on profiling real-world workloads. The ability to look at generated code and think: "This works, but is it the right solution?"
-  </p>
-</div>
-
-</div>
-
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); border-radius: 12px; padding: 32px; margin: 48px 0; box-shadow: 0 8px 32px rgba(124, 58, 237, 0.4);">
-  <h3 style="color: #f1f5f9; margin-top: 0; font-size: 24px; font-weight: 800; text-align: center;">🎯 Key Insight: The Evolution of the Developer Role</h3>
-  <p style="color: #e9d5ff; line-height: 1.8; font-size: 17px; text-align: center; margin: 20px 0 0 0;">
-    The rise of AI transforms developers into <strong>"AI Code Hardeners"</strong>—specialists who excel at transforming AI-generated drafts into robust, production-ready software. Your competitive advantage is no longer typing speed or memorizing syntax. It's the ability to architect systems, spot security vulnerabilities, and apply domain expertise that AI can't replicate.
-  </p>
-</div>
+Everything outside those six areas is increasingly delegable. Everything inside them is yours.
 
 ---
 
-## Where Humans Add Irreplaceable Value
+## Your new job description
 
-<div style="background: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366f1; border-radius: 8px; padding: 24px; margin: 32px 0;">
-  <p style="color: #e2e8f0; font-size: 16px; line-height: 1.7; margin: 0;">
-    Understanding the 70/30 split is theoretical. Let's make it concrete by examining <strong style="color: #f1f5f9;">five critical areas where human expertise remains essential</strong>, even with the most advanced AI assistants.
-  </p>
-</div>
+The six areas above are not aspirational. They are the work in front of you right now. To make the shift tangible, here is how the engineer's day-to-day changes.
 
-<div style="display: flex; flex-direction: column; gap: 20px; margin: 48px 0;">
+| In 2024 you spent time on | In 2026-2027 you spend time on |
+|---|---|
+| Typing implementation code | Writing the RCTRO contract the AI fills in |
+| Reviewing every PR diff line-by-line | Reviewing AI-assisted PRs against the contract. Ratifying autonomous PRs that already cleared policy. |
+| Catching bugs in code review | Catching gaps in **intent** before code is written |
+| Stack Overflow lookups and one-off fixes | Curating the prompt packs the team's AI reads on every task |
+| Patching security issues after pentest | Designing the **policy** that prevents the class of bug in the first place |
+| Owning a service | Owning a **Business Application Repository (BAR)**: its CALM model, its scorecard, its autonomy tier |
+| One repo at a time | Cross-repo flows, interface contracts, blast radius |
+| Asking for a code review | Asking for **evidence**: which prompt, which threat model, which fitness result, which reviewer |
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #06b6d4; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
-    <div style="background: rgba(6, 182, 212, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #67e8f9;">1</div>
-    <div>
-      <h3 style="color: #67e8f9; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">System Design</h3>
-      <div style="background: rgba(6, 182, 212, 0.1); border-radius: 8px; padding: 16px;">
-        <div style="color: #a5f3fc; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
-        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
-          Lacks holistic view of system architecture and can't evaluate trade-offs across reliability, scalability, cost, and team expertise.
-        </p>
-      </div>
-    </div>
-    <div>
-      <div style="height: 52px;"></div>
-      <div style="background: rgba(6, 182, 212, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #06b6d4;">
-        <div style="color: #67e8f9; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
-        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
-          <strong style="color: #a5f3fc;">Example:</strong> AI can implement a caching layer, but humans decide which caching strategy fits the access pattern, where to place cache invalidation logic, and how to handle cache stampede scenarios.
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
+The shorthand: **you move from code author to systems thinker, governance designer, and intent author.** The agent writes the code. You decide what *good* means, write down the rules that make it stick, and prove it stayed good after the agent shipped.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #ec4899; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
-    <div style="background: rgba(236, 72, 153, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #f9a8d4;">2</div>
-    <div>
-      <h3 style="color: #f9a8d4; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Complex Debugging</h3>
-      <div style="background: rgba(236, 72, 153, 0.1); border-radius: 8px; padding: 16px;">
-        <div style="color: #fbcfe8; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
-        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
-          Struggles with race conditions, memory leaks, and edge cases that only manifest under specific production conditions.
-        </p>
-      </div>
-    </div>
-    <div>
-      <div style="height: 52px;"></div>
-      <div style="background: rgba(236, 72, 153, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #ec4899;">
-        <div style="color: #f9a8d4; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
-        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
-          <strong style="color: #fbcfe8;">Example:</strong> Production bug where payments fail intermittently. AI might suggest checking logs. An experienced human recognizes it's a clock skew issue causing JWT signature validation failures between distributed servers.
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
-    <div style="background: rgba(139, 92, 246, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #c4b5fd;">3</div>
-    <div>
-      <h3 style="color: #c4b5fd; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Domain Expertise</h3>
-      <div style="background: rgba(139, 92, 246, 0.1); border-radius: 8px; padding: 16px;">
-        <div style="color: #ddd6fe; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
-        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
-          No understanding of business context, industry regulations, or compliance frameworks like HIPAA, PCI-DSS, or SOC 2.
-        </p>
-      </div>
-    </div>
-    <div>
-      <div style="height: 52px;"></div>
-      <div style="background: rgba(139, 92, 246, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #8b5cf6;">
-        <div style="color: #c4b5fd; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
-        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
-          <strong style="color: #ddd6fe;">Example:</strong> Healthcare application. AI generates standard auth. Human ensures HIPAA-compliant audit logging, patient consent workflows, break-glass emergency access, and proper PHI encryption with key rotation.
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #ef4444; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
-    <div style="background: rgba(239, 68, 68, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #fca5a5;">4</div>
-    <div>
-      <h3 style="color: #fca5a5; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Security Threat Modeling</h3>
-      <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 16px;">
-        <div style="color: #fecaca; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
-        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
-          Can follow security patterns but doesn't anticipate novel attack vectors or understand attacker motivations and risk assessment.
-        </p>
-      </div>
-    </div>
-    <div>
-      <div style="height: 52px;"></div>
-      <div style="background: rgba(239, 68, 68, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #ef4444;">
-        <div style="color: #fca5a5; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
-        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
-          <strong style="color: #fecaca;">Example:</strong> OAuth integration. AI implements standard flow. Human asks: What if redirect_uri is manipulated? How do we prevent token replay? Should we implement PKCE for mobile? What's our token rotation strategy?
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; border-left: 4px solid #10b981; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 24px; align-items: start;">
-    <div style="background: rgba(16, 185, 129, 0.2); border-radius: 12px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #6ee7b7;">5</div>
-    <div>
-      <h3 style="color: #6ee7b7; margin: 0 0 12px 0; font-size: 22px; font-weight: 700;">Performance Optimization</h3>
-      <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 16px;">
-        <div style="color: #a7f3d0; font-size: 13px; font-weight: 700; margin-bottom: 8px;">⚠️ AI LIMITATION</div>
-        <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin: 0;">
-          May not understand real-world performance constraints, hardware limitations, or the subtle trade-offs between different optimization strategies.
-        </p>
-      </div>
-    </div>
-    <div>
-      <div style="height: 52px;"></div>
-      <div style="background: rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 16px; border-left: 3px solid #10b981;">
-        <div style="color: #6ee7b7; font-size: 13px; font-weight: 700; margin-bottom: 8px;">✅ HUMAN VALUE</div>
-        <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
-          <strong style="color: #a7f3d0;">Example:</strong> Database query optimization. AI suggests adding indexes. Human analyzes query cardinality, understands indexes hurt write performance, and decides to denormalize data instead because the read/write ratio justifies it.
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
-
-</div>
+This is why mode selection is the first skill we teach. The engineer who can name when **Vibe** is appropriate, when **AI-Assisted** is the contract, and when **Agentic** has earned the right to run unattended is the engineer who can lead a team through the shift, not just survive it.
 
 ---
 
-## Real Examples from This Repository
+## The maturity progression
 
-Theory is useful, but nothing beats concrete examples. Let's examine three real scenarios from this repository that illustrate the 70/30 split in action.
+The three modes are not three styles you pick from a menu. They are a **maturity progression** for a piece of work, gated by how much governance the surrounding repository can prove.
 
-### Example 1: A03 Injection Remediation
+<svg viewBox="0 0 920 380" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-labelledby="maturityTitle maturityDesc">
+  <title id="maturityTitle">AI-assisted development maturity progression</title>
+  <desc id="maturityDesc">A three-step staircase rising from Vibe coding through AI-Assisted engineering to Agentic development. Each step shows who drives the work, what ships, and what governance enforcement is required.</desc>
+  <defs>
+    <linearGradient id="matBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1224"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="matStep1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(251, 191, 36, 0.18)"/>
+      <stop offset="100%" stop-color="rgba(251, 191, 36, 0.04)"/>
+    </linearGradient>
+    <linearGradient id="matStep2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(96, 165, 250, 0.20)"/>
+      <stop offset="100%" stop-color="rgba(96, 165, 250, 0.04)"/>
+    </linearGradient>
+    <linearGradient id="matStep3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(167, 139, 250, 0.22)"/>
+      <stop offset="100%" stop-color="rgba(167, 139, 250, 0.04)"/>
+    </linearGradient>
+    <linearGradient id="matAxis" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(251, 191, 36, 0.6)"/>
+      <stop offset="50%" stop-color="rgba(96, 165, 250, 0.6)"/>
+      <stop offset="100%" stop-color="rgba(167, 139, 250, 0.6)"/>
+    </linearGradient>
+  </defs>
+  <rect width="920" height="380" rx="14" fill="url(#matBg)"/>
+  <text x="460" y="32" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="800" letter-spacing="1.5" font-family="system-ui, sans-serif">THE AI-ASSISTED DEVELOPMENT MATURITY PROGRESSION</text>
+  <rect x="40" y="240" width="240" height="100" rx="10" fill="url(#matStep1)" stroke="rgba(251, 191, 36, 0.4)" stroke-width="1"/>
+  <rect x="40" y="240" width="4" height="100" fill="#fbbf24"/>
+  <text x="58" y="262" fill="#fbbf24" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">STAGE 1</text>
+  <text x="58" y="287" fill="#f8fafc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">Vibe</text>
+  <text x="58" y="308" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">AI proposes · you accept</text>
+  <text x="58" y="324" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">Sandbox · no users · no data</text>
+  <rect x="320" y="160" width="280" height="140" rx="10" fill="url(#matStep2)" stroke="rgba(96, 165, 250, 0.4)" stroke-width="1"/>
+  <rect x="320" y="160" width="4" height="140" fill="#60a5fa"/>
+  <text x="338" y="182" fill="#60a5fa" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">STAGE 2 · THIS WORKSHOP</text>
+  <text x="338" y="207" fill="#f8fafc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">AI-Assisted</text>
+  <text x="338" y="228" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">You write the RCTRO contract</text>
+  <text x="338" y="244" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">AI fills it in</text>
+  <text x="338" y="260" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">You review every line</text>
+  <text x="338" y="282" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">Governance enforces the boundary</text>
+  <rect x="640" y="80" width="240" height="180" rx="10" fill="url(#matStep3)" stroke="rgba(167, 139, 250, 0.4)" stroke-width="1"/>
+  <rect x="640" y="80" width="4" height="180" fill="#a78bfa"/>
+  <text x="658" y="102" fill="#a78bfa" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">STAGE 3</text>
+  <text x="658" y="127" fill="#f8fafc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">Agentic</text>
+  <text x="658" y="148" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">AI plans · executes · reports</text>
+  <text x="658" y="164" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">Against acceptance criteria</text>
+  <text x="658" y="180" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">you set up front</text>
+  <text x="658" y="202" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">Policy engine enforces flows,</text>
+  <text x="658" y="218" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">controls, contracts, autonomy</text>
+  <text x="658" y="234" fill="#cbd5e1" font-size="12" font-family="system-ui, sans-serif">No PR merges without evidence</text>
+  <line x1="280" y1="244" x2="320" y2="244" stroke="rgba(148, 163, 184, 0.4)" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="320" y1="164" x2="320" y2="244" stroke="rgba(148, 163, 184, 0.4)" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="600" y1="164" x2="640" y2="164" stroke="rgba(148, 163, 184, 0.4)" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="640" y1="84" x2="640" y2="164" stroke="rgba(148, 163, 184, 0.4)" stroke-width="2" stroke-dasharray="4 4"/>
+  <line x1="40" y1="358" x2="880" y2="358" stroke="url(#matAxis)" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="40" y="375" fill="#64748b" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">GOVERNANCE ENFORCEMENT REQUIRED →</text>
+  <text x="880" y="375" text-anchor="end" fill="#64748b" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AUTONOMY EARNED</text>
+</svg>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-    <div>
-      <h4 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">🤖 AI-Generated (70%)</h4>
-      <p style="color: #cbd5e1; line-height: 1.7; margin-top: 12px;">
-        AI correctly identifies that SQL injection requires parameterized queries and generates the basic structure:
-      </p>
-      <pre style="background: #0f172a; border-radius: 8px; padding: 16px; margin-top: 12px; overflow-x: auto;"><code style="color: #e2e8f0; font-size: 14px;">const sql = 'SELECT id, email FROM users WHERE email ILIKE $1';
-const res = await client.query(sql, [query]);</code></pre>
-      <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-        This code prevents SQL injection. It's syntactically correct and follows best practices. But it's not production-ready.
-      </p>
-    </div>
-    <div>
-      <h4 style="color: #fcd34d; margin-top: 0; font-size: 18px; font-weight: 700;">👤 Human Hardening (30%)</h4>
-      <p style="color: #cbd5e1; line-height: 1.7; margin-top: 12px;">
-        The human expert identifies gaps and adds critical security layers:
-      </p>
-      <ul style="color: #e2e8f0; line-height: 1.8; margin-top: 12px; padding-left: 20px;">
-        <li>Zod validation with domain-specific email allowlist (no generic validation)</li>
-        <li>Length limits based on actual database schema constraints</li>
-        <li>Structured logging for blocked injection attempts (security monitoring)</li>
-        <li>Rate limiting to prevent enumeration attacks</li>
-        <li>Comprehensive test cases including Unicode edge cases and boundary conditions</li>
-      </ul>
-      <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-        These additions transform "technically correct" code into defense-in-depth security.
-      </p>
-    </div>
-  </div>
-</div>
+The staircase only goes up if the repository earns the next step. That is where the **autonomy tier** comes in.
 
-### Example 2: A01 Broken Access Control
+### Smell test: you are in the wrong stage when…
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-    <div>
-      <h4 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">🤖 AI-Generated (70%)</h4>
-      <p style="color: #cbd5e1; line-height: 1.7; margin-top: 12px;">
-        AI creates basic role-based access control middleware:
-      </p>
-      <pre style="background: #0f172a; border-radius: 8px; padding: 16px; margin-top: 12px; overflow-x: auto;"><code style="color: #e2e8f0; font-size: 14px;">function requireRole(role: string) {
-  return (req, res, next) => {
-    if (req.user.role === role) next();
-    else res.status(403).send('Forbidden');
-  };
-}</code></pre>
-      <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-        This implements vertical access control (role checking). But real-world authorization is far more complex.
-      </p>
-    </div>
-    <div>
-      <h4 style="color: #fcd34d; margin-top: 0; font-size: 18px; font-weight: 700;">👤 Human Hardening (30%)</h4>
-      <p style="color: #cbd5e1; line-height: 1.7; margin-top: 12px;">
-        The human identifies critical missing security controls:
-      </p>
-      <ul style="color: #e2e8f0; line-height: 1.8; margin-top: 12px; padding-left: 20px;">
-        <li>Role hierarchy support (admin inherits from user permissions)</li>
-        <li>Deny-by-default logic (fail closed, not open)</li>
-        <li>Horizontal access control (user can only access <em>their own</em> resources)</li>
-        <li>Audit logging for all access control failures</li>
-        <li>Context-aware authorization (time-based, IP restrictions, MFA requirements)</li>
-      </ul>
-      <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-        The AI handled the easy part. The human ensured it actually prevents real attacks.
-      </p>
-    </div>
-  </div>
-</div>
+The hardest part of the maturity model is not the definition. It is the honest self-check. *Am I in the right stage for this piece of work right now?* These are the signals a chief engineer looks for in code review and in conversation.
 
-### Example 3: Security Pipeline Architecture
+| Stage | You are in the wrong stage when… |
+|---|---|
+| **Vibe** | Any real user depends on the output. Any data is real. The repo has a CALM model. You hesitated before accepting the diff. You are about to commit to a branch other people merge from. |
+| **AI-Assisted** | You accepted code you cannot explain back to the team. The contract did not name OWASP categories the work obviously touches. You skipped the review because the diff "looked small". The prompt was a one-liner instead of an RCTRO. |
+| **Agentic** | You cannot write machine-checkable acceptance criteria. The repo is not in Autonomous tier. The work crosses a security-critical path. The agent produced a contract change you did not approve up front. You are hoping the policy engine catches what you did not think of. |
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); border-left: 4px solid #ef4444;">
-  <h4 style="color: #fca5a5; margin-top: 0; font-size: 20px; font-weight: 700;">🚫 What AI Cannot Do</h4>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Design the multi-layered security pipeline shown in this repository's README. This requires understanding organizational risk tolerance, knowing which tools complement versus overlap, deciding which failures should block deployment versus just warn, and balancing security with developer velocity.
-  </p>
-  <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 20px; margin-top: 20px;">
-    <h5 style="color: #f1f5f9; margin-top: 0; font-size: 16px; font-weight: 700;">The Human-Designed Architecture:</h5>
-    <ol style="color: #e2e8f0; line-height: 1.8; margin-top: 12px; padding-left: 20px;">
-      <li><strong>IDE layer</strong> with security-first prompts (prevent vulnerabilities at the source)</li>
-      <li><strong>Local checks</strong> with ESLint and Jest (fast feedback loop)</li>
-      <li><strong>Pre-commit hooks</strong> with Snyk Code (catch issues before they hit CI)</li>
-      <li><strong>CI/CD gates</strong> with CodeQL and Snyk (mandatory before merge)</li>
-      <li><strong>Human review</strong> with PR template checklist (domain expertise)</li>
-      <li><strong>Post-deploy monitoring</strong> with security alerting (defense in depth)</li>
-    </ol>
-    <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-      Each layer was chosen based on failure mode analysis, team skills, and understanding where different classes of vulnerabilities are most efficiently caught. AI can implement each individual layer, but architecting the system requires human judgment.
-    </p>
-  </div>
-</div>
+A useful framing for the live class. *The right stage is not the one you feel most productive in. It is the one the work and the repo can both sustain.*
+
+### Stage versus tier: the two axes
+
+The stage is the *style of work*. The tier is the *posture of the repo*, and the repo's posture is computed from artifacts, not declared by a developer.
+
+| Score | Tier | What the AI can do without per-step approval |
+|---|---|---|
+| 80–100 | **Autonomous** | Write, Edit, Bash within issue scope. The Red Queen still validates flows and controls. Autonomy is not lawlessness. |
+| 50–79 | **Supervised** | Read freely. Structural changes go through `validate_action` over MCP. Weak-pillar OWASP and STRIDE packs are injected into every prompt. |
+| 0–49 | **Restricted** | Plan-first. Bash and Write are blocked by a PreToolUse hook. Edit requires a recorded human approval. Every decision is audited. |
+
+A Restricted repo cannot run Stage 3 agentic work because the hooks refuse. An Autonomous repo *can* run Stage 1 vibe work, but you should not. The autonomy is for the agent, not for sloppy prompting. The combination this workshop targets is **Stage 2 (AI-Assisted) at the tier the repo has earned**. Today the celeb-api has earned exactly one: Restricted.
 
 ---
 
-## What Happens When You Choose the Wrong Mode?
+## The agentic shift
 
-Understanding the spectrum is only valuable if you also understand the consequences of misalignment. Let's examine four failure modes that illustrate what goes wrong when you choose the wrong development mode for your security requirements.
+In 2024, governance was a code review at the end. A human reading a diff, deciding if the AI made sense, merging or not. In 2026-2027, governance is a tier gate at the start. The scorecard decides what your AI is permitted to do before the first prompt is written. That is why the celeb-api (5/100, Restricted, every Bash blocked) feels nothing like a mature platform service (85/100, Autonomous, AI ships PRs unattended within policy).
 
-### Failure Mode 1: Vibe Coding in Production
+The rest of this workshop is the celeb-api's journey from **5 → 65+**. Each part adds one capability that lifts the score and earns the repo more autonomy.
 
-<div style="background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(127, 29, 29, 0.6); border: 2px solid #991b1b;">
-  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-    <div style="font-size: 48px;">💀</div>
-    <h3 style="color: #fca5a5; margin: 0; font-size: 22px; font-weight: 800;">The Disaster Scenario</h3>
-  </div>
-  <p style="color: #fecaca; line-height: 1.7; margin-bottom: 20px;">
-    A developer uses Vibe mode to "quickly" implement user authentication on Friday afternoon, deploys to production without code review, and goes home for the weekend.
-  </p>
-
-  <div style="background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 20px; margin: 20px 0;">
-    <h4 style="color: #f1f5f9; margin-top: 0; font-size: 16px; font-weight: 700;">The "Working" Code:</h4>
-    <pre style="background: #0f172a; border-radius: 8px; padding: 16px; margin-top: 12px; overflow-x: auto;"><code style="color: #e2e8f0; font-size: 14px;">app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await db.query(`SELECT * FROM users WHERE email='${email}'`);
-  if (user && user.password === password) {
-    res.json({ token: jwt.sign({ id: user.id }, 'secret123') });
-  }
-});</code></pre>
-    <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-      This code "works" in the sense that legitimate users can log in. But it's a security disaster waiting to happen.
-    </p>
-  </div>
-
-  <div style="background: rgba(220, 38, 38, 0.2); border-radius: 8px; padding: 20px; margin-top: 20px; border-left: 4px solid #dc2626;">
-    <h4 style="color: #fca5a5; margin-top: 0; font-size: 16px; font-weight: 700;">❌ Security Failures:</h4>
-    <ul style="color: #fecaca; line-height: 1.8; margin-top: 12px; padding-left: 20px;">
-      <li><strong>SQL Injection (A03):</strong> String concatenation with user input—attacker can extract entire database</li>
-      <li><strong>Broken Authentication (A07):</strong> Plain text password comparison—no hashing whatsoever</li>
-      <li><strong>Cryptographic Failure (A02):</strong> Hardcoded JWT secret 'secret123'—anyone can forge tokens</li>
-      <li><strong>No Input Validation:</strong> Missing rate limiting, email format checks—trivial brute force</li>
-      <li><strong>No Logging:</strong> Can't detect attacks or incident response</li>
-    </ul>
-  </div>
-
-  <div style="background: rgba(220, 38, 38, 0.3); border-radius: 8px; padding: 20px; margin-top: 20px;">
-    <h4 style="color: #f1f5f9; margin-top: 0; font-size: 16px; font-weight: 700;">💥 Real-World Impact:</h4>
-    <p style="color: #fecaca; line-height: 1.7; margin: 12px 0;">
-      Production breach within 48 hours. All user credentials and personal data compromised. GDPR fine: up to €20 million. Complete reputational destruction. Customer exodus.
-    </p>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(252, 165, 165, 0.3);">
-      <div style="color: #f1f5f9; font-weight: 700;">Cost of Failure:</div>
-      <div style="color: #fca5a5; font-size: 18px; font-weight: 800;">6 months remediation</div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-      <div style="color: #f1f5f9; font-weight: 700;">Cost of Prevention:</div>
-      <div style="color: #6ee7b7; font-size: 18px; font-weight: 800;">2 hours AI-Assisted implementation</div>
-    </div>
-  </div>
-</div>
-
-### Failure Mode 2: Agentic Coding Without Verification
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); border-left: 4px solid #f59e0b;">
-  <h3 style="color: #fcd34d; margin-top: 0; font-size: 20px; font-weight: 700;">⚠️ The Silent Bug Scenario</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Developer assigns agent to "refactor the payment processing module for better readability," reviews it quickly (looks cleaner!), and deploys to production without comprehensive testing.
-  </p>
-
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
-    <div style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 20px;">
-      <h4 style="color: #fcd34d; margin-top: 0; font-size: 16px; font-weight: 700;">The "Improved" Code:</h4>
-      <pre style="background: #0f172a; border-radius: 8px; padding: 12px; margin-top: 12px; overflow-x: auto; font-size: 13px;"><code style="color: #e2e8f0;">async function processPayment(order: Order) {
-  const amount = order.total;
-  await chargeCard(order.cardToken, amount);
-  await db.updateOrder(order.id, { status: 'paid' });
-  await sendConfirmationEmail(order.email);
-}</code></pre>
-      <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-        Code is cleaner and more readable. It passes basic tests. But subtle bugs lurk beneath.
-      </p>
-    </div>
-    <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 20px; border-left: 3px solid #ef4444;">
-      <h4 style="color: #fca5a5; margin-top: 0; font-size: 16px; font-weight: 700;">Hidden Catastrophes:</h4>
-      <ul style="color: #e2e8f0; line-height: 1.7; margin-top: 12px; padding-left: 20px; font-size: 14px;">
-        <li><strong>Race Condition:</strong> No transaction wrapper—card charged but DB update fails → money lost</li>
-        <li><strong>Double Charging:</strong> No idempotency key—retry charges customer twice</li>
-        <li><strong>Error Handling:</strong> Email failure crashes function—payment succeeds but order stuck</li>
-        <li><strong>Missing Audit:</strong> No payment event logging—can't reconcile finances</li>
-        <li><strong>Currency Precision:</strong> Floats cause rounding errors—off by pennies on every transaction</li>
-      </ul>
-    </div>
-  </div>
-
-  <div style="background: rgba(245, 158, 11, 0.15); border-radius: 8px; padding: 20px; margin-top: 20px;">
-    <h4 style="color: #fcd34d; margin-top: 0; font-size: 16px; font-weight: 700;">💸 Real-World Impact:</h4>
-    <p style="color: #e2e8f0; line-height: 1.7; margin-bottom: 16px;">
-      Customers charged multiple times. Lost revenue (orders marked paid without charging). Payment processor penalties. Customer support overload. Financial reconciliation nightmare.
-    </p>
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(251, 191, 36, 0.3);">
-      <div style="color: #f1f5f9; font-weight: 700;">Cost of Failure:</div>
-      <div style="color: #fca5a5; font-size: 18px; font-weight: 800;">3 weeks incident response + refunds</div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-      <div style="color: #f1f5f9; font-weight: 700;">Cost of Prevention:</div>
-      <div style="color: #6ee7b7; font-size: 18px; font-weight: 800;">30 minutes thorough code review</div>
-    </div>
-  </div>
-</div>
-
-### Failure Mode 3: AI-Assisted Without Human Domain Expertise
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); border-left: 4px solid #8b5cf6;">
-  <h3 style="color: #c4b5fd; margin-top: 0; font-size: 20px; font-weight: 700;">⚖️ The Compliance Nightmare Scenario</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Developer uses security-first prompts to implement medical record access control. Code is technically secure—proper RBAC, no injection vulnerabilities, good error handling. But the developer doesn't understand HIPAA requirements. Technical security ≠ regulatory compliance.
-  </p>
-
-  <div style="background: rgba(139, 92, 246, 0.1); border-radius: 8px; padding: 20px; margin-top: 24px;">
-    <h4 style="color: #c4b5fd; margin-top: 0; font-size: 16px; font-weight: 700;">The Technically Secure Code:</h4>
-    <pre style="background: #0f172a; border-radius: 8px; padding: 16px; margin-top: 12px; overflow-x: auto;"><code style="color: #e2e8f0; font-size: 14px;">function canAccessRecord(user: User, record: MedicalRecord): boolean {
-  if (user.role === 'doctor') return true;
-  if (user.role === 'nurse' && record.wardId === user.wardId) return true;
-  return false;
-}</code></pre>
-    <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-      This code has no security vulnerabilities. It passes security scanning tools. It implements proper deny-by-default logic. But it violates multiple HIPAA requirements.
-    </p>
-  </div>
-
-  <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 20px; margin-top: 20px; border-left: 3px solid #ef4444;">
-    <h4 style="color: #fca5a5; margin-top: 0; font-size: 16px; font-weight: 700;">❌ Compliance Failures:</h4>
-    <ul style="color: #e2e8f0; line-height: 1.8; margin-top: 12px; padding-left: 20px;">
-      <li><strong>HIPAA Minimum Necessary:</strong> Doctors shouldn't access ALL records, only their assigned patients</li>
-      <li><strong>Break-Glass Missing:</strong> No emergency override for life-threatening situations</li>
-      <li><strong>Audit Trail:</strong> No logging of who accessed which records when—HIPAA mandates this</li>
-      <li><strong>Patient Consent:</strong> Not checking if patient authorized this specific provider</li>
-      <li><strong>Time-Based Access:</strong> Former employees retain access—no automatic revocation</li>
-      <li><strong>Purpose Limitation:</strong> Not tracking why the record was accessed (treatment vs. billing vs. research)</li>
-    </ul>
-  </div>
-
-  <div style="background: rgba(139, 92, 246, 0.15); border-radius: 8px; padding: 24px; margin-top: 20px;">
-    <h4 style="color: #c4b5fd; margin-top: 0; font-size: 16px; font-weight: 700;">🏥 Real-World Impact:</h4>
-    <p style="color: #e2e8f0; line-height: 1.7; margin-bottom: 16px;">
-      HIPAA violation: <strong>$100,000 to $50,000,000 fine per incident category</strong>. Loss of hospital accreditation. Criminal charges for willful neglect of patient privacy. Complete shutdown for compliance audit. Lawsuits from affected patients.
-    </p>
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(196, 181, 253, 0.3);">
-      <div style="color: #f1f5f9; font-weight: 700;">Cost of Failure:</div>
-      <div style="color: #fca5a5; font-size: 18px; font-weight: 800;">$50M fine + hospital shutdown</div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-      <div style="color: #f1f5f9; font-weight: 700;">Cost of Prevention:</div>
-      <div style="color: #6ee7b7; font-size: 18px; font-weight: 800;">1 day HIPAA training before implementation</div>
-    </div>
-  </div>
-</div>
-
-### Failure Mode 4: Wrong Tool for Wrong Task
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); border-left: 4px solid #06b6d4;">
-  <h3 style="color: #67e8f9; margin-top: 0; font-size: 20px; font-weight: 700;">🏗️ The Over-Engineering Disaster</h3>
-  <p style="color: #cbd5e1; line-height: 1.7; margin-top: 16px;">
-    Startup founder asks AI to "design the architecture for our new SaaS platform." AI generates an impressive-sounding distributed systems architecture. Founder is dazzled by the technical sophistication and begins implementation.
-  </p>
-
-  <div style="background: rgba(6, 182, 212, 0.1); border-radius: 8px; padding: 20px; margin-top: 24px;">
-    <h4 style="color: #67e8f9; margin-top: 0; font-size: 16px; font-weight: 700;">What AI Generates:</h4>
-    <blockquote style="color: #cbd5e1; line-height: 1.7; margin: 16px 0; padding-left: 20px; border-left: 3px solid #06b6d4; font-style: italic;">
-      "Use microservices architecture with Kafka for event streaming, deploy on Kubernetes with Istio service mesh, Redis for caching, PostgreSQL for primary storage, MongoDB for audit logs, Elasticsearch for search, and implement CQRS with event sourcing for scalability."
-    </blockquote>
-    <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px;">
-      This architecture is technically sound for a large-scale system. But AI doesn't ask about context.
-    </p>
-  </div>
-
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
-    <div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 20px; border-left: 3px solid #ef4444;">
-      <h4 style="color: #fca5a5; margin-top: 0; font-size: 16px; font-weight: 700;">❌ Why This Fails:</h4>
-      <ul style="color: #e2e8f0; line-height: 1.7; margin-top: 12px; padding-left: 20px; font-size: 14px;">
-        <li><strong>Over-Engineering:</strong> Startup has 3 users—doesn't need distributed system complexity</li>
-        <li><strong>No Context:</strong> AI doesn't know team size (2 developers), budget ($500/month), or timeline (2 weeks to MVP)</li>
-        <li><strong>Operational Burden:</strong> Team doesn't have Kubernetes expertise—debugging is impossible</li>
-        <li><strong>Premature Optimization:</strong> Adds 6 months of infrastructure work for zero business value</li>
-        <li><strong>Financial Ruin:</strong> Infrastructure costs exceed revenue for 2 years</li>
-      </ul>
-    </div>
-    <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 20px; border-left: 3px solid #10b981;">
-      <h4 style="color: #6ee7b7; margin-top: 0; font-size: 16px; font-weight: 700;">✅ Correct Approach:</h4>
-      <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-        <strong>Human architect makes decision:</strong> Monolith + SQLite for MVP. Can be built in 2 weeks. Handles 10,000 users easily. Team understands the stack.
-      </p>
-      <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-        <strong>Then use AI-Assisted:</strong> AI generates the CRUD operations, authentication, and API endpoints within that simple architecture.
-      </p>
-      <p style="color: #94a3b8; line-height: 1.6; margin-top: 12px; font-size: 14px; font-style: italic;">
-        Refactor to microservices when you have the resources and the actual need. Not before.
-      </p>
-    </div>
-  </div>
-</div>
+- Part 2 adds prompt packs. **Code Security** pillar up.
+- Part 3 ships a fix using those packs. **Test Coverage** and **Code Security** up.
+- Part 4 adds fitness functions. **Complexity** and **Dependency Freshness** under control.
+- Part 5 wires scanners. **Code Security** to green.
+- Part 6 versions the prompts. Reproducibility ratchet.
+- Part 7 installs the Red Queen. Tier becomes deterministic instead of advisory.
+- Part 8 ships one PR with the full evidence chain. Capstone.
 
 ---
 
-## Workshop Exercise
+## Walkthrough: from zero to a Restricted-tier scorecard
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); border-left: 4px solid #3b82f6;">
-  <h3 style="color: #93c5fd; margin-top: 0; font-size: 22px; font-weight: 700;">🎯 Hands-On Scenario: JWT-Based API Authentication</h3>
+This walkthrough is self-contained. You will install the extension, initialise a governance mesh, seed the **IMDB Lite** sample platform, and scaffold the `celeb-api` repo from the workshop pack. By the end you will be looking at a real Security Scorecard.
 
-  <div style="background: rgba(59, 130, 246, 0.15); border-radius: 8px; padding: 24px; margin-top: 20px;">
-    <h4 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">The Context</h4>
-    <p style="color: #e2e8f0; line-height: 1.7; font-size: 15px; margin: 12px 0 0 0;">
-      You're building a <strong style="color: #f1f5f9;">REST API for a healthcare SaaS product</strong>. The API needs to authenticate users via JWT tokens and authorize access to patient records based on roles (Doctor, Nurse, Patient). Your team uses <strong style="color: #f1f5f9;">Node.js + TypeScript + Express + PostgreSQL</strong>.
-    </p>
-    <div style="margin-top: 16px; padding: 16px; background: rgba(0, 0, 0, 0.3); border-radius: 8px;">
-      <div style="color: #a5f3fc; font-size: 13px; font-weight: 700; margin-bottom: 8px;">REQUIREMENTS:</div>
-      <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin: 0; padding-left: 20px;">
-        <li>Users authenticate with email/password → receive JWT token</li>
-        <li>JWT must be signed with HS256, expire in 1 hour, include userId + role</li>
-        <li>Protected routes must validate JWT and check role-based permissions</li>
-        <li>Failed auth attempts must be logged for security monitoring</li>
-        <li>Passwords must be hashed with bcrypt (cost factor 12)</li>
-        <li><strong style="color: #fca5a5;">HIPAA compliance required</strong> — audit logging mandatory</li>
-      </ul>
-    </div>
-  </div>
+### Step 1. Install the MaintainabilityAI VS Code extension
 
-  <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 28px;">
+Open VS Code. Go to **Extensions**. Search for **MaintainabilityAI**. Install. The publisher is `chiefarcheologist`.
 
-<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
-  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 1: Which development mode would you choose and why?</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      Consider: <strong>security criticality</strong>, <strong>code lifespan</strong>, <strong>team expertise</strong>, and <strong>compliance requirements</strong>.
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Think about risk tolerance</summary>
-      <p style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        Healthcare + HIPAA = <strong style="color: #fca5a5;">zero tolerance for security failures</strong>. Vibe coding is immediately ruled out. Between AI-Assisted and Agentic: AI-Assisted is safer because <strong>you control the architecture and review every security decision</strong>. Agentic could work for <em>specific subtasks</em> (like password hashing) but not the entire auth system.
-      </p>
-    </details>
-  </div>
+After install you will see two new icons in the Activity Bar.
+
+- **Looking Glass** (portfolio and governance mesh)
+- **The Cheshire Cat** (repo-side scaffolding and scorecard)
+
+### Step 2. Initialise a governance mesh
+
+Click the **Looking Glass** icon. The first time you open it, you will see a banner: **No governance mesh configured**. Click **Initialize Mesh**.
+
+You will be prompted for a folder. Pick anything outside your code repos. The pack ships with one pre-seeded at `imdb-lite-workshop-pack/governance-mesh`. Use that folder.
+
+The extension writes a starter `mesh.yaml`, a `portfolio/` directory, and an empty `platforms/` directory. The Looking Glass panel reloads and shows your portfolio: empty.
+
+### Step 3. Create the IMDB Lite sample platform
+
+In the Looking Glass panel toolbar, click **Create Sample Platform**. A quick-pick appears.
+
+```
+[ ] Insurance Operations  — 3 BARs: Claims, Policy Admin, Fraud Detection
+[ ] IMDB Lite             — 3-tier web app: React + Express API + DB
+```
+
+Choose **IMDB Lite**. The extension scaffolds two BARs into your mesh.
+
+- `APP-IMDB-001` — IMDB Lite Application (movies, reviews, ratings)
+- `APP-IMDB-002` — IMDB Celebs (celebrity profiles, search, news)
+
+Each BAR comes with a CALM architecture template, capability mappings, and an empty governance scorecard waiting on real artifacts.
+
+### Step 4. Inspect the celeb-api BAR
+
+In Looking Glass, expand **Portfolio → IMDB Lite → APP-IMDB-002 (IMDB Celebs)**. You will see the CALM architecture for this BAR.
+
+- Nodes: `celeb-frontend`, `celeb-api`, `celeb-db`, `news-feed`
+- Flows: `celeb-frontend → celeb-api → celeb-db`, plus `celeb-api → news-feed`
+- **No declared flow** from `celeb-frontend → celeb-db`.
+
+Memorise that last line. It is what the Red Queen will block in Part 7 when an over-eager AI tries to query the database directly from the frontend.
+
+### Step 5. Scaffold the celeb-api code repo with Cheshire
+
+The workshop pack already cloned the four repos to `imdb-lite-workshop-pack/repos/`. Open the `celeb-api` folder in a new VS Code window (`File → Open Folder`).
+
+Click the **Cheshire Cat** icon. Choose **Scaffold SDLC Structure**. A panel opens with a multi-select of artifact groups. Leave the defaults for now (CLAUDE.md, GitHub workflows, PR template, SECURITY.md, `.cheshire/prompts/` directory). **Uncheck** the `Red Queen governance files` option for now; we will come back to it in Part 7.
+
+Click **Scaffold**. Cheshire writes about 20 files. Watch the side panel show each step. The repo now has:
+
+- A `.cheshire/prompts/` directory pre-seeded with OWASP, STRIDE, and maintainability prompt packs.
+- GitHub workflows for CodeQL, CI, and an Alice remediation flow.
+- A `CLAUDE.md` declaring the BAR context for any agent that opens the repo.
+
+### Step 6. Read the score
+
+Still in the Cheshire Cat panel, click **Security Scorecard**. You will see something close to this.
+
+```
+celeb-api                                  5 / 100      RESTRICTED
+  Code Security                            0 / 25       red    (planted CVEs, no scanners run)
+  Test Coverage                            5 / 20       red    (only smoke tests)
+  Technical Debt                           0 / 15       red    (4 open TODO items)
+  Dependency Freshness                     0 / 15       red    (3 deps > 6 months old)
+  Complexity                               0 / 15       red    (one function over 12)
+  Architecture                             0 / 10       red    (no CALM linkage yet)
+```
+
+This is the honest baseline. The celeb-api ships with planted vulnerabilities and stale dependencies on purpose. Every subsequent part of the workshop fixes one slice of this scorecard.
+
+The small number is the point. The celeb-api is a fresh, unsecured CRUD service in the same shape thousands of internal APIs start in. We are using it because it is the most honest starting point you can give a real class.
+
+---
+
+## Q&amp;A
+
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Question 1. The celeb-api scores 5/100 and lands in Restricted tier. Can a teammate flip it to Autonomous so the AI can move faster?</summary>
+
+No. The tier is computed from the scorecard, not selected from a dropdown. The Red Queen reads the score and applies the matching policy. The only way to move from Restricted to Supervised to Autonomous is to **change the artifacts that feed the score**. Add prompt packs (Part 2), raise test coverage (Part 3), add fitness gates (Part 4), close TODOs and refresh dependencies (Parts 4 and 5). That is the entire arc of this workshop. A documented break-glass override is planned for Phase 9, but it is scoped, time-limited, and requires CODEOWNER approval with a written reason. "The AI was being slow" is not on the allowed list.
+
 </details>
 
-<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
-  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 2: What security constraints would you include in your prompt?</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      Think about <strong>OWASP categories</strong>, <strong>attack vectors</strong>, and <strong>compliance requirements</strong>.
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Map to OWASP Top 10</summary>
-      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        <strong style="color: #f1f5f9;">Key constraints to include:</strong>
-        <ul style="margin-top: 8px; padding-left: 20px;">
-          <li><strong style="color: #a5f3fc;">A01 - Access Control:</strong> Role-based authorization, deny-by-default, check both role + resource ownership</li>
-          <li><strong style="color: #a5f3fc;">A02 - Crypto Failures:</strong> bcrypt (cost 12), secure JWT signing with 256-bit secret from env vars</li>
-          <li><strong style="color: #a5f3fc;">A03 - Injection:</strong> Parameterized queries for user lookup, validate email format with Zod</li>
-          <li><strong style="color: #a5f3fc;">A07 - Auth Failures:</strong> Rate limiting (5 attempts/15min), constant-time password comparison</li>
-          <li><strong style="color: #a5f3fc;">A09 - Logging:</strong> Log auth failures with userId + IP (no passwords!), log access to patient records</li>
-        </ul>
-      </div>
-    </details>
-  </div>
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Question 2. A junior on my team wants to vibe-code the celeb-api search endpoint. What is the right answer?</summary>
+
+Two answers, both true. (a) *Today, in this repo*, vibe coding will fail closed. The PreToolUse hooks we install in Part 7 block Bash and Write outright, and the review workflow will not approve a PR without a recorded prompt. (b) *In principle, anywhere*, vibe coding belongs to a personal sandbox, not a service that touches user data. Restricted tier says out loud what good engineers already know. Production code is not the place to find out what works.
+
 </details>
 
-<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
-  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 3: What human validation must you perform after AI generates code?</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      What specific security controls must you <strong>manually verify</strong>?
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Security checklist</summary>
-      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        <strong style="color: #f1f5f9;">Critical validations:</strong>
-        <ul style="margin-top: 8px; padding-left: 20px;">
-          <li>JWT secret comes from `process.env.JWT_SECRET` (never hardcoded)</li>
-          <li>Password comparison uses `bcrypt.compare()` not `===`</li>
-          <li>JWT expiry is set (`expiresIn: '1h'`)</li>
-          <li>Database queries use `$1` placeholders (no string concatenation)</li>
-          <li>Error messages are generic ("Invalid credentials") not specific ("Password incorrect")</li>
-          <li>Rate limiting middleware is applied to `/auth/login`</li>
-          <li>Tests include attack payloads: SQL injection in email, timing attacks on password comparison</li>
-        </ul>
-      </div>
-    </details>
-  </div>
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Question 3. Why are we orienting around the repository's score instead of the developer's skill?</summary>
+
+Because the score travels with the code, and the developer does not. A senior engineer can write a careful prompt for a low-scoring repo and ship safely. A junior can adopt the same prompt pack on the same repo and ship at the same level of safety. The tier system makes the repo's posture portable across people and across AI agents (Claude Code, Copilot Coding Agent, Cursor all read the same MCP context). That is how a team gets a consistent floor regardless of who is holding the keyboard.
+
 </details>
-
-<details style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #6366f1;">
-  <summary style="font-weight: 700; color: #a5b4fc; font-size: 16px; cursor: pointer; list-style: none;">▶ Question 4: How would you document this for your team?</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      What information must be captured for <strong>maintainability and audit purposes</strong>?
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Golden Rules in practice</summary>
-      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        <strong style="color: #f1f5f9;">Required documentation:</strong>
-        <ul style="margin-top: 8px; padding-left: 20px;">
-          <li><strong>Commit message:</strong> `🤖 AI-assisted with Claude Code using OWASP A02/A07 prompt packs`</li>
-          <li><strong>PR description:</strong> Security controls implemented (bcrypt, JWT, rate limiting), OWASP categories addressed, test coverage with attack vectors</li>
-          <li><strong>Code comments:</strong> Why specific algorithms chosen (bcrypt cost 12 for HIPAA), why JWT expiry is 1 hour (balance security/UX)</li>
-          <li><strong>Threat model:</strong> Document assumptions (JWT secret rotation policy, rate limit thresholds)</li>
-          <li><strong>Prompt library:</strong> Save the successful prompt to `/prompts/auth-jwt.md` for team reuse</li>
-        </ul>
-      </div>
-    </details>
-  </div>
-</details>
-
-  </div>
-
-  <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 24px; margin-top: 28px; border-left: 3px solid #10b981;">
-    <h4 style="color: #6ee7b7; margin-top: 0; font-size: 16px; font-weight: 700;">🎯 Key Insight</h4>
-    <p style="color: #e2e8f0; line-height: 1.7; font-size: 14px; margin: 0;">
-      This scenario demonstrates why <strong style="color: #f1f5f9;">AI-Assisted mode is the gold standard for production security</strong>. You need AI for speed, but you need <strong>human judgment for threat modeling, compliance context, and security validation</strong>. This hands-on exercise prepares you for Parts 2-4, where we'll implement this exact scenario using OWASP prompt packs and fitness functions.
-    </p>
-  </div>
-</div>
 
 ---
 
-## Key Takeaways
+## Try it yourself: the Cheshire workflow you will repeat every part
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 48px 0;">
+Every feature shipped through this workshop starts the same way. A plain-English description goes into **Cheshire Cat → Issue Management → New Feature**. Cheshire converts it into an **RCTRO-formatted GitHub issue** with the relevant OWASP, STRIDE, and maintainability prompt packs embedded in the issue body, so whichever AI agent picks it up (Claude Code, Copilot Coding Agent) reads the full security playbook before writing a line.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="font-size: 36px; margin-bottom: 12px;">🎨</div>
-  <h3 style="color: #c4b5fd; margin-top: 0; font-size: 18px; font-weight: 700;">Vibe Coding Has Its Place</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Vibe coding is not inherently bad—it's appropriate for experimentation, learning new frameworks, and rapid prototyping. The danger comes when weekend projects become Monday's production systems without proper hardening.
-  </p>
-</div>
+We will deep-dive on the RCTRO format in Part 2. For Part 1, just see the **shape** of what Cheshire produces and make the **stage and tier decision** based on what you see.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #10b981; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="font-size: 36px; margin-bottom: 12px;">🏆</div>
-  <h3 style="color: #6ee7b7; margin-top: 0; font-size: 18px; font-weight: 700;">AI-Assisted is the Gold Standard</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    AI-Assisted Engineering is the proven approach for production systems requiring security and maintainability. Developer remains architect and editor, AI handles implementation within guardrails, and multiple quality gates ensure nothing slips through.
-  </p>
-</div>
+### The workflow
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #f59e0b; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="font-size: 36px; margin-bottom: 12px;">⚡</div>
-  <h3 style="color: #fcd34d; margin-top: 0; font-size: 18px; font-weight: 700;">Agentic Coding Requires Precision</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Agentic coding is powerful for well-defined, scoped tasks but requires careful task framing and mandatory verification. Give it a clear refactoring task and it excels. Ask it to architect your system and you'll regret it.
-  </p>
-</div>
+1. In VS Code, click the **Cheshire Cat** icon in the Activity Bar.
+2. Open **Issue Management → New Feature**.
+3. Paste the plain-English description.
+4. Cheshire detects applicable OWASP and STRIDE categories from the description and lets you confirm them.
+5. Click **Generate**. Cheshire writes the RCTRO and opens a real GitHub issue against your repo.
+6. **Read the RCTRO** before you decide what stage and tier are appropriate.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #3b82f6; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="font-size: 36px; margin-bottom: 12px;">📊</div>
-  <h3 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">The 70% Problem is Real</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    AI excels at generating scaffolding and boilerplate—the first 70%. Humans excel at hardening that code with security controls, domain expertise, and architectural decisions. This split isn't theoretical; it's observable in every AI-assisted project.
-  </p>
-</div>
+### Feature A. Add celebrity name search (walked through)
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #ef4444; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="font-size: 36px; margin-bottom: 12px;">🔒</div>
-  <h3 style="color: #fca5a5; margin-top: 0; font-size: 18px; font-weight: 700;">Security Requires Human Judgment</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Threat modeling, risk assessment, and domain expertise cannot be fully automated. AI can follow security patterns, but only humans can anticipate novel attack vectors and make context-aware security decisions.
-  </p>
-</div>
+**Plain English you would paste into Cheshire:**
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #06b6d4; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);">
-  <div style="font-size: 36px; margin-bottom: 12px;">🚀</div>
-  <h3 style="color: #67e8f9; margin-top: 0; font-size: 18px; font-weight: 700;">Your Role is Evolving</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    The developer's role is evolving from "code writer" to "AI code hardener" and "system architect." Your competitive advantage is judgment, not typing speed. Embrace the change or become obsolete.
-  </p>
-</div>
+> Add a `GET /search?q={query}` endpoint to the celeb-api that returns up to 20 celebrities whose name matches the query string. Called from the celeb-frontend.
 
-</div>
+**What Cheshire generates** (the RCTRO issue body. Collapsed for now, expand to peek.)
+
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Show the RCTRO issue Cheshire would produce</summary>
+
+```markdown
+## Role
+Senior backend engineer adding a query endpoint to the celeb-api.
+
+## Context
+- BAR: APP-IMDB-002 (celeb-api). Tier: Restricted (5/100). Stack: TypeScript / Express / PostgreSQL via `pg`.
+- Existing CALM flow: celeb-frontend → celeb-api → celeb-db (unchanged).
+- Applicable prompt packs: /docs/prompts/owasp/A03_injection, /docs/prompts/owasp/A01_broken_access_control.
+- Relevant fitness functions: complexity ≤10, coverage ≥80% on new code.
+
+## Task
+Implement `GET /search?q={query}` returning up to 20 celebrities whose name
+contains the query string.
+
+## Requirements
+- Parameterised queries only (pg `$1` placeholders). Never string concatenation.
+- Validate `q` with Zod: max 100 chars, allowlist regex `/^[a-zA-Z0-9 .\-']+$/`.
+- Generic error response on failure. No SQL, schema, or stack-trace leakage.
+- Hard-limit `LIMIT 20` in the query itself, not just in code.
+- Tests: valid search, empty query, SQL-injection payload, oversized payload, unicode payload.
+
+## Output
+- `src/routes/search.ts` (new route)
+- `src/validators/search.ts` (Zod schema)
+- `src/routes/__tests__/search.test.ts` (Jest tests)
+- No new runtime dependencies.
+- PR labelled `🤖 AI-assisted · A03 · A01`.
+```
+
+</details>
+
+**Your decision.** Given this RCTRO, what stage of work is this? What tier does the celeb-api need to be in to ship it?
+
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">✓ Check your work. Feature A.</summary>
+
+**Stage 2 (AI-Assisted).** The RCTRO is specific, the constraints are real (parameterised queries, Zod allowlist, hard `LIMIT 20`), and the security categories are named. This is exactly the work AI-Assisted mode is for. A human writes the contract, the AI fills it in, the human reviews every line.
+
+**Tier needed: Supervised (50–79) at minimum.** Search endpoints are an A03 injection surface. The Red Queen wants `validate_action` over MCP to confirm the new route respects the existing CALM flow before the PR can merge. Today the celeb-api is Restricted. We *cannot* ship this feature yet. The arc from Part 2 onward is what earns the score lift. **Do not ship until the tier matches the work.**
+
+</details>
+
+### Feature B. Rename `bio → biography` (your turn)
+
+**Plain English you would paste into Cheshire:**
+
+> Rename the JSON field `bio` to `biography` everywhere it appears in the celeb-api response and update the celeb-frontend to read the new field name. No new validation, no new attack surface. A pure renaming refactor.
+
+Now you do it. Open **Cheshire → Issue Management → New Feature**, paste the description, generate the RCTRO, read it, then decide stage and tier.
+
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">✓ Check your work. Feature B.</summary>
+
+The RCTRO Cheshire generates will have **no OWASP categories** (it is a rename, not new attack surface), a strong **test-coverage requirement** on changed contracts, and an acceptance criterion around **interface contract diff** (no breaking change to API consumers).
+
+**Stage 3 (Agentic)** is the right call. The work is mechanical, the success criteria are machine-checkable, and the diff can be verified by tooling (oasdiff once available in Phase 9). **Tier needed: Autonomous (80–100).** An Agentic rename in a Restricted-tier repo with patchy tests is how you ship a silent breaking change to your frontend. Today's celeb-api cannot ship this yet, and that is the correct answer.
+
+</details>
+
+### Feature C. Personal latency-graph sandbox (your turn)
+
+**Plain English you might paste into Cheshire:**
+
+> On my laptop, a tiny Node script that pings the celeb-api every 10 seconds and graphs p50/p95 latency in a terminal chart. Just for me. Not for the team, not for production.
+
+**Trick question.** Should you even use Cheshire for this one?
+
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">✓ Check your work. Feature C.</summary>
+
+**Do not use Cheshire.** This code is not governed by the celeb-api BAR. It is a personal sandbox with no users, no data, no production blast radius. **Stage 1 (Vibe)** on your own laptop is exactly right. Open a fresh terminal, prompt your editor's AI freely, ship it to nowhere.
+
+Knowing **when not to reach for the governance tooling** is part of Golden Rule 1. The Cheshire / Red Queen apparatus exists because production code needs a contract and a policy. A throwaway latency grapher needs neither.
+
+</details>
 
 ---
 
-## Next Steps
+## What you learned
 
-<div style="text-align: center; margin: 48px 0;">
-  <a href="./part2-security-prompting" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #f1f5f9; padding: 16px 48px; border-radius: 12px; text-decoration: none; font-size: 18px; font-weight: 700; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);">
-    Continue to Part 2: Security-First Prompting →
-  </a>
-  <div style="color: #94a3b8; font-size: 14px; margin-top: 16px;">
-    Learn to craft prompts that guide AI to generate secure code
-  </div>
-</div>
+- **The 70/30 problem evolved.** AI still handles 70% of the work, but the human 30% widened. Agents now act autonomously, so more boundaries have to exist before the first prompt.
+- **Six areas humans still own**, with named decisions: architecture and intent (CALM model, IntentSpec), threat modeling and governance design (STRIDE, open-redirect allowlist), domain judgment (cache invalidation choices, PII jurisdiction), ethics and compliance (PHI encryption, key rotation rollout, EU AI Act Article 14), trust calibration (break-glass override), systems thinking (blast radius, cross-repo impact).
+- **The maturity progression is a staircase, not a menu.** Vibe → AI-Assisted → Agentic. Each step requires more governance enforcement than the one before.
+- **A repository's autonomy tier is computed from its scorecard**, not chosen by a developer. Score travels with the code; the engineer cannot flip a Restricted repo to Autonomous to ship faster.
+- **The smell test is the honest self-check.** The right stage is the one the *work and the repo can both sustain*, not the one you feel most productive in.
+- **The IMDB Lite sample is real.** Looking Glass → Initialize Mesh → Create Sample Platform creates two BARs (`APP-IMDB-001`, `APP-IMDB-002`) with full CALM models. The `celeb-api` BAR you scaffolded is your scenario for Parts 2 through 8.
+- **The Cheshire workflow is the template** you will repeat every part: plain-English description → Cheshire generates an RCTRO → decide stage and tier → assign (or do not assign) an agent. We saw it once today; we run it for real in Part 3.
 
 ---
 
-**References**:
-- [Iasa - Engineering in the Agentic Age](https://github.com/AliceNN-ucdenver/Iasa/blob/main/workshop_intro.md)
-- [OWASP Top 10 (2021)](https://owasp.org/Top10/)
-- [Back to Workshop Overview](./index)
+## The Golden Rule for this part
+
+> **Rule 1. Choose the stage before you choose the prompt.**
+>
+> Stage and tier together set the bar for everything that follows. Get this wrong and no prompt pack, fitness function, or policy gate will save you from the wrong AI doing the wrong thing in the wrong repository.
+
+We will add one Golden Rule per part. By Part 8 you will have the full set.
+
+---
+
+## What is next: Part 2. Cheshire's Prompt Pack
+
+The celeb-api is open. The score is honest. Stage and tier are decided. The six areas where humans still own the work are named.
+
+Part 2 introduces the **contract language** we use to talk to the AI on a Restricted repo. We will tour `.cheshire/prompts/`, learn the **RCTRO** pattern (Role, Context, Task, Requirements, Output), and generate the first prompt pack against the celeb-api's biggest scorecard weakness: Code Security.
+
+[Continue to Part 2 →](/docs/workshop/part2-security-prompting)

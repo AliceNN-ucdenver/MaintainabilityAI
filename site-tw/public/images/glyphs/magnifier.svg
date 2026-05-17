@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Magnifier — threat modeling">
+  <title>Magnifying glass — looking for threats</title>
+  <defs>
+    <radialGradient id="mgGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#fcd34d" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#fcd34d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="url(#mgGlow)"/>
+  <!-- handle -->
+  <path d="M62 62 L86 86" stroke="#fbbf24" stroke-width="6" stroke-linecap="round"/>
+  <path d="M62 62 L86 86" stroke="#92400e" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+  <!-- lens -->
+  <circle cx="44" cy="44" r="22" fill="rgba(34,211,238,0.12)" stroke="#fde047" stroke-width="3"/>
+  <!-- target reticle inside lens -->
+  <line x1="44" y1="32" x2="44" y2="56" stroke="#fb7185" stroke-width="1" opacity=".6"/>
+  <line x1="32" y1="44" x2="56" y2="44" stroke="#fb7185" stroke-width="1" opacity=".6"/>
+  <circle cx="44" cy="44" r="6" fill="none" stroke="#fb7185" stroke-width="1.2" opacity=".7"/>
+  <!-- shine -->
+  <path d="M30 32 Q36 26 46 26" stroke="#fffbeb" stroke-width="2" fill="none" stroke-linecap="round" opacity=".75"/>
+</svg>

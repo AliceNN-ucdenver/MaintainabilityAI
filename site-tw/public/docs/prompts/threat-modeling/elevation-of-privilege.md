@@ -1,8 +1,14 @@
-# STRIDE: Elevation of Privilege — Threat Modeling Prompt Pack
+<div class="docs-hero docs-hero-amber">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/threat-modeling/">STRIDE</a><span class="sep">/</span><span>Elevation of privilege</span></div>
+    <div class="docs-eyebrow">STRIDE · Elevation of privilege <span class="docs-hero-meta">~7 min read</span></div>
+    <h1 class="docs-hero-title">Elevation of privilege</h1>
+    <p class="docs-hero-copy">is gaining unauthorized permissions beyond what should be allowed. This STRIDE category focuses on authorization failures where users bypass access controls to perform administrative actions, access restricted resources, or escalate their own privileges.</p>
+    <span class="docs-hero-flourish">Pawns shouldn&rsquo;t become Queens without crossing the board.</span>
+  </div>
+</div>
 
-> **Elevation of Privilege** is gaining unauthorized permissions beyond what should be allowed. This STRIDE category focuses on authorization failures where users bypass access controls to perform administrative actions, access restricted resources, or escalate their own privileges.
-
----
 
 ## 🎯 What is Elevation of Privilege?
 
@@ -28,13 +34,13 @@
 
 ## Prompt: Identify Elevation of Privilege Threats in Architecture
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Discover authorization bypass and privilege escalation risks across roles, endpoints, and file access</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Discover authorization bypass and privilege escalation risks across roles, endpoints, and file access</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security architect specializing in access control, authorization, and least privilege principles. Your task is to perform STRIDE threat modeling focusing on Elevation of Privilege (E) threats.
@@ -433,93 +439,93 @@ Additional controls:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 20px;">Before merging AI-generated Elevation of Privilege threat mitigation code, verify:</div>
+<div class="docs-heading">Before merging AI-generated Elevation of Privilege threat mitigation code, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Server-Side Authorization</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Server-Side Authorization</div>
+  <div class="docs-copy">
     ✓ Every endpoint performing privileged operations checks authorization server-side<br/>
     ✓ Never rely on client-side checks (hidden UI elements, disabled buttons) because attackers bypass UI entirely<br/>
     ✓ User's current role fetched from database on every request, not from JWT claims that can be manipulated<br/>
     ✓ Deny-by-default policies implemented where access must be explicitly granted<br/>
     ✓ Authorization checked after authentication but before executing any business logic<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt to call admin endpoints while logged in as regular user, modify JWT claims and verify they're ignored, check authorization enforced even when bypassing UI
+    <strong class="docs-strong">Test:</strong> Attempt to call admin endpoints while logged in as regular user, modify JWT claims and verify they're ignored, check authorization enforced even when bypassing UI
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 12px;">Role-Based Access Control (RBAC)</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Role-Based Access Control (RBAC)</div>
+  <div class="docs-copy">
     ✓ Clear role hierarchy implemented with well-defined permissions: guest (unauthenticated), user (basic access), moderator (content management), admin (user management), superadmin (system configuration)<br/>
     ✓ Roles stored in database as single source of truth<br/>
     ✓ Never allow users to modify their own role field<br/>
     ✓ Role inheritance implemented where appropriate (admin inherits user permissions)<br/>
     ✓ Middleware or decorators enforce role checks consistently across all endpoints<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Document all roles and their permissions, review database schema to ensure role field has appropriate constraints, verify role changes require admin approval
+    <strong class="docs-strong">Test:</strong> Document all roles and their permissions, review database schema to ensure role field has appropriate constraints, verify role changes require admin approval
   </div>
 </div>
 
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">Input Validation and Mass Assignment Prevention</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-amber">
+  <div class="docs-heading">Input Validation and Mass Assignment Prevention</div>
+  <div class="docs-copy">
     ✓ Explicit allowlists define which fields each role can modify<br/>
     ✓ Regular users never able to update role, is_admin, permissions, or similar security-critical fields<br/>
     ✓ Separate validation schemas created for different roles<br/>
     ✓ ORMs with field-level access control used or dynamic SQL built with only allowed columns<br/>
     ✓ All attempts to update restricted fields logged as potential attacks<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Submit requests with extra fields like role: admin and verify they're ignored or rejected, check database updates only touch explicitly allowed columns
+    <strong class="docs-strong">Test:</strong> Submit requests with extra fields like role: admin and verify they're ignored or rejected, check database updates only touch explicitly allowed columns
   </div>
 </div>
 
-<div style="background: rgba(139, 92, 246, 0.15); border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Resource Ownership and Horizontal Escalation Prevention</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Resource Ownership and Horizontal Escalation Prevention</div>
+  <div class="docs-copy">
     ✓ Ownership checks ensure users can only access their own resources<br/>
     ✓ For endpoints like /api/users/:userId/orders, verify req.user.id === userId or user has admin privileges<br/>
     ✓ Database queries use ownership filters: WHERE user_id = $1 AND id = $2<br/>
     ✓ Never expose sequential resource IDs (use UUIDs)<br/>
     ✓ ACLs implemented for resources shared between users<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Log in as User A, attempt to access User B's resources by changing IDs in URLs, verify all requests return 403 Forbidden
+    <strong class="docs-strong">Test:</strong> Log in as User A, attempt to access User B's resources by changing IDs in URLs, verify all requests return 403 Forbidden
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">File System and Path Validation</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">File System and Path Validation</div>
+  <div class="docs-copy">
     ✓ Never construct file paths using user-provided input directly<br/>
     ✓ Database-backed file identifiers (UUIDs) used that map to internal paths<br/>
     ✓ basename() applied to strip directory components<br/>
     ✓ Absolute paths resolved and verified they're within allowed directories<br/>
     ✓ Separate storage locations implemented for different sensitivity levels (public uploads, private documents, system configs)<br/>
     ✓ Object storage (S3) used instead of file system when possible<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Attempt path traversal with ../, ..%2F, and URL-encoded variants, verify all attempts blocked and logged
+    <strong class="docs-strong">Test:</strong> Attempt path traversal with ../, ..%2F, and URL-encoded variants, verify all attempts blocked and logged
   </div>
 </div>
 
-<div style="background: rgba(6, 182, 212, 0.15); border-left: 4px solid #06b6d4; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #67e8f9; margin-bottom: 12px;">Logging and Anomaly Detection</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-cyan">
+  <div class="docs-heading">Logging and Anomaly Detection</div>
+  <div class="docs-copy">
     ✓ All authorization failures logged with user ID, requested resource, required permission, and actual permission<br/>
     ✓ Monitoring for patterns indicating privilege escalation attempts: repeated 403 errors, access to many resources sequentially, profile updates with restricted fields<br/>
     ✓ Security teams alerted on suspicious activity<br/>
     ✓ Honeypot endpoints implemented that should never be accessed (trigger immediate alerts)<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Review authorization failure logs, verify sufficient context for investigation, test alerts fire when authorization fails repeatedly
+    <strong class="docs-strong">Test:</strong> Review authorization failure logs, verify sufficient context for investigation, test alerts fire when authorization fails repeatedly
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Least Privilege and Defense in Depth</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Least Privilege and Defense in Depth</div>
+  <div class="docs-copy">
     ✓ Users granted minimum permissions necessary for their role<br/>
     ✓ Multiple layers of authorization implemented: network level (firewall rules), application level (middleware), database level (row-level security)<br/>
     ✓ Separate database accounts with limited privileges used for different services<br/>
     ✓ Multi-factor authentication required for admin actions<br/>
     ✓ Approval workflows implemented for sensitive operations (user deletion, role changes)<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Audit all role permissions and remove unnecessary access, verify database users have minimal privileges (read-only where possible)
+    <strong class="docs-strong">Test:</strong> Audit all role permissions and remove unnecessary access, verify database users have minimal privileges (read-only where possible)
   </div>
 </div>
 

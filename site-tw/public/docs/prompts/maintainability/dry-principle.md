@@ -1,8 +1,14 @@
-# DRY Principle — Maintainability Prompt Pack
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/maintainability/">Maintainability</a><span class="sep">/</span><span>DRY principle</span></div>
+    <div class="docs-eyebrow">Maintainability · DRY <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">DRY principle</h1>
+    <p class="docs-hero-copy">is the principle that every piece of knowledge should have a single, authoritative representation in your codebase. Duplication creates maintenance burden—when you fix a bug or add a feature, you must remember to update all copies.</p>
+    <span class="docs-hero-flourish">&ldquo;Why is a raven like a writing desk?&rdquo; If duplication, refactor.</span>
+  </div>
+</div>
 
-> **Don't Repeat Yourself (DRY)** is the principle that every piece of knowledge should have a single, authoritative representation in your codebase. Duplication creates maintenance burden—when you fix a bug or add a feature, you must remember to update all copies.
-
----
 
 ## 🎯 What is the DRY Principle?
 
@@ -37,13 +43,13 @@
 
 ## Prompt 1: Detect Code Duplication
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Scans the codebase for exact, near, and structural code duplication violations</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Scans the codebase for exact, near, and structural code duplication violations</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a code quality engineer analyzing a codebase for violations of the DRY principle.
@@ -91,13 +97,13 @@ Provide a duplication report with:
 
 ## Prompt 2: Extract Reusable Functions
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Extracts duplicated code into a single reusable function with types and tests</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Extracts duplicated code into a single reusable function with types and tests</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a refactoring expert extracting duplicated code into reusable functions following the DRY principle.
@@ -172,13 +178,13 @@ Provide complete refactored code with:
 
 ## Prompt 3: Centralize Configuration and Constants
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Consolidates magic numbers, strings, and config values into a single constants module</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Consolidates magic numbers, strings, and config values into a single constants module</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a software engineer centralizing magic numbers, strings, and configuration to follow the DRY principle.
@@ -243,13 +249,13 @@ Provide refactored code with:
 
 ## Prompt 4: Abstract Common Patterns with Higher-Order Functions
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Wraps repeated structural patterns (try/catch, logging, caching) in reusable higher-order functions</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Wraps repeated structural patterns (try/catch, logging, caching) in reusable higher-order functions</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a functional programming expert abstracting repeated patterns using higher-order functions, decorators, and middleware.
@@ -328,56 +334,56 @@ Provide complete refactored code with:
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">After applying DRY refactoring, verify:</div>
+<div class="docs-heading">After applying DRY refactoring, verify:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Duplication Metrics</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Duplication Metrics</div>
+  <div class="docs-copy">
     ✓ Code duplication <3% (measured by SonarQube or jscpd)<br/>
     ✓ No blocks >6 lines duplicated >2 times<br/>
     ✓ No magic numbers in application code (only in config/)<br/>
     ✓ No copy-pasted validation logic<br/>
     ✓ No duplicated error handling patterns<br/>
-    <strong style="color: #94a3b8;">Test:</strong> run npx jscpd src/ and confirm duplication percentage is below 3%
+    <strong class="docs-strong">Test:</strong> run npx jscpd src/ and confirm duplication percentage is below 3%
   </div>
 </div>
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Centralization</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Centralization</div>
+  <div class="docs-copy">
     ✓ All constants in config/constants.ts<br/>
     ✓ Validation rules in centralized schemas<br/>
     ✓ Common utilities in utils/ or lib/<br/>
     ✓ Shared types in types/ or interfaces/<br/>
     ✓ Repeated patterns abstracted to higher-order functions<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Grep for hardcoded numbers and strings outside config/ and verify none remain
+    <strong class="docs-strong">Test:</strong> Grep for hardcoded numbers and strings outside config/ and verify none remain
   </div>
 </div>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Code Quality</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Code Quality</div>
+  <div class="docs-copy">
     ✓ Extracted functions have descriptive names<br/>
     ✓ JSDoc explains purpose and usage<br/>
     ✓ TypeScript types for all abstractions<br/>
     ✓ All existing tests pass<br/>
     ✓ New utility functions have unit tests<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Run full test suite and verify no regressions
+    <strong class="docs-strong">Test:</strong> Run full test suite and verify no regressions
   </div>
 </div>
 
-<div style="background: rgba(251, 146, 60, 0.15); border-left: 4px solid #fb923c; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Maintainability</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Maintainability</div>
+  <div class="docs-copy">
     ✓ Changes require updates in ONE place only<br/>
     ✓ No divergence between "similar" implementations<br/>
     ✓ Clear import paths for shared code<br/>
     ✓ Documentation explains when to use each utility<br/>
-    <strong style="color: #94a3b8;">Test:</strong> Change a constant value and verify it propagates correctly to all consumers
+    <strong class="docs-strong">Test:</strong> Change a constant value and verify it propagates correctly to all consumers
   </div>
 </div>
 

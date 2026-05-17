@@ -1,8 +1,14 @@
-# Identification and Authentication Failures — OWASP A07 Prompt Pack
+<div class="docs-hero docs-hero-rose">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Identification &amp; authentication failures</span></div>
+    <div class="docs-eyebrow">A07 · Authentication failures <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Identification &amp; authentication failures</h1>
+    <p class="docs-hero-copy">occurs when applications fail to properly authenticate users, manage sessions, or protect credentials. This includes weak password requirements, no brute force protection, session fixation, credential stuffing vulnerabilities, and missing multi-factor authentication.</p>
+    <span class="docs-hero-flourish">&ldquo;Who are <em>you</em>?&rdquo; &mdash; prove it cryptographically.</span>
+  </div>
+</div>
 
-> **OWASP A07: Identification and Authentication Failures** occurs when applications fail to properly authenticate users, manage sessions, or protect credentials. This includes weak password requirements, no brute force protection, session fixation, credential stuffing vulnerabilities, and missing multi-factor authentication.
-
----
 
 ## 🎯 What is A07?
 
@@ -25,19 +31,19 @@
 **Primary**: **Spoofing** (attackers impersonate legitimate users)
 **Secondary**: **Elevation of Privilege** (gaining admin access through authentication bypass), **Repudiation** (no audit trail for authentication events)
 
-See also: [STRIDE: Spoofing](/docs/prompts/stride/spoofing), [STRIDE: Elevation of Privilege](/docs/prompts/stride/elevation-of-privilege), and [STRIDE: Repudiation](/docs/prompts/stride/repudiation)
+See also: [STRIDE: Spoofing](/docs/prompts/threat-modeling/spoofing), [STRIDE: Elevation of Privilege](/docs/prompts/threat-modeling/elevation-of-privilege), and [STRIDE: Repudiation](/docs/prompts/threat-modeling/repudiation)
 
 ---
 
 ## Prompt 1: Analyze Code for Authentication Vulnerabilities
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Finds weak password storage, timing attacks, missing rate limiting, and session issues — returns prioritized findings</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Finds weak password storage, timing attacks, missing rate limiting, and session issues — returns prioritized findings</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security analyst specializing in identification and authentication failures (OWASP A07).
@@ -95,13 +101,13 @@ Provide a prioritized list of authentication vulnerabilities (Critical > High > 
 
 ## Prompt 2: Implement Secure Authentication
 
-<details style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; margin: 24px 0; border-left: 4px solid #10b981;">
-<summary style="padding: 20px 24px; cursor: pointer; list-style: none;">
-<span style="font-size: 16px; font-weight: 700; color: #86efac;">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
-<span style="font-size: 13px; color: #94a3b8;">Generates bcrypt hashing, rate limiting, account lockout, secure sessions, MFA, and test coverage</span>
+<details class="docs-details docs-card docs-card-emerald">
+<summary class="docs-details-summary">
+<span class="docs-copy">📋 Copy into Claude Code, Copilot, or ChatGPT</span><br/>
+<span class="docs-copy">Generates bcrypt hashing, rate limiting, account lockout, secure sessions, MFA, and test coverage</span>
 </summary>
 
-<div style="padding: 4px 24px 24px 24px;">
+<div>
 
 ```
 Role: You are a security engineer implementing comprehensive secure authentication for a web application (OWASP A07 remediation).
@@ -192,8 +198,8 @@ Provide complete, executable TypeScript code for:
 
 ## Example Output
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #fca5a5;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ❌ Before — Vulnerable Code
 </summary>
 
@@ -223,8 +229,8 @@ export function login(email: string, password: string): boolean {
 
 </details>
 
-<details style="margin: 16px 0;">
-<summary style="cursor: pointer; padding: 8px 0; font-size: 16px; font-weight: 700; color: #86efac;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">
 ✅ After — Secure Code
 </summary>
 
@@ -576,57 +582,57 @@ export function getSecureCookieOptions() {
 
 ## Human Review Checklist
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #ef4444;">
+<div class="docs-card docs-card-rose">
 
-<div style="font-size: 18px; font-weight: 700; color: #fca5a5; margin-bottom: 16px;">Before merging AI-generated authentication code:</div>
+<div class="docs-heading">Before merging AI-generated authentication code:</div>
 
-<div style="display: grid; gap: 12px;">
+<div class="docs-grid">
 
-<div style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Password Storage & Timing Safety</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">Password Storage & Timing Safety</div>
+  <div class="docs-copy">
     ✓ All passwords hashed with bcrypt, cost factor 12+<br/>
     ✓ Never plaintext, MD5, SHA-1, or SHA-256 for passwords<br/>
     ✓ bcrypt.compare() used — never == or === on passwords<br/>
     ✓ Failed lookups still hash to prevent timing-based user enumeration<br/>
     ✓ Passwords never logged or included in error messages<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> verify only bcrypt hashes stored; measure response time for wrong user vs wrong password (should match)
+    ✓ <strong class="docs-strong">Test:</strong> verify only bcrypt hashes stored; measure response time for wrong user vs wrong password (should match)
   </div>
 </div>
 
-<div style="background: rgba(249, 115, 22, 0.15); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Brute Force & Account Lockout</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Brute Force & Account Lockout</div>
+  <div class="docs-copy">
     ✓ IP-based rate limiting: 5 attempts per 15 minutes<br/>
     ✓ Per-account lockout after 5 consecutive failures, 15 min minimum<br/>
     ✓ Counter resets on successful login; auto-unlock after duration<br/>
     ✓ Generic "Invalid credentials" for all failure modes<br/>
     ✓ All lockouts and rate-limit hits logged as security events<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> 6 attempts from same IP verify blocked; 5 wrong passwords verify account locks
+    ✓ <strong class="docs-strong">Test:</strong> 6 attempts from same IP verify blocked; 5 wrong passwords verify account locks
   </div>
 </div>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Session Management & Cookies</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Session Management & Cookies</div>
+  <div class="docs-copy">
     ✓ Session IDs from crypto.randomBytes(32) — 256 bits entropy<br/>
     ✓ Idle timeout (30 min) and absolute timeout (24 hr) both enforced<br/>
     ✓ Session regenerated on login to prevent fixation<br/>
     ✓ Cookies: httpOnly, secure (prod), sameSite=strict<br/>
     ✓ Sessions stored server-side; deleted on logout<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> verify session expires after 30 min idle and 24 hr absolute; inspect cookie flags in DevTools
+    ✓ <strong class="docs-strong">Test:</strong> verify session expires after 30 min idle and 24 hr absolute; inspect cookie flags in DevTools
   </div>
 </div>
 
-<div style="background: rgba(220, 38, 38, 0.15); border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px;">
-  <div style="font-size: 15px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">MFA & Generic Errors</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-heading">MFA & Generic Errors</div>
+  <div class="docs-copy">
     ✓ TOTP with 32-byte secrets; QR code for authenticator setup<br/>
     ✓ MFA enforced for admin accounts<br/>
     ✓ All auth failures return identical "Invalid credentials" message<br/>
     ✓ Registration and password reset do not reveal if email exists<br/>
     ✓ All auth events logged: success, failure, lockout, MFA<br/>
-    ✓ <strong style="color: #94a3b8;">Test:</strong> enable MFA verify token works; login with wrong user, wrong password, locked account verify identical error
+    ✓ <strong class="docs-strong">Test:</strong> enable MFA verify token works; login with wrong user, wrong password, locked account verify identical error
   </div>
 </div>
 

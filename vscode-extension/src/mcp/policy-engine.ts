@@ -47,6 +47,13 @@ export interface EvaluationContext {
   description: string;
   sourceNode?: string;
   targetNode?: string;
+  /**
+   * Whether human approval has been recorded for this action. Mirrors the
+   * Layer 1 hook's `REDQUEEN_PLAN_APPROVED` env / `toolInput.redqueenApproved`
+   * signal. When false/undefined, tools listed under the tier's
+   * `requireApproval` policy will return a conditional (warning) verdict.
+   */
+  approved?: boolean;
   calmModel?: {
     nodes: CalmNode[];
     relationships: CalmRelationship[];
@@ -138,6 +145,18 @@ const DEFAULT_READ_ONLY_PATHS = [
   '.github/hooks/**',
 ];
 
+/**
+ * Canonical per-tier tool restrictions. Used by BOTH:
+ *   - generateStaticPolicy() to write .redqueen/policy.json for Layer 1 hooks
+ *   - evaluateTierRule() to evaluate via MCP validate_action (Layer 2)
+ * Keeping a single source ensures Layer 1 and Layer 2 verdicts agree.
+ */
+const TIER_TOOL_RESTRICTIONS: Record<GovernanceTier, { deny: string[]; requireApproval: string[] }> = {
+  restricted: { deny: ['Bash', 'Write'], requireApproval: ['Edit'] },
+  supervised: { deny: [], requireApproval: ['Bash'] },
+  autonomous: { deny: [], requireApproval: [] },
+};
+
 // ============================================================================
 // Path matching utility
 // ============================================================================
@@ -171,37 +190,43 @@ function matchesAnyPattern(filePath: string, patterns: string[]): boolean {
 // ============================================================================
 
 /**
- * TIER-001: Check if the tool is allowed for this governance tier.
+ * TIER-001/002/003/004: Check tool restrictions for the BAR's governance tier.
+ *
+ * Mirrors the Layer 1 hook in .redqueen/hooks/validate-tool.js, which reads the
+ * same restrictions from .redqueen/policy.json (produced by generateStaticPolicy
+ * below). Both layers honor:
+ *   - `deny`: hard denial regardless of approval
+ *   - `requireApproval`: denial unless ctx.approved === true (or equivalent
+ *     env/toolInput signal at the hook layer)
  */
 function evaluateTierRule(ctx: EvaluationContext): PolicyViolation | null {
   if (!ctx.toolName) { return null; }
 
-  if (ctx.tier === 'restricted') {
-    if (ctx.toolName === 'Bash') {
-      return {
-        ruleId: 'TIER-001',
-        category: 'tier',
-        severity: 'error',
-        message: `Tool "${ctx.toolName}" is denied for restricted-tier BARs. Composite score: ${ctx.compositeScore}/100.`,
-        details: 'Restricted BARs must plan first and get approval before executing shell commands.',
-      };
-    }
-    if (ctx.toolName === 'Write') {
-      return {
-        ruleId: 'TIER-002',
-        category: 'tier',
-        severity: 'error',
-        message: `Tool "${ctx.toolName}" is denied for restricted-tier BARs. Use Edit for targeted changes after approval.`,
-      };
-    }
+  const tierRules = TIER_TOOL_RESTRICTIONS[ctx.tier];
+  if (!tierRules) { return null; }
+
+  if (tierRules.deny.includes(ctx.toolName)) {
+    const ruleId = ctx.toolName === 'Bash' ? 'TIER-001'
+      : ctx.toolName === 'Write' ? 'TIER-002'
+      : 'TIER-004';
+    return {
+      ruleId,
+      category: 'tier',
+      severity: 'error',
+      message: `Tool "${ctx.toolName}" is denied for ${ctx.tier}-tier BARs. Composite score: ${ctx.compositeScore}/100.`,
+      details: ctx.tier === 'restricted'
+        ? 'Restricted BARs must plan first and get approval before executing.'
+        : `Improve governance scores to lift the BAR out of ${ctx.tier} tier before using ${ctx.toolName}.`,
+    };
   }
 
-  if (ctx.tier === 'supervised' && ctx.toolName === 'Bash') {
+  if (tierRules.requireApproval.includes(ctx.toolName) && !ctx.approved) {
     return {
       ruleId: 'TIER-003',
       category: 'tier',
       severity: 'warning',
-      message: `Shell commands in supervised-tier BARs should be reviewed. Consider using specific tools instead.`,
+      message: `Tool "${ctx.toolName}" requires recorded approval for ${ctx.tier}-tier BARs.`,
+      details: 'Set EvaluationContext.approved=true (or REDQUEEN_PLAN_APPROVED=true / toolInput.redqueenApproved=true at the hook layer) once a human has signed off on the plan.',
     };
   }
 
@@ -231,7 +256,17 @@ function evaluatePathRule(ctx: EvaluationContext): PolicyViolation | null {
 }
 
 /**
- * SEC-001: Check if the file is security-critical and the tier allows modification.
+ * SEC-001/002: Check if the file is security-critical and the tier allows modification.
+ *
+ * Intentional asymmetry with the Layer 1 hook:
+ *   - The hook (validate-tool.js) returns binary allow/deny and only ENFORCES on
+ *     restricted (silent-allow on supervised). That's correct for the hook's
+ *     purpose: block the unambiguously-bad fast, let the agent proceed otherwise.
+ *   - This Layer 2 evaluator can return CONDITIONAL verdicts. Supervised + a
+ *     security-critical path is allowed-with-warning so the agent learns to
+ *     route the change through human review even though the hook didn't block.
+ * Both layers agree on the hard call (restricted = deny). The supervised
+ * warning is additive signal only available through validate_action.
  */
 function evaluateSecurityRule(ctx: EvaluationContext): PolicyViolation | null {
   if (!ctx.filePath) { return null; }
@@ -533,11 +568,10 @@ export function generateStaticPolicy(
     tier,
     compositeScore: bar.compositeScore,
     rules: {
-      toolRestrictions: {
-        restricted: { deny: ['Bash', 'Write'], requireApproval: ['Edit'] },
-        supervised: { deny: [], requireApproval: ['Bash'] },
-        autonomous: { deny: [], requireApproval: [] },
-      },
+      // Sourced from the same constant as evaluateTierRule() above, so the
+      // Layer 1 hook (.redqueen/policy.json) and Layer 2 MCP validate_action
+      // never disagree on tier-based tool restrictions.
+      toolRestrictions: TIER_TOOL_RESTRICTIONS,
       securityCriticalPaths,
       readOnlyPaths,
       allowedConnections,

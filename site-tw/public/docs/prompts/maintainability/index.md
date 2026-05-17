@@ -1,89 +1,100 @@
-# Maintainability Prompt Packs — Evolutionary Architecture
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">Prompts</a><span class="sep">/</span><span>Maintainability</span></div>
+    <div class="docs-eyebrow">Prompt packs · Evolutionary architecture <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">Prompts for software that survives next year</h1>
+    <p class="docs-hero-copy">Fitness functions, dependency hygiene, complexity reduction, strangler refactors, and debt management &mdash; written as prompt packs so AI assistants keep systems evolvable, not just shippable.</p>
+    <span class="docs-hero-flourish">&ldquo;Run twice as fast to stay in the same place.&rdquo; Or write better prompts.</span>
+  </div>
+</div>
 
-> **Building software that lasts requires automated governance**. These prompt packs help you implement Evolutionary Architecture patterns using AI assistants — preventing architectural erosion through fitness functions, dependency hygiene, and systematic technical debt management.
+<div class="docs-card docs-card-emerald">
+  <div class="docs-copy"><strong>Where this fits:</strong> These packs keep AI-generated systems evolvable after the first secure implementation. The workshop introduces the first quality gates in <a href="/docs/workshop/part4-fitness-functions" class="markdown-link">Part 4</a>, and the SDLC feeds the results into <a href="/docs/sdlc/phase6-evolution" class="markdown-link">Phase 6: Evolution</a>.</div>
+</div>
 
 ---
 
 ## 🎯 Fitness Function Metrics Dashboard
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin: 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3); border: 1px solid rgba(99, 102, 241, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">📊</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Complexity</div>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-flex-block">
+    <div class="docs-icon">📊</div>
+    <div class="docs-card-kicker">Complexity</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">≤10</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 16px;">Cyclomatic complexity per function</div>
-  <div style="background: rgba(241, 245, 249, 0.2); border-radius: 8px; height: 8px; overflow: hidden;">
-    <div style="background: #818cf8; height: 100%; width: 100%; border-radius: 8px;"></div>
+  <div class="docs-heading">≤10</div>
+  <div class="docs-copy">Cyclomatic complexity per function</div>
+  <div class="docs-meter" aria-label="100 percent compliant">
+    <div class="docs-meter-fill docs-meter-fill-full docs-meter-fill-indigo"></div>
   </div>
-  <div style="color: #cbd5e1; font-size: 12px; margin-top: 8px;">✅ 100% functions compliant</div>
+  <div class="docs-copy">✅ 100% functions compliant</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3); border: 1px solid rgba(139, 92, 246, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">📦</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Dependencies</div>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-flex-block">
+    <div class="docs-icon">📦</div>
+    <div class="docs-card-kicker">Dependencies</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">≤90d</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 16px;">Dependency freshness rule</div>
-  <div style="background: rgba(241, 245, 249, 0.2); border-radius: 8px; height: 8px; overflow: hidden;">
-    <div style="background: #a78bfa; height: 100%; width: 85%; border-radius: 8px;"></div>
+  <div class="docs-heading">≤90d</div>
+  <div class="docs-copy">Dependency freshness rule</div>
+  <div class="docs-meter" aria-label="85 percent packages current">
+    <div class="docs-meter-fill docs-meter-fill-85 docs-meter-fill-amber"></div>
   </div>
-  <div style="color: #cbd5e1; font-size: 12px; margin-top: 8px;">⚠️ 85% packages current</div>
+  <div class="docs-copy">⚠️ 85% packages current</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3); border: 1px solid rgba(6, 182, 212, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">🧪</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Coverage</div>
+<div class="docs-card docs-card-cyan">
+  <div class="docs-flex-block">
+    <div class="docs-icon">🧪</div>
+    <div class="docs-card-kicker">Coverage</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">≥80%</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 16px;">Test coverage threshold</div>
-  <div style="background: rgba(241, 245, 249, 0.2); border-radius: 8px; height: 8px; overflow: hidden;">
-    <div style="background: #22d3ee; height: 100%; width: 92%; border-radius: 8px;"></div>
+  <div class="docs-heading">≥80%</div>
+  <div class="docs-copy">Test coverage threshold</div>
+  <div class="docs-meter" aria-label="92 percent coverage achieved">
+    <div class="docs-meter-fill docs-meter-fill-92 docs-meter-fill-cyan"></div>
   </div>
-  <div style="color: #cbd5e1; font-size: 12px; margin-top: 8px;">✅ 92% coverage achieved</div>
+  <div class="docs-copy">✅ 92% coverage achieved</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3); border: 1px solid rgba(20, 184, 166, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">⚡</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Performance</div>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-flex-block">
+    <div class="docs-icon">⚡</div>
+    <div class="docs-card-kicker">Performance</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">&lt;200ms</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 16px;">p95 latency threshold</div>
-  <div style="background: rgba(241, 245, 249, 0.2); border-radius: 8px; height: 8px; overflow: hidden;">
-    <div style="background: #5eead4; height: 100%; width: 78%; border-radius: 8px;"></div>
+  <div class="docs-heading">&lt;200ms</div>
+  <div class="docs-copy">p95 latency threshold</div>
+  <div class="docs-meter" aria-label="78 percent performance budget used">
+    <div class="docs-meter-fill docs-meter-fill-78 docs-meter-fill-emerald"></div>
   </div>
-  <div style="color: #cbd5e1; font-size: 12px; margin-top: 8px;">✅ 156ms average p95</div>
+  <div class="docs-copy">✅ 156ms average p95</div>
 </div>
 
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(15, 23, 42, 0.5); border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="text-align: center; color: #f1f5f9;">
-    <div style="font-size: 48px; margin-bottom: 16px;">🏆</div>
-    <div style="font-size: 28px; font-weight: 700; margin-bottom: 12px;">Architecture Health Score</div>
-    <div style="font-size: 72px; font-weight: 900; margin: 24px 0; background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">89%</div>
-    <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 24px;">Based on 4 fitness function metrics</div>
-    <div style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
+<div class="docs-card docs-card-muted">
+  <div class="docs-center-block">
+    <div class="docs-icon">🏆</div>
+    <div class="docs-heading">Architecture Health Score</div>
+    <div class="docs-card docs-card-indigo">89%</div>
+    <div class="docs-copy">Based on 4 fitness function metrics</div>
+    <div class="docs-flex-block">
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #818cf8;">157</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Functions Analyzed</div>
+        <div class="docs-heading">157</div>
+        <div class="docs-card-kicker">Functions Analyzed</div>
       </div>
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #a78bfa;">34</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Dependencies Tracked</div>
+        <div class="docs-heading">34</div>
+        <div class="docs-card-kicker">Dependencies Tracked</div>
       </div>
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #22d3ee;">2,847</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Lines Covered</div>
+        <div class="docs-heading">2,847</div>
+        <div class="docs-card-kicker">Lines Covered</div>
       </div>
       <div>
-        <div style="font-size: 24px; font-weight: 700; color: #5eead4;">12</div>
-        <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Endpoints Monitored</div>
+        <div class="docs-heading">12</div>
+        <div class="docs-card-kicker">Endpoints Monitored</div>
       </div>
     </div>
   </div>
@@ -93,7 +104,7 @@
 
 ## 🏗️ What is Evolutionary Architecture?
 
-<div style="background: rgba(99, 102, 241, 0.05); border-left: 4px solid #6366f1; padding: 24px; border-radius: 8px; margin: 24px 0;">
+<div class="docs-card docs-card-indigo">
 
 **Traditional approach**: Architecture degrades over time
 - ❌ Complexity increases unchecked
@@ -136,30 +147,30 @@
 
 ## 🎯 How to Use These Prompt Packs
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-compact">
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(99, 102, 241, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">1️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Choose Pattern</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Start with core principles (complexity, DRY, SRP) or evolutionary patterns (fitness functions, dependency hygiene)</div>
+<div class="docs-center-block">
+  <div class="docs-icon">1️⃣</div>
+  <div class="docs-heading">Choose Pattern</div>
+  <div class="docs-copy">Start with core principles (complexity, DRY, SRP) or evolutionary patterns (fitness functions, dependency hygiene)</div>
 </div>
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(139, 92, 246, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">2️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Customize Stack</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Adapt for Node/Python/Java with your specific tools</div>
+<div class="docs-center-block">
+  <div class="docs-icon">2️⃣</div>
+  <div class="docs-heading">Customize Stack</div>
+  <div class="docs-copy">Adapt for Node/Python/Java with your specific tools</div>
 </div>
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(6, 182, 212, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">3️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Implement with AI</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Use Claude, Copilot, or ChatGPT to generate code</div>
+<div class="docs-center-block">
+  <div class="docs-icon">3️⃣</div>
+  <div class="docs-heading">Implement with AI</div>
+  <div class="docs-copy">Use Claude, Copilot, or ChatGPT to generate code</div>
 </div>
 
-<div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); border-radius: 12px; color: #f1f5f9; border: 1px solid rgba(20, 184, 166, 0.3);">
-  <div style="font-size: 48px; margin-bottom: 12px;">4️⃣</div>
-  <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">Integrate CI/CD</div>
-  <div style="font-size: 14px; color: #cbd5e1;">Start in warning mode, establish baselines, then block merges</div>
+<div class="docs-center-block">
+  <div class="docs-icon">4️⃣</div>
+  <div class="docs-heading">Integrate CI/CD</div>
+  <div class="docs-copy">Start in warning mode, establish baselines, then block merges</div>
 </div>
 
 </div>
@@ -168,25 +179,10 @@
 
 ## 🔄 Evolutionary Architecture Workflow
 
-```mermaid
-flowchart TD
-    A[Feature Request] --> B[Design with Constraints]
-    B --> C[Implement with AI]
-    C --> D[Fitness Functions]
-    D -->|Pass| E[Human Review]
-    D -->|Fail| F[Refactor]
-    F --> D
-    E --> G[Merge & Deploy]
-    G --> H[Monitor Metrics]
-    H --> I[Update Baselines]
-    I --> B
-
-    style A fill:#e0e7ff,stroke:#6366f1,color:#1e40af
-    style D fill:#fef3c7,stroke:#f59e0b,color:#92400e
-    style E fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-    style F fill:#fecaca,stroke:#ef4444,color:#991b1b
-    style G fill:#d1fae5,stroke:#10b981,color:#065f46
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/maintainability-evolution-loop.svg" alt="Maintainability loop from feature request through constraints, AI implementation, fitness functions, human review, deployment, monitoring, and baseline updates." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">Fitness functions make evolutionary architecture executable rather than aspirational.</figcaption>
+</figure>
 
 **Key Stages**:
 1. **Design with Constraints**: Define quality thresholds upfront
@@ -235,11 +231,11 @@ flowchart TD
 
 ---
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 40px; text-align: center; color: #f1f5f9; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 56px; margin-bottom: 16px;">🚀</div>
-  <div style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">Ready to Prevent Architectural Erosion?</div>
-  <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Pick a prompt pack above and start implementing automated governance in your CI/CD pipeline. Remember: <strong style="color: #818cf8;">Architecture is not a phase, it's continuous validation.</strong></div>
-  <a href="./fitness-functions" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+<div class="docs-center-block">
+  <div class="docs-icon">🚀</div>
+  <div class="docs-heading">Ready to Prevent Architectural Erosion?</div>
+  <div class="docs-copy">Pick a prompt pack above and start implementing automated governance in your CI/CD pipeline. Remember: <strong class="docs-strong">Architecture is not a phase, it's continuous validation.</strong></div>
+  <a href="./fitness-functions" class="docs-button-secondary">
     Start with Fitness Functions →
   </a>
 </div>

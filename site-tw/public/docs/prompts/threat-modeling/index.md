@@ -1,51 +1,62 @@
-# STRIDE Threat Modeling — AI-Powered Security Design
+<div class="docs-hero docs-hero-amber">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">Prompts</a><span class="sep">/</span><span>STRIDE</span></div>
+    <div class="docs-eyebrow">Prompt packs · STRIDE <span class="docs-hero-meta">~4 min read</span></div>
+    <h1 class="docs-hero-title">Looking for threats before they look for you</h1>
+    <p class="docs-hero-copy">Six categories &mdash; Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege &mdash; turned into AI prompts your designers can run before the first commit.</p>
+    <span class="docs-hero-flourish">&ldquo;If you don&rsquo;t know where you&rsquo;re going, every road leads to a breach.&rdquo;</span>
+  </div>
+</div>
 
-> **Threat modeling is security design done right**. STRIDE helps you systematically identify threats before writing code. When combined with AI assistants, threat modeling becomes accessible to every developer — not just security specialists.
+<div class="docs-card docs-card-orange">
+  <div class="docs-copy"><strong>Where this fits:</strong> STRIDE is the design entry point. Use it in <a href="/docs/sdlc/phase1-design" class="markdown-link">SDLC Phase 1</a> to identify threats, then map those threats to <a href="/docs/prompts/owasp/" class="markdown-link">OWASP prompt packs</a> before implementation.</div>
+</div>
 
 ---
 
 ## 🎯 Threat Detection Success Metrics
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-compact">
 
-<div style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); border: 1px solid rgba(239, 68, 68, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">🎯</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Threats Found</div>
+<div class="docs-card docs-card-rose">
+  <div class="docs-flex-block">
+    <div class="docs-icon">🎯</div>
+    <div class="docs-card-kicker">Threats Found</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">93%</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Before code is written</div>
-  <div style="color: #fca5a5; font-size: 12px;">AI-assisted threat modeling</div>
+  <div class="docs-heading">93%</div>
+  <div class="docs-copy">Before code is written</div>
+  <div class="docs-copy">AI-assisted threat modeling</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(234, 88, 12, 0.3); border: 1px solid rgba(249, 115, 22, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">⚡</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Time Saved</div>
+<div class="docs-card docs-card-orange">
+  <div class="docs-flex-block">
+    <div class="docs-icon">⚡</div>
+    <div class="docs-card-kicker">Time Saved</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">4hrs</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Per feature threat model</div>
-  <div style="color: #fdba74; font-size: 12px;">5min with AI vs 4h manual</div>
+  <div class="docs-heading">4hrs</div>
+  <div class="docs-copy">Per feature threat model</div>
+  <div class="docs-copy">5min with AI vs 4h manual</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(202, 138, 4, 0.3); border: 1px solid rgba(234, 179, 8, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">🛡️</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Coverage</div>
+<div class="docs-card docs-card-amber">
+  <div class="docs-flex-block">
+    <div class="docs-icon">🛡️</div>
+    <div class="docs-card-kicker">Coverage</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">6/6</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">STRIDE categories analyzed</div>
-  <div style="color: #fde047; font-size: 12px;">Complete threat coverage</div>
+  <div class="docs-heading">6/6</div>
+  <div class="docs-copy">STRIDE categories analyzed</div>
+  <div class="docs-copy">Complete threat coverage</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(22, 163, 74, 0.3); border: 1px solid rgba(34, 197, 94, 0.3);">
-  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-    <div style="font-size: 32px;">📋</div>
-    <div style="color: #f1f5f9; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">OWASP Mapped</div>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-flex-block">
+    <div class="docs-icon">📋</div>
+    <div class="docs-card-kicker">OWASP Mapped</div>
   </div>
-  <div style="color: #f1f5f9; font-size: 40px; font-weight: 700; margin-bottom: 8px;">100%</div>
-  <div style="color: #cbd5e1; font-size: 14px; margin-bottom: 8px;">Threats map to OWASP</div>
-  <div style="color: #86efac; font-size: 12px;">Auto-linked to prompt packs</div>
+  <div class="docs-heading">100%</div>
+  <div class="docs-copy">Threats map to OWASP</div>
+  <div class="docs-copy">Auto-linked to prompt packs</div>
 </div>
 
 </div>
@@ -54,27 +65,17 @@
 
 ## 🎯 Threat Modeling Process Overview
 
-```mermaid
-flowchart LR
-    A[Design Feature] --> B[Create Architecture Diagram]
-    B --> C[Apply STRIDE Analysis]
-    C --> D[Identify Threats]
-    D --> E[Map to OWASP]
-    E --> F[Generate Mitigations]
-    F --> G[Implement with AI]
+<figure class="docs-visual">
+  <img src="/images/diagrams/stride-threat-modeling.svg" alt="STRIDE workflow from feature design through architecture diagram, threat analysis, OWASP mapping, mitigations, and AI implementation." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">STRIDE gives AI-assisted threat modeling a repeatable path from architecture to mitigation.</figcaption>
+</figure>
 
-    style A fill:#4f46e5,stroke:#6366f1,color:#f1f5f9
-    style C fill:#dc2626,stroke:#ef4444,color:#f1f5f9
-    style E fill:#ea580c,stroke:#f97316,color:#f1f5f9
-    style G fill:#059669,stroke:#10b981,color:#f1f5f9
-```
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(15, 23, 42, 0.5); border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="text-align: center; color: #f1f5f9;">
-    <div style="font-size: 48px; margin-bottom: 16px;">💡</div>
-    <div style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">Why Threat Model with AI?</div>
-    <div style="font-size: 15px; color: #cbd5e1; line-height: 1.7; max-width: 700px; margin: 0 auto;">
-      Traditional threat modeling requires security expertise and takes hours. With AI assistants like ChatGPT or Claude, you can generate comprehensive threat models in minutes. The AI knows STRIDE, understands common attack patterns, and can map threats to OWASP categories automatically. <strong style="color: #818cf8;">You provide the architecture, AI provides the security thinking.</strong>
+<div class="docs-card docs-card-muted">
+  <div class="docs-center-block">
+    <div class="docs-icon">💡</div>
+    <div class="docs-heading">Why Threat Model with AI?</div>
+    <div class="docs-copy">
+      Traditional threat modeling requires security expertise and takes hours. With AI assistants like ChatGPT or Claude, you can generate comprehensive threat models in minutes. The AI knows STRIDE, understands common attack patterns, and can map threats to OWASP categories automatically. <strong class="docs-strong">You provide the architecture, AI provides the security thinking.</strong>
     </div>
   </div>
 </div>
@@ -104,55 +105,43 @@ Here's how to use AI to analyze an architecture and identify threats using STRID
 
 ### Sample Architecture: E-commerce Checkout
 
-```mermaid
-flowchart TB
-    User([User Browser]) -->|HTTPS| LB[Load Balancer]
-    LB --> API[API Server]
-    API -->|Query| DB[(Database)]
-    API -->|Charge| Payment[Payment Gateway]
-    API -->|Send| Email[Email Service]
-
-    API -->|Log| Logs[(Log Storage)]
-    API -->|Cache| Redis[(Redis Cache)]
-
-    style User fill:#4f46e5,stroke:#6366f1,color:#f1f5f9
-    style API fill:#dc2626,stroke:#ef4444,color:#f1f5f9
-    style DB fill:#ea580c,stroke:#f97316,color:#f1f5f9
-    style Payment fill:#059669,stroke:#10b981,color:#f1f5f9
-```
+<figure class="docs-visual">
+  <img src="/images/diagrams/checkout-architecture.svg" alt="E-commerce checkout architecture with browser, load balancer, API server, database, payment, email, logs, and cache." class="docs-visual-image" />
+  <figcaption class="docs-visual-caption">A clear architecture picture gives threat modeling enough context to be useful.</figcaption>
+</figure>
 
 ### Threats Identified by AI (STRIDE Analysis)
 
-<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <div style="font-weight: 700; color: #dc2626; margin-bottom: 12px;">🎭 Spoofing: Session Hijacking at Load Balancer</div>
-  <div style="color: #475569; font-size: 14px; line-height: 1.7;">
+<div class="docs-card docs-card-rose">
+  <div class="docs-heading">🎭 Spoofing: Session Hijacking at Load Balancer</div>
+  <div class="docs-muted">
     <strong>Threat:</strong> If HTTPS is terminated at load balancer and backend uses HTTP, attacker on internal network can intercept session tokens.<br/>
     <strong>Mitigation:</strong> Use end-to-end TLS. Implement mutual TLS between LB and API. Use secure, HttpOnly, SameSite cookies.<br/>
     <strong>OWASP:</strong> <a href="/docs/prompts/owasp/A07_authn_failures">A07 - Authentication Failures</a>
   </div>
 </div>
 
-<div style="background: rgba(234, 88, 12, 0.1); border-left: 4px solid #ea580c; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <div style="font-weight: 700; color: #ea580c; margin-bottom: 12px;">✏️ Tampering: Price Manipulation in Checkout</div>
-  <div style="color: #475569; font-size: 14px; line-height: 1.7;">
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">✏️ Tampering: Price Manipulation in Checkout</div>
+  <div class="docs-muted">
     <strong>Threat:</strong> If client sends product price to API, attacker can modify price parameter to pay $1 for $1000 product.<br/>
     <strong>Mitigation:</strong> Server-side price lookup from database. Validate cart total independently. Sign cart contents.<br/>
     <strong>OWASP:</strong> <a href="/docs/prompts/owasp/A04_insecure_design">A04 - Insecure Design</a>
   </div>
 </div>
 
-<div style="background: rgba(14, 165, 233, 0.1); border-left: 4px solid #0ea5e9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <div style="font-weight: 700; color: #0ea5e9; margin-bottom: 12px;">🔓 Information Disclosure: Payment Token Exposure</div>
-  <div style="color: #475569; font-size: 14px; line-height: 1.7;">
+<div class="docs-card docs-card-cyan">
+  <div class="docs-heading">🔓 Information Disclosure: Payment Token Exposure</div>
+  <div class="docs-muted">
     <strong>Threat:</strong> If payment gateway tokens are logged or cached in Redis, sensitive card data could be exposed.<br/>
     <strong>Mitigation:</strong> Never log payment tokens. Use tokenization. Set short TTL on cached payment data. Encrypt sensitive cache values.<br/>
     <strong>OWASP:</strong> <a href="/docs/prompts/owasp/A02_crypto_failures">A02 - Cryptographic Failures</a>
   </div>
 </div>
 
-<div style="background: rgba(124, 58, 237, 0.1); border-left: 4px solid #7c3aed; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <div style="font-weight: 700; color: #7c3aed; margin-bottom: 12px;">💥 Denial of Service: Email Service Overload</div>
-  <div style="color: #475569; font-size: 14px; line-height: 1.7;">
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">💥 Denial of Service: Email Service Overload</div>
+  <div class="docs-muted">
     <strong>Threat:</strong> Attacker places 1000 orders with fake payment, causing email service to exhaust rate limits and block legitimate emails.<br/>
     <strong>Mitigation:</strong> Rate limit orders per user. Verify payment before sending email. Use queue with circuit breaker for email service.<br/>
     <strong>OWASP:</strong> <a href="/docs/prompts/owasp/A04_insecure_design">A04 - Insecure Design</a>
@@ -202,15 +191,15 @@ STRIDE identifies *what* can go wrong. OWASP provides *how* to fix it:
 
 ---
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 40px; text-align: center; color: #f1f5f9; margin: 40px 0; border: 1px solid rgba(100, 116, 139, 0.3);">
-  <div style="font-size: 56px; margin-bottom: 16px;">🚀</div>
-  <div style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">Ready to Threat Model with AI?</div>
-  <div style="font-size: 16px; color: #cbd5e1; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">Pick a STRIDE category above and start generating threat models with ChatGPT or Claude. Remember: <strong style="color: #dc2626;">Threat modeling is security design done right.</strong></div>
-  <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-    <a href="./spoofing" style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+<div class="docs-center-block">
+  <div class="docs-icon">🚀</div>
+  <div class="docs-heading">Ready to Threat Model with AI?</div>
+  <div class="docs-copy">Pick a STRIDE category above and start generating threat models with ChatGPT or Claude. Remember: <strong class="docs-strong">Threat modeling is security design done right.</strong></div>
+  <div class="docs-flex-block">
+    <a href="./spoofing" class="docs-button-secondary">
       Start with Spoofing →
     </a>
-    <a href="/docs/framework" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #f1f5f9; padding: 16px 32px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+    <a href="/docs/framework" class="docs-button-secondary">
       View Full Framework →
     </a>
   </div>

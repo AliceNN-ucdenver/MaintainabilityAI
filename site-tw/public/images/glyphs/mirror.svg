@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Looking Glass — architecture">
+  <title>Looking Glass — architecture awareness</title>
+  <defs>
+    <radialGradient id="mirGlow" cx="50%" cy="40%" r="55%">
+      <stop offset="0" stop-color="#93c5fd" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#93c5fd" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mirGlass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#0b1224" stop-opacity=".9"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="url(#mirGlow)"/>
+  <!-- handle -->
+  <path d="M64 64 L86 86" stroke="#a5f3fc" stroke-width="5" stroke-linecap="round"/>
+  <path d="M64 64 L86 86" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+  <!-- frame -->
+  <circle cx="42" cy="42" r="28" fill="url(#mirGlass)" stroke="#a5f3fc" stroke-width="3"/>
+  <!-- glass reflection highlight -->
+  <path d="M26 32 Q34 24 46 22" stroke="#67e8f9" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>
+  <!-- small "A" reflection (Alice) -->
+  <text x="42" y="48" text-anchor="middle" font-family="serif" font-size="16" font-style="italic" font-weight="700" fill="#cbd5e1" opacity=".5">A</text>
+</svg>

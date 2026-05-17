@@ -1,8 +1,13 @@
-# GitHub Copilot — In-Editor Guide
-
-> <span style="display: inline-block; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">In-Editor</span> Human-in-the-loop, IDE-integrated
->
-> Looking for the autonomous GitHub agent? See [Copilot Coding Agent](/docs/agents/copilot-coding-agent).
+<div class="docs-hero docs-hero-blue">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/cat.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>GitHub Copilot</span></div>
+    <div class="docs-eyebrow">In-editor · human-in-the-loop <span class="docs-hero-meta">~3 min read</span></div>
+    <h1 class="docs-hero-title">GitHub Copilot &mdash; in-editor code generation</h1>
+    <p class="docs-hero-copy">Real-time IDE completion with #codebase context and #file references that pull in OWASP prompt packs. Best at fast iteration on single functions with security constraints in the prompt. Looking for the autonomous GitHub agent? See <a href="/docs/agents/copilot-coding-agent" class="markdown-link">Copilot Coding Agent</a>.</p>
+    <span class="docs-hero-flourish">The Cheshire grin: half code, half guard&mdash;always smiling.</span>
+  </div>
+</div>
 
 GitHub Copilot excels at **fast, in-editor code generation** with security constraints. Use #codebase context for repo-aware suggestions and #file references for OWASP prompt packs.
 
@@ -10,11 +15,11 @@ GitHub Copilot excels at **fast, in-editor code generation** with security const
 
 ## Quick Start
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+<div class="docs-card docs-card-emerald">
 
 **Paste into Copilot Chat to get security-aware suggestions:**
 
-<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 20px; margin-top: 16px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a security-focused developer implementing authentication middleware.
 
@@ -46,9 +51,9 @@ Middleware function + brief explanation of each security control.
 
 ### 1. Reference OWASP Prompts Directly
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #6366f1;">
+<div class="docs-card docs-card-indigo">
 
-<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 **Role:** You are a security engineer fixing injection vulnerabilities.
 
@@ -68,15 +73,15 @@ Refactored function + explanation of each change.
 
 </div>
 
-<p style="color: #94a3b8; font-size: 13px; margin: 16px 0 0 0;">This gives Copilot explicit security constraints via #file references and ensures OWASP compliance.</p>
+<p class="docs-copy">This gives Copilot explicit security constraints via #file references and ensures OWASP compliance.</p>
 
 </div>
 
 ### 2. Use Workspace Agent for Architecture Decisions
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #8b5cf6;">
+<div class="docs-card docs-card-indigo">
 
-<div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7;">
+<div class="docs-card docs-card-muted">
 
 @workspace Review the codebase and identify:
 1. Functions with cyclomatic complexity > 10
@@ -93,17 +98,17 @@ Reference: /docs/maintainability/fitness-functions.md
 
 Guide Copilot's inline suggestions with structured security comments:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+<div class="docs-card docs-card-amber">
 
-<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 20px; font-size: 14px; color: #e2e8f0; line-height: 1.7; font-family: monospace;">
+<div class="docs-card docs-card-muted">
 
-<span style="color: #6b7280;">// SECURITY: OWASP A01 - Implement RBAC authorization check</span><br/>
-<span style="color: #6b7280;">// - Verify user is authenticated</span><br/>
-<span style="color: #6b7280;">// - Check requester owns resource OR has admin role</span><br/>
-<span style="color: #6b7280;">// - Log authorization failures</span><br/>
-<span style="color: #6b7280;">// - Return generic error (no info leakage)</span><br/>
-<span style="color: #c084fc;">export function</span> <span style="color: #67e8f9;">getUserDocument</span>(requester: User, ownerId: string) {<br/>
-&nbsp;&nbsp;<span style="color: #6b7280;">// Copilot generates secure implementation from these comments</span><br/>
+<span class="docs-copy">// SECURITY: OWASP A01 - Implement RBAC authorization check</span><br/>
+<span class="docs-copy">// - Verify user is authenticated</span><br/>
+<span class="docs-copy">// - Check requester owns resource OR has admin role</span><br/>
+<span class="docs-copy">// - Log authorization failures</span><br/>
+<span class="docs-copy">// - Return generic error (no info leakage)</span><br/>
+<span class="docs-copy">export function</span> <span class="docs-copy">getUserDocument</span>(requester: User, ownerId: string) {<br/>
+&nbsp;&nbsp;<span class="docs-copy">// Copilot generates secure implementation from these comments</span><br/>
 }
 
 </div>
@@ -113,22 +118,22 @@ Guide Copilot's inline suggestions with structured security comments:
 
 ## Best Practices
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 24px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">1. Be Explicit About Security</h3>
-<p style="color: #f87171; font-size: 13px; margin: 8px 0 4px 0;">Don't say: "Add authentication to the API"</p>
-<p style="color: #4ade80; font-size: 13px; margin: 4px 0 12px 0;">Do say: "#file:/docs/prompts/owasp/A07_authn_failures — Implement authentication middleware with bcrypt (cost 12), rate limiting (5 attempts/15min), secure session cookies (httpOnly, secure, sameSite), generic error messages."</p>
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">1. Be Explicit About Security</h3>
+<p class="docs-copy">Don't say: "Add authentication to the API"</p>
+<p class="docs-copy">Do say: "#file:/docs/prompts/owasp/A07_authn_failures — Implement authentication middleware with bcrypt (cost 12), rate limiting (5 attempts/15min), secure session cookies (httpOnly, secure, sameSite), generic error messages."</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">2. Reference Existing Patterns</h3>
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">Use #file references to your OWASP examples: "#file:/examples/owasp/A01\_broken\_access\_control/ — Use this authorization pattern to protect the new /api/reports endpoint. Ensure ownership checks prevent IDOR attacks."</p>
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">2. Reference Existing Patterns</h3>
+<p class="docs-copy">Use #file references to your OWASP examples: "#file:/examples/owasp/A01\_broken\_access\_control/ — Use this authorization pattern to protect the new /api/reports endpoint. Ensure ownership checks prevent IDOR attacks."</p>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border: 1px solid #334155;">
-<h3 style="color: #10b981; margin-top: 0; font-size: 16px; font-weight: 700;">3. Always Generate Tests</h3>
-<p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0;">After generating code, ask for tests that verify: authorized users can access (200), unauthorized users are blocked (403), invalid tokens are rejected (401), and IDOR attempts are logged and denied.</p>
+<div class="docs-card docs-card-muted">
+<h3 class="docs-heading">3. Always Generate Tests</h3>
+<p class="docs-copy">After generating code, ask for tests that verify: authorized users can access (200), unauthorized users are blocked (403), invalid tokens are rejected (401), and IDOR attempts are logged and denied.</p>
 </div>
 
 </div>
@@ -137,7 +142,7 @@ Guide Copilot's inline suggestions with structured security comments:
 
 ## Golden Rules Integration
 
-Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Copilot:
+Apply the [Golden Rules](/docs/governance/governed-golden-rules) with Copilot:
 
 | Rule | Application |
 |------|-------------|
@@ -152,7 +157,7 @@ Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Copilot:
 
 ## Example: Complete A03 Injection Fix
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #334155;">
+<div class="docs-card docs-card-muted">
 
 | Step | Action | Details |
 |------|--------|---------|
@@ -168,5 +173,5 @@ Apply the [Golden Rules](/docs/governance/vibe-golden-rules) with Copilot:
 ## Further Reading
 
 - [OWASP Prompt Packs](/docs/prompts/owasp/) — Security requirements for all categories
-- [Golden Rules](/docs/governance/vibe-golden-rules) — Governance principles
+- [Golden Rules](/docs/governance/governed-golden-rules) — Governance principles
 - [Copilot Coding Agent Guide](/docs/agents/copilot-coding-agent) — Autonomous agent version

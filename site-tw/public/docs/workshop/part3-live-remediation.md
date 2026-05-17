@@ -1,798 +1,327 @@
-# Part 3: Live Remediation Exercise
+# Part 3: Alice Remediates
 
-<div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4); border: 1px solid rgba(248, 113, 113, 0.3);">
-  <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-    <div style="background: rgba(255, 255, 255, 0.2); border-radius: 16px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 40px;">3</div>
-    <div>
-      <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Part 3: Live Remediation</h2>
-      <div style="font-size: 15px; color: #fecaca; margin-top: 8px;">Hands-On SQL Injection Fix</div>
-    </div>
+<div class="docs-workshop-hero docs-workshop-emerald">
+  <div class="docs-workshop-number">3</div>
+  <div>
+    <div class="docs-card-kicker">Workshop Part 3 · Alice Remediates</div>
+    <h2 class="docs-workshop-title">Alice Remediates</h2>
+    <p class="docs-workshop-subtitle">Live A03 SQL Injection Fix. CodeQL → Cheshire → Agent → Review → Merge.</p>
   </div>
-  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
-    <div style="color: #fecaca; font-size: 15px; line-height: 1.7;">
-      <strong style="color: #f1f5f9;">Duration:</strong> 90 minutes<br/>
-      <strong style="color: #f1f5f9;">Learning Objective:</strong> Walk through remediating a real SQL injection vulnerability using Claude Code and security-first prompting techniques from Parts 1 and 2.
-    </div>
+  <div class="docs-workshop-meta">
+    <strong class="docs-strong">Duration:</strong> 90 minutes<br/>
+    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part2-security-prompting" class="markdown-link">Part 2 complete</a>. You have the RCTRO pattern, the three pack families, and a celeb-api with scaffolded workflows.<br/>
+    <strong class="docs-strong">SDLC phase:</strong> Phase 2 (Implementation) + Phase 3 (Verification).<br/>
+    <strong class="docs-strong">Status:</strong> Available now
   </div>
 </div>
 
-<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin: 24px 0;">
-  <div style="font-weight: 700; color: #fca5a5; margin-bottom: 12px; font-size: 15px;">Tools Required</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.9;">
-    ✓ VS Code with Claude Code extension installed<br/>
-    ✓ Node.js 18+ and npm<br/>
-    ✓ Git<br/>
-    ✓ This repository cloned locally
-  </div>
-</div>
+> Part 3 is the live class. The celeb-api goes to GitHub. CodeQL fires. Cheshire enriches the A03 SQL injection issue. You comment `@claude please remediate`. The agent opens a draft PR. **The next 60 minutes are about being a good reviewer.** Reading the diff line-by-line against the RCTRO Requirements, running the tests, deciding whether to approve or request changes, then merging with the AI disclosure footer. By the end the celeb-api scorecard moves from 5 to roughly 15.
 
 ---
 
-## The Live Remediation Workflow
+## What you will have built when you leave
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border-left: 4px solid #ef4444;">
-  <p style="color: #cbd5e1; font-size: 17px; line-height: 1.8; margin: 0 0 20px 0;">
-    The most valuable skill in security-first AI development isn't writing code—it's the ability to <strong style="color: #f1f5f9;">identify vulnerabilities, translate threat models into AI prompts, and validate that fixes actually work</strong>. This is where theory meets practice. You're not just learning patterns; you're building muscle memory for the complete remediation workflow that you'll use every day in production engineering.
-  </p>
-  <div style="background: rgba(239, 68, 68, 0.15); border-left: 3px solid #ef4444; border-radius: 8px; padding: 20px; margin-top: 20px;">
-    <p style="color: #e2e8f0; font-size: 16px; line-height: 1.8; margin: 0;">
-      This exercise takes you through fixing a <strong style="color: #fca5a5;">real SQL injection vulnerability</strong> using the exact workflow you'd use on a production system. You'll analyze vulnerable code, craft a security-first prompt, review AI-generated fixes, verify with automated tests, conduct human review, and commit with proper labeling. By the end, you'll understand the <strong style="color: #fcd34d;">complete end-to-end process</strong> that separates secure AI-assisted development from wishful thinking.
-    </p>
-  </div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin: 32px 0;">
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #22c55e;">
-  <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 8px;">Identify Vulnerabilities</div>
-  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Spot SQL injection patterns, understand attack vectors, and trace the exploitable code paths</div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Security-First Prompting</div>
-  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Apply RCTRO pattern to guide AI with comprehensive security controls</div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #a855f7;">
-  <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Automated Verification</div>
-  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Run tests to confirm attack payloads are blocked and validation works</div>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 32px; margin-bottom: 8px;">👁️</div>
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Human Review</div>
-  <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">Apply Golden Rules to understand every line before merge</div>
-</div>
-
-</div>
+1. The celeb-api pushed to GitHub. CodeQL Security Analysis green-checked on the first run, finding the four planted vulnerabilities.
+2. The A03 issue enriched with Cheshire (Part 2 walked the *what*; today we run it).
+3. The `alice-remediation` workflow invoked. A draft PR open, with the agent's plan and diff.
+4. The diff **reviewed line-by-line against the RCTRO Requirements**. At least one request-for-changes round demonstrated.
+5. Tests run locally. The planted SQL injection regression test now passes against the fixed code. The same test still fails against the original.
+6. The PR merged with an AI disclosure footer naming the prompt pack version, the CodeQL finding ID, and the human reviewer.
+7. A second remediation run solo, on the A07 auth issue in imdb-identity, with the same workflow.
+8. Scorecard: **5 → ~15**. Code Security and Test Coverage both move.
+9. Golden Rule 3 internalised: **Trust but verify. Every line, every test, every Requirement.**
 
 ---
 
-## The Vulnerable Code
+## Recap from Part 2
 
-Let's start by examining the vulnerable code in `examples/owasp/A03_injection/insecure.ts`. This is intentionally insecure code designed for learning purposes—a realistic example of what happens when developers write database queries without security considerations.
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border: 2px solid rgba(239, 68, 68, 0.4);">
-
-<div style="font-size: 20px; font-weight: 700; color: #fca5a5; margin-bottom: 24px;">Four Critical Vulnerabilities</div>
-
-```typescript
-// ❌ INSECURE: String concatenation leads to SQL injection
-export async function searchUsers(query: string) {
-  const client = new Client({});
-  await client.connect();
-  const sql = `SELECT id, email FROM users WHERE email LIKE '%${query}%'`;
-  const res = await client.query(sql);
-  await client.end();
-  return res.rows;
-}
-```
-
-<div style="display: grid; gap: 20px; margin-top: 24px;">
-
-<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
-  <div style="font-weight: 800; font-size: 16px; color: #fca5a5; margin-bottom: 12px;">1. SQL Injection (Critical)</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    <strong style="color: #f1f5f9;">Issue:</strong> Direct string interpolation of user input into SQL query allows attackers to inject arbitrary SQL commands<br/>
-    <strong style="color: #fca5a5; margin-top: 8px; display: inline-block;">Impact:</strong> Data theft, deletion, privilege escalation
-  </div>
-</div>
-
-<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
-  <div style="font-weight: 800; font-size: 16px; color: #fca5a5; margin-bottom: 12px;">2. No Input Validation</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    No length limits, no character allowlist, no type validation. Accepts any value including massive payloads and special characters.
-  </div>
-</div>
-
-<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
-  <div style="font-weight: 800; font-size: 16px; color: #fca5a5; margin-bottom: 12px;">3. Information Disclosure</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    No error handling wrapper means database errors expose schema details (table names, columns) to attackers.
-  </div>
-</div>
-
-<div style="background: rgba(220, 38, 38, 0.15); border: 2px solid rgba(220, 38, 38, 0.4); border-radius: 8px; padding: 20px;">
-  <div style="font-weight: 800; font-size: 16px; color: #fca5a5; margin-bottom: 12px;">4. Missing Security Controls</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    No logging of suspicious inputs, no rate limiting, no sanitization of special characters.
-  </div>
-</div>
-
-</div>
-
-</div>
-
-### Attack Scenarios
-
-These attacks demonstrate exactly how an attacker would exploit this vulnerability:
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0;">
-
-<div style="display: grid; gap: 20px;">
-
-<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Attack 1: Bypass Search Filter</div>
-  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-    <code style="color: #fca5a5; font-size: 13px;">searchUsers("' OR '1'='1")</code>
-  </div>
-  <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px; font-weight: 600;">Resulting SQL:</div>
-  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-    <code style="color: #f1f5f9; font-size: 12px;">SELECT id, email FROM users WHERE email LIKE '%' OR '1'='1%'</code>
-  </div>
-  <div style="color: #fca5a5; font-size: 14px; font-weight: 600;">
-    Result: Returns ALL users (authentication bypass)
-  </div>
-</div>
-
-<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Attack 2: Extract Sensitive Data</div>
-  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-    <code style="color: #fca5a5; font-size: 13px;">searchUsers("' UNION SELECT password, NULL FROM admin_users--")</code>
-  </div>
-  <div style="color: #fca5a5; font-size: 14px; font-weight: 600; margin-top: 12px;">
-    Result: Dumps admin passwords (data exfiltration)
-  </div>
-</div>
-
-<div style="background: rgba(220, 38, 38, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 12px;">Attack 3: Destructive Attack</div>
-  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-    <code style="color: #fca5a5; font-size: 13px;">searchUsers("'; DROP TABLE users--")</code>
-  </div>
-  <div style="color: #fca5a5; font-size: 14px; font-weight: 600; margin-top: 12px;">
-    Result: Deletes entire users table (data destruction)
-  </div>
-</div>
-
-</div>
-
-</div>
+Part 2 was the theory class. You learned the RCTRO pattern in depth, toured the three pack families (OWASP, STRIDE, Maintainability), and drafted an RCTRO for the "Add Celebrity Favorites" feature so you could see how the packs change the Requirements section from "four things I remembered" to "thirty things institutional memory has". Part 3 is where the contract meets the agent.
 
 ---
 
-## The Security-First Prompt
+## The live remediation loop
 
-Now that we understand the vulnerability, let's craft a complete RCTRO prompt that guides AI to generate a secure implementation. This is where Parts 1 and 2 come together—we're using the AI-Assisted Engineering approach (not vibe coding!) with a structured security-first prompt.
+The flow you are about to run end-to-end is one rectangle on a diagram and seven steps in practice.
 
-<div style="text-align: center; margin-bottom: 20px;">
-  <div style="font-size: 20px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Complete RCTRO Prompt for A03 Injection</div>
-  <div style="color: #cbd5e1; font-size: 14px;">
-    Available in `prompts/owasp/A03_injection.md` - copy this entire prompt into Claude Code
-  </div>
-</div>
+| Step | Who does it | What happens |
+|---|---|---|
+| 1 | Engineer | Push code to GitHub. |
+| 2 | CodeQL workflow | Runs on push, produces SARIF. |
+| 3 | codeql-to-issues workflow | Reads SARIF, opens GitHub Issues labelled `codeql-finding`. |
+| 4 | Engineer (in VS Code) | Open Cheshire → Issue Management → pick the issue → click Enrich with RCTRO. |
+| 5 | Cheshire | Loads the matching OWASP pack, writes the RCTRO body, posts back to the issue, adds the `rctro-feature` label. |
+| 6 | Engineer | Comment `@claude please remediate` on the issue. |
+| 7 | alice-remediation workflow | Plans the fix, opens a draft PR with the diff and a checklist. |
+| 8 | Engineer | **Review the PR against the RCTRO. Run tests. Approve or request changes. Merge.** |
 
-```
-Role: You are a security engineer implementing OWASP A03:2021 - Injection.
-
-Context:
-- Node 18 + TypeScript
-- PostgreSQL using pg library
-- We must use parameterized queries only (no string concatenation)
-- Validate inputs with Zod schema validation
-- Apply length limits (max 100 chars) and character allowlists
-- Ensure errors never leak schema details
-
-Task:
-1) Refactor examples/owasp/A03_injection/insecure.ts to use prepared statements with $1 placeholders
-2) Add Zod validation to searchUsers:
-   - Only allow [a-zA-Z0-9 _.-@] characters
-   - Max length: 100
-   - Trim whitespace
-3) Sanitize error messages (never expose SQL or schema info)
-4) Add TypeScript types for returned data
-5) Run tests in examples/owasp/A03_injection/__tests__/injection.test.ts and ensure they pass
-
-Requirements:
-Implement the following security controls:
-
-1. **Parameterized Queries**
-   - Use prepared statements with $1, $2 placeholders
-   - Never use string concatenation in SQL
-   - Validation: ☐ All queries use parameterized placeholders
-
-2. **Input Validation with Zod**
-   - Allowlist regex: [a-zA-Z0-9 _.-@]
-   - Max length: 100 characters
-   - Trim whitespace automatically
-   - Validation: ☐ Zod schema blocks SQL metacharacters
-
-3. **Error Sanitization**
-   - Generic error messages to clients ("Search failed")
-   - Never expose SQL syntax, table names, or column names
-   - Detailed errors logged server-side only
-   - Validation: ☐ No schema details in client errors
-
-4. **Test Coverage**
-   - Tests with attack payloads (' OR '1'='1, ; DROP TABLE--)
-   - Verify parameterized queries prevent injection
-   - Confirm error messages are generic
-   - Validation: ☐ All attack vectors tested and blocked
-
-Output:
-Provide complete TypeScript code for:
-- examples/owasp/A03_injection/insecure.ts (refactored to secure.ts)
-- Zod validation schema
-- Error handling with sanitization
-- Passing tests in __tests__/injection.test.ts
-```
-
-**How to Use This Prompt:**
-
-1. Open Claude Code in VS Code (`Cmd+Shift+P` → "Claude Code")
-2. Copy the entire RCTRO prompt above
-3. Paste into Claude Code chat
-4. Review the suggested changes carefully (never auto-accept!)
+Step 8 is where the human does the most work. Steps 1 to 7 are plumbing. Today we focus on doing step 8 well.
 
 ---
 
-## The Secure Implementation
+## The agentic shift
 
-When you provide the RCTRO prompt to Claude Code, it should generate code similar to this. This is what production-ready, security-first code looks like:
+In 2024, the engineer's core skill was *writing* the fix. In 2026-2027, the engineer's core skill is *reviewing the fix the agent wrote*. The agentic shift moves human work upstream into the contract (Part 2) and downstream into the review (Part 3). The typing in the middle becomes the agent's job.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border: 2px solid rgba(34, 197, 94, 0.4);">
-
-```typescript
-// ✅ SECURE: Parameterized query + validation
-import { Client } from 'pg';
-import { z } from 'zod';
-
-// ✅ Zod schema with security controls
-const searchQuerySchema = z.string()
-  .trim()
-  .max(100, 'Search query too long')
-  .regex(/^[a-zA-Z0-9 _.\-@]*$/, 'Invalid characters in search query');
-
-// ✅ Type-safe result interface
-interface UserSearchResult {
-  id: number;
-  email: string;
-}
-
-export async function searchUsers(query: string): Promise<UserSearchResult[]> {
-  // ✅ Input validation with Zod (blocks injection attempts)
-  let validated: string;
-  try {
-    validated = searchQuerySchema.parse(query);
-  } catch (err) {
-    // ✅ Log blocked attempt (security monitoring)
-    console.warn('Blocked invalid search query:', {
-      error: err instanceof Error ? err.message : 'Unknown error',
-      // Note: NOT logging raw query (could contain attack payloads)
-    });
-    throw new Error('Invalid search query');
-  }
-
-  const client = new Client({
-    // Connection config would go here
-  });
-
-  await client.connect();
-
-  try {
-    // ✅ Parameterized query prevents injection
-    // $1 is a placeholder - pg library handles escaping
-    const sql = 'SELECT id, email FROM users WHERE email ILIKE $1';
-    const res = await client.query<UserSearchResult>(sql, [`%${validated}%`]);
-    return res.rows;
-  } catch (err) {
-    // ✅ Generic error message (never expose schema/SQL details)
-    console.error('Database error:', err); // Server-side log only
-    throw new Error('Search failed'); // Client-facing error
-  } finally {
-    await client.end();
-  }
-}
-```
-
-<div style="background: rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px; margin-top: 24px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Security Controls Implemented</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✅ <strong>Parameterized queries:</strong> Uses $1 placeholder, not string concatenation<br/>
-    ✅ <strong>Input validation:</strong> Zod schema with regex validator blocks special characters<br/>
-    ✅ <strong>Length limits:</strong> max(100) enforced before database interaction<br/>
-    ✅ <strong>Generic errors:</strong> "Search failed" to client, detailed logs server-side only<br/>
-    ✅ <strong>No raw input logging:</strong> Logs validation error message, not the attack payload<br/>
-    ✅ <strong>Type safety:</strong> TypeScript interface ensures correct data structure
-  </div>
-</div>
-
-</div>
+This is not a downgrade. Reading a diff well, against a written contract, with tests as evidence, is harder than typing. The reviewer is now responsible for catching the things the agent's training data does not know about: your codebase's specific conventions, your team's tacit rules, the second-order effects on other services, the requirement that lives in a Slack thread from six months ago. That work cannot be delegated.
 
 ---
 
-## Verification and Testing
+## Walkthrough: live A03 remediation
 
-Security controls only matter if they work. Let's verify the fix with automated tests and human review.
+This walkthrough takes 60 minutes if everyone is on the same page. Budget time for the agent run (3 minutes), the review (20 minutes including discussion), and one request-for-changes round (15 minutes).
 
-### Running the Tests
+### Step 1. Push the celeb-api to GitHub
+
+In Part 1 you scaffolded the repo locally. The CodeQL workflow Cheshire added does nothing until the code lives on GitHub. Push it.
 
 ```bash
-# Run A03 injection tests
-npm test -- A03_injection
-
-# Run linting
-npm run lint
+cd repos/celeb-api
+gh repo create celeb-api --private --source=. --remote=origin --push
 ```
 
-**Expected Output:**
-```
-PASS examples/owasp/A03_injection/__tests__/injection.test.ts
-  ✓ blocks SQL injection attempts
-  ✓ enforces length limits
-  ✓ validates character allowlist
-  ✓ sanitizes error messages
-  ✓ uses parameterized queries
-```
+The push triggers the `CodeQL Security Analysis` workflow automatically.
 
-### Human Review Checklist
+### Step 2. Watch CodeQL run
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #a855f7;">
+Open the repo on GitHub. The **Actions** tab shows two workflows.
 
-<div style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-bottom: 20px;">Golden Rule: Never Merge AI Code Without Understanding It</div>
+- **CodeQL Security Analysis** running now (`.github/workflows/codeql.yml`)
+- **CodeQL to Security Issues** queued, waiting on CodeQL to complete (`.github/workflows/codeql-to-issues.yml`)
 
-<div style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
-You are responsible for every line that gets merged, even if AI wrote it. Apply these questions systematically:
-</div>
+CodeQL takes 2 to 4 minutes on a TypeScript repo this size. The second workflow fires automatically on the `workflow_run: completed` trigger and downloads the SARIF artifact.
 
-<div style="display: grid; gap: 20px;">
+### Step 3. Read the auto-created issues
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">1. Understand Every Line</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ❓ Do I understand what `searchQuerySchema.parse()` does?<br/>
-    ❓ Do I understand how `$1` placeholder works in pg?<br/>
-    ❓ Can I explain this code to a teammate?<br/>
-    ❓ Would I be comfortable debugging this at 3am?
-  </div>
-</div>
-
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">2. Verify Security Controls</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    ✅ Is the regex allowlist appropriate for email search?<br/>
-    ✅ Is 100-char limit reasonable for this use case?<br/>
-    ✅ Are error messages truly generic?<br/>
-    ✅ Is logging secure (no PII, no attack payloads)?
-  </div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 12px;">3. Check Edge Cases</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    What if query is an empty string? What if it's null or undefined? What if database connection fails? What if client.connect() times out?
-  </div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">4. Consider Business Context</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    Does 100-char limit make sense for our email domains? Should we allow special chars like `+` in emails (user+tag@example.com)? Do we need audit logging for searches?
-  </div>
-</div>
-
-</div>
-
-</div>
-
-**Common Issues to Fix:**
-
-<div style="background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; border-radius: 8px; padding: 16px; margin-top: 12px;">
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    <strong style="color: #a5b4fc;">If regex blocks valid email characters:</strong><br/>
-    Allow `+` for email subaddressing (user+tag@example.com):<br/>
-    <code style="color: #a7f3d0; font-size: 13px;">.regex(/^[a-zA-Z0-9 _.\-@+]*$/, 'Invalid characters')</code>
-  </div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8; margin-top: 12px;">
-    <strong style="color: #a5b4fc;">If empty strings should be rejected:</strong><br/>
-    Add minimum length validation:<br/>
-    <code style="color: #a7f3d0; font-size: 13px;">.min(1, 'Search query cannot be empty')</code>
-  </div>
-</div>
-
----
-
-## Workshop Exercise: Practice with A07 Authentication
-
-Now it's your turn. Apply what you've learned to fix a different vulnerability.
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; margin: 28px 0; border-left: 4px solid #f59e0b;">
-
-<div style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-bottom: 20px;">Scenario: Password Hash Timing Attack</div>
-
-<div style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin-bottom: 20px;">
-You've discovered that your authentication system uses a timing-vulnerable password comparison. An attacker can measure response times to determine if they're getting closer to the correct password.
-</div>
-
-<div style="background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-  <div style="font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Vulnerable Code:</div>
-  <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 16px; overflow-x: auto;">
-    <pre style="color: #fca5a5; font-size: 13px; margin: 0;"><code>export async function login(username: string, password: string) {
-  const user = await db.getUserByUsername(username);
-  if (!user) return { success: false };
-
-  // ❌ Timing attack: early return leaks information
-  if (user.passwordHash !== hashPassword(password)) {
-    return { success: false };
-  }
-
-  return { success: true, token: generateToken(user) };
-}</code></pre>
-  </div>
-</div>
-
-<details style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #f59e0b; margin-bottom: 16px;">
-  <summary style="font-weight: 700; color: #fbbf24; font-size: 16px; cursor: pointer; list-style: none;">▶️ Question 1: What's the vulnerability?</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      The code uses `!==` for password comparison, which is a timing-vulnerable operation. Why does this matter?
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: String comparison speed</summary>
-      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        The `!==` operator compares strings character by character and returns `false` as soon as it finds a mismatch. If the first character is wrong, it returns immediately (fast). If the first 10 characters are correct but the 11th is wrong, it takes longer (slower).
-        <div style="margin-top: 12px; color: #fca5a5;">
-          <strong>Attack:</strong> An attacker measures response times and iteratively guesses each character. When the response is slightly slower, they know that character is correct and move to the next one.
-        </div>
-      </div>
-    </details>
-  </div>
-</details>
-
-<details style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #f59e0b; margin-bottom: 16px;">
-  <summary style="font-weight: 700; color: #fbbf24; font-size: 16px; cursor: pointer; list-style: none;">▶️ Question 2: How do you fix timing attacks?</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      What cryptographic functions provide constant-time comparison?
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Node.js crypto module</summary>
-      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        Use `crypto.timingSafeEqual()` for constant-time comparison:
-        <div style="margin-top: 12px; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 12px; overflow-x: auto;">
-          <pre style="color: #a7f3d0; font-size: 12px; margin: 0;"><code>import { timingSafeEqual } from 'crypto';
-
-const isValid = timingSafeEqual(
-  Buffer.from(user.passwordHash),
-  Buffer.from(hashPassword(password))
-);</code></pre>
-        </div>
-        <div style="margin-top: 12px; color: #86efac;">
-          <strong>Better:</strong> Use bcrypt.compare() which includes constant-time comparison built-in.
-        </div>
-      </div>
-    </details>
-  </div>
-</details>
-
-<details style="background: rgba(245, 158, 11, 0.1); border-radius: 8px; padding: 20px; cursor: pointer; border-left: 3px solid #f59e0b;">
-  <summary style="font-weight: 700; color: #fbbf24; font-size: 16px; cursor: pointer; list-style: none;">▶️ Question 3: Craft the RCTRO Prompt</summary>
-  <div style="padding-top: 16px;">
-    <p style="color: #cbd5e1; line-height: 1.7; font-size: 14px; margin-bottom: 16px;">
-      Write a complete RCTRO prompt to guide AI in fixing this vulnerability. Include role, context, security requirements, task steps, and validation checklist.
-    </p>
-    <details style="background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 16px; margin-top: 12px;">
-      <summary style="font-weight: 600; color: #fbbf24; font-size: 14px; cursor: pointer;">💡 Hint: Reference A07 prompt pack</summary>
-      <div style="color: #e2e8f0; font-size: 13px; line-height: 1.7; margin-top: 12px;">
-        See `prompts/owasp/A07_authn_failures.md` for the complete template. Your prompt should specify:
-        <ul style="margin-top: 8px; padding-left: 20px;">
-          <li>Use bcrypt.compare() for password verification (constant-time)</li>
-          <li>Always check password even if user doesn't exist (prevent user enumeration)</li>
-          <li>Add rate limiting (5 failed attempts = 15-minute lockout)</li>
-          <li>Log failed login attempts with IP address</li>
-          <li>Never leak whether username or password was incorrect</li>
-        </ul>
-      </div>
-    </details>
-  </div>
-</details>
-
-</div>
-
----
-
-## Defense in Depth
-
-Security isn't just about fixing code. A robust defense requires multiple layers so that if one layer fails, others catch the attack.
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0;">
-
-<div style="font-size: 22px; font-weight: 700; color: #93c5fd; margin-bottom: 16px; text-align: center;">The 4 Layers of SQL Injection Defense</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 28px 0;">
-
-<div style="background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
-  <div style="font-size: 40px; margin-bottom: 8px;">1️⃣</div>
-  <div style="font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Code</div>
-  <div style="font-size: 13px; color: #cbd5e1;">Parameterized queries + validation</div>
-</div>
-
-<div style="background: rgba(245, 158, 11, 0.15); border: 2px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
-  <div style="font-size: 40px; margin-bottom: 8px;">2️⃣</div>
-  <div style="font-size: 16px; font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Database</div>
-  <div style="font-size: 13px; color: #cbd5e1;">Least privilege permissions</div>
-</div>
-
-<div style="background: rgba(59, 130, 246, 0.15); border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
-  <div style="font-size: 40px; margin-bottom: 8px;">3️⃣</div>
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Network</div>
-  <div style="font-size: 13px; color: #cbd5e1;">WAF + rate limiting</div>
-</div>
-
-<div style="background: rgba(168, 85, 247, 0.15); border: 2px solid rgba(168, 85, 247, 0.4); border-radius: 12px; padding: 20px; text-align: center;">
-  <div style="font-size: 40px; margin-bottom: 8px;">4️⃣</div>
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Monitoring</div>
-  <div style="font-size: 13px; color: #cbd5e1;">Logging + alerting</div>
-</div>
-
-</div>
-
-**Layer 1: Code (Primary Defense)**
-- Parameterized queries with $1, $2 placeholders
-- Input validation with Zod/allowlist regex
-- Length limits and error handling
-
-**Layer 2: Database (Least Privilege)**
-```sql
--- Application uses restricted account (not SUPERUSER)
-CREATE USER app_user WITH PASSWORD 'secure_password';
-GRANT SELECT, INSERT, UPDATE ON users TO app_user;
--- NO DELETE, NO DROP privileges
-```
-
-**Layer 3: Network (WAF)**
-
-AWS WAF or Cloudflare blocks SQL injection patterns before they reach your app:
+After both workflows complete, go to the **Issues** tab. You should see four new issues:
 
 ```
-Common patterns blocked:
-- SQL keywords: UNION, SELECT, DROP, INSERT, DELETE
-- Comment operators: --, /*, #
-- Quote manipulation: ' OR '1'='1, " OR "1"="1
-- Logical operators: AND, OR, ||, &&
+#1  [codeql-finding] [owasp/A03] SQL injection in src/routes/search.ts
+#2  [codeql-finding] [owasp/A01] Missing access control on src/routes/celebrity.ts
+#3  [codeql-finding] [owasp/A10] Server-side request forgery in src/routes/image-proxy.ts
+#4  [codeql-finding] [owasp/A06] Vulnerable dependency: lodash@4.17.15
 ```
 
-**Layer 4: Monitoring (Detection)**
-```typescript
-// Log blocked attempts for security monitoring
-logger.warn('Blocked invalid search query', {
-  userId: req.user?.id,
-  ip: req.ip,
-  reason: 'Validation failed',
-});
+Each issue body has the CodeQL finding: file, line numbers, rule ID, severity, the OWASP category, and links to the OWASP catalogue page. What is missing is the *team's contract* for fixing it. That is what Cheshire adds next.
+
+### Step 4. Enrich the A03 issue with Cheshire
+
+In VS Code with the celeb-api workspace open, click the **Cheshire Cat** icon → **Issue Management**. The panel lists open issues in your repo. Find issue #1 (the SQL injection on `/search`).
+
+Click **Enrich with RCTRO**. The panel does three things:
+
+1. Reads the CodeQL finding and the labelled OWASP category.
+2. Loads the matching prompt pack from `.cheshire/prompts/owasp/A03_injection.md`.
+3. Generates an RCTRO body and posts it back to the issue, keeping the original CodeQL details in a collapsed `<details>` block.
+
+Open the issue on GitHub. The body now has full Role / Context / Task / Requirements / Output sections, with the A03 pack's checklist expanded inline under Requirements. The labels now include `rctro-feature` alongside the original `codeql-finding`. **Both labels matter for the next step:** the `alice-remediation` workflow only fires for issues carrying one of `codeql-finding`, `rctro-feature`, or `ci-failure`.
+
+### Step 5. Assign the remediation agent
+
+Scroll to the bottom of the issue. In the comment box, type:
+
+```
+@claude please remediate
 ```
 
-<div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin-top: 24px;">
-  <div style="font-weight: 700; color: #fca5a5; margin-bottom: 8px;">Golden Rule</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-    If Layer 1 (code) fails, Layers 2-4 contain the breach. Never rely on a single defensive layer.
-  </div>
-</div>
+Click **Comment**. The `alice-remediation` workflow fires. It is gated on the comment containing `@claude` or `@alice` *and* the issue carrying at least one of the eligible labels. Both conditions are met.
 
-</div>
+The workflow runs in two phases.
 
----
+**Phase 1: Analysis and Planning.** Claude reads the RCTRO, restates the Requirements, and posts a plan as a comment on the issue. The plan should name every Requirement section item and how the agent intends to satisfy it. If a Requirement is missing from the plan, **stop the run** (comment "do not proceed; the plan is missing the SQLi unicode payload test") and let it regenerate.
 
-## Commit and PR Workflow
+**Phase 2: Implementation.** Claude opens a draft PR with the diff. The PR description includes a checklist of every Requirement and how it was addressed.
 
-After verification, commit your changes with proper AI disclosure labeling.
+Wait 2 to 4 minutes. The draft PR appears.
 
-### Commit Message Template
+### Step 6. Review the diff against the RCTRO
+
+This is the part of the class where you slow down. Open the PR and pull up the original issue RCTRO side by side. Walk through every Requirement in order.
+
+For the A03 SQL injection fix, the Requirements section listed at minimum:
+
+| Requirement from RCTRO | What you check in the PR |
+|---|---|
+| Parameterised queries (`pg` `$1` placeholders) | Grep the diff for any remaining string concatenation in SQL. There should be zero. The query should use `$1`, `$2` placeholders. |
+| Zod validation: allowlist regex, max 100 chars | Find the new validator file. Confirm the regex is `^[a-zA-Z0-9 .\-']+$` (or equivalent allowlist, not a blocklist). Confirm length limit. |
+| Hard-limit `LIMIT 20` in SQL itself, not just JS | Look at the SQL string. The `LIMIT` clause should be hardcoded in the SQL, not appended by application code. |
+| Generic error messages, no schema leakage | Check the catch block. Returns "search failed" or similar, not the pg error object. No stack trace in production. |
+| Tests: valid, empty, SQLi payload, oversized, unicode | Open the new test file. Count: there must be at least five test cases, including a SQLi payload like `'; DROP TABLE celebrities; --` and an oversized payload of 200+ chars. |
+
+If any row is partial or missing, comment on the specific line in the PR. The agent will see the comment when you re-run it.
+
+### Step 7. The deliberate request-for-changes round
+
+To make the class real, *do not* approve the first PR. Find at least one Requirement that the agent under-delivered on. The most common misses are:
+
+- Unicode payload test missing (the agent often does ASCII SQLi only).
+- Error message includes the pg error code (still leaking schema info).
+- Validator is in the route file instead of `src/validators/`.
+
+Comment on the specific line. Then post on the issue: `@claude please address the review comments.` The workflow fires again. New commits land on the same PR.
+
+This is the discipline. **An agent's first draft is a draft.** The reviewer's job is to keep iterating until the contract is met.
+
+### Step 8. Run the tests locally
+
+Pull the PR branch.
 
 ```bash
-git add examples/owasp/A03_injection/insecure.ts
-
-git commit -m "fix(A03): Remediate SQL injection with parameterized queries
-
-- Add Zod input validation with character allowlist [a-zA-Z0-9 _.-@+]
-- Use pg parameterized queries (\$1 placeholder) instead of string concatenation
-- Enforce 100-char length limit and 1-char minimum
-- Implement generic error messages to prevent schema leaks
-- Add security event logging for blocked injection attempts
-- All tests passing (injection payloads blocked, valid inputs work)
-
-Fixes OWASP A03:2021 - Injection vulnerability
-
-🤖 AI-assisted with Claude Code using prompts/owasp/A03_injection.md"
+git fetch origin
+git checkout claude/fix-a03-search-injection
+npm install
+npm test -- search
 ```
 
-### Pull Request Checklist
+Confirm:
 
-When opening a PR, use the template in `.github/PULL_REQUEST_TEMPLATE.md`:
+- All new test cases in `src/routes/__tests__/search.test.ts` pass.
+- The SQLi payload test, run against the **original** code on `main`, **fails** (it returns rows or 500s). Run it against the new code, it passes (returns empty result with 400 or 200 and an empty array, per the RCTRO).
 
-```markdown
-## Summary
-Remediates critical SQL injection vulnerability in searchUsers function.
+A test that passes against both the old and new code is not a regression test. It is decoration. Make the agent rewrite it.
 
-## Changes
-- Replaced string concatenation with pg parameterized queries
-- Added Zod schema validation with character allowlist
-- Implemented generic error messages
+### Step 9. Merge with the AI disclosure footer
 
-## Security Testing
-- ✅ All tests pass (npm test -- A03_injection)
-- ✅ ESLint clean (npm run lint)
-- ✅ Verified attack payloads blocked
+When the review is complete and the tests pass:
 
-## AI Disclosure
-🤖 Generated with Claude Code using prompts/owasp/A03_injection.md
+```
+Merge commit message:
 
-## Review Checklist
-- [ ] Code reviewed line-by-line (Golden Rule #2)
-- [ ] Security controls verified manually
-- [ ] Tests cover attack vectors
+fix(celeb-api): A03 SQL injection in /search endpoint
+
+🤖 AI-assisted with Claude Code Action via alice-remediation workflow
+Prompt pack: .cheshire/prompts/owasp/A03_injection.md @ v1.0.0
+CodeQL finding ID: js/sql-injection (rule)
+Issue: #1
+Reviewer: @your-handle
 ```
 
----
+This is the **start** of the Hatter's Tag. Part 6 turns this footer into a signed manifest. For now, the discipline is: every AI-assisted commit names what produced it and who approved it.
 
-## Key Takeaways
+### Step 10. Re-read the scorecard
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin: 48px 0;">
+Switch back to VS Code → Cheshire Cat → Security Scorecard. Refresh.
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #ef4444;">
-  <div style="font-size: 36px; margin-bottom: 12px;">🎯</div>
-  <h3 style="color: #fca5a5; margin-top: 0; font-size: 18px; font-weight: 700;">Complete Workflow Matters</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Security isn't just about writing secure code—it's the entire workflow: identify vulnerabilities, craft security-first prompts, verify with tests, conduct human review, and label commits properly.
-  </p>
-</div>
+```
+celeb-api                                 14 / 100      RESTRICTED  (up from 5)
+  Code Security                            5 / 25       yellow  (1 of 4 findings closed)
+  Test Coverage                            8 / 20       yellow  (search.test.ts adds coverage)
+  Technical Debt                           0 / 15       red
+  Dependency Freshness                     0 / 15       red
+  Complexity                               0 / 15       red
+  Architecture                             1 / 10       red    (CALM linkage on the touched file)
+```
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 36px; margin-bottom: 12px;">🔍</div>
-  <h3 style="color: #93c5fd; margin-top: 0; font-size: 18px; font-weight: 700;">Human Review is Critical</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    AI accelerates implementation but cannot replace human judgment. You must understand every line, verify edge cases, and consider business context before merging.
-  </p>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #10b981;">
-  <div style="font-size: 36px; margin-bottom: 12px;">✅</div>
-  <h3 style="color: #6ee7b7; margin-top: 0; font-size: 18px; font-weight: 700;">Tests Prove Security Works</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Security controls only matter if they work. Automated tests with attack payloads provide executable proof that vulnerabilities are fixed.
-  </p>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #f59e0b;">
-  <div style="font-size: 36px; margin-bottom: 12px;">🛡️</div>
-  <h3 style="color: #fcd34d; margin-top: 0; font-size: 18px; font-weight: 700;">Defense in Depth Required</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Code fixes (Layer 1) stop 99% of attacks. Database permissions (Layer 2), WAF (Layer 3), and monitoring (Layer 4) contain failures and detect compromises.
-  </p>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #8b5cf6;">
-  <div style="font-size: 36px; margin-bottom: 12px;">📚</div>
-  <h3 style="color: #c4b5fd; margin-top: 0; font-size: 18px; font-weight: 700;">Prompt Packs are Reusable</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    RCTRO prompts in /prompts/owasp/ are templates. Customize for your stack, improve based on learnings, and share with your team as institutional knowledge.
-  </p>
-</div>
-
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 28px; border-left: 4px solid #06b6d4;">
-  <div style="font-size: 36px; margin-bottom: 12px;">🏷️</div>
-  <h3 style="color: #67e8f9; margin-top: 0; font-size: 18px; font-weight: 700;">AI Disclosure is Governance</h3>
-  <p style="color: #e2e8f0; line-height: 1.7; margin-top: 12px;">
-    Label commits with 🤖 and which tool/prompt you used. This enables auditing, knowledge sharing, and continuous improvement of your prompt library.
-  </p>
-</div>
-
-</div>
+The score moved. Not all the way, but *visibly*. Three more remediation runs (A01, A10, A06) plus the fitness functions in Part 4 will keep the curve climbing.
 
 ---
 
-## Troubleshooting
+## Q&amp;A
 
-<div style="display: grid; gap: 16px; margin: 32px 0;">
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Question 1. The agent's PR looked correct on the first read. Should I just merge it?</summary>
 
-<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Issue: Tests Failing</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-    Read test failure output carefully. Zod schema might not match test expectations. Verify parameterized query uses $1 placeholder. Check error messages are generic.
-  </div>
-</div>
+No. Two things to do first.
 
-<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Issue: AI Suggests Insecure Code</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-    Prompt lacks specificity. Add explicit constraints: "NEVER use string concatenation in SQL". Reference specific API: "Use pg.query($1) placeholders". Provide examples of what NOT to do.
-  </div>
-</div>
+**Pull the branch and run the SQLi regression test against `main`.** A regression test that does not fail on the unfixed code is decoration, not a test. This is the most common miss in AI-generated security fixes: the test asserts that the *new* code returns the right thing, without proving the *old* code returned the wrong thing. If you skip this check, you have shipped a test that will pass forever, including if the bug regresses.
 
-<div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px;">
-  <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px;">Issue: Regex Too Strict/Loose</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-    Test regex with real examples at regex101.com. Consider business requirements (should + be allowed for email subaddressing?). Review OWASP regex recommendations.
-  </div>
-</div>
+**Read the diff line-by-line against the Requirements section of the RCTRO**, not against the CodeQL finding. The CodeQL finding tells you what is broken. The Requirements tell you what *good looks like for your team*. An agent can fix the CodeQL finding without satisfying your Requirements (e.g., it parameterised the query but skipped Zod validation). Both things have to be true for you to merge.
 
-</div>
+</details>
 
----
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Question 2. The agent's planning comment looked thin. Can I tell it to redo the plan before it implements?</summary>
 
-## Next Steps
+Yes, and you should. The `alice-remediation` workflow runs planning and implementation as separate phases for exactly this reason. When the planning comment lands:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 32px; margin: 32px 0; border: 1px solid rgba(34, 197, 94, 0.4);">
+1. Read it against the RCTRO Requirements.
+2. If anything is missing, comment on the issue: `@claude the plan does not cover requirement X. Please regenerate the plan with X included.`
+3. The workflow regenerates the plan without producing a diff.
+4. Only when the plan is complete do you let it proceed: `@claude the plan is good. Please implement.`
 
-<div style="text-align: center; margin-bottom: 28px;">
-  <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
-  <div style="font-size: 24px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Workshop Complete!</div>
-  <div style="font-size: 15px; color: #cbd5e1;">You've mastered the live SQL injection remediation workflow</div>
-</div>
+Most teams learn this the hard way. A vague plan produces a vague diff that takes longer to review than the plan would have taken to fix. **Plan first, implement second.**
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+</details>
 
-<div style="background: rgba(34, 197, 94, 0.15); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #86efac; margin-bottom: 12px;">Practice with Other Categories</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    Apply this workflow to A01 (Broken Access Control), A02 (Cryptographic Failures), or A07 (Authentication Failures). Each has insecure code, tests, and prompt packs in /examples and /prompts.
-  </div>
-</div>
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">▶ Question 3. What if the agent produces a fix that is technically correct but stylistically wrong for our codebase?</summary>
 
-<div style="background: rgba(59, 130, 246, 0.15); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Build Your Prompt Library</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    Customize OWASP templates for your stack. Document prompts that worked well. Add domain-specific security requirements. Share with your team.
-  </div>
-</div>
+Two answers, depending on whether the style issue should be enforced.
 
-<div style="background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-  <div style="font-size: 16px; font-weight: 700; color: #c4b5fd; margin-bottom: 12px;">Explore Advanced Topics</div>
-  <div style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-    Part 4: Fitness Functions (Automated Quality Gates)<br/>
-    Part 5: Security Scanning (CodeQL + Snyk Integration)<br/>
-    Part 6: Prompt Library Management<br/>
-    Part 7: Multi-Agent Orchestration<br/>
-    Part 8: Governance & Metrics
-  </div>
-</div>
+**If it should be enforced**, this is a Maintainability pack problem. Add the rule to `maintainability/single-responsibility.md` or `maintainability/dry-principle.md` (or write a new team-specific pack). The next agent run will read the updated pack and produce the right style. This is how teams accumulate institutional memory: every "we don't do it that way" becomes a pack.
 
-</div>
+**If it is one-off taste**, comment on the line, accept that the agent will not always match every preference, and merge. The cost of an extra review pass is real. The cost of a stylistic ratchet that does not catch real bugs is higher.
 
-</div>
+Part 4's fitness functions enforce the most important style rules automatically. The CALM-layer enforcement we generate there is the architectural-style equivalent of "we don't do it that way".
 
-<div style="display: flex; gap: 20px; margin: 48px 0; flex-wrap: wrap;">
-  <a href="./part2-security-prompting" style="flex: 1; min-width: 200px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); color: #fbbf24; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 600; text-align: center;">
-    ← Part 2: Security Prompting
-  </a>
-  <a href="./part4-fitness-functions" style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: #f1f5f9; padding: 16px 24px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; text-align: center; box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);">
-    Part 4: Fitness Functions →
-  </a>
-</div>
-
-<div style="text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px;">
-  Learn automated architectural governance
-</div>
+</details>
 
 ---
 
-**References:**
-- [OWASP A03 Documentation](https://owasp.org/Top10/A03_2021-Injection/)
-- [PostgreSQL Prepared Statements](https://node-postgres.com/features/queries#parameterized-query)
-- [Zod Documentation](https://zod.dev/)
-- [This Repo's Prompt Packs](/prompts/owasp/)
-- [Golden Rules](/docs/governance/vibe-golden-rules)
-- [Back to Workshop Overview](./index)
+## Try it yourself: A07 auth failures on imdb-identity
+
+You walked through A03 together. Now do A07 solo on imdb-identity. Same workflow, different repo, different pack.
+
+### Setup
+
+```bash
+cd repos/imdb-identity
+gh repo create imdb-identity --private --source=. --remote=origin --push
+```
+
+CodeQL fires. Three issues open. The A07 one (`Missing rate limit on POST /auth/login`) is the target.
+
+### The workflow
+
+1. Open Cheshire → Issue Management.
+2. Pick the A07 issue.
+3. Click **Enrich with RCTRO**. Cheshire pulls in `.cheshire/prompts/owasp/A07_authn_failures.md`.
+4. Read the RCTRO. The Requirements section should call for: rate limit (5 attempts / 15 min by IP and by username), constant-time password comparison, generic "invalid credentials" error, audit log of failures.
+5. Comment `@claude please remediate`.
+6. Wait. Review. Iterate.
+7. Run the tests. Confirm a brute-force-style test gets rate-limited.
+8. Merge with the AI disclosure footer.
+
+### Check your work
+
+<details class="docs-details docs-card docs-card-muted">
+<summary class="docs-details-summary">✓ Check your work</summary>
+
+A common agent miss on A07: implementing rate-limit-by-IP but not by-username. An attacker rotating IPs (residential proxies are cheap) bypasses IP-only rate limits. The pack flags this; the agent sometimes forgets it; the reviewer must catch it.
+
+Second common miss: returning "user not found" vs "wrong password" depending on which check failed. This leaks user enumeration. Both responses must be the same generic "invalid credentials".
+
+Third common miss: logging the failed username. This is user-enumeration via logs. The audit log should log the *event* (`auth.login.failed`) and the *outcome*, not the attempted username.
+
+If you caught at least two of these three in your review, you are reading like a 2026 engineer. If you missed all three, run the planning phase again and ask Cheshire to expand the A07 pack Requirements in the prompt.
+
+</details>
+
+---
+
+## What you learned
+
+- **The live remediation loop**: push to GitHub → CodeQL fires → `codeql-to-issues` workflow opens labelled GitHub Issues → Cheshire **Enrich with RCTRO** posts the pack-backed contract into the issue → comment `@claude please remediate` → `alice-remediation` workflow opens a draft PR.
+- **The agent's planning comment comes first**, before the diff. Read it against the RCTRO Requirements. If a Requirement is missing from the plan, comment "do not proceed" and let the planning phase regenerate. **Plan first, implement second.**
+- **Review the diff against the Requirements section of the RCTRO**, not against the CodeQL finding. The finding tells you what is broken. The Requirements tell you what *good looks like for your team*. Both have to be true to merge.
+- **A regression test that passes against both old and new code is decoration**, not a test. Pull the branch and confirm the test *fails* against `main` before approving.
+- **The AI disclosure footer is non-negotiable.** Every AI-assisted commit names the prompt pack and version, the CodeQL finding ID, the issue number, and the human reviewer. This is the start of the **Hatter's Tag** that Part 6 turns into a signed manifest.
+- **Common agent misses to catch in review:** unicode SQLi tests skipped (the agent does ASCII payloads only), error messages include pg error codes (still leaking schema), validator placed in the route file instead of `src/validators/`. Different domain, similar pattern: rate-limit-by-IP shipped without by-username (an attacker on rotating proxies bypasses it), "user not found" vs "wrong password" leaking user enumeration, logged failed usernames creating enumeration via logs.
+- **The agentic shift is now concrete.** Your contribution to the actual code was nine characters: `@claude please remediate`. Your contribution before that (Parts 1 and 2) and after that (this review) was where the human work actually lives.
+
+---
+
+## The Golden Rule for this part
+
+> **Rule 3. Trust but verify. Every line, every test, every Requirement.**
+>
+> The agent will produce code that compiles and tests that pass. Compiling and passing are necessary, not sufficient. The reviewer's job is to confirm that the code *does what the Requirements said it should*, the tests *prove the bug was actually broken before*, and nothing snuck in that the Requirements did not authorise. This is the new core skill of the agentic SDLC. It does not get easier with seniority. It gets sharper.
+
+---
+
+## What is next: Part 4. The Looking Glass Measures
+
+The A03 is fixed today. What stops it (and its cousins) from coming back tomorrow? In Part 4 we use the same Cheshire enrich → assign → review workflow, but pointed at a different problem class: generating fitness functions that prevent regression. The agent will produce five of them, including one that reads the BAR's CALM model and enforces architectural layer rules. That last one is the bridge into Part 7's Red Queen.
+
+Scorecard goal for Part 4: **15 → ~35.**
+
+[Continue to Part 4 →](/docs/workshop/part4-fitness-functions)

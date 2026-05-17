@@ -1,15 +1,19 @@
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); border-radius: 16px; padding: 48px 40px; margin: 0 0 40px 0; text-align: center; position: relative; overflow: hidden;">
-<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 30% 50%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(circle at 70% 50%, rgba(139,92,246,0.06) 0%, transparent 60%);"></div>
-<div style="position: relative; z-index: 1;">
-<img src="/images/alice-bot.png" alt="MaintainabilityAI" style="width: 180px; height: 180px; border-radius: 50%; margin: 0 auto 24px auto; display: block; box-shadow: 0 0 40px rgba(99,102,241,0.3);" />
-<div style="font-size: 36px; font-weight: 800; color: #f8fafc; letter-spacing: -0.5px; margin-bottom: 12px;">The Art of the Possible</div>
-<div style="font-size: 18px; font-weight: 500; color: #818cf8; margin-bottom: 8px;">MaintainabilityAI</div>
-<div style="font-size: 15px; color: #94a3b8; max-width: 600px; margin: 0 auto 24px auto; line-height: 1.6;">Architecture-First Governance for the Agentic Age. The only VS Code extension that makes your CALM architecture model the control plane for AI agents, security reviews, and governance scoring.</div>
-<div style="display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
-<a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #f8fafc; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; box-shadow: 0 4px 16px rgba(99,102,241,0.4);">Install from Marketplace</a>
-<a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" style="display: inline-block; background: rgba(248,250,252,0.1); color: #f8fafc; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; border: 1px solid rgba(248,250,252,0.2);">View on GitHub</a>
-</div>
-</div>
+<div class="docs-hero docs-hero-split">
+  <div class="docs-hero-inner">
+    <div class="docs-eyebrow">Vision <span class="docs-hero-meta">~16 min read</span></div>
+    <h1 class="docs-hero-title">The Art of the Possible</h1>
+    <p class="docs-hero-copy">
+      MaintainabilityAI brings architecture-first governance into the developer workflow. The VS Code extension turns your CALM architecture model into the control plane for AI agents, security reviews, and governance scoring.
+    </p>
+    <div class="docs-actions">
+      <a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" class="docs-button-primary">Install from Marketplace</a>
+      <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" class="docs-button-secondary">View on GitHub</a>
+    </div>
+  </div>
+  <figure class="docs-hero-figure">
+    <img src="/images/alice-bot.png" alt="MaintainabilityAI architecture guide" class="docs-hero-art" />
+    <figcaption class="docs-visual-caption">Architecture-first governance for the agentic age.</figcaption>
+  </figure>
 </div>
 
 ---
@@ -28,7 +32,7 @@ Every AI agent in your organization operates in an **architectural vacuum**.
 
 This is the 70/30 gap.
 
-<svg viewBox="0 0 800 210" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
+<svg viewBox="0 0 800 210" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
     <linearGradient id="gapBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -86,8 +90,8 @@ No separate tool. No context switching. No copy-pasting architecture context int
 
 ### The Looking Glass - See Everything
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/looking-glass-governance.png" alt="Looking Glass governance dashboard showing four-pillar scoring across a portfolio of BARs" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/looking-glass-governance.png" alt="Looking Glass governance dashboard showing four-pillar scoring across a portfolio of BARs" class="docs-inline-image" />
 </div>
 
 A portfolio dashboard that doesn't just list your applications - it *understands* them.
@@ -96,16 +100,16 @@ Every Business Application Repository (BAR) in your portfolio is scored across *
 
 Interactive architecture diagrams built on ReactFlow and ELK.js - not static pictures, but living canvases where you can drag, drop, edit, and write changes directly back to your CALM model. Bidirectional editing means the diagram IS the architecture, and the architecture IS the diagram.
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/looking-glass-calm.png" alt="Interactive CALM architecture diagram with ReactFlow and ELK.js layout" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/looking-glass-calm.png" alt="Interactive CALM architecture diagram with ReactFlow and ELK.js layout" class="docs-inline-image" />
 </div>
 
 Trend sparklines show governance health over time. Drift indicators catch decay before it becomes crisis. Enterprise capability models (ACORD, BIAN) map business capabilities to the applications that implement them.
 
 ### Absolem - Your AI Architecture Advisor
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/looking-glass-absolem.png" alt="Absolem AI architecture advisor with seven specialized governance commands" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/looking-glass-absolem.png" alt="Absolem AI architecture advisor with seven specialized governance commands" class="docs-inline-image" />
 </div>
 
 An AI governance assistant that doesn't just answer questions - it understands your architecture.
@@ -118,8 +122,8 @@ Seven specialized commands: drift analysis, component addition, CALM validation,
 
 ### Oraculum - Automated Architecture Review
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/looking-glass-oraculum-review.png" alt="Oraculum review configuration with four-pillar selection, prompt packs, and multi-repo targeting" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/looking-glass-oraculum-review.png" alt="Oraculum review configuration with four-pillar selection, prompt packs, and multi-repo targeting" class="docs-inline-image" />
 </div>
 
 Architecture drift detection that actually runs.
@@ -132,20 +136,20 @@ Real-time monitoring with avatar timelines. PR detection with checks status. Rev
 
 Security isn't a pillar bolted onto the side. It's woven into every interaction. The Cheshire Cat is the deterministic security engine that gives every code repository a governance scorecard - tracking code security, test coverage, technical debt, dependency freshness, and complexity management from actual repository artifacts.
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/cheshire-dashboard.png" alt="Cheshire Cat security scorecard dashboard with fitness functions" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/cheshire-dashboard.png" alt="Cheshire Cat security scorecard dashboard with fitness functions" class="docs-inline-image" />
 </div>
 
 From that scorecard, Cheshire scaffolds the security structure your repository needs - OWASP prompt packs, STRIDE threat model templates, architecture decision records, and CI/CD security gates - all wired into a governed development workflow.
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/cheshire-scaffold.png" alt="Cheshire Cat scaffolding OWASP prompt packs and security structure into a code repository" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/cheshire-scaffold.png" alt="Cheshire Cat scaffolding OWASP prompt packs and security structure into a code repository" class="docs-inline-image" />
 </div>
 
 But Cheshire doesn't stop at scaffolding. Describe a feature in plain text and the Cat generates a complete **RCTRO-formatted GitHub issue** — Role, Context, Task, Requirements, Output — with collapsible prompt pack guidance embedded directly in the issue body. The AI agent that picks up the issue doesn't just see "build a feature." It sees the full security playbook: which OWASP categories apply, what STRIDE threats to mitigate, and exactly which controls to implement.
 
-<div style="margin: 24px 0; text-align: center;">
-<img src="/images/cheshire-feature.png" alt="Cheshire Cat issue management — RCTRO-formatted GitHub issue with embedded prompt pack guidance" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);" />
+<div class="docs-center-block">
+<img src="/images/cheshire-feature.png" alt="Cheshire Cat issue management — RCTRO-formatted GitHub issue with embedded prompt pack guidance" class="docs-inline-image" />
 </div>
 
 - **Issue management with RCTRO format** — describe what you want to build, select security categories, and Cheshire generates a structured specification with auto-created labels and implementation zones for Claude Code and Copilot Coding Agent
@@ -180,26 +184,26 @@ Backstage catalogs services - it doesn't understand their architecture. Port.io 
 
 **MaintainabilityAI is the only tool that starts from the architecture model and makes governance real in the developer's workflow.**
 
-<div style="background: linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(99,102,241,0.12) 100%); border: 2px solid rgba(74,222,128,0.4); border-radius: 12px; padding: 24px 32px; margin: 24px 0; text-align: center;">
-<div style="font-size: 28px; font-weight: 800; color: #4ade80; margin-bottom: 8px;">Free. Open Source. Forever.</div>
-<div style="font-size: 15px; color: #cbd5e1; line-height: 1.6;">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
+<div class="docs-center-block">
+<div class="docs-heading">Free. Open Source. Forever.</div>
+<div class="docs-copy">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
 </div>
 
 ---
 
 ## The Red Queen - Governance-Enforced Agent Intelligence
 
-<div style="display: flex; align-items: flex-start; gap: 24px; margin: 24px 0 32px 0; flex-wrap: wrap;">
-  <img src="/images/redqueen.png" alt="The Red Queen" style="width: 200px; height: 200px; border-radius: 16px; border: 2px solid rgba(239, 68, 68, 0.4); box-shadow: 0 4px 24px rgba(239, 68, 68, 0.15); flex-shrink: 0;" />
-  <div style="flex: 1; min-width: 280px; padding-top: 0; margin-top: 0;">
-    <p style="color: #e2e8f0; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0 !important;">
-      Everything we've built creates the foundation. The Red Queen transforms how AI agents interact with your architecture — delivering something no other tool in the market has: <strong style="color: #f87171;">deterministic governance enforcement</strong>.
+<div class="docs-flex-block">
+  <img src="/images/redqueen.png" alt="The Red Queen" class="docs-inline-image" />
+  <div>
+    <p class="docs-copy">
+      Everything we've built creates the foundation. The Red Queen transforms how AI agents interact with your architecture — delivering something no other tool in the market has: <strong class="docs-strong">deterministic governance enforcement</strong>.
     </p>
-    <p style="color: #cbd5e1; font-size: 15px; line-height: 1.7; margin: 0 !important;">Three enforcement layers at three speeds make this possible (two shipping now, one coming in Phase 9):</p>
-    <ul style="margin: 8px 0 0 0 !important; padding-left: 20px; list-style: none;">
-      <li style="color: #7dd3fc; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">⚡ <strong style="color: #7dd3fc;">PreToolUse Hooks</strong> <span style="color: #94a3b8;">— millisecond inline blocking before any tool fires</span></li>
-      <li style="color: #c4b5fd; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">🛡️ <strong style="color: #c4b5fd;">MCP Tools + The Red Queen's Court</strong> <span style="color: #94a3b8;">— agent-called validation with deterministic constraint enforcement</span></li>
-      <li style="color: #fca5a5; font-size: 14px; line-height: 1.6; margin: 6px 0 !important;">♛ <strong style="color: #fca5a5;">CI Required Status Check</strong> <span style="color: #94a3b8;">— hard gate that blocks merge on governance violations</span> <span style="color: #64748b; font-size: 11px;">(Phase 9)</span></li>
+    <p class="docs-copy">Three enforcement layers at three speeds make this possible (two shipping now, one coming in Phase 9):</p>
+    <ul class="markdown-list list-disc">
+      <li class="docs-list-item">⚡ <strong class="docs-strong">PreToolUse Hooks</strong> <span class="docs-copy">— millisecond inline blocking before any tool fires</span></li>
+      <li class="docs-list-item">🛡️ <strong class="docs-strong">MCP Tools + The Red Queen's Court</strong> <span class="docs-copy">— agent-called validation with deterministic constraint enforcement</span></li>
+      <li class="docs-list-item">♛ <strong class="docs-strong">CI Required Status Check</strong> <span class="docs-copy">— hard gate that blocks merge on governance violations</span> <span class="docs-copy">(Phase 9)</span></li>
     </ul>
   </div>
 </div>
@@ -220,19 +224,19 @@ This is the fundamental gap. And we're closing it.
 
 **The Red Queen** is a unified governance intelligence and enforcement system. It doesn't just tell agents about your architecture - it **enforces** it.
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
-<div style="display: grid; grid-template-rows: auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto;">
-<div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">Layer 1: PreToolUse Hooks — Millisecond Inline Blocking</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Before an agent tool runs, lightweight hooks evaluate static governance rules and block tool, path, restricted-tier, and declared CALM connection violations inline. Claude Code (<code>.claude/settings.json</code>) and Copilot Coding Agent (<code>.github/hooks/</code>) use agent-specific adapters that call the same validator, with no MCP round-trip required for the fast path.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-grid">
+<div class="docs-card docs-card-cyan">
+<div class="docs-heading">Layer 1: PreToolUse Hooks — Millisecond Inline Blocking</div>
+<div class="docs-muted">Before an agent tool runs, lightweight hooks evaluate static governance rules and block tool, path, restricted-tier, and declared CALM connection violations inline. Claude Code (<code>.claude/settings.json</code>) and Copilot Coding Agent (<code>.github/hooks/</code>) use agent-specific adapters that call the same validator, with no MCP round-trip required for the fast path.</div>
 </div>
-<div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Layer 2: The Grin (MCP Server) + The Red Queen's Court — Contextual Validation</div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">14 calm:// resources and 25 MCP tools make your governance mesh queryable by AI agents. The Red Queen's Court policy engine evaluates constraints deterministically — not as LLM suggestions. Today it covers tier, path, security-critical files, CALM flows, platform impact, and control-aware warnings through TypeScript rule evaluation. The agent receives an auditable allow, conditional, or deny decision.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-heading">Layer 2: The Grin (MCP Server) + The Red Queen's Court — Contextual Validation</div>
+<div class="docs-muted">14 calm:// resources and 25 MCP tools make your governance mesh queryable by AI agents. The Red Queen's Court policy engine evaluates constraints deterministically — not as LLM suggestions. Today it covers tier, path, security-critical files, CALM flows, platform impact, and control-aware warnings through TypeScript rule evaluation. The agent receives an auditable allow, conditional, or deny decision.</div>
 </div>
-<div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 20px;">
-<div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">Layer 3: CI Required Status Check — Hard Merge Gate <span style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">(Phase 9)</span></div>
-<div style="color: #94a3b8; font-size: 13px; margin-top: 8px;">The <code>redqueen-action</code> GitHub Action will run independent PR diff analysis as a required status check. No PR merges without governance clearance. Tree-sitter AST semantic diff will classify every code change by risk tier — cosmetic edits get lightweight checks, auth logic changes trigger full validation plus mandatory human review. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
+<div class="docs-card docs-card-indigo">
+<div class="docs-heading">Layer 3: CI Required Status Check — Hard Merge Gate <span class="docs-copy">(Phase 9)</span></div>
+<div class="docs-muted">The <code>redqueen-action</code> GitHub Action will run independent PR diff analysis as a required status check. No PR merges without governance clearance. Tree-sitter AST semantic diff will classify every code change by risk tier — cosmetic edits get lightweight checks, auth logic changes trigger full validation plus mandatory human review. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
 </div>
 </div>
 </div>
@@ -249,7 +253,7 @@ An AI agent implementing a feature decides: "I'll save time by querying the data
 
 This isn't an LLM judging whether the change is okay. It's a deterministic policy engine evaluating the CALM model. Condition → decision. Auditable. Unfoolable.
 
-<svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
+<svg viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
     <linearGradient id="enfBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -318,7 +322,7 @@ Modern applications span multiple repositories. A frontend. An API. A database. 
 
 When your CALM model declares a flow from **checkout-ui** through **order-api** to **order-database**, Red Queen can already reason over the graph and warn on shared platform impact. Phase 9 extends this into machine-checkable interface contracts — OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff — so cross-repo contract violations can fail a required check and create coordination work in the owning repo.
 
-<svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" style="width: 100%; margin: 24px 0; display: block;">
+<svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
     <linearGradient id="crBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -380,22 +384,22 @@ Organizations use Claude Code *and* Copilot Coding Agent. Different config files
 
 Three permission tiers, driven by governance scores:
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
-<div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Autonomous</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">80-100%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Agents operate with minimal oversight. Auto-edit mode. The Red Queen's Court still enforces flow and control constraints — autonomy means trust, not lawlessness.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-grid">
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Autonomous</div>
+<div class="docs-heading">80-100%</div>
+<div class="docs-muted">Agents operate with minimal oversight. Auto-edit mode. The Red Queen's Court still enforces flow and control constraints — autonomy means trust, not lawlessness.</div>
 </div>
-<div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Supervised</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">50-79%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Agents need human checkpoints. OWASP and STRIDE packs are injected for weak pillars. Structural changes are routed through <code>validate_action</code>; machine-checkable interface contract gates arrive in Phase 9.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Supervised</div>
+<div class="docs-heading">50-79%</div>
+<div class="docs-muted">Agents need human checkpoints. OWASP and STRIDE packs are injected for weak pillars. Structural changes are routed through <code>validate_action</code>; machine-checkable interface contract gates arrive in Phase 9.</div>
 </div>
-<div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 12px; padding: 20px;">
-<div style="font-size: 14px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Restricted</div>
-<div style="font-size: 28px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">0-49%</div>
-<div style="color: #94a3b8; font-size: 13px; line-height: 1.6;">Maximum oversight. Plan-first mode. Multi-agent review board. Hooks block Bash and Write, and Edit requires recorded approval. Every decision is auditable.</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-card-kicker">Restricted</div>
+<div class="docs-heading">0-49%</div>
+<div class="docs-muted">Maximum oversight. Plan-first mode. Multi-agent review board. Hooks block Bash and Write, and Edit requires recorded approval. Every decision is auditable.</div>
 </div>
 </div>
 </div>
@@ -418,28 +422,28 @@ In Phase 9, the Red Queen will build **agent memory**: which policy rules fire m
 
 Everything above - Looking Glass, Absolem, Oraculum, Cheshire, The Red Queen - isn't a collection of features. It's a stack. Five layers, each building on the one below, intelligence flowing upward.
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 40px 32px; margin: 40px 0; text-align: center;">
-<div style="font-size: 14px; font-weight: 600; color: #818cf8; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;">The MaintainabilityAI Stack</div>
-<div style="display: grid; grid-template-rows: auto auto auto auto auto; gap: 16px; max-width: 700px; margin: 0 auto; text-align: left;">
-<div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 16px;">
-<div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">Red Queen Policy Engine + Orchestration</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Orchestrates and enforces</strong> across two layers today: PreToolUse hooks for both agents (ms) and MCP tool validation (s). Configuration fingerprints detect drift. Permission tiers drive agent autonomy. Trust battery scores decay with neglect. Severity-weighted multi-agent consensus. <em>Phase 9 adds CI hard gate with tree-sitter AST semantic diff and break-glass overrides.</em></div>
+<div class="docs-center-block">
+<div class="docs-card-kicker">The MaintainabilityAI Stack</div>
+<div class="docs-grid">
+<div class="docs-card docs-card-muted">
+<div class="docs-heading">Red Queen Policy Engine + Orchestration</div>
+<div class="docs-muted"><strong class="docs-strong">Orchestrates and enforces</strong> across two layers today: PreToolUse hooks for both agents (ms) and MCP tool validation (s). Configuration fingerprints detect drift. Permission tiers drive agent autonomy. Trust battery scores decay with neglect. Severity-weighted multi-agent consensus. <em>Phase 9 adds CI hard gate with tree-sitter AST semantic diff and break-glass overrides.</em></div>
 </div>
-<div style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 10px; padding: 16px;">
-<div style="font-size: 16px; font-weight: 700; color: #d8b4fe;">The Red Queen's Court (Policy Engine)</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Evaluates</strong> constraints as deterministic rules, not suggestions. Permission boundaries, generated-file paths, security-critical files, CALM flow transitions, control-aware warnings, and platform impact are evaluated by a pure TypeScript policy engine running in-process.</div>
+<div class="docs-card docs-card-indigo">
+<div class="docs-heading">The Red Queen's Court (Policy Engine)</div>
+<div class="docs-muted"><strong class="docs-strong">Evaluates</strong> constraints as deterministic rules, not suggestions. Permission boundaries, generated-file paths, security-critical files, CALM flow transitions, control-aware warnings, and platform impact are evaluated by a pure TypeScript policy engine running in-process.</div>
 </div>
-<div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 10px; padding: 16px;">
-<div style="font-size: 16px; font-weight: 700; color: #a5b4fc;">The Grin (MCP Server)</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Exposes</strong> architecture intelligence to every AI agent via 14 calm:// resources and 25 MCP tools. Claude Code, Copilot Coding Agent, Cursor, GitHub Actions — any MCP client gets the same governance context. Published as <code>@maintainabilityai/redqueen-mcp</code> on npm; scaffolded repos launch it through a portable local runner.</div>
+<div class="docs-card docs-card-indigo">
+<div class="docs-heading">The Grin (MCP Server)</div>
+<div class="docs-muted"><strong class="docs-strong">Exposes</strong> architecture intelligence to every AI agent via 14 calm:// resources and 25 MCP tools. Claude Code, Copilot Coding Agent, Cursor, GitHub Actions — any MCP client gets the same governance context. Published as <code>@maintainabilityai/redqueen-mcp</code> on npm; scaffolded repos launch it through a portable local runner.</div>
 </div>
-<div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 16px;">
-<div style="font-size: 16px; font-weight: 700; color: #93c5fd;">Looking Glass + Absolem + Oraculum</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Visualizes</strong> and quantifies governance. Looking Glass dashboards score every BAR. Absolem advises on architecture decisions. Oraculum runs automated reviews against CALM models.</div>
+<div class="docs-card docs-card-blue">
+<div class="docs-heading">Looking Glass + Absolem + Oraculum</div>
+<div class="docs-muted"><strong class="docs-strong">Visualizes</strong> and quantifies governance. Looking Glass dashboards score every BAR. Absolem advises on architecture decisions. Oraculum runs automated reviews against CALM models.</div>
 </div>
-<div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); border-radius: 10px; padding: 16px;">
-<div style="font-size: 16px; font-weight: 700; color: #7dd3fc;">CALM 1.2 + STRIDE + OWASP</div>
-<div style="color: #94a3b8; font-size: 13px;"><strong style="color: #e2e8f0;">Creates</strong> the structured intelligence. CALM architecture models, STRIDE threat assessments, OWASP prompt packs, and NIST controls - version-controlled in Git, machine-readable, powering everything above.</div>
+<div class="docs-card docs-card-cyan">
+<div class="docs-heading">CALM 1.2 + STRIDE + OWASP</div>
+<div class="docs-muted"><strong class="docs-strong">Creates</strong> the structured intelligence. CALM architecture models, STRIDE threat assessments, OWASP prompt packs, and NIST controls - version-controlled in Git, machine-readable, powering everything above.</div>
 </div>
 </div>
 </div>
@@ -450,30 +454,30 @@ No other tool connects all five layers. That's the impossible thing we built.
 
 ## Three Markets. One Gap. We Fill It.
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
-<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
-<div style="text-align: center; padding: 16px;">
-<div style="font-size: 32px; font-weight: 800; color: #818cf8;">$23.9B</div>
-<div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Platform Engineering by 2030</div>
-<div style="color: #64748b; font-size: 13px; margin-top: 8px;">Backstage, Port, OpsLevel - catalogs without architecture</div>
-<div style="color: #475569; font-size: 10px; margin-top: 4px;">Source: Grand View Research, 23.7% CAGR</div>
+<div class="docs-card docs-card-muted">
+<div class="docs-grid">
+<div class="docs-center-block">
+<div class="docs-icon">$23.9B</div>
+<div class="docs-card-kicker">Platform Engineering by 2030</div>
+<div class="docs-muted">Backstage, Port, OpsLevel - catalogs without architecture</div>
+<div class="docs-muted">Source: Grand View Research, 23.7% CAGR</div>
 </div>
-<div style="text-align: center; padding: 16px;">
-<div style="font-size: 32px; font-weight: 800; color: #818cf8;">$1.6B</div>
-<div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Enterprise Architecture Tools by 2030</div>
-<div style="color: #64748b; font-size: 13px; margin-top: 8px;">LeanIX, Ardoq, MEGA - architecture without developers</div>
-<div style="color: #475569; font-size: 10px; margin-top: 4px;">Source: Grand View Research, 6.0% CAGR</div>
+<div class="docs-center-block">
+<div class="docs-icon">$1.6B</div>
+<div class="docs-card-kicker">Enterprise Architecture Tools by 2030</div>
+<div class="docs-muted">LeanIX, Ardoq, MEGA - architecture without developers</div>
+<div class="docs-muted">Source: Grand View Research, 6.0% CAGR</div>
 </div>
-<div style="text-align: center; padding: 16px;">
-<div style="font-size: 32px; font-weight: 800; color: #818cf8;">$26.0B</div>
-<div style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">AI Code Tools by 2030</div>
-<div style="color: #64748b; font-size: 13px; margin-top: 8px;">Claude Code, Copilot Coding Agent, Cursor — agents without architecture awareness</div>
-<div style="color: #475569; font-size: 10px; margin-top: 4px;">Source: Grand View Research, 27.1% CAGR</div>
+<div class="docs-center-block">
+<div class="docs-icon">$26.0B</div>
+<div class="docs-card-kicker">AI Code Tools by 2030</div>
+<div class="docs-muted">Claude Code, Copilot Coding Agent, Cursor — agents without architecture awareness</div>
+<div class="docs-muted">Source: Grand View Research, 27.1% CAGR</div>
 </div>
 </div>
-<div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(148, 163, 184, 0.2);">
-<div style="font-size: 18px; font-weight: 700; color: #f8fafc;">The gap between these markets is architecture governance that reaches the developer.</div>
-<div style="color: #94a3b8; font-size: 14px; margin-top: 8px;">MaintainabilityAI is the bridge.</div>
+<div class="docs-center-block">
+<div class="docs-heading">The gap between these markets is architecture governance that reaches the developer.</div>
+<div class="docs-muted">MaintainabilityAI is the bridge.</div>
 </div>
 </div>
 
@@ -481,89 +485,231 @@ No other tool connects all five layers. That's the impossible thing we built.
 
 ## The Road Ahead
 
-<div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 16px; padding: 32px; margin: 24px 0;">
-<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-<div style="width: 14px; height: 14px; border-radius: 50%; background: #4ade80; flex-shrink: 0;"></div>
-<div style="font-size: 13px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 1.5px;">Available Now</div>
+<div class="docs-roadmap">
+
+<svg viewBox="0 0 1080 170" xmlns="http://www.w3.org/2000/svg" class="docs-roadmap-rail" role="img" aria-labelledby="roadAheadTitle roadAheadDesc">
+  <title id="roadAheadTitle">The Road Ahead — three chapters from today to tomorrow</title>
+  <desc id="roadAheadDesc">A glowing horizontal trail connecting three milestones: today through the looking glass, the Red Queen running now, and the next six impossible things on the horizon.</desc>
+  <defs>
+    <linearGradient id="raTrail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset=".5" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <radialGradient id="raDotA" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="raDotB" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fb7185"/>
+      <stop offset="1" stop-color="#fb7185" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="raDotC" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .raLabel{font:800 14px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:2.5px;text-transform:uppercase;fill:#cbd5e1}
+      .raSub{font:500 13px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#94a3b8}
+    </style>
+  </defs>
+  <path d="M70 70 Q 270 30 540 70 T 1010 70" fill="none" stroke="url(#raTrail)" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M70 70 Q 270 30 540 70 T 1010 70" fill="none" stroke="url(#raTrail)" stroke-width="14" stroke-linecap="round" opacity="0.18"/>
+  <g>
+    <circle cx="70" cy="70" r="34" fill="url(#raDotA)"/>
+    <circle cx="70" cy="70" r="8" fill="#0b1224" stroke="#22d3ee" stroke-width="2.5"/>
+    <text x="20" y="125" text-anchor="start" class="raLabel" fill="#67e8f9">Chapter I</text>
+    <text x="20" y="148" text-anchor="start" class="raSub">Through the looking glass today</text>
+  </g>
+  <g>
+    <circle cx="540" cy="70" r="36" fill="url(#raDotB)"/>
+    <circle cx="540" cy="70" r="9" fill="#0b1224" stroke="#fb7185" stroke-width="2.5"/>
+    <text x="540" y="125" text-anchor="middle" class="raLabel" fill="#fda4af">Chapter II</text>
+    <text x="540" y="148" text-anchor="middle" class="raSub">The Red Queen runs now</text>
+  </g>
+  <g>
+    <circle cx="1010" cy="70" r="34" fill="url(#raDotC)"/>
+    <circle cx="1010" cy="70" r="8" fill="#0b1224" stroke="#a78bfa" stroke-width="2.5"/>
+    <text x="1060" y="125" text-anchor="end" class="raLabel" fill="#c4b5fd">Chapter III</text>
+    <text x="1060" y="148" text-anchor="end" class="raSub">Six more impossible things</text>
+  </g>
+</svg>
+
+<div class="docs-chapter docs-chapter-blue">
+  <div class="docs-chapter-head">
+    <div class="docs-chapter-numeral">I</div>
+    <div>
+      <span class="docs-chapter-meta">Chapter I · Available now</span>
+      <h3 class="docs-chapter-title">Through the looking glass today</h3>
+      <p class="docs-chapter-lede">Eight shipping capabilities turn the governance mesh into the operating model for the developer's day. Architecture becomes visible, security travels with the work, and scaffolding becomes a habit.</p>
+    </div>
+  </div>
+  <div class="docs-roadmap-theme">
+    <div class="docs-roadmap-theme-head">
+      <span class="docs-roadmap-theme-kicker">Theme 1 &middot; See the portfolio</span>
+      <h4 class="docs-roadmap-theme-title">Make the architecture you already own visible and queryable</h4>
+      <p class="docs-roadmap-theme-lede">Mesh-side capabilities that turn CALM models and governance scores into a daily operating picture for architects, leads, and reviewers.</p>
+    </div>
+    <div class="docs-grid docs-grid-wide">
+      <div class="docs-card docs-card-blue">
+        <div class="docs-card-kicker">Mesh dashboard</div>
+        <h4 class="docs-card-title">Looking Glass</h4>
+        <p class="docs-card-body">Portfolio dashboard with four-pillar governance scoring, interactive CALM architecture diagrams, and enterprise capability models (ACORD, BIAN).</p>
+      </div>
+      <div class="docs-card docs-card-indigo">
+        <div class="docs-card-kicker">AI advisor</div>
+        <h4 class="docs-card-title">Absolem</h4>
+        <p class="docs-card-body">AI governance assistant with seven commands: drift analysis, component addition, CALM validation, gap analysis, ADR suggestions, image-to-CALM, and repo-to-CALM.</p>
+      </div>
+      <div class="docs-card docs-card-cyan">
+        <div class="docs-card-kicker">Automated review</div>
+        <h4 class="docs-card-title">Oraculum</h4>
+        <p class="docs-card-body">Architecture drift detection that runs. Claude Code or Copilot Coding Agent reviews codebases against your CALM model and posts findings to GitHub Issues, organized by pillar.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="docs-roadmap-theme">
+    <div class="docs-roadmap-theme-head">
+      <span class="docs-roadmap-theme-kicker">Theme 2 &middot; Scaffold into repos</span>
+      <h4 class="docs-roadmap-theme-title">Push governance from the mesh down into the code that ships</h4>
+      <p class="docs-roadmap-theme-lede">Repo-side capabilities that scaffold the security spine into every BAR, then carry CALM architecture context into the features developers and agents build.</p>
+    </div>
+    <div class="docs-grid docs-grid-wide">
+      <div class="docs-card docs-card-emerald">
+        <div class="docs-card-kicker">Security spine</div>
+        <h4 class="docs-card-title">Cheshire Cat</h4>
+        <p class="docs-card-body">Deterministic security engine. Scaffolds OWASP prompt packs, STRIDE templates, ADRs, and CI security gates into every repository &mdash; with a fitness scorecard the agent sees first.</p>
+      </div>
+      <div class="docs-card docs-card-emerald">
+        <div class="docs-card-kicker">BAR-to-repo</div>
+        <h4 class="docs-card-title">White Rabbit</h4>
+        <p class="docs-card-body">BAR-to-code scaffolding. Architecture context from the governance mesh travels into the repository every time a new service, library, or interface is stood up.</p>
+      </div>
+      <div class="docs-card docs-card-emerald">
+        <div class="docs-card-kicker">RCTRO issues</div>
+        <h4 class="docs-card-title">Rabbit Hole</h4>
+        <p class="docs-card-body">RCTRO-formatted GitHub issue generation. Describe a feature in plain text and Cheshire produces the full security playbook agents need before they touch the keyboard.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="docs-roadmap-theme">
+    <div class="docs-roadmap-theme-head">
+      <span class="docs-roadmap-theme-kicker">Theme 3 &middot; Measure and guide</span>
+      <h4 class="docs-roadmap-theme-title">The shared spine every BAR and every agent draws from</h4>
+      <p class="docs-roadmap-theme-lede">Continuous fitness signals and prompt guidance &mdash; the metrics that drive autonomy tiers, and the prompt packs both humans and agents consume.</p>
+    </div>
+    <div class="docs-grid docs-grid-wide">
+      <div class="docs-card docs-card-amber">
+        <div class="docs-card-kicker">Repo fitness</div>
+        <h4 class="docs-card-title">Security Scorecard</h4>
+        <p class="docs-card-body">Repository health metrics &mdash; code security, test coverage, technical debt, dependency freshness, complexity &mdash; with a Create Feature entry point into governed workflows.</p>
+      </div>
+      <div class="docs-card docs-card-amber">
+        <div class="docs-card-kicker">Shared guidance</div>
+        <h4 class="docs-card-title">Prompt Packs</h4>
+        <p class="docs-card-body">OWASP Top 10, maintainability, and STRIDE guidance embedded in every workflow. RCTRO-formatted prompts both humans and AI agents read &mdash; the contract between intent and implementation.</p>
+      </div>
+    </div>
+  </div>
 </div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">🪞 Looking Glass</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Portfolio dashboard with four-pillar governance scoring, CALM architecture diagrams, and enterprise capability models.</div>
+
+<div class="docs-chapter docs-chapter-rose">
+  <div class="docs-chapter-head">
+    <div class="docs-chapter-numeral">II</div>
+    <div>
+      <span class="docs-chapter-meta">Chapter II · Shipping governance control</span>
+      <h3 class="docs-chapter-title">The Red Queen begins her run</h3>
+      <p class="docs-chapter-lede">Eight phases of unified intelligence and enforcement are live. Governance moves from prompt advice into deterministic policy, hooks, and audited evidence.</p>
+    </div>
+  </div>
+  <div class="docs-card docs-card-rose">
+    <div class="docs-heading">The Red Queen — Phases 1-8</div>
+    <div class="docs-muted">The Grin MCP server with 25 tools and 14 calm:// resources. The Red Queen's Court TypeScript policy engine. Progressive autonomy tiers and trust battery score decay. Multi-agent review boards. PreToolUse hook generation for Claude Code and Copilot Coding Agent. GitHub Actions workflow generation, audit logging, repo-local MCP runner, and <a href="https://www.npmjs.com/package/@maintainabilityai/redqueen-mcp" class="markdown-link">npm package</a> distribution.</div>
+  </div>
 </div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">🐛 Absolem</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">AI governance assistant with 7 commands including image-to-CALM and repo-to-CALM architecture extraction.</div>
+
+<div class="docs-chapter docs-chapter-indigo">
+  <div class="docs-chapter-head">
+    <div class="docs-chapter-numeral">III</div>
+    <div>
+      <span class="docs-chapter-meta">Chapter III · On the horizon</span>
+      <h3 class="docs-chapter-title">Audit-grade evidence for the agentic SDLC</h3>
+      <p class="docs-chapter-lede">The 2026 market &mdash; Microsoft, GitHub, Snyk, the EU AI Act &mdash; pulled the auditability conversation forward. Chapter III answers the question every reviewer now asks: <em>show me how this feature was built, by which agent, with which prompt, against which threat model.</em> Read the full landscape and roadmap in our <a href="/docs/research/agentic-governance-landscape" class="markdown-link">agentic governance research</a>.</p>
+    </div>
+  </div>
+  <div class="docs-roadmap-theme">
+    <div class="docs-roadmap-theme-head">
+      <span class="docs-roadmap-theme-kicker">Theme 1 &middot; The evidence chain</span>
+      <h4 class="docs-roadmap-theme-title">Make every AI-assisted change traceable</h4>
+      <p class="docs-roadmap-theme-lede">Audit chain, agent inventory, per-PR provenance. The auditor&rsquo;s &ldquo;how was this built?&rdquo; answered with a single query.</p>
+    </div>
+    <div class="docs-grid docs-grid-wide">
+      <div class="docs-card docs-card-rose">
+        <div class="docs-card-kicker">Red Queen extension</div>
+        <h4 class="docs-card-title">The Court Recorder</h4>
+        <p class="docs-card-body">Merkle-chained, append-only audit log of every Red Queen allow / deny / override. CloudEvents v1.0 envelopes. Inclusion-proof CLI. SIEM export to Splunk, Sentinel, Datadog. Built for EU AI Act Art. 12 retention.</p>
+      </div>
+      <div class="docs-card docs-card-cyan">
+        <div class="docs-card-kicker">Looking Glass pillar</div>
+        <h4 class="docs-card-title">Agent Roster</h4>
+        <p class="docs-card-body">Live AI-BOM of every deployed agent: identity, model version, system-prompt hash, scope of access, owner, governance tier. ISO 42001 A.6.2.7 evidence in one place.</p>
+      </div>
+      <div class="docs-card docs-card-emerald">
+        <div class="docs-card-kicker">Cheshire artifact</div>
+        <h4 class="docs-card-title">The Hatter&rsquo;s Tag</h4>
+        <p class="docs-card-body">Signed provenance manifest attached to every AI-assisted PR: agent, model version, system-prompt fingerprint, prompt-pack version, threat-model reference, OWASP categories, fitness results, reviewer rationale.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="docs-roadmap-theme">
+    <div class="docs-roadmap-theme-head">
+      <span class="docs-roadmap-theme-kicker">Theme 2 &middot; Architecture &amp; intent</span>
+      <h4 class="docs-roadmap-theme-title">Test that the architecture you declared is the architecture you got</h4>
+      <p class="docs-roadmap-theme-lede">Move fitness functions from code metrics to architecture behaviour. Compile the harness from policy. Catch drift before merge.</p>
+    </div>
+    <div class="docs-grid docs-grid-wide">
+      <div class="docs-card docs-card-amber">
+        <div class="docs-card-kicker">Cheshire fitness</div>
+        <h4 class="docs-card-title">The Caterpillar&rsquo;s Challenge</h4>
+        <p class="docs-card-body">CALM-derived architecture conformance tests: declared-flow checks, trust-zone crossings, interface-contract diffs (oasdiff, buf, graphql-inspector). Fitness functions that test <em>architecture behaviour</em>, not just code metrics.</p>
+      </div>
+      <div class="docs-card docs-card-blue">
+        <div class="docs-card-kicker">Cheshire compiler</div>
+        <h4 class="docs-card-title">Harness Compiler</h4>
+        <p class="docs-card-body">Compiles <code>AGENTS.md</code>, hooks, skills, MCP config, and <code>CLAUDE.md</code> from the BAR&rsquo;s governance score plus the IntentSpec plus the CALM model. Re-runs on policy change; harness is version-pinned to commit SHA.</p>
+      </div>
+      <div class="docs-card docs-card-violet">
+        <div class="docs-card-kicker">Cheshire fitness</div>
+        <h4 class="docs-card-title">Intent Fidelity gate</h4>
+        <p class="docs-card-body">New fitness function. Schema check (every declared outcome must have a referencing test) plus an LLM-judge semantic check against the referenced IntentSpec. Fails CI on threshold breach &mdash; catches goal drift before merge, not after incident.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="docs-roadmap-theme">
+    <div class="docs-roadmap-theme-head">
+      <span class="docs-roadmap-theme-kicker">Theme 3 &middot; Hard gates &amp; regulatory reach</span>
+      <h4 class="docs-roadmap-theme-title">The deterministic merge gate, mapped to the standards your auditor names</h4>
+      <p class="docs-roadmap-theme-lede">From advisory to enforceable. From four crosswalks to eight. The artifacts an enterprise procurement team checks for.</p>
+    </div>
+    <div class="docs-grid docs-grid-wide">
+      <div class="docs-card docs-card-indigo">
+        <div class="docs-card-kicker">Red Queen Phase 9</div>
+        <h4 class="docs-card-title">The hard gate</h4>
+        <p class="docs-card-body"><code>redqueen-action</code> CI hard gate with tree-sitter AST semantic diff, machine-checkable contract diffs, break-glass budgets, agent memory, and adaptive policy refinement.</p>
+      </div>
+      <div class="docs-card docs-card-muted">
+        <div class="docs-card-kicker">Compliance mapping</div>
+        <h4 class="docs-card-title">Regulatory evidence &mdash; expanded</h4>
+        <p class="docs-card-body">Beyond the existing SOC 2, ISO 27001, NIST 800-53, and PCI&nbsp;DSS crosswalks, add <strong>EU AI Act</strong>, <strong>ISO/IEC 42001</strong>, and <strong>NIST AI RMF + Generative AI Profile</strong> &mdash; the three standards specific to AI engineering that enterprise auditors are asking about in 2026.</p>
+      </div>
+    </div>
+  </div>
 </div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">📜 Oraculum</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Automated architecture review via Claude Code / Copilot Coding Agent on GitHub Issues - continuous governance in your CI pipeline.</div>
-</div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">🐇 White Rabbit</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">BAR-to-code scaffolding pipeline with full architecture context passthrough from mesh to repository.</div>
-</div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">🕳️ Rabbit Hole</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Issue management with RCTRO prompt generation and multi-category prompt packs for security-first development.</div>
-</div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">🐱 Cheshire Cat</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">The original security scaffolding engine. Deterministic management of fitness functions, SDLC completeness, security compliance, dependency freshness, test coverage, and complexity - all scored from real repository artifacts.</div>
-</div>
-<div style="display: flex; gap: 10px; margin-bottom: 10px;">
-<div style="flex: 1; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">📊 Security Scorecard</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Repository health metrics with "Create Feature" entry point into governed workflows.</div>
-</div>
-<div style="flex: 1; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">📦 Prompt Packs</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">OWASP, maintainability, and STRIDE guidance embedded in every workflow.</div>
-</div>
-</div>
-<div style="background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
-<div style="font-size: 15px; font-weight: 700; color: #86efac;">♛ The Red Queen <span style="font-size: 10px; font-weight: 600; color: #4ade80; text-transform: uppercase; letter-spacing: 1px;">Phases 1-8</span></div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Unified governance intelligence and enforcement — MCP server (The Grin) with 25 tools and 14 calm:// resources, The Red Queen's Court TypeScript policy engine for deterministic enforcement (6 rule types: TIER, PATH, SEC, CALM, CTRL, PLAT), progressive autonomy agent orchestration with 3 permission tiers, score decay with trust battery, multi-agent review boards with severity-weighted consensus, PreToolUse hook generation for both Claude Code and Copilot Coding Agent, GitHub Actions workflow generation, audit logging with correlation IDs, repo-local MCP runner generation, and <a href="https://www.npmjs.com/package/@maintainabilityai/redqueen-mcp" style="color: #86efac;">npm package</a> distribution.</div>
-</div>
-<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-<div style="width: 14px; height: 14px; border-radius: 50%; background: #818cf8; flex-shrink: 0;"></div>
-<div style="font-size: 13px; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 1.5px;">Coming Next</div>
-</div>
-<div style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.3); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
-<div style="font-size: 15px; font-weight: 700; color: #a5b4fc;">♛ The Red Queen — Phase 9</div>
-<div style="color: #94a3b8; font-size: 12px; margin-top: 4px;"><code>redqueen-action</code> CI hard gate with tree-sitter AST semantic diff for risk-tiered PR analysis, machine-checkable interface contract diffs (oasdiff, buf, graphql-inspector, asyncapi-diff), break-glass override mechanism with anti-normalization controls and quarterly budgets, agent memory system that learns from policy violations and prompt pack effectiveness, and adaptive policy refinement.</div>
-</div>
-<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-<div style="width: 14px; height: 14px; border-radius: 50%; background: #64748b; flex-shrink: 0;"></div>
-<div style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px;">On the Horizon</div>
-</div>
-<div style="display: flex; gap: 10px; margin-bottom: 10px;">
-<div style="flex: 1; background: rgba(100,116,139,0.06); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 14px; font-weight: 700; color: #94a3b8;">Predictive Health</div>
-<div style="color: #64748b; font-size: 12px; margin-top: 4px;">Time-series forecasting of governance score trajectories.</div>
-</div>
-<div style="flex: 1; background: rgba(100,116,139,0.06); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 14px; font-weight: 700; color: #94a3b8;">Pattern Detection</div>
-<div style="color: #64748b; font-size: 12px; margin-top: 4px;">Graph algorithms detecting patterns and anti-patterns in CALM topology.</div>
-</div>
-<div style="flex: 1; background: rgba(100,116,139,0.06); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 14px; font-weight: 700; color: #94a3b8;">Supply Chain Gov.</div>
-<div style="color: #64748b; font-size: 12px; margin-top: 4px;">SBOM + SLSA integration as a governance dimension.</div>
-</div>
-</div>
-<div style="display: flex; gap: 10px;">
-<div style="flex: 1; background: rgba(100,116,139,0.06); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 14px; font-weight: 700; color: #94a3b8;">Knowledge Graph</div>
-<div style="color: #64748b; font-size: 12px; margin-top: 4px;">Semantic graph powering cross-portfolio reasoning.</div>
-</div>
-<div style="flex: 1; background: rgba(100,116,139,0.06); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 14px; font-weight: 700; color: #94a3b8;">Runtime Validation</div>
-<div style="color: #64748b; font-size: 12px; margin-top: 4px;">OpenTelemetry traces compared against CALM models for drift detection.</div>
-</div>
-<div style="flex: 1; background: rgba(100,116,139,0.06); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px;">
-<div style="font-size: 14px; font-weight: 700; color: #94a3b8;">Regulatory Compliance</div>
-<div style="color: #64748b; font-size: 12px; margin-top: 4px;">SOC2, ISO 27001, PCI-DSS evidence from governance artifacts.</div>
-</div>
-</div>
+
 </div>
 
 ---
@@ -582,7 +728,7 @@ This is the architecture-first agentic SDLC. This is MaintainabilityAI.
 
 ---
 
-<div style="text-align: center; padding: 40px 0;">
-<div style="font-size: 14px; color: #64748b; margin-bottom: 16px;">Built on FINOS CALM 1.2 | Powered by VS Code | Free and Open</div>
-<a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #f8fafc; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);">Install from VS Code Marketplace</a>
+<div class="docs-center-block">
+<div class="docs-muted">Built on FINOS CALM 1.2 | Powered by VS Code | Free and Open</div>
+<a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" class="docs-button-secondary">Install from VS Code Marketplace</a>
 </div>

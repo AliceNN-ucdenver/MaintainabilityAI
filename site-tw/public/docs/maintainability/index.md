@@ -1,11 +1,11 @@
-# Maintainability Framework
-
-<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; padding: 32px; margin: 32px 0; box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);">
-  <div style="text-align: center;">
-    <h2 style="margin: 0; font-size: 28px; color: #f1f5f9; font-weight: 800;">Evolutionary Architecture for Long-Lived Systems</h2>
-    <div style="font-size: 15px; color: #d1fae5; margin-top: 12px; max-width: 700px; margin-left: auto; margin-right: auto;">
-      Maintainability is not a one-time achievement — it's an ongoing practice enforced through automated fitness functions, incremental change patterns, and systematic technical debt management.
-    </div>
+<div class="docs-hero docs-hero-emerald">
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-inner">
+    <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Maintainability</span></div>
+    <div class="docs-eyebrow">Evolutionary architecture <span class="docs-hero-meta">~2 min read</span></div>
+    <h1 class="docs-hero-title">Built to evolve &mdash; not just built once</h1>
+    <p class="docs-hero-copy">Maintainability is an ongoing practice: automated fitness functions, incremental change patterns, and systematic technical-debt management keep the system healthy as the world changes around it.</p>
+    <span class="docs-hero-flourish">&ldquo;The Time has come to talk of many things&hellip; of complexity and coverage.&rdquo;</span>
   </div>
 </div>
 
@@ -16,16 +16,16 @@
 
 ## Core Guides
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<a href="./fitness-functions" style="text-decoration: none; display: block;">
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(16, 185, 129, 0.3); height: 100%; box-sizing: border-box;">
-  <div style="font-size: 32px; margin-bottom: 12px;">📏</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #f1f5f9; font-weight: 800;">Fitness Functions</h3>
-  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+<a href="./fitness-functions" class="docs-card docs-card-muted">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-icon">📏</div>
+  <h3 class="docs-heading">Fitness Functions</h3>
+  <p class="docs-copy">
     Automated, objective checks that verify architectural characteristics at every commit
   </p>
-  <div style="color: #6ee7b7; font-size: 13px; line-height: 1.8;">
+  <div class="docs-copy">
     ✓ Complexity (cyclomatic ≤10)<br/>
     ✓ Dependency freshness (3-month rule)<br/>
     ✓ Security compliance (CodeQL + Snyk)<br/>
@@ -35,14 +35,14 @@
 </div>
 </a>
 
-<a href="./evolutionary-architecture" style="text-decoration: none; display: block;">
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(16, 185, 129, 0.3); height: 100%; box-sizing: border-box;">
-  <div style="font-size: 32px; margin-bottom: 12px;">🔄</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #f1f5f9; font-weight: 800;">Evolutionary Architecture</h3>
-  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+<a href="./evolutionary-architecture" class="docs-card docs-card-muted">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-icon">🔄</div>
+  <h3 class="docs-heading">Evolutionary Architecture</h3>
+  <p class="docs-copy">
     Incremental change patterns, technical debt management, and AI-assisted refactoring
   </p>
-  <div style="color: #6ee7b7; font-size: 13px; line-height: 1.8;">
+  <div class="docs-copy">
     ✓ Strangler Fig migrations<br/>
     ✓ Feature flags for safe rollout<br/>
     ✓ Branch by Abstraction<br/>
@@ -52,14 +52,14 @@
 </div>
 </a>
 
-<a href="/docs/prompts/maintainability/" style="text-decoration: none; display: block;">
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 28px; border: 2px solid rgba(16, 185, 129, 0.3); height: 100%; box-sizing: border-box;">
-  <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
-  <h3 style="margin: 0 0 12px 0; font-size: 20px; color: #f1f5f9; font-weight: 800;">AI Prompt Packs</h3>
-  <p style="color: #cbd5e1; font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+<a href="/docs/prompts/maintainability/" class="docs-card docs-card-muted">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-icon">🤖</div>
+  <h3 class="docs-heading">AI Prompt Packs</h3>
+  <p class="docs-copy">
     Production-ready RCTRO prompts for AI-assisted maintainability work
   </p>
-  <div style="color: #6ee7b7; font-size: 13px; line-height: 1.8;">
+  <div class="docs-copy">
     ✓ Complexity reduction<br/>
     ✓ Dependency hygiene<br/>
     ✓ DRY principle enforcement<br/>
@@ -77,26 +77,26 @@
 
 Maintainability and security are deeply intertwined. Code that is hard to understand is hard to audit, and code that is hard to audit harbors vulnerabilities.
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 8px;">Simple Code is Secure Code</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">Low complexity means fewer bugs, which means fewer vulnerabilities. Fitness function: cyclomatic complexity ≤10.</div>
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Simple Code is Secure Code</div>
+  <div class="docs-copy">Low complexity means fewer bugs, which means fewer vulnerabilities. Fitness function: cyclomatic complexity ≤10.</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 8px;">Tested Code is Trustworthy Code</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">High coverage gives confidence that changes don't introduce regressions. Fitness function: coverage ≥80%.</div>
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Tested Code is Trustworthy Code</div>
+  <div class="docs-copy">High coverage gives confidence that changes don't introduce regressions. Fitness function: coverage ≥80%.</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #f97316;">
-  <div style="font-size: 15px; font-weight: 700; color: #fdba74; margin-bottom: 8px;">Fresh Code is Secure Code</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">Up-to-date dependencies mean fewer known CVEs. Fitness function: all packages less than 3 months old.</div>
+<div class="docs-card docs-card-orange">
+  <div class="docs-heading">Fresh Code is Secure Code</div>
+  <div class="docs-copy">Up-to-date dependencies mean fewer known CVEs. Fitness function: all packages less than 3 months old.</div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #8b5cf6;">
-  <div style="font-size: 15px; font-weight: 700; color: #c4b5fd; margin-bottom: 8px;">Documented Code is Auditable Code</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.7;">Clear rationale enables faster security reviews. Fitness function: all security decisions documented.</div>
+<div class="docs-card docs-card-indigo">
+  <div class="docs-heading">Documented Code is Auditable Code</div>
+  <div class="docs-copy">Clear rationale enables faster security reviews. Fitness function: all security decisions documented.</div>
 </div>
 
 </div>
@@ -107,7 +107,7 @@ Maintainability and security are deeply intertwined. Code that is hard to unders
 
 Track debt with metrics and thresholds rather than subjective assessments:
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid rgba(100, 116, 139, 0.3); overflow-x: auto;">
+<div class="docs-card docs-card-muted">
 
 | Debt Type | Metric | Threshold | Action |
 |-----------|--------|-----------|--------|
@@ -123,20 +123,20 @@ Track debt with metrics and thresholds rather than subjective assessments:
 
 ## Success Metrics
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0;">
+<div class="docs-grid docs-grid-wide">
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #3b82f6;">
-  <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-bottom: 12px;">Leading Indicators (Process)</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+<div class="docs-card docs-card-blue">
+  <div class="docs-heading">Leading Indicators (Process)</div>
+  <div class="docs-copy">
     ✓ Fitness Function Pass Rate — target: >95%<br/>
     ✓ Refactoring Velocity — tech debt resolved per sprint<br/>
     ✓ Dependency Freshness — average package age target: <2 months
   </div>
 </div>
 
-<div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 24px; border-left: 4px solid #10b981;">
-  <div style="font-size: 15px; font-weight: 700; color: #6ee7b7; margin-bottom: 12px;">Lagging Indicators (Outcomes)</div>
-  <div style="color: #cbd5e1; font-size: 13px; line-height: 1.8;">
+<div class="docs-card docs-card-emerald">
+  <div class="docs-heading">Lagging Indicators (Outcomes)</div>
+  <div class="docs-copy">
     ✓ Defect Density — bugs per 1000 LOC target: <5<br/>
     ✓ Time to Fix — discovery to deploy target: <7 days<br/>
     ✓ Complexity Trend — average cyclomatic over time target: decreasing<br/>
