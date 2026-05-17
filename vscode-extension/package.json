@@ -2,7 +2,7 @@
   "name": "maintainabilityai",
   "displayName": "MaintainabilityAI",
   "description": "Security-first RCTRO issue creation for AI-assisted feature development",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "publisher": "chiefarcheologist",
   "license": "MIT",
   "preview": true,
@@ -180,19 +180,30 @@
         },
         "maintainabilityai.research.llmProvider": {
           "type": "string",
-          "enum": ["anthropic", "openai"],
+          "enum": [
+            "anthropic",
+            "openai"
+          ],
           "default": "anthropic",
           "description": "Default LLM provider for the Archeologist and PRD agents. Per-run override available."
         },
         "maintainabilityai.research.guardrails": {
           "type": "string",
-          "enum": ["strict", "default", "lenient"],
+          "enum": [
+            "strict",
+            "default",
+            "lenient"
+          ],
           "default": "default",
           "description": "Guardrail mode applied to pre-call and post-call LLM checks in the research/PRD pipelines."
         },
         "maintainabilityai.research.grounding": {
           "type": "string",
-          "enum": ["strict", "default", "lenient"],
+          "enum": [
+            "strict",
+            "default",
+            "lenient"
+          ],
           "default": "default",
           "description": "PRD grounding mode. Strict = block on any below-threshold expert score; lenient = warn only."
         },
