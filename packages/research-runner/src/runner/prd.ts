@@ -8,6 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { PrdBrief } from '../schemas';
+import { gatherMeshContext } from '../mesh/mesh-reader';
 import { generateRunId } from '../utils/run-id';
 import { AuditEmitter } from './audit-emitter';
 import { buildHattersTag } from './hatters-tag-builder';
@@ -59,12 +60,28 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
     },
   });
 
+  // ----- gather_mesh_context (pure) -----
+  const meshStart = Date.now();
+  const meshContext = gatherMeshContext({
+    meshDir: opts.meshDir,
+    scope: { level: brief.scope.level, id: brief.scope.id },
+  });
   emitter.emit({
     node_kind: 'pure',
-    node_name: 'phase1_stub_synthesize_prd',
+    node_name: 'gather_mesh_context',
+    duration_ms: Date.now() - meshStart,
+    pure: {
+      inputs_summary: `scope=${meshContext.scope.level}${meshContext.scope.bar_id ? `(${meshContext.scope.bar_id})` : ''}; mesh_sha=${meshContext.mesh_sha.slice(0, 7)}`,
+      outputs_summary: `bar_loaded=${!!meshContext.bar}; mesh_gaps=${meshContext.bar?.mesh_gaps.join(',') || 'n/a'}; threats=${meshContext.bar?.threats ? (meshContext.bar.threats as unknown[]).length : 0}`,
+    },
+  });
+
+  emitter.emit({
+    node_kind: 'pure',
+    node_name: 'phase2a_stub_synthesize_prd',
     duration_ms: 0,
     pure: {
-      inputs_summary: 'phase 1 stub — no LLM call',
+      inputs_summary: 'phase 2a stub — no LLM call (mesh context available)',
       outputs_summary: 'placeholder PrdDoc + grounding block produced',
     },
   });
@@ -98,7 +115,7 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
     JSON.stringify({
       run_id: runId,
       prd_topic: topic,
-      mesh_sha: '0000000',
+      mesh_sha: meshContext.mesh_sha,
       target_repos: ['placeholder/repo'],
       endpoints: [],
       security_requirements: [],
@@ -123,7 +140,7 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
     duration_ms: Date.now() - startedAt.getTime(),
     outcome: {
       status: 'ok',
-      mesh_sha: '0000000',
+      mesh_sha: meshContext.mesh_sha,
       total_input_tokens: 0,
       total_output_tokens: 0,
       total_cost_usd: 0,
@@ -138,8 +155,8 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
   if (opts.emitPrBodyPath) {
     const hattersTag = buildHattersTag({
       run_id: runId,
-      mesh_sha: '0000000',
-      prompt_library_version: 'phase1-stub',
+      mesh_sha: meshContext.mesh_sha,
+      prompt_library_version: 'phase2a-stub',
       agent_version: opts.agentVersion,
       published_at: new Date().toISOString(),
       llm: { provider: brief.llm_provider, model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0 },

@@ -13,6 +13,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ResearchBrief } from '../schemas';
+import { gatherMeshContext } from '../mesh/mesh-reader';
 import { generateRunId } from '../utils/run-id';
 import { AuditEmitter } from './audit-emitter';
 import { buildHattersTag } from './hatters-tag-builder';
@@ -62,15 +63,31 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     },
   });
 
+  // ----- gather_mesh_context (pure) -----
+  const meshStart = Date.now();
+  const meshContext = gatherMeshContext({
+    meshDir: opts.meshDir,
+    scope: { level: brief.scope.level, id: brief.scope.id },
+  });
+  emitter.emit({
+    node_kind: 'pure',
+    node_name: 'gather_mesh_context',
+    duration_ms: Date.now() - meshStart,
+    pure: {
+      inputs_summary: `scope=${meshContext.scope.level}${meshContext.scope.bar_id ? `(${meshContext.scope.bar_id})` : ''}; mesh_sha=${meshContext.mesh_sha.slice(0, 7)}`,
+      outputs_summary: `portfolio.related_research=${meshContext.portfolio.related_research_summaries.length}; bar_loaded=${!!meshContext.bar}; mesh_gaps=${meshContext.bar?.mesh_gaps.join(',') || 'n/a'}; adrs=${meshContext.bar?.adrs.length ?? 0}; prior_prds=${meshContext.bar?.related_prds.length ?? 0}`,
+    },
+  });
+
   // ----- Phase 1 placeholder: synthesize_report (skipped) -----
-  // Real synthesis lands in Phase 2. For now emit a sentinel `pure` event
+  // Real synthesis lands in Phase 2b. For now emit a sentinel `pure` event
   // and write a placeholder research doc so the publish path can be observed.
   emitter.emit({
     node_kind: 'pure',
     node_name: 'phase1_stub_synthesize',
     duration_ms: 0,
     pure: {
-      inputs_summary: 'phase 1 stub — no LLM call',
+      inputs_summary: 'phase 1 stub — no LLM call (mesh context available)',
       outputs_summary: 'placeholder ResearchDoc body produced',
     },
   });
@@ -84,23 +101,34 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   const artifactName = `${fileSlug}-${today}.md`;
   const artifactPath = path.join(absoluteOutputDir, artifactName);
 
+  const meshSummary = meshContext.bar
+    ? `bar **${meshContext.bar.name}** (\`${meshContext.bar.bar_id}\`), ${meshContext.bar.adrs.length} ADR(s), ${meshContext.bar.related_research.length} prior research doc(s), mesh gaps: ${meshContext.bar.mesh_gaps.join(', ') || '_none_'}`
+    : meshContext.platform
+      ? `platform **${meshContext.platform.platform_id}** (${meshContext.platform.sibling_bars.length} sibling BAR(s))`
+      : `portfolio **${meshContext.portfolio.name}** (${meshContext.portfolio.related_research_summaries.length} prior research doc(s))`;
+
   const bodyMd = [
     `# ${brief.topic}`,
     '',
-    '> **Phase 1 stub** — the `@maintainabilityai/research-runner` package is currently scaffold-only. This file demonstrates the publish path; subsequent phases will replace this body with a real, source-cited synthesis.',
+    '> **Phase 2a stub** — `gather_mesh_context` is live; the LLM synthesis nodes land in Phase 2b. The mesh context summary below proves the runner can read the mesh; the source/synthesis sections will be populated by the real Tavily + Anthropic calls in the next phase.',
     '',
     `- **Run id:** \`${runId}\``,
+    `- **Mesh sha:** \`${meshContext.mesh_sha.slice(0, 12)}\``,
     `- **Scope:** ${brief.scope.level}${brief.scope.id ? ` / ${brief.scope.id}` : ''}`,
     `- **Path:** ${brief.path}`,
     `- **Triggered by:** ${brief.trigger.kind}${brief.trigger.actor ? ` (${brief.trigger.actor})` : ''}`,
     '',
+    '## Mesh Context (read by gather_mesh_context)',
+    '',
+    `Scope resolved to: ${meshSummary}.`,
+    '',
     '## Source Premises',
     '',
-    '_(phase 2 will populate this section with ranked Tavily / arXiv / USPTO / HN results)_',
+    '_(phase 2b will populate this section with ranked Tavily / arXiv / USPTO / HN results)_',
     '',
     '## Executive Summary',
     '',
-    '_(phase 2 LLM synthesis)_',
+    '_(phase 2b LLM synthesis)_',
     '',
   ].join('\n');
 
@@ -124,7 +152,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     duration_ms: Date.now() - startedAt.getTime(),
     outcome: {
       status: 'ok',
-      mesh_sha: '0000000',  // phase 1 stub — real mesh sha read lands in phase 2
+      mesh_sha: meshContext.mesh_sha,
       total_input_tokens: 0,
       total_output_tokens: 0,
       total_cost_usd: 0,
@@ -137,8 +165,8 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   if (opts.emitPrBodyPath) {
     const hattersTag = buildHattersTag({
       run_id: runId,
-      mesh_sha: '0000000',
-      prompt_library_version: 'phase1-stub',
+      mesh_sha: meshContext.mesh_sha,
+      prompt_library_version: 'phase2a-stub',
       agent_version: opts.agentVersion,
       published_at: new Date().toISOString(),
       llm: { provider: brief.llm_provider, model: 'none', input_tokens: 0, output_tokens: 0, cost_usd: 0 },
