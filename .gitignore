@@ -50,3 +50,6 @@ Thumbs.db
 
 # VS Code extension packaging
 *.vsix
+
+# Claude Code feature worktrees
+.claude/worktrees/
