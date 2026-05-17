@@ -1,0 +1,51 @@
+{
+  "name": "@maintainabilityai/research-runner",
+  "version": "0.1.0",
+  "description": "Research + PRD agent runner — orchestrates the Archeologist and PRD pipelines for the MaintainabilityAI governance mesh",
+  "license": "MIT",
+  "author": "MaintainabilityAI",
+  "homepage": "https://maintainability.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AliceNN-ucdenver/MaintainabilityAI",
+    "directory": "packages/research-runner"
+  },
+  "bugs": {
+    "url": "https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues"
+  },
+  "keywords": [
+    "research",
+    "prd",
+    "governance",
+    "calm",
+    "ai-agents",
+    "tavily",
+    "anthropic"
+  ],
+  "bin": {
+    "research-runner": "./bin/research-runner.js"
+  },
+  "main": "./dist/cli.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
