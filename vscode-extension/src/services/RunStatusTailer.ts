@@ -20,7 +20,7 @@
  * and a failure is captured in `lastError`, not surfaced as a global
  * exception.
  */
-import { ActiveRunsService, type ActiveRun, type RunStatus, TERMINAL_STATUSES } from './ActiveRunsService';
+import { ActiveRunsService, type ActiveRun, type RunStatus } from './ActiveRunsService';
 import { parseAuditJsonl } from './auditJsonlParser';
 import { githubService } from './GitHubService';
 
@@ -237,4 +237,3 @@ function mapGitHubStatus(status: string | null, conclusion: string | null): RunS
   return 'pending';
 }
 
-export const __test = { cadenceFor, mapGitHubStatus, TERMINAL_STATUSES };
