@@ -26,6 +26,30 @@ export interface FixtureMeshHandle {
   commitSha: string;
 }
 
+/**
+ * Path within this repo to the canonical `.caterpillar/prompts/` packs the
+ * runner consumes. Tests that need prompts copy from here so they exercise
+ * the real prompt bodies instead of test-only fakes.
+ */
+const REPO_PROMPT_PACKS_DIR = path.resolve(
+  __dirname,
+  '../../../../../vscode-extension/prompt-packs/looking-glass',
+);
+
+/**
+ * Copy a single prompt pack from the repo into the fixture mesh's
+ * `.caterpillar/prompts/` so loadPrompt can find it.
+ */
+export function seedFixturePromptPack(handle: FixtureMeshHandle, packId: string): void {
+  const src = path.join(REPO_PROMPT_PACKS_DIR, `${packId}.md`);
+  if (!fs.existsSync(src)) {
+    throw new Error(`Prompt pack ${packId} not found at ${src}`);
+  }
+  const dest = path.join(handle.meshDir, '.caterpillar', 'prompts', `${packId}.md`);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+}
+
 const MESH_YAML = `
 id: PF-FIXTURE
 name: Fixture Portfolio
