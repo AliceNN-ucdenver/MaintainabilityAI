@@ -38,12 +38,14 @@ export interface FormatForHumanResult {
 }
 
 /**
- * Truncates an excerpt for display in the issue comment. Sources can
- * carry up to 500 chars; we shorten to ~280 so the issue stays readable.
+ * Normalise the excerpt for blockquote display — collapse whitespace
+ * runs so newlines in arXiv abstracts don't break the markdown quote.
+ * No length cap here: the schema's 2000-char limit is what the agent
+ * downstream sees, and a downstream synthesis or PRD agent needs the
+ * full excerpt to write faithful citations.
  */
-function shortExcerpt(s: string, n = 280): string {
-  const cleaned = s.replace(/\s+/g, ' ').trim();
-  return cleaned.length <= n ? cleaned : cleaned.slice(0, n - 1) + '…';
+function normaliseExcerpt(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 function meshSummary(meshContext: MeshContext): string {
@@ -94,7 +96,7 @@ function providerSection(
     // The earlier form **[`S1`] [Title](url)** broke GitHub's markdown
     // parser (it tried to interpret the brackets as a reference link).
     lines.push(`- \`${s.id}\` **[${s.title}](${s.url})** — score ${s.salience_score.toFixed(2)}${date}${authors}`);
-    lines.push(`  > ${shortExcerpt(s.excerpt)}`);
+    lines.push(`  > ${normaliseExcerpt(s.excerpt)}`);
   }
   lines.push('');
   return lines;

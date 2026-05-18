@@ -547,7 +547,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
         provider: brief.llm_provider,
         // plan_queries is the only LLM hop we run now (synth handed off
         // to the assigned agent). Surface that model in the Hatter's Tag.
-        model: 'openai/gpt-4o-mini',
+        model: 'openai/gpt-4.1-mini',
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
         cost_usd: roundUsd(totalCostUsd),

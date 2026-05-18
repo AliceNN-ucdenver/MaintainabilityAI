@@ -63,7 +63,7 @@ export async function runUsptoSearch(opts: UsptoSearchNodeOpts): Promise<UsptoSe
           fromQuery: query,
           title: r.title,
           url: r.url,
-          content: r.abstract.slice(0, 500),
+          content: r.abstract.slice(0, 2000),
           score: Math.max(0.4, 0.85 - j * 0.1),
           publishedDate: r.grantedAt || undefined,
           authors: r.inventors,

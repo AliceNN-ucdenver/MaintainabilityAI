@@ -50,7 +50,7 @@ export async function runArxivSearch(opts: ArxivSearchNodeOpts): Promise<ArxivSe
           fromQuery: query,
           title: r.title,
           url: r.abstractUrl,
-          content: r.summary.slice(0, 500),
+          content: r.summary.slice(0, 2000),
           // Position-derived score: arXiv returns by relevance, decay 0.9 → 0.5.
           score: Math.max(0.5, 0.9 - j * 0.1),
           publishedDate: r.published || undefined,

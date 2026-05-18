@@ -298,7 +298,7 @@ test('runArcheologist: github-models provider routes plan_queries through models
       fetchImpl: ghFetch,
     });
 
-    const planCall = calls.find(c => c.model === 'openai/gpt-4o-mini');
+    const planCall = calls.find(c => c.model === 'openai/gpt-4.1-mini');
     assert.ok(planCall, 'plan_queries should route through models.github.ai with gpt-4o-mini');
 
     // Provider on the plan_queries audit event reflects the actual GH-Models hop.

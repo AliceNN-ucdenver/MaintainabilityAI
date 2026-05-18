@@ -94,7 +94,7 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
       // Keep the highest-scoring occurrence's title/excerpt + first non-empty published/authors
       if (r.score > existing.scoreSum / existing.occurrences) {
         existing.title = r.title || existing.title;
-        if (r.content) { existing.excerpt = r.content.slice(0, 500); }
+        if (r.content) { existing.excerpt = r.content.slice(0, 2000); }
       }
       if (!existing.publishedAt && r.publishedDate) { existing.publishedAt = r.publishedDate; }
       if (!existing.authors && r.authors && r.authors.length > 0) { existing.authors = r.authors; }
@@ -103,7 +103,7 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
         canonicalUrl: canonical,
         provider: r.provider,
         title: r.title || canonical,
-        excerpt: (r.content || '').slice(0, 500),
+        excerpt: (r.content || '').slice(0, 2000),
         publishedAt: r.publishedDate,
         authors: r.authors,
         scoreSum: r.score,
@@ -162,7 +162,7 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
     url: entry.aggregated.canonicalUrl,
     retrieved_at: retrievedAt,
     salience_score: roundTo(entry.composite, 4),
-    excerpt: entry.aggregated.excerpt.slice(0, 500),
+    excerpt: entry.aggregated.excerpt.slice(0, 2000),
     ...(entry.aggregated.publishedAt ? { published_at: entry.aggregated.publishedAt } : {}),
     ...(entry.aggregated.authors && entry.aggregated.authors.length > 0 ? { authors: entry.aggregated.authors } : {}),
   }));

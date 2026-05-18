@@ -23,7 +23,13 @@ export type LlmTier = 'plan' | 'synth';
 
 /** Per-tier per-provider model id lookup. */
 const MODEL_BY_TIER: Record<LlmTier, { anthropic: AnthropicModel; githubModels: GitHubModelsModel }> = {
-  plan:  { anthropic: 'claude-haiku-4-5',  githubModels: 'openai/gpt-4o-mini' },
+  // gpt-4.1-mini outperforms gpt-4o-mini on the per-provider query-plan
+  // task. Verified empirically against the celeb-api brief: 4.1-mini
+  // produces more on-topic arxiv phrases ("celebrity identity disambig-
+  // uation" vs 4o-mini's generic "API integration challenges"), tighter
+  // patent AND-clauses, and stays inside the spec's word counts more
+  // reliably. Same "low" rate-limit tier as 4o-mini, so no infra change.
+  plan:  { anthropic: 'claude-haiku-4-5',  githubModels: 'openai/gpt-4.1-mini' },
   // gpt-5-chat is in the "custom" GH-Models tier (200K input / 100K
   // output) and is NON-reasoning — verified end-to-end with a live API
   // call (reasoning_tokens=0, finish_reason=stop). Picked over gpt-5

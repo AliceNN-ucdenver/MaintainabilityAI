@@ -37,7 +37,7 @@ test('callLlm: anthropic + tier=synth routes to claude-sonnet-4-6', async () => 
   assert.equal(result.model, 'claude-sonnet-4-6');
 });
 
-test('callLlm: github-models + tier=plan routes to openai/gpt-4o-mini at models.github.ai', async () => {
+test('callLlm: github-models + tier=plan routes to openai/gpt-4.1-mini at models.github.ai', async () => {
   let url = '';
   let body: { model?: string } = {};
   const fetchImpl: typeof fetch = async (u, init) => {
@@ -50,9 +50,9 @@ test('callLlm: github-models + tier=plan routes to openai/gpt-4o-mini at models.
     githubToken: 'ghs_test', prompt: 'x', maxTokens: 1, fetchImpl,
   });
   assert.equal(url, 'https://models.github.ai/inference/chat/completions');
-  assert.equal(body.model, 'openai/gpt-4o-mini');
+  assert.equal(body.model, 'openai/gpt-4.1-mini');
   assert.equal(result.provider, 'github-models');
-  assert.equal(result.model, 'openai/gpt-4o-mini');
+  assert.equal(result.model, 'openai/gpt-4.1-mini');
   assert.equal(result.costUsd, 0);
 });
 
@@ -144,7 +144,7 @@ test('callLlm: github-models + tier=plan stays on github-models (small prompt, c
   });
   assert.equal(url, 'https://models.github.ai/inference/chat/completions');
   assert.equal(result.provider, 'github-models');
-  assert.equal(result.model, 'openai/gpt-4o-mini');
+  assert.equal(result.model, 'openai/gpt-4.1-mini');
 });
 
 test('callLlm: anthropic without apiKey throws a clear error', async () => {
