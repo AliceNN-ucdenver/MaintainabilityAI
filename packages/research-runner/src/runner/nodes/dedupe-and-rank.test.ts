@@ -67,6 +67,57 @@ test('dedupeAndRank: skips entries with empty URLs', () => {
   assert.equal(ranked[0].title, 'has url');
 });
 
+test('dedupeAndRank: per-provider quota keeps HN + USPTO from being crushed by Tavily scores', () => {
+  // Regression: in production we observed 40 Tavily (score 0.92–1.00) + 11 HN
+  // + 5 USPTO + 15 arXiv → top-20 ranked was 19/0/0/1, completely wiping
+  // patent + community coverage. Provider quotas should guarantee at
+  // least PROVIDER_QUOTA slots per provider when raw results exist.
+  const tavily = Array.from({ length: 40 }, (_, i) => ({
+    title: `tav-${i}`, url: `https://t.example/${i}`, content: 'tavily excerpt', score: 0.95, provider: 'tavily' as const, fromQuery: 'q',
+  }));
+  const hn = Array.from({ length: 11 }, (_, i) => ({
+    title: `hn-${i}`, url: `https://h.example/${i}`, content: 'hn excerpt', score: 0.1, provider: 'hackernews' as const, fromQuery: 'q',
+  }));
+  const uspto = Array.from({ length: 5 }, (_, i) => ({
+    title: `uspto-${i}`, url: `https://u.example/${i}`, content: 'patent excerpt', score: 0.2, provider: 'uspto' as const, fromQuery: 'q',
+  }));
+  const arxiv = Array.from({ length: 15 }, (_, i) => ({
+    title: `arxiv-${i}`, url: `https://a.example/${i}`, content: 'paper excerpt', score: 0.5, provider: 'arxiv' as const, fromQuery: 'q',
+  }));
+  const ranked = dedupeAndRank({ results: [...tavily, ...hn, ...uspto, ...arxiv], topN: 20 });
+  const counts: Record<string, number> = { tavily: 0, arxiv: 0, hackernews: 0, uspto: 0 };
+  for (const r of ranked) { counts[r.provider] = (counts[r.provider] ?? 0) + 1; }
+  // Quotas: 8/5/4/3 → 20 total. With enough raw of each, exactly hit each quota.
+  assert.equal(counts.tavily, 8, 'tavily should hit its 8-slot quota');
+  assert.equal(counts.arxiv, 5, 'arxiv should hit its 5-slot quota');
+  assert.equal(counts.uspto, 4, 'uspto should hit its 4-slot quota');
+  assert.equal(counts.hackernews, 3, 'hackernews should hit its 3-slot quota');
+});
+
+test('dedupeAndRank: unused quota spills over to other providers', () => {
+  // hackernews has 1 result, uspto has 0 → 3+4 = 7 slots are unused.
+  // Tavily + arxiv should pick up the slack until topN is met.
+  const tavily = Array.from({ length: 30 }, (_, i) => ({
+    title: `tav-${i}`, url: `https://t.example/${i}`, content: 'x', score: 0.95, provider: 'tavily' as const, fromQuery: 'q',
+  }));
+  const arxiv = Array.from({ length: 10 }, (_, i) => ({
+    title: `arxiv-${i}`, url: `https://a.example/${i}`, content: 'x', score: 0.5, provider: 'arxiv' as const, fromQuery: 'q',
+  }));
+  const hn = [{ title: 'hn-1', url: 'https://h.example/1', content: 'x', score: 0.1, provider: 'hackernews' as const, fromQuery: 'q' }];
+  const ranked = dedupeAndRank({ results: [...tavily, ...arxiv, ...hn], topN: 20 });
+  assert.equal(ranked.length, 20, 'total should still be topN');
+  const counts: Record<string, number> = {};
+  for (const r of ranked) { counts[r.provider] = (counts[r.provider] ?? 0) + 1; }
+  assert.equal(counts.hackernews, 1, 'should take all 1 HN result');
+  assert.equal(counts.uspto ?? 0, 0, 'no USPTO to take');
+  // Phase 1 (quota): tavily 8 + arxiv 5 + hn 1 + uspto 0 = 14. Phase 2
+  // (spillover): topN=20 − 14 = 6 more slots, taken from the highest-
+  // scoring remaining entries (tavily @ 0.95 > arxiv @ 0.5). So
+  // tavily 8 + 6 = 14, arxiv stays at 5, hn 1, total 20.
+  assert.equal(counts.tavily, 14, 'tavily picks up unused HN/USPTO quota via spillover');
+  assert.equal(counts.arxiv, 5);
+});
+
 test('dedupeAndRank: salience score never exceeds 1', () => {
   const ranked = dedupeAndRank({
     results: Array.from({ length: 10 }, (_, i) => ({

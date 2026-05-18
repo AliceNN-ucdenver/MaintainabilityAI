@@ -64,6 +64,20 @@ export function canonicalizeUrl(rawUrl: string): string {
   }
 }
 
+/**
+ * Per-provider quota for the top-N output. Without these floors, Tavily
+ * (normalized scores 0.9–1.0) crushes every other provider in pure
+ * global ranking — synth would see zero HN signal and zero patent
+ * coverage. Quotas sum to topN's default (20). Any unused slack
+ * spills over to the highest-scoring non-quota entries across providers.
+ */
+const PROVIDER_QUOTA: Record<SearchProvider, number> = {
+  tavily: 8,
+  arxiv: 5,
+  uspto: 4,
+  hackernews: 3,
+};
+
 export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
   const topN = opts.topN ?? 20;
   const retrievedAt = opts.retrievedAt ?? new Date().toISOString();
@@ -99,12 +113,45 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
     }
   }
 
-  const ranked = [...bucket.values()]
-    .map(a => {
-      const recall = 1 + 0.15 * (a.queries.size - 1);
-      const composite = Math.min(1, a.scoreSum * recall / Math.max(1, a.occurrences));
-      return { aggregated: a, composite };
-    })
+  const allEntries = [...bucket.values()].map(a => {
+    const recall = 1 + 0.15 * (a.queries.size - 1);
+    const composite = Math.min(1, a.scoreSum * recall / Math.max(1, a.occurrences));
+    return { aggregated: a, composite };
+  });
+
+  // Phase 1 — per-provider quota: take each provider's top-K (K from PROVIDER_QUOTA).
+  // Phase 2 — spillover: fill the remaining budget with the next-highest entries
+  //          from anywhere, including providers that have already filled their quota.
+  // Phase 3 — re-sort the combined set by composite score for stable display order.
+  const used = new Set<string>();
+  const picks: typeof allEntries = [];
+  for (const provider of Object.keys(PROVIDER_QUOTA) as SearchProvider[]) {
+    const k = PROVIDER_QUOTA[provider];
+    if (k === 0) { continue; }
+    const fromProvider = allEntries
+      .filter(e => e.aggregated.provider === provider)
+      .sort((a, b) => b.composite - a.composite)
+      .slice(0, k);
+    for (const e of fromProvider) {
+      if (used.has(e.aggregated.canonicalUrl)) { continue; }
+      picks.push(e);
+      used.add(e.aggregated.canonicalUrl);
+    }
+  }
+
+  const remainingBudget = Math.max(0, topN - picks.length);
+  if (remainingBudget > 0) {
+    const spillover = allEntries
+      .filter(e => !used.has(e.aggregated.canonicalUrl))
+      .sort((a, b) => b.composite - a.composite)
+      .slice(0, remainingBudget);
+    for (const e of spillover) {
+      picks.push(e);
+      used.add(e.aggregated.canonicalUrl);
+    }
+  }
+
+  const ranked = picks
     .sort((a, b) => b.composite - a.composite)
     .slice(0, topN);
 
