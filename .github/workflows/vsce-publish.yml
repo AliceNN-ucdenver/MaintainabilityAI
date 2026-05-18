@@ -45,13 +45,29 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Commit version bump
+      - name: Commit version bump (rebase-retry to survive racing pushes)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add vscode-extension/package.json vscode-extension/package-lock.json
           git commit -m "chore(vsce): bump to ${{ steps.bump.outputs.version }} [vsce-publish]"
-          git push
+
+          # The quality gate is slow, so main can advance while we're working.
+          # Rebase + retry up to 5x; keeps history linear, avoids merge commits.
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded on attempt $attempt"
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "Push failed after 5 attempts"
+              exit 1
+            fi
+            echo "Push attempt $attempt failed — rebasing on origin/main"
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort; exit 1; }
+            sleep 3
+          done
 
       - name: Publish to Marketplace
         working-directory: vscode-extension
@@ -59,10 +75,19 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
-      - name: Create git tag
+      - name: Create git tag (best-effort)
         run: |
           git tag "v${{ steps.bump.outputs.version }}"
-          git push origin "v${{ steps.bump.outputs.version }}"
+          for attempt in 1 2 3; do
+            if git push origin "v${{ steps.bump.outputs.version }}"; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Tag push failed (likely already exists) — continuing"
+              break
+            fi
+            sleep 3
+          done
 
       - name: Package .vsix
         working-directory: vscode-extension

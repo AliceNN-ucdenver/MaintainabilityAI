@@ -52,13 +52,30 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Commit version bump
+      - name: Commit version bump (rebase-retry to survive racing pushes)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/redqueen-mcp/package.json
           git commit -m "chore(mcp): bump to ${{ steps.bump.outputs.version }} [npm-publish]"
-          git push
+
+          # The quality gate is slow (lint + typecheck + tests + audit + build),
+          # so main can advance while we're working. Rebase + retry up to 5x
+          # before giving up — keeps history linear and avoids merge commits.
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded on attempt $attempt"
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "Push failed after 5 attempts"
+              exit 1
+            fi
+            echo "Push attempt $attempt failed — rebasing on origin/main"
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort; exit 1; }
+            sleep 3
+          done
 
       - name: Publish to npm
         working-directory: packages/redqueen-mcp
@@ -66,7 +83,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create git tag
+      - name: Create git tag (best-effort)
         run: |
           git tag "mcp-v${{ steps.bump.outputs.version }}"
-          git push origin "mcp-v${{ steps.bump.outputs.version }}"
+          for attempt in 1 2 3; do
+            if git push origin "mcp-v${{ steps.bump.outputs.version }}"; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Tag push failed (likely already exists) — continuing"
+              break
+            fi
+            sleep 3
+          done
