@@ -11,21 +11,33 @@
  * their result types.
  *
  * Model names use GitHub Models namespacing — e.g. `openai/gpt-4o`,
- * `openai/gpt-4o-mini`, `openai/gpt-4.1`. The router (in
+ * `openai/gpt-4o-mini`, `openai/gpt-5-mini`. The router (in
  * llm-router.ts) maps internal logical model tiers (`plan` / `synth`) to
  * the concrete provider-specific id.
  */
 
 /**
  * Subset of GitHub Models model ids we use. Extend as new tiers land.
- * GitHub Models does not currently host Anthropic Claude — synth tier
- * uses `openai/gpt-4.1` (the "outperforms gpt-4o across the board" tier).
+ *
+ * GitHub Models has two relevant rate-limit tiers:
+ *   - "high" — gpt-4o, gpt-4o-mini, gpt-4.1 etc. Per-request input is
+ *     capped at ~8K tokens regardless of subscription. Fine for our
+ *     plan-tier (small structured-JSON prompt).
+ *   - "custom" — gpt-5 family, o-series. Per-request input scales to
+ *     the model's advertised limit (200K for gpt-5-mini). Routed through
+ *     Copilot-billed access, so the token-owner needs Copilot.
+ *
+ * Synth tier uses gpt-5-mini for the larger context window. Anthropic
+ * remains the preferred synth target when an Anthropic key is set (see
+ * llm-router.ts hybrid routing).
  */
 export type GitHubModelsModel =
   | 'openai/gpt-4o'
   | 'openai/gpt-4o-mini'
   | 'openai/gpt-4.1'
-  | 'openai/gpt-4.1-mini';
+  | 'openai/gpt-4.1-mini'
+  | 'openai/gpt-5'
+  | 'openai/gpt-5-mini';
 
 export interface CallGitHubModelsOpts {
   /** Workflow GITHUB_TOKEN. The model server checks the `models:read` permission scope. */
@@ -63,8 +75,9 @@ export async function callGitHubModels(opts: CallGitHubModelsOpts): Promise<Call
   }
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
-  // Synthesis prompts can produce 8K-token responses on gpt-4.1, which
-  // routinely take 60–90s. Default to 120s so we don't abort mid-stream.
+  // Synthesis prompts can produce 8K-token responses (and the "custom"
+  // tier models like gpt-5-mini can return much more), which routinely
+  // take 60–120s. Default to 120s so we don't abort mid-stream.
   const timeoutMs = opts.timeoutMs ?? 120_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

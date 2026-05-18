@@ -359,9 +359,9 @@ test('runArcheologist: end-to-end with llm_provider=github-models routes through
         const body = JSON.parse(String((init as RequestInit).body));
         calls.push({ host: 'models.github.ai', model: body.model });
         const userPrompt = body.messages?.find((m: { role: string }) => m.role === 'user')?.content as string || '';
-        // Synthesis prompt = gpt-4.1; gap-analysis + plan-queries = gpt-4o-mini.
+        // Synthesis prompt = gpt-5-mini; gap-analysis + plan-queries = gpt-4o-mini.
         // Distinguish gap-analysis from plan-queries by prompt content.
-        if (body.model === 'openai/gpt-4.1') {
+        if (body.model === 'openai/gpt-5-mini') {
           return new Response(JSON.stringify({
             choices: [{ message: { content: CANONICAL_SYNTHESIS_BODY } }],
             usage: { prompt_tokens: 3500, completion_tokens: 1100 },
@@ -410,9 +410,9 @@ test('runArcheologist: end-to-end with llm_provider=github-models routes through
 
     // Both LLM hops went to models.github.ai, with the tier-appropriate models
     const planCall = calls.find(c => c.model === 'openai/gpt-4o-mini');
-    const synthCall = calls.find(c => c.model === 'openai/gpt-4.1');
+    const synthCall = calls.find(c => c.model === 'openai/gpt-5-mini');
     assert.ok(planCall, 'plan_queries should route to openai/gpt-4o-mini via Models');
-    assert.ok(synthCall, 'synthesize_report should route to openai/gpt-4.1 via Models');
+    assert.ok(synthCall, 'synthesize_report should route to openai/gpt-5-mini via Models');
 
     // Audit events record provider=github-models on every LLM hop (plan +
     // synth always; gap_analysis when it fires).

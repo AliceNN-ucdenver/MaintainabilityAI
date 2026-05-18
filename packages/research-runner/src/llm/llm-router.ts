@@ -24,7 +24,11 @@ export type LlmTier = 'plan' | 'synth';
 /** Per-tier per-provider model id lookup. */
 const MODEL_BY_TIER: Record<LlmTier, { anthropic: AnthropicModel; githubModels: GitHubModelsModel }> = {
   plan:  { anthropic: 'claude-haiku-4-5',  githubModels: 'openai/gpt-4o-mini' },
-  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-4.1' },
+  // gpt-5-mini is in the "custom" GH-Models tier — 200K input context,
+  // 100K output, reasoning + tool-calling. Bypasses the 8K cap that
+  // hits "high"-tier models like gpt-4.1. Requires the caller's token
+  // to have Models access through a Copilot subscription (GMT path).
+  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-5-mini' },
 };
 
 export interface CallLlmOpts {
