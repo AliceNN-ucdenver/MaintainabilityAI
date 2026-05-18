@@ -8,6 +8,9 @@ import { lookingGlassCommand } from './commands/lookingGlass';
 import { oraculumCommand } from './commands/oraculum';
 import { bugReportCommand } from './commands/bugReport';
 import { NewResearchPanel } from './webview/NewResearchPanel';
+import { ActiveRunsPanel } from './webview/ActiveRunsPanel';
+import { ActiveRunsService } from './services/ActiveRunsService';
+import { RunStatusTailer } from './services/RunStatusTailer';
 import type { AgentKind } from './services/ResearchPreflightService';
 
 import { checkPrerequisitesOnActivation } from './services/PrerequisiteChecker';
@@ -27,6 +30,10 @@ export function activate(context: vscode.ExtensionContext) {
     configService.initialize(context);
     FolderStateService.initialize(context.workspaceState);
     promptPackService.initialize(context.extensionPath);
+    const activeRunsSvc = ActiveRunsService.initialize(context);
+    // Start the tailer so any persisted in-flight runs from a prior session
+    // get refreshed on activation. Disposed in deactivate().
+    RunStatusTailer.start(activeRunsSvc);
     logger.info('MaintainabilityAI activated');
 
     // Check for required CLI tools (gh, git) — non-blocking warning
@@ -91,6 +98,10 @@ export function activate(context: vscode.ExtensionContext) {
         'maintainabilityai.newResearch',
         (agent?: AgentKind) => NewResearchPanel.createOrShow(context, agent ?? 'archeologist')
       ),
+      vscode.commands.registerCommand(
+        'maintainabilityai.activeRuns',
+        () => ActiveRunsPanel.createOrShow(context)
+      ),
     );
 
     // Bug report status bar icon
@@ -107,4 +118,6 @@ export function activate(context: vscode.ExtensionContext) {
   }
 }
 
-export function deactivate() {}
+export function deactivate() {
+  RunStatusTailer.stop();
+}

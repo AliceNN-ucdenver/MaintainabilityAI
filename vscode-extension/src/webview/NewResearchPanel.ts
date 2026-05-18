@@ -26,6 +26,7 @@ import { dispatchAgent, type DispatchInputs } from '../services/WorkflowDispatch
 import { detectGovernanceRepo } from '../services/SecretsService';
 import { MeshService } from '../services/MeshService';
 import { MeshReader } from '../core/mesh-reader';
+import { ActiveRunsService } from '../services/ActiveRunsService';
 import type { BarSummary } from '../types/governance';
 
 type WebviewMsg =
@@ -131,15 +132,28 @@ export class NewResearchPanel extends BasePanel<WebviewMsg, ExtMsg> {
   private async onDispatch(agent: AgentKind, inputs: DispatchInputs): Promise<void> {
     try {
       const result = await dispatchAgent({ agent, inputs });
+      // Register the run so the tailer starts polling status + audit log.
+      ActiveRunsService.get().register({
+        agent,
+        meshSlug: result.meshSlug,
+        runId: result.runId,
+        runUrl: result.runUrl,
+        dispatchedAt: result.dispatchedAt,
+      });
       this.postMessage({
         type: 'dispatched',
         agent,
         runUrl: result.runUrl,
         dispatchedAt: result.dispatchedAt,
       });
-      vscode.window.showInformationMessage(
-        `${agent === 'archeologist' ? 'Archeologist' : 'PRD'} run dispatched${result.runUrl ? ` — ${result.runUrl}` : ''}.`,
+      const openActiveRuns = 'Open Active Runs';
+      const choice = await vscode.window.showInformationMessage(
+        `${agent === 'archeologist' ? 'Archeologist' : 'PRD'} run dispatched${result.runUrl ? `: ${result.runUrl}` : ''}.`,
+        openActiveRuns,
       );
+      if (choice === openActiveRuns) {
+        void vscode.commands.executeCommand('maintainabilityai.activeRuns');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.postMessage({ type: 'dispatchError', message });
