@@ -99,44 +99,36 @@ async function testGovernanceMeshToken(key: string): Promise<KeyTestResult> {
   return { ok: false, message: `GitHub returned ${res.status}.`, status: res.status };
 }
 
-const USPTO_ENDPOINT = 'https://search.patentsview.org/api/v1/patent/';
+const USPTO_ENDPOINT = 'https://api.uspto.gov/api/v1/patent/applications/search';
 
 async function testUspto(key: string): Promise<KeyTestResult> {
-  // PatentsView REST. Mirrors the runner's uspto-client.ts: POST
-  // https://search.patentsview.org/api/v1/patent/ with X-Api-Key header.
-  // We use the smallest possible probe — `_text_any` against patent_title
-  // for a common word with size:1 — so a valid key returns 200 + ~1KB.
+  // USPTO Open Data Portal REST. Mirrors the runner's uspto-client.ts
+  // and the NCMS archeologist_agent.py reference: GET with X-API-Key
+  // (capital K) and the query as a URL-encoded q= param.
   //
   // The probe wraps its own fetch in a focused try/catch so we can surface
   // the underlying `error.cause` (DNS failure, TLS issue, firewall, etc.)
-  // instead of the generic `fetch failed` from undici's wrapper. The
-  // top-level catch in testResearchKey would only see `TypeError: fetch
-  // failed` without the actual root cause.
+  // instead of the generic `fetch failed` from undici's wrapper.
+  const probeUrl = `${USPTO_ENDPOINT}?q=${encodeURIComponent('method')}&limit=1&offset=0`;
   let res: Response;
   try {
-    res = await fetchWithTimeout(USPTO_ENDPOINT, {
-      method: 'POST',
-      headers: { 'X-Api-Key': key, 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({
-        q: { _text_any: { patent_title: 'method' } },
-        f: ['patent_id'],
-        o: { size: 1 },
-      }),
+    res = await fetchWithTimeout(probeUrl, {
+      method: 'GET',
+      headers: { 'X-API-Key': key, accept: 'application/json' },
     });
   } catch (err) {
     return { ok: false, message: describeFetchFailure(err, USPTO_ENDPOINT) };
   }
-  if (res.ok) { return { ok: true, message: 'USPTO/PatentsView key valid.', status: res.status }; }
+  if (res.ok) { return { ok: true, message: 'USPTO ODP key valid (api.uspto.gov).', status: res.status }; }
   if (res.status === 401 || res.status === 403) {
-    return { ok: false, message: 'USPTO/PatentsView rejected the key (auth failed).', status: res.status };
+    return { ok: false, message: 'USPTO ODP rejected the key (auth failed).', status: res.status };
   }
   if (res.status === 429) {
-    return { ok: false, message: 'USPTO/PatentsView rate-limited the probe (429). Key may still be valid; try again later.', status: 429 };
+    return { ok: false, message: 'USPTO ODP rate-limited the probe (429). Key may still be valid; try again later.', status: 429 };
   }
-  // 4xx/5xx — include the response body snippet so the user can see why.
   let bodySnippet = '';
   try { bodySnippet = (await res.text()).slice(0, 240); } catch { /* ignore */ }
-  return { ok: false, message: `USPTO/PatentsView returned ${res.status}${bodySnippet ? `: ${bodySnippet}` : ''}.`, status: res.status };
+  return { ok: false, message: `USPTO ODP returned ${res.status}${bodySnippet ? `: ${bodySnippet}` : ''}.`, status: res.status };
 }
 
 /**

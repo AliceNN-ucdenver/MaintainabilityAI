@@ -1,11 +1,12 @@
 /**
  * uspto_search — pure_api node.
  *
- * Runs each patent query against PatentsView. Requires USPTO_API_KEY.
+ * Runs each patent query against USPTO's Open Data Portal
+ * (api.uspto.gov). Requires USPTO_API_KEY.
  *
  * Salience score derived from result position (descending; first hit
- * gets 0.85, decays by 0.1 per position, floor at 0.4) since PatentsView
- * doesn't return its own relevance score in the v1 patent endpoint.
+ * gets 0.85, decays by 0.1 per position, floor at 0.4) since the ODP
+ * endpoint doesn't return its own relevance score.
  *
  * When no apiKey is supplied, this node throws — the orchestrator catches
  * and converts to a node_error envelope so the run continues without
@@ -29,7 +30,7 @@ export interface UsptoSearchNodeResult {
 
 export async function runUsptoSearch(opts: UsptoSearchNodeOpts): Promise<UsptoSearchNodeResult> {
   if (!opts.apiKey) {
-    throw new Error('USPTO_API_KEY missing — request a key at https://patentsview.org/apis/keyrequest');
+    throw new Error('USPTO_API_KEY missing — request a key at https://data.uspto.gov/apis/getting-started');
   }
 
   const settled = await Promise.allSettled(

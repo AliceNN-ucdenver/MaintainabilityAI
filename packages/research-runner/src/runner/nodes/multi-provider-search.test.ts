@@ -77,9 +77,19 @@ test('runUsptoSearch: throws when apiKey missing (orchestrator catches as node_e
 });
 
 test('runUsptoSearch: produces ProviderResult with provider=uspto + inventors as authors', async () => {
+  // New api.uspto.gov ODP shape (patentFileWrapperDataBag / applicationMetaData).
+  // No XML URI in this mock → stage 2 is skipped → abstract stays empty.
   const fetchImpl: typeof fetch = async () => new Response(JSON.stringify({
-    patents: [
-      { patent_id: '22222222', patent_title: 'Governance Mesh', patent_abstract: 'A method...', patent_date: '2026-02-01', inventors: [{ inventor_name_first: 'Alice', inventor_name_last: 'Smith' }] },
+    patentFileWrapperDataBag: [
+      {
+        applicationMetaData: {
+          inventionTitle: 'Governance Mesh',
+          filingDate: '2024-06-01',
+          grantDate: '2026-02-01',
+          patentNumber: '22222222',
+          firstInventorName: 'Alice Smith',
+        },
+      },
     ],
   }), { status: 200 });
   const result = await runUsptoSearch({ apiKey: 'k', queries: ['governance AND mesh'], fetchImpl });

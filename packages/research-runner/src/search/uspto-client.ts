@@ -1,33 +1,43 @@
 /**
- * uspto-client — query PatentsView's REST API for granted patents.
+ * uspto-client — query USPTO's Open Data Portal for patents related to the
+ * research topic, then enrich each hit with its abstract by following the
+ * grant / pre-grant publication XML URI.
  *
- *   POST https://search.patentsview.org/api/v1/patent/
- *   Headers: X-Api-Key: <USPTO_API_KEY>
- *   Body:    { q: { ... }, f: [...], o: { size, page } }
+ * Two-stage pipeline (mirrors the NCMS archeologist_agent.py reference at
+ * github.com/AliceNN-ucdenver/ncms/.../archeologist_agent.py#L810):
  *
- * PatentsView requires an API key as of mid-2024 (https://patentsview.org/apis/keyrequest).
- * Set USPTO_API_KEY as a repo secret. When the key is absent, callers
- * should skip the uspto search rather than fail the run — this client
- * fails fast on missing key so the caller can detect + branch.
+ *   1. GET https://api.uspto.gov/api/v1/patent/applications/search
+ *      ?q=<urlencoded-AND-joined-terms>&limit=<n>&offset=0
+ *      Headers: X-API-Key: <USPTO_API_KEY>, Accept: application/json
+ *      Returns { patentFileWrapperDataBag: [{ applicationMetaData, grantDocumentMetaData, pgpubDocumentMetaData, ... }] }
  *
- * The runner's archeologist orchestrator emits a node_error envelope
- * (informational) when uspto is skipped, so reviewers can see the
- * coverage gap in the audit log.
+ *   2. For each hit, follow `grantDocumentMetaData.fileLocationURI` (or
+ *      `pgpubDocumentMetaData.fileLocationURI` as fallback) and parse the
+ *      <abstract> element out of the XML. Stage 2 is best-effort —
+ *      a missing/failed abstract just leaves abstract: '' on the result
+ *      and the synthesis prompt falls back on the title alone.
+ *
+ * Migrated from the deprecated PatentsView v1 endpoint
+ * (https://search.patentsview.org/api/v1/patent/) — USPTO has consolidated
+ * onto the Open Data Portal at api.uspto.gov. The PatentsView endpoint may
+ * still respond intermittently but is no longer the recommended path.
+ *
+ * Get a key at https://data.uspto.gov/apis/getting-started (USPTO ODP).
  */
 
 export interface UsptoResult {
   patentNumber: string;
   title: string;
-  /** Best abstract / first claim summary the API returns. */
+  /** Best abstract / first claim summary, fetched in stage 2. Empty when stage 2 fails. */
   abstract: string;
   url: string;              // https://patents.google.com/patent/US<number>
-  grantedAt: string;        // ISO date
+  grantedAt: string;        // ISO date (grantDate or filingDate)
   inventors: string[];      // First-named etc.; capped to keep payload sane.
 }
 
 export interface UsptoSearchOpts {
   apiKey: string;
-  query: string;            // free text — split on AND in the caller if needed
+  query: string;            // free text — AND-joined in the caller if needed
   maxResults?: number;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
@@ -41,41 +51,47 @@ export interface UsptoSearchResult {
   httpStatus: number;
 }
 
-const DEFAULT_ENDPOINT = 'https://search.patentsview.org/api/v1/patent/';
+const DEFAULT_ENDPOINT = 'https://api.uspto.gov/api/v1/patent/applications/search';
+
+interface ApplicationMetaData {
+  inventionTitle?: string;
+  filingDate?: string;
+  effectiveFilingDate?: string;
+  grantDate?: string;
+  patentNumber?: string;
+  earliestPublicationNumber?: string;
+  firstInventorName?: string;
+  firstApplicantName?: string;
+}
+interface XmlDocumentMetaData { fileLocationURI?: string; }
+interface PatentFileWrapper {
+  applicationMetaData?: ApplicationMetaData;
+  grantDocumentMetaData?: XmlDocumentMetaData;
+  pgpubDocumentMetaData?: XmlDocumentMetaData;
+}
 
 export async function usptoSearch(opts: UsptoSearchOpts): Promise<UsptoSearchResult> {
   if (!opts.apiKey) {
-    throw new Error('USPTO_API_KEY missing — request one at https://patentsview.org/apis/keyrequest');
+    throw new Error('USPTO_API_KEY missing — request one at https://data.uspto.gov/apis/getting-started');
   }
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
   const size = Math.min(Math.max(1, opts.maxResults ?? 5), 20);
 
-  // PatentsView's query language: `q` accepts a JSON DSL. For simple AND-joined
-  // free-text searches, we use the text-match operator across patent_title +
-  // patent_abstract. Brief.patent queries are already AND-joined per the prompt.
-  const terms = opts.query.split(/\s+AND\s+/i).map(s => s.trim()).filter(Boolean);
-  const q = terms.length === 0
-    ? { _text_any: { patent_title: opts.query, patent_abstract: opts.query } }
-    : { _and: terms.map(t => ({ _text_any: { patent_title: t, patent_abstract: t } })) };
-
-  const body = JSON.stringify({
-    q,
-    f: ['patent_id', 'patent_title', 'patent_abstract', 'patent_date', 'inventors'],
-    o: { size },
-  });
+  // The api.uspto.gov endpoint takes free-text queries with AND operators
+  // directly in the q= param (URL-encoded). No JSON DSL.
+  const url = `${endpoint}?q=${encodeURIComponent(opts.query)}&limit=${size}&offset=0`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 30_000);
   let response: Response;
   try {
-    response = await fetchImpl(endpoint, {
-      method: 'POST',
+    response = await fetchImpl(url, {
+      method: 'GET',
       headers: {
-        'content-type': 'application/json',
-        'X-Api-Key': opts.apiKey,
+        accept: 'application/json',
+        'X-API-Key': opts.apiKey,
       },
-      body,
       signal: controller.signal,
     });
   } finally {
@@ -85,30 +101,58 @@ export async function usptoSearch(opts: UsptoSearchOpts): Promise<UsptoSearchRes
   const httpStatus = response.status;
   const rawText = await response.text();
   if (!response.ok) {
-    throw new Error(`PatentsView returned ${httpStatus}: ${rawText.slice(0, 400)}`);
+    throw new Error(`USPTO ODP returned ${httpStatus}: ${rawText.slice(0, 400)}`);
   }
 
-  const data = JSON.parse(rawText) as {
-    patents?: Array<{
-      patent_id?: string;
-      patent_title?: string;
-      patent_abstract?: string;
-      patent_date?: string;
-      inventors?: Array<{ inventor_name_first?: string; inventor_name_last?: string }>;
-    }>;
+  const data = JSON.parse(rawText) as { patentFileWrapperDataBag?: PatentFileWrapper[] };
+  const records = data.patentFileWrapperDataBag ?? [];
+
+  // Stage 1: shape each record into a UsptoResult (abstract still empty).
+  interface InternalResult extends UsptoResult { _xmlUri: string; }
+  const stage1: InternalResult[] = records.map(r => {
+    const meta = r.applicationMetaData ?? {};
+    const xmlUri = r.grantDocumentMetaData?.fileLocationURI
+                || r.pgpubDocumentMetaData?.fileLocationURI
+                || '';
+    const num = meta.patentNumber || meta.earliestPublicationNumber || '';
+    return {
+      patentNumber: num,
+      title: meta.inventionTitle ?? '',
+      abstract: '',
+      url: num ? `https://patents.google.com/patent/US${num}` : '',
+      grantedAt: meta.grantDate || meta.filingDate || meta.effectiveFilingDate || '',
+      inventors: meta.firstInventorName ? [meta.firstInventorName] : [],
+      _xmlUri: xmlUri,
+    };
+  });
+
+  // Stage 2: parallel best-effort abstract fetch. The full-text XML carries
+  // the <abstract> element; we regex it out rather than parsing the whole
+  // document (the XML is large and we only want the abstract).
+  await Promise.all(stage1.map(async (r) => {
+    if (!r._xmlUri) { return; }
+    try {
+      const xmlRes = await fetchImpl(r._xmlUri, {
+        method: 'GET',
+        headers: { 'X-API-Key': opts.apiKey, accept: 'application/xml' },
+      });
+      if (!xmlRes.ok) { return; }
+      const xml = await xmlRes.text();
+      const m = xml.match(/<abstract[^>]*>([\s\S]*?)<\/abstract>/i);
+      if (m) {
+        const stripped = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        r.abstract = stripped.slice(0, 1000);
+      }
+    } catch { /* ignore — best-effort */ }
+  }));
+
+  // Drop the internal _xmlUri marker before returning.
+  const results: UsptoResult[] = stage1.map(({ _xmlUri: _ignored, ...rest }) => rest);
+
+  return {
+    query: opts.query,
+    results,
+    responseBytes: rawText.length,
+    httpStatus,
   };
-
-  const results: UsptoResult[] = (data.patents ?? []).map(p => ({
-    patentNumber: p.patent_id ?? '',
-    title: p.patent_title ?? '',
-    abstract: p.patent_abstract ?? '',
-    url: p.patent_id ? `https://patents.google.com/patent/US${p.patent_id}` : '',
-    grantedAt: p.patent_date ?? '',
-    inventors: (p.inventors ?? [])
-      .map(i => `${i.inventor_name_first ?? ''} ${i.inventor_name_last ?? ''}`.trim())
-      .filter(s => s.length > 0)
-      .slice(0, 8),
-  })).filter(r => r.patentNumber.length > 0);
-
-  return { query: opts.query, results, responseBytes: Buffer.byteLength(rawText, 'utf8'), httpStatus };
 }

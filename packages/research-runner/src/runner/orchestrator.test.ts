@@ -45,7 +45,7 @@ const VALID_PLAN = {
  *   api.tavily.com       → 3 web results per query, one shared URL across queries
  *   export.arxiv.org     → 1 atom entry per query
  *   hn.algolia.com       → 1 hit per query
- *   patentsview.org      → 1 patent per query (only if usptoApiKey was supplied)
+ *   api.uspto.gov ODP    → 1 patent per query (only if usptoApiKey was supplied)
  */
 function buildArcheologistFetchMock(opts: { tavilyDuplicates?: boolean } = {}): typeof fetch {
   return async (url, init) => {
@@ -104,14 +104,17 @@ function buildArcheologistFetchMock(opts: { tavilyDuplicates?: boolean } = {}): 
         }],
       }), { status: 200 });
     }
-    if (u.startsWith('https://search.patentsview.org/')) {
+    if (u.startsWith('https://api.uspto.gov/api/v1/patent/applications/search')) {
       return new Response(JSON.stringify({
-        patents: [{
-          patent_id: '11999999',
-          patent_title: 'Governance mesh apparatus',
-          patent_abstract: 'A system for governing distributed agents.',
-          patent_date: '2026-01-10',
-          inventors: [{ inventor_name_first: 'Inv', inventor_name_last: 'Entor' }],
+        patentFileWrapperDataBag: [{
+          applicationMetaData: {
+            inventionTitle: 'Governance mesh apparatus',
+            filingDate: '2024-08-01',
+            grantDate: '2026-01-10',
+            patentNumber: '11999999',
+            firstInventorName: 'Inv Entor',
+          },
+          // No XML URI → stage 2 skipped; abstract stays empty in this e2e mock.
         }],
       }), { status: 200 });
     }
