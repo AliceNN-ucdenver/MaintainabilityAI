@@ -2746,8 +2746,10 @@ Policy file: ${filename}
       `Resource owner:  your org\n` +
       `Repository access:  Only select repositories →\n` +
       `${repoList}\n\n` +
-      `Permissions on the code repos:  Actions = Read and write\n` +
-      `Expiration: pick what fits your rotation policy\n\n` +
+      `Repository permissions:  Contents = Read and write\n` +
+      `(This is what GitHub requires for POST /repos/{owner}/{repo}/dispatches —\n` +
+      ` the call notify-code-repos.yml on the mesh makes against each code repo.)\n\n` +
+      `Expiration: pick what fits your rotation policy.\n\n` +
       `Mesh repo for reference:  ${meshLabel}\n\n` +
       `When ready, click Continue to paste the token.`;
     const continueAction = 'Continue';

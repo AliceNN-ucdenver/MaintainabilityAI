@@ -222,7 +222,7 @@
         "maintainabilityai.governance.meshToken": {
           "type": "string",
           "default": "",
-          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Needs actions:write on every linked code repo so notify-code-repos.yml on the mesh can fire repository_dispatch events. Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
+          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Needs Contents=write on every linked code repo so notify-code-repos.yml on the mesh can fire repository_dispatch events (POST /repos/.../dispatches requires Contents:write). Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
         },
         "maintainabilityai.research.llmProvider": {
           "type": "string",

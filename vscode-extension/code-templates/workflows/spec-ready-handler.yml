@@ -15,18 +15,18 @@ name: "Spec Ready Handler (PRD → RCTRO issue)"
 #
 # Required secrets:
 #   GITHUB_TOKEN          — built in, used to create the issue here
-#   GOVERNANCE_MESH_TOKEN — fine-grained PAT used as the single source for
-#                            cross-repo reads. Same secret value lives on the
-#                            mesh repo (where notify-code-repos.yml uses its
-#                            actions:write scope to dispatch) and on every
-#                            code repo (where this workflow uses its
-#                            contents:read scope to fetch the PRD manifest
-#                            from the mesh). Push via Looking Glass →
-#                            Settings → Research → "Push to mesh + code
-#                            repos" — one configuration step, distributed
-#                            everywhere. Required for private meshes; works
-#                            for public meshes too (lets us bypass the
-#                            unauthenticated raw fetch fallback path).
+#                            (this workflow runs in the code repo's own
+#                            context — Actions auto-provides issues:write).
+#   GOVERNANCE_MESH_TOKEN — optional. Lives primarily on the MESH repo
+#                            (where notify-code-repos.yml uses Contents=write
+#                            on each code repo to fire repository_dispatch).
+#                            Push via Looking Glass → Settings → Research →
+#                            Create / Push to mesh. Only set this on the
+#                            CODE REPO if your mesh repo is private AND you
+#                            want spec-ready-handler.yml to fetch the PRD
+#                            manifest via the Contents API. For public
+#                            meshes the unauthenticated raw fetch works
+#                            with no token here.
 #
 # Idempotency: searches for an existing open issue containing the PRD run_id
 # before creating a new one; comments on the existing issue instead.

@@ -69,7 +69,7 @@ The Cheshire **`Scaffold SDLC Structure`** command writes these. If a repo was s
 
 ### Secrets — one configuration step, fanned out everywhere
 
-The Research + PRD pipeline reads five secrets total. The Looking Glass **Research** settings panel (which already manages Anthropic / OpenAI / Tavily) also surfaces the two newer ones — **USPTO_API_KEY** and **GOVERNANCE_MESH_TOKEN** — and gives you a single "**Push to mesh + code repos**" action that fans the same value out to the mesh repo *and* every code repo listed in your BARs' `app.yaml`. No more managing N copies of the same key by hand.
+The Research + PRD pipeline reads five secrets total. The Looking Glass **Research** settings panel manages all of them with three distinct push patterns: **Push to mesh** (mesh-only secrets), **Push to mesh + code repos** (secrets the code-repo workflows also consume), and **Create** (GOVERNANCE_MESH_TOKEN-specific — guides you through minting a correctly-scoped GitHub PAT, then auto-saves and pushes).
 
 | Secret | Required when | Lives on | How to push |
 |---|---|---|---|
@@ -77,17 +77,22 @@ The Research + PRD pipeline reads five secrets total. The Looking Glass **Resear
 | `USPTO_API_KEY` | Optional patent coverage | Mesh only | "Push to mesh" |
 | `ANTHROPIC_API_KEY` | `llm_provider: anthropic` on mesh AND `alice-remediation.yml` on each code repo | Mesh + every linked code repo | "Push to mesh + code repos" |
 | `OPENAI_API_KEY` | `llm_provider: openai` on mesh + code repos | Mesh + every linked code repo | "Push to mesh + code repos" |
-| `GOVERNANCE_MESH_TOKEN` | Cross-repo dispatch + private-mesh manifest fetch | Mesh + every linked code repo | "Push to mesh + code repos" |
+| `GOVERNANCE_MESH_TOKEN` | Cross-repo dispatch (`notify-code-repos.yml` → `repository_dispatch`) | Mesh only | "Create" (guided) or "Push to mesh" |
 | `GITHUB_TOKEN` | Built-in | Auto-provided per workflow | n/a — required for `llm_provider: github-models` (free Copilot routing) |
 
-**About `GOVERNANCE_MESH_TOKEN` — one PAT, two scopes:**
+**About `GOVERNANCE_MESH_TOKEN` — mesh-only token, one permission:**
 
-Create a single fine-grained PAT scoped to your org with **two permissions**:
+Create a fine-grained PAT scoped to your org with **one permission**:
 
-- **Actions: write** — for `notify-code-repos.yml` on the mesh repo to fire `repository_dispatch` at every target code repo
-- **Contents: read** — for `spec-ready-handler.yml` on every code repo to fetch the PRD manifest from the (possibly private) mesh repo
+- **Contents: Read and write** on every code repo listed in your BARs' `app.yaml`
 
-Select resource access for **the mesh repo + every code repo listed in your BARs' `app.yaml`**. Then in Looking Glass paste it once and hit "Push to mesh + code repos" — the extension iterates [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and calls `gh secret set GOVERNANCE_MESH_TOKEN --repo <each>`. One PAT, distributed correctly, no per-repo manual config. Imagine the alternative for a portfolio of 100 private code repos: 100 separate fine-grained PATs each with `contents:read` on the mesh — a per-repo babysitting job. This is the answer.
+That's the permission GitHub requires for `POST /repos/{owner}/{repo}/dispatches` — the API call `notify-code-repos.yml` on the mesh uses to fire a `repository_dispatch` event at each code repo. (GitHub bundles dispatch with Contents:write and doesn't offer a finer-grained "just dispatch" scope.) Resource owner is your org; repository access is "Only select repositories" → pick every code repo from your BARs' `app.yaml repos[]`.
+
+Looking Glass → Settings → Research → **Create** walks you through this end to end: opens the GitHub PAT page in your browser, shows a sticky checklist listing every code-repo slug (built by walking [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and deduping their `app.yaml` repos), pops an input box to paste the freshly-minted token, then saves + pushes to the mesh repo's Actions secrets — all in one click.
+
+The token lives **on the mesh repo only**. The code-repo side never sees it; `spec-ready-handler.yml` runs in the code repo's own workflow context with the auto-provided `GITHUB_TOKEN` (which already has `issues:write`). One token, one secret push, no per-code-repo babysitting.
+
+**Private mesh manifest fetch:** for now, `spec-ready-handler.yml` reads the PRD manifest from the mesh via `raw.githubusercontent.com` (unauthenticated, works for public meshes). If your mesh is private and you want the cross-repo bridge to work, you'd need to add a separate read token to each code repo manually — or wait for the dispatch-payload-embedding upgrade that ships the manifest inside the `repository_dispatch` event itself, eliminating the cross-repo read entirely.
 
 ### Research preferences (one-time)
 
@@ -215,7 +220,7 @@ On merge: `notify-code-repos.yml` fires. It reads `manifest.target_repos`, dedup
 
 In the target code repo, `spec-ready-handler.yml` fires on the dispatch:
 
-1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` for public meshes; `GOVERNANCE_MESH_TOKEN` via Contents API for private ones)
+1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` — works unauthenticated for public meshes; for private meshes you'd need to set a separate read token on each code repo, or wait for the dispatch-payload-embedding enhancement that eliminates the cross-repo read)
 2. Validates the manifest shape and confirms this repo is in `target_repos`
 3. Dedupes by `run_id` (re-dispatches comment on the existing issue instead of creating a duplicate)
 4. Builds an RCTRO body — Role/Context/Task/Requirements/Output, one Requirement per endpoint and one per security requirement, each with citation references back to the PRD
@@ -256,9 +261,9 @@ You get the original `research-request` issue, the PRD PR, the spec-ready RCTRO 
 
 - **Pre-flight check fails: "archeologist.yml workflow scaffolded".** Run `Looking Glass` → `Settings` → `Deploy mesh workflows`. If you have customized any mesh workflow file, the deploy preserves it; force-redeploy via the `Redeploy` action.
 - **Pre-flight check fails: "Tavily key available".** Either set it locally via `Repository Secrets` → `Local config`, or push it to the mesh repo's Actions secrets via `Repository Secrets` → `governance`.
-- **`spec-ready` dispatch never reaches the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and has `repo` scope on the target. The `notify-code-repos.yml` run log will show the dispatch attempt and any 401/404.
+- **`spec-ready` dispatch never reaches the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and the PAT has **Contents = Read and write** on the target code repo (that's GitHub's required permission for `POST /repos/.../dispatches`). The `notify-code-repos.yml` run log will show the dispatch attempt and any 401/404.
 - **The RCTRO issue claims this repo isn't in `target_repos`.** The mesh PRD manifest's `target_repos` array must include this repo's `owner/repo`. Look at `manifest.target_repos` in the PRD PR's sidecar JSON; correct it on the mesh side and let `notify-code-repos.yml` re-dispatch.
-- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** Configure `GOVERNANCE_MESH_TOKEN` once via Looking Glass → Settings → Research and click "Push to mesh + code repos". The fine-grained PAT needs `contents:read` on the mesh repo (for this fetch) and `actions:write` on every code repo (for the dispatch from the mesh side) — both scopes on the same token, distributed everywhere it's needed in one click.
+- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** `GOVERNANCE_MESH_TOKEN` lives on the mesh only; the code-repo side does not get a read token by default. For now, either keep your mesh public (recommended for governance audit) or set a separate fine-grained PAT with `Contents=read` on the mesh manually on each affected code repo as `GOVERNANCE_MESH_TOKEN`. A future enhancement will ship the manifest inside the `repository_dispatch` payload, eliminating the cross-repo read entirely.
 - **Notifications fire on every reload.** Known cosmetic on `pre-existing` runs only — the service seeds its snapshot with persisted state on activate, so subsequent transitions are deduped. If you see repeated dispatch toasts for the same run id, file a bug with the run id.
 
 ---
