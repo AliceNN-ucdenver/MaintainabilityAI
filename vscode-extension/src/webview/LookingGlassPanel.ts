@@ -2749,11 +2749,23 @@ Policy file: ${filename}
     const config = vscode.workspace.getConfiguration();
     const key = config.get<string>(def.settingKey, '');
     if (!key) {
-      this.postMessage({ type: 'researchTestResult', id, ok: false, message: 'No key configured in VS Code settings.' });
+      const msg = 'No key configured in VS Code settings.';
+      this.postMessage({ type: 'researchTestResult', id, ok: false, message: msg });
+      void vscode.window.showWarningMessage(`${def.label}: ${msg}`);
       return;
     }
     const result = await testResearchKey(id, key);
     this.postMessage({ type: 'researchTestResult', id, ok: result.ok, message: result.message });
+    // Also surface as a native VS Code toast so the user can't miss the
+    // result (the inline pill in the panel auto-dismisses after 6s and the
+    // longer messages — e.g. USPTO's "no live test, pipeline degrades
+    // gracefully" — wrap awkwardly in the narrow status column).
+    const fullMsg = `${def.label}: ${result.message}`;
+    if (result.ok) {
+      void vscode.window.showInformationMessage(fullMsg);
+    } else {
+      void vscode.window.showWarningMessage(fullMsg);
+    }
   }
 
   private async onPushResearchSecret(id: ResearchSecretId) {
