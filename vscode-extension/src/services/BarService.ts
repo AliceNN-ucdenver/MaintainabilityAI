@@ -113,14 +113,19 @@ export class BarService {
       ? reviews[reviews.length - 1].driftScore
       : undefined;
 
-    // Record governance score snapshot (deduplicates if unchanged)
+    // Record governance score snapshot (deduplicates if unchanged).
+    // Round to integers BEFORE storing — the parser at parseScoreHistoryYaml
+    // strips decimals with `(\d+)`, so any float in memory but integer on
+    // disk made the dedup comparison fail every time (5.04 !== 5). Storing
+    // rounded values everywhere keeps the parser, the dedup, and the file
+    // all in agreement.
     const snapshot: GovernanceScoreSnapshot = {
       timestamp: new Date().toISOString(),
-      composite: scores.compositeScore,
-      architecture: scores.architecture.score,
-      security: scores.security.score,
-      information_risk: scores.infoRisk.score,
-      operations: scores.operations.score,
+      composite: Math.round(scores.compositeScore),
+      architecture: Math.round(scores.architecture.score),
+      security: Math.round(scores.security.score),
+      information_risk: Math.round(scores.infoRisk.score),
+      operations: Math.round(scores.operations.score),
     };
     this.appendScoreSnapshot(barPath, snapshot);
 
