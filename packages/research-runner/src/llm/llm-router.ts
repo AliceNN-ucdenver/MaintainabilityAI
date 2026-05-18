@@ -21,23 +21,36 @@ import { callGitHubModels, type GitHubModelsModel } from './github-models-client
  */
 export type LlmTier = 'plan' | 'synth';
 
-/** Per-tier per-provider model id lookup. */
-const MODEL_BY_TIER: Record<LlmTier, { anthropic: AnthropicModel; githubModels: GitHubModelsModel }> = {
-  // gpt-4.1-mini outperforms gpt-4o-mini on the per-provider query-plan
-  // task. Verified empirically against the celeb-api brief: 4.1-mini
-  // produces more on-topic arxiv phrases ("celebrity identity disambig-
-  // uation" vs 4o-mini's generic "API integration challenges"), tighter
-  // patent AND-clauses, and stays inside the spec's word counts more
-  // reliably. Same "low" rate-limit tier as 4o-mini, so no infra change.
-  plan:  { anthropic: 'claude-haiku-4-5',  githubModels: 'openai/gpt-4.1-mini' },
-  // gpt-5-chat is in the "custom" GH-Models tier (200K input / 100K
-  // output) and is NON-reasoning — verified end-to-end with a live API
-  // call (reasoning_tokens=0, finish_reason=stop). Picked over gpt-5
-  // and gpt-5-mini because those are reasoning models that consume the
+/**
+ * Per-tier per-provider model id lookup. `githubModelsFallback` (when
+ * present) is tried automatically on 401/403/404 from the primary —
+ * how we let users with a GMT (Copilot-Pro user PAT) reach the
+ * "custom"-tier `gpt-5-chat` while users on a workflow bot token
+ * still work via the "low"-tier fallback.
+ */
+const MODEL_BY_TIER: Record<LlmTier, {
+  anthropic: AnthropicModel;
+  githubModels: GitHubModelsModel;
+  githubModelsFallback?: GitHubModelsModel;
+}> = {
+  // Plan tier — small structured-JSON output, one shot, fits any cap.
+  // Try gpt-5-chat first (custom tier, only reachable with a Copilot-
+  // enrolled PAT like GMT). Fall back to gpt-4.1-mini (low tier, works
+  // on every token including the Actions bot). Empirically equivalent
+  // output quality on the V3-anchor prompt — the upgrade is "if free,
+  // why not"; the fallback keeps everyone working.
+  plan: {
+    anthropic: 'claude-haiku-4-5',
+    githubModels: 'openai/gpt-5-chat',
+    githubModelsFallback: 'openai/gpt-4.1-mini',
+  },
+  // Synth tier — 200K context, non-reasoning (verified live with
+  // reasoning_tokens=0, finish_reason=stop). Picked over gpt-5 and
+  // gpt-5-mini because those are reasoning models that consume the
   // completion budget on hidden chain-of-thought before producing any
-  // visible markdown — bad for the synthesis step where we need
-  // predictable structured output. Requires the caller's token to have
-  // Models access through a Copilot subscription (GMT path).
+  // visible markdown. Synth needs predictable structured output. No
+  // fallback model here — synth runs on the agent side now (Copilot
+  // Coding Agent / @claude), so the runner doesn't fire synth itself.
   synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-5-chat' },
 };
 
@@ -104,28 +117,55 @@ async function callAnthropicTier(opts: CallLlmOpts, tierModels: { anthropic: Ant
   };
 }
 
-async function callGitHubModelsTier(opts: CallLlmOpts, tierModels: { githubModels: GitHubModelsModel }): Promise<CallLlmResult> {
+/**
+ * GitHub Models returns 401 / 403 / 404 when the token can't reach the
+ * requested model (typically the workflow bot token hitting a "custom"-
+ * tier model like gpt-5-chat). These are recoverable via fallback;
+ * everything else (timeouts, 5xx, 413 cap, parse errors) should
+ * propagate.
+ */
+function isModelAccessError(err: unknown): boolean {
+  if (!(err instanceof Error)) { return false; }
+  return /GitHub Models returned 40[134]:/.test(err.message);
+}
+
+async function callGitHubModelsTier(
+  opts: CallLlmOpts,
+  tierModels: { githubModels: GitHubModelsModel; githubModelsFallback?: GitHubModelsModel },
+): Promise<CallLlmResult> {
   if (!opts.githubToken) {
     throw new Error(`callLlm: provider=github-models requires githubToken (set GITHUB_TOKEN; workflow needs \`permissions: models: read\`).`);
   }
-  const r = await callGitHubModels({
-    token: opts.githubToken,
-    model: tierModels.githubModels,
-    system: opts.system,
-    prompt: opts.prompt,
-    maxTokens: opts.maxTokens,
-    temperature: opts.temperature,
-    fetchImpl: opts.fetchImpl,
-  });
-  return {
-    provider: 'github-models',
-    model: tierModels.githubModels,
-    text: r.text,
-    inputTokens: r.inputTokens,
-    outputTokens: r.outputTokens,
-    costUsd: r.costUsd,
-    httpStatus: r.httpStatus,
+  const callOne = async (model: GitHubModelsModel): Promise<CallLlmResult> => {
+    const r = await callGitHubModels({
+      token: opts.githubToken!,
+      model,
+      system: opts.system,
+      prompt: opts.prompt,
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+      fetchImpl: opts.fetchImpl,
+    });
+    return {
+      provider: 'github-models',
+      model,
+      text: r.text,
+      inputTokens: r.inputTokens,
+      outputTokens: r.outputTokens,
+      costUsd: r.costUsd,
+      httpStatus: r.httpStatus,
+    };
   };
+  try {
+    return await callOne(tierModels.githubModels);
+  } catch (err) {
+    if (tierModels.githubModelsFallback && isModelAccessError(err)) {
+      const cause = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[research-runner] ⚠ github-models ${tierModels.githubModels} access-denied, falling back to ${tierModels.githubModelsFallback}. Cause: ${cause.slice(0, 200)}\n`);
+      return await callOne(tierModels.githubModelsFallback);
+    }
+    throw err;
+  }
 }
 
 export async function callLlm(opts: CallLlmOpts): Promise<CallLlmResult> {

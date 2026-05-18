@@ -37,7 +37,7 @@ test('callLlm: anthropic + tier=synth routes to claude-sonnet-4-6', async () => 
   assert.equal(result.model, 'claude-sonnet-4-6');
 });
 
-test('callLlm: github-models + tier=plan routes to openai/gpt-4.1-mini at models.github.ai', async () => {
+test('callLlm: github-models + tier=plan tries openai/gpt-5-chat first (custom tier — Copilot PAT path)', async () => {
   let url = '';
   let body: { model?: string } = {};
   const fetchImpl: typeof fetch = async (u, init) => {
@@ -50,10 +50,47 @@ test('callLlm: github-models + tier=plan routes to openai/gpt-4.1-mini at models
     githubToken: 'ghs_test', prompt: 'x', maxTokens: 1, fetchImpl,
   });
   assert.equal(url, 'https://models.github.ai/inference/chat/completions');
-  assert.equal(body.model, 'openai/gpt-4.1-mini');
+  assert.equal(body.model, 'openai/gpt-5-chat');
   assert.equal(result.provider, 'github-models');
-  assert.equal(result.model, 'openai/gpt-4.1-mini');
+  assert.equal(result.model, 'openai/gpt-5-chat');
   assert.equal(result.costUsd, 0);
+});
+
+test('callLlm: github-models + tier=plan falls back to gpt-4.1-mini when gpt-5-chat returns 403', async () => {
+  // The workflow bot token can't reach "custom" tier; we want a clean
+  // fall-back to the "low" tier model so users on GITHUB_TOKEN still work.
+  const bodies: { model?: string }[] = [];
+  const fetchImpl: typeof fetch = async (_u, init) => {
+    const body = JSON.parse(String((init as RequestInit).body)) as { model?: string };
+    bodies.push(body);
+    if (body.model === 'openai/gpt-5-chat') {
+      return new Response('{"error":{"message":"Model access denied for token tier"}}', { status: 403 });
+    }
+    return githubModelsMock('ok');
+  };
+  const result = await callLlm({
+    provider: 'github-models', tier: 'plan',
+    githubToken: 'ghs_bot_token', prompt: 'x', maxTokens: 1, fetchImpl,
+  });
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].model, 'openai/gpt-5-chat');
+  assert.equal(bodies[1].model, 'openai/gpt-4.1-mini');
+  assert.equal(result.model, 'openai/gpt-4.1-mini');
+});
+
+test('callLlm: github-models + tier=plan does NOT fall back on non-access errors (e.g. 413 cap)', async () => {
+  // 413 is a token-budget problem, not an access problem; falling back
+  // to a lower-tier model wouldn't help (same caps). Propagate so the
+  // outer fallback (github-models → anthropic for synth) handles it.
+  const fetchImpl: typeof fetch = async () =>
+    new Response('{"error":{"code":"tokens_limit_reached"}}', { status: 413 });
+  await assert.rejects(
+    () => callLlm({
+      provider: 'github-models', tier: 'plan',
+      githubToken: 'ghs_test', prompt: 'x', maxTokens: 1, fetchImpl,
+    }),
+    /GitHub Models returned 413/,
+  );
 });
 
 test('callLlm: github-models + tier=synth (no anthropicApiKey) stays on openai/gpt-5-chat', async () => {
@@ -131,7 +168,10 @@ test('callLlm: github-models + NO anthropicApiKey + GH fails → throws, no fall
   );
 });
 
-test('callLlm: github-models + tier=plan stays on github-models (small prompt, cheap path)', async () => {
+test('callLlm: github-models + tier=plan stays on github-models even when Anthropic key is set (small prompt, cheap path)', async () => {
+  // Plan tier is github-models-only — the github-models→anthropic
+  // fallback is synth-only. Even with an anthropic key set, plan should
+  // succeed on github-models (or fall back to the lower-tier GH model).
   let url = '';
   const fetchImpl: typeof fetch = async (u) => {
     url = String(u);
@@ -144,7 +184,7 @@ test('callLlm: github-models + tier=plan stays on github-models (small prompt, c
   });
   assert.equal(url, 'https://models.github.ai/inference/chat/completions');
   assert.equal(result.provider, 'github-models');
-  assert.equal(result.model, 'openai/gpt-4.1-mini');
+  assert.equal(result.model, 'openai/gpt-5-chat'); // primary tier hit successfully
 });
 
 test('callLlm: anthropic without apiKey throws a clear error', async () => {

@@ -547,7 +547,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
         provider: brief.llm_provider,
         // plan_queries is the only LLM hop we run now (synth handed off
         // to the assigned agent). Surface that model in the Hatter's Tag.
-        model: 'openai/gpt-4.1-mini',
+        // Plan-tier primary (router falls back to gpt-4.1-mini on access denial).
+        // Synth runs on the agent side, so this is the only LLM hop the runner makes.
+        model: 'openai/gpt-5-chat',
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
         cost_usd: roundUsd(totalCostUsd),

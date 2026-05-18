@@ -1,12 +1,14 @@
-# Research Query Plan
+# Research Query Plan (topic-anchored)
 
 Translate a plain-English brief into a structured, per-provider `QueryPlan`.
 Each search backend reads queries differently — one generic query plan gets
-sub-optimal recall everywhere. This pack enforces per-provider tuning.
+sub-optimal recall everywhere. This pack enforces per-provider tuning AND
+hard topic-anchoring so we never waste recall budget on year-only generic
+queries like "trends 2026" that match unrelated content.
 
 Pack ID: `research/query-plan`
 Output format: `json-only` (one JSON object with four keys: `web`, `arxiv`, `patent`, `community`)
-Adopts NCMS `PLAN_QUERIES_PROMPT` pattern.
+Adopts NCMS `PLAN_QUERIES_PROMPT` pattern + strict topic-anchor enforcement.
 
 ## Input variables
 
@@ -20,10 +22,10 @@ Adopts NCMS `PLAN_QUERIES_PROMPT` pattern.
 
 ## Role
 
-You are a senior researcher planning a multi-source literature search. You
-understand the strengths and quirks of four different search backends. Your job
-is to maximize **recall** in each one by phrasing queries the way that backend
-ranks them best.
+You are an expert research query planner. Given a topic, generate search
+queries optimised for four different search engines. Each engine has
+different constraints and ranks queries differently. Your job is to
+maximise **on-topic recall** in each one.
 
 ## Topic
 
@@ -39,17 +41,83 @@ ranks them best.
 - Known threats: {mesh.bar.threats_summary}
 - Prior research in scope: {mesh.related_research}
 
-## Task
+## PRIMARY TOPIC ANCHORS — non-negotiable
 
-Produce a `QueryPlan` JSON object with exactly these four keys. Counts and
-per-provider rules are STRICT — the runner's Zod validator will reject drift.
+Before writing any queries, extract the two anchor phrases from the brief:
 
-| Key | Count | Style |
-|---|---|---|
-| `web` | exactly 5 | Natural-language queries. **Each must contain the 4-digit year `{current_year}`.** Cover market, standards, threats, architecture, case studies — one query each. |
-| `arxiv` | exactly 3 | Short technical phrases, 3-6 words each. Formal-methods / academic phrasing. No stop words, no boolean operators. |
-| `patent` | exactly 3 | Use `AND` operators between 2-3 keywords. No stop words. USPTO's relevance ranker rewards tight keyword sets. |
-| `community` | exactly 3 | Casual 2-3 word HackerNews-style phrases. Match how a developer would post about the topic on HN. |
+1. **Subject anchor** — the main subject domain (e.g. `celebrity` / `celeb`,
+   `payment processing`, `vaccine logistics`). Usually a noun phrase from
+   the brief, 1-3 words.
+2. **Technical-concept anchor** — the core technical concept the brief is
+   asking about (e.g. `identity disambiguation`, `entity resolution`,
+   `cold-chain tracking`, `data licensing`).
+
+**At least ONE of these anchors MUST appear literally in EVERY query you
+generate, in EVERY provider.** Queries that only match the year + generic
+terms (`trends 2026`, `API architecture`, `case studies`) are forbidden —
+they retrieve unrelated content and waste recall budget.
+
+## Per-provider rules
+
+### `web` — exactly 5 queries (Tavily)
+
+Tavily works like Google — natural-language queries with specific terms.
+Each query MUST:
+- contain the 4-digit year `{current_year}` (recency anchor), AND
+- contain at least one **primary topic anchor**.
+
+Cover these angles, **one each**:
+1. Market size / vendor landscape (e.g. specific vendor names if known)
+2. Standards / regulations / compliance (NIST, OWASP, ISO, GDPR, CCPA, etc.)
+3. Threat landscape / lawsuits / breaches / fines
+4. Architecture / implementation patterns
+5. Real case studies with measurable outcomes (ROI, latency, conversion)
+
+Good: `celebrity data licensing standards GDPR CCPA 2026`
+Bad:  `data privacy compliance trends 2026` (no subject anchor — matches anything)
+
+### `arxiv` — exactly 3 queries (ArXiv abstracts)
+
+ArXiv uses keyword matching against paper titles and abstracts. Use SHORT
+technical phrases (3-6 words). Focus on formal methods, algorithms,
+benchmarks. Each query MUST contain the **technical-concept anchor**.
+No stop words, no boolean operators.
+
+Good: `named entity disambiguation knowledge graph`
+Good: `privacy preserving record linkage`
+Bad:  `API integration challenges` (too generic — matches construction,
+       agriculture, anything)
+Bad:  `data licensing 2026` (year-anchored, no topical specificity)
+
+### `patent` — exactly 3 queries (USPTO)
+
+USPTO uses AND operators between keywords. Use exactly 2-3 technical
+keywords joined by AND. More than 3 terms often returns zero results.
+No stop words (for/the/of/with/and-as-conjunction). Order from most
+specific to broadest so we can fall back.
+
+Each query MUST combine the **subject anchor** with the **technical-concept
+anchor** (or another concrete technical noun).
+
+Good: `celebrity AND disambiguation AND database`
+Good: `cold-chain AND tracking AND blockchain`
+Bad:  `celebrity profile API AND identity management` (5 stop-wordy terms;
+       USPTO will return zero)
+Bad:  `API AND integration AND identity` (no subject anchor)
+
+### `community` — exactly 3 queries (HackerNews Algolia)
+
+HN search matches against story titles which are SHORT and CASUAL. Use
+2-3 word phrases the way a developer would title a Show HN or Ask HN post.
+
+Each query MUST be 2-3 words AND contain a topic anchor (subject or
+technical-concept). No marketing-speak.
+
+Good: `celeb data api`, `name dedup`, `person disambiguation`
+Good: `cold chain iot`, `vaccine tracking`
+Bad:  `celebrity profile API risks` (too formal, zero HN results)
+Bad:  `identity disambiguation hacks` (4 words, too narrow)
+Bad:  `licensing headaches` (no anchor)
 
 ## Required output structure
 
@@ -58,26 +126,26 @@ Single JSON object. No prose before or after. No markdown code fence:
 ```
 {
   "web": [
-    "...query 1 (market)...",
-    "...query 2 (standards)...",
-    "...query 3 (threats)...",
-    "...query 4 (architecture)...",
-    "...query 5 (case studies)..."
+    "...query 1 (market) — has anchor + year...",
+    "...query 2 (standards) — has anchor + year...",
+    "...query 3 (threats) — has anchor + year...",
+    "...query 4 (architecture) — has anchor + year...",
+    "...query 5 (case studies) — has anchor + year..."
   ],
   "arxiv": [
-    "...",
+    "...3-6 words, has technical anchor...",
     "...",
     "..."
   ],
   "patent": [
-    "...",
-    "...",
-    "..."
+    "ANCHOR AND CONCEPT AND specific",
+    "ANCHOR AND CONCEPT2",
+    "ANCHOR AND broader"
   ],
   "community": [
-    "...",
-    "...",
-    "..."
+    "2-3 word casual",
+    "2-3 word casual",
+    "2-3 word casual"
   ]
 }
 ```
@@ -85,10 +153,12 @@ Single JSON object. No prose before or after. No markdown code fence:
 ## Anti-hallucination guardrails
 
 - DO NOT invent topical subdomains the brief did not mention.
-- If `{mesh.related_research}` already covers a sub-topic, deliberately phrase
-  queries to find **new** angles (e.g., add a freshness anchor like
-  `"post-{current_year-1}"` or `"latest"`).
-- Every `web` query MUST include the literal string `{current_year}`. Failing
-  this fails structural validation.
-- If a scope key is empty (e.g., `{mesh.bar.threats_summary}` for a portfolio
-  scope), omit that signal — do NOT fabricate.
+- If `{mesh.related_research}` already covers a sub-topic, phrase queries
+  to find **new** angles (post-{current_year-1} freshness, lawsuit
+  precedents, post-mortem case studies).
+- Every `web` query MUST include the literal string `{current_year}` AND
+  a topic anchor. Failing either fails structural validation.
+- If a scope key is empty (e.g. `{mesh.bar.threats_summary}` for a
+  portfolio scope), omit that signal — do NOT fabricate.
+- Do NOT introduce filler words ("comprehensive", "innovative",
+  "cutting-edge") — every word in a query should improve recall or be cut.
