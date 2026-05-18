@@ -1,0 +1,246 @@
+name: "Spec Ready Handler (PRD → RCTRO issue)"
+
+# Code-repo side of the cross-repo bridge. Receives a repository_dispatch
+# from the mesh repo when a PRD lands and creates an RCTRO implementation
+# issue derived from the PRD's `.manifest.json`.
+#
+# Flow:
+#   mesh-repo notify-code-repos.yml dispatches event_type=spec-ready
+#     → this workflow fires
+#     → fetches <prd_path>.manifest.json from the mesh repo (raw.githubusercontent.com)
+#     → validates manifest shape + confirms this repo is in target_repos
+#     → builds an RCTRO body from endpoints + security_requirements
+#     → creates an issue labeled `rctro-feature`
+#     → alice-remediation.yml picks up the issue on `@claude please implement`
+#
+# Required secrets:
+#   GITHUB_TOKEN   — built in, used to create the issue here
+#   MESH_READ_TOKEN (optional) — fine-grained PAT with contents:read on the
+#                                 mesh repo, required only when the mesh repo
+#                                 is PRIVATE. Public mesh repos work without it.
+#
+# Idempotency: searches for an existing open issue containing the PRD run_id
+# before creating a new one; comments on the existing issue instead.
+
+on:
+  repository_dispatch:
+    types: [spec-ready]
+  workflow_dispatch:
+    inputs:
+      mesh_repo:
+        required: true
+        description: "owner/repo of the mesh repo (e.g. AliceN-ucdenver/governance-mesh)"
+      prd_path:
+        required: true
+        description: "Path to the PRD markdown inside the mesh repo (e.g. platforms/imdb-lite/bars/APP-IMDB-002/prds/celeb-following-2026-05.md)"
+      prd_pr_url:
+        required: false
+        description: "URL of the mesh PR that published the PRD (for audit linkage)"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-rctro-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve dispatch payload
+        id: payload
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const evt = context.eventName;
+            let mesh_repo, prd_path, prd_pr_url;
+            if (evt === 'workflow_dispatch') {
+              mesh_repo = context.payload.inputs.mesh_repo;
+              prd_path = context.payload.inputs.prd_path;
+              prd_pr_url = context.payload.inputs.prd_pr_url || '';
+            } else {
+              const p = context.payload.client_payload || {};
+              mesh_repo = p.mesh_repo;
+              prd_path = p.prd_path;
+              prd_pr_url = p.prd_pr_url || '';
+            }
+
+            if (!mesh_repo || !/^[\w.-]+\/[\w.-]+$/.test(mesh_repo)) {
+              core.setFailed(`Invalid or missing mesh_repo: ${mesh_repo}`);
+              return;
+            }
+            if (!prd_path || !prd_path.endsWith('.md')) {
+              core.setFailed(`Invalid or missing prd_path (expected *.md): ${prd_path}`);
+              return;
+            }
+
+            const manifest_path = prd_path.replace(/\.md$/, '.manifest.json');
+            core.setOutput('mesh_repo', mesh_repo);
+            core.setOutput('prd_path', prd_path);
+            core.setOutput('prd_pr_url', prd_pr_url);
+            core.setOutput('manifest_path', manifest_path);
+
+      - name: Fetch PRD manifest from mesh repo
+        id: manifest
+        if: success()
+        env:
+          MESH_READ_TOKEN: ${{ secrets.MESH_READ_TOKEN }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const mesh_repo = '${{ steps.payload.outputs.mesh_repo }}';
+            const manifest_path = '${{ steps.payload.outputs.manifest_path }}';
+            const token = process.env.MESH_READ_TOKEN || '';
+
+            // Public meshes: raw.githubusercontent.com is unauthenticated.
+            // Private meshes: use the Contents API with MESH_READ_TOKEN.
+            let body;
+            try {
+              if (token) {
+                const [owner, repo] = mesh_repo.split('/');
+                const auth = require('@octokit/auth-token').createTokenAuth(token);
+                const { token: tok } = await auth();
+                const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURI(manifest_path)}`, {
+                  headers: { Accept: 'application/vnd.github.raw', Authorization: `Bearer ${tok}` },
+                });
+                if (!res.ok) {
+                  core.setFailed(`Contents API GET failed: ${res.status} ${await res.text()}`);
+                  return;
+                }
+                body = await res.text();
+              } else {
+                const url = `https://raw.githubusercontent.com/${mesh_repo}/main/${manifest_path}`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                  core.setFailed(`Raw fetch failed (set MESH_READ_TOKEN if mesh is private): ${res.status} ${url}`);
+                  return;
+                }
+                body = await res.text();
+              }
+            } catch (err) {
+              core.setFailed(`Manifest fetch threw: ${err.message}`);
+              return;
+            }
+
+            let manifest;
+            try { manifest = JSON.parse(body); }
+            catch (err) { core.setFailed(`Manifest is not valid JSON: ${err.message}`); return; }
+
+            // Minimal shape validation — fail loudly if the dispatcher sent
+            // something that doesn't match PrdManifest.
+            const required = ['run_id', 'prd_topic', 'mesh_sha', 'target_repos', 'endpoints', 'security_requirements', 'grounding'];
+            for (const k of required) {
+              if (!(k in manifest)) { core.setFailed(`Manifest missing required field: ${k}`); return; }
+            }
+            if (!Array.isArray(manifest.target_repos) || manifest.target_repos.length === 0) {
+              core.setFailed('Manifest target_repos is empty or not an array');
+              return;
+            }
+
+            // Defensive self-allowlist: make sure this repo was supposed to receive
+            // the dispatch. Prevents bogus cross-repo issue creation.
+            const me = `${context.repo.owner}/${context.repo.repo}`;
+            if (!manifest.target_repos.includes(me)) {
+              core.setFailed(`This repo (${me}) is not in manifest.target_repos: ${JSON.stringify(manifest.target_repos)}`);
+              return;
+            }
+
+            core.setOutput('manifest_json', JSON.stringify(manifest));
+            core.setOutput('run_id', manifest.run_id);
+            core.setOutput('prd_topic', manifest.prd_topic);
+            core.setOutput('mesh_sha', manifest.mesh_sha);
+
+      - name: Skip if RCTRO issue already exists for this run_id
+        id: dedupe
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run_id = '${{ steps.manifest.outputs.run_id }}';
+            const q = `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:body "${run_id}"`;
+            const res = await github.rest.search.issuesAndPullRequests({ q, per_page: 5 });
+            const existing = res.data.items.find(i => i.body && i.body.includes(run_id));
+            if (existing) {
+              core.info(`Found existing issue #${existing.number} for run_id=${run_id}; skipping creation.`);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Received another spec-ready dispatch for the same PRD run_id \`${run_id}\` — no new issue created. Original dispatch already produced this issue.`,
+              });
+              core.setOutput('exists', 'true');
+              core.setOutput('issue_number', String(existing.number));
+            } else {
+              core.setOutput('exists', 'false');
+            }
+
+      - name: Build RCTRO body + create issue
+        if: success() && steps.dedupe.outputs.exists != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const manifest = JSON.parse('${{ steps.manifest.outputs.manifest_json }}');
+            const prd_pr_url = '${{ steps.payload.outputs.prd_pr_url }}';
+            const prd_path = '${{ steps.payload.outputs.prd_path }}';
+            const mesh_repo = '${{ steps.payload.outputs.mesh_repo }}';
+
+            const fence = (s) => '`' + s + '`';
+
+            // RCTRO body — same shape as IssueCreatorPanel emits (Role/Context/Task/Requirements/Output).
+            // alice-remediation.yml reads `rctro-feature` issue bodies as the implementation spec,
+            // so the structure here matches what that workflow expects.
+            let body = '';
+            body += `## Source\n\n`;
+            body += `- **PRD**: ${prd_pr_url || `https://github.com/${mesh_repo}/blob/main/${prd_path}`}\n`;
+            body += `- **Mesh repo**: ${mesh_repo} @ ${fence(manifest.mesh_sha.slice(0, 12))}\n`;
+            body += `- **Run id**: ${fence(manifest.run_id)}\n`;
+            body += `- **Grounding**: final_score=${manifest.grounding.final_score.toFixed(4)} ≥ threshold=${manifest.grounding.threshold.toFixed(2)} after ${manifest.grounding.iterations} iteration${manifest.grounding.iterations === 1 ? '' : 's'} (passed=${manifest.grounding.passed})\n\n`;
+
+            body += `## RCTRO Prompt\n\n`;
+
+            body += `#### Role\n`;
+            body += `You are a senior engineer on ${context.repo.owner}/${context.repo.repo} implementing a spec produced by the governance-mesh PRD pipeline. The PRD is the authoritative source of truth; this issue is a derived implementation contract.\n\n`;
+
+            body += `#### Context\n`;
+            body += `PRD topic: **${manifest.prd_topic}**. The full PRD lives in the mesh repo (linked above). This issue extracts the structured endpoints + security requirements so you can implement directly without re-parsing markdown. Cite the PRD by run_id in your PR description for audit linkage.\n\n`;
+
+            body += `#### Task\n`;
+            body += `Implement every endpoint listed below and satisfy every security requirement. Open a PR that links back to this issue and the source PRD. Tests must accompany the implementation — see Validation under each requirement.\n\n`;
+
+            body += `#### Requirements\n\n`;
+            let n = 1;
+            for (const ep of manifest.endpoints || []) {
+              body += `${n}. **Endpoint ${fence(ep.signature)}**\n`;
+              body += `   - CALM node: ${fence(ep.calm_node)}\n`;
+              body += `   - From PRD: ${fence(ep.fr_id)}\n`;
+              body += `   - Validation: integration test exercises ${fence(ep.signature)} and asserts the contract documented in the PRD's Functional Requirements section for ${ep.fr_id}.\n\n`;
+              n++;
+            }
+            for (const sr of manifest.security_requirements || []) {
+              body += `${n}. **Security requirement ${fence(sr.id)}**\n`;
+              body += `   - Citations: ${(sr.citations || []).map(c => fence(c)).join(', ') || '_none — see PRD body_'}\n`;
+              body += `   - Validation: test asserts the control rejects the threat referenced in the citations; reference the PRD's Coverage Analysis row for ${sr.id} in the PR description.\n\n`;
+              n++;
+            }
+            if (n === 1) {
+              body += `_No endpoints or security requirements extracted from manifest — read the PRD directly for the implementation spec._\n\n`;
+            }
+
+            body += `#### Output\n`;
+            body += `PR against \`main\` with: (a) implementation + passing tests, (b) AI-assistance disclosure in the commit message, (c) PR description includes \`derived_from_prd: ${prd_pr_url || prd_path}\` and \`derived_from_prd_run_id: ${manifest.run_id}\` for cross-repo audit join. Close this issue automatically by including \`Closes #ISSUE_NUMBER\` in the PR body.\n\n`;
+
+            body += `---\n\n`;
+            body += `_To implement: comment \`@claude please implement\` on this issue to trigger alice-remediation.yml._\n`;
+
+            const title = `Implement PRD: ${manifest.prd_topic}`.slice(0, 200);
+
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['rctro-feature', 'spec-ready'],
+            });
+            core.info(`Created RCTRO issue #${issue.number}: ${issue.html_url}`);
+            core.summary
+              .addHeading('Spec-ready handler — issue created')
+              .addRaw(`Issue: ${issue.html_url}\nPRD: ${prd_pr_url || prd_path}\nRun id: ${manifest.run_id}`)
+              .write();
