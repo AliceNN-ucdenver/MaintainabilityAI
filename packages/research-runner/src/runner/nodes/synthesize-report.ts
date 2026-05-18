@@ -13,10 +13,13 @@
  * Tag both consume.
  */
 import type {
+  ArchaeologyGap,
   LlmProvider,
   MeshContext,
+  ObservedArchitecture,
   RankedSource,
   ResearchBrief,
+  ResearchPath,
 } from '../../schemas';
 import { callLlm } from '../../llm/llm-router';
 import { loadPrompt, type LoadedPrompt } from '../../mesh/prompt-loader';
@@ -25,6 +28,7 @@ import {
   type CitationStats,
   type ValidationReport,
 } from './synthesis-validator';
+import { validateArchaeologySynthesis } from './synthesis-archaeology-validator';
 
 export interface SynthesizeReportOpts {
   meshDir: string;
@@ -37,8 +41,14 @@ export interface SynthesizeReportOpts {
   anthropicApiKey?: string;
   /** Required when provider === 'github-models'. */
   githubToken?: string;
-  /** Phase 2d will flip this when gap-analysis ran; left false for 2c. */
+  /** Flipped true by the orchestrator after gap-analysis fires. */
   gapAnalysisRan?: boolean;
+  /** Defaults to brief.path. Overrideable for tests. */
+  path?: ResearchPath;
+  /** Archaeology-path only: observed architecture extracted from the target repo. */
+  observedArchitecture?: ObservedArchitecture;
+  /** Archaeology-path only: gaps identified by identify_gaps. */
+  archaeologyGaps?: ArchaeologyGap[];
   fetchImpl?: typeof fetch;
 }
 
@@ -61,14 +71,26 @@ const MAX_TOKENS = 8000;
 
 export async function synthesizeReport(opts: SynthesizeReportOpts): Promise<SynthesizeReportResult> {
   const provider = opts.provider ?? opts.brief.llm_provider;
-  const promptContext = buildPromptContext(opts.brief, opts.meshContext, opts.rankedSources, opts.gapAnalysisRan ?? false);
+  const path = opts.path ?? opts.brief.path;
+
+  // Two different prompt packs + validators per path. Same LLM router, same
+  // retry-with-feedback loop — only the pack name + the validator differ.
+  const packId = path === 'archaeology' ? 'research/synthesis-archaeology' : 'research/synthesis';
+  const validate = path === 'archaeology' ? validateArchaeologySynthesis : validateSynthesis;
+
+  const promptContext = path === 'archaeology'
+    ? buildArchaeologyPromptContext(opts.brief, opts.meshContext, opts.rankedSources, opts.observedArchitecture, opts.archaeologyGaps ?? [])
+    : buildPromptContext(opts.brief, opts.meshContext, opts.rankedSources, opts.gapAnalysisRan ?? false);
+
   const prompt = loadPrompt({
     meshDir: opts.meshDir,
-    packId: 'research/synthesis',
+    packId,
     context: promptContext,
   });
 
-  const system = 'You write structured markdown documents with strict section + citation discipline. Every claim has an S[N] citation; every C[N] cites ≥2 sources; every Recommendation traces to a C[N]. Headings appear in the exact order requested. No prose before the first `##` heading.';
+  const system = path === 'archaeology'
+    ? 'You write structured markdown architecture-archaeology reports with strict section discipline. Every gap (G[N]) carries a severity. Every Recommendation traces to a G[N] and cites at least one grounding token (S[N] or OA[…]). The 9 H2 sections appear in the exact order requested. No prose before the first `##` heading.'
+    : 'You write structured markdown documents with strict section + citation discipline. Every claim has an S[N] citation; every C[N] cites ≥2 sources; every Recommendation traces to a C[N]. Headings appear in the exact order requested. No prose before the first `##` heading.';
 
   let lastReport: ValidationReport | null = null;
   let totalInput = 0;
@@ -98,7 +120,7 @@ export async function synthesizeReport(opts: SynthesizeReportOpts): Promise<Synt
     lastModel = result.model;
 
     const body = stripFences(result.text);
-    const report = validateSynthesis(body);
+    const report = validate(body);
     if (report.valid) {
       return {
         body_md: body,
@@ -171,4 +193,82 @@ function formatRankedSource(s: RankedSource): string {
   if (s.published_at) { lines.push(`  Published: ${s.published_at}`); }
   if (s.excerpt) { lines.push(`  Excerpt: ${s.excerpt.slice(0, 280)}${s.excerpt.length > 280 ? '…' : ''}`); }
   return lines.join('\n');
+}
+
+/** Build the dotted-key context the archaeology synthesis prompt asks for. */
+function buildArchaeologyPromptContext(
+  brief: ResearchBrief,
+  mesh: MeshContext,
+  rankedSources: RankedSource[],
+  observed: ObservedArchitecture | undefined,
+  gaps: ArchaeologyGap[],
+): Record<string, unknown> {
+  return {
+    target_repo: brief.target_repo ?? '(unknown target)',
+    observed_architecture: observed
+      ? formatObservedArchitecture(observed)
+      : '(analyzer did not run)',
+    mesh: {
+      bar: {
+        calm_summary: mesh.bar?.calm_model ? summarizeCalmModelArchaeology(mesh.bar.calm_model) : '(no CALM model loaded)',
+        threats_summary: mesh.bar?.threats ? summarizeThreatsArchaeology(mesh.bar.threats) : '(no threat model on file)',
+      },
+    },
+    gap_signals: gaps.length === 0 ? '(no structural gaps detected)' : gaps.map(g =>
+      `- **${g.id}** [${g.severity}] ${g.kind}: ${g.summary}`,
+    ).join('\n'),
+    ranked_sources: rankedSources.length === 0
+      ? '(no web sources retrieved)'
+      : rankedSources.map(formatRankedSource).join('\n\n'),
+  };
+}
+
+function formatObservedArchitecture(o: ObservedArchitecture): string {
+  const lines: string[] = [];
+  lines.push(`Repo: ${o.profile.slug} @ ${o.profile.cloneSha.slice(0, 12)}`);
+  lines.push(`Languages: ${o.profile.languages.join(', ') || '(none detected)'}`);
+  lines.push(`Frameworks: ${o.profile.frameworks.join(', ') || '(none detected)'}`);
+  lines.push(`Manifests: ${o.profile.manifests.join(', ') || '(none)'}`);
+  lines.push(`Files: ${o.profile.totalFiles} totalling ${o.profile.totalBytes} bytes`);
+  lines.push('');
+  lines.push('Modules (top 12 by file count):');
+  for (const m of o.modules.slice(0, 12)) {
+    lines.push(`  - OA[${m.name}] layer=${m.layer} files=${m.fileCount} endpoints=${m.endpointCount}`);
+  }
+  if (o.endpoints.length > 0) {
+    lines.push('');
+    lines.push('Endpoints (sample):');
+    for (const e of o.endpoints.slice(0, 15)) {
+      lines.push(`  - ${e.method} ${e.path} (${e.framework}) — ${e.file}`);
+    }
+  }
+  if (o.dependencies.length > 0) {
+    lines.push('');
+    lines.push(`Direct dependencies (${o.dependencies.length}): ${o.dependencies.slice(0, 25).join(', ')}${o.dependencies.length > 25 ? ', …' : ''}`);
+  }
+  return lines.join('\n');
+}
+
+function summarizeCalmModelArchaeology(calm: unknown): string {
+  if (!calm || typeof calm !== 'object') { return '(no CALM model loaded)'; }
+  const obj = calm as { nodes?: unknown[]; relationships?: unknown[] };
+  const nodes = Array.isArray(obj.nodes) ? obj.nodes : [];
+  const relationships = Array.isArray(obj.relationships) ? obj.relationships : [];
+  const lines: string[] = [];
+  lines.push(`${nodes.length} node(s), ${relationships.length} relationship(s)`);
+  for (const n of nodes.slice(0, 10)) {
+    const o = n as Record<string, unknown>;
+    lines.push(`  - ${o['unique-id'] ?? o.name ?? 'unknown'} (${o['node-type'] ?? 'unknown'})`);
+  }
+  return lines.join('\n');
+}
+
+function summarizeThreatsArchaeology(threats: unknown): string {
+  if (!Array.isArray(threats) || threats.length === 0) { return '(no threats)'; }
+  const byCategory: Record<string, number> = {};
+  for (const t of threats) {
+    const cat = (t as { category?: string }).category || 'unknown';
+    byCategory[cat] = (byCategory[cat] || 0) + 1;
+  }
+  return Object.entries(byCategory).map(([c, n]) => `${c} × ${n}`).join(', ');
 }

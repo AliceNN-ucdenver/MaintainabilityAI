@@ -38,6 +38,10 @@ import { runHackerNewsSearch } from './nodes/hackernews-search';
 import { dedupeAndRank } from './nodes/dedupe-and-rank';
 import { detectGapSignals, runGapAnalysis } from './nodes/gap-analysis';
 import { synthesizeReport } from './nodes/synthesize-report';
+import { cloneAndIndex } from './nodes/clone-and-index';
+import { analyzeArchitecture, ANALYZER_VERSION } from './nodes/analyze-architecture';
+import { identifyGaps } from './nodes/identify-gaps';
+import type { ArchaeologyGap, ObservedArchitecture } from '../schemas';
 
 export interface ArcheologistOptions {
   brief: unknown;             // unvalidated input from CLI / workflow inputs
@@ -70,8 +74,10 @@ export interface ArcheologistResult {
   source_count: number;
   /** Per-provider counts of raw results (post-dedupe deltas — useful for reviewer summary). */
   provider_result_counts: Record<string, number>;
-  /** Whether gap_analysis fired this run. */
+  /** Whether gap_analysis fired this run. Research path only. */
   gap_analysis_ran: boolean;
+  /** Number of archaeology gaps identified. Undefined on research-path runs. */
+  archaeology_gap_count?: number;
   /** Synthesis structural validator outputs — quick reviewer signal. */
   conclusion_count: number;
   recommendation_count: number;
@@ -124,39 +130,162 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     },
   });
 
-  // ----- plan_queries (LLM) -----
+  // Path-conditional outputs the synthesis + publish blocks consume below.
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let totalCostUsd = 0;
-  const planStart = Date.now();
-  const plan = await planQueries({
-    meshDir: opts.meshDir,
-    brief,
-    meshContext,
-    provider: brief.llm_provider,
-    anthropicApiKey,
-    githubToken,
-    fetchImpl: opts.fetchImpl,
-  });
-  totalInputTokens += plan.llm.inputTokens;
-  totalOutputTokens += plan.llm.outputTokens;
-  totalCostUsd += plan.llm.costUsd;
-  emitter.emit({
-    node_kind: 'llm',
-    node_name: 'plan_queries',
-    duration_ms: Date.now() - planStart,
-    llm: {
-      provider: plan.llm.provider,
-      model: plan.llm.model,
-      prompt_pack: { path: plan.prompt.packPath, sha256: plan.prompt.packSha256 },
-      input_tokens: plan.llm.inputTokens,
-      output_tokens: plan.llm.outputTokens,
-      cost_usd: plan.llm.costUsd,
-      guardrails: { mode: brief.guardrails, pre: 'PASS', post: 'PASS' },
-    },
-  });
+  let rankedSources: RankedSource[] = [];
+  const providerResultCounts: Record<string, number> = { tavily: 0, arxiv: 0, uspto: 0, hackernews: 0 };
+  let gapAnalysisRan = false;
+  let observedArchitecture: ObservedArchitecture | undefined;
+  let archaeologyGaps: ArchaeologyGap[] = [];
+  let cleanupCloneDir: string | null = null;
+  let researchQueryPlan: import('../schemas').QueryPlan | undefined;
 
-  // ----- four-provider search (pure_api each, parallel across providers) -----
+  if (brief.path === 'archaeology') {
+    // ============================================================================
+    // ARCHAEOLOGY PATH — replaces plan_queries + 4-provider search + gap-analysis
+    // with clone → analyze → identify-gaps → web-research (tavily only).
+    // ============================================================================
+    if (!brief.target_repo) {
+      throw new Error('Archaeology path requires brief.target_repo (owner/repo)');
+    }
+
+    // 1. clone_and_index (pure)
+    const cloneStart = Date.now();
+    const clone = cloneAndIndex({ targetRepo: brief.target_repo });
+    cleanupCloneDir = clone.cloneDir;
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'clone_and_index',
+      duration_ms: Date.now() - cloneStart,
+      pure: {
+        inputs_summary: `target=${brief.target_repo}`,
+        outputs_summary: `clone_sha=${clone.cloneSha.slice(0, 12)}; files=${clone.inventory.totalFiles}; bytes=${clone.inventory.totalBytes}; manifests=${clone.inventory.rootManifests.join(',') || 'none'}`,
+      },
+    });
+
+    // 2. analyze_architecture (pure, file-based)
+    const analyzeStart = Date.now();
+    observedArchitecture = analyzeArchitecture({
+      cloneDir: clone.cloneDir,
+      targetRepo: brief.target_repo,
+      cloneSha: clone.cloneSha,
+      inventory: clone.inventory,
+    });
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'analyze_architecture',
+      duration_ms: Date.now() - analyzeStart,
+      pure: {
+        inputs_summary: `clone_sha=${clone.cloneSha.slice(0, 12)}; analyzer=${ANALYZER_VERSION}`,
+        outputs_summary: `languages=${observedArchitecture.profile.languages.join(',')}; frameworks=${observedArchitecture.profile.frameworks.join(',') || 'none'}; modules=${observedArchitecture.modules.length}; endpoints=${observedArchitecture.endpoints.length}`,
+      },
+    });
+
+    // 3. identify_gaps (pure, comparison) → derives 3 web queries
+    const gapsStart = Date.now();
+    const gapsResult = identifyGaps({ observed: observedArchitecture, meshContext });
+    archaeologyGaps = gapsResult.gaps;
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'identify_gaps',
+      duration_ms: Date.now() - gapsStart,
+      pure: {
+        inputs_summary: `observed_modules=${observedArchitecture.modules.length}; calm_nodes=${(meshContext.bar?.calm_model && Array.isArray((meshContext.bar.calm_model as { nodes?: unknown[] }).nodes)) ? (meshContext.bar!.calm_model as { nodes: unknown[] }).nodes.length : 0}`,
+        outputs_summary: `gaps=${archaeologyGaps.length} (${archaeologyGaps.filter(g => g.severity === 'HIGH').length} HIGH); web_queries=${gapsResult.webQueries.length}`,
+      },
+    });
+
+    // 4. web_research via tavily (gap-derived queries, no other providers)
+    if (tavilyApiKey) {
+      const webStart = Date.now();
+      const web = await runTavilySearch({
+        apiKey: tavilyApiKey,
+        queries: gapsResult.webQueries,
+        fetchImpl: opts.fetchImpl,
+      });
+      const perQueryMs = Math.round((Date.now() - webStart) / Math.max(1, web.envelopes.length));
+      for (const envelope of web.envelopes) {
+        if (envelope.error) {
+          emitter.emit({
+            node_kind: 'node_error',
+            node_name: 'tavily_search',
+            duration_ms: 0,
+            error: { message: `gap-derived query="${envelope.query.slice(0, 80)}": ${envelope.error}`, retryable: true },
+          });
+        } else {
+          emitter.emit({
+            node_kind: 'pure_api',
+            node_name: 'tavily_search',
+            duration_ms: perQueryMs,
+            api: {
+              provider: 'tavily',
+              endpoint: 'POST /search (archaeology gap-derived)',
+              request_summary: `query="${envelope.query.slice(0, 120)}"`,
+              http_status: envelope.httpStatus,
+              response_byte_count: envelope.responseBytes,
+            },
+          });
+        }
+      }
+      providerResultCounts.tavily = web.results.length;
+
+      // dedupe (smaller pool — just the gap-derived web results)
+      const dedupeStart = Date.now();
+      rankedSources = dedupeAndRank({ results: web.results, topN: 15 });
+      emitter.emit({
+        node_kind: 'pure',
+        node_name: 'dedupe_and_rank',
+        duration_ms: Date.now() - dedupeStart,
+        pure: {
+          inputs_summary: `raw_results=${web.results.length}; queries=${web.envelopes.length} (gap-derived)`,
+          outputs_summary: `ranked_sources=${rankedSources.length}; top_score=${rankedSources[0]?.salience_score ?? 0}`,
+        },
+      });
+    } else {
+      // No tavily key — synthesise without external grounding (still useful from the gaps alone)
+      emitter.emit({
+        node_kind: 'node_error',
+        node_name: 'tavily_search',
+        duration_ms: 0,
+        error: { message: 'TAVILY_API_KEY not configured — archaeology synthesis will lack external research grounding', retryable: false },
+      });
+    }
+  } else {
+    // ============================================================================
+    // RESEARCH PATH (existing): plan_queries → 4 providers → dedupe → gap-analysis
+    // ============================================================================
+    const planStart = Date.now();
+    const plan = await planQueries({
+      meshDir: opts.meshDir,
+      brief,
+      meshContext,
+      provider: brief.llm_provider,
+      anthropicApiKey,
+      githubToken,
+      fetchImpl: opts.fetchImpl,
+    });
+    researchQueryPlan = plan.queryPlan;
+    totalInputTokens += plan.llm.inputTokens;
+    totalOutputTokens += plan.llm.outputTokens;
+    totalCostUsd += plan.llm.costUsd;
+    emitter.emit({
+      node_kind: 'llm',
+      node_name: 'plan_queries',
+      duration_ms: Date.now() - planStart,
+      llm: {
+        provider: plan.llm.provider,
+        model: plan.llm.model,
+        prompt_pack: { path: plan.prompt.packPath, sha256: plan.prompt.packSha256 },
+        input_tokens: plan.llm.inputTokens,
+        output_tokens: plan.llm.outputTokens,
+        cost_usd: plan.llm.costUsd,
+        guardrails: { mode: brief.guardrails, pre: 'PASS', post: 'PASS' },
+      },
+    });
+
+    // ----- four-provider search (pure_api each, parallel across providers) -----
   // We run all four providers concurrently with Promise.allSettled so a
   // provider-level failure (e.g. PatentsView outage) doesn't block the rest.
   const searchStart = Date.now();
@@ -170,9 +299,10 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   ]);
   const searchDuration = Date.now() - searchStart;
 
-  // Record per-provider envelopes (audit log) + collect ProviderResult[] (dedupe input)
+  // Record per-provider envelopes (audit log) + collect ProviderResult[] (dedupe input).
+  // providerResultCounts is declared at the top of runArcheologist so the
+  // archaeology branch can populate it too.
   const allProviderResults: ProviderResult[] = [];
-  const providerResultCounts: Record<string, number> = { tavily: 0, arxiv: 0, uspto: 0, hackernews: 0 };
 
   // Helper: emit per-query envelopes (or one node_error per provider-level failure)
   const handleProvider = (
@@ -227,7 +357,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
 
   // ----- dedupe_and_rank (pure) — first pass -----
   let dedupeStart = Date.now();
-  let rankedSources: RankedSource[] = dedupeAndRank({ results: allProviderResults, topN: 20 });
+  rankedSources = dedupeAndRank({ results: allProviderResults, topN: 20 });
   emitter.emit({
     node_kind: 'pure',
     node_name: 'dedupe_and_rank',
@@ -240,7 +370,6 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
 
   // ----- gap_analysis (optional, bounded one-shot) -----
   const gapSignals = detectGapSignals({ brief, rankedSources });
-  let gapAnalysisRan = false;
   if (gapSignals.length > 0) {
     emitter.emit({
       node_kind: 'pure',
@@ -333,6 +462,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     }
     gapAnalysisRan = true;
   }
+  }  // end research-path else branch
 
   // ----- synthesize_report (LLM) -----
   const synthStart = Date.now();
@@ -345,6 +475,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     anthropicApiKey,
     githubToken,
     gapAnalysisRan,
+    path: brief.path,
+    observedArchitecture,
+    archaeologyGaps,
     fetchImpl: opts.fetchImpl,
   });
   totalInputTokens += synthesis.llm.inputTokens;
@@ -386,7 +519,10 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     runId,
     meshSummary,
     meshSha: meshContext.mesh_sha,
-    queryPlan: plan.queryPlan,
+    queryPlan: researchQueryPlan,
+    archaeologySummary: observedArchitecture
+      ? `Cloned \`${observedArchitecture.profile.slug}\` @ \`${observedArchitecture.profile.cloneSha.slice(0, 12)}\`. ${observedArchitecture.profile.totalFiles} files; languages: ${observedArchitecture.profile.languages.join(', ') || 'n/a'}; frameworks: ${observedArchitecture.profile.frameworks.join(', ') || 'n/a'}; ${observedArchitecture.modules.length} modules; ${observedArchitecture.endpoints.length} endpoints; ${archaeologyGaps.length} structural gaps identified.`
+      : undefined,
     synthesisBody: synthesis.body_md,
   });
 
@@ -423,12 +559,14 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     const hattersTag = buildHattersTag({
       run_id: runId,
       mesh_sha: meshContext.mesh_sha,
-      prompt_library_version: 'phase2d',
+      prompt_library_version: 'phase3a',
       agent_version: opts.agentVersion,
       published_at: new Date().toISOString(),
       llm: {
         provider: brief.llm_provider,
-        model: plan.llm.model,
+        // synthesis runs on both paths; archaeology runs skip plan_queries so we
+        // use the synthesis model id as the "primary" model for the Hatter's Tag.
+        model: synthesis.llm.model,
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
         cost_usd: roundUsd(totalCostUsd),
@@ -445,6 +583,12 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     prBodyPath = opts.emitPrBodyPath;
   }
 
+  // ----- archaeology cleanup: remove the shallow clone now that synthesis is done -----
+  if (cleanupCloneDir) {
+    try { fs.rmSync(cleanupCloneDir, { recursive: true, force: true }); }
+    catch { /* leave on disk — non-fatal, just a tmpdir entry */ }
+  }
+
   return {
     run_id: runId,
     topic: brief.topic,
@@ -458,6 +602,8 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     source_count: rankedSources.length,
     provider_result_counts: providerResultCounts,
     gap_analysis_ran: gapAnalysisRan,
+    /** archaeology path only — undefined for research runs */
+    archaeology_gap_count: archaeologyGaps.length || undefined,
     conclusion_count: synthesis.citation_stats.conclusion_count,
     recommendation_count: synthesis.citation_stats.recommendation_count,
   };
@@ -468,16 +614,19 @@ interface BuildDocOpts {
   runId: string;
   meshSummary: string;
   meshSha: string;
-  queryPlan: import('../schemas').QueryPlan;
-  /** The canonical 10-section markdown body emitted by synthesize_report. */
+  /** Research path only — undefined on archaeology runs. */
+  queryPlan?: import('../schemas').QueryPlan;
+  /** Archaeology path only — short repo profile summary. */
+  archaeologySummary?: string;
+  /** The canonical synthesis markdown body. */
   synthesisBody: string;
 }
 
 /**
- * Compose the published artifact:
- *   <H1 topic>
- *   <metadata block + Run metadata + Mesh Context summary + Query Plan table>
- *   <synthesis body — H2 Source Premises through H2 References>
+ * Compose the published artifact. The preamble differs by path:
+ *   research:    <metadata> + <mesh context> + <Query Plan table>
+ *   archaeology: <metadata> + <mesh context> + <Target Repo Profile>
+ * The synthesis body owns every H2 from the canonical section list onward.
  * The Hatter's Tag is appended separately by the PR-body path.
  */
 function buildResearchDoc(opts: BuildDocOpts): string {
@@ -486,24 +635,32 @@ function buildResearchDoc(opts: BuildDocOpts): string {
   lines.push('');
   lines.push(`- **Run id:** \`${opts.runId}\``);
   lines.push(`- **Mesh sha:** \`${opts.meshSha.slice(0, 12)}\``);
+  lines.push(`- **Path:** ${opts.brief.path}${opts.brief.target_repo ? ` (\`${opts.brief.target_repo}\`)` : ''}`);
   lines.push(`- **Scope:** ${opts.brief.scope.level}${opts.brief.scope.id ? ` / ${opts.brief.scope.id}` : ''}`);
   lines.push('');
   lines.push('## Run Metadata');
   lines.push('');
   lines.push(`Scope resolved to: ${opts.meshSummary}.`);
   lines.push('');
-  lines.push('### Query Plan (per-provider, LLM-generated)');
-  lines.push('');
-  lines.push('| Provider | Queries |');
-  lines.push('|---|---|');
-  lines.push(`| **web** (Tavily) | ${opts.queryPlan.web.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-  lines.push(`| **arxiv** | ${opts.queryPlan.arxiv.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-  lines.push(`| **patent** (USPTO) | ${opts.queryPlan.patent.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-  lines.push(`| **community** (HN) | ${opts.queryPlan.community.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-  lines.push('');
-  lines.push('_arxiv / patent / community searches land in phase 2d; this run was web-only._');
-  lines.push('');
-  // The synthesis body owns every H2 from "Source Premises" through "References".
+
+  if (opts.queryPlan) {
+    lines.push('### Query Plan (per-provider, LLM-generated)');
+    lines.push('');
+    lines.push('| Provider | Queries |');
+    lines.push('|---|---|');
+    lines.push(`| **web** (Tavily) | ${opts.queryPlan.web.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
+    lines.push(`| **arxiv** | ${opts.queryPlan.arxiv.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
+    lines.push(`| **patent** (USPTO) | ${opts.queryPlan.patent.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
+    lines.push(`| **community** (HN) | ${opts.queryPlan.community.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
+    lines.push('');
+  }
+  if (opts.archaeologySummary) {
+    lines.push('### Target Repository Profile (analyze_architecture)');
+    lines.push('');
+    lines.push(opts.archaeologySummary);
+    lines.push('');
+  }
+  // The synthesis body owns every H2 from the canonical section list onward.
   lines.push(opts.synthesisBody.trim());
   lines.push('');
   return lines.join('\n');

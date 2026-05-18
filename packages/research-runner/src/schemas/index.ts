@@ -14,3 +14,4 @@ export * from './prd-brief';
 export * from './prd-doc';
 export * from './prd-manifest';
 export * from './audit-event';
+export * from './observed-architecture';
