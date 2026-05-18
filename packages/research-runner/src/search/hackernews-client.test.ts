@@ -33,6 +33,26 @@ test('hackerNewsSearch: normalises hits with hnUrl derived from objectID', async
   assert.equal(result.results[1].hnUrl, 'https://news.ycombinator.com/item?id=12346');
 });
 
+test('hackerNewsSearch: extracts story_text for Show HN / Ask HN self-posts and strips basic HTML', async () => {
+  const fetchImpl: typeof fetch = async () => new Response(JSON.stringify({
+    hits: [
+      { objectID: '1', title: 'Show HN: Foo', url: '', points: 200, num_comments: 30, created_at: '2026-04-01T00:00:00Z',
+        story_text: '<p>We&#x27;re launching <b>Foo</b> &amp; would love feedback.</p><p>See <a href="https://x">docs</a>.</p>' },
+      { objectID: '2', title: 'URL submission', url: 'https://example.com/article', points: 50, num_comments: 5,
+        story_text: '' },
+    ],
+  }), { status: 200 });
+
+  const result = await hackerNewsSearch({ query: 'q', fetchImpl });
+  assert.equal(result.results.length, 2);
+  // Show HN: HTML tags stripped, entities decoded, whitespace collapsed
+  // Tags become single spaces during the strip pass, so "docs</a>." → "docs ." after collapse.
+  // Good enough for a synth-agent excerpt; we don't aim for cosmetic perfection.
+  assert.equal(result.results[0].storyText, "We're launching Foo & would love feedback. See docs .");
+  // URL-only submission: no body
+  assert.equal(result.results[1].storyText, '');
+});
+
 test('hackerNewsSearch: throws with status + body on non-2xx', async () => {
   const fetchImpl: typeof fetch = async () => new Response('upstream error', { status: 503 });
   await assert.rejects(

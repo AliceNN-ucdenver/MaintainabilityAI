@@ -96,14 +96,26 @@ keywords joined by AND. More than 3 terms often returns zero results.
 No stop words (for/the/of/with/and-as-conjunction). Order from most
 specific to broadest so we can fall back.
 
-Each query MUST combine the **subject anchor** with the **technical-concept
-anchor** (or another concrete technical noun).
+**Patent corpus is technical art, not application-domain content.**
+Patents on disambiguation algorithms rarely mention "celebrity" or
+the specific business domain — they describe the underlying technique.
+Requiring the subject anchor in EVERY query gives perfect precision
+and near-zero recall. Distribute the 3 slots across the precision/
+recall spectrum:
 
-Good: `celebrity AND disambiguation AND database`
-Good: `cold-chain AND tracking AND blockchain`
+  Q1 (narrow):  `<subject anchor> AND <concept anchor> AND <specific term>`
+  Q2 (medium):  `<concept anchor> AND <related technique> AND <domain noun>`
+  Q3 (broad):   `<concept anchor> AND <broader technique>`
+
+At least one query (Q1) MUST include the subject anchor. The other two
+focus on the technical-concept anchor for broader prior-art coverage.
+
+Good: `celebrity AND disambiguation AND database`        (Q1 narrow)
+Good: `entity AND resolution AND person`                 (Q2 medium)
+Good: `named-entity AND disambiguation AND knowledge-graph` (Q3 broad)
 Bad:  `celebrity profile API AND identity management` (5 stop-wordy terms;
-       USPTO will return zero)
-Bad:  `API AND integration AND identity` (no subject anchor)
+       USPTO returns zero)
+Bad:  All 3 queries containing `celebrity` (zero patent corpus matches)
 
 ### `community` — exactly 3 queries (HackerNews Algolia)
 

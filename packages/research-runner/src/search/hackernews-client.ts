@@ -16,6 +16,8 @@ export interface HackerNewsResult {
   points: number;
   numComments: number;
   createdAt: string;        // ISO
+  /** Self-post body for Show HN / Ask HN; empty for URL submissions. */
+  storyText: string;
 }
 
 export interface HackerNewsSearchOpts {
@@ -66,6 +68,7 @@ export async function hackerNewsSearch(opts: HackerNewsSearchOpts): Promise<Hack
       points?: number;
       num_comments?: number;
       created_at?: string;
+      story_text?: string;
     }>;
   };
 
@@ -78,7 +81,31 @@ export async function hackerNewsSearch(opts: HackerNewsSearchOpts): Promise<Hack
     points: h.points ?? 0,
     numComments: h.num_comments ?? 0,
     createdAt: h.created_at ?? '',
+    // Algolia returns the self-post body for Show HN / Ask HN. URL-only
+    // submissions have this empty. Strip basic HTML tags so the excerpt
+    // is readable in the issue comment.
+    storyText: stripBasicHtml(h.story_text ?? '').slice(0, 2000),
   })).filter(r => r.objectId && r.title);
 
   return { query: opts.query, results, responseBytes: Buffer.byteLength(rawText, 'utf8'), httpStatus };
+}
+
+/**
+ * HN Algolia returns Show HN / Ask HN bodies with light HTML
+ * (`<p>`, `<i>`, etc.). Strip tags + decode the common entities so
+ * the excerpt blockquote in the issue body reads cleanly. No need for
+ * a full HTML parser — these posts are plain text with a sprinkle of
+ * inline tags.
+ */
+function stripBasicHtml(s: string): string {
+  return s
+    .replace(/<\/?(?:p|br|i|b|em|strong|code|pre|a|ul|ol|li)[^>]*>/gi, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }

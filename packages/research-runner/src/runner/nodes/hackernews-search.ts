@@ -53,7 +53,10 @@ export async function runHackerNewsSearch(opts: HackerNewsSearchNodeOpts): Promi
           fromQuery: query,
           title: r.title,
           url,
-          content: '',                                    // HN search returns no abstract
+          // Show HN / Ask HN posts carry a self-post body. URL-only
+          // submissions have no body — leave empty; the synth agent
+          // can read the linked URL if it needs more context.
+          content: r.storyText,
           score: pointsToScore(r.points),
           publishedDate: r.createdAt || undefined,
           authors: r.author ? [r.author] : undefined,
