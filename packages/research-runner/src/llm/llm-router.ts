@@ -63,67 +63,99 @@ export interface CallLlmResult {
   httpStatus: number;
 }
 
+/**
+ * Write progress to stderr so the GitHub Actions job shows the
+ * "tried X, falling back to Y" story when the primary provider fails.
+ * Silenced when RESEARCH_RUNNER_QUIET=1 (tests).
+ */
+function progress(msg: string): void {
+  if (process.env.RESEARCH_RUNNER_QUIET === '1') { return; }
+  const ts = new Date().toISOString().slice(11, 19);
+  process.stderr.write(`[research-runner ${ts}] ${msg}\n`);
+}
+
+async function callAnthropicTier(opts: CallLlmOpts, tierModels: { anthropic: AnthropicModel }): Promise<CallLlmResult> {
+  if (!opts.anthropicApiKey) {
+    throw new Error(`callLlm: provider=anthropic requires anthropicApiKey (set ANTHROPIC_API_KEY).`);
+  }
+  const r = await callAnthropic({
+    apiKey: opts.anthropicApiKey,
+    model: tierModels.anthropic,
+    system: opts.system,
+    prompt: opts.prompt,
+    maxTokens: opts.maxTokens,
+    temperature: opts.temperature,
+    fetchImpl: opts.fetchImpl,
+  });
+  return {
+    provider: 'anthropic',
+    model: tierModels.anthropic,
+    text: r.text,
+    inputTokens: r.inputTokens,
+    outputTokens: r.outputTokens,
+    costUsd: r.costUsd,
+    httpStatus: r.httpStatus,
+  };
+}
+
+async function callGitHubModelsTier(opts: CallLlmOpts, tierModels: { githubModels: GitHubModelsModel }): Promise<CallLlmResult> {
+  if (!opts.githubToken) {
+    throw new Error(`callLlm: provider=github-models requires githubToken (set GITHUB_TOKEN; workflow needs \`permissions: models: read\`).`);
+  }
+  const r = await callGitHubModels({
+    token: opts.githubToken,
+    model: tierModels.githubModels,
+    system: opts.system,
+    prompt: opts.prompt,
+    maxTokens: opts.maxTokens,
+    temperature: opts.temperature,
+    fetchImpl: opts.fetchImpl,
+  });
+  return {
+    provider: 'github-models',
+    model: tierModels.githubModels,
+    text: r.text,
+    inputTokens: r.inputTokens,
+    outputTokens: r.outputTokens,
+    costUsd: r.costUsd,
+    httpStatus: r.httpStatus,
+  };
+}
+
 export async function callLlm(opts: CallLlmOpts): Promise<CallLlmResult> {
   const tierModels = MODEL_BY_TIER[opts.tier];
 
-  // Hybrid routing: GitHub Models free tier caps requests at ~8K input
-  // tokens — too small for the synthesis step (full brief + every search
-  // result + mesh context routinely exceeds that). When the brief asks
-  // for github-models AND an Anthropic key is available, route synth →
-  // Anthropic and keep plan (small prompt) on github-models. Caller can
-  // force pure github-models by not setting anthropicApiKey.
-  const effectiveProvider: LlmProvider =
-    opts.provider === 'github-models' && opts.tier === 'synth' && opts.anthropicApiKey
-      ? 'anthropic'
-      : opts.provider;
-
-  if (effectiveProvider === 'anthropic') {
-    if (!opts.anthropicApiKey) {
-      throw new Error(`callLlm: provider=anthropic requires anthropicApiKey (set ANTHROPIC_API_KEY).`);
+  // Try-then-fall-back routing for github-models.
+  //
+  // When the brief asks for github-models AND an Anthropic key is also
+  // available, we try GitHub Models FIRST (respects the user's stated
+  // provider preference — they're often paying for Copilot Pro). If it
+  // fails for ANY reason (8K cap 413, custom-tier 403, timeout, 5xx,
+  // network), fall back to Anthropic. The synth tier is where this
+  // matters most — plan-tier prompts are small and almost never fail.
+  //
+  // Why fall back on every error vs. only on 413: we'd rather have a
+  // working synth via Anthropic than a half-failed run. The progress
+  // log makes the "tried X, fell back to Y" story explicit so it's
+  // easy to debug.
+  //
+  // anthropic provider is pass-through (no fallback target).
+  if (opts.provider === 'github-models') {
+    try {
+      return await callGitHubModelsTier(opts, tierModels);
+    } catch (err) {
+      if (!opts.anthropicApiKey) {
+        throw err; // no fallback available
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      progress(`⚠ github-models failed on tier=${opts.tier} — falling back to Anthropic. Cause: ${msg.slice(0, 200)}`);
+      return await callAnthropicTier(opts, tierModels);
     }
-    const r = await callAnthropic({
-      apiKey: opts.anthropicApiKey,
-      model: tierModels.anthropic,
-      system: opts.system,
-      prompt: opts.prompt,
-      maxTokens: opts.maxTokens,
-      temperature: opts.temperature,
-      fetchImpl: opts.fetchImpl,
-    });
-    return {
-      provider: 'anthropic',
-      model: tierModels.anthropic,
-      text: r.text,
-      inputTokens: r.inputTokens,
-      outputTokens: r.outputTokens,
-      costUsd: r.costUsd,
-      httpStatus: r.httpStatus,
-    };
   }
 
-  if (effectiveProvider === 'github-models') {
-    if (!opts.githubToken) {
-      throw new Error(`callLlm: provider=github-models requires githubToken (set GITHUB_TOKEN; workflow needs \`permissions: models: read\`).`);
-    }
-    const r = await callGitHubModels({
-      token: opts.githubToken,
-      model: tierModels.githubModels,
-      system: opts.system,
-      prompt: opts.prompt,
-      maxTokens: opts.maxTokens,
-      temperature: opts.temperature,
-      fetchImpl: opts.fetchImpl,
-    });
-    return {
-      provider: 'github-models',
-      model: tierModels.githubModels,
-      text: r.text,
-      inputTokens: r.inputTokens,
-      outputTokens: r.outputTokens,
-      costUsd: r.costUsd,
-      httpStatus: r.httpStatus,
-    };
+  if (opts.provider === 'anthropic') {
+    return await callAnthropicTier(opts, tierModels);
   }
 
-  throw new Error(`callLlm: provider "${effectiveProvider}" not yet implemented (phase 2c.1 ships anthropic + github-models; openai + azure-openai land later).`);
+  throw new Error(`callLlm: provider "${opts.provider}" not yet implemented (phase 2c.1 ships anthropic + github-models; openai + azure-openai land later).`);
 }

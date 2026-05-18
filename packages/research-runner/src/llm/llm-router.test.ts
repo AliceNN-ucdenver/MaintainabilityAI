@@ -71,29 +71,67 @@ test('callLlm: github-models + tier=synth (no anthropicApiKey) stays on openai/g
   assert.equal(result.provider, 'github-models');
 });
 
-test('callLlm: github-models + tier=synth + anthropicApiKey → hybrid routes synth to Anthropic', async () => {
-  // Why hybrid: GitHub Models free tier caps requests at ~8K input tokens
-  // — the synthesis prompt routinely exceeds that. When an Anthropic key
-  // is available, synth jumps to Claude Sonnet (200K context) while plan
-  // stays on the cheap GH Models path.
-  let url = '';
+test('callLlm: github-models + anthropicApiKey + GH success → stays on github-models (Anthropic is only fallback)', async () => {
+  // Try-then-fallback: when GH Models succeeds, we never call Anthropic
+  // even if its key is set. Respects the user's stated provider preference
+  // (often paying for Copilot Pro and want to use it).
+  const calls: string[] = [];
   const fetchImpl: typeof fetch = async (u) => {
-    url = String(u);
-    return anthropicMock('ok');
+    calls.push(String(u));
+    return githubModelsMock('ok');
   };
   const result = await callLlm({
     provider: 'github-models', tier: 'synth',
     githubToken: 'ghs_test', anthropicApiKey: 'sk-test',
     prompt: 'x', maxTokens: 1, fetchImpl,
   });
-  assert.equal(url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes('models.github.ai'));
+  assert.equal(result.provider, 'github-models');
+  assert.equal(result.model, 'openai/gpt-5-chat');
+});
+
+test('callLlm: github-models + anthropicApiKey + GH fails → falls back to Anthropic', async () => {
+  // The fallback path: any GH Models failure (413 cap, 403 access, 5xx,
+  // timeout) triggers a retry on Anthropic when the key is present.
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (u) => {
+    calls.push(String(u));
+    if (String(u).includes('models.github.ai')) {
+      // Simulate the 413 we hit on gpt-4.1 earlier
+      return new Response('{"error":{"code":"tokens_limit_reached","message":"Request body too large"}}', { status: 413 });
+    }
+    return anthropicMock('synth output ok');
+  };
+  const result = await callLlm({
+    provider: 'github-models', tier: 'synth',
+    githubToken: 'ghs_test', anthropicApiKey: 'sk-test',
+    prompt: 'x', maxTokens: 1, fetchImpl,
+  });
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].includes('models.github.ai'));
+  assert.ok(calls[1].includes('api.anthropic.com'));
   assert.equal(result.provider, 'anthropic');
   assert.equal(result.model, 'claude-sonnet-4-6');
 });
 
-test('callLlm: github-models + tier=plan + anthropicApiKey → plan STAYS on github-models (no hybrid)', async () => {
-  // Plan-tier prompts are small and fit inside the 8K cap; keep them on
-  // the free path even when an Anthropic key is set.
+test('callLlm: github-models + NO anthropicApiKey + GH fails → throws, no fallback', async () => {
+  // Without an Anthropic key there's nothing to fall back to — surface
+  // the original error so the caller knows the configured provider
+  // didn't work.
+  const fetchImpl: typeof fetch = async () =>
+    new Response('{"error":{"message":"tokens_limit_reached"}}', { status: 413 });
+  await assert.rejects(
+    () => callLlm({
+      provider: 'github-models', tier: 'synth',
+      githubToken: 'ghs_test',
+      prompt: 'x', maxTokens: 1, fetchImpl,
+    }),
+    /GitHub Models returned 413/,
+  );
+});
+
+test('callLlm: github-models + tier=plan stays on github-models (small prompt, cheap path)', async () => {
   let url = '';
   const fetchImpl: typeof fetch = async (u) => {
     url = String(u);
