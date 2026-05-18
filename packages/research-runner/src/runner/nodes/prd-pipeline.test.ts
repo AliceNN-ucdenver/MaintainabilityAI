@@ -165,6 +165,7 @@ function mockMesh(): MeshContext {
       adrs: [],
       pillar_scores: { architecture: 0, security: 0, info_risk: 0, operations: 0 },
       related_research: [], related_prds: [], mesh_gaps: [],
+      linked_repos: ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web'],
     },
   };
 }
@@ -376,5 +377,28 @@ test('generatePrdManifest: extracts endpoints from FR entries + SR citations', (
   // Grounding block reflects input
   assert.equal(manifest.grounding.passed, true);
   assert.equal(manifest.grounding.final_score, 0.91);
-  assert.equal(manifest.target_repos.length, 1);
+  // target_repos comes from MeshContext.bar.linked_repos (parsed from app.yaml)
+  assert.deepEqual(manifest.target_repos.sort(), ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web']);
+});
+
+test('generatePrdManifest: falls back to mesh/<bar-id> when linked_repos is empty', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  const brief: PrdBrief = {
+    research_source: { kind: 'path', relative_path: 'platforms/x/bars/APP-INS-001/research/topic.md' },
+    scope: { level: 'bar', id: 'APP-INS-001' },
+    mode: 'deep', grounding: 'default', grounding_threshold: 0.85, max_iterations: 3,
+    guardrails: 'default', llm_provider: 'anthropic', cost_cap_tokens: 200_000,
+    trigger: { kind: 'local_dev' },
+  };
+  const meshNoRepos: MeshContext = { ...mockMesh(), bar: { ...mockMesh().bar!, linked_repos: [] } };
+  const manifest = generatePrdManifest({
+    runId: 'PRD-2026-05-17-deadbeef',
+    brief,
+    meshContext: meshNoRepos,
+    prdBody: CANONICAL_PRD_BODY,
+    signals,
+    grounding: { final_iteration: 1, iterations: [], citation_coverage: { threats_in_scope: 1, threats_covered_by_sr: 1, calm_nodes_in_scope: 2, calm_nodes_cited_by_fr: 2, self_reported_no_count: 0 }, final_score: 0.91, passed: true },
+    threshold: 0.85,
+  });
+  assert.deepEqual(manifest.target_repos, ['mesh/app-ins-001']);
 });

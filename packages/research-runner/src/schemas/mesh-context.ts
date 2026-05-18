@@ -67,6 +67,8 @@ export const MeshContext = z.object({
       bar_id: z.string(),
       name: z.string(),
       composite_score: z.number(),
+      /** owner/repo entries parsed from each sibling BAR's app.yaml. */
+      linked_repos: z.array(z.string().regex(/^[\w.-]+\/[\w.-]+$/)).default([]),
     })),
     related_research_summaries: z.array(RelatedResearchSummary),
   }).nullable(),
@@ -85,6 +87,8 @@ export const MeshContext = z.object({
     related_research: z.array(RelatedResearchSummary),
     related_prds: z.array(RelatedResearchSummary),
     mesh_gaps: z.array(MeshGapKind),
+    /** owner/repo entries parsed from app.yaml application.repos — drives PrdManifest.target_repos. */
+    linked_repos: z.array(z.string().regex(/^[\w.-]+\/[\w.-]+$/)).default([]),
   }).nullable(),
 });
 

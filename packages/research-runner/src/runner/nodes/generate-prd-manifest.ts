@@ -119,13 +119,36 @@ function sliceSection(body: string, sectionName: string): string | null {
   return collected.length === 0 ? null : collected.join('\n');
 }
 
-/** Best-effort target-repo extraction from MeshContext. Falls back to a placeholder. */
+/**
+ * Resolve the list of code repos this PRD targets. Priority order:
+ *
+ *   1. The BAR's `app.yaml` `application.repos` list (normalized to
+ *      `owner/repo`) — the canonical source. This is what
+ *      `notify-code-repos.yml` reads at dispatch time.
+ *   2. Platform scope: aggregate every sibling BAR's linked_repos.
+ *   3. Last-resort fallback: `mesh/<bar_id-lowercase>` so the manifest
+ *      still passes Zod validation (target_repos must be a non-empty
+ *      owner/repo list). Indicates a misconfigured BAR — the run
+ *      logs will show this so the user can fix app.yaml.
+ */
 function resolveTargetRepos(mesh: MeshContext): string[] {
   const bar = mesh.bar;
-  if (!bar) { return ['placeholder/repo']; }
-  // We don't yet enrich MeshContext with the BAR's linked repos (that
-  // surface lands when the Looking Glass UI begins triggering PRDs).
-  // Use the bar_id as a stable fallback so the manifest passes Zod
-  // validation (target_repos must be a non-empty owner/repo list).
-  return [`mesh/${bar.bar_id.toLowerCase()}`];
+  if (bar && bar.linked_repos.length > 0) {
+    return uniqueOwnerRepos(bar.linked_repos);
+  }
+  // Platform scope: union all sibling-bar linked_repos. Sibling bars
+  // carry their own linked_repos arrays so platform-level research
+  // dispatches to every code repo under the platform.
+  const platform = mesh.platform;
+  if (!bar && platform && platform.sibling_bars.length > 0) {
+    const all: string[] = [];
+    for (const sib of platform.sibling_bars) { all.push(...sib.linked_repos); }
+    if (all.length > 0) { return uniqueOwnerRepos(all); }
+  }
+  if (bar) { return [`mesh/${bar.bar_id.toLowerCase()}`]; }
+  return ['placeholder/repo'];
+}
+
+function uniqueOwnerRepos(list: string[]): string[] {
+  return [...new Set(list)];
 }

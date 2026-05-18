@@ -66,18 +66,28 @@ portfolio_id: PF-FIXTURE
 
 const PLATFORM_ARCH = JSON.stringify({ nodes: [], relationships: [] }, null, 2);
 
+// Mirrors the real on-disk shape Looking Glass writes to BARs — keys live
+// under a top-level `application:` block. Each BAR's `repos:` drives the
+// PrdManifest target_repos resolution.
 const APP_YAML_001 = `
-id: APP-INS-001
-name: Claims Processing
-description: Core claims intake and adjudication
-criticality: high
+application:
+  id: APP-INS-001
+  name: Claims Processing
+  description: Core claims intake and adjudication
+  criticality: high
+  repos:
+    - "https://github.com/AliceN-ucdenver/claims-api"
+    - "https://github.com/AliceN-ucdenver/claims-web"
 `.trim();
 
 const APP_YAML_002 = `
-id: APP-INS-002
-name: Policy Administration
-description: System of record for policies
-criticality: high
+application:
+  id: APP-INS-002
+  name: Policy Administration
+  description: System of record for policies
+  criticality: high
+  repos:
+    - "https://github.com/AliceN-ucdenver/policy-admin"
 `.trim();
 
 const BAR_ARCH_JSON = JSON.stringify({

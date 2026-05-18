@@ -38,11 +38,48 @@ interface PlatformYaml {
   portfolio_id?: string;
 }
 
+/**
+ * Mirrors the real on-disk shape of `<bar>/app.yaml`:
+ *   application:
+ *     id: APP-...
+ *     name: "..."
+ *     repos: ["https://github.com/owner/repo", ...]
+ * The runner previously treated these keys as top-level, so id/name lookups
+ * silently fell back to the dir name and repos were never read.
+ */
 interface AppYaml {
-  id?: string;
-  name?: string;
-  description?: string;
-  criticality?: string;
+  application?: {
+    id?: string;
+    name?: string;
+    description?: string;
+    criticality?: string;
+    repos?: string[];
+  };
+}
+
+/** Normalize a GitHub URL (or already-slug form) to `owner/repo`. */
+export function normalizeRepoSlug(value: string): string | null {
+  if (!value) { return null; }
+  const trimmed = value.trim().replace(/\.git$/, '').replace(/\/$/, '');
+  // Already in owner/repo form
+  if (/^[\w.-]+\/[\w.-]+$/.test(trimmed)) { return trimmed; }
+  // https://github.com/owner/repo or git@github.com:owner/repo
+  const httpsMatch = trimmed.match(/github\.com[:/]([\w.-]+\/[\w.-]+)$/i);
+  if (httpsMatch) { return httpsMatch[1]; }
+  return null;
+}
+
+/** Pull repo URLs from app.yaml and normalize each to `owner/repo`; drop unparseable entries. */
+function extractLinkedRepos(appYaml: AppYaml | null): string[] {
+  const raw = appYaml?.application?.repos;
+  if (!Array.isArray(raw)) { return []; }
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'string') { continue; }
+    const slug = normalizeRepoSlug(entry);
+    if (slug) { out.push(slug); }
+  }
+  return out;
 }
 
 interface DocSummary {
@@ -116,7 +153,7 @@ function findBarPath(meshDir: string, barId: string): { barPath: string; platfor
       if (!barEntry.isDirectory()) { continue; }
       const candidate = path.join(barsDir, barEntry.name);
       const appYaml = loadYamlFile<AppYaml>(path.join(candidate, 'app.yaml'));
-      if (appYaml?.id === barId) {
+      if (appYaml?.application?.id === barId) {
         return { barPath: candidate, platformSlug: platformEntry.name };
       }
     }
@@ -124,18 +161,20 @@ function findBarPath(meshDir: string, barId: string): { barPath: string; platfor
   return null;
 }
 
-function listSiblingBars(platformDir: string, excludeBarId: string): { bar_id: string; name: string; composite_score: number }[] {
+function listSiblingBars(platformDir: string, excludeBarId: string): { bar_id: string; name: string; composite_score: number; linked_repos: string[] }[] {
   const barsDir = path.join(platformDir, 'bars');
   if (!fs.existsSync(barsDir)) { return []; }
-  const out: { bar_id: string; name: string; composite_score: number }[] = [];
+  const out: { bar_id: string; name: string; composite_score: number; linked_repos: string[] }[] = [];
   for (const entry of fs.readdirSync(barsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) { continue; }
     const appYaml = loadYamlFile<AppYaml>(path.join(barsDir, entry.name, 'app.yaml'));
-    if (!appYaml?.id || appYaml.id === excludeBarId) { continue; }
+    const app = appYaml?.application;
+    if (!app?.id || app.id === excludeBarId) { continue; }
     out.push({
-      bar_id: appYaml.id,
-      name: appYaml.name || appYaml.id,
+      bar_id: app.id,
+      name: app.name || app.id,
       composite_score: 0,  // v1: scorer integration lands in phase 4
+      linked_repos: extractLinkedRepos(appYaml),
     });
   }
   return out;
@@ -266,6 +305,7 @@ export function gatherMeshContext(opts: GatherMeshContextOpts): MeshContext {
 
   // bar branch
   const appYaml = loadYamlFile<AppYaml>(path.join(barPath!, 'app.yaml')) || {};
+  const app = appYaml.application ?? {};
   const calmModel = loadJsonFile<unknown>(path.join(barPath!, 'architecture', 'bar.arch.json'));
   const threatModelParsed = readThreatModelFromBar(barPath!);
   const adrs = readAdrs(barPath!);
@@ -276,8 +316,8 @@ export function gatherMeshContext(opts: GatherMeshContextOpts): MeshContext {
   return {
     ...ctx,
     bar: {
-      bar_id: appYaml.id || barId!,
-      name: appYaml.name || barId!,
+      bar_id: app.id || barId!,
+      name: app.name || barId!,
       composite_score: 0,                    // phase 4 integration
       tier: 'restricted',                    // phase 4 integration
       calm_model: calmModel,
@@ -288,6 +328,7 @@ export function gatherMeshContext(opts: GatherMeshContextOpts): MeshContext {
       related_research: research.map(stripMtime),
       related_prds: prds.map(stripMtime),
       mesh_gaps: meshGaps,
+      linked_repos: extractLinkedRepos(appYaml),
     },
   };
 }

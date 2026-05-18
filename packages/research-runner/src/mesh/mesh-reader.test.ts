@@ -110,9 +110,30 @@ test('gatherMeshContext: bar scope walks all the way down', () => {
 
     // Mesh gaps: ADRs + threat-model present + recent research → only no_controls_mapping should fire
     assert.deepEqual(bar.mesh_gaps, ['no_controls_mapping']);
+
+    // linked_repos parsed from app.yaml application.repos and normalized to owner/repo
+    assert.deepEqual(bar.linked_repos, ['AliceN-ucdenver/claims-api', 'AliceN-ucdenver/claims-web']);
+
+    // sibling bars carry their own linked_repos so platform-scope research
+    // can union them for the PrdManifest.target_repos resolution.
+    const siblingApp002 = ctx.platform!.sibling_bars.find(b => b.bar_id === 'APP-INS-002');
+    assert.ok(siblingApp002, 'APP-INS-002 sibling bar should be present');
+    assert.deepEqual(siblingApp002!.linked_repos, ['AliceN-ucdenver/policy-admin']);
   } finally {
     destroyFixtureMesh(handle);
   }
+});
+
+test('normalizeRepoSlug: accepts https + ssh + bare slug; rejects garbage', async () => {
+  const { normalizeRepoSlug } = await import('./mesh-reader');
+  assert.equal(normalizeRepoSlug('https://github.com/owner/repo'), 'owner/repo');
+  assert.equal(normalizeRepoSlug('https://github.com/owner/repo.git'), 'owner/repo');
+  assert.equal(normalizeRepoSlug('https://github.com/owner/repo/'), 'owner/repo');
+  assert.equal(normalizeRepoSlug('git@github.com:owner/repo.git'), 'owner/repo');
+  assert.equal(normalizeRepoSlug('owner/repo'), 'owner/repo');
+  assert.equal(normalizeRepoSlug('https://gitlab.com/owner/repo'), null);   // non-github
+  assert.equal(normalizeRepoSlug('not a url'), null);
+  assert.equal(normalizeRepoSlug(''), null);
 });
 
 test('gatherMeshContext: unknown BAR id throws a clear error', () => {
