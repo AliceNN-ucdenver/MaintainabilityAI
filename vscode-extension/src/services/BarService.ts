@@ -604,6 +604,16 @@ export class BarService {
         const hoursSince = (Date.now() - lastTs) / (1000 * 60 * 60);
         if (hoursSince < SNAPSHOT_INTERVAL_HOURS) { return; }
       }
+
+      // We're about to write even though dedup ran. Log enough detail
+      // that the actual cause (NaN, decimal drift, parser glitch, stale
+      // bundle) is obvious from the Extension Host log.
+      process.stderr.write(
+        `[BarService] score-history WRITE ${path.basename(barPath)}: ` +
+        `last={c=${last.composite},a=${last.architecture},s=${last.security},ir=${last.information_risk},ops=${last.operations}} ` +
+        `new={c=${snapshot.composite},a=${snapshot.architecture},s=${snapshot.security},ir=${snapshot.information_risk},ops=${snapshot.operations}} ` +
+        `hoursSince=${((Date.now() - (Date.parse(last.timestamp) || 0)) / 3_600_000).toFixed(2)}\n`,
+      );
     }
 
     const yamlPath = path.join(barPath, 'score-history.yaml');
