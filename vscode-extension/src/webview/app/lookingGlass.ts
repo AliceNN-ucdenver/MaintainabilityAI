@@ -1759,7 +1759,10 @@ function renderSettingsWorkflow(): string {
   const statusLabel = deployStatusBadge(state.settingsWorkflowExists);
 
   const buttonLabel = state.settingsWorkflowExists ? 'Redeploy All Workflows' : 'Deploy Workflows';
-  const buttonClass = state.settingsWorkflowExists ? 'btn-secondary' : 'btn-primary';
+  // Keep the primary-action styling regardless of state — the user reported
+  // that switching btn-primary (blue, first deploy) vs btn-secondary (grey,
+  // redeploy) looked like two different buttons. Same action either way.
+  const buttonClass = 'btn-primary';
 
   return `
     <div class="settings-section">
