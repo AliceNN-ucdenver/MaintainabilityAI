@@ -371,6 +371,10 @@ export function generateOraculumWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'oraculum-review.yml');
 }
 
+export function generateOraculumResearchWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'oraculum-research.yml');
+}
+
 // ============================================================================
 // Mesh Workflows — Research + PRD Agent Pipeline (Caterpillar / Looking Glass)
 // ============================================================================
@@ -405,6 +409,7 @@ export interface MeshWorkflowSpec {
 
 export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/oraculum-review.yml',   generate: generateOraculumWorkflow },
+  { relativePath: '.github/workflows/oraculum-research.yml', generate: generateOraculumResearchWorkflow },
   { relativePath: '.github/workflows/archeologist.yml',      generate: generateArcheologistWorkflow },
   { relativePath: '.github/workflows/prd.yml',               generate: generatePrdWorkflow },
   { relativePath: '.github/workflows/label-on-merge.yml',    generate: generateLabelOnMergeWorkflow },

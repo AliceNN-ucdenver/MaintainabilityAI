@@ -1773,7 +1773,8 @@ function renderSettingsWorkflow(): string {
       </p>
       <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc;">
         <li><code>oraculum-review.yml</code> — automated architecture review on labeled issues</li>
-        <li><code>archeologist.yml</code> — research agent (market / repo archaeology)</li>
+        <li><code>oraculum-research.yml</code> — research synthesis when <code>@claude</code> is mentioned on an <code>oraculum-research</code>-labeled issue</li>
+        <li><code>archeologist.yml</code> — research data-collection (plan + search + gap analysis); posts results back to the issue</li>
         <li><code>prd.yml</code> — PRD agent with grounding loop</li>
         <li><code>label-on-merge.yml</code> — research → PRD → spec-ready bus handler</li>
         <li><code>notify-code-repos.yml</code> — opens a PRD landing-issue in each target code repo</li>

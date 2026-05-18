@@ -217,7 +217,15 @@ jobs:
               issue_number,
               body
             });
-            // Swap labels: remove `research-request`, add `research-ready`.
+            // Swap labels to two purposes:
+            //   - `oraculum-research`  → fires oraculum-research.yml when
+            //                            the assignee comments @claude
+            //                            (mirrors the oraculum-review pattern)
+            //   - `maintainabilityai`  → Oraculum panel filters issues by
+            //                            this label; without it the issue
+            //                            never appears in the hub
+            // Remove `research-request` — the data-collection phase is
+            // complete and the label would confuse downstream automation.
             try {
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
@@ -230,5 +238,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number,
-              labels: ['research-ready']
+              labels: ['oraculum-research', 'maintainabilityai']
             });

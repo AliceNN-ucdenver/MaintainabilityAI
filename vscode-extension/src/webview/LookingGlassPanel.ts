@@ -3499,6 +3499,7 @@ Policy file: ${filename}
     try {
       const MESH_WORKFLOW_PATHS = [
         '.github/workflows/oraculum-review.yml',
+        '.github/workflows/oraculum-research.yml',
         '.github/workflows/archeologist.yml',
         '.github/workflows/prd.yml',
         '.github/workflows/label-on-merge.yml',
