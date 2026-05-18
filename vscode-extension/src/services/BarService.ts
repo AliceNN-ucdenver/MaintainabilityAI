@@ -58,6 +58,20 @@ import {
   generateImdbCelebsDecorator,
 } from '../templates/mesh';
 
+/**
+ * Minimum hours between score-history snapshots, even when pillar
+ * scores have drifted (rounding can't catch all time-dependent drift
+ * in the scorer). 6h is short enough that the trend graph still shows
+ * meaningful day-over-day movement, long enough that page-load churn
+ * doesn't fill the file.
+ */
+const SNAPSHOT_INTERVAL_HOURS = 6;
+
+/** Round a score to 2 decimals for stable dedup comparison. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export class BarService {
   private scorer: GovernanceScorer;
 
@@ -561,17 +575,29 @@ export class BarService {
   appendScoreSnapshot(barPath: string, snapshot: GovernanceScoreSnapshot): void {
     const existing = this.readScoreHistory(barPath);
 
-    // Deduplicate: skip if identical to last snapshot
+    // Dedup gate. The portfolio view recomputes scores on every load,
+    // and the scorer has time-dependent components (stale-research
+    // decay, age-weighted pillars) that produce tiny floating-point
+    // drift across runs. Without rounding + an interval gate, every
+    // page load wrote a near-identical snapshot and left
+    // score-history.yaml dirty — blocking pushes.
     if (existing.length > 0) {
       const last = existing[existing.length - 1];
-      if (
-        last.composite === snapshot.composite &&
-        last.architecture === snapshot.architecture &&
-        last.security === snapshot.security &&
-        last.information_risk === snapshot.information_risk &&
-        last.operations === snapshot.operations
-      ) {
-        return;
+      const samePillars =
+        round2(last.composite) === round2(snapshot.composite) &&
+        round2(last.architecture) === round2(snapshot.architecture) &&
+        round2(last.security) === round2(snapshot.security) &&
+        round2(last.information_risk) === round2(snapshot.information_risk) &&
+        round2(last.operations) === round2(snapshot.operations);
+      if (samePillars) { return; }
+
+      // Even if scores differ slightly, throttle to one snapshot per
+      // SNAPSHOT_INTERVAL_HOURS. Keeps the trend graph readable without
+      // burying the history in load-time churn.
+      const lastTs = Date.parse(last.timestamp);
+      if (!Number.isNaN(lastTs)) {
+        const hoursSince = (Date.now() - lastTs) / (1000 * 60 * 60);
+        if (hoursSince < SNAPSHOT_INTERVAL_HOURS) { return; }
       }
     }
 
