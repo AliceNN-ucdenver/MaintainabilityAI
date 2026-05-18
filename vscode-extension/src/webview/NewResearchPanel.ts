@@ -35,11 +35,19 @@ type WebviewMsg =
   | { type: 'dispatch'; agent: AgentKind; inputs: DispatchInputs };
 
 type ExtMsg =
-  | { type: 'init'; meshSlug: string | null; bars: BarSummary[]; defaults: ResearchPrefs }
+  | { type: 'init'; meshSlug: string | null; bars: BarSummary[]; defaults: ResearchPrefs; prefill: PrefillInputs | null }
   | { type: 'preflight'; agent: AgentKind; report: PreflightReport }
   | { type: 'dispatched'; runUrl: string | null; agent: AgentKind; dispatchedAt: string }
   | { type: 'dispatchError'; message: string }
   | { type: 'error'; message: string };
+
+/** Optional initial values external callers can pass to pre-fill the form. */
+export interface PrefillInputs {
+  barId?: string;
+  sourceKind?: 'pr' | 'path';
+  sourceValue?: string;
+  mode?: 'quick' | 'deep';
+}
 
 interface ResearchPrefs {
   llmProvider: 'github-models' | 'anthropic' | 'openai';
@@ -65,7 +73,11 @@ export class NewResearchPanel extends BasePanel<WebviewMsg, ExtMsg> {
   public static currentPanel: NewResearchPanel | undefined;
   private static readonly viewType = 'maintainabilityai.newResearch';
 
-  public static createOrShow(context: vscode.ExtensionContext, initialAgent: AgentKind = 'archeologist') {
+  public static createOrShow(
+    context: vscode.ExtensionContext,
+    initialAgent: AgentKind = 'archeologist',
+    prefill: PrefillInputs | null = null,
+  ) {
     const column = vscode.window.activeTextEditor?.viewColumn;
     if (NewResearchPanel.currentPanel) {
       NewResearchPanel.currentPanel.panel.reveal(column);
@@ -79,14 +91,21 @@ export class NewResearchPanel extends BasePanel<WebviewMsg, ExtMsg> {
       column || vscode.ViewColumn.One,
       { enableScripts: true, retainContextWhenHidden: true },
     );
-    NewResearchPanel.currentPanel = new NewResearchPanel(panel, context, initialAgent);
+    NewResearchPanel.currentPanel = new NewResearchPanel(panel, context, initialAgent, prefill);
   }
 
   private initialAgent: AgentKind;
+  private prefill: PrefillInputs | null;
 
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, initialAgent: AgentKind) {
+  private constructor(
+    panel: vscode.WebviewPanel,
+    context: vscode.ExtensionContext,
+    initialAgent: AgentKind,
+    prefill: PrefillInputs | null,
+  ) {
     super(panel, context);
     this.initialAgent = initialAgent;
+    this.prefill = prefill;
   }
 
   protected clearCurrentPanel(): void {
@@ -119,7 +138,7 @@ export class NewResearchPanel extends BasePanel<WebviewMsg, ExtMsg> {
     }
 
     const defaults = loadPrefs();
-    this.postMessage({ type: 'init', meshSlug, bars, defaults });
+    this.postMessage({ type: 'init', meshSlug, bars, defaults, prefill: this.prefill });
     await this.refreshPreflight(this.initialAgent);
   }
 
@@ -323,6 +342,21 @@ window.addEventListener('message', (event) => {
     document.getElementById('thresholdLabel').textContent = msg.defaults.groundingThreshold;
     document.getElementById('maxIter').value = msg.defaults.maxIterations;
     document.getElementById('costCap').value = msg.defaults.costCapTokens;
+    // Apply external prefill (e.g. coming from a Looking Glass "Research this BAR" click)
+    const p = msg.prefill;
+    if (p) {
+      if (p.barId) {
+        const barSelEl = document.getElementById('barId');
+        const opt = Array.from(barSelEl.options).find(o => o.value === p.barId);
+        if (opt) { barSelEl.value = p.barId; }
+      }
+      if (p.sourceKind) {
+        document.getElementById('srcKind').value = p.sourceKind;
+        document.getElementById('srcKind').dispatchEvent(new Event('change'));
+      }
+      if (p.sourceValue) { document.getElementById('srcValue').value = p.sourceValue; }
+      if (p.mode) { document.getElementById('mode').value = p.mode; }
+    }
     updateCost();
   } else if (msg.type === 'preflight') {
     if (msg.agent !== agent) return;

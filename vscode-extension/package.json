@@ -102,6 +102,12 @@
         "title": "Active Research / PRD Runs",
         "category": "MaintainabilityAI",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "maintainabilityai.researchLibrary",
+        "title": "Research Library",
+        "category": "MaintainabilityAI",
+        "icon": "$(library)"
       }
     ],
     "viewsContainers": {
@@ -165,6 +171,9 @@
         },
         {
           "command": "maintainabilityai.activeRuns"
+        },
+        {
+          "command": "maintainabilityai.researchLibrary"
         }
       ]
     },

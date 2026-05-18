@@ -71,7 +71,8 @@ jobs:
       (github.event_name == 'issue_comment' &&
        github.event.issue.state == 'open' &&
        contains(github.event.issue.labels.*.name, 'research-request') &&
-       contains(github.event.comment.body, '@claude please research')) ||
+       (contains(github.event.comment.body, '@claude please research') ||
+        contains(github.event.comment.body, '@archeologist'))) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
@@ -122,7 +123,8 @@ jobs:
               if (repoMatch) { target_repo = repoMatch[1]; }
             } else if (evt === 'issue_comment') {
               const body = context.payload.comment.body || '';
-              const m = body.match(/@claude please research\s+(.+)/i);
+              // Accept either mention form: `@claude please research <brief>` OR `@archeologist <brief>`.
+              const m = body.match(/(?:@claude please research|@archeologist)\s+(.+)/is);
               brief = m ? m[1].trim() : body;
               issue_number = String(context.payload.issue.number);
             }
