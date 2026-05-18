@@ -52,7 +52,7 @@ test('planQueries: happy path — single LLM call returns validated QueryPlan', 
         trigger: { kind: 'local_dev' },
       },
       meshContext,
-      apiKey: 'sk-test',
+      anthropicApiKey: 'sk-test',
       fetchImpl,
     });
 
@@ -80,7 +80,8 @@ test('planQueries: tolerates ```json fenced output', async () => {
       meshDir: handle.meshDir,
       brief: { topic: 't', scope: { level: 'bar', id: 'APP-INS-001' }, trigger: { kind: 'local_dev' } } as never,
       meshContext,
-      apiKey: 'k',
+      provider: 'anthropic',
+      anthropicApiKey: 'k',
       fetchImpl,
     });
     assert.equal(result.queryPlan.web.length, 5);
@@ -109,7 +110,8 @@ test('planQueries: retries once with feedback when validation fails', async () =
       meshDir: handle.meshDir,
       brief: { topic: 't', scope: { level: 'bar', id: 'APP-INS-001' }, trigger: { kind: 'local_dev' } } as never,
       meshContext,
-      apiKey: 'k',
+      provider: 'anthropic',
+      anthropicApiKey: 'k',
       fetchImpl,
     });
     assert.equal(result.llm.attempts, 2);
@@ -128,7 +130,8 @@ test('planQueries: throws after 2 failed attempts', async () => {
         meshDir: handle.meshDir,
         brief: { topic: 't', scope: { level: 'bar', id: 'APP-INS-001' }, trigger: { kind: 'local_dev' } } as never,
         meshContext,
-        apiKey: 'k',
+        provider: 'anthropic',
+        anthropicApiKey: 'k',
         fetchImpl,
       }),
       /failed QueryPlan validation after 2 attempts/,

@@ -34,6 +34,7 @@ interface ParsedFlags {
   audit?: string;
   emit_pr_body?: string;
   mesh?: string;
+  llm_provider?: string;
 }
 
 function parseFlags(argv: string[]): ParsedFlags {
@@ -80,6 +81,7 @@ async function archeologistCmd(argv: string[]): Promise<void> {
     path: (flags.path as ResearchBrief['path']) || 'research',
     target_repo: flags.target_repo || undefined,
     guardrails: (flags.guardrails as ResearchBrief['guardrails']) || 'default',
+    llm_provider: (flags.llm_provider as ResearchBrief['llm_provider']) || undefined,
     trigger: {
       kind: process.env.GITHUB_ACTIONS === 'true' ? 'workflow_dispatch' : 'local_dev',
       actor: process.env.GITHUB_ACTOR,
@@ -123,6 +125,7 @@ async function prdCmd(argv: string[]): Promise<void> {
     mode: (flags.mode as PrdBrief['mode']) || 'deep',
     grounding: (flags.grounding as PrdBrief['grounding']) || 'default',
     max_iterations: flags.max_iterations ? parseInt(flags.max_iterations, 10) : 3,
+    llm_provider: (flags.llm_provider as PrdBrief['llm_provider']) || undefined,
     trigger: {
       kind: process.env.GITHUB_ACTIONS === 'true' ? 'workflow_dispatch' : 'local_dev',
       actor: process.env.GITHUB_ACTOR,

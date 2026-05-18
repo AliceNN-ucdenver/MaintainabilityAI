@@ -181,11 +181,12 @@
         "maintainabilityai.research.llmProvider": {
           "type": "string",
           "enum": [
+            "github-models",
             "anthropic",
             "openai"
           ],
-          "default": "anthropic",
-          "description": "Default LLM provider for the Archeologist and PRD agents. Per-run override available."
+          "default": "github-models",
+          "description": "Default LLM provider for the Archeologist and PRD agents. `github-models` routes through GitHub Models / Copilot using the workflow GITHUB_TOKEN (no separate API key needed). Per-run override available."
         },
         "maintainabilityai.research.guardrails": {
           "type": "string",

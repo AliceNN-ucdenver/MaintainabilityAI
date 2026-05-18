@@ -172,7 +172,7 @@ const state = {
       hasGitHubSecret: boolean | null;
     }[];
     prefs: {
-      llmProvider: 'anthropic' | 'openai';
+      llmProvider: 'github-models' | 'anthropic' | 'openai';
       guardrails: 'strict' | 'default' | 'lenient';
       grounding: 'strict' | 'default' | 'lenient';
       groundingThreshold: number;
@@ -1935,8 +1935,9 @@ function renderSettingsResearch(): string {
       <div class="settings-row">
         <div class="settings-label">LLM provider</div>
         <select id="research-pref-provider" class="settings-select">
-          ${providerOpt('anthropic', 'Anthropic (Claude)')}
-          ${providerOpt('openai', 'OpenAI (GPT)')}
+          ${providerOpt('github-models', 'GitHub Models / Copilot (no API key needed)')}
+          ${providerOpt('anthropic', 'Anthropic (Claude) — needs ANTHROPIC_API_KEY')}
+          ${providerOpt('openai', 'OpenAI (GPT) — needs OPENAI_API_KEY')}
         </select>
       </div>
       <div class="settings-row">
@@ -2620,7 +2621,7 @@ function attachEventHandlers() {
   });
 
   document.getElementById('btn-save-research-prefs')?.addEventListener('click', () => {
-    const provider = (document.getElementById('research-pref-provider') as HTMLSelectElement)?.value as 'anthropic' | 'openai';
+    const provider = (document.getElementById('research-pref-provider') as HTMLSelectElement)?.value as 'github-models' | 'anthropic' | 'openai';
     const guardrails = (document.getElementById('research-pref-guardrails') as HTMLSelectElement)?.value as 'strict' | 'default' | 'lenient';
     const grounding = (document.getElementById('research-pref-grounding') as HTMLSelectElement)?.value as 'strict' | 'default' | 'lenient';
     const groundingThreshold = parseFloat((document.getElementById('research-pref-threshold') as HTMLInputElement)?.value || '0.85');

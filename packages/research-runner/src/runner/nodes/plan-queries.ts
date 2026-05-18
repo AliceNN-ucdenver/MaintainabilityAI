@@ -12,21 +12,25 @@
  */
 import { z } from 'zod';
 import {
+  type LlmProvider,
   type MeshContext,
   type QueryPlan,
   QueryPlan as QueryPlanSchema,
   type ResearchBrief,
 } from '../../schemas';
-import { callAnthropic, type AnthropicModel } from '../../llm/anthropic-client';
+import { callLlm } from '../../llm/llm-router';
 import { loadPrompt, type LoadedPrompt } from '../../mesh/prompt-loader';
 
 export interface PlanQueriesOpts {
   meshDir: string;
   brief: ResearchBrief;
   meshContext: MeshContext;
-  apiKey: string;
-  /** Default haiku since the prompt asks for a tight JSON shape. */
-  model?: AnthropicModel;
+  /** Provider routing — comes from brief.llm_provider unless overridden. */
+  provider?: LlmProvider;
+  /** Required when provider === 'anthropic'. */
+  anthropicApiKey?: string;
+  /** Required when provider === 'github-models'. */
+  githubToken?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -34,7 +38,8 @@ export interface PlanQueriesResult {
   queryPlan: QueryPlan;
   prompt: LoadedPrompt;
   llm: {
-    model: AnthropicModel;
+    provider: LlmProvider;
+    model: string;
     inputTokens: number;
     outputTokens: number;
     costUsd: number;
@@ -43,10 +48,8 @@ export interface PlanQueriesResult {
   };
 }
 
-const DEFAULT_MODEL: AnthropicModel = 'claude-haiku-4-5';
-
 export async function planQueries(opts: PlanQueriesOpts): Promise<PlanQueriesResult> {
-  const model = opts.model ?? DEFAULT_MODEL;
+  const provider = opts.provider ?? opts.brief.llm_provider;
 
   const promptContext = buildPromptContext(opts.brief, opts.meshContext);
   const prompt = loadPrompt({
@@ -61,15 +64,18 @@ export async function planQueries(opts: PlanQueriesOpts): Promise<PlanQueriesRes
   let totalInput = 0;
   let totalOutput = 0;
   let totalCost = 0;
+  let lastModel = '';
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const userPrompt = attempt === 1
       ? prompt.filled
       : `${prompt.filled}\n\n---\n\nYour previous response failed validation:\n${lastError}\n\nReturn a SINGLE JSON object with exactly 4 keys (web, arxiv, patent, community) and the exact counts (5, 3, 3, 3) requested. Web queries MUST contain a 4-digit year; patent queries MUST contain the literal token "AND".`;
 
-    const result = await callAnthropic({
-      apiKey: opts.apiKey,
-      model,
+    const result = await callLlm({
+      provider,
+      tier: 'plan',
+      anthropicApiKey: opts.anthropicApiKey,
+      githubToken: opts.githubToken,
       system: baseSystem,
       prompt: userPrompt,
       maxTokens: 2000,
@@ -79,13 +85,14 @@ export async function planQueries(opts: PlanQueriesOpts): Promise<PlanQueriesRes
     totalInput += result.inputTokens;
     totalOutput += result.outputTokens;
     totalCost += result.costUsd;
+    lastModel = result.model;
 
     const parsed = parseQueryPlanResponse(result.text);
     if (parsed.success) {
       return {
         queryPlan: parsed.data,
         prompt,
-        llm: { model, inputTokens: totalInput, outputTokens: totalOutput, costUsd: totalCost, attempts: attempt },
+        llm: { provider, model: lastModel, inputTokens: totalInput, outputTokens: totalOutput, costUsd: totalCost, attempts: attempt },
       };
     }
     lastError = parsed.error;

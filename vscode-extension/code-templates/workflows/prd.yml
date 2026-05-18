@@ -42,11 +42,19 @@ on:
         required: false
         description: "Max refinement loop iterations (1-5)"
         default: "3"
+      llm_provider:
+        type: choice
+        description: "LLM inference backend"
+        options: [github-models, anthropic, openai, azure-openai]
+        default: github-models
 
 permissions:
   contents: write
   issues: write
   pull-requests: write
+  # `models: read` enables routing LLM hops through GitHub Models / Copilot
+  # when llm_provider == github-models. No-op for the other providers.
+  models: read
 
 jobs:
   prd:
@@ -79,6 +87,7 @@ jobs:
             let mode = 'deep';
             let grounding = 'default';
             let max_iterations = '3';
+            let llm_provider = 'github-models';
             let issue_number = '';
 
             if (evt === 'workflow_dispatch') {
@@ -89,6 +98,7 @@ jobs:
               mode = i.mode || 'deep';
               grounding = i.grounding || 'default';
               max_iterations = i.max_iterations || '3';
+              llm_provider = i.llm_provider || 'github-models';
             } else if (evt === 'issues') {
               const issue = context.payload.issue;
               issue_number = String(issue.number);
@@ -107,6 +117,7 @@ jobs:
             core.setOutput('mode', mode);
             core.setOutput('grounding', grounding);
             core.setOutput('max_iterations', max_iterations);
+            core.setOutput('llm_provider', llm_provider);
             core.setOutput('issue_number', issue_number);
 
       - name: Configure git identity
@@ -133,6 +144,7 @@ jobs:
             --mode "${{ steps.parse.outputs.mode }}" \
             --grounding "${{ steps.parse.outputs.grounding }}" \
             --max-iterations "${{ steps.parse.outputs.max_iterations }}" \
+            --llm-provider "${{ steps.parse.outputs.llm_provider }}" \
             --output prds/ \
             --audit .research-audit/ \
             --emit-pr-body /tmp/pr-body.md

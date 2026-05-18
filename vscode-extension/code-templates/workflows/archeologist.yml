@@ -45,11 +45,19 @@ on:
         description: "Guardrails mode"
         options: [strict, default, lenient]
         default: default
+      llm_provider:
+        type: choice
+        description: "LLM inference backend"
+        options: [github-models, anthropic, openai, azure-openai]
+        default: github-models
 
 permissions:
   contents: write
   issues: write
   pull-requests: write
+  # `models: read` enables routing LLM hops through GitHub Models / Copilot
+  # when llm_provider == github-models. No-op for the other providers.
+  models: read
 
 jobs:
   research:
@@ -90,6 +98,7 @@ jobs:
             let path = 'research';
             let target_repo = '';
             let guardrails = 'default';
+            let llm_provider = 'github-models';
             let issue_number = '';
 
             if (evt === 'workflow_dispatch') {
@@ -100,6 +109,7 @@ jobs:
               path = i.path || 'research';
               target_repo = i.target_repo || '';
               guardrails = i.guardrails || 'default';
+              llm_provider = i.llm_provider || 'github-models';
             } else if (evt === 'issues') {
               const issue = context.payload.issue;
               brief = issue.title + '\n\n' + (issue.body || '');
@@ -123,6 +133,7 @@ jobs:
             core.setOutput('path', path);
             core.setOutput('target_repo', target_repo);
             core.setOutput('guardrails', guardrails);
+            core.setOutput('llm_provider', llm_provider);
             core.setOutput('issue_number', issue_number);
 
       - name: Configure git identity
@@ -150,6 +161,7 @@ jobs:
             --path "${{ steps.parse.outputs.path }}" \
             --target-repo "${{ steps.parse.outputs.target_repo }}" \
             --guardrails "${{ steps.parse.outputs.guardrails }}" \
+            --llm-provider "${{ steps.parse.outputs.llm_provider }}" \
             --output research/ \
             --audit .research-audit/ \
             --emit-pr-body /tmp/pr-body.md

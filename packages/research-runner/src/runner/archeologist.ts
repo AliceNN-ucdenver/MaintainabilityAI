@@ -35,8 +35,10 @@ export interface ArcheologistOptions {
   auditDir: string;           // .research-audit/ destination (relative to meshDir)
   emitPrBodyPath?: string;    // absolute path to write the PR body markdown
   agentVersion: string;       // injected by CLI (from package.json)
-  /** API keys — defaults read from process.env. */
+  /** Provider keys — supply only the one your brief.llm_provider needs. Default from process.env. */
   anthropicApiKey?: string;
+  /** GITHUB_TOKEN — used when brief.llm_provider === 'github-models'. */
+  githubToken?: string;
   tavilyApiKey?: string;
   /** Test injection point. */
   fetchImpl?: typeof fetch;
@@ -69,6 +71,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   const runId = generateRunId('RES');
   const startedAt = new Date();
   const anthropicApiKey = opts.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? '';
+  const githubToken = opts.githubToken ?? process.env.GITHUB_TOKEN ?? '';
   const tavilyApiKey = opts.tavilyApiKey ?? process.env.TAVILY_API_KEY ?? '';
 
   const absoluteAuditDir = path.resolve(opts.meshDir, opts.auditDir);
@@ -112,7 +115,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     meshDir: opts.meshDir,
     brief,
     meshContext,
-    apiKey: anthropicApiKey,
+    provider: brief.llm_provider,
+    anthropicApiKey,
+    githubToken,
     fetchImpl: opts.fetchImpl,
   });
   totalInputTokens += plan.llm.inputTokens;
@@ -123,7 +128,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     node_name: 'plan_queries',
     duration_ms: Date.now() - planStart,
     llm: {
-      provider: 'anthropic',
+      provider: plan.llm.provider,
       model: plan.llm.model,
       prompt_pack: { path: plan.prompt.packPath, sha256: plan.prompt.packSha256 },
       input_tokens: plan.llm.inputTokens,
@@ -188,7 +193,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     brief,
     meshContext,
     rankedSources,
-    apiKey: anthropicApiKey,
+    provider: brief.llm_provider,
+    anthropicApiKey,
+    githubToken,
     fetchImpl: opts.fetchImpl,
   });
   totalInputTokens += synthesis.llm.inputTokens;
@@ -199,7 +206,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     node_name: 'synthesize_report',
     duration_ms: Date.now() - synthStart,
     llm: {
-      provider: 'anthropic',
+      provider: synthesis.llm.provider,
       model: synthesis.llm.model,
       prompt_pack: { path: synthesis.prompt.packPath, sha256: synthesis.prompt.packSha256 },
       input_tokens: synthesis.llm.inputTokens,

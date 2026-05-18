@@ -11,8 +11,17 @@ export type GuardrailMode = z.infer<typeof GuardrailMode>;
 export const GroundingMode = z.enum(['strict', 'default', 'lenient']);
 export type GroundingMode = z.infer<typeof GroundingMode>;
 
-export const LlmProvider = z.enum(['anthropic', 'openai', 'azure-openai']);
+export const LlmProvider = z.enum(['anthropic', 'openai', 'azure-openai', 'github-models']);
 export type LlmProvider = z.infer<typeof LlmProvider>;
+
+/**
+ * Providers that route through GitHub Models / Copilot use the workflow's
+ * GITHUB_TOKEN with `permissions: models: read` — no separate API key needs
+ * to live as a repo secret.
+ */
+export function providerNeedsApiKey(p: LlmProvider): boolean {
+  return p !== 'github-models';
+}
 
 export const ScopeLevel = z.enum(['portfolio', 'platform', 'bar']);
 export type ScopeLevel = z.infer<typeof ScopeLevel>;

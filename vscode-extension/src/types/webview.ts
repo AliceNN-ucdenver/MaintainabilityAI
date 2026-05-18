@@ -212,7 +212,7 @@ export interface ResearchSecretStatus {
 
 /** Non-secret runtime preferences for the research + PRD pipelines. */
 export interface ResearchPrefs {
-  llmProvider: 'anthropic' | 'openai';
+  llmProvider: 'github-models' | 'anthropic' | 'openai';
   guardrails: 'strict' | 'default' | 'lenient';
   grounding: 'strict' | 'default' | 'lenient';
   groundingThreshold: number;

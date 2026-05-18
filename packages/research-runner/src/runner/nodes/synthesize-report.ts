@@ -13,11 +13,12 @@
  * Tag both consume.
  */
 import type {
+  LlmProvider,
   MeshContext,
   RankedSource,
   ResearchBrief,
 } from '../../schemas';
-import { callAnthropic, type AnthropicModel } from '../../llm/anthropic-client';
+import { callLlm } from '../../llm/llm-router';
 import { loadPrompt, type LoadedPrompt } from '../../mesh/prompt-loader';
 import {
   validateSynthesis,
@@ -30,9 +31,12 @@ export interface SynthesizeReportOpts {
   brief: ResearchBrief;
   meshContext: MeshContext;
   rankedSources: RankedSource[];
-  apiKey: string;
-  /** Default sonnet — synthesis is harder than planning. */
-  model?: AnthropicModel;
+  /** Provider routing — comes from brief.llm_provider unless overridden. */
+  provider?: LlmProvider;
+  /** Required when provider === 'anthropic'. */
+  anthropicApiKey?: string;
+  /** Required when provider === 'github-models'. */
+  githubToken?: string;
   /** Phase 2d will flip this when gap-analysis ran; left false for 2c. */
   gapAnalysisRan?: boolean;
   fetchImpl?: typeof fetch;
@@ -44,7 +48,8 @@ export interface SynthesizeReportResult {
   validation: ValidationReport;
   citation_stats: CitationStats;
   llm: {
-    model: AnthropicModel;
+    provider: LlmProvider;
+    model: string;
     inputTokens: number;
     outputTokens: number;
     costUsd: number;
@@ -52,11 +57,10 @@ export interface SynthesizeReportResult {
   };
 }
 
-const DEFAULT_MODEL: AnthropicModel = 'claude-sonnet-4-6';
 const MAX_TOKENS = 8000;
 
 export async function synthesizeReport(opts: SynthesizeReportOpts): Promise<SynthesizeReportResult> {
-  const model = opts.model ?? DEFAULT_MODEL;
+  const provider = opts.provider ?? opts.brief.llm_provider;
   const promptContext = buildPromptContext(opts.brief, opts.meshContext, opts.rankedSources, opts.gapAnalysisRan ?? false);
   const prompt = loadPrompt({
     meshDir: opts.meshDir,
@@ -70,15 +74,18 @@ export async function synthesizeReport(opts: SynthesizeReportOpts): Promise<Synt
   let totalInput = 0;
   let totalOutput = 0;
   let totalCost = 0;
+  let lastModel = '';
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const userPrompt = attempt === 1
       ? prompt.filled
       : `${prompt.filled}\n\n---\n\nYour previous response failed structural validation:\n${lastReport!.errors.map(e => `- ${e}`).join('\n')}\n\nRewrite the document and fix EVERY error above. The 10 H2 sections must appear in the exact order specified; every C[N] must cite ≥2 S[N] (or ≥1 if confidence is LOW); every Recommendation must reference at least one C[N].`;
 
-    const result = await callAnthropic({
-      apiKey: opts.apiKey,
-      model,
+    const result = await callLlm({
+      provider,
+      tier: 'synth',
+      anthropicApiKey: opts.anthropicApiKey,
+      githubToken: opts.githubToken,
       system,
       prompt: userPrompt,
       maxTokens: MAX_TOKENS,
@@ -88,6 +95,7 @@ export async function synthesizeReport(opts: SynthesizeReportOpts): Promise<Synt
     totalInput += result.inputTokens;
     totalOutput += result.outputTokens;
     totalCost += result.costUsd;
+    lastModel = result.model;
 
     const body = stripFences(result.text);
     const report = validateSynthesis(body);
@@ -97,7 +105,7 @@ export async function synthesizeReport(opts: SynthesizeReportOpts): Promise<Synt
         prompt,
         validation: report,
         citation_stats: report.citation_stats,
-        llm: { model, inputTokens: totalInput, outputTokens: totalOutput, costUsd: totalCost, attempts: attempt },
+        llm: { provider, model: lastModel, inputTokens: totalInput, outputTokens: totalOutput, costUsd: totalCost, attempts: attempt },
       };
     }
     lastReport = report;

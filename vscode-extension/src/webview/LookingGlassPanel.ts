@@ -2666,7 +2666,7 @@ Policy file: ${filename}
     });
 
     const prefs: ResearchPrefs = {
-      llmProvider: config.get<'anthropic' | 'openai'>('maintainabilityai.research.llmProvider', 'anthropic'),
+      llmProvider: config.get<'github-models' | 'anthropic' | 'openai'>('maintainabilityai.research.llmProvider', 'github-models'),
       guardrails: config.get<'strict' | 'default' | 'lenient'>('maintainabilityai.research.guardrails', 'default'),
       grounding: config.get<'strict' | 'default' | 'lenient'>('maintainabilityai.research.grounding', 'default'),
       groundingThreshold: config.get<number>('maintainabilityai.research.groundingThreshold', 0.85),

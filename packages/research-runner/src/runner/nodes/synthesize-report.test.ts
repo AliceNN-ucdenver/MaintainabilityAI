@@ -39,7 +39,7 @@ test('synthesizeReport: happy path — validated canonical body returned', async
       brief: BRIEF,
       meshContext,
       rankedSources: RANKED_SOURCES,
-      apiKey: 'sk-test',
+      anthropicApiKey: 'sk-test',
       fetchImpl,
     });
     assert.equal(result.llm.attempts, 1);
@@ -65,7 +65,7 @@ test('synthesizeReport: unwraps ```markdown fenced output', async () => {
       brief: BRIEF,
       meshContext,
       rankedSources: RANKED_SOURCES,
-      apiKey: 'k',
+      anthropicApiKey: 'k',
       fetchImpl,
     });
     assert.equal(result.validation.valid, true);
@@ -95,7 +95,7 @@ test('synthesizeReport: retries once with feedback when validation fails', async
       brief: BRIEF,
       meshContext,
       rankedSources: RANKED_SOURCES,
-      apiKey: 'k',
+      anthropicApiKey: 'k',
       fetchImpl,
     });
     assert.equal(result.llm.attempts, 2);
@@ -115,7 +115,7 @@ test('synthesizeReport: throws after 2 failed attempts', async () => {
         brief: BRIEF,
         meshContext,
         rankedSources: RANKED_SOURCES,
-        apiKey: 'k',
+        anthropicApiKey: 'k',
         fetchImpl,
       }),
       /structural validation failed after 2 attempts/,
@@ -141,7 +141,7 @@ test('synthesizeReport: token + cost accumulate across retries', async () => {
       brief: BRIEF,
       meshContext,
       rankedSources: RANKED_SOURCES,
-      apiKey: 'k',
+      anthropicApiKey: 'k',
       fetchImpl,
     });
     assert.equal(result.llm.inputTokens, 2500);

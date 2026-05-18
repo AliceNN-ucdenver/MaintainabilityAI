@@ -214,6 +214,75 @@ test('runArcheologist: rejects invalid brief', async () => {
   }
 });
 
+test('runArcheologist: end-to-end with llm_provider=github-models routes through models.github.ai', async () => {
+  const handle = buildFixtureMesh();
+  seedAllPromptPacks(handle);
+  try {
+    const calls: { host: string; model?: string }[] = [];
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const u = String(url);
+      if (u.startsWith('https://models.github.ai/')) {
+        const body = JSON.parse(String((init as RequestInit).body));
+        calls.push({ host: 'models.github.ai', model: body.model });
+        // The router asks for either openai/gpt-4o-mini (plan) or anthropic/claude-3-5-sonnet (synth)
+        const isPlan = body.model === 'openai/gpt-4o-mini';
+        const text = isPlan ? JSON.stringify(VALID_PLAN) : CANONICAL_SYNTHESIS_BODY;
+        return new Response(JSON.stringify({
+          choices: [{ message: { content: text } }],
+          usage: { prompt_tokens: 1500, completion_tokens: 400 },
+        }), { status: 200 });
+      }
+      if (u.startsWith('https://api.tavily.com/')) {
+        const body = JSON.parse(String((init as RequestInit).body));
+        return new Response(JSON.stringify({
+          results: [{ title: `result for ${body.query}`, url: `https://x.com/${body.query.replace(/\s+/g,'-')}`, content: '', score: 0.8 }],
+        }), { status: 200 });
+      }
+      throw new Error(`unexpected URL: ${u}`);
+    };
+
+    const result = await runArcheologist({
+      brief: {
+        topic: 'agentic governance landscape',
+        scope: { level: 'bar', id: 'APP-INS-001' },
+        llm_provider: 'github-models',
+        trigger: { kind: 'local_dev' },
+      },
+      meshDir: handle.meshDir,
+      outputDir: 'research',
+      auditDir: '.research-audit',
+      agentVersion: '0.1.0',
+      // No anthropicApiKey supplied — github-models uses GITHUB_TOKEN
+      githubToken: 'ghs_test_token',
+      tavilyApiKey: 'tvly-test',
+      fetchImpl,
+    });
+
+    // Both LLM hops went to models.github.ai, with the tier-appropriate models
+    const planCall = calls.find(c => c.model === 'openai/gpt-4o-mini');
+    const synthCall = calls.find(c => c.model === 'anthropic/claude-3-5-sonnet');
+    assert.ok(planCall, 'plan_queries should route to openai/gpt-4o-mini via Models');
+    assert.ok(synthCall, 'synthesize_report should route to anthropic/claude-3-5-sonnet via Models');
+
+    // Audit events record provider=github-models on both LLM hops
+    const events = readAuditLog(result.audit_log_path);
+    const llmEvents = events!.filter(e => e.node_kind === 'llm');
+    assert.equal(llmEvents.length, 2);
+    for (const e of llmEvents) {
+      if (e.node_kind === 'llm') {
+        assert.equal(e.llm.provider, 'github-models');
+      }
+    }
+
+    // Cost is 0 for github-models (per-call billing is opaque)
+    assert.equal(result.total_cost_usd, 0);
+    // But tokens are still recorded
+    assert.ok(result.total_input_tokens > 0);
+  } finally {
+    destroyFixtureMesh(handle);
+  }
+});
+
 test('runPrd: still works end-to-end (phase 2a, no LLM yet)', async () => {
   // PRD orchestrator hasn't moved past phase 2a — no LLM/Tavily calls yet.
   const handle = buildFixtureMesh();
