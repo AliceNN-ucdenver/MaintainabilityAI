@@ -20,6 +20,7 @@ import {
   destroyFixtureMesh,
   seedFixturePromptPack,
 } from '../mesh/__test-helpers__/fixture-mesh';
+import { CANONICAL_SYNTHESIS_BODY } from './nodes/__test-helpers__/canonical-synthesis';
 
 const VALID_PLAN = {
   web: [
@@ -38,11 +39,25 @@ const VALID_PLAN = {
   community: ['agentic prd', 'mesh governance', 'red queen rules'],
 };
 
-/** Routing mock — anthropic + tavily on the same fetch. Returns a few results per query. */
+/**
+ * Routing mock — anthropic + tavily on the same fetch.
+ * The Anthropic side routes by prompt content: plan_queries' prompt pack
+ * starts with `# Research Query Plan`, synthesize_report's with
+ * `# Research Synthesis`. We return the appropriate canned body for each.
+ */
 function buildArcheologistFetchMock(opts: { tavilyDuplicates?: boolean } = {}): typeof fetch {
   return async (url, init) => {
     const u = String(url);
     if (u.startsWith('https://api.anthropic.com/')) {
+      const body = JSON.parse(String((init as RequestInit).body));
+      const userPrompt = body.messages?.[0]?.content as string || '';
+      if (userPrompt.includes('Research Synthesis') || userPrompt.includes('semi-formal research certificate')) {
+        return new Response(JSON.stringify({
+          content: [{ type: 'text', text: CANONICAL_SYNTHESIS_BODY }],
+          usage: { input_tokens: 3500, output_tokens: 1100 },
+        }), { status: 200 });
+      }
+      // Default to plan_queries
       return new Response(JSON.stringify({
         content: [{ type: 'text', text: JSON.stringify(VALID_PLAN) }],
         usage: { input_tokens: 1200, output_tokens: 240 },
@@ -52,7 +67,6 @@ function buildArcheologistFetchMock(opts: { tavilyDuplicates?: boolean } = {}): 
       const body = JSON.parse(String((init as RequestInit).body));
       const query = body.query as string;
       const slug = query.replace(/\W+/g, '-').slice(0, 30);
-      // Two of the queries return the SAME url so dedupe has something to merge
       const sharedUrl = opts.tavilyDuplicates !== false ? 'https://shared.example/agentic-governance' : null;
       const results = [
         { title: `${query} — result 1`, url: `https://r1.example/${slug}/a`, content: 'snippet a', score: 0.9 },
@@ -67,9 +81,15 @@ function buildArcheologistFetchMock(opts: { tavilyDuplicates?: boolean } = {}): 
   };
 }
 
+/** Seed both prompt packs the archeologist now needs. */
+function seedAllPromptPacks(handle: ReturnType<typeof buildFixtureMesh>): void {
+  seedFixturePromptPack(handle, 'research/query-plan');
+  seedFixturePromptPack(handle, 'research/synthesis');
+}
+
 test('runArcheologist: end-to-end with mocked LLM + Tavily', async () => {
   const handle = buildFixtureMesh();
-  seedFixturePromptPack(handle, 'research/query-plan');
+  seedAllPromptPacks(handle);
   try {
     const result = await runArcheologist({
       brief: {
@@ -92,6 +112,8 @@ test('runArcheologist: end-to-end with mocked LLM + Tavily', async () => {
     assert.ok(result.total_output_tokens > 0);
     assert.ok(result.total_cost_usd > 0);
     assert.ok(result.source_count > 0, 'should have ranked at least one source');
+    assert.equal(result.conclusion_count, 2, 'canonical synthesis ships 2 conclusions');
+    assert.equal(result.recommendation_count, 2);
 
     // Audit chain shape
     const events = readAuditLog(result.audit_log_path);
@@ -102,21 +124,26 @@ test('runArcheologist: end-to-end with mocked LLM + Tavily', async () => {
     const tavilyCount = nodeNames.filter(n => n === 'tavily_search').length;
     assert.equal(tavilyCount, 5);
     assert.ok(nodeNames.includes('dedupe_and_rank'));
+    assert.ok(nodeNames.includes('synthesize_report'));   // ← phase 2c
     assert.ok(nodeNames.includes('publish'));
     assert.equal(events![events!.length - 1].node_kind, 'run_complete');
 
     // Chain verifies
     assert.equal(verifyChain(events!), result.chain_root_hash);
 
-    // plan_queries event has llm telemetry with a real prompt hash
-    const llmEvent = events!.find(e => e.node_kind === 'llm');
-    assert.ok(llmEvent);
-    if (llmEvent && llmEvent.node_kind === 'llm') {
-      assert.equal(llmEvent.llm.provider, 'anthropic');
-      assert.match(llmEvent.llm.prompt_pack.sha256, /^[0-9a-f]{64}$/);
-      assert.equal(llmEvent.llm.prompt_pack.path, '.caterpillar/prompts/research/query-plan.md');
-      assert.equal(llmEvent.llm.input_tokens, 1200);
-      assert.equal(llmEvent.llm.output_tokens, 240);
+    // BOTH LLM events present with real prompt hashes
+    const llmEvents = events!.filter(e => e.node_kind === 'llm');
+    assert.equal(llmEvents.length, 2, 'should have plan_queries + synthesize_report LLM events');
+    const planEvent = llmEvents.find(e => e.node_name === 'plan_queries');
+    const synthEvent = llmEvents.find(e => e.node_name === 'synthesize_report');
+    assert.ok(planEvent && synthEvent);
+    if (planEvent && planEvent.node_kind === 'llm') {
+      assert.equal(planEvent.llm.prompt_pack.path, '.caterpillar/prompts/research/query-plan.md');
+      assert.equal(planEvent.llm.input_tokens, 1200);
+    }
+    if (synthEvent && synthEvent.node_kind === 'llm') {
+      assert.equal(synthEvent.llm.prompt_pack.path, '.caterpillar/prompts/research/synthesis.md');
+      assert.equal(synthEvent.llm.input_tokens, 3500);
     }
   } finally {
     destroyFixtureMesh(handle);
@@ -125,7 +152,7 @@ test('runArcheologist: end-to-end with mocked LLM + Tavily', async () => {
 
 test('runArcheologist: PR body lists ranked source premises + Query Plan table', async () => {
   const handle = buildFixtureMesh();
-  seedFixturePromptPack(handle, 'research/query-plan');
+  seedAllPromptPacks(handle);
   const prBodyPath = path.join(handle.meshDir, 'pr-body.md');
   try {
     await runArcheologist({
@@ -145,14 +172,20 @@ test('runArcheologist: PR body lists ranked source premises + Query Plan table',
     });
 
     const body = fs.readFileSync(prBodyPath, 'utf8');
-    assert.match(body, /^## Mesh Context/m);
-    assert.match(body, /^## Query Plan/m);
+    // Metadata header lives in the orchestrator-built preamble
+    assert.match(body, /^## Run Metadata/m);
     assert.match(body, /\*\*web\*\* \(Tavily\)/);
-    assert.match(body, /\*\*S1\*\* —/);                       // ranked source list
-    assert.match(body, /Salience: \d/);
+    // Canonical synthesis sections come from the LLM body
+    assert.match(body, /^## Source Premises/m);
+    assert.match(body, /^## Executive Summary/m);
+    assert.match(body, /^## Formal Conclusions/m);
+    assert.match(body, /^## Recommendations/m);
+    assert.match(body, /^## References/m);
+    assert.match(body, /\*\*S1\*\*/);                          // citations in the body
+    assert.match(body, /\*\*C1\*\*/);
     assert.match(body, new RegExp(`mesh_sha: ${handle.commitSha}`));
     assert.match(body, /chain_root_hash:/);
-    // Hatter's Tag should report non-zero LLM usage now
+    // Hatter's Tag should report cumulative non-zero LLM usage (plan + synth)
     assert.match(body, /input_tokens: [1-9]/);
   } finally {
     destroyFixtureMesh(handle);
@@ -161,7 +194,7 @@ test('runArcheologist: PR body lists ranked source premises + Query Plan table',
 
 test('runArcheologist: rejects invalid brief', async () => {
   const handle = buildFixtureMesh();
-  seedFixturePromptPack(handle, 'research/query-plan');
+  seedAllPromptPacks(handle);
   try {
     await assert.rejects(
       () => runArcheologist({
