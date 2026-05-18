@@ -27,6 +27,8 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
   private meshRepoInfo: RepoInfo | null = null;
   private currentIssueNumber: number | undefined;
   private currentIssueUrl: string | undefined;
+  /** Labels on the currently-selected issue. Used by onAssignAgent to route on issue kind (oraculum-research vs oraculum-review). */
+  private currentIssueLabels: string[] = [];
   private initialBarPath: string | undefined;
   private reviewBarPath: string | undefined;
 
@@ -355,6 +357,9 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
       );
 
       const hasReviewLabel = labels.includes('oraculum-review');
+      // Stash the labels so onAssignAgent can branch on issue kind
+      // (oraculum-research vs oraculum-review) without re-fetching.
+      this.currentIssueLabels = labels;
 
       // Check if an agent was actually assigned (has @claude or @copilot comment)
       const comments = await this.githubService.getIssueComments(
@@ -369,11 +374,13 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
       // Send comments to webview so results phase can render the report
       this.postMessage({ type: 'commentsUpdated', comments });
 
+      const issueKind: 'research' | 'review' = labels.includes('oraculum-research') ? 'research' : 'review';
       this.postMessage({
         type: 'issueState',
         hasReviewLabel,
         hasComments: hasAgentComment,
         labels,
+        issueKind,
       });
     } catch {
       // If we can't detect state, the webview defaults to assign phase
@@ -483,6 +490,20 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     this.postMessage({ type: 'loading', active: true, message: 'Assigning agent...' });
     this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'active', message: 'Assigning...' });
 
+    // Route on issue kind. The archeologist runner applies
+    // `oraculum-research` after data collection; everything else is a
+    // standard architecture review. Each kind fires a different workflow
+    // (oraculum-research.yml vs oraculum-review.yml) and therefore needs
+    // a different trigger label + @claude prompt body.
+    const isResearch = this.currentIssueLabels.includes('oraculum-research');
+    const triggerLabel = isResearch ? 'oraculum-research' : 'oraculum-review';
+    const workflowPath = isResearch
+      ? '.github/workflows/oraculum-research.yml'
+      : '.github/workflows/oraculum-review.yml';
+    const claudeCommentBody = isResearch
+      ? `@claude Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion. Write the output to \`research/<run-id>/synthesis.md\` and open a PR.`
+      : `@claude Please analyze the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
+
     if (agent === 'skip') {
       // Just add the trigger label, no comment
       try {
@@ -490,7 +511,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
           this.meshRepoInfo.owner,
           this.meshRepoInfo.repo,
           this.currentIssueNumber,
-          ['oraculum-review']
+          [triggerLabel]
         );
         this.postMessage({ type: 'agentAssigned', agent: 'skip' });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'completed' });
@@ -505,11 +526,11 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     }
 
     if (agent === 'claude') {
-      // Check if oraculum-review workflow exists
+      // Check that the kind-appropriate workflow file exists
       const workflowExists = await this.githubService.checkWorkflowExists(
         this.meshRepoInfo.owner,
         this.meshRepoInfo.repo,
-        '.github/workflows/oraculum-review.yml'
+        workflowPath
       );
 
       if (!workflowExists) {
@@ -517,7 +538,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
         // Still proceed — the comment will be posted but won't trigger automation
       }
 
-      const commentBody = `@claude Please analyze the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
+      const commentBody = claudeCommentBody;
 
       try {
         // Add the trigger label FIRST — the workflow checks for this label
@@ -526,7 +547,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
           this.meshRepoInfo.owner,
           this.meshRepoInfo.repo,
           this.currentIssueNumber,
-          ['oraculum-review']
+          [triggerLabel]
         );
 
         // Now post the @claude comment — this triggers the workflow
@@ -562,12 +583,16 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
 
     if (agent === 'copilot') {
       try {
-        // Add the trigger label first (consistent ordering)
+        // Add the trigger label first (consistent ordering).
+        // Copilot doesn't fire the workflow itself — assignment goes
+        // straight to the Coding Agent which opens a PR — but the label
+        // keeps the issue state machine honest and lets human reviewers
+        // filter by kind.
         await this.githubService.addIssueLabels(
           this.meshRepoInfo.owner,
           this.meshRepoInfo.repo,
           this.currentIssueNumber,
-          ['oraculum-review']
+          [triggerLabel]
         );
 
         // Assign Copilot as an issue assignee — this triggers the Copilot coding agent

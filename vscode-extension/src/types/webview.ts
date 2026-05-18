@@ -165,7 +165,7 @@ export type OracularExtensionMessage =
   | { type: 'prDetected'; pr: LinkedPullRequest }
   | { type: 'prStatusUpdated'; pr: LinkedPullRequest }
   | { type: 'labelsUpdated'; labels: string[] }
-  | { type: 'issueState'; hasReviewLabel: boolean; hasComments: boolean; labels: string[] }
+  | { type: 'issueState'; hasReviewLabel: boolean; hasComments: boolean; labels: string[]; issueKind: 'research' | 'review' }
   | { type: 'phaseUpdate'; phase: string; status: string; message?: string }
   | { type: 'workflowStatus'; exists: boolean }
   | { type: 'workflowProvisioned' }

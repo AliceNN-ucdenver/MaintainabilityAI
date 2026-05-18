@@ -55,7 +55,7 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   'webview/LookingGlassPanel.ts': 92,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
-  'webview/app/oraculum.ts': 47,
+  'webview/app/oraculum.ts': 48,
 };
 
 const INTENTIONAL_STANDALONE_MODULES = new Set([

@@ -53,6 +53,13 @@ const state = {
   assignedAgent: null as AgentAssignment | null,
   comments: [] as IssueComment[],
   labels: [] as string[],
+  /**
+   * 'research' = oraculum-research issue (data-collection done, agent
+   * should synthesize using research/synthesis.md prompt pack).
+   * 'review'   = standard architecture review.
+   * Drives the assign-screen copy + button labels.
+   */
+  issueKind: 'review' as 'research' | 'review',
   linkedPr: null as LinkedPullRequest | null,
   // UI
   isLoading: false,
@@ -336,35 +343,55 @@ function renderAssignPhase(): string {
     ? `Issue <a href="#" class="issue-link" data-url="${escapeAttr(state.issueUrl)}">#${state.issueNumber}</a>`
     : `Issue <strong>#${state.issueNumber}</strong>`;
 
+  const isResearch = state.issueKind === 'research';
+  const headline = isResearch ? 'Assign agent to synthesize research' : 'Assign an AI Agent';
+  const subtitle = isResearch
+    ? 'Data collection is complete. Pick an agent to draft the synthesis report from the structured comment above.'
+    : 'Choose who should perform this architecture review:';
+
+  const claudeCopy = isResearch
+    ? `<h4>Claude / Alice</h4>
+       <p>Posts an <code>@claude</code> comment that fires <code>oraculum-research.yml</code>.
+          Claude reads the ranked sources + JTBD analysis, follows
+          <code>.caterpillar/prompts/research/synthesis.md</code>, writes
+          <code>research/&lt;run-id&gt;/synthesis.md</code>, and opens a PR.</p>`
+    : `<h4>Claude / Alice</h4>
+       <p>Posts <code>@claude</code> comment to trigger architecture analysis.
+          Claude will review each repo against the BAR and post findings.</p>`;
+
+  const copilotCopy = isResearch
+    ? `<h4>Copilot</h4>
+       <p>Assigns the GitHub Copilot coding agent. Copilot reads the issue body +
+          structured data comment, drafts the synthesis markdown, and opens a PR.
+          Does not fire <code>oraculum-research.yml</code> — the agent handles end-to-end.</p>`
+    : `<h4>Copilot</h4>
+       <p>Assigns the GitHub Copilot coding agent to this issue.
+          Copilot reads the issue body, prompt packs, and BAR to perform the review.</p>`;
+
+  const triggerLabelName = isResearch ? 'oraculum-research' : 'oraculum-review';
+  const skipCopy = `<h4>Skip</h4>
+       <p>Don't assign now. The <code>${triggerLabelName}</code> label will be added
+          but no agent comment posted.</p>`;
+
+  const workflowFile = isResearch ? 'oraculum-research.yml' : 'oraculum-review.yml';
+
   return `
-    <h2>Assign an AI Agent</h2>
+    <h2>${headline}</h2>
     <p style="color: var(--text-secondary); margin-bottom: 4px;">
-      ${issueLink} is ready for review.
+      ${issueLink} ${isResearch ? 'is ready for synthesis.' : 'is ready for review.'}
     </p>
-    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">Choose who should perform this architecture review:</p>
+    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">${subtitle}</p>
 
     <div class="agent-cards">
-      <div class="agent-card" id="assign-claude">
-        <h4>Claude / Alice</h4>
-        <p>Posts <code>@claude</code> comment to trigger architecture analysis.
-           Claude will review each repo against the BAR and post findings.</p>
-      </div>
-      <div class="agent-card" id="assign-copilot">
-        <h4>Copilot</h4>
-        <p>Assigns the GitHub Copilot coding agent to this issue.
-           Copilot reads the issue body, prompt packs, and BAR to perform the review.</p>
-      </div>
-      <div class="agent-card" id="assign-skip">
-        <h4>Skip</h4>
-        <p>Don't assign now. The <code>oraculum-review</code> label will be added
-           but no agent comment posted.</p>
-      </div>
+      <div class="agent-card" id="assign-claude">${claudeCopy}</div>
+      <div class="agent-card" id="assign-copilot">${copilotCopy}</div>
+      <div class="agent-card" id="assign-skip">${skipCopy}</div>
     </div>
 
     <div id="workflow-warning" class="workflow-warning" style="display: none;">
-      Note: The <code>oraculum-review.yml</code> workflow was not found.
+      Note: The <code>${workflowFile}</code> workflow was not found.
       The @claude comment will be posted, but automated analysis won't trigger until the workflow is added.
-      Use "Provision Workflow" on the hub to add it.
+      Use "Redeploy All Workflows" in Settings to add it.
     </div>
 
     <div id="assign-loading" class="loading" style="display: none;">
@@ -961,6 +988,7 @@ function resetIssueState() {
   state.issueNumber = 0;
   state.comments = [];
   state.labels = [];
+  state.issueKind = 'review';
   state.linkedPr = null;
   state.assignedAgent = null;
   state.error = '';
@@ -1122,7 +1150,8 @@ window.addEventListener('message', (event) => {
     case 'issueState':
       // Auto-detect which phase to show based on existing issue state
       state.labels = msg.labels;
-      if (msg.labels.includes('review-complete')) {
+      state.issueKind = msg.issueKind;
+      if (msg.labels.includes('review-complete') || msg.labels.includes('research-synthesis-complete')) {
         // Review already finished — go straight to results
         state.currentPhase = 'results';
         render();
