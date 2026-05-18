@@ -57,9 +57,28 @@ function parseFlags(argv: string[]): ParsedFlags {
 
 function emitGithubOutput(outputs: Record<string, string | number>): void {
   // Run inside GitHub Actions, write to GITHUB_OUTPUT so `steps.<id>.outputs.*` works.
+  //
+  // GH Actions output file format:
+  //   single-line:  key=value
+  //   multi-line:   key<<EOF\nvalue\nEOF
+  //
+  // A research brief can be multi-line markdown (the wizard appends a
+  // "## Run metadata" footer to it), so naive `key=value` produced
+  // `Error: Unable to process file command 'output' successfully.` when
+  // the topic carried newlines. Switch every value to the heredoc form
+  // — works for both single- and multi-line values.
   const githubOutput = process.env.GITHUB_OUTPUT;
   if (!githubOutput) { return; }
-  const lines = Object.entries(outputs).map(([k, v]) => `${k}=${v}`);
+  const lines: string[] = [];
+  // Use a random delimiter to avoid collisions with content that happens
+  // to contain a literal "EOF" line. crypto.randomUUID is in Node 19+.
+  const delimiter = `gho_${process.pid}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  for (const [k, v] of Object.entries(outputs)) {
+    const value = String(v);
+    lines.push(`${k}<<${delimiter}`);
+    lines.push(value);
+    lines.push(delimiter);
+  }
   fs.appendFileSync(githubOutput, lines.join('\n') + '\n', 'utf8');
 }
 
