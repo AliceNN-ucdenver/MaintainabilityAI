@@ -79,13 +79,17 @@ The Research + PRD pipeline reads five secrets total. The Looking Glass **Resear
 | `GOVERNANCE_MESH_TOKEN` | Per-code-repo landing-issue creation (`notify-code-repos.yml` → `POST /repos/.../issues`) | Mesh only | "Create" (guided) or "Push to mesh" |
 | `GITHUB_TOKEN` | Built-in | Auto-provided per workflow | n/a — required for `llm_provider: github-models` (free Copilot routing) |
 
-**About `GOVERNANCE_MESH_TOKEN` — mesh-only token, narrow permission:**
+**About `GOVERNANCE_MESH_TOKEN` — mesh-only token, narrow scope:**
 
-Create a fine-grained PAT scoped to your org with **one permission**:
+Create a fine-grained PAT scoped to your org with **three repository permissions**:
 
-- **Issues: Read and write** on every code repo listed in your BARs' `app.yaml`
+- **Metadata: Read** — auto-granted by GitHub on every fine-grained PAT
+- **Issues: Read and write** — for `POST /repos/{owner}/{repo}/issues` (open the landing-issue) and follow-up updates as the workflow progresses
+- **Contents: Read** — lets `notify-code-repos.yml` cross-reference files in the target code repo when composing the issue body (e.g. linking to a `routes.ts` referenced by an endpoint in the PRD manifest)
 
-That's the permission GitHub requires for `POST /repos/{owner}/{repo}/issues` — the API call `notify-code-repos.yml` on the mesh makes against each code repo to open the PRD landing-issue. Narrow scope: the token **cannot modify code, cannot trigger workflows, cannot read non-issue surfaces**. Resource owner is your org; repository access is "Only select repositories" → pick every code repo from your BARs' `app.yaml repos[]`.
+Resource owner is your org; repository access is "Only select repositories" → pick every code repo from your BARs' `app.yaml repos[]`.
+
+The token **cannot modify code**, **cannot trigger workflows**, and **cannot read non-listed surfaces**. No Actions:write, no Pull-requests:write, no Secrets, no Variables — none of that is selected.
 
 Looking Glass → Settings → Research → **Create** walks you through this end to end: opens the GitHub PAT page in your browser, shows a sticky checklist listing every code-repo slug (built by walking [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and deduping their `app.yaml` repos), pops an input box to paste the freshly-minted token, then saves + pushes to the mesh repo's Actions secrets — all in one click.
 
@@ -265,7 +269,7 @@ You get the original `research-request` issue, the PRD PR, the spec-ready RCTRO 
 
 - **Pre-flight check fails: "archeologist.yml workflow scaffolded".** Run `Looking Glass` → `Settings` → `Deploy mesh workflows`. If you have customized any mesh workflow file, the deploy preserves it; force-redeploy via the `Redeploy` action.
 - **Pre-flight check fails: "Tavily key available".** Either set it locally via `Repository Secrets` → `Local config`, or push it to the mesh repo's Actions secrets via `Repository Secrets` → `governance`.
-- **Landing-issue never appears in the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and the PAT has **Issues = Read and write** on the target code repo (that's GitHub's required permission for `POST /repos/.../issues`). The `notify-code-repos.yml` run log will show the create attempt and any 401/404.
+- **Landing-issue never appears in the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and the PAT has **Metadata=read + Issues=read+write + Contents=read** on the target code repo. Issues=write is the critical one (`POST /repos/.../issues`); Contents=read is consumed when the workflow cross-references code-repo files in the issue body. The `notify-code-repos.yml` run log will show the create attempt and any 401/404.
 - **The landing-issue is missing from a code repo but other repos got one.** The mesh PRD manifest's `target_repos` array must include the missing repo's `owner/repo`. Look at `manifest.target_repos` in the PRD PR's sidecar JSON; correct it on the mesh side (or fix the BAR's `app.yaml application.repos[]` upstream) and re-run `notify-code-repos.yml` via workflow_dispatch.
 - **Private mesh.** Works natively — no token needed on the code-repo side. The mesh-side workflow embeds the full PRD markdown + manifest in the issue body, so the code-repo side never has to read from the mesh repo at all.
 - **Notifications fire on every reload.** Known cosmetic on `pre-existing` runs only — the service seeds its snapshot with persisted state on activate, so subsequent transitions are deduped. If you see repeated dispatch toasts for the same run id, file a bug with the run id.

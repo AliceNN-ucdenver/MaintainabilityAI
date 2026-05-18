@@ -217,12 +217,12 @@
         "maintainabilityai.llm.usptoApiKey": {
           "type": "string",
           "default": "",
-          "description": "USPTO PatentsView API key (optional — adds patent coverage to the Archeologist research run; pipeline degrades gracefully when absent). Request one at https://patentsview.org/apis/keyrequest"
+          "description": "USPTO API key (optional — adds patent coverage to the Archeologist run via the USPTO Open Data Portal at api.uspto.gov/api/v1/patent/applications/search; pipeline degrades gracefully when absent). Request a key at https://data.uspto.gov/apis/getting-started"
         },
         "maintainabilityai.governance.meshToken": {
           "type": "string",
           "default": "",
-          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Needs Issues=write on every linked code repo so notify-code-repos.yml on the mesh can open a PRD landing-issue in each one (POST /repos/.../issues requires Issues:write). Narrow scope: token cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
+          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (so notify-code-repos.yml on the mesh can open + update PRD landing-issues), Contents=read (lets the workflow cross-reference code-repo files in the issue body). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
         },
         "maintainabilityai.research.llmProvider": {
           "type": "string",

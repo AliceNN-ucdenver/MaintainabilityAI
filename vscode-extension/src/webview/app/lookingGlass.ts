@@ -1775,6 +1775,15 @@ function renderSettingsWorkflow(): string {
         <li><code>label-on-merge.yml</code> — research → PRD → spec-ready bus handler</li>
         <li><code>notify-code-repos.yml</code> — opens a PRD landing-issue in each target code repo</li>
       </ul>
+      <p class="text-muted" style="margin-top: 8px;">
+        <strong>Required mesh-repo secrets</strong> (configure via the <em>Research + PRD Agents</em> section below):
+      </p>
+      <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc; font-size: 12px;">
+        <li><code>TAVILY_API_KEY</code> — web search backend for the Archeologist</li>
+        <li><code>ANTHROPIC_API_KEY</code> or <code>OPENAI_API_KEY</code> — LLM provider (skip if using <code>github-models</code> via the workflow <code>GITHUB_TOKEN</code>)</li>
+        <li><code>USPTO_API_KEY</code> (optional) — patent coverage in the Archeologist run</li>
+        <li><code>GOVERNANCE_MESH_TOKEN</code> — fine-grained PAT scoped to your code repos with <code>Metadata=read</code> (auto), <code>Issues=read+write</code>, <code>Contents=read</code>. Used by <code>notify-code-repos.yml</code> to open the PRD landing-issue in each code repo. Use the <strong>Create</strong> button below for the guided flow.</li>
+      </ul>
       <div class="settings-row">
         <div class="settings-label">Status</div>
         <div>${statusLabel}</div>
@@ -2647,7 +2656,7 @@ function attachEventHandlers() {
     btn.addEventListener('click', () => {
       const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
       if (!id) { return; }
-      if (!confirm('Push this secret to the mesh repo AND every linked code repo found in app.yaml across all BARs?\n\nUse this for ANTHROPIC_API_KEY, OPENAI_API_KEY, and GOVERNANCE_MESH_TOKEN — the three secrets workflows on the code-repo side consume.')) { return; }
+      if (!confirm('Push this secret to the mesh repo AND every linked code repo found in app.yaml across all BARs?\n\nUse this for ANTHROPIC_API_KEY and OPENAI_API_KEY — secrets that alice-remediation.yml on each code repo consumes. (GOVERNANCE_MESH_TOKEN is mesh-only; use Push to mesh for it.)')) { return; }
       state.researchSecretStatus[id] = { kind: 'busy', message: 'Pushing to mesh + code repos…' };
       render();
       vscode.postMessage({ type: 'pushResearchSecretToAll', id });

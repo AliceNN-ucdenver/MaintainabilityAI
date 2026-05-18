@@ -59,7 +59,7 @@ export const SECRETS: SecretDefinition[] = [
     envName: 'USPTO_API_KEY',
     settingKey: 'maintainabilityai.llm.usptoApiKey',
     label: 'USPTO API Key (optional)',
-    description: 'USPTO_API_KEY — Optional patent coverage in the Archeologist run. Pipeline degrades gracefully when absent. Get one at https://patentsview.org/apis/keyrequest',
+    description: 'USPTO_API_KEY — Optional patent coverage in the Archeologist run via the USPTO Open Data Portal (api.uspto.gov/api/v1/patent/applications/search). Pipeline degrades gracefully when absent. Request a key at https://data.uspto.gov/apis/getting-started',
     scope: 'mesh',
   },
   {
@@ -67,7 +67,7 @@ export const SECRETS: SecretDefinition[] = [
     envName: 'GOVERNANCE_MESH_TOKEN',
     settingKey: 'maintainabilityai.governance.meshToken',
     label: 'Governance Mesh Token',
-    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by `notify-code-repos.yml` on the mesh repo to open a PRD landing-issue in each linked code repo. Needs only `Issues: write` (narrow scope — token cannot modify code or trigger workflows). Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub.',
+    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by `notify-code-repos.yml` on the mesh repo to open a PRD landing-issue in each linked code repo. Scopes: Metadata=read (auto), Issues=read+write (create+update the landing-issue), Contents=read (lets the workflow reference files in the code repo when composing the body). Cannot modify code or trigger workflows. Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub.',
     scope: 'mesh',
   },
 ];

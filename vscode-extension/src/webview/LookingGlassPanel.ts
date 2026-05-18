@@ -2733,10 +2733,12 @@ Policy file: ${filename}
 
     // (2) Sticky checklist. Lists every code repo by slug so the user can
     //     copy-paste the names into GitHub's "Only select repositories"
-    //     picker. The token only needs Issues:write — the narrowest
-    //     scope that allows POST /repos/{owner}/{repo}/issues, which is
-    //     the only call notify-code-repos.yml makes against each code
-    //     repo. No code-write, no workflow-dispatch, no broader surface.
+    //     picker. The token's permissions are deliberately narrow —
+    //     Issues:read+write to open and update the landing-issue,
+    //     Contents:read to cross-reference code-repo files when
+    //     composing the body. Metadata:read is GitHub's auto-granted
+    //     baseline. No Issues:delete, no code writes, no workflow
+    //     triggers, no broader surface.
     const repoList = codeRepos.length === 0
       ? '(no linked code repos detected — add `repos:` blocks to your BAR app.yaml files)'
       : codeRepos.map(r => `  - ${r}`).join('\n');
@@ -2746,11 +2748,11 @@ Policy file: ${filename}
       `Resource owner:  your org\n` +
       `Repository access:  Only select repositories →\n` +
       `${repoList}\n\n` +
-      `Repository permissions:  Issues = Read and write\n` +
-      `(This is what GitHub requires for POST /repos/{owner}/{repo}/issues —\n` +
-      ` the call notify-code-repos.yml on the mesh makes against each code\n` +
-      ` repo to open the PRD landing-issue. Narrow scope: token cannot modify\n` +
-      ` code or trigger workflows.)\n\n` +
+      `Repository permissions:\n` +
+      `  • Metadata = Read       (auto-granted by GitHub — leave selected)\n` +
+      `  • Issues   = Read and write   (notify-code-repos.yml opens + updates the landing-issue)\n` +
+      `  • Contents = Read       (lets the workflow cross-reference code-repo files in the issue body)\n\n` +
+      `(The token cannot modify code, cannot trigger workflows, cannot read non-listed surfaces.)\n\n` +
       `Expiration: pick what fits your rotation policy.\n\n` +
       `Mesh repo for reference:  ${meshLabel}\n\n` +
       `When ready, click Continue to paste the token.`;
