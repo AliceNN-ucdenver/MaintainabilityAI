@@ -1,7 +1,6 @@
 /**
  * Tests for the archaeology-path pipeline nodes:
- *   clone-and-index, analyze-architecture, identify-gaps,
- *   synthesis-archaeology-validator.
+ *   clone-and-index, analyze-architecture, identify-gaps.
  *
  * Uses a local git fixture (file:// origin) so clone-and-index can clone
  * offline. The fixture is a small TypeScript repo with Express + React +
@@ -14,7 +13,6 @@ import * as fs from 'node:fs';
 import { cloneAndIndex } from './clone-and-index';
 import { analyzeArchitecture } from './analyze-architecture';
 import { identifyGaps } from './identify-gaps';
-import { validateArchaeologySynthesis } from './synthesis-archaeology-validator';
 import {
   buildFixtureTargetRepo,
   destroyFixtureTargetRepo,
@@ -193,91 +191,3 @@ test('identifyGaps: flags missing CALM modules + undeclared frameworks + endpoin
   }
 });
 
-// ============================================================================
-// synthesis-archaeology-validator
-// ============================================================================
-
-const CANONICAL_ARCHAEOLOGY_BODY = `## Executive Summary
-
-The fixture-celeb-api repo (OA[api]) ships a 4-endpoint Express service backed by Postgres but the CALM model lacks a fraud-detector node (G1, S1).
-
-## Repository Profile
-
-Languages: TypeScript. Frameworks: express, react. 8 files across api/, web/, db/, shared/ (OA[api], OA[web], OA[db], OA[shared]).
-
-## Current Architecture
-
-| Layer | Modules | External deps | Endpoints |
-|---|---|---|---|
-| api | OA[api] | express, pg | 4 |
-| web | OA[web] | react | 0 |
-
-## Gap Analysis
-
-**G1** **HIGH** missing_module: CALM node fraud-detector has no matching module (OA[api], OA[db]).
-
-**G2** **MEDIUM** framework_choice_undeclared: express is in use but no ADR mentions it (OA[api]).
-
-## External Research Findings
-
-S1 covers patterns for introducing fraud-detection services to celebrity APIs.
-
-## Recommendations
-
-- Introduce a fraud-detector module under api/ — see S1 for reference architecture. Traces to: G1.
-- Write an ADR adopting express, citing S1's framework-decision template. Traces to: G2.
-
-## Implementation Roadmap
-
-1. Land G1 in next sprint (fraud-detector skeleton + DB schema).
-2. Backfill ADR for G2 alongside G1's review.
-
-## Risk Factors
-
-If G1 ships without a threat model, we inherit STRIDE I/D risk on celebrity PII.
-
-## Untraced items
-
-None.
-`;
-
-test('validateArchaeologySynthesis: canonical body passes every rule', () => {
-  const report = validateArchaeologySynthesis(CANONICAL_ARCHAEOLOGY_BODY);
-  assert.equal(report.valid, true, `errors: ${JSON.stringify(report.errors)}`);
-  assert.equal(report.citation_stats.recommendation_count, 2);
-  assert.equal(report.citation_stats.untracedRecommendations, 0);
-});
-
-test('validateArchaeologySynthesis: catches missing canonical sections', () => {
-  const stripped = CANONICAL_ARCHAEOLOGY_BODY.replace(/## Untraced items[\s\S]*$/, '');
-  const report = validateArchaeologySynthesis(stripped);
-  assert.equal(report.valid, false);
-  assert.ok(report.errors.some(e => /Untraced items/.test(e)));
-});
-
-test('validateArchaeologySynthesis: catches gap without severity tag', () => {
-  const broken = CANONICAL_ARCHAEOLOGY_BODY.replace(
-    /\*\*G1\*\* \*\*HIGH\*\* missing_module/,
-    '**G1** missing_module (no severity tag here)',
-  );
-  const report = validateArchaeologySynthesis(broken);
-  assert.equal(report.valid, false);
-  assert.ok(report.errors.some(e => /G1.*severity/i.test(e)));
-});
-
-test('validateArchaeologySynthesis: catches recommendation without G[N] traceability', () => {
-  const broken = CANONICAL_ARCHAEOLOGY_BODY.replace(
-    /Traces to: G1\./,
-    '(no traceability)',
-  );
-  const report = validateArchaeologySynthesis(broken);
-  assert.equal(report.valid, false);
-  assert.ok(report.errors.some(e => /Recommendation.*G\[N\]/.test(e)));
-});
-
-test('validateArchaeologySynthesis: empty Untraced items section is rejected', () => {
-  const broken = CANONICAL_ARCHAEOLOGY_BODY.replace(/## Untraced items\n\nNone\.\n/, '## Untraced items\n\n');
-  const report = validateArchaeologySynthesis(broken);
-  assert.equal(report.valid, false);
-  assert.ok(report.errors.some(e => /Untraced items.*empty/.test(e)));
-});

@@ -177,33 +177,58 @@ jobs:
             --llm-provider "${{ steps.parse.outputs.llm_provider }}" \
             --output research/ \
             --audit .research-audit/ \
-            --emit-pr-body /tmp/pr-body.md
+            --emit-issue-body /tmp/issue-body.md
 
-      - name: Open PR with research output
+      - name: Commit data-collection artifact + audit log to mesh
         if: success()
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: research/${{ steps.research.outputs.run_id }}
-          title: "Research: ${{ steps.research.outputs.topic }}"
-          body-path: /tmp/pr-body.md
-          labels: |
-            research
-            ai-assisted
-          commit-message: |
-            research: ${{ steps.research.outputs.topic }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research/ .research-audit/
+          if git diff --cached --quiet; then
+            echo "no artifact changes"
+          else
+            git commit -m "research: data collection for run ${{ steps.research.outputs.run_id }}"
+            for attempt in 1 2 3 4 5; do
+              if git push; then break; fi
+              if [ "$attempt" = "5" ]; then exit 1; fi
+              git pull --rebase || { git rebase --abort; exit 1; }
+              sleep 2
+            done
+          fi
 
-            Run ID: ${{ steps.research.outputs.run_id }}
-
-      - name: Comment on triggering issue
+      - name: Post data-collection comment + flip labels on triggering issue
         if: success() && steps.parse.outputs.issue_number != ''
         uses: actions/github-script@v7
         with:
+          # The runner stopped at data-collection. We post the structured
+          # comment to the originating issue, swap `research-request` →
+          # `research-ready`, and prompt the user to assign Copilot/Claude
+          # for the synthesis step. The assigned agent reads this comment,
+          # opens a PR with the synthesis markdown.
           script: |
+            const fs = require('fs');
             const issue_number = parseInt('${{ steps.parse.outputs.issue_number }}', 10);
             if (!issue_number) return;
+            const body = fs.readFileSync('/tmp/issue-body.md', 'utf8');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number,
-              body: `Archeologist run complete. Opened research PR for review. Run ID: \`${{ steps.research.outputs.run_id }}\`.`
+              body
+            });
+            // Swap labels: remove `research-request`, add `research-ready`.
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                name: 'research-request'
+              });
+            } catch (_) { /* label may not exist on issue_comment-triggered runs */ }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              labels: ['research-ready']
             });

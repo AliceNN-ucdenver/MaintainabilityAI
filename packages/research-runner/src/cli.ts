@@ -32,7 +32,8 @@ interface ParsedFlags {
   max_iterations?: string;
   output?: string;
   audit?: string;
-  emit_pr_body?: string;
+  emit_issue_body?: string;
+  emit_pr_body?: string; // retained for PRD subcommand which still opens PRs
   mesh?: string;
   llm_provider?: string;
 }
@@ -94,7 +95,7 @@ async function archeologistCmd(argv: string[]): Promise<void> {
     meshDir: flags.mesh ? path.resolve(flags.mesh) : process.cwd(),
     outputDir: flags.output || 'research',
     auditDir: flags.audit || '.research-audit',
-    emitPrBodyPath: flags.emit_pr_body,
+    emitIssueBodyPath: flags.emit_issue_body,
     agentVersion: PKG.version,
   });
 
@@ -104,7 +105,7 @@ async function archeologistCmd(argv: string[]): Promise<void> {
     topic: result.topic,
     artifact_path: result.artifact_path,
     chain_root_hash: result.chain_root_hash,
-    pr_body_path: result.pr_body_path || '',
+    issue_body_path: result.issue_body_path || '',
   });
 }
 

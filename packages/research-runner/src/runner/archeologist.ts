@@ -37,7 +37,7 @@ import { runUsptoSearch } from './nodes/uspto-search';
 import { runHackerNewsSearch } from './nodes/hackernews-search';
 import { dedupeAndRank } from './nodes/dedupe-and-rank';
 import { detectGapSignals, runGapAnalysis } from './nodes/gap-analysis';
-import { synthesizeReport } from './nodes/synthesize-report';
+import { formatForHuman } from './nodes/format-for-human';
 import { cloneAndIndex } from './nodes/clone-and-index';
 import { analyzeArchitecture, ANALYZER_VERSION } from './nodes/analyze-architecture';
 import { identifyGaps } from './nodes/identify-gaps';
@@ -59,7 +59,9 @@ export interface ArcheologistOptions {
   meshDir: string;            // mesh repo root
   outputDir: string;          // research/ destination (relative to meshDir)
   auditDir: string;           // .research-audit/ destination (relative to meshDir)
-  emitPrBodyPath?: string;    // absolute path to write the PR body markdown
+  emitIssueBodyPath?: string; // absolute path to write the issue-body markdown
+                              // (data + Hatter's Tag). The workflow posts this
+                              // back to the originating research-request issue.
   agentVersion: string;       // injected by CLI (from package.json)
   /** Provider keys — supply only the one your brief.llm_provider needs. Default from process.env. */
   anthropicApiKey?: string;
@@ -75,10 +77,12 @@ export interface ArcheologistOptions {
 export interface ArcheologistResult {
   run_id: string;
   topic: string;
+  /** Path to the issue-update markdown the runner wrote to outputDir. */
   artifact_path: string;
   audit_log_path: string;
   chain_root_hash: string;
-  pr_body_path: string | null;
+  /** Path to the wrapped issue-body markdown (data + Hatter's Tag). Only set when --emit-issue-body was passed. */
+  issue_body_path: string | null;
   total_input_tokens: number;
   total_output_tokens: number;
   total_cost_usd: number;
@@ -89,9 +93,6 @@ export interface ArcheologistResult {
   gap_analysis_ran: boolean;
   /** Number of archaeology gaps identified. Undefined on research-path runs. */
   archaeology_gap_count?: number;
-  /** Synthesis structural validator outputs — quick reviewer signal. */
-  conclusion_count: number;
-  recommendation_count: number;
 }
 
 export async function runArcheologist(opts: ArcheologistOptions): Promise<ArcheologistResult> {
@@ -485,81 +486,38 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   }
   }  // end research-path else branch
 
-  // ----- synthesize_report (LLM) -----
-  progress(`◐ synthesize_report — calling LLM (provider hint=${brief.llm_provider ?? 'anthropic'}, sources=${rankedSources.length}); hybrid routing will pick anthropic for synth if anthropic key is set…`);
-  const synthStart = Date.now();
-  const synthesis = await synthesizeReport({
-    meshDir: opts.meshDir,
-    brief,
-    meshContext,
-    rankedSources,
-    provider: brief.llm_provider,
-    anthropicApiKey,
-    githubToken,
-    gapAnalysisRan,
-    path: brief.path,
-    observedArchitecture,
-    archaeologyGaps,
-    fetchImpl: opts.fetchImpl,
-  });
-  totalInputTokens += synthesis.llm.inputTokens;
-  totalOutputTokens += synthesis.llm.outputTokens;
-  totalCostUsd += synthesis.llm.costUsd;
-  progress(`✓ synthesize_report (${synthesis.llm.provider} ${synthesis.llm.model}) in ${Date.now() - synthStart}ms — ${synthesis.llm.inputTokens} in / ${synthesis.llm.outputTokens} out tokens, ${synthesis.llm.attempts} attempt${synthesis.llm.attempts !== 1 ? 's' : ''}`);
-  emitter.emit({
-    node_kind: 'llm',
-    node_name: 'synthesize_report',
-    duration_ms: Date.now() - synthStart,
-    llm: {
-      provider: synthesis.llm.provider,
-      model: synthesis.llm.model,
-      prompt_pack: { path: synthesis.prompt.packPath, sha256: synthesis.prompt.packSha256 },
-      input_tokens: synthesis.llm.inputTokens,
-      output_tokens: synthesis.llm.outputTokens,
-      cost_usd: synthesis.llm.costUsd,
-      guardrails: { mode: brief.guardrails, pre: 'PASS', post: 'PASS' },
-    },
-  });
-
-  // ----- publish (pure) -----
-  const today = startedAt.toISOString().slice(0, 10);
-  const fileSlug = brief.topic
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60) || 'research';
-  const artifactName = `${fileSlug}-${today}.md`;
-  const artifactPath = path.join(absoluteOutputDir, artifactName);
-
-  const meshSummary = meshContext.bar
-    ? `bar **${meshContext.bar.name}** (\`${meshContext.bar.bar_id}\`), ${meshContext.bar.adrs.length} ADR(s), ${meshContext.bar.related_research.length} prior research doc(s), mesh gaps: ${meshContext.bar.mesh_gaps.join(', ') || '_none_'}`
-    : meshContext.platform
-      ? `platform **${meshContext.platform.platform_id}** (${meshContext.platform.sibling_bars.length} sibling BAR(s))`
-      : `portfolio **${meshContext.portfolio.name}** (${meshContext.portfolio.related_research_summaries.length} prior research doc(s))`;
-
-  const bodyMd = buildResearchDoc({
+  // ----- format_for_human (pure) -----
+  //
+  // The runner stops here. Composes the markdown comment that the
+  // workflow posts back to the originating research-request issue.
+  // Synthesis is now produced by the assigned agent (Copilot/Claude),
+  // not by the runner.
+  progress(`◐ format_for_human — composing issue-update markdown for ${rankedSources.length} ranked sources…`);
+  const formatStart = Date.now();
+  const formatted = formatForHuman({
     brief,
     runId,
-    meshSummary,
-    meshSha: meshContext.mesh_sha,
+    meshContext,
     queryPlan: researchQueryPlan,
-    archaeologySummary: observedArchitecture
-      ? `Cloned \`${observedArchitecture.profile.slug}\` @ \`${observedArchitecture.profile.cloneSha.slice(0, 12)}\`. ${observedArchitecture.profile.totalFiles} files; languages: ${observedArchitecture.profile.languages.join(', ') || 'n/a'}; frameworks: ${observedArchitecture.profile.frameworks.join(', ') || 'n/a'}; ${observedArchitecture.modules.length} modules; ${observedArchitecture.endpoints.length} endpoints; ${archaeologyGaps.length} structural gaps identified.`
-      : undefined,
-    synthesisBody: synthesis.body_md,
+    rankedSources,
+    gapSignals: detectGapSignals({ brief, rankedSources }),
+    gapFollowUpQueries: [], // already merged into rankedSources during the search loop above
+    providerResultCounts,
+    totalDurationMs: Date.now() - startedAt.getTime(),
   });
-
-  const writeStart = Date.now();
-  fs.writeFileSync(artifactPath, bodyMd, 'utf8');
+  const artifactName = `issue-update-${runId}.md`;
+  const artifactPath = path.join(absoluteOutputDir, artifactName);
+  fs.writeFileSync(artifactPath, formatted.body, 'utf8');
   emitter.emit({
     node_kind: 'pure',
-    node_name: 'publish',
-    duration_ms: Date.now() - writeStart,
+    node_name: 'format_for_human',
+    duration_ms: Date.now() - formatStart,
     pure: {
-      inputs_summary: `wrote ${artifactPath}`,
-      outputs_summary: `${bodyMd.length} bytes; ${rankedSources.length} citations`,
+      inputs_summary: `ranked_sources=${rankedSources.length}; mesh_sha=${meshContext.mesh_sha.slice(0, 7)}`,
+      outputs_summary: `wrote ${path.relative(opts.meshDir, artifactPath)} (${formatted.body.length} bytes)`,
     },
   });
+  progress(`✓ format_for_human — ${formatted.body.length} bytes written to ${path.relative(opts.meshDir, artifactPath)}`);
 
   // ----- run_complete -----
   const complete = emitter.emitRunComplete({
@@ -576,9 +534,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     },
   });
 
-  // ----- Optionally append a PR body that wraps the artifact + Hatter's Tag -----
-  let prBodyPath: string | null = null;
-  if (opts.emitPrBodyPath) {
+  // ----- Optionally emit an issue-body markdown wrapping the artifact + Hatter's Tag -----
+  let issueBodyPath: string | null = null;
+  if (opts.emitIssueBodyPath) {
     const hattersTag = buildHattersTag({
       run_id: runId,
       mesh_sha: meshContext.mesh_sha,
@@ -587,9 +545,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
       published_at: new Date().toISOString(),
       llm: {
         provider: brief.llm_provider,
-        // synthesis runs on both paths; archaeology runs skip plan_queries so we
-        // use the synthesis model id as the "primary" model for the Hatter's Tag.
-        model: synthesis.llm.model,
+        // plan_queries is the only LLM hop we run now (synth handed off
+        // to the assigned agent). Surface that model in the Hatter's Tag.
+        model: 'openai/gpt-4o-mini',
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
         cost_usd: roundUsd(totalCostUsd),
@@ -601,9 +559,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
         audit_log_path: path.relative(opts.meshDir, emitter.path),
       },
     });
-    const prBody = [bodyMd, '', hattersTag].join('\n');
-    fs.writeFileSync(opts.emitPrBodyPath, prBody, 'utf8');
-    prBodyPath = opts.emitPrBodyPath;
+    const issueBody = [formatted.body, '', hattersTag].join('\n');
+    fs.writeFileSync(opts.emitIssueBodyPath, issueBody, 'utf8');
+    issueBodyPath = opts.emitIssueBodyPath;
   }
 
   // ----- archaeology cleanup: remove the shallow clone now that synthesis is done -----
@@ -613,7 +571,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   }
 
   const totalDurationMs = Date.now() - startedAt.getTime();
-  progress(`◆ done ${runId} in ${(totalDurationMs / 1000).toFixed(1)}s — ${totalInputTokens} in / ${totalOutputTokens} out tokens, $${roundUsd(totalCostUsd)} | sources=${rankedSources.length} conclusions=${synthesis.citation_stats.conclusion_count} recs=${synthesis.citation_stats.recommendation_count} | artifact=${artifactPath}`);
+  progress(`◆ done ${runId} in ${(totalDurationMs / 1000).toFixed(1)}s — ${totalInputTokens} in / ${totalOutputTokens} out tokens, $${roundUsd(totalCostUsd)} | sources=${rankedSources.length} | artifact=${path.relative(opts.meshDir, artifactPath)} (synthesis is the assignee's job)`);
 
   return {
     run_id: runId,
@@ -621,7 +579,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     artifact_path: artifactPath,
     audit_log_path: emitter.path,
     chain_root_hash: complete.outcome.chain_root_hash,
-    pr_body_path: prBodyPath,
+    issue_body_path: issueBodyPath,
     total_input_tokens: totalInputTokens,
     total_output_tokens: totalOutputTokens,
     total_cost_usd: roundUsd(totalCostUsd),
@@ -630,66 +588,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     gap_analysis_ran: gapAnalysisRan,
     /** archaeology path only — undefined for research runs */
     archaeology_gap_count: archaeologyGaps.length || undefined,
-    conclusion_count: synthesis.citation_stats.conclusion_count,
-    recommendation_count: synthesis.citation_stats.recommendation_count,
   };
-}
-
-interface BuildDocOpts {
-  brief: ResearchBrief;
-  runId: string;
-  meshSummary: string;
-  meshSha: string;
-  /** Research path only — undefined on archaeology runs. */
-  queryPlan?: import('../schemas').QueryPlan;
-  /** Archaeology path only — short repo profile summary. */
-  archaeologySummary?: string;
-  /** The canonical synthesis markdown body. */
-  synthesisBody: string;
-}
-
-/**
- * Compose the published artifact. The preamble differs by path:
- *   research:    <metadata> + <mesh context> + <Query Plan table>
- *   archaeology: <metadata> + <mesh context> + <Target Repo Profile>
- * The synthesis body owns every H2 from the canonical section list onward.
- * The Hatter's Tag is appended separately by the PR-body path.
- */
-function buildResearchDoc(opts: BuildDocOpts): string {
-  const lines: string[] = [];
-  lines.push(`# ${opts.brief.topic}`);
-  lines.push('');
-  lines.push(`- **Run id:** \`${opts.runId}\``);
-  lines.push(`- **Mesh sha:** \`${opts.meshSha.slice(0, 12)}\``);
-  lines.push(`- **Path:** ${opts.brief.path}${opts.brief.target_repo ? ` (\`${opts.brief.target_repo}\`)` : ''}`);
-  lines.push(`- **Scope:** ${opts.brief.scope.level}${opts.brief.scope.id ? ` / ${opts.brief.scope.id}` : ''}`);
-  lines.push('');
-  lines.push('## Run Metadata');
-  lines.push('');
-  lines.push(`Scope resolved to: ${opts.meshSummary}.`);
-  lines.push('');
-
-  if (opts.queryPlan) {
-    lines.push('### Query Plan (per-provider, LLM-generated)');
-    lines.push('');
-    lines.push('| Provider | Queries |');
-    lines.push('|---|---|');
-    lines.push(`| **web** (Tavily) | ${opts.queryPlan.web.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-    lines.push(`| **arxiv** | ${opts.queryPlan.arxiv.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-    lines.push(`| **patent** (USPTO) | ${opts.queryPlan.patent.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-    lines.push(`| **community** (HN) | ${opts.queryPlan.community.map(q => `\`${q.replace(/`/g, "'")}\``).join(' · ')} |`);
-    lines.push('');
-  }
-  if (opts.archaeologySummary) {
-    lines.push('### Target Repository Profile (analyze_architecture)');
-    lines.push('');
-    lines.push(opts.archaeologySummary);
-    lines.push('');
-  }
-  // The synthesis body owns every H2 from the canonical section list onward.
-  lines.push(opts.synthesisBody.trim());
-  lines.push('');
-  return lines.join('\n');
 }
 
 function roundUsd(n: number): number {
