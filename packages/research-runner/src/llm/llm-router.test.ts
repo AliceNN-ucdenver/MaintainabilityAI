@@ -78,6 +78,28 @@ test('callLlm: github-models + tier=plan falls back to gpt-4.1-mini when gpt-5-c
   assert.equal(result.model, 'openai/gpt-4.1-mini');
 });
 
+test('callLlm: github-models + tier=plan falls back to gpt-4.1-mini when gpt-5-chat returns 429 (rate limit)', async () => {
+  // The "custom" rate-limit-tier bucket throttles independently from
+  // the "low" tier; falling back to gpt-4.1-mini often succeeds even
+  // when gpt-5-chat is rate-limited.
+  const bodies: { model?: string }[] = [];
+  const fetchImpl: typeof fetch = async (_u, init) => {
+    const body = JSON.parse(String((init as RequestInit).body)) as { model?: string };
+    bodies.push(body);
+    if (body.model === 'openai/gpt-5-chat') {
+      return new Response('{"error":{"message":"Rate limit exceeded"}}', { status: 429 });
+    }
+    return githubModelsMock('ok');
+  };
+  const result = await callLlm({
+    provider: 'github-models', tier: 'plan',
+    githubToken: 'ghs_test', prompt: 'x', maxTokens: 1, fetchImpl,
+  });
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[1].model, 'openai/gpt-4.1-mini');
+  assert.equal(result.model, 'openai/gpt-4.1-mini');
+});
+
 test('callLlm: github-models + tier=plan does NOT fall back on non-access errors (e.g. 413 cap)', async () => {
   // 413 is a token-budget problem, not an access problem; falling back
   // to a lower-tier model wouldn't help (same caps). Propagate so the

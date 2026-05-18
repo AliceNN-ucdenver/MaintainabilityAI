@@ -118,15 +118,22 @@ async function callAnthropicTier(opts: CallLlmOpts, tierModels: { anthropic: Ant
 }
 
 /**
- * GitHub Models returns 401 / 403 / 404 when the token can't reach the
- * requested model (typically the workflow bot token hitting a "custom"-
- * tier model like gpt-5-chat). These are recoverable via fallback;
- * everything else (timeouts, 5xx, 413 cap, parse errors) should
- * propagate.
+ * GitHub Models returns these statuses when the token can't reach the
+ * requested model or is being throttled. All recoverable via the
+ * github-models→github-models fallback (custom-tier → low-tier).
+ *
+ *   401 / 403 — token lacks `models:read` or hasn't been enrolled in
+ *               the custom tier (workflow bot vs Copilot PAT)
+ *   404      — model id not visible to this token tier
+ *   429      — rate limited on the primary tier; the low-tier model
+ *              has its own bucket so the fallback often succeeds
+ *
+ * Everything else (timeouts, 5xx, 413 token cap, parse errors)
+ * propagates — those are not "wrong model" problems.
  */
 function isModelAccessError(err: unknown): boolean {
   if (!(err instanceof Error)) { return false; }
-  return /GitHub Models returned 40[134]:/.test(err.message);
+  return /GitHub Models returned (?:401|403|404|429):/.test(err.message);
 }
 
 async function callGitHubModelsTier(
