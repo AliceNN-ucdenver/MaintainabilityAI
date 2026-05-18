@@ -207,14 +207,12 @@ export function formatForHuman(opts: FormatForHumanOpts): FormatForHumanResult {
   lines.push('Assign this issue to `@github-copilot` (or another agent) to produce the synthesis. The assignee should:');
   lines.push('');
   lines.push('1. **Read every source** above. The `S[N]` ids are how you cite them.');
-  lines.push('2. **Open a PR** with a new file under `research/` containing the synthesis markdown.');
-  lines.push('3. **Follow the canonical structure** — see `.caterpillar/prompts/research/synthesis.md` in this mesh. The synthesis must have:');
-  lines.push('   - 10 H2 sections in the order: `Executive Summary`, `Cross-Source Analysis`, `Jobs-to-be-Done Analysis`, `Whitespace Analysis`, `Patent Landscape`, `Community Signal`, `Academic Foundation`, `Conclusions`, `Recommendations`, `Open Questions`.');
-  lines.push('   - Every claim cites at least one `S[N]`.');
-  lines.push('   - Every Conclusion `C[N]` cites ≥2 sources (≥1 if confidence is LOW).');
-  lines.push('   - Every Recommendation references at least one `C[N]`.');
+  lines.push('2. **Read the synthesis spec FIRST**: `.caterpillar/prompts/research/synthesis.md` in this mesh is the canonical structure. **Do NOT use any section names, ordering, or formatting other than what that file specifies.** The list of sections, the per-finding scaffolding, the citation rules, and the heading drift constraints all live there — follow them exactly.');
+  lines.push('3. **Open a PR** with a new file under `research/<run-id>/synthesis.md` containing the synthesis markdown.');
   lines.push('4. **PR labels** to apply: `research-synthesis`, `ai-assisted`.');
   lines.push('5. **Once merged**, the PRD agent will read your synthesis + the mesh + impacted code repos to produce per-repo landing issues.');
+  lines.push('');
+  lines.push('> ⚠ Earlier iterations of this comment listed sections inline, which let agents skip the spec file. The spec at `.caterpillar/prompts/research/synthesis.md` is now the **single source of truth** for sections, ordering, citation rules, and per-finding format. The downstream PRD agent parses on exact heading strings — drift breaks the pipeline.');
   lines.push('');
   lines.push('---');
   lines.push('');
