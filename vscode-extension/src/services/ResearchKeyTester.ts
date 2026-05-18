@@ -39,9 +39,11 @@ export async function testResearchKey(id: ResearchSecretId, key: string): Promis
   }
   try {
     switch (id) {
-      case 'anthropic': return await testAnthropic(key);
-      case 'openai':   return await testOpenai(key);
-      case 'tavily':   return await testTavily(key);
+      case 'anthropic':              return await testAnthropic(key);
+      case 'openai':                 return await testOpenai(key);
+      case 'tavily':                 return await testTavily(key);
+      case 'uspto':                  return { ok: true, message: 'USPTO key configured (no live test — pipeline degrades gracefully if invalid).' };
+      case 'governance-mesh-token':  return await testGovernanceMeshToken(key);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -78,6 +80,23 @@ async function testOpenai(key: string): Promise<KeyTestResult> {
   if (res.ok) { return { ok: true, message: 'OpenAI key valid.', status: res.status }; }
   if (res.status === 401) { return { ok: false, message: 'OpenAI rejected the key (401 unauthorized).', status: 401 }; }
   return { ok: false, message: `OpenAI returned ${res.status}.`, status: res.status };
+}
+
+async function testGovernanceMeshToken(key: string): Promise<KeyTestResult> {
+  // Hit /user — every valid GitHub PAT/GHA token returns 200 here.
+  // Fails fast on a bad token without consuming any quota meaningfully.
+  const res = await fetchWithTimeout('https://api.github.com/user', {
+    method: 'GET',
+    headers: {
+      authorization: `Bearer ${key}`,
+      accept: 'application/vnd.github+json',
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (res.ok) { return { ok: true, message: 'GitHub token valid. Verify it has actions:write on code repos + contents:read on mesh.', status: res.status }; }
+  if (res.status === 401) { return { ok: false, message: 'GitHub rejected the token (401 unauthorized).', status: 401 }; }
+  if (res.status === 403) { return { ok: false, message: 'GitHub token lacks permissions (403 — needs at least read access).', status: 403 }; }
+  return { ok: false, message: `GitHub returned ${res.status}.`, status: res.status };
 }
 
 async function testTavily(key: string): Promise<KeyTestResult> {

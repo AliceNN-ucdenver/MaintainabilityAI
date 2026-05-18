@@ -214,6 +214,16 @@
           "default": "",
           "description": "Tavily API key (used by the Archeologist research agent for web search). Get one at https://tavily.com/"
         },
+        "maintainabilityai.llm.usptoApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "USPTO PatentsView API key (optional — adds patent coverage to the Archeologist research run; pipeline degrades gracefully when absent). Request one at https://patentsview.org/apis/keyrequest"
+        },
+        "maintainabilityai.governance.meshToken": {
+          "type": "string",
+          "default": "",
+          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Needs actions:write on every linked code repo (for notify-code-repos.yml dispatch) AND contents:read on the mesh repo (for spec-ready-handler.yml manifest fetch). Push via Looking Glass → Settings → Research to fan out to mesh + every linked code repo."
+        },
         "maintainabilityai.research.llmProvider": {
           "type": "string",
           "enum": [

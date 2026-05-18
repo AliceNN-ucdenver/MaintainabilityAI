@@ -10,6 +10,19 @@ export interface SecretDefinition {
   label: string;
   description: string;
   picked?: boolean;
+  /**
+   * Where this secret needs to live for the workflows to consume it.
+   *   - 'mesh' (default): only the governance mesh repo needs it
+   *     (Tavily, USPTO — only the Archeologist on the mesh uses them).
+   *   - 'mesh+code': needs to be on the mesh AND every linked code repo
+   *     (ANTHROPIC, OPENAI — alice-remediation.yml on each code repo
+   *     uses them; GOVERNANCE_MESH_TOKEN — notify-code-repos.yml on the
+   *     mesh AND spec-ready-handler.yml on each code repo).
+   * Looking Glass surfaces a 'Push to all linked code repos' action for
+   * 'mesh+code' secrets that iterates every BAR's app.yaml repos and
+   * pushes via `gh secret set --repo` per destination.
+   */
+  scope?: 'mesh' | 'mesh+code';
 }
 
 export const SECRETS: SecretDefinition[] = [
@@ -19,8 +32,9 @@ export const SECRETS: SecretDefinition[] = [
     settingKey: 'maintainabilityai.llm.claudeApiKey',
     prefix: 'sk-ant-',
     label: 'Anthropic API Key',
-    description: 'ANTHROPIC_API_KEY — Required for Claude Code workflows',
+    description: 'ANTHROPIC_API_KEY — Claude Code on mesh (research/PRD) + each code repo (alice-remediation)',
     picked: true,
+    scope: 'mesh+code',
   },
   {
     id: 'openai',
@@ -28,7 +42,8 @@ export const SECRETS: SecretDefinition[] = [
     settingKey: 'maintainabilityai.llm.openaiApiKey',
     prefix: 'sk-',
     label: 'OpenAI API Key',
-    description: 'OPENAI_API_KEY — For OpenAI-powered workflows',
+    description: 'OPENAI_API_KEY — For OpenAI-powered workflows on the mesh and code repos',
+    scope: 'mesh+code',
   },
   {
     id: 'tavily',
@@ -36,12 +51,29 @@ export const SECRETS: SecretDefinition[] = [
     settingKey: 'maintainabilityai.llm.tavilyApiKey',
     prefix: 'tvly-',
     label: 'Tavily API Key',
-    description: 'TAVILY_API_KEY — Web search backend for the Archeologist research agent',
+    description: 'TAVILY_API_KEY — Web search backend for the Archeologist research agent (mesh only)',
+    scope: 'mesh',
+  },
+  {
+    id: 'uspto',
+    envName: 'USPTO_API_KEY',
+    settingKey: 'maintainabilityai.llm.usptoApiKey',
+    label: 'USPTO API Key (optional)',
+    description: 'USPTO_API_KEY — Optional patent coverage in the Archeologist run. Pipeline degrades gracefully when absent. Get one at https://patentsview.org/apis/keyrequest',
+    scope: 'mesh',
+  },
+  {
+    id: 'governance-mesh-token',
+    envName: 'GOVERNANCE_MESH_TOKEN',
+    settingKey: 'maintainabilityai.governance.meshToken',
+    label: 'Governance Mesh Token',
+    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT with `actions:write` on every linked code repo (for notify-code-repos.yml dispatch) AND `contents:read` on the mesh repo (for spec-ready-handler.yml manifest fetch). Push to both mesh and code repos — one token, single source of truth.',
+    scope: 'mesh+code',
   },
 ];
 
 /** Subset of SECRETS that the Research + PRD agents need at run time. */
-export const RESEARCH_SECRET_IDS = ['anthropic', 'openai', 'tavily'] as const;
+export const RESEARCH_SECRET_IDS = ['anthropic', 'openai', 'tavily', 'uspto', 'governance-mesh-token'] as const;
 export type ResearchSecretId = (typeof RESEARCH_SECRET_IDS)[number];
 
 export type SecretsTarget = 'governance' | 'workspace';

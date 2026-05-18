@@ -197,18 +197,27 @@ export interface CalmPatch {
 // Research Settings — surfaced in the Looking Glass Settings panel
 // ============================================================================
 
-export type ResearchSecretId = 'anthropic' | 'openai' | 'tavily';
+export type ResearchSecretId =
+  | 'anthropic'
+  | 'openai'
+  | 'tavily'
+  | 'uspto'
+  | 'governance-mesh-token';
 
 /** Per-secret status: which storage tiers it is set in. */
 export interface ResearchSecretStatus {
   id: ResearchSecretId;
   label: string;
   envName: string;
+  description?: string;
   /** Set in VS Code workspace configuration. */
   hasVsCodeValue: boolean;
   /** Present on the configured mesh GitHub repo's Actions secrets.
    *  `null` when we could not list repo secrets (no auth, network error). */
   hasGitHubSecret: boolean | null;
+  /** Where this secret needs to be distributed; drives the
+   *  'Push to all linked code repos' button visibility. */
+  scope: 'mesh' | 'mesh+code';
 }
 
 /** Non-secret runtime preferences for the research + PRD pipelines. */
@@ -316,6 +325,7 @@ export type LookingGlassWebviewMessage =
   | { type: 'saveResearchSecret'; id: ResearchSecretId; value: string }
   | { type: 'testResearchSecret'; id: ResearchSecretId }
   | { type: 'pushResearchSecret'; id: ResearchSecretId }
+  | { type: 'pushResearchSecretToAll'; id: ResearchSecretId }
   | { type: 'saveResearchPrefs'; prefs: ResearchPrefs }
   // Red Queen — orchestration + platform governance editors
   | { type: 'loadOrchestrationPolicy' }
@@ -407,6 +417,7 @@ export type LookingGlassExtensionMessage =
   | { type: 'researchSecretSaved'; id: ResearchSecretId; hasValue: boolean }
   | { type: 'researchTestResult'; id: ResearchSecretId; ok: boolean; message: string }
   | { type: 'researchSecretPushed'; id: ResearchSecretId; ok: boolean; message: string }
+  | { type: 'researchSecretPushedAll'; id: ResearchSecretId; results: Array<{ repo: string; ok: boolean; message: string }>; message: string }
   | { type: 'researchPrefsSaved' }
   // Phase 6 — Cross-BAR governance context
   | { type: 'barGovernanceContext'; barPath: string; linkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[]; siblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[]; platformOverrides: string[] };

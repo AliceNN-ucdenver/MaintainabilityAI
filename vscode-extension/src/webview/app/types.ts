@@ -499,3 +499,11 @@ export interface AdrRecord {
   links?: AdrLink[];
   characteristics?: AdrCharacteristics;
 }
+
+/**
+ * Kept in sync with src/services/SecretsService.ts RESEARCH_SECRET_IDS.
+ * The webview can't import directly across the extension/webview boundary,
+ * so this is a hand-mirrored union — any new secret added there must also
+ * land here, otherwise typecheck catches it via narrowed switch coverage.
+ */
+export type ResearchSecretId = 'anthropic' | 'openai' | 'tavily' | 'uspto' | 'governance-mesh-token';

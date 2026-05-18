@@ -44,9 +44,12 @@ const ENTRY_POINTS = [
 const DEFAULT_COMPLEXITY_BUDGET = 40;
 const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // Ratcheted upward when the Research Settings panel landed (5 new message
-  // cases with conditional bodies; 5 new dispatcher branches).
-  'webview/app/lookingGlass.ts': 194,
-  'webview/LookingGlassPanel.ts': 87,
+  // cases with conditional bodies; 5 new dispatcher branches), then again
+  // when the "push secret to mesh + all linked code repos" affordance added
+  // a new button handler in the webview + a new push-to-all handler in the
+  // extension panel.
+  'webview/app/lookingGlass.ts': 202,
+  'webview/LookingGlassPanel.ts': 88,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 47,

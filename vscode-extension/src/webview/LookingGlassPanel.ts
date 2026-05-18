@@ -395,6 +395,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         await this.onPushResearchSecret(message.id);
         break;
 
+      case 'pushResearchSecretToAll':
+        await this.onPushResearchSecretToAll(message.id);
+        break;
+
       case 'saveResearchPrefs':
         await this.onSaveResearchPrefs(message.prefs);
         break;
@@ -2660,8 +2664,10 @@ Policy file: ${filename}
         id,
         label: def.label,
         envName: def.envName,
+        description: def.description,
         hasVsCodeValue: !!localValue && localValue.trim().length > 0,
         hasGitHubSecret: githubNames ? githubNames.has(def.envName) : null,
+        scope: def.scope ?? 'mesh',
       };
     });
 
@@ -2750,6 +2756,81 @@ Policy file: ${filename}
         message: `Failed to push ${def.envName}: ${toErrorMessage(err)}`,
       });
     }
+  }
+
+  /**
+   * Push a secret to the mesh repo AND every linked code repo found in
+   * the union of every BAR's `app.yaml application.repos[]`. Single
+   * source of truth (the local VS Code value) → fan-out to all
+   * workflows that need it. Used for ANTHROPIC, OPENAI, and
+   * GOVERNANCE_MESH_TOKEN — the three secrets `alice-remediation.yml`
+   * and `spec-ready-handler.yml` consume on the code repo side.
+   *
+   * Returns a per-destination outcome so the UI can show a table
+   * (mesh OK / code-repo-1 OK / code-repo-2 failed: 403 / …).
+   */
+  private async onPushResearchSecretToAll(id: ResearchSecretId) {
+    const def = SECRETS.find(s => s.id === id);
+    if (!def || !def.settingKey) {
+      this.postMessage({ type: 'researchSecretPushedAll', id, results: [], message: `Unknown secret: ${id}` });
+      return;
+    }
+    if (def.scope !== 'mesh+code') {
+      this.postMessage({
+        type: 'researchSecretPushedAll', id, results: [],
+        message: `${def.envName} is a mesh-only secret; use the regular Push button.`,
+      });
+      return;
+    }
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({
+        type: 'researchSecretPushedAll', id, results: [],
+        message: 'No mesh GitHub repo detected. Configure a mesh path with a GitHub remote first.',
+      });
+      return;
+    }
+    const config = vscode.workspace.getConfiguration();
+    const key = config.get<string>(def.settingKey, '');
+    if (!key) {
+      this.postMessage({
+        type: 'researchSecretPushedAll', id, results: [],
+        message: 'No key in VS Code settings to push. Set the value first.',
+      });
+      return;
+    }
+
+    // Collect every linked code repo across every BAR's app.yaml.
+    const meshPath = MeshService.getMeshPath();
+    const codeRepos = new Set<string>();
+    if (meshPath) {
+      try {
+        const reader = new MeshReader(meshPath);
+        for (const bar of reader.listBars()) {
+          for (const url of bar.repos) {
+            const slug = parseGitHubUrl(url);
+            if (slug) { codeRepos.add(`${slug.owner}/${slug.repo}`); }
+          }
+        }
+      } catch { /* mesh empty / mid-init — fall through with just mesh push */ }
+    }
+
+    const destinations = [`${meshRepo.owner}/${meshRepo.repo}`, ...codeRepos];
+    const results: Array<{ repo: string; ok: boolean; message: string }> = [];
+    for (const slug of destinations) {
+      const [owner, repo] = slug.split('/');
+      try {
+        await githubService.setRepoSecret(owner, repo, def.envName, key);
+        results.push({ repo: slug, ok: true, message: 'pushed' });
+      } catch (err) {
+        results.push({ repo: slug, ok: false, message: toErrorMessage(err) });
+      }
+    }
+    const okCount = results.filter(r => r.ok).length;
+    this.postMessage({
+      type: 'researchSecretPushedAll', id, results,
+      message: `Pushed ${def.envName} to ${okCount}/${results.length} destination(s).`,
+    });
   }
 
   private async onSaveResearchPrefs(prefs: ResearchPrefs) {

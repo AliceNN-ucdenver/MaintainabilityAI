@@ -30,6 +30,7 @@ import type {
   CapabilityModelSummary, PolicyFile, NistControl,
   GitSyncStatus, OrgRepo,
   OrgScanRecommendation,
+  ResearchSecretId,
 } from './types';
 
 mermaid.initialize({
@@ -162,14 +163,16 @@ const state = {
   orchPolicy: null as { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } | null,
   // Agent framework for governance review workflows
   agentType: 'claude' as 'claude' | 'copilot' | 'both',
-  // Research Settings (Tavily + Anthropic/OpenAI + non-secret prefs)
+  // Research Settings (Tavily + Anthropic/OpenAI/USPTO/GOVERNANCE_MESH_TOKEN + non-secret prefs)
   researchSettings: null as {
     secrets: {
-      id: 'anthropic' | 'openai' | 'tavily';
+      id: ResearchSecretId;
       label: string;
       envName: string;
+      description?: string;
       hasVsCodeValue: boolean;
       hasGitHubSecret: boolean | null;
+      scope: 'mesh' | 'mesh+code';
     }[];
     prefs: {
       llmProvider: 'github-models' | 'anthropic' | 'openai';
@@ -1891,22 +1894,29 @@ function renderSettingsResearch(): string {
     const status = state.researchSecretStatus[s.id];
     const ghDisabled = !rs.meshRepo || !s.hasVsCodeValue;
     const testDisabled = !s.hasVsCodeValue;
+    // 'mesh+code' secrets get an extra button that fans out to every linked code repo too.
+    const showPushAll = s.scope === 'mesh+code';
+    const description = s.description
+      ? `<div class="settings-research-secret-desc" style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(s.description)}</div>`
+      : '';
     return `
       <div class="settings-research-secret">
         <div class="settings-research-secret-head">
           <div>
             <div class="settings-research-secret-name">${escapeHtml(s.label)}</div>
             <div class="settings-research-secret-env"><code>${escapeHtml(s.envName)}</code></div>
+            ${description}
           </div>
           <div class="settings-research-secret-status">
             ${statusPill(s.hasVsCodeValue, 'VS Code')}
-            ${statusPill(s.hasGitHubSecret, 'GitHub')}
+            ${statusPill(s.hasGitHubSecret, 'Mesh')}
           </div>
         </div>
         <div class="settings-research-secret-actions">
           <button class="btn-secondary btn-research-set" data-secret-id="${escapeAttr(s.id)}">Set value</button>
           <button class="btn-secondary btn-research-test" data-secret-id="${escapeAttr(s.id)}" ${testDisabled ? 'disabled' : ''}>Test</button>
-          <button class="btn-secondary btn-research-push" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''}>Push to GitHub</button>
+          <button class="btn-secondary btn-research-push" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''}>Push to mesh</button>
+          ${showPushAll ? `<button class="btn-secondary btn-research-push-all" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''} title="Push to mesh + every linked code repo from app.yaml repos">Push to mesh + code repos</button>` : ''}
           ${actionPill(status)}
         </div>
       </div>`;
@@ -2602,7 +2612,7 @@ function attachEventHandlers() {
 
   document.querySelectorAll('.btn-research-test').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = ((btn as HTMLElement).dataset.secretId || '') as 'anthropic' | 'openai' | 'tavily';
+      const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
       if (!id) { return; }
       state.researchSecretStatus[id] = { kind: 'busy', message: 'Testing…' };
       render();
@@ -2612,11 +2622,22 @@ function attachEventHandlers() {
 
   document.querySelectorAll('.btn-research-push').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = ((btn as HTMLElement).dataset.secretId || '') as 'anthropic' | 'openai' | 'tavily';
+      const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
       if (!id) { return; }
-      state.researchSecretStatus[id] = { kind: 'busy', message: 'Pushing…' };
+      state.researchSecretStatus[id] = { kind: 'busy', message: 'Pushing to mesh…' };
       render();
       vscode.postMessage({ type: 'pushResearchSecret', id });
+    });
+  });
+
+  document.querySelectorAll('.btn-research-push-all').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
+      if (!id) { return; }
+      if (!confirm('Push this secret to the mesh repo AND every linked code repo found in app.yaml across all BARs?\n\nUse this for ANTHROPIC_API_KEY, OPENAI_API_KEY, and GOVERNANCE_MESH_TOKEN — the three secrets workflows on the code-repo side consume.')) { return; }
+      state.researchSecretStatus[id] = { kind: 'busy', message: 'Pushing to mesh + code repos…' };
+      render();
+      vscode.postMessage({ type: 'pushResearchSecretToAll', id });
     });
   });
 
@@ -4242,7 +4263,7 @@ window.addEventListener('message', (event) => {
     }
 
     case 'researchSecretPushed': {
-      const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
+      const msg = message as { id: ResearchSecretId; ok: boolean; message: string };
       if (msg.ok && state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
         if (s && s.hasGitHubSecret !== null) { s.hasGitHubSecret = true; }
@@ -4253,6 +4274,28 @@ window.addEventListener('message', (event) => {
         delete state.researchSecretStatus[msg.id];
         if (state.view === 'settings') { render(); }
       }, 6000);
+      break;
+    }
+
+    case 'researchSecretPushedAll': {
+      const msg = message as { id: ResearchSecretId; results: Array<{ repo: string; ok: boolean; message: string }>; message: string };
+      const allOk = msg.results.length > 0 && msg.results.every(r => r.ok);
+      if (allOk && state.researchSettings) {
+        const s = state.researchSettings.secrets.find(x => x.id === msg.id);
+        if (s && s.hasGitHubSecret !== null) { s.hasGitHubSecret = true; }
+      }
+      const detail = msg.results
+        .map(r => `${r.ok ? '✓' : '✗'} ${r.repo}${r.ok ? '' : ` — ${r.message}`}`)
+        .join('\n');
+      state.researchSecretStatus[msg.id] = {
+        kind: allOk ? 'success' : 'error',
+        message: `${msg.message}\n${detail}`,
+      };
+      if (state.view === 'settings') { render(); }
+      window.setTimeout(() => {
+        delete state.researchSecretStatus[msg.id];
+        if (state.view === 'settings') { render(); }
+      }, 12_000);
       break;
     }
 

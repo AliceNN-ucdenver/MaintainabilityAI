@@ -67,27 +67,29 @@ The Cheshire **`Scaffold SDLC Structure`** command writes these. If a repo was s
 | Spec-ready handler | `.github/workflows/spec-ready-handler.yml` | Receives the `spec-ready` dispatch from the mesh repo, reads the PRD manifest, creates the RCTRO issue |
 | Alice remediation | `.github/workflows/alice-remediation.yml` | Picks up the RCTRO issue on `@claude please implement`, opens the implementation PR |
 
-### Secrets
+### Secrets — one configuration step, fanned out everywhere
 
-Configure via **`Repository Secrets`** command — it pushes per-secret to the mesh repo, or to the target code repo, depending on which one you select.
+The Research + PRD pipeline reads five secrets total. The Looking Glass **Research** settings panel (which already manages Anthropic / OpenAI / Tavily) also surfaces the two newer ones — **USPTO_API_KEY** and **GOVERNANCE_MESH_TOKEN** — and gives you a single "**Push to mesh + code repos**" action that fans the same value out to the mesh repo *and* every code repo listed in your BARs' `app.yaml`. No more managing N copies of the same key by hand.
 
-**On the mesh repo:**
+| Secret | Required when | Lives on | How to push |
+|---|---|---|---|
+| `TAVILY_API_KEY` | Always (research path uses web search) | Mesh only | "Push to mesh" |
+| `USPTO_API_KEY` | Optional patent coverage | Mesh only | "Push to mesh" |
+| `ANTHROPIC_API_KEY` | `llm_provider: anthropic` on mesh AND `alice-remediation.yml` on each code repo | Mesh + every linked code repo | "Push to mesh + code repos" |
+| `OPENAI_API_KEY` | `llm_provider: openai` on mesh + code repos | Mesh + every linked code repo | "Push to mesh + code repos" |
+| `GOVERNANCE_MESH_TOKEN` | Cross-repo dispatch + private-mesh manifest fetch | Mesh + every linked code repo | "Push to mesh + code repos" |
+| `GITHUB_TOKEN` | Built-in | Auto-provided per workflow | n/a — required for `llm_provider: github-models` (free Copilot routing) |
 
-| Secret | Required when | Notes |
-|---|---|---|
-| `TAVILY_API_KEY` | Always (research path uses web search) | Free tier at [tavily.com](https://tavily.com) — no card needed |
-| `ANTHROPIC_API_KEY` | `llm_provider: anthropic` | Recommended for sonnet-tier synthesis quality |
-| `OPENAI_API_KEY` | `llm_provider: openai` | Alternative to anthropic |
-| `USPTO_API_KEY` | Optional | Adds patent coverage to the research run; pipeline degrades gracefully when absent |
-| `GOVERNANCE_MESH_TOKEN` | Cross-repo dispatch | Fine-grained PAT with `repo` scope on every target code repo `notify-code-repos.yml` dispatches to |
-| `GITHUB_TOKEN` | Built-in | No action needed; required for `llm_provider: github-models` (free Copilot routing) |
+**About `GOVERNANCE_MESH_TOKEN` — one PAT, two scopes:**
 
-**On each target code repo:**
+Create a single fine-grained PAT scoped to your org with **two permissions**:
 
-| Secret | Required when | Notes |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | `alice-remediation.yml` runs Claude on RCTRO issues | Same key as mesh side; configure with the same secret name |
-| `MESH_READ_TOKEN` | The mesh repo is **private** | Fine-grained PAT with `contents:read` on the mesh repo; let `spec-ready-handler.yml` fetch the PRD manifest. Skip for public meshes — `raw.githubusercontent.com` works unauthenticated. |
+- **Actions: write** — for `notify-code-repos.yml` on the mesh repo to fire `repository_dispatch` at every target code repo
+- **Contents: read** — for `spec-ready-handler.yml` on every code repo to fetch the PRD manifest from the (possibly private) mesh repo
+
+Select resource access for **the mesh repo + every code repo listed in your BARs' `app.yaml`**. Then in Looking Glass paste it once and hit "Push to mesh + code repos" — the extension iterates [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and calls `gh secret set GOVERNANCE_MESH_TOKEN --repo <each>`. One PAT, distributed correctly, no per-repo manual config.
+
+The legacy `MESH_READ_TOKEN` is still accepted as a fallback for repos that haven't migrated; `spec-ready-handler.yml` prefers `GOVERNANCE_MESH_TOKEN` when both are present. New deployments should configure `GOVERNANCE_MESH_TOKEN` only.
 
 ### Research preferences (one-time)
 
@@ -100,6 +102,60 @@ Configure via **`Repository Secrets`** command — it pushes per-secret to the m
 - **Cost cap** — per-run token budget the runner warns past
 
 These ride along with each dispatch; the New Research panel lets you override per-run.
+
+---
+
+## How `target_repos` actually flows
+
+Before the end-to-end flow, here is the data path the cross-repo bridge follows so it is clear what file controls what. **This is the answer to "why does `notify-code-repos.yml` know where to dispatch?"**:
+
+```
+~/Documents/governance-mesh/                     ← your mesh repo
+└── platforms/imdb-lite/bars/APP-IMDB-002/
+    └── app.yaml                                  ← canonical source
+        application:
+          id: APP-IMDB-002
+          name: "IMDB Celebs"
+          repos:                                  ← (1) you maintain this
+            - "https://github.com/AliceNN-ucdenver/celeb-api"
+
+                       │
+                       │  gather_mesh_context() reads app.yaml,
+                       │  normalises URLs to owner/repo via
+                       │  normalizeRepoSlug()
+                       ▼
+
+MeshContext.bar.linked_repos                      ← (2) runner internal
+  = ["AliceNN-ucdenver/celeb-api"]
+
+                       │
+                       │  generate_prd_manifest →
+                       │  resolveTargetRepos(mesh) reads linked_repos
+                       ▼
+
+<topic>.manifest.json                             ← (3) committed to mesh
+  {
+    "target_repos": ["AliceNN-ucdenver/celeb-api"],
+    "endpoints": [...],
+    "security_requirements": [...],
+    ...
+  }
+
+                       │
+                       │  PRD PR merges → label-on-merge labels source
+                       │  issue "spec-ready" → notify-code-repos.yml
+                       │  fires + reads manifest.target_repos
+                       ▼
+
+repository_dispatch                               ← (4) GitHub fires
+  event_type: "spec-ready"
+  target: AliceNN-ucdenver/celeb-api              ← exactly the repo from app.yaml
+```
+
+**Practical consequence**: the only place you maintain the dispatch list is each BAR's `app.yaml application.repos[]`. Add or remove a URL there and the next PRD run picks it up automatically. No workflow edits, no manifest hand-editing, no `target_repos` array in the dispatch step.
+
+- **Platform-scope research** (no specific BAR): the runner unions every sibling BAR's `linked_repos` so the PRD dispatches to all code repos under the platform.
+- **Misconfigured BAR** (no `repos:` block): the runner falls back to a `mesh/<bar-id-lowercase>` placeholder so the manifest still validates — visible in the run logs so you can fix `app.yaml`.
 
 ---
 
@@ -161,7 +217,7 @@ On merge: `notify-code-repos.yml` fires. It reads `manifest.target_repos`, dedup
 
 In the target code repo, `spec-ready-handler.yml` fires on the dispatch:
 
-1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` for public meshes; `MESH_READ_TOKEN` + Contents API for private ones)
+1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` for public meshes; `GOVERNANCE_MESH_TOKEN` via Contents API for private ones — legacy `MESH_READ_TOKEN` accepted as fallback)
 2. Validates the manifest shape and confirms this repo is in `target_repos`
 3. Dedupes by `run_id` (re-dispatches comment on the existing issue instead of creating a duplicate)
 4. Builds an RCTRO body — Role/Context/Task/Requirements/Output, one Requirement per endpoint and one per security requirement, each with citation references back to the PRD
@@ -204,7 +260,7 @@ You get the original `research-request` issue, the PRD PR, the spec-ready RCTRO 
 - **Pre-flight check fails: "Tavily key available".** Either set it locally via `Repository Secrets` → `Local config`, or push it to the mesh repo's Actions secrets via `Repository Secrets` → `governance`.
 - **`spec-ready` dispatch never reaches the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and has `repo` scope on the target. The `notify-code-repos.yml` run log will show the dispatch attempt and any 401/404.
 - **The RCTRO issue claims this repo isn't in `target_repos`.** The mesh PRD manifest's `target_repos` array must include this repo's `owner/repo`. Look at `manifest.target_repos` in the PRD PR's sidecar JSON; correct it on the mesh side and let `notify-code-repos.yml` re-dispatch.
-- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** Add `MESH_READ_TOKEN` to the target code repo's secrets (fine-grained PAT, `contents:read` on the mesh repo only).
+- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** Configure `GOVERNANCE_MESH_TOKEN` once via Looking Glass → Settings → Research and click "Push to mesh + code repos". The fine-grained PAT needs `contents:read` on the mesh repo (for this fetch) and `actions:write` on every code repo (for the dispatch from the mesh side) — both scopes on the same token. Avoids having to maintain a separate `MESH_READ_TOKEN` per code repo.
 - **Notifications fire on every reload.** Known cosmetic on `pre-existing` runs only — the service seeds its snapshot with persisted state on activate, so subsequent transitions are deduped. If you see repeated dispatch toasts for the same run id, file a bug with the run id.
 
 ---

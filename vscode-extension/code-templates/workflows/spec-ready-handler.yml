@@ -14,10 +14,23 @@ name: "Spec Ready Handler (PRD → RCTRO issue)"
 #     → alice-remediation.yml picks up the issue on `@claude please implement`
 #
 # Required secrets:
-#   GITHUB_TOKEN   — built in, used to create the issue here
-#   MESH_READ_TOKEN (optional) — fine-grained PAT with contents:read on the
-#                                 mesh repo, required only when the mesh repo
-#                                 is PRIVATE. Public mesh repos work without it.
+#   GITHUB_TOKEN          — built in, used to create the issue here
+#   GOVERNANCE_MESH_TOKEN — fine-grained PAT used as the single source for
+#                            cross-repo reads. Same secret value lives on the
+#                            mesh repo (where notify-code-repos.yml uses its
+#                            actions:write scope to dispatch) and on every
+#                            code repo (where this workflow uses its
+#                            contents:read scope to fetch the PRD manifest
+#                            from the mesh). Push via Looking Glass →
+#                            Settings → Research → "Push to mesh + code
+#                            repos" — one configuration step, distributed
+#                            everywhere. Required for private meshes; works
+#                            for public meshes too (we just bypass the
+#                            unauthenticated raw fetch fallback path).
+#   MESH_READ_TOKEN       — legacy fallback. If GOVERNANCE_MESH_TOKEN isn't
+#                            set, the workflow falls back to this for
+#                            backward compatibility. New deployments should
+#                            consolidate on GOVERNANCE_MESH_TOKEN only.
 #
 # Idempotency: searches for an existing open issue containing the PRD run_id
 # before creating a new one; comments on the existing issue instead.
@@ -82,16 +95,23 @@ jobs:
         id: manifest
         if: success()
         env:
+          # Prefer the new single-token model (GOVERNANCE_MESH_TOKEN). Fall
+          # back to the legacy MESH_READ_TOKEN for repos that haven't
+          # migrated yet. Looking Glass → Settings → Research → "Push to
+          # mesh + code repos" distributes GOVERNANCE_MESH_TOKEN everywhere.
+          GOVERNANCE_MESH_TOKEN: ${{ secrets.GOVERNANCE_MESH_TOKEN }}
           MESH_READ_TOKEN: ${{ secrets.MESH_READ_TOKEN }}
         uses: actions/github-script@v7
         with:
           script: |
             const mesh_repo = '${{ steps.payload.outputs.mesh_repo }}';
             const manifest_path = '${{ steps.payload.outputs.manifest_path }}';
-            const token = process.env.MESH_READ_TOKEN || '';
+            const token = process.env.GOVERNANCE_MESH_TOKEN || process.env.MESH_READ_TOKEN || '';
 
             // Public meshes: raw.githubusercontent.com is unauthenticated.
-            // Private meshes: use the Contents API with MESH_READ_TOKEN.
+            // Private meshes (or when a token is configured): use the
+            // Contents API with GOVERNANCE_MESH_TOKEN (preferred) or
+            // MESH_READ_TOKEN (legacy fallback).
             let body;
             try {
               if (token) {
@@ -110,7 +130,7 @@ jobs:
                 const url = `https://raw.githubusercontent.com/${mesh_repo}/main/${manifest_path}`;
                 const res = await fetch(url);
                 if (!res.ok) {
-                  core.setFailed(`Raw fetch failed (set MESH_READ_TOKEN if mesh is private): ${res.status} ${url}`);
+                  core.setFailed(`Raw fetch failed (set GOVERNANCE_MESH_TOKEN on this code repo if mesh is private): ${res.status} ${url}`);
                   return;
                 }
                 body = await res.text();
