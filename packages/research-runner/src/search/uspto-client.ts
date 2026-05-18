@@ -119,7 +119,10 @@ export async function usptoSearch(opts: UsptoSearchOpts): Promise<UsptoSearchRes
       patentNumber: num,
       title: meta.inventionTitle ?? '',
       abstract: '',
-      url: num ? `https://patents.google.com/patent/US${num}` : '',
+      // earliestPublicationNumber already carries the `US` prefix (e.g.
+      // `US20260064729A1`); patentNumber is plain digits. Avoid the double
+      // `USUS…` URL we were producing.
+      url: num ? `https://patents.google.com/patent/${num.startsWith('US') ? num : `US${num}`}` : '',
       grantedAt: meta.grantDate || meta.filingDate || meta.effectiveFilingDate || '',
       inventors: meta.firstInventorName ? [meta.firstInventorName] : [],
       _xmlUri: xmlUri,
@@ -129,22 +132,51 @@ export async function usptoSearch(opts: UsptoSearchOpts): Promise<UsptoSearchRes
   // Stage 2: parallel best-effort abstract fetch. The full-text XML carries
   // the <abstract> element; we regex it out rather than parsing the whole
   // document (the XML is large and we only want the abstract).
+  //
+  // Telemetry: count how many we attempted and how many succeeded so the
+  // archeologist progress log can surface "uspto abstracts: 3/5" instead of
+  // silently shipping empty `>` blockquotes to the synth agent.
+  let attempted = 0;
+  let succeeded = 0;
+  let missingUri = 0;
+  const failureCauses: string[] = [];
   await Promise.all(stage1.map(async (r) => {
-    if (!r._xmlUri) { return; }
+    if (!r._xmlUri) { missingUri += 1; return; }
+    attempted += 1;
     try {
       const xmlRes = await fetchImpl(r._xmlUri, {
         method: 'GET',
-        headers: { 'X-API-Key': opts.apiKey, accept: 'application/xml' },
+        // The signed XML URI lives on a CDN/storage host, not api.uspto.gov.
+        // It accepts unauthenticated GETs; sending X-API-Key actually causes
+        // some hosts to 403. Use a vanilla request with a polite User-Agent.
+        headers: {
+          accept: 'application/xml,text/xml,*/*',
+          'user-agent': 'maintainabilityai-research-runner/1.0',
+        },
       });
-      if (!xmlRes.ok) { return; }
+      if (!xmlRes.ok) {
+        failureCauses.push(`http${xmlRes.status}`);
+        return;
+      }
       const xml = await xmlRes.text();
       const m = xml.match(/<abstract[^>]*>([\s\S]*?)<\/abstract>/i);
       if (m) {
         const stripped = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         r.abstract = stripped.slice(0, 1000);
+        succeeded += 1;
+      } else {
+        failureCauses.push('no-abstract-tag');
       }
-    } catch { /* ignore — best-effort */ }
+    } catch (err) {
+      failureCauses.push(err instanceof Error ? err.name : 'unknown');
+    }
   }));
+  if (records.length > 0 && process.env.RESEARCH_RUNNER_QUIET !== '1') {
+    process.stderr.write(
+      `[research-runner] uspto abstracts: ${succeeded}/${attempted} fetched ` +
+      `(${missingUri} record(s) had no XML URI; failures: ${failureCauses.join(',') || 'none'})\n`,
+    );
+  }
 
   // Drop the internal _xmlUri marker before returning.
   const results: UsptoResult[] = stage1.map(({ _xmlUri: _ignored, ...rest }) => rest);
