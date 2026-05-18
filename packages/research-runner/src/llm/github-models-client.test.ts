@@ -36,7 +36,7 @@ test('callGitHubModels: sends OpenAI-compatible request to models.github.ai', as
   assert.equal(body.messages[0].content, 'You are terse');
   assert.equal(body.messages[1].role, 'user');
   assert.equal(body.messages[1].content, 'plan queries');
-  assert.equal(body.max_tokens, 100);
+  assert.equal(body.max_completion_tokens, 100);
   assert.equal(body.temperature, 0);
 });
 

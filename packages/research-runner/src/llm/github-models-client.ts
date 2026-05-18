@@ -37,7 +37,8 @@ export type GitHubModelsModel =
   | 'openai/gpt-4.1'
   | 'openai/gpt-4.1-mini'
   | 'openai/gpt-5'
-  | 'openai/gpt-5-mini';
+  | 'openai/gpt-5-mini'
+  | 'openai/gpt-5-chat';
 
 export interface CallGitHubModelsOpts {
   /** Workflow GITHUB_TOKEN. The model server checks the `models:read` permission scope. */
@@ -98,7 +99,12 @@ export async function callGitHubModels(opts: CallGitHubModelsOpts): Promise<Call
       body: JSON.stringify({
         model: opts.model,
         messages,
-        max_tokens: opts.maxTokens,
+        // `max_completion_tokens` is the current Chat Completions param;
+        // `max_tokens` is rejected outright by gpt-5 family models with
+        // HTTP 400. Verified gpt-4o-mini accepts the new name too, so we
+        // use one code path. Temperature stays optional (gpt-5 reasoning
+        // models may ignore it but accept it).
+        max_completion_tokens: opts.maxTokens,
         temperature: opts.temperature ?? 0,
       }),
       signal: controller.signal,

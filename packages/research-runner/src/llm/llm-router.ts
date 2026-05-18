@@ -24,11 +24,15 @@ export type LlmTier = 'plan' | 'synth';
 /** Per-tier per-provider model id lookup. */
 const MODEL_BY_TIER: Record<LlmTier, { anthropic: AnthropicModel; githubModels: GitHubModelsModel }> = {
   plan:  { anthropic: 'claude-haiku-4-5',  githubModels: 'openai/gpt-4o-mini' },
-  // gpt-5-mini is in the "custom" GH-Models tier — 200K input context,
-  // 100K output, reasoning + tool-calling. Bypasses the 8K cap that
-  // hits "high"-tier models like gpt-4.1. Requires the caller's token
-  // to have Models access through a Copilot subscription (GMT path).
-  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-5-mini' },
+  // gpt-5-chat is in the "custom" GH-Models tier (200K input / 100K
+  // output) and is NON-reasoning — verified end-to-end with a live API
+  // call (reasoning_tokens=0, finish_reason=stop). Picked over gpt-5
+  // and gpt-5-mini because those are reasoning models that consume the
+  // completion budget on hidden chain-of-thought before producing any
+  // visible markdown — bad for the synthesis step where we need
+  // predictable structured output. Requires the caller's token to have
+  // Models access through a Copilot subscription (GMT path).
+  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-5-chat' },
 };
 
 export interface CallLlmOpts {

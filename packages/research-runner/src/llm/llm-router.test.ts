@@ -56,7 +56,7 @@ test('callLlm: github-models + tier=plan routes to openai/gpt-4o-mini at models.
   assert.equal(result.costUsd, 0);
 });
 
-test('callLlm: github-models + tier=synth (no anthropicApiKey) stays on openai/gpt-5-mini', async () => {
+test('callLlm: github-models + tier=synth (no anthropicApiKey) stays on openai/gpt-5-chat', async () => {
   let body: { model?: string } = {};
   const fetchImpl: typeof fetch = async (_u, init) => {
     body = JSON.parse(String((init as RequestInit).body));
@@ -66,8 +66,8 @@ test('callLlm: github-models + tier=synth (no anthropicApiKey) stays on openai/g
     provider: 'github-models', tier: 'synth',
     githubToken: 'ghs_test', prompt: 'x', maxTokens: 1, fetchImpl,
   });
-  assert.equal(body.model, 'openai/gpt-5-mini');
-  assert.equal(result.model, 'openai/gpt-5-mini');
+  assert.equal(body.model, 'openai/gpt-5-chat');
+  assert.equal(result.model, 'openai/gpt-5-chat');
   assert.equal(result.provider, 'github-models');
 });
 
