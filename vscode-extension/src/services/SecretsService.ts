@@ -67,7 +67,7 @@ export const SECRETS: SecretDefinition[] = [
     envName: 'GOVERNANCE_MESH_TOKEN',
     settingKey: 'maintainabilityai.governance.meshToken',
     label: 'Governance Mesh Token',
-    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by `notify-code-repos.yml` on the mesh repo to open a PRD landing-issue in each linked code repo. Scopes: Metadata=read (auto), Issues=read+write (create+update the landing-issue), Contents=read (lets the workflow reference files in the code repo when composing the body). Cannot modify code or trigger workflows. Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub.',
+    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by mesh workflows. Two jobs: (1) `notify-code-repos.yml` opens a PRD landing-issue in each linked code repo; (2) `archeologist.yml` routes LLM calls through GitHub Models *as your account* — so a Copilot Pro subscription bumps you off the free-tier 8K cap and onto your personal rate budget (the workflow falls back to the Actions GITHUB_TOKEN if GMT is unset). Scopes: Metadata=read (auto), Issues=read+write (create+update landing-issue), Contents=read (cross-reference code-repo files in the issue body), Models=read (LLM calls under your tier). Cannot modify code or trigger workflows. Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub.',
     scope: 'mesh',
   },
 ];

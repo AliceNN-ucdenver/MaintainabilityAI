@@ -2754,9 +2754,11 @@ Policy file: ${filename}
     //     picker. The token's permissions are deliberately narrow —
     //     Issues:read+write to open and update the landing-issue,
     //     Contents:read to cross-reference code-repo files when
-    //     composing the body. Metadata:read is GitHub's auto-granted
-    //     baseline. No Issues:delete, no code writes, no workflow
-    //     triggers, no broader surface.
+    //     composing the body, Models:read to route LLM calls through
+    //     the token-owner's Copilot tier (escaping the free-tier 8K cap
+    //     on github-actions[bot]). Metadata:read is GitHub's
+    //     auto-granted baseline. No Issues:delete, no code writes, no
+    //     workflow triggers, no broader surface.
     const repoList = codeRepos.length === 0
       ? '(no linked code repos detected — add `repos:` blocks to your BAR app.yaml files)'
       : codeRepos.map(r => `  - ${r}`).join('\n');
@@ -2770,6 +2772,8 @@ Policy file: ${filename}
       `  • Metadata = Read       (auto-granted by GitHub — leave selected)\n` +
       `  • Issues   = Read and write   (notify-code-repos.yml opens + updates the landing-issue)\n` +
       `  • Contents = Read       (lets the workflow cross-reference code-repo files in the issue body)\n\n` +
+      `Account permissions:\n` +
+      `  • Models   = Read       (archeologist.yml routes LLM calls through GitHub Models — using your Copilot tier instead of the free-tier 8K cap)\n\n` +
       `(The token cannot modify code, cannot trigger workflows, cannot read non-listed surfaces.)\n\n` +
       `Expiration: pick what fits your rotation policy.\n\n` +
       `Mesh repo for reference:  ${meshLabel}\n\n` +

@@ -158,7 +158,14 @@ jobs:
           # node_error envelope and continues without patent coverage.
           # Get a key at https://patentsview.org/apis/keyrequest
           USPTO_API_KEY: ${{ secrets.USPTO_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # When provider=github-models, research-runner reads GITHUB_TOKEN to
+          # authenticate against models.github.ai. Prefer GOVERNANCE_MESH_TOKEN
+          # if set — that's a user PAT with `Models: Read`, so calls go
+          # through the token-owner's Copilot tier instead of the
+          # `github-actions[bot]` free tier (which is capped at 8K input
+          # tokens per request). Falls back to the Actions GITHUB_TOKEN
+          # when GMT is absent — same as before this change.
+          GITHUB_TOKEN: ${{ secrets.GOVERNANCE_MESH_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           npx research-runner archeologist \
             --brief "${{ steps.parse.outputs.brief }}" \
