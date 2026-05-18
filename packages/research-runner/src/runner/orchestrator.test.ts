@@ -13,7 +13,6 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { runArcheologist } from './archeologist';
-import { runPrd } from './prd';
 import { readAuditLog, verifyChain } from './audit-emitter';
 import {
   buildFixtureMesh,
@@ -432,29 +431,3 @@ test('runArcheologist: end-to-end with llm_provider=github-models routes through
   }
 });
 
-test('runPrd: still works end-to-end (phase 2a, no LLM yet)', async () => {
-  // PRD orchestrator hasn't moved past phase 2a — no LLM/Tavily calls yet.
-  const handle = buildFixtureMesh();
-  try {
-    const result = await runPrd({
-      brief: {
-        research_source: { kind: 'pr', url: 'https://github.com/x/y/pull/42' },
-        scope: { level: 'bar', id: 'APP-INS-001' },
-        trigger: { kind: 'local_dev' },
-      },
-      meshDir: handle.meshDir,
-      outputDir: 'prds',
-      auditDir: '.research-audit',
-      agentVersion: '0.1.0',
-    });
-
-    assert.match(result.run_id, /^PRD-\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$/);
-    assert.ok(fs.existsSync(result.artifact_path));
-    const manifest = JSON.parse(fs.readFileSync(result.manifest_path, 'utf8'));
-    assert.equal(manifest.mesh_sha, handle.commitSha);
-    const events = readAuditLog(result.audit_log_path);
-    assert.equal(verifyChain(events!), result.chain_root_hash);
-  } finally {
-    destroyFixtureMesh(handle);
-  }
-});
