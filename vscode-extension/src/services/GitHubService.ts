@@ -23,7 +23,7 @@ export class GitHubService {
     return session.accessToken;
   }
 
-  private async getClient(): Promise<Octokit> {
+  async getClient(): Promise<Octokit> {
     if (!this.octokit) {
       const token = await this.getToken();
       this.octokit = new Octokit({ auth: token });

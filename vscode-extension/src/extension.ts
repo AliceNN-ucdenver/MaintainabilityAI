@@ -7,6 +7,8 @@ import { openScorecardCommand } from './commands/openScorecard';
 import { lookingGlassCommand } from './commands/lookingGlass';
 import { oraculumCommand } from './commands/oraculum';
 import { bugReportCommand } from './commands/bugReport';
+import { NewResearchPanel } from './webview/NewResearchPanel';
+import type { AgentKind } from './services/ResearchPreflightService';
 
 import { checkPrerequisitesOnActivation } from './services/PrerequisiteChecker';
 import { configService } from './services/ConfigService';
@@ -84,6 +86,10 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'maintainabilityai.bugReport',
         () => bugReportCommand(context)
+      ),
+      vscode.commands.registerCommand(
+        'maintainabilityai.newResearch',
+        (agent?: AgentKind) => NewResearchPanel.createOrShow(context, agent ?? 'archeologist')
       ),
     );
 

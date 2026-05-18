@@ -90,6 +90,12 @@
         "title": "Report a Bug",
         "category": "MaintainabilityAI",
         "icon": "$(bug)"
+      },
+      {
+        "command": "maintainabilityai.newResearch",
+        "title": "New Research / PRD Run",
+        "category": "MaintainabilityAI",
+        "icon": "$(search)"
       }
     ],
     "viewsContainers": {
@@ -147,6 +153,9 @@
         },
         {
           "command": "maintainabilityai.bugReport"
+        },
+        {
+          "command": "maintainabilityai.newResearch"
         }
       ]
     },
