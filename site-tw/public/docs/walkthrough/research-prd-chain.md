@@ -87,9 +87,7 @@ Create a single fine-grained PAT scoped to your org with **two permissions**:
 - **Actions: write** — for `notify-code-repos.yml` on the mesh repo to fire `repository_dispatch` at every target code repo
 - **Contents: read** — for `spec-ready-handler.yml` on every code repo to fetch the PRD manifest from the (possibly private) mesh repo
 
-Select resource access for **the mesh repo + every code repo listed in your BARs' `app.yaml`**. Then in Looking Glass paste it once and hit "Push to mesh + code repos" — the extension iterates [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and calls `gh secret set GOVERNANCE_MESH_TOKEN --repo <each>`. One PAT, distributed correctly, no per-repo manual config.
-
-The legacy `MESH_READ_TOKEN` is still accepted as a fallback for repos that haven't migrated; `spec-ready-handler.yml` prefers `GOVERNANCE_MESH_TOKEN` when both are present. New deployments should configure `GOVERNANCE_MESH_TOKEN` only.
+Select resource access for **the mesh repo + every code repo listed in your BARs' `app.yaml`**. Then in Looking Glass paste it once and hit "Push to mesh + code repos" — the extension iterates [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and calls `gh secret set GOVERNANCE_MESH_TOKEN --repo <each>`. One PAT, distributed correctly, no per-repo manual config. Imagine the alternative for a portfolio of 100 private code repos: 100 separate fine-grained PATs each with `contents:read` on the mesh — a per-repo babysitting job. This is the answer.
 
 ### Research preferences (one-time)
 
@@ -217,7 +215,7 @@ On merge: `notify-code-repos.yml` fires. It reads `manifest.target_repos`, dedup
 
 In the target code repo, `spec-ready-handler.yml` fires on the dispatch:
 
-1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` for public meshes; `GOVERNANCE_MESH_TOKEN` via Contents API for private ones — legacy `MESH_READ_TOKEN` accepted as fallback)
+1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` for public meshes; `GOVERNANCE_MESH_TOKEN` via Contents API for private ones)
 2. Validates the manifest shape and confirms this repo is in `target_repos`
 3. Dedupes by `run_id` (re-dispatches comment on the existing issue instead of creating a duplicate)
 4. Builds an RCTRO body — Role/Context/Task/Requirements/Output, one Requirement per endpoint and one per security requirement, each with citation references back to the PRD
@@ -260,7 +258,7 @@ You get the original `research-request` issue, the PRD PR, the spec-ready RCTRO 
 - **Pre-flight check fails: "Tavily key available".** Either set it locally via `Repository Secrets` → `Local config`, or push it to the mesh repo's Actions secrets via `Repository Secrets` → `governance`.
 - **`spec-ready` dispatch never reaches the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and has `repo` scope on the target. The `notify-code-repos.yml` run log will show the dispatch attempt and any 401/404.
 - **The RCTRO issue claims this repo isn't in `target_repos`.** The mesh PRD manifest's `target_repos` array must include this repo's `owner/repo`. Look at `manifest.target_repos` in the PRD PR's sidecar JSON; correct it on the mesh side and let `notify-code-repos.yml` re-dispatch.
-- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** Configure `GOVERNANCE_MESH_TOKEN` once via Looking Glass → Settings → Research and click "Push to mesh + code repos". The fine-grained PAT needs `contents:read` on the mesh repo (for this fetch) and `actions:write` on every code repo (for the dispatch from the mesh side) — both scopes on the same token. Avoids having to maintain a separate `MESH_READ_TOKEN` per code repo.
+- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** Configure `GOVERNANCE_MESH_TOKEN` once via Looking Glass → Settings → Research and click "Push to mesh + code repos". The fine-grained PAT needs `contents:read` on the mesh repo (for this fetch) and `actions:write` on every code repo (for the dispatch from the mesh side) — both scopes on the same token, distributed everywhere it's needed in one click.
 - **Notifications fire on every reload.** Known cosmetic on `pre-existing` runs only — the service seeds its snapshot with persisted state on activate, so subsequent transitions are deduped. If you see repeated dispatch toasts for the same run id, file a bug with the run id.
 
 ---

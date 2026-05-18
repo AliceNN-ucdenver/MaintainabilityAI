@@ -25,12 +25,8 @@ name: "Spec Ready Handler (PRD → RCTRO issue)"
 #                            Settings → Research → "Push to mesh + code
 #                            repos" — one configuration step, distributed
 #                            everywhere. Required for private meshes; works
-#                            for public meshes too (we just bypass the
+#                            for public meshes too (lets us bypass the
 #                            unauthenticated raw fetch fallback path).
-#   MESH_READ_TOKEN       — legacy fallback. If GOVERNANCE_MESH_TOKEN isn't
-#                            set, the workflow falls back to this for
-#                            backward compatibility. New deployments should
-#                            consolidate on GOVERNANCE_MESH_TOKEN only.
 #
 # Idempotency: searches for an existing open issue containing the PRD run_id
 # before creating a new one; comments on the existing issue instead.
@@ -95,23 +91,21 @@ jobs:
         id: manifest
         if: success()
         env:
-          # Prefer the new single-token model (GOVERNANCE_MESH_TOKEN). Fall
-          # back to the legacy MESH_READ_TOKEN for repos that haven't
-          # migrated yet. Looking Glass → Settings → Research → "Push to
-          # mesh + code repos" distributes GOVERNANCE_MESH_TOKEN everywhere.
+          # GOVERNANCE_MESH_TOKEN is the single source for cross-repo reads.
+          # Looking Glass → Settings → Research → "Push to mesh + code
+          # repos" fans the value out to the mesh + every linked code
+          # repo from app.yaml. One token, one configuration step.
           GOVERNANCE_MESH_TOKEN: ${{ secrets.GOVERNANCE_MESH_TOKEN }}
-          MESH_READ_TOKEN: ${{ secrets.MESH_READ_TOKEN }}
         uses: actions/github-script@v7
         with:
           script: |
             const mesh_repo = '${{ steps.payload.outputs.mesh_repo }}';
             const manifest_path = '${{ steps.payload.outputs.manifest_path }}';
-            const token = process.env.GOVERNANCE_MESH_TOKEN || process.env.MESH_READ_TOKEN || '';
+            const token = process.env.GOVERNANCE_MESH_TOKEN || '';
 
             // Public meshes: raw.githubusercontent.com is unauthenticated.
             // Private meshes (or when a token is configured): use the
-            // Contents API with GOVERNANCE_MESH_TOKEN (preferred) or
-            // MESH_READ_TOKEN (legacy fallback).
+            // Contents API with GOVERNANCE_MESH_TOKEN.
             let body;
             try {
               if (token) {
