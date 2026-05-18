@@ -1,19 +1,19 @@
 /**
  * tavily_search — pure_api node.
  *
- * Runs the 5 web queries from the QueryPlan against Tavily in parallel.
+ * Runs every web query from the QueryPlan against Tavily in parallel.
  * Per-query failures are isolated (one query failing doesn't kill the run);
  * the orchestrator records per-query telemetry for the audit log.
  *
- * Returns the raw, un-deduplicated results plus the per-query envelopes the
- * audit emitter needs.
+ * Emits ProviderResult[] tagged with provider='tavily' for the shared
+ * dedupe-and-rank step that handles results from every provider.
  */
-import { tavilySearch, type TavilyResult, type TavilySearchResult } from '../../search/tavily-client';
+import { tavilySearch, type TavilySearchResult } from '../../search/tavily-client';
+import type { ProviderResult } from '../../search/provider-result';
 
 export interface TavilySearchNodeOpts {
   apiKey: string;
   queries: string[];        // typically QueryPlan.web (length 5)
-  /** Tavily results per query. Default 5. */
   maxResultsPerQuery?: number;
   searchDepth?: 'basic' | 'advanced';
   fetchImpl?: typeof fetch;
@@ -23,17 +23,14 @@ export interface QueryEnvelope {
   query: string;
   httpStatus: number;
   responseBytes: number;
-  /** Empty array on failure. */
-  results: TavilyResult[];
+  resultCount: number;
   /** Populated when this query failed. */
   error?: string;
 }
 
 export interface TavilySearchNodeResult {
-  /** Per-query envelopes, in input order. */
   envelopes: QueryEnvelope[];
-  /** All results flattened (still needs dedupe). */
-  allResults: Array<TavilyResult & { fromQuery: string }>;
+  results: ProviderResult[];
 }
 
 export async function runTavilySearch(opts: TavilySearchNodeOpts): Promise<TavilySearchNodeResult> {
@@ -41,7 +38,6 @@ export async function runTavilySearch(opts: TavilySearchNodeOpts): Promise<Tavil
     throw new Error('TAVILY_API_KEY missing — set the env var or pass apiKey directly');
   }
 
-  // Parallelise — Tavily's free tier handles 5 concurrent requests fine.
   const settled = await Promise.allSettled(
     opts.queries.map(query => tavilySearch({
       apiKey: opts.apiKey,
@@ -53,7 +49,7 @@ export async function runTavilySearch(opts: TavilySearchNodeOpts): Promise<Tavil
   );
 
   const envelopes: QueryEnvelope[] = [];
-  const allResults: Array<TavilyResult & { fromQuery: string }> = [];
+  const results: ProviderResult[] = [];
 
   for (let i = 0; i < opts.queries.length; i++) {
     const query = opts.queries[i];
@@ -64,16 +60,24 @@ export async function runTavilySearch(opts: TavilySearchNodeOpts): Promise<Tavil
         query,
         httpStatus: ok.httpStatus,
         responseBytes: ok.responseBytes,
-        results: ok.results,
+        resultCount: ok.results.length,
       });
       for (const r of ok.results) {
-        allResults.push({ ...r, fromQuery: query });
+        results.push({
+          provider: 'tavily',
+          fromQuery: query,
+          title: r.title,
+          url: r.url,
+          content: r.content,
+          score: r.score,
+          publishedDate: r.publishedDate,
+        });
       }
     } else {
       const err = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
-      envelopes.push({ query, httpStatus: 0, responseBytes: 0, results: [], error: err });
+      envelopes.push({ query, httpStatus: 0, responseBytes: 0, resultCount: 0, error: err });
     }
   }
 
-  return { envelopes, allResults };
+  return { envelopes, results };
 }

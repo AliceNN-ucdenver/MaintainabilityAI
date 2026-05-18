@@ -1,38 +1,37 @@
 /**
  * dedupe_and_rank — pure node.
  *
- * Inputs: the raw flat list of Tavily results (each tagged with the query
- * it came from).
+ * Inputs: the flat list of ProviderResult from every search node
+ * (tavily, arxiv, uspto, hackernews — any combination).
  *
  * Behaviour:
  *   1. Canonicalize URLs (lowercase host, strip default port, drop fragment,
  *      drop trailing slash, drop common tracking query params).
  *   2. Collapse duplicates by canonical URL — keep the highest-scoring
- *      occurrence's title/excerpt, sum the Tavily relevance scores,
- *      multiply by a small recall boost (1 + 0.15 × extra occurrences).
- *   3. Sort desc by composite score, take the top N (default 20).
+ *      occurrence's title/excerpt, sum scores, multiply by a small recall
+ *      boost (1 + 0.15 × extra queries that surfaced the same source).
+ *   3. Sort desc by composite score, take top N (default 20).
  *   4. Assign sequential S1, S2, … ids — the canonical citation tokens the
- *      synthesis prompt references.
+ *      synthesis prompt references. Preserves provider, authors, and
+ *      publication date through to the published doc.
  */
-import type { TavilyResult } from '../../search/tavily-client';
-import type { RankedSource } from '../../schemas';
+import type { ProviderResult } from '../../search/provider-result';
+import type { RankedSource, SearchProvider } from '../../schemas';
 
 export interface DedupeAndRankOpts {
-  /** Flattened Tavily results across all queries; each carries `fromQuery`. */
-  allResults: Array<TavilyResult & { fromQuery: string }>;
-  /** Cap on returned sources. Default 20. */
+  /** Flat ProviderResult list across all providers. */
+  results: ProviderResult[];
   topN?: number;
-  /** ISO timestamp to stamp on every RankedSource. Defaults to now(). */
   retrievedAt?: string;
 }
 
 interface Aggregated {
   canonicalUrl: string;
-  /** Best display URL we saw (often the same as canonical, but preserves scheme + casing where it matters). */
-  displayUrl: string;
+  provider: SearchProvider;
   title: string;
   excerpt: string;
   publishedAt?: string;
+  authors?: string[];
   /** Sum of relevance scores across all occurrences. */
   scoreSum: number;
   occurrences: number;
@@ -45,29 +44,22 @@ const TRACKING_PARAMS = new Set([
   'gclid', 'fbclid', 'mc_cid', 'mc_eid', 'ref', 'ref_src', 'ref_url',
 ]);
 
-/** RFC 3986-flavored canonicalization tuned for dedupe across query results. */
 export function canonicalizeUrl(rawUrl: string): string {
   try {
     const u = new URL(rawUrl.trim());
-    // Lowercase the host
     u.hostname = u.hostname.toLowerCase();
-    // Strip default ports
     if ((u.protocol === 'http:' && u.port === '80') || (u.protocol === 'https:' && u.port === '443')) {
       u.port = '';
     }
-    // Drop tracking params, preserve content-bearing ones
     for (const key of [...u.searchParams.keys()]) {
       if (TRACKING_PARAMS.has(key.toLowerCase())) { u.searchParams.delete(key); }
     }
-    // Drop the fragment (#anchor)
     u.hash = '';
-    // Drop the trailing slash on the path (but never an empty path)
     let pathname = u.pathname.replace(/\/+$/, '');
     if (pathname === '') { pathname = '/'; }
     u.pathname = pathname;
     return u.toString();
   } catch {
-    // If URL parsing fails, fall back to the raw string lowercased.
     return rawUrl.trim().toLowerCase();
   }
 }
@@ -77,8 +69,7 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
   const retrievedAt = opts.retrievedAt ?? new Date().toISOString();
 
   const bucket = new Map<string, Aggregated>();
-
-  for (const r of opts.allResults) {
+  for (const r of opts.results) {
     if (!r.url) { continue; }
     const canonical = canonicalizeUrl(r.url);
     const existing = bucket.get(canonical);
@@ -86,21 +77,21 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
       existing.scoreSum += r.score;
       existing.occurrences += 1;
       existing.queries.add(r.fromQuery);
-      // Keep the highest-scoring occurrence's title/excerpt for display.
+      // Keep the highest-scoring occurrence's title/excerpt + first non-empty published/authors
       if (r.score > existing.scoreSum / existing.occurrences) {
         existing.title = r.title || existing.title;
-        existing.excerpt = r.content || existing.excerpt;
+        if (r.content) { existing.excerpt = r.content.slice(0, 500); }
       }
-      if (!existing.publishedAt && r.publishedDate) {
-        existing.publishedAt = r.publishedDate;
-      }
+      if (!existing.publishedAt && r.publishedDate) { existing.publishedAt = r.publishedDate; }
+      if (!existing.authors && r.authors && r.authors.length > 0) { existing.authors = r.authors; }
     } else {
       bucket.set(canonical, {
         canonicalUrl: canonical,
-        displayUrl: r.url,
+        provider: r.provider,
         title: r.title || canonical,
         excerpt: (r.content || '').slice(0, 500),
         publishedAt: r.publishedDate,
+        authors: r.authors,
         scoreSum: r.score,
         occurrences: 1,
         queries: new Set([r.fromQuery]),
@@ -108,9 +99,6 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
     }
   }
 
-  // Composite score: sum-of-relevance × recall-boost. Recall-boost = 1 + 0.15
-  // per extra query that surfaced this source (so a result that hit 3 of 5
-  // queries gets boosted ~1.3×). Clamp to [0, 1] for the RankedSource schema.
   const ranked = [...bucket.values()]
     .map(a => {
       const recall = 1 + 0.15 * (a.queries.size - 1);
@@ -122,15 +110,14 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
 
   return ranked.map((entry, i): RankedSource => ({
     id: `S${i + 1}`,
-    provider: 'tavily',
+    provider: entry.aggregated.provider,
     title: entry.aggregated.title.slice(0, 300),
-    // Use the canonical (deduped) URL on output — strips tracking params and
-    // normalises case so the published research doc cites a stable URL.
     url: entry.aggregated.canonicalUrl,
     retrieved_at: retrievedAt,
     salience_score: roundTo(entry.composite, 4),
     excerpt: entry.aggregated.excerpt.slice(0, 500),
     ...(entry.aggregated.publishedAt ? { published_at: entry.aggregated.publishedAt } : {}),
+    ...(entry.aggregated.authors && entry.aggregated.authors.length > 0 ? { authors: entry.aggregated.authors } : {}),
   }));
 }
 

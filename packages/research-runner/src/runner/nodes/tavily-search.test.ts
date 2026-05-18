@@ -19,8 +19,8 @@ test('runTavilySearch: runs every query and tags results with fromQuery', async 
 
   const result = await runTavilySearch({ apiKey: 'tvly-test', queries, fetchImpl });
   assert.equal(result.envelopes.length, 3);
-  assert.equal(result.allResults.length, 3);
-  assert.deepEqual(result.allResults.map(r => r.fromQuery), queries);
+  assert.equal(result.results.length, 3);
+  assert.deepEqual(result.results.map(r => r.fromQuery), queries);
 });
 
 test('runTavilySearch: isolates per-query failures into node_error envelopes', async () => {
@@ -35,12 +35,11 @@ test('runTavilySearch: isolates per-query failures into node_error envelopes', a
 
   const result = await runTavilySearch({ apiKey: 'k', queries, fetchImpl });
   assert.equal(result.envelopes.length, 3);
-  assert.equal(result.envelopes[1].error, undefined ? undefined : result.envelopes[1].error);
   assert.match(result.envelopes[1].error ?? '', /Tavily returned 500/);
-  assert.equal(result.envelopes[0].results.length, 1);
-  assert.equal(result.envelopes[2].results.length, 1);
-  // allResults skips the failed query
-  assert.equal(result.allResults.length, 2);
+  assert.equal(result.envelopes[0].resultCount, 1);
+  assert.equal(result.envelopes[2].resultCount, 1);
+  // Flat results skip the failed query
+  assert.equal(result.results.length, 2);
 });
 
 test('runTavilySearch: throws when apiKey missing (fail-fast)', async () => {

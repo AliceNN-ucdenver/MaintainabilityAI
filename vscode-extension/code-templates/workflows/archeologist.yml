@@ -152,6 +152,10 @@ jobs:
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          # USPTO_API_KEY is optional; when absent the runner emits a
+          # node_error envelope and continues without patent coverage.
+          # Get a key at https://patentsview.org/apis/keyrequest
+          USPTO_API_KEY: ${{ secrets.USPTO_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npx research-runner archeologist \
