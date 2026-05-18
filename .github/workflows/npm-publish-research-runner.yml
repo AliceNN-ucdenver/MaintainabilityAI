@@ -23,10 +23,12 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22 expands `src/**/*.test.ts` glob in `node --test`;
+          # Node 20 receives the literal string and fails.
+          node-version: 22
           registry-url: https://registry.npmjs.org
           cache: npm
           cache-dependency-path: packages/research-runner/package-lock.json
