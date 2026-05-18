@@ -387,6 +387,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         await this.onSaveResearchSecret(message.id, message.value);
         break;
 
+      case 'promptResearchSecret':
+        await this.onPromptResearchSecret(message.id);
+        break;
+
       case 'testResearchSecret':
         await this.onTestResearchSecret(message.id);
         break;
@@ -2684,6 +2688,37 @@ Policy file: ${filename}
       type: 'researchSettings',
       payload: { secrets, prefs, meshRepo },
     });
+  }
+
+  /**
+   * Webview-initiated "Set value" flow. Opens a native VS Code
+   * showInputBox (with password=true so the value is masked), then
+   * persists the result via onSaveResearchSecret. Replaces an earlier
+   * window.prompt() call inside the webview that silently no-op'd on
+   * some VS Code builds.
+   */
+  private async onPromptResearchSecret(id: ResearchSecretId) {
+    const def = SECRETS.find(s => s.id === id);
+    if (!def) {
+      this.postMessage({ type: 'error', message: `Unknown research secret: ${id}` });
+      return;
+    }
+    const value = await vscode.window.showInputBox({
+      title: `Set ${def.label}`,
+      prompt: `Stored as VS Code setting ${def.settingKey}. Use the per-row Push button to copy it to GitHub Actions secrets.`,
+      placeHolder: def.prefix ? `${def.prefix}…` : def.envName,
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: (input) => {
+        if (!input.trim()) { return 'Value is required.'; }
+        if (def.prefix && !input.startsWith(def.prefix)) {
+          return `${def.label} should start with "${def.prefix}".`;
+        }
+        return null;
+      },
+    });
+    if (value === undefined) { return; }    // user cancelled
+    await this.onSaveResearchSecret(id, value);
   }
 
   private async onSaveResearchSecret(id: ResearchSecretId, value: string) {

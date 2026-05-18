@@ -1894,8 +1894,17 @@ function renderSettingsResearch(): string {
     const status = state.researchSecretStatus[s.id];
     const ghDisabled = !rs.meshRepo || !s.hasVsCodeValue;
     const testDisabled = !s.hasVsCodeValue;
-    // 'mesh+code' secrets get an extra button that fans out to every linked code repo too.
-    const showPushAll = s.scope === 'mesh+code';
+    // One push button per scope:
+    //   mesh-only secrets (Tavily, USPTO)      → "Push to mesh"
+    //   mesh+code secrets (Anthropic, OpenAI,
+    //   GOVERNANCE_MESH_TOKEN)                  → "Push to mesh + code repos"
+    // Never both — pushing a mesh+code secret only to the mesh leaves the
+    // distribution half-done, which is worse than not pushing at all.
+    const pushLabel = s.scope === 'mesh+code' ? 'Push to mesh + code repos' : 'Push to mesh';
+    const pushClass = s.scope === 'mesh+code' ? 'btn-research-push-all' : 'btn-research-push';
+    const pushTitle = s.scope === 'mesh+code'
+      ? 'Push to mesh + every linked code repo from app.yaml repos'
+      : 'Push to the mesh repo Actions secrets';
     const description = s.description
       ? `<div class="settings-research-secret-desc" style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(s.description)}</div>`
       : '';
@@ -1915,8 +1924,7 @@ function renderSettingsResearch(): string {
         <div class="settings-research-secret-actions">
           <button class="btn-secondary btn-research-set" data-secret-id="${escapeAttr(s.id)}">Set value</button>
           <button class="btn-secondary btn-research-test" data-secret-id="${escapeAttr(s.id)}" ${testDisabled ? 'disabled' : ''}>Test</button>
-          <button class="btn-secondary btn-research-push" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''}>Push to mesh</button>
-          ${showPushAll ? `<button class="btn-secondary btn-research-push-all" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''} title="Push to mesh + every linked code repo from app.yaml repos">Push to mesh + code repos</button>` : ''}
+          <button class="btn-secondary ${pushClass}" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''} title="${escapeAttr(pushTitle)}">${escapeHtml(pushLabel)}</button>
           ${actionPill(status)}
         </div>
       </div>`;
@@ -2595,18 +2603,14 @@ function attachEventHandlers() {
     vscode.postMessage({ type: 'configureMeshSecrets' });
   });
 
-  // Research Settings — Set / Test / Push per-secret + Save Preferences
+  // Research Settings — Set / Test / Push per-secret + Save Preferences.
+  // Set value now round-trips through the extension's showInputBox
+  // (window.prompt is unreliable inside VS Code webviews).
   document.querySelectorAll('.btn-research-set').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = ((btn as HTMLElement).dataset.secretId || '') as 'anthropic' | 'openai' | 'tavily';
+      const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
       if (!id) { return; }
-      const def = state.researchSettings?.secrets.find(s => s.id === id);
-      const label = def?.label || id;
-      const value = window.prompt(`Enter ${label} (will be saved to VS Code settings):`) || '';
-      if (!value) { return; }
-      state.researchSecretStatus[id] = { kind: 'busy', message: 'Saving…' };
-      render();
-      vscode.postMessage({ type: 'saveResearchSecret', id, value: value.trim() });
+      vscode.postMessage({ type: 'promptResearchSecret', id });
     });
   });
 

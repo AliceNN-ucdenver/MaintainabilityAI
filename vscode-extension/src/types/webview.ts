@@ -323,6 +323,7 @@ export type LookingGlassWebviewMessage =
   // Research Settings — Tavily + Anthropic/OpenAI keys + non-secret prefs
   | { type: 'loadResearchSettings' }
   | { type: 'saveResearchSecret'; id: ResearchSecretId; value: string }
+  | { type: 'promptResearchSecret'; id: ResearchSecretId }
   | { type: 'testResearchSecret'; id: ResearchSecretId }
   | { type: 'pushResearchSecret'; id: ResearchSecretId }
   | { type: 'pushResearchSecretToAll'; id: ResearchSecretId }

@@ -47,9 +47,11 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // cases with conditional bodies; 5 new dispatcher branches), then again
   // when the "push secret to mesh + all linked code repos" affordance added
   // a new button handler in the webview + a new push-to-all handler in the
-  // extension panel.
+  // extension panel. Bumped once more when promptResearchSecret was added
+  // for the showInputBox round-trip (window.prompt is unreliable in some
+  // webview builds).
   'webview/app/lookingGlass.ts': 202,
-  'webview/LookingGlassPanel.ts': 88,
+  'webview/LookingGlassPanel.ts': 89,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 47,
