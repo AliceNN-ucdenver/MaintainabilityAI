@@ -146,11 +146,17 @@ export async function usptoSearch(opts: UsptoSearchOpts): Promise<UsptoSearchRes
     try {
       const xmlRes = await fetchImpl(r._xmlUri, {
         method: 'GET',
-        // The signed XML URI lives on a CDN/storage host, not api.uspto.gov.
-        // It accepts unauthenticated GETs; sending X-API-Key actually causes
-        // some hosts to 403. Use a vanilla request with a polite User-Agent.
+        // Mirror the NCMS reference exactly: same headers dict on the
+        // search call AND the XML fetch (X-API-Key + Accept: json). My
+        // earlier "drop X-API-Key on stage 2" was wrong — the CDN does
+        // gate on it, and removing it produced http403 across the
+        // board (seen in #49 logs: "0/5 fetched, failures: http403 ×5").
+        // The Accept header looks wrong-shape (json for an XML doc) but
+        // the upstream ignores it and returns XML regardless; matches
+        // the NCMS pattern that works in production.
         headers: {
-          accept: 'application/xml,text/xml,*/*',
+          accept: 'application/json',
+          'X-API-Key': opts.apiKey,
           'user-agent': 'maintainabilityai-research-runner/1.0',
         },
       });
