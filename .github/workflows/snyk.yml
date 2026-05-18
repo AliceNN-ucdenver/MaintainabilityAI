@@ -14,9 +14,18 @@ permissions:
 env:
   # Required: add this in GitHub → Settings → Secrets and variables → Actions → New repository secret
   SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-  # Intentional vulnerable training fixtures are scanned in workshop exercises,
-  # but excluded from the production repository SAST gate.
-  SNYK_CODE_EXCLUDES: examples/owasp,examples/agents
+  # Intentional vulnerable training fixtures live under /examples — see
+  # CLAUDE.md "Don't fix insecure.ts files". They are excluded from both
+  # the SCA and Code scan via the .snyk policy file at repo root, AND
+  # post-filtered out of summary + gate output below as a defense in
+  # depth (Snyk Code's --exclude CLI flag is unreliable across versions).
+  #
+  # If you add a new top-level fixture directory, mirror it in .snyk
+  # AND in the SNYK_EXCLUDE_PREFIXES list below.
+  SNYK_CODE_EXCLUDES: examples
+  # Comma-separated path prefixes the summary/gate jq filters drop from
+  # results. Matched as `.uri | startswith("<prefix>/")`.
+  SNYK_EXCLUDE_PREFIXES: examples
   # Optional: uncomment and set if you want to pin scans to a specific Snyk org
   # SNYK_ORG: your-snyk-org-slug
 
@@ -136,9 +145,29 @@ jobs:
           echo ""
           echo "=== Code Scan (SAST) ==="
           if [ -f snyk-code.json ]; then
-            COUNT_CODE=$(jq '[.runs[]?.results[]?] | length' snyk-code.json 2>/dev/null || echo 0)
-            echo "Total code issues: ${COUNT_CODE}"
-            jq -r '.runs[]?.results[]? | "[\(.level|ascii_upcase)] \(.message.text) at \(.locations[0].physicalLocation.artifactLocation.uri // "<unknown>"):\(.locations[0].physicalLocation.region.startLine // 0)"' snyk-code.json 2>/dev/null || echo "No code issues or error parsing results"
+            # Drop findings whose path starts with any prefix in
+            # SNYK_EXCLUDE_PREFIXES (e.g. `examples/`) — the workshop
+            # fixtures are intentionally insecure and would otherwise
+            # dominate the SAST signal.
+            EXCLUDE_FILTER=$(printf '%s\n' "${SNYK_EXCLUDE_PREFIXES}" | tr ',' '\n' | jq -R 'select(length > 0)' | jq -s '.' )
+            COUNT_CODE_RAW=$(jq '[.runs[]?.results[]?] | length' snyk-code.json 2>/dev/null || echo 0)
+            COUNT_CODE=$(jq --argjson excl "${EXCLUDE_FILTER}" '
+              [.runs[]?.results[]?
+               | select((.locations[0].physicalLocation.artifactLocation.uri // "") as $uri
+                        | $excl | map(. as $p | $uri | startswith($p + "/")) | any | not)]
+              | length
+            ' snyk-code.json 2>/dev/null || echo 0)
+            SKIPPED=$((COUNT_CODE_RAW - COUNT_CODE))
+            echo "Total code issues (after fixture exclude): ${COUNT_CODE}"
+            if [ "${SKIPPED}" -gt 0 ]; then
+              echo "  (skipped ${SKIPPED} finding(s) under: ${SNYK_EXCLUDE_PREFIXES})"
+            fi
+            jq -r --argjson excl "${EXCLUDE_FILTER}" '
+              .runs[]?.results[]?
+              | select((.locations[0].physicalLocation.artifactLocation.uri // "") as $uri
+                       | $excl | map(. as $p | $uri | startswith($p + "/")) | any | not)
+              | "[\(.level|ascii_upcase)] \(.message.text) at \(.locations[0].physicalLocation.artifactLocation.uri // "<unknown>"):\(.locations[0].physicalLocation.region.startLine // 0)"
+            ' snyk-code.json 2>/dev/null || echo "No code issues or error parsing results"
           else
             echo "No code results file."
           fi
@@ -167,7 +196,17 @@ jobs:
           HIGH_CODE=0
           if [ -f snyk-code.json ]; then
             # Treat SARIF "error" as high/critical. Adjust if you prefer "warning" too.
-            HIGH_CODE=$(jq '[.runs[]?.results[]? | select(.level == "error")] | length' snyk-code.json 2>/dev/null || echo 0)
+            # Excludes findings under SNYK_EXCLUDE_PREFIXES (intentionally
+            # vulnerable workshop fixtures); they're flagged in the summary
+            # for visibility but do not block the gate.
+            EXCLUDE_FILTER=$(printf '%s\n' "${SNYK_EXCLUDE_PREFIXES}" | tr ',' '\n' | jq -R 'select(length > 0)' | jq -s '.')
+            HIGH_CODE=$(jq --argjson excl "${EXCLUDE_FILTER}" '
+              [.runs[]?.results[]?
+               | select(.level == "error")
+               | select((.locations[0].physicalLocation.artifactLocation.uri // "") as $uri
+                        | $excl | map(. as $p | $uri | startswith($p + "/")) | any | not)]
+              | length
+            ' snyk-code.json 2>/dev/null || echo 0)
           fi
 
           echo "High/Critical dependency issues: ${HIGH_VULNS}"

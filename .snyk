@@ -1,0 +1,20 @@
+# Snyk (https://snyk.io) policy file — exclusions for the
+# MaintainabilityAI repo.
+#
+# The /examples directory contains *intentionally vulnerable*
+# OWASP teaching fixtures used in workshop exercises. They MUST
+# NOT be fixed (see CLAUDE.md) and are excluded from both the
+# dependency scan and code (SAST) scan here so they don't dominate
+# the security signal we actually care about.
+#
+# This policy file is the canonical record. The snyk.yml workflow
+# also post-filters scan output by the same path prefix as a
+# defense-in-depth (Snyk Code's --exclude CLI flag is unreliable
+# across versions).
+version: v1.0.0
+
+exclude:
+  global:
+    - examples/**
+  code:
+    - examples/**
