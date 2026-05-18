@@ -860,6 +860,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         return;
       }
 
+      // Record a fresh score-history snapshot for THIS BAR only — deliberate
+      // recalc on drill-in. The portfolio sweep is intentionally read-only;
+      // snapshots happen when the user actively opens a BAR (and via the MCP
+      // `score_snapshot` tool for workflow-triggered cadence). Rounded so
+      // the parser's integer regex agrees with the in-memory value.
+      this.barService.appendScoreSnapshot(barPath, {
+        timestamp: new Date().toISOString(),
+        composite: Math.round(bar.compositeScore),
+        architecture: Math.round(bar.architecture.score),
+        security: Math.round(bar.security.score),
+        information_risk: Math.round(bar.infoRisk.score),
+        operations: Math.round(bar.operations.score),
+      });
+
       const decisions = this.barService.readDecisions(barPath);
       const repoTree = this.barService.readRepoTree(barPath);
       const diagrams = generateMermaidDiagrams(barPath);
