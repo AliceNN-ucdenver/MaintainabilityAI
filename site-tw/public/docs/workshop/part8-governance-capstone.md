@@ -45,6 +45,48 @@ Today we do the thing the whole workshop has been preparing for: **ship a featur
 
 ---
 
+## Two starting points, one destination
+
+The capstone teaches the **same evidence chain** regardless of how you start. Pick the path that matches the team you are coaching:
+
+- **Ad-hoc path (this Part, original).** The architect already knows the feature (celebrity favorites). The team writes an RCTRO directly, fans it out across the four IMDB-lite repos, and ships. Fast — useful when the architectural decision is already made.
+- **Research-first path (v0.9 addition).** Start from an Oraculum finding. Promote it to a `research-request`. The Archeologist publishes a research doc; the PRD agent produces a spec-ready manifest; the cross-repo bridge auto-creates the per-repo RCTRO issues. Slower up front — useful when the architectural premise is contested or needs evidence the team does not yet have.
+
+Both paths land **the same artifact chain**: project id → research → PRD → spec-ready issues → implementation PRs, every link carrying a Hatter's Tag. The ad-hoc path skips the first two links and starts at the spec-ready RCTRO issue.
+
+If you are running the workshop with a team that has the v0.9 Looking Glass UX wired in, **walk the research-first path first** as a 30-minute prelude (see the bonus section below), then drop into the ad-hoc path for the implementation work. The team gets to see how Oraculum, the Archeologist, the PRD agent, and the spec-ready handler all fit together before doing the implementation by hand. The ad-hoc path then becomes "what happens when you trust the agents enough to skip the discovery step."
+
+---
+
+## Bonus: research-first path (30-minute prelude)
+
+Prerequisites — the **[end-to-end walkthrough](/docs/walkthrough/research-prd-chain)** scaffolding requirements section. In particular:
+
+- The mesh repo has `archeologist.yml`, `prd.yml`, `label-on-merge.yml`, `notify-code-repos.yml`, plus the `.caterpillar/prompts/research/*` and `.caterpillar/prompts/prd/*` packs (one-click via `Looking Glass` → `Settings` → `Deploy mesh workflows`)
+- Each target code repo has `spec-ready-handler.yml` (scaffolded by Cheshire)
+- `TAVILY_API_KEY`, `ANTHROPIC_API_KEY` (or you have settled on `github-models`), and `GOVERNANCE_MESH_TOKEN` are pushed to the mesh repo's Actions secrets
+- The pre-flight checklist in `New Research / PRD Run` shows all green
+
+The five-minute version of the path:
+
+1. **`Looking Glass` → open the celeb-api BAR → `Run Oraculum Review`.** Pick the celebrity-favorites finding (or any architecture gap the review surfaces).
+2. **Open the Oraculum issue. Click 🔍 Promote to research-request.** The Archeologist workflow auto-fires on the label-add event.
+3. **`Active Research / PRD Runs` shows the run.** Watch the current node update (plan_queries → tavily_search → … → synthesize_report). Adaptive cadence keeps the polling cheap.
+4. **The research PR opens on the mesh repo.** Read the rendered doc + Hatter's Tag. Merge it.
+5. **`label-on-merge.yml` labels the source issue `prd-ready`. `prd.yml` fires.** A second row appears in Active Runs — this is the PRD agent's multi-expert refinement loop. The published PRD includes a Refinement Loop Trace table so you can see how the score converged across iterations.
+6. **Merge the PRD PR.** `notify-code-repos.yml` reads `manifest.target_repos` and dispatches `spec-ready` at every code repo on the list. `spec-ready-handler.yml` in each repo creates the RCTRO implementation issue automatically.
+7. **You are now at the start of the ad-hoc path's implementation step.** The RCTRO issues are already in the right repos. Open one, comment `@claude please implement`, and the rest of Part 8 plays out as written.
+
+What this gives the team to discuss before they start implementing:
+
+- The PRD's grounding-loop trace tells them whether the agents agreed on the right scope. A run that took two iterations means the LLM experts disagreed on coverage and re-synthesized — surface that in the team review.
+- The spec-ready issue's `derived_from_prd_run_id` is the key the audit chain joins on across repos. `gh search issues "derived_from_prd_run_id:<run_id>"` shows the whole evidence chain in one query — exactly what the auditor sees at the end.
+- The `Research Library` panel now has the new research and PRD docs indexed under the celeb-api BAR. PRDs with a manifest get a `spec-ready` badge so the team can spot which artifacts already produced downstream issues vs which are still pending merge.
+
+The remainder of Part 8 (`The capstone: celebrity favorites` onward) is unchanged regardless of which starting point you used. The audit chain rolls up cleanly because both paths terminate at the same RCTRO issue shape.
+
+---
+
 ## The capstone: celebrity favorites
 
 The feature description, in plain English:

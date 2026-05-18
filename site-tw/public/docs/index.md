@@ -62,6 +62,19 @@ Pick the lens you bring to AI engineering. Each persona has a focused two-page o
   </div>
 </div>
 
+## End-to-end walkthroughs
+
+<div class="docs-panel">
+  <p class="docs-panel-copy">Concrete walkthroughs that take one input (an Oraculum finding, a research request) and produce one outcome (a merged implementation PR with the full audit chain attached).</p>
+  <div class="docs-grid">
+    <a href="./walkthrough/research-prd-chain" class="docs-card docs-card-blue">
+      <h3 class="docs-card-title">Research → PRD → Implementation</h3>
+      <p class="docs-card-body">From a mesh gap to a merged PR. Includes the full scaffolding checklist for existing meshes &mdash; what to add when your governance repo predates the research/PRD agents.</p>
+      <p class="docs-muted">VS Code extension &middot; Archeologist &middot; PRD agent &middot; Cross-repo bridge &rarr;</p>
+    </a>
+  </div>
+</div>
+
 ## Framework Areas
 
 <div class="docs-grid docs-grid-wide">

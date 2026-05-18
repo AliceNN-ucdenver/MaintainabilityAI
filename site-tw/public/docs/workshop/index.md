@@ -79,11 +79,15 @@ The workshop should feel like one journey, not a pile of disconnected lessons:
   </a>
 
   <a href="/docs/workshop/part8-governance-capstone" class="docs-card docs-card-indigo">
-    <div class="docs-card-kicker">Part 8 &middot; capstone &middot; ~120 min</div>
+    <div class="docs-card-kicker">Part 8 &middot; capstone &middot; ~120 min (+30 min bonus)</div>
     <h3 class="docs-card-title docs-card-title-lg">Through the Looking Glass</h3>
     <div class="docs-card-subtitle">Governance Capstone · One Cross-Cutting PR with Full Evidence</div>
-    <p class="docs-card-body">Ship one cross-cutting feature across all four IMDB-lite repos with the complete evidence chain: CALM, STRIDE, RCTRO, fitness, Hatter&rsquo;s Tag, Red Queen audit log.</p>
+    <p class="docs-card-body">Ship one cross-cutting feature across all four IMDB-lite repos with the complete evidence chain: CALM, STRIDE, RCTRO, fitness, Hatter&rsquo;s Tag, Red Queen audit log. The bonus research-first prelude shows the Archeologist, PRD agent, and cross-repo bridge all firing before the implementation work begins &mdash; same evidence chain, two entry points.</p>
   </a>
+</div>
+
+<div class="docs-note">
+  <strong>Going further:</strong> the standalone <a href="/docs/walkthrough/research-prd-chain" class="markdown-link">Research &rarr; PRD &rarr; Implementation walkthrough</a> covers the same chain outside the IMDB-lite fixture &mdash; useful when you want to run the loop against your own mesh. It includes the full scaffolding checklist for existing meshes.
 </div>
 
 ## What You Need
