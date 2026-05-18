@@ -603,12 +603,20 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
           ['copilot-swe-agent[bot]']
         );
 
-        // Post a context comment for Copilot to read
+        // Post a context comment for Copilot to read. Mirror the Claude
+        // path's kind-routing — the @copilot prefix doesn't fire a
+        // workflow (assignment triggers the Coding Agent directly), the
+        // comment is just instructions the agent reads from the issue.
+        // Earlier this hard-coded the review prompt, which posted
+        // architecture-review instructions on research-synthesis issues.
+        const copilotCommentBody = isResearch
+          ? `@copilot Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion. Write the output to \`research/<run-id>/synthesis.md\` and open a PR.`
+          : `@copilot Please review the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
         await this.githubService.createIssueComment(
           this.meshRepoInfo.owner,
           this.meshRepoInfo.repo,
           this.currentIssueNumber,
-          'Please review the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).'
+          copilotCommentBody
         );
 
         this.postMessage({ type: 'agentAssigned', agent: 'copilot' });
