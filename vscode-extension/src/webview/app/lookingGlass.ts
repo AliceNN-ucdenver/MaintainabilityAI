@@ -1814,7 +1814,7 @@ function renderSettingsPromptPacks(): string {
         Custom packs you added manually are not affected.
       </p>
       <div class="settings-row" style="justify-content: flex-start;">
-        <button id="btn-refresh-prompt-packs" class="btn-secondary">Refresh Prompts</button>
+        <button id="btn-refresh-prompt-packs" class="btn-primary">Refresh Prompts</button>
       </div>
     </div>
   `;
