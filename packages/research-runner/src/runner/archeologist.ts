@@ -43,6 +43,17 @@ import { analyzeArchitecture, ANALYZER_VERSION } from './nodes/analyze-architect
 import { identifyGaps } from './nodes/identify-gaps';
 import type { ArchaeologyGap, ObservedArchitecture } from '../schemas';
 
+/**
+ * Progress log → stderr. Goes to GitHub Actions job output without
+ * polluting stdout (which carries the JSON result the workflow parses).
+ * Disabled when RESEARCH_RUNNER_QUIET=1 so unit tests stay clean.
+ */
+function progress(msg: string): void {
+  if (process.env.RESEARCH_RUNNER_QUIET === '1') { return; }
+  const ts = new Date().toISOString().slice(11, 19); // HH:MM:SS
+  process.stderr.write(`[research-runner ${ts}] ${msg}\n`);
+}
+
 export interface ArcheologistOptions {
   brief: unknown;             // unvalidated input from CLI / workflow inputs
   meshDir: string;            // mesh repo root
@@ -97,6 +108,8 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   const githubToken = opts.githubToken ?? process.env.GITHUB_TOKEN ?? '';
   const tavilyApiKey = opts.tavilyApiKey ?? process.env.TAVILY_API_KEY ?? '';
   const usptoApiKey = opts.usptoApiKey ?? process.env.USPTO_API_KEY ?? '';
+
+  progress(`▶ run ${runId} | scope=${brief.scope.level}(${brief.scope.id}) | path=${brief.path} | llm_provider=${brief.llm_provider ?? 'anthropic'} | keys: anthropic=${!!anthropicApiKey} github=${!!githubToken} tavily=${!!tavilyApiKey} uspto=${!!usptoApiKey}`);
 
   const absoluteAuditDir = path.resolve(opts.meshDir, opts.auditDir);
   const absoluteOutputDir = path.resolve(opts.meshDir, opts.outputDir);
@@ -256,6 +269,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     // ============================================================================
     // RESEARCH PATH (existing): plan_queries → 4 providers → dedupe → gap-analysis
     // ============================================================================
+    progress(`◐ plan_queries — calling LLM to generate query plan…`);
     const planStart = Date.now();
     const plan = await planQueries({
       meshDir: opts.meshDir,
@@ -267,6 +281,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
       fetchImpl: opts.fetchImpl,
     });
     researchQueryPlan = plan.queryPlan;
+    progress(`✓ plan_queries (${plan.llm.provider} ${plan.llm.model}) in ${Date.now() - planStart}ms — ${plan.llm.inputTokens} in / ${plan.llm.outputTokens} out tokens, ${plan.llm.attempts} attempt${plan.llm.attempts !== 1 ? 's' : ''} → web=${plan.queryPlan.web.length} arxiv=${plan.queryPlan.arxiv.length} patent=${plan.queryPlan.patent.length} community=${plan.queryPlan.community.length}`);
     totalInputTokens += plan.llm.inputTokens;
     totalOutputTokens += plan.llm.outputTokens;
     totalCostUsd += plan.llm.costUsd;
@@ -288,6 +303,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     // ----- four-provider search (pure_api each, parallel across providers) -----
   // We run all four providers concurrently with Promise.allSettled so a
   // provider-level failure (e.g. PatentsView outage) doesn't block the rest.
+  progress(`◐ search — tavily(${plan.queryPlan.web.length}) + arxiv(${plan.queryPlan.arxiv.length}) + hackernews(${plan.queryPlan.community.length}) + uspto(${usptoApiKey ? plan.queryPlan.patent.length : 'skipped'}) in parallel…`);
   const searchStart = Date.now();
   const [tavily, arxiv, hn, uspto] = await Promise.allSettled([
     runTavilySearch({ apiKey: tavilyApiKey, queries: plan.queryPlan.web, fetchImpl: opts.fetchImpl }),
@@ -354,10 +370,13 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   handleProvider(arxiv, 'arxiv_search', 'arxiv', 'GET /api/query');
   handleProvider(hn, 'hackernews_search', 'hackernews', 'GET /api/v1/search');
   handleProvider(uspto, 'uspto_search', 'uspto', 'POST /api/v1/patent/');
+  const fmtSettled = (s: PromiseSettledResult<unknown>): string => s.status === 'fulfilled' ? 'OK' : `FAIL(${s.reason instanceof Error ? s.reason.message.slice(0, 60) : String(s.reason).slice(0, 60)})`;
+  progress(`✓ search done in ${searchDuration}ms — tavily=${providerResultCounts.tavily}/${fmtSettled(tavily)} arxiv=${providerResultCounts.arxiv}/${fmtSettled(arxiv)} hn=${providerResultCounts.hackernews}/${fmtSettled(hn)} uspto=${providerResultCounts.uspto}/${fmtSettled(uspto)} (raw=${allProviderResults.length})`);
 
   // ----- dedupe_and_rank (pure) — first pass -----
   let dedupeStart = Date.now();
   rankedSources = dedupeAndRank({ results: allProviderResults, topN: 20 });
+  progress(`✓ dedupe_and_rank — ${rankedSources.length} ranked sources (top score=${rankedSources[0]?.salience_score?.toFixed(2) ?? 'n/a'})`);
   emitter.emit({
     node_kind: 'pure',
     node_name: 'dedupe_and_rank',
@@ -381,6 +400,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
       },
     });
 
+    progress(`◐ gap_analysis — ${gapSignals.length} signal(s): ${gapSignals.map(s => s.kind).join(',')}`);
     const gapStart = Date.now();
     const gap = await runGapAnalysis({
       meshDir: opts.meshDir,
@@ -392,6 +412,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
       githubToken,
       fetchImpl: opts.fetchImpl,
     });
+    progress(`✓ gap_analysis (${gap.llm.provider} ${gap.llm.model}) in ${Date.now() - gapStart}ms — ${gap.llm.inputTokens} in / ${gap.llm.outputTokens} out tokens → ${gap.followUpQueries.length} follow-up queries`);
     totalInputTokens += gap.llm.inputTokens;
     totalOutputTokens += gap.llm.outputTokens;
     totalCostUsd += gap.llm.costUsd;
@@ -465,6 +486,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   }  // end research-path else branch
 
   // ----- synthesize_report (LLM) -----
+  progress(`◐ synthesize_report — calling LLM (provider hint=${brief.llm_provider ?? 'anthropic'}, sources=${rankedSources.length}); hybrid routing will pick anthropic for synth if anthropic key is set…`);
   const synthStart = Date.now();
   const synthesis = await synthesizeReport({
     meshDir: opts.meshDir,
@@ -483,6 +505,7 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
   totalInputTokens += synthesis.llm.inputTokens;
   totalOutputTokens += synthesis.llm.outputTokens;
   totalCostUsd += synthesis.llm.costUsd;
+  progress(`✓ synthesize_report (${synthesis.llm.provider} ${synthesis.llm.model}) in ${Date.now() - synthStart}ms — ${synthesis.llm.inputTokens} in / ${synthesis.llm.outputTokens} out tokens, ${synthesis.llm.attempts} attempt${synthesis.llm.attempts !== 1 ? 's' : ''}`);
   emitter.emit({
     node_kind: 'llm',
     node_name: 'synthesize_report',
@@ -588,6 +611,9 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
     try { fs.rmSync(cleanupCloneDir, { recursive: true, force: true }); }
     catch { /* leave on disk — non-fatal, just a tmpdir entry */ }
   }
+
+  const totalDurationMs = Date.now() - startedAt.getTime();
+  progress(`◆ done ${runId} in ${(totalDurationMs / 1000).toFixed(1)}s — ${totalInputTokens} in / ${totalOutputTokens} out tokens, $${roundUsd(totalCostUsd)} | sources=${rankedSources.length} conclusions=${synthesis.citation_stats.conclusion_count} recs=${synthesis.citation_stats.recommendation_count} | artifact=${artifactPath}`);
 
   return {
     run_id: runId,
