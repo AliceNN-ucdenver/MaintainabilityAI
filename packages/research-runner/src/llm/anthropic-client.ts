@@ -54,8 +54,10 @@ export async function callAnthropic(opts: CallAnthropicOpts): Promise<CallAnthro
     throw new Error('ANTHROPIC_API_KEY missing — set the env var or pass apiKey directly');
   }
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
+  // Match github-models default — 8K-token synth responses can run 60–90s.
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 60_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
@@ -75,6 +77,11 @@ export async function callAnthropic(opts: CallAnthropicOpts): Promise<CallAnthro
       }),
       signal: controller.signal,
     });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Anthropic request timed out after ${timeoutMs}ms (model=${opts.model}, max_tokens=${opts.maxTokens})`);
+    }
+    throw new Error(`Anthropic fetch failed (model=${opts.model}): ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     clearTimeout(timer);
   }

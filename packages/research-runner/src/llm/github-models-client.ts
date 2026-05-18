@@ -63,8 +63,11 @@ export async function callGitHubModels(opts: CallGitHubModelsOpts): Promise<Call
   }
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
+  // Synthesis prompts can produce 8K-token responses on gpt-4.1, which
+  // routinely take 60–90s. Default to 120s so we don't abort mid-stream.
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 60_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
   if (opts.system) { messages.push({ role: 'system', content: opts.system }); }
@@ -87,6 +90,11 @@ export async function callGitHubModels(opts: CallGitHubModelsOpts): Promise<Call
       }),
       signal: controller.signal,
     });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`GitHub Models request timed out after ${timeoutMs}ms (model=${opts.model}, max_tokens=${opts.maxTokens})`);
+    }
+    throw new Error(`GitHub Models fetch failed (model=${opts.model}): ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     clearTimeout(timer);
   }
