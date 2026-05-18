@@ -152,7 +152,8 @@ export type OracularWebviewMessage =
   | { type: 'backToHub' }
   | { type: 'refreshPromptPacks' }
   | { type: 'pullMesh' }
-  | { type: 'navigateToBar'; agent?: 'claude' | 'copilot' };
+  | { type: 'navigateToBar'; agent?: 'claude' | 'copilot' }
+  | { type: 'promoteToResearchRequest' };
 
 export type OracularExtensionMessage =
   | { type: 'meshRepoDetected'; owner: string; repo: string }

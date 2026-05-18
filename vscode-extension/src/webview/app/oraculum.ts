@@ -204,6 +204,13 @@ function renderPhaseSidebar(phases: readonly Phase[]): string {
       </div>
       <a class="back-to-hub-link" id="back-to-hub">\u2190 Back to Reviews</a>
       ${steps}
+      ${state.issueNumber ? `
+        <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
+          <button id="btn-promote-research" class="btn-secondary" style="width: 100%; font-size: 11px;" title="Add research-request label so the Archeologist dispatches automatically on this finding">
+            \u{1F50D} Promote to research-request
+          </button>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -804,6 +811,12 @@ function attachEventListeners() {
   // Sidebar: Back to Reviews
   document.getElementById('back-to-hub')?.addEventListener('click', () => {
     goToHub();
+  });
+
+  // Sidebar: Promote this finding to a research-request (v0.9 — closes the
+  // Oraculum → Archeologist → PRD → implementation self-healing loop).
+  document.getElementById('btn-promote-research')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'promoteToResearchRequest' });
   });
 
   // Configure: Refresh prompt packs

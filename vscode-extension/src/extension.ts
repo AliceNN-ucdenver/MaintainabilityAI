@@ -7,6 +7,7 @@ import { openScorecardCommand } from './commands/openScorecard';
 import { lookingGlassCommand } from './commands/lookingGlass';
 import { oraculumCommand } from './commands/oraculum';
 import { bugReportCommand } from './commands/bugReport';
+import { createResearchRequestCommand, type CreateResearchRequestPrefill } from './commands/createResearchRequest';
 import { NewResearchPanel, type PrefillInputs } from './webview/NewResearchPanel';
 import { ActiveRunsPanel } from './webview/ActiveRunsPanel';
 import { ResearchLibraryPanel } from './webview/ResearchLibraryPanel';
@@ -111,6 +112,10 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'maintainabilityai.researchLibrary',
         () => ResearchLibraryPanel.createOrShow(context)
+      ),
+      vscode.commands.registerCommand(
+        'maintainabilityai.createResearchRequest',
+        (prefill?: CreateResearchRequestPrefill) => createResearchRequestCommand(prefill ?? {})
       ),
     );
 

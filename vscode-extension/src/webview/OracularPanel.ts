@@ -156,6 +156,40 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
       case 'pullMesh':
         await this.onPullMesh();
         break;
+      case 'promoteToResearchRequest':
+        await this.onPromoteToResearchRequest();
+        break;
+    }
+  }
+
+  /**
+   * Promote the currently-selected Oraculum issue to a research-request.
+   * The archeologist.yml workflow on the mesh repo fires on the
+   * `research-request` label-add event automatically — no further
+   * dispatch needed.
+   */
+  private async onPromoteToResearchRequest() {
+    if (!this.currentIssueNumber) {
+      this.postMessage({ type: 'error', message: 'Select an Oraculum issue first.' });
+      return;
+    }
+    try {
+      const { promoteToResearchRequest } = await import('../services/ResearchRequestService');
+      const { issueUrl } = await promoteToResearchRequest({ issueNumber: this.currentIssueNumber });
+      const openIssue = 'Open Issue';
+      const openRuns = 'Active Runs';
+      const choice = await vscode.window.showInformationMessage(
+        `Promoted #${this.currentIssueNumber} to research-request. Archeologist workflow will run on the label-add event.`,
+        openIssue, openRuns,
+      );
+      if (choice === openIssue) {
+        void vscode.env.openExternal(vscode.Uri.parse(issueUrl));
+      } else if (choice === openRuns) {
+        void vscode.commands.executeCommand('maintainabilityai.activeRuns');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.postMessage({ type: 'error', message: `Promote failed: ${msg}` });
     }
   }
 

@@ -108,6 +108,12 @@
         "title": "Research Library",
         "category": "MaintainabilityAI",
         "icon": "$(library)"
+      },
+      {
+        "command": "maintainabilityai.createResearchRequest",
+        "title": "Create Research Request",
+        "category": "MaintainabilityAI",
+        "icon": "$(comment-discussion)"
       }
     ],
     "viewsContainers": {
@@ -174,6 +180,9 @@
         },
         {
           "command": "maintainabilityai.researchLibrary"
+        },
+        {
+          "command": "maintainabilityai.createResearchRequest"
         }
       ]
     },
