@@ -67,8 +67,8 @@ export const SECRETS: SecretDefinition[] = [
     envName: 'GOVERNANCE_MESH_TOKEN',
     settingKey: 'maintainabilityai.governance.meshToken',
     label: 'Governance Mesh Token',
-    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT with `actions:write` on every linked code repo (for notify-code-repos.yml dispatch) AND `contents:read` on the mesh repo (for spec-ready-handler.yml manifest fetch). Push to both mesh and code repos — one token, single source of truth.',
-    scope: 'mesh+code',
+    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by `notify-code-repos.yml` on the mesh repo to fire `repository_dispatch` events at each linked code repo. Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub with the right scopes.',
+    scope: 'mesh',
   },
 ];
 

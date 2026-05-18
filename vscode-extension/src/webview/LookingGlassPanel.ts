@@ -391,6 +391,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         await this.onPromptResearchSecret(message.id);
         break;
 
+      case 'createResearchSecret':
+        await this.onCreateResearchSecret(message.id);
+        break;
+
       case 'testResearchSecret':
         await this.onTestResearchSecret(message.id);
         break;
@@ -2688,6 +2692,111 @@ Policy file: ${filename}
       type: 'researchSettings',
       payload: { secrets, prefs, meshRepo },
     });
+  }
+
+  /**
+   * Create flow — currently only meaningful for governance-mesh-token.
+   * GitHub has no public API to mint a user PAT (security choice on
+   * their side), so this is a guided flow:
+   *
+   *   1. Open the GitHub fine-grained PAT creation page in the user's
+   *      browser, with the name pre-filled via URL param.
+   *   2. Surface a sticky info notification listing the exact repos +
+   *      permissions to pick on that page (URL params don't pre-fill
+   *      either, so the checklist has to come from us).
+   *   3. Immediately open showInputBox so the user can paste the token
+   *      back the moment they finish minting it on GitHub.
+   *   4. Save via onSaveResearchSecret, then push to the mesh repo via
+   *      onPushResearchSecret. One click = browser tab + checklist +
+   *      input + save + push.
+   */
+  private async onCreateResearchSecret(id: ResearchSecretId) {
+    const def = SECRETS.find(s => s.id === id);
+    if (!def) {
+      this.postMessage({ type: 'error', message: `Unknown research secret: ${id}` });
+      return;
+    }
+    if (id !== 'governance-mesh-token') {
+      // Other secrets are minted on third-party provider sites that we
+      // can't deep-link into uniformly. They use the regular Set flow.
+      await this.onPromptResearchSecret(id);
+      return;
+    }
+
+    // (1) Open the GitHub PAT creation page. Name param is the only field
+    //     GitHub's form currently pre-fills via URL; resource owner +
+    //     repository access + permissions all require user selection.
+    const meshSlug = await detectGovernanceRepo();
+    const codeRepos = this.collectLinkedCodeRepos();
+    const ghUrl = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('GOVERNANCE_MESH_TOKEN')}`;
+    void vscode.env.openExternal(vscode.Uri.parse(ghUrl));
+
+    // (2) Sticky checklist. Lists every code repo by slug so the user
+    //     can copy-paste the names into GitHub's "Only select
+    //     repositories" picker. Includes the mesh repo even though
+    //     spec-ready-handler.yml does not currently need contents:read
+    //     on it — that scope is harmless and pre-stages the dispatch-
+    //     payload-embedding upgrade.
+    const repoList = codeRepos.length === 0
+      ? '(no linked code repos detected — add `repos:` blocks to your BAR app.yaml files)'
+      : codeRepos.map(r => `  - ${r}`).join('\n');
+    const meshLabel = meshSlug ? `${meshSlug.owner}/${meshSlug.repo}` : '(no mesh repo detected)';
+    const instructions =
+      `Mint a fine-grained PAT on the page that just opened:\n\n` +
+      `Resource owner:  your org\n` +
+      `Repository access:  Only select repositories →\n` +
+      `${repoList}\n\n` +
+      `Permissions on the code repos:  Actions = Read and write\n` +
+      `Expiration: pick what fits your rotation policy\n\n` +
+      `Mesh repo for reference:  ${meshLabel}\n\n` +
+      `When ready, click Continue to paste the token.`;
+    const continueAction = 'Continue';
+    void vscode.window.showInformationMessage(instructions, { modal: true }, continueAction);
+
+    // (3) Prompt for the token via showInputBox (password=true). We don't
+    //     gate on the modal's resolution — both can be open simultaneously
+    //     and the user picks whichever they reach first.
+    const token = await vscode.window.showInputBox({
+      title: `Paste ${def.label}`,
+      prompt: 'After clicking Generate token on GitHub, paste the value here. Will be saved + pushed to the mesh repo automatically.',
+      placeHolder: 'github_pat_…',
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: (input) => {
+        if (!input.trim()) { return 'Value is required.'; }
+        if (!/^(github_pat_|ghp_|gho_|ghu_|ghs_|ghr_)/.test(input)) {
+          return 'Does not look like a GitHub token (expected prefix github_pat_ / ghp_ / etc.).';
+        }
+        return null;
+      },
+    });
+    if (token === undefined) {
+      void vscode.window.showWarningMessage(`${def.label}: cancelled — no token saved.`);
+      return;
+    }
+
+    // (4) Save + auto-push to mesh.
+    await this.onSaveResearchSecret(id, token);
+    await this.onPushResearchSecret(id);
+  }
+
+  /** Walk every BAR's app.yaml repos and return deduped owner/repo slugs. */
+  private collectLinkedCodeRepos(): string[] {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) { return []; }
+    try {
+      const reader = new MeshReader(meshPath);
+      const slugs = new Set<string>();
+      for (const bar of reader.listBars()) {
+        for (const url of bar.repos) {
+          const parsed = parseGitHubUrl(url);
+          if (parsed) { slugs.add(`${parsed.owner}/${parsed.repo}`); }
+        }
+      }
+      return [...slugs];
+    } catch {
+      return [];
+    }
   }
 
   /**

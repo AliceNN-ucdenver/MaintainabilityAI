@@ -42,7 +42,7 @@ export async function testResearchKey(id: ResearchSecretId, key: string): Promis
       case 'anthropic':              return await testAnthropic(key);
       case 'openai':                 return await testOpenai(key);
       case 'tavily':                 return await testTavily(key);
-      case 'uspto':                  return { ok: true, message: 'USPTO key configured (no live test — pipeline degrades gracefully if invalid).' };
+      case 'uspto':                  return await testUspto(key);
       case 'governance-mesh-token':  return await testGovernanceMeshToken(key);
     }
   } catch (err) {
@@ -97,6 +97,30 @@ async function testGovernanceMeshToken(key: string): Promise<KeyTestResult> {
   if (res.status === 401) { return { ok: false, message: 'GitHub rejected the token (401 unauthorized).', status: 401 }; }
   if (res.status === 403) { return { ok: false, message: 'GitHub token lacks permissions (403 — needs at least read access).', status: 403 }; }
   return { ok: false, message: `GitHub returned ${res.status}.`, status: res.status };
+}
+
+async function testUspto(key: string): Promise<KeyTestResult> {
+  // PatentsView REST. Mirrors the runner's uspto-client.ts: POST
+  // https://search.patentsview.org/api/v1/patent/ with X-Api-Key header.
+  // We use the smallest possible probe — `_text_any` against patent_title
+  // for a common word with size:1 — so a valid key returns 200 + ~1KB.
+  const res = await fetchWithTimeout('https://search.patentsview.org/api/v1/patent/', {
+    method: 'POST',
+    headers: { 'X-Api-Key': key, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      q: { _text_any: { patent_title: 'method' } },
+      f: ['patent_id'],
+      o: { size: 1 },
+    }),
+  });
+  if (res.ok) { return { ok: true, message: 'USPTO/PatentsView key valid.', status: res.status }; }
+  if (res.status === 401 || res.status === 403) {
+    return { ok: false, message: 'USPTO/PatentsView rejected the key (auth failed).', status: res.status };
+  }
+  if (res.status === 429) {
+    return { ok: false, message: 'USPTO/PatentsView rate-limited the probe (429). Key may still be valid; try again later.', status: 429 };
+  }
+  return { ok: false, message: `USPTO/PatentsView returned ${res.status}.`, status: res.status };
 }
 
 async function testTavily(key: string): Promise<KeyTestResult> {

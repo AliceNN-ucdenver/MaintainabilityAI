@@ -324,6 +324,7 @@ export type LookingGlassWebviewMessage =
   | { type: 'loadResearchSettings' }
   | { type: 'saveResearchSecret'; id: ResearchSecretId; value: string }
   | { type: 'promptResearchSecret'; id: ResearchSecretId }
+  | { type: 'createResearchSecret'; id: ResearchSecretId }
   | { type: 'testResearchSecret'; id: ResearchSecretId }
   | { type: 'pushResearchSecret'; id: ResearchSecretId }
   | { type: 'pushResearchSecretToAll'; id: ResearchSecretId }

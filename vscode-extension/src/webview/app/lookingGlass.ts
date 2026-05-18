@@ -1922,6 +1922,7 @@ function renderSettingsResearch(): string {
           </div>
         </div>
         <div class="settings-research-secret-actions">
+          ${s.id === 'governance-mesh-token' ? `<button class="btn-secondary btn-research-create" data-secret-id="${escapeAttr(s.id)}" title="Open the GitHub PAT page, show the scope checklist, paste the new token, save it, and push to the mesh repo — in one flow">Create</button>` : ''}
           <button class="btn-secondary btn-research-set" data-secret-id="${escapeAttr(s.id)}">Set value</button>
           <button class="btn-secondary btn-research-test" data-secret-id="${escapeAttr(s.id)}" ${testDisabled ? 'disabled' : ''}>Test</button>
           <button class="btn-secondary ${pushClass}" data-secret-id="${escapeAttr(s.id)}" ${ghDisabled ? 'disabled' : ''} title="${escapeAttr(pushTitle)}">${escapeHtml(pushLabel)}</button>
@@ -2603,9 +2604,17 @@ function attachEventHandlers() {
     vscode.postMessage({ type: 'configureMeshSecrets' });
   });
 
-  // Research Settings — Set / Test / Push per-secret + Save Preferences.
+  // Research Settings — Create / Set / Test / Push per-secret + Save Preferences.
   // Set value now round-trips through the extension's showInputBox
   // (window.prompt is unreliable inside VS Code webviews).
+  document.querySelectorAll('.btn-research-create').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
+      if (!id) { return; }
+      vscode.postMessage({ type: 'createResearchSecret', id });
+    });
+  });
+
   document.querySelectorAll('.btn-research-set').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;

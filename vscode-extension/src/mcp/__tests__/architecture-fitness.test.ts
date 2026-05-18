@@ -49,9 +49,10 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // a new button handler in the webview + a new push-to-all handler in the
   // extension panel. Bumped once more when promptResearchSecret was added
   // for the showInputBox round-trip (window.prompt is unreliable in some
-  // webview builds).
+  // webview builds). And again when createResearchSecret landed for the
+  // GMT guided-create flow.
   'webview/app/lookingGlass.ts': 202,
-  'webview/LookingGlassPanel.ts': 89,
+  'webview/LookingGlassPanel.ts': 90,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 47,
