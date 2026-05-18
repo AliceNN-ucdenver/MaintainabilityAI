@@ -99,20 +99,33 @@ async function testGovernanceMeshToken(key: string): Promise<KeyTestResult> {
   return { ok: false, message: `GitHub returned ${res.status}.`, status: res.status };
 }
 
+const USPTO_ENDPOINT = 'https://search.patentsview.org/api/v1/patent/';
+
 async function testUspto(key: string): Promise<KeyTestResult> {
   // PatentsView REST. Mirrors the runner's uspto-client.ts: POST
   // https://search.patentsview.org/api/v1/patent/ with X-Api-Key header.
   // We use the smallest possible probe — `_text_any` against patent_title
   // for a common word with size:1 — so a valid key returns 200 + ~1KB.
-  const res = await fetchWithTimeout('https://search.patentsview.org/api/v1/patent/', {
-    method: 'POST',
-    headers: { 'X-Api-Key': key, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      q: { _text_any: { patent_title: 'method' } },
-      f: ['patent_id'],
-      o: { size: 1 },
-    }),
-  });
+  //
+  // The probe wraps its own fetch in a focused try/catch so we can surface
+  // the underlying `error.cause` (DNS failure, TLS issue, firewall, etc.)
+  // instead of the generic `fetch failed` from undici's wrapper. The
+  // top-level catch in testResearchKey would only see `TypeError: fetch
+  // failed` without the actual root cause.
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(USPTO_ENDPOINT, {
+      method: 'POST',
+      headers: { 'X-Api-Key': key, 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        q: { _text_any: { patent_title: 'method' } },
+        f: ['patent_id'],
+        o: { size: 1 },
+      }),
+    });
+  } catch (err) {
+    return { ok: false, message: describeFetchFailure(err, USPTO_ENDPOINT) };
+  }
   if (res.ok) { return { ok: true, message: 'USPTO/PatentsView key valid.', status: res.status }; }
   if (res.status === 401 || res.status === 403) {
     return { ok: false, message: 'USPTO/PatentsView rejected the key (auth failed).', status: res.status };
@@ -120,7 +133,29 @@ async function testUspto(key: string): Promise<KeyTestResult> {
   if (res.status === 429) {
     return { ok: false, message: 'USPTO/PatentsView rate-limited the probe (429). Key may still be valid; try again later.', status: 429 };
   }
-  return { ok: false, message: `USPTO/PatentsView returned ${res.status}.`, status: res.status };
+  // 4xx/5xx — include the response body snippet so the user can see why.
+  let bodySnippet = '';
+  try { bodySnippet = (await res.text()).slice(0, 240); } catch { /* ignore */ }
+  return { ok: false, message: `USPTO/PatentsView returned ${res.status}${bodySnippet ? `: ${bodySnippet}` : ''}.`, status: res.status };
+}
+
+/**
+ * Turn a fetch failure into a human-readable diagnostic. Undici wraps the
+ * real network error in `error.cause`; the top-level message is usually
+ * just "fetch failed". Extract the cause's code + message so users see
+ * what's actually broken (DNS, TLS, firewall, host unreachable, ...).
+ */
+function describeFetchFailure(err: unknown, url: string): string {
+  const top = err instanceof Error ? err.message : String(err);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cause = (err as any)?.cause;
+  if (cause) {
+    const causeMsg = cause instanceof Error ? cause.message : String(cause);
+    const causeCode = (cause as { code?: string })?.code;
+    const detail = causeCode ? `${causeCode}: ${causeMsg}` : causeMsg;
+    return `Network error reaching ${url} — ${detail}`;
+  }
+  return `Network error reaching ${url} — ${top}`;
 }
 
 async function testTavily(key: string): Promise<KeyTestResult> {
