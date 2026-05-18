@@ -28,10 +28,25 @@ import {
   type PrdValidationReport,
 } from './prd-validator';
 
+/**
+ * GapFeedback composer surface — collected from all 4 reviewers (LLM + deterministic)
+ * at the end of each iteration that didn't PASS. Prepended to the next synthesis.
+ */
+export interface DeterministicFindings {
+  severity: 'PASS' | 'MINOR' | 'MAJOR';
+  invalid_citations: Array<{ where: string; cite: string; reason: string }>;
+  coverage_discrepancies: Array<{ premise: string; claimed_status: string; detail: string }>;
+}
+
 export interface PriorReviewFeedback {
   iteration: number;
   architecture: { score: number; severity: string; changes: string[] };
   security:     { score: number; severity: string; changes: string[] };
+  /** Deterministic findings — what citation-grep saw; usually the most actionable signal. */
+  det_architecture?: DeterministicFindings;
+  det_security?: DeterministicFindings;
+  /** |arch_score − sec_score| from the prior round; high values signal reconciliation needed. */
+  disagreement_delta?: number;
 }
 
 export interface SynthesizePrdOpts {
@@ -132,19 +147,64 @@ function stripFences(raw: string): string {
   return fenceMatch ? fenceMatch[1].trim() : trimmed;
 }
 
-/** Feedback block prepended on iteration 2+, summarising the prior round's expert reviews. */
+/**
+ * Feedback block prepended on iteration 2+. Merges signals from all four
+ * reviewers — the two LLM experts (CHANGES list) AND the two deterministic
+ * reviewers (invalid citations + coverage discrepancies). The deterministic
+ * sections are most actionable: they name specific IDs the LLM must add /
+ * remove. Disagreement-delta is surfaced so the LLM can reconcile the two
+ * expert perspectives instead of just averaging them.
+ */
 function buildFeedbackBlock(feedback: PriorReviewFeedback): string {
   const lines: string[] = [];
   lines.push('# Prior Review Feedback (iteration ' + feedback.iteration + ')');
   lines.push('');
-  lines.push('The previous PRD draft did not meet the grounding threshold. Two expert reviewers flagged the following changes — apply them to this draft.');
+  lines.push('The previous PRD draft did not meet the grounding threshold. Apply every change below before re-emitting the PRD.');
   lines.push('');
-  lines.push(`## Architecture review (score ${feedback.architecture.score.toFixed(2)}, severity ${feedback.architecture.severity})`);
+
+  if (feedback.disagreement_delta !== undefined && feedback.disagreement_delta >= 0.2) {
+    lines.push(`## Reviewer Disagreement: ${feedback.disagreement_delta.toFixed(2)}`);
+    lines.push('');
+    lines.push('The architecture and security experts gave scores that diverged by ≥ 0.2. Reconcile their perspectives in this draft — explicitly address why one side scored higher.');
+    lines.push('');
+  }
+
+  // LLM expert CHANGES — qualitative guidance
+  lines.push(`## Architecture expert review (LLM, score ${feedback.architecture.score.toFixed(2)}, severity ${feedback.architecture.severity})`);
+  if (feedback.architecture.changes.length === 0) { lines.push('- _no specific changes flagged_'); }
   for (const c of feedback.architecture.changes) { lines.push(`- ${c}`); }
   lines.push('');
-  lines.push(`## Security review (score ${feedback.security.score.toFixed(2)}, severity ${feedback.security.severity})`);
+  lines.push(`## Security expert review (LLM, score ${feedback.security.score.toFixed(2)}, severity ${feedback.security.severity})`);
+  if (feedback.security.changes.length === 0) { lines.push('- _no specific changes flagged_'); }
   for (const c of feedback.security.changes) { lines.push(`- ${c}`); }
   lines.push('');
+
+  // Deterministic findings — specific IDs to fix. Most actionable.
+  const det = (label: string, d?: DeterministicFindings): string[] => {
+    if (!d || (d.invalid_citations.length === 0 && d.coverage_discrepancies.length === 0)) {
+      return [];
+    }
+    const out: string[] = [`## ${label} (deterministic citation grep, severity ${d.severity})`];
+    if (d.invalid_citations.length > 0) {
+      out.push('');
+      out.push('**Invalid citations — these IDs do not exist in the mesh and must be removed or replaced:**');
+      for (const c of d.invalid_citations) {
+        out.push(`- \`${c.where}\` cites \`${c.cite}\` — ${c.reason}`);
+      }
+    }
+    if (d.coverage_discrepancies.length > 0) {
+      out.push('');
+      out.push('**Coverage Analysis table discrepancies — fix the table or the body so they agree:**');
+      for (const x of d.coverage_discrepancies) {
+        out.push(`- Premise \`${x.premise}\`: ${x.detail}`);
+      }
+    }
+    out.push('');
+    return out;
+  };
+  for (const l of det('Architecture (deterministic)', feedback.det_architecture)) { lines.push(l); }
+  for (const l of det('Security (deterministic)', feedback.det_security)) { lines.push(l); }
+
   lines.push('---');
   lines.push('');
   return lines.join('\n');

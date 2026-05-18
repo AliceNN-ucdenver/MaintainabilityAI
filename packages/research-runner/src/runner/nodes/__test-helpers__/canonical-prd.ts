@@ -25,9 +25,9 @@ Goals: follow / unfollow endpoints (R2). Non-goals: feed personalisation (E1).
 
 ## Functional Requirements with Traceability
 
-- **FR-01** Add POST /follow endpoint. CALM node: celeb-api. Traces to: R2, E1.
+- **FR-01** Add POST /follow endpoint. CALM node: celeb-api. Traces to: R1, R2, E1.
 - **FR-02** Add DELETE /follow/:id endpoint. CALM node: celeb-api. Traces to: R2.
-- **FR-03** Persist follow rows in Postgres. CALM node: celeb-db. Traces to: E1.
+- **FR-03** Persist follow rows in Postgres with audit columns capturing threat-mitigation telemetry. CALM node: celeb-db. Traces to: E1, E2.
 
 ## Non-Functional Requirements
 

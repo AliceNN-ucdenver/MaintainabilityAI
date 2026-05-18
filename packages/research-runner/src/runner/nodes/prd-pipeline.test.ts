@@ -12,9 +12,19 @@ import * as assert from 'node:assert/strict';
 import { CANONICAL_PRD_BODY } from './__test-helpers__/canonical-prd';
 import { validatePrd, extractCitationSignals } from './prd-validator';
 import { parseReviewResponse } from './expert-review';
-import { verifyGrounding } from './verify-grounding';
+import { verifyGrounding, DISAGREEMENT_DELTA_THRESHOLD } from './verify-grounding';
 import { generatePrdManifest } from './generate-prd-manifest';
+import {
+  deterministicArchitectureReview,
+  deterministicSecurityReview,
+  type DeterministicReview,
+} from './deterministic-review';
 import type { MeshContext, PrdBrief } from '../../schemas';
+
+/** Empty-clean deterministic review fixture — used by every verifyGrounding test that doesn't care about det signals. */
+function passingDet(expert: 'architecture' | 'security', iteration = 1): DeterministicReview {
+  return { expert, iteration, severity: 'PASS', invalid_citations: [], coverage_discrepancies: [], stats: {} };
+}
 
 // ============================================================================
 // prd-validator
@@ -36,7 +46,7 @@ test('validatePrd: canonical body passes every rule', () => {
 
 test('validatePrd: catches FR with no R/E citation', () => {
   const broken = CANONICAL_PRD_BODY.replace(
-    '- **FR-01** Add POST /follow endpoint. CALM node: celeb-api. Traces to: R2, E1.',
+    '- **FR-01** Add POST /follow endpoint. CALM node: celeb-api. Traces to: R1, R2, E1.',
     '- **FR-01** Add POST /follow endpoint. CALM node: celeb-api.',
   );
   const report = validatePrd(broken);
@@ -159,7 +169,7 @@ function mockMesh(): MeshContext {
   };
 }
 
-test('verifyGrounding: PASS when composite ≥ threshold + no BLOCKING', () => {
+test('verifyGrounding: PASS when composite ≥ threshold + no BLOCKING + no det issues', () => {
   const signals = validatePrd(CANONICAL_PRD_BODY).signals;
   const result = verifyGrounding({
     iteration: 1,
@@ -168,6 +178,8 @@ test('verifyGrounding: PASS when composite ≥ threshold + no BLOCKING', () => {
     signals,
     architecture: { expert: 'architecture', iteration: 1, score: 0.92, severity: 'MINOR', covered_ids: ['celeb-api'], missing_ids: [], changes: [] },
     security:     { expert: 'security',     iteration: 1, score: 0.88, severity: 'MINOR', covered_ids: ['THR-001'], missing_ids: [], changes: [] },
+    det_architecture: passingDet('architecture'),
+    det_security:     passingDet('security'),
     meshContext: mockMesh(),
     history: [],
   });
@@ -185,6 +197,8 @@ test('verifyGrounding: ITERATE when composite < threshold', () => {
     signals,
     architecture: { expert: 'architecture', iteration: 1, score: 0.55, severity: 'MAJOR', covered_ids: [], missing_ids: ['celeb-db'], changes: ['Add celeb-db citation'] },
     security:     { expert: 'security',     iteration: 1, score: 0.60, severity: 'MAJOR', covered_ids: [], missing_ids: [], changes: ['Tighten SR-01'] },
+    det_architecture: passingDet('architecture'),
+    det_security:     passingDet('security'),
     meshContext: mockMesh(),
     history: [],
   });
@@ -201,6 +215,8 @@ test('verifyGrounding: strict mode forces ITERATE on BLOCKING even when composit
     signals,
     architecture: { expert: 'architecture', iteration: 1, score: 0.95, severity: 'BLOCKING', covered_ids: [], missing_ids: ['celeb-db'], changes: ['Must address celeb-db'] },
     security:     { expert: 'security',     iteration: 1, score: 0.95, severity: 'PASS',     covered_ids: ['THR-001'], missing_ids: [], changes: [] },
+    det_architecture: passingDet('architecture'),
+    det_security:     passingDet('security'),
     meshContext: mockMesh(),
     history: [],
   });
@@ -218,11 +234,102 @@ test('verifyGrounding: history is preserved across iterations', () => {
     iteration: 2, threshold: 0.85, mode: 'default', signals,
     architecture: { expert: 'architecture', iteration: 2, score: 0.92, severity: 'PASS', covered_ids: [], missing_ids: [], changes: [] },
     security:     { expert: 'security',     iteration: 2, score: 0.90, severity: 'PASS', covered_ids: [], missing_ids: [], changes: [] },
+    det_architecture: passingDet('architecture', 2),
+    det_security:     passingDet('security', 2),
     meshContext: mockMesh(),
     history: prior,
   });
   assert.equal(result.grounding.final_iteration, 2);
   assert.equal(result.grounding.iterations.length, 4);   // 2 prior + 2 current
+});
+
+test('verifyGrounding: ITERATE when deterministic reviewer is MAJOR even if composite passes', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  const result = verifyGrounding({
+    iteration: 1, threshold: 0.85, mode: 'default', signals,
+    architecture: { expert: 'architecture', iteration: 1, score: 0.95, severity: 'PASS', covered_ids: [], missing_ids: [], changes: [] },
+    security:     { expert: 'security',     iteration: 1, score: 0.95, severity: 'PASS', covered_ids: [], missing_ids: [], changes: [] },
+    det_architecture: { expert: 'architecture', iteration: 1, severity: 'MAJOR',
+      invalid_citations: [{ where: 'FR-01', cite: 'R99', reason: 'Premise R99 not declared' }],
+      coverage_discrepancies: [], stats: {} },
+    det_security: passingDet('security'),
+    meshContext: mockMesh(), history: [],
+  });
+  assert.equal(result.verdict, 'ITERATE');
+  assert.match(result.reason, /invalid citations/i);
+});
+
+test('verifyGrounding: ITERATE when expert disagreement >= 0.2 even if composite passes', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  const result = verifyGrounding({
+    iteration: 1, threshold: 0.5, mode: 'default', signals,    // low threshold so composite passes
+    architecture: { expert: 'architecture', iteration: 1, score: 0.95, severity: 'PASS', covered_ids: [], missing_ids: [], changes: [] },
+    security:     { expert: 'security',     iteration: 1, score: 0.60, severity: 'MINOR', covered_ids: [], missing_ids: [], changes: [] },
+    det_architecture: passingDet('architecture'),
+    det_security:     passingDet('security'),
+    meshContext: mockMesh(), history: [],
+  });
+  assert.equal(result.verdict, 'ITERATE');
+  assert.match(result.reason, /disagreement/i);
+  assert.ok(DISAGREEMENT_DELTA_THRESHOLD === 0.2, 'spec: disagreement threshold is 0.2');
+});
+
+// ============================================================================
+// deterministic-review (architecture + security)
+// ============================================================================
+
+test('deterministicArchitectureReview: PASS on canonical body', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  const r = deterministicArchitectureReview({ iteration: 1, signals, meshContext: mockMesh() });
+  assert.equal(r.severity, 'PASS');
+  assert.equal(r.invalid_citations.length, 0);
+  assert.equal(r.coverage_discrepancies.length, 0);
+});
+
+test('deterministicArchitectureReview: MAJOR when FR cites an undeclared premise', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  // Inject a bogus citation
+  signals.fr_entries.push({ id: 'FR-99', cited: ['R99'] });
+  const r = deterministicArchitectureReview({ iteration: 1, signals, meshContext: mockMesh() });
+  assert.equal(r.severity, 'MAJOR');
+  assert.equal(r.invalid_citations.length, 1);
+  assert.equal(r.invalid_citations[0].cite, 'R99');
+  assert.equal(r.invalid_citations[0].where, 'FR-99');
+});
+
+test('deterministicArchitectureReview: MINOR when only coverage table is stale', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  // Add a premise to the table that no FR/SR cites — claimed YES → discrepancy
+  signals.coverage_rows.push({ premise: 'R99', status: 'YES', whereAddressed: 'nowhere' });
+  signals.premise_ids.push('R99');
+  const r = deterministicArchitectureReview({ iteration: 1, signals, meshContext: mockMesh() });
+  assert.equal(r.severity, 'MINOR');
+  assert.equal(r.invalid_citations.length, 0);
+  assert.ok(r.coverage_discrepancies.length >= 1);
+  assert.ok(r.coverage_discrepancies.some(d => d.premise === 'R99'));
+});
+
+test('deterministicSecurityReview: MAJOR when SR cites a non-existent THR id', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  signals.sr_entries.push({ id: 'SR-99', cited: ['THR-999'] });
+  const r = deterministicSecurityReview({ iteration: 1, signals, meshContext: mockMesh() });
+  assert.equal(r.severity, 'MAJOR');
+  assert.ok(r.invalid_citations.some(c => c.cite === 'THR-999'));
+});
+
+test('deterministicSecurityReview: MAJOR when SR cites an out-of-range OWASP id', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  signals.sr_entries.push({ id: 'SR-99', cited: ['A99'] });
+  const r = deterministicSecurityReview({ iteration: 1, signals, meshContext: mockMesh() });
+  assert.equal(r.severity, 'MAJOR');
+  assert.ok(r.invalid_citations.some(c => c.cite === 'A99'));
+});
+
+test('deterministicSecurityReview: PASS on canonical body (valid THR + A07 + NIST-AC-7)', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  const r = deterministicSecurityReview({ iteration: 1, signals, meshContext: mockMesh() });
+  assert.equal(r.severity, 'PASS');
+  assert.equal(r.invalid_citations.length, 0);
 });
 
 // ============================================================================

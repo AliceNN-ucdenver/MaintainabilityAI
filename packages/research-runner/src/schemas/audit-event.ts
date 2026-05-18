@@ -91,6 +91,42 @@ const NodeErrorEvent = Envelope.extend({
   }),
 });
 
+/**
+ * `iteration_summary` — emitted once per PRD refinement loop iteration after
+ * `verify_grounding` resolves. Carries the 4 reviewer signals + composite +
+ * verdict in one place so the published PRD can render a score-progression
+ * table without re-parsing earlier events.
+ */
+const IterationSummaryEvent = Envelope.extend({
+  node_kind: z.literal('iteration_summary'),
+  iteration: z.number().int().min(1).max(5),
+  summary: z.object({
+    det_arch: z.object({
+      severity: z.enum(['PASS', 'MINOR', 'MAJOR']),
+      invalid_citations: z.number().int().nonnegative(),
+      coverage_discrepancies: z.number().int().nonnegative(),
+    }),
+    det_sec: z.object({
+      severity: z.enum(['PASS', 'MINOR', 'MAJOR']),
+      invalid_citations: z.number().int().nonnegative(),
+      coverage_discrepancies: z.number().int().nonnegative(),
+    }),
+    llm_arch: z.object({
+      score: z.number().min(0).max(1),
+      severity: z.enum(['PASS', 'MINOR', 'MAJOR', 'BLOCKING']),
+    }),
+    llm_sec: z.object({
+      score: z.number().min(0).max(1),
+      severity: z.enum(['PASS', 'MINOR', 'MAJOR', 'BLOCKING']),
+    }),
+    composite_score: z.number().min(0).max(1),
+    /** |llm_arch.score - llm_sec.score| — used by verify_grounding for the disagreement rule. */
+    disagreement_delta: z.number().min(0).max(1),
+    verdict: z.enum(['PASS', 'ITERATE', 'EXHAUSTED']),
+    reason: z.string(),
+  }),
+});
+
 /** `run_complete` — final event emitted by verify_and_trigger. Closes the chain. */
 const RunCompleteEvent = Envelope.extend({
   node_kind: z.literal('run_complete'),
@@ -112,6 +148,7 @@ export const AuditEvent = z.discriminatedUnion('node_kind', [
   LlmEvent,
   PureEvent,
   NodeErrorEvent,
+  IterationSummaryEvent,
   RunCompleteEvent,
 ]);
 
@@ -120,4 +157,5 @@ export type PureApiEvent = z.infer<typeof PureApiEvent>;
 export type LlmEvent = z.infer<typeof LlmEvent>;
 export type PureEvent = z.infer<typeof PureEvent>;
 export type NodeErrorEvent = z.infer<typeof NodeErrorEvent>;
+export type IterationSummaryEvent = z.infer<typeof IterationSummaryEvent>;
 export type RunCompleteEvent = z.infer<typeof RunCompleteEvent>;

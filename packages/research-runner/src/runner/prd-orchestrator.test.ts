@@ -133,12 +133,30 @@ test('runPrd: PASS on iteration 1 when both reviews score high', async () => {
     // One synth + two parallel reviews + one verify per iteration; PASS on iter 1.
     const nodeNames = events!.map(e => e.node_name);
     assert.ok(nodeNames.includes('synthesize_prd[iter1]'));
-    assert.ok(nodeNames.includes('architecture_review[iter1]'));
-    assert.ok(nodeNames.includes('security_review[iter1]'));
+    assert.ok(nodeNames.includes('architect_expert_review[iter1]'));
+    assert.ok(nodeNames.includes('security_expert_review[iter1]'));
+    assert.ok(nodeNames.includes('deterministic_architecture_review[iter1]'));
+    assert.ok(nodeNames.includes('deterministic_security_review[iter1]'));
     assert.ok(nodeNames.includes('verify_grounding[iter1]'));
+    assert.ok(nodeNames.includes('iteration_summary[iter1]'));
     assert.ok(nodeNames.includes('generate_prd_manifest'));
     assert.equal(events![events!.length - 1].node_kind, 'run_complete');
     assert.equal(verifyChain(events!), result.chain_root_hash);
+
+    // iteration_summary event carries the 4 reviewer signals
+    const iterSummary = events!.find(e => e.node_kind === 'iteration_summary' && e.node_name === 'iteration_summary[iter1]');
+    assert.ok(iterSummary, 'iteration_summary event missing');
+    if (iterSummary && iterSummary.node_kind === 'iteration_summary') {
+      assert.equal(iterSummary.summary.verdict, 'PASS');
+      assert.equal(iterSummary.summary.det_arch.severity, 'PASS');
+      assert.equal(iterSummary.summary.det_sec.severity, 'PASS');
+      assert.ok(iterSummary.summary.composite_score >= 0.85);
+    }
+
+    // Published PRD body carries the 4-column score-progression table
+    const publishedBody = fs.readFileSync(result.artifact_path, 'utf8');
+    assert.match(publishedBody, /## Refinement Loop Trace/);
+    assert.match(publishedBody, /\| Iter \| det_arch \| det_sec \| llm_arch \| llm_sec \| composite \| Δ \| verdict \|/);
   } finally {
     destroyFixtureMesh(handle);
   }
@@ -174,12 +192,23 @@ test('runPrd: ITERATE then PASS — refinement loop reruns synthesis with feedba
 
     const events = readAuditLog(result.audit_log_path);
     const nodeNames = events!.map(e => e.node_name);
-    // Both iterations emitted their own synth + reviews + verify events
-    for (const n of ['synthesize_prd[iter1]', 'architecture_review[iter1]', 'security_review[iter1]', 'verify_grounding[iter1]',
-                      'synthesize_prd[iter2]', 'architecture_review[iter2]', 'security_review[iter2]', 'verify_grounding[iter2]']) {
+    // Both iterations emitted their own synth + 4 reviews + verify + iteration_summary events
+    for (const n of [
+      'synthesize_prd[iter1]', 'architect_expert_review[iter1]', 'security_expert_review[iter1]',
+      'deterministic_architecture_review[iter1]', 'deterministic_security_review[iter1]',
+      'verify_grounding[iter1]', 'iteration_summary[iter1]',
+      'synthesize_prd[iter2]', 'architect_expert_review[iter2]', 'security_expert_review[iter2]',
+      'deterministic_architecture_review[iter2]', 'deterministic_security_review[iter2]',
+      'verify_grounding[iter2]', 'iteration_summary[iter2]',
+    ]) {
       assert.ok(nodeNames.includes(n), `missing expected event: ${n}`);
     }
     assert.equal(verifyChain(events!), result.chain_root_hash);
+
+    // The 4-column trace renders both rows
+    const publishedBody = fs.readFileSync(result.artifact_path, 'utf8');
+    const traceRows = publishedBody.match(/^\| [12] \|/gm);
+    assert.equal(traceRows?.length, 2, 'expected one trace row per iteration');
   } finally {
     destroyFixtureMesh(handle);
   }
