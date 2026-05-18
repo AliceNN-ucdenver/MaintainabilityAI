@@ -59,10 +59,20 @@ test('ResearchBrief: BAR scope without id is rejected', () => {
   assert.equal(result.success, false);
 });
 
-test('ResearchBrief: portfolio scope with id is rejected', () => {
+test('ResearchBrief: portfolio scope is rejected (the enum no longer includes it)', () => {
   const result = ResearchBrief.safeParse({
     topic: 'x',
-    scope: { level: 'portfolio', id: 'SHOULD-NOT-BE-HERE' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    scope: { level: 'portfolio' as any, id: 'SHOULD-NOT-BE-HERE' },
+    trigger: { kind: 'workflow_dispatch' },
+  });
+  assert.equal(result.success, false);
+});
+
+test('ResearchBrief: platform scope without id is rejected', () => {
+  const result = ResearchBrief.safeParse({
+    topic: 'x',
+    scope: { level: 'platform' },
     trigger: { kind: 'workflow_dispatch' },
   });
   assert.equal(result.success, false);

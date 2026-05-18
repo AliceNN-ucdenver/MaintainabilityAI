@@ -195,7 +195,7 @@ Two starting points work the same way downstream:
 
 **From an Oraculum issue:** open the issue in the Oraculum panel, click the sidebar's **🔍 Promote to research-request** button. The extension adds the `research-request` label plus an `oraculum-derived` provenance label and posts a confirmation comment. The label-add event auto-fires `archeologist.yml` on the mesh repo. Done.
 
-**From scratch:** `Create Research Request` walks you through brief → scope (BAR / platform / portfolio) → path (research vs archaeology) → target repo (archaeology only). On submit, a new `research-request` issue lands on the mesh repo with a body that matches `archeologist.yml`'s parse-trigger regex contracts exactly — same label-add auto-fires the workflow.
+**From scratch:** `Create Research Request` walks you through brief → scope (BAR or platform — portfolio scope was removed; agents need a concrete architectural surface to produce a targeted PRD) → scope id → path (research vs archaeology) → target repo (archaeology only). On submit, a new `research-request` issue lands on the mesh repo with a body that matches `archeologist.yml`'s parse-trigger regex contracts exactly — same label-add auto-fires the workflow.
 
 ### Step 3 — Watch the Archeologist run
 

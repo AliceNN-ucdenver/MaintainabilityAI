@@ -37,16 +37,17 @@ export async function createResearchRequestCommand(prefill: CreateResearchReques
   });
   if (brief === undefined) { return; }   // user cancelled
 
-  // Step 2: scope level
+  // Step 2: scope level — portfolio was removed, agents need a concrete
+  // architectural surface to produce a targeted PRD.
   const scopeLevel = (prefill.scopeLevel) ?? await vscode.window.showQuickPick(
-    ['bar', 'platform', 'portfolio'].map(l => ({ label: l })),
+    ['bar', 'platform'].map(l => ({ label: l })),
     { title: 'Research request — scope level', ignoreFocusOut: true },
   ).then(p => p?.label as ScopeLevel | undefined);
   if (!scopeLevel) { return; }
 
-  // Step 3: scope id (BAR id, etc.) — for `bar` and `platform`
+  // Step 3: scope id (BAR id, etc.) — always required now.
   let scopeId: string | undefined = prefill.scopeId;
-  if (!scopeId && scopeLevel !== 'portfolio') {
+  if (!scopeId) {
     if (scopeLevel === 'bar') {
       // Offer a pick list of known BARs.
       const meshPath = MeshService.getMeshPath();

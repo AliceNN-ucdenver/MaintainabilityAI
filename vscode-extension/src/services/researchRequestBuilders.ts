@@ -6,8 +6,8 @@
  *
  * The body format mirrors the regex contracts in
  * code-templates/workflows/archeologist.yml:
- *   scope: <portfolio|platform|bar>
- *   scope_id: <id>
+ *   scope: <platform|bar>
+ *   scope_id: <id>     (required — portfolio scope was removed)
  *   path: <research|archaeology>
  *   target_repo: <owner/repo>   (archaeology only)
  *
@@ -16,11 +16,11 @@
  */
 
 export type ResearchPath = 'research' | 'archaeology';
-export type ScopeLevel = 'portfolio' | 'platform' | 'bar';
+export type ScopeLevel = 'platform' | 'bar';
 
 export interface ResearchRequestBrief {
   brief: string;
-  scope: { level: ScopeLevel; id?: string };
+  scope: { level: ScopeLevel; id: string };
   path: ResearchPath;
   targetRepo?: string;
   derivedFrom?: string;

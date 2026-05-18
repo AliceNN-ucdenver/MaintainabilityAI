@@ -26,12 +26,12 @@ on:
         description: "Plain-English research brief"
       scope_level:
         type: choice
-        description: "Scope: portfolio / platform / bar"
-        options: [portfolio, platform, bar]
+        description: "Scope: platform / bar (portfolio scope was removed)"
+        options: [platform, bar]
         default: bar
       scope_id:
-        required: false
-        description: "BAR id or platform slug (omit for portfolio scope)"
+        required: true
+        description: "BAR id (e.g. APP-IMDB-002) or platform slug (e.g. imdb-lite)"
       path:
         type: choice
         description: "Research path: market research | repo archaeology"
@@ -115,7 +115,7 @@ jobs:
               const issue = context.payload.issue;
               brief = issue.title + '\n\n' + (issue.body || '');
               issue_number = String(issue.number);
-              const scopeMatch = (issue.body || '').match(/scope:\s*(portfolio|platform|bar)\s*\n\s*scope_id:\s*([\w-]+)/i);
+              const scopeMatch = (issue.body || '').match(/scope:\s*(platform|bar)\s*\n\s*scope_id:\s*([\w-]+)/i);
               if (scopeMatch) { scope_level = scopeMatch[1].toLowerCase(); scope_id = scopeMatch[2]; }
               const pathMatch = (issue.body || '').match(/path:\s*(research|archaeology)/i);
               if (pathMatch) { path = pathMatch[1].toLowerCase(); }

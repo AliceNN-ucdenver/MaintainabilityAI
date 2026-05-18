@@ -20,7 +20,10 @@ import { readThreatModelFromBar } from './threat-model-reader';
 
 export interface GatherMeshContextOpts {
   meshDir: string;
-  scope: { level: 'portfolio' | 'platform' | 'bar'; id?: string };
+  /** Scope: 'platform' or 'bar'. Portfolio scope was removed — runs
+   *  must anchor to a specific platform or BAR for the agents to
+   *  produce a targeted PRD. */
+  scope: { level: 'platform' | 'bar'; id: string };
 }
 
 const STALE_RESEARCH_DAYS = 90;
@@ -294,8 +297,6 @@ export function gatherMeshContext(opts: GatherMeshContextOpts): MeshContext {
     platform: null,
     bar: null,
   };
-
-  if (opts.scope.level === 'portfolio') { return baseContext; }
 
   // -------- platform / bar branches --------
 

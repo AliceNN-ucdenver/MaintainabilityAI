@@ -269,7 +269,6 @@ function renderHtml(): string {
     <select id="scopeLevel">
       <option value="bar">BAR (Business Application Record)</option>
       <option value="platform">Platform</option>
-      <option value="portfolio">Portfolio</option>
     </select>
   </div>
   <div class="row" id="barRow">

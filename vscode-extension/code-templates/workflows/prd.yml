@@ -23,10 +23,10 @@ on:
         description: "URL of merged research PR (or path to research doc in this repo)"
       scope_level:
         type: choice
-        options: [portfolio, platform, bar]
+        options: [platform, bar]
         default: bar
       scope_id:
-        required: false
+        required: true
         description: "BAR id or platform slug"
       mode:
         type: choice
@@ -105,7 +105,7 @@ jobs:
               const body = issue.body || '';
               const prMatch = body.match(/research_pr:\s*(\S+)/i);
               if (prMatch) { research_pr = prMatch[1]; }
-              const scopeMatch = body.match(/scope:\s*(portfolio|platform|bar)\s*\n\s*scope_id:\s*([\w-]+)/i);
+              const scopeMatch = body.match(/scope:\s*(platform|bar)\s*\n\s*scope_id:\s*([\w-]+)/i);
               if (scopeMatch) { scope_level = scopeMatch[1].toLowerCase(); scope_id = scopeMatch[2]; }
               const modeMatch = body.match(/mode:\s*(shallow|deep)/i);
               if (modeMatch) { mode = modeMatch[1].toLowerCase(); }

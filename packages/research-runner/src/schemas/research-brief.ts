@@ -19,8 +19,8 @@ export const ResearchBrief = z.object({
 
   scope: z.object({
     level: ScopeLevel,
-    /** Required when level is `platform` (slug) or `bar` (id like `APP-IMDB-002`). */
-    id: z.string().optional(),
+    /** Required: platform slug (e.g. `imdb-lite`) or BAR id (e.g. `APP-IMDB-002`). */
+    id: z.string().min(1),
   }),
 
   /** `research` = market research; `archaeology` = codebase analysis path. */
@@ -55,21 +55,7 @@ export const ResearchBrief = z.object({
       path: ['target_repo'],
     });
   }
-  // BAR / platform scopes need an id; portfolio scope must NOT carry one
-  if (brief.scope.level !== 'portfolio' && !brief.scope.id) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `scope.id is required when scope.level is "${brief.scope.level}"`,
-      path: ['scope', 'id'],
-    });
-  }
-  if (brief.scope.level === 'portfolio' && brief.scope.id) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'scope.id must be omitted when scope.level is "portfolio"',
-      path: ['scope', 'id'],
-    });
-  }
+  // scope.id required-ness is enforced at the field level (min(1)).
 });
 
 export type ResearchBrief = z.infer<typeof ResearchBrief>;

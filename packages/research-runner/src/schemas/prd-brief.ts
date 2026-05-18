@@ -23,7 +23,8 @@ export const PrdBrief = z.object({
 
   scope: z.object({
     level: ScopeLevel,
-    id: z.string().optional(),
+    /** Required: platform slug (e.g. `imdb-lite`) or BAR id (e.g. `APP-IMDB-002`). */
+    id: z.string().min(1),
   }),
 
   mode: PrdMode.default('deep'),

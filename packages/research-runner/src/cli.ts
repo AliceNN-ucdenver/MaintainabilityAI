@@ -71,12 +71,13 @@ async function archeologistCmd(argv: string[]): Promise<void> {
   const flags = parseFlags(argv);
   if (!flags.brief) { abort('--brief is required'); }
   if (!flags.scope_level) { abort('--scope-level is required'); }
+  if (!flags.scope_id) { abort('--scope-id is required (portfolio scope was removed; pass platform slug or BAR id)'); }
 
   const briefInput: Partial<ResearchBrief> = {
     topic: flags.brief,
     scope: {
       level: flags.scope_level as ResearchBrief['scope']['level'],
-      id: flags.scope_id || undefined,
+      id: flags.scope_id,
     },
     path: (flags.path as ResearchBrief['path']) || 'research',
     target_repo: flags.target_repo || undefined,
@@ -111,6 +112,7 @@ async function prdCmd(argv: string[]): Promise<void> {
   const flags = parseFlags(argv);
   if (!flags.research_pr) { abort('--research-pr is required'); }
   if (!flags.scope_level) { abort('--scope-level is required'); }
+  if (!flags.scope_id) { abort('--scope-id is required (portfolio scope was removed; pass platform slug or BAR id)'); }
 
   const isUrl = /^https?:\/\//.test(flags.research_pr);
 
@@ -120,7 +122,7 @@ async function prdCmd(argv: string[]): Promise<void> {
       : { kind: 'path', relative_path: flags.research_pr },
     scope: {
       level: flags.scope_level as PrdBrief['scope']['level'],
-      id: flags.scope_id || undefined,
+      id: flags.scope_id,
     },
     mode: (flags.mode as PrdBrief['mode']) || 'deep',
     grounding: (flags.grounding as PrdBrief['grounding']) || 'default',
@@ -157,8 +159,8 @@ function help(): void {
   process.stdout.write(`research-runner v${PKG.version}
 
 Usage:
-  research-runner archeologist --brief "<topic>" --scope-level <portfolio|platform|bar> [--scope-id ID] [--path research|archaeology] [...]
-  research-runner prd --research-pr <url|path> --scope-level <portfolio|platform|bar> [--scope-id ID] [...]
+  research-runner archeologist --brief "<topic>" --scope-level <platform|bar> --scope-id ID [--path research|archaeology] [...]
+  research-runner prd --research-pr <url|path> --scope-level <platform|bar> --scope-id ID [...]
 
 See README.md for the full flag surface.
 `);

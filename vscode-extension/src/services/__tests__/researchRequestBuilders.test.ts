@@ -45,21 +45,29 @@ describe('buildResearchRequestBody', () => {
   it('omits target_repo on the research path even if provided', () => {
     const body = buildResearchRequestBody({
       brief: 'Survey market for celebrity-following features.',
-      scope: { level: 'portfolio' },
+      scope: { level: 'platform', id: 'imdb-lite' },
       path: 'research',
       targetRepo: 'should/not-appear',
     });
     expect(body).not.toMatch(REPO_RE);
   });
 
-  it('omits scope_id for portfolio scope (no id is required)', () => {
-    const body = buildResearchRequestBody({
-      brief: 'Cross-portfolio AI governance landscape.',
-      scope: { level: 'portfolio' },
+  it('emits scope_id alongside scope: line for platform and bar scopes', () => {
+    const platformBody = buildResearchRequestBody({
+      brief: 'IMDB-lite platform research.',
+      scope: { level: 'platform', id: 'imdb-lite' },
       path: 'research',
     });
-    expect(body).not.toMatch(/scope_id:/);
-    expect(body).toMatch(/scope:\s*portfolio/);
+    expect(platformBody).toMatch(/scope:\s*platform/);
+    expect(platformBody).toMatch(/scope_id:\s*imdb-lite/);
+
+    const barBody = buildResearchRequestBody({
+      brief: 'Single-BAR research.',
+      scope: { level: 'bar', id: 'APP-IMDB-002' },
+      path: 'research',
+    });
+    expect(barBody).toMatch(/scope:\s*bar/);
+    expect(barBody).toMatch(/scope_id:\s*APP-IMDB-002/);
   });
 
   it('prepends a "Derived from" line when provenance is provided', () => {

@@ -20,24 +20,6 @@ test('getMeshSha: returns the head SHA of a real git repo', () => {
   }
 });
 
-test('gatherMeshContext: portfolio scope returns mesh-wide context', () => {
-  const handle = buildFixtureMesh();
-  try {
-    const ctx = gatherMeshContext({ meshDir: handle.meshDir, scope: { level: 'portfolio' } });
-    // Schema must validate
-    MeshContext.parse(ctx);
-    assert.equal(ctx.scope.level, 'portfolio');
-    assert.equal(ctx.platform, null);
-    assert.equal(ctx.bar, null);
-    assert.equal(ctx.portfolio.name, 'Fixture Portfolio');
-    // Portfolio-level research was indexed
-    assert.equal(ctx.portfolio.related_research_summaries.length, 1);
-    assert.match(ctx.portfolio.related_research_summaries[0].topic, /insurance technology landscape/i);
-    assert.equal(ctx.mesh_sha, handle.commitSha);
-  } finally {
-    destroyFixtureMesh(handle);
-  }
-});
 
 test('gatherMeshContext: platform scope includes sibling BARs', () => {
   const handle = buildFixtureMesh();
@@ -160,7 +142,7 @@ test('gatherMeshContext: non-git mesh throws a clear error', () => {
     const { rmSync } = require('node:fs') as typeof import('node:fs');
     rmSync(`${handle.meshDir}/.git`, { recursive: true, force: true });
     assert.throws(
-      () => gatherMeshContext({ meshDir: handle.meshDir, scope: { level: 'portfolio' } }),
+      () => gatherMeshContext({ meshDir: handle.meshDir, scope: { level: 'platform', id: 'insurance-operations' } }),
       /Could not resolve mesh git SHA/,
     );
   } finally {

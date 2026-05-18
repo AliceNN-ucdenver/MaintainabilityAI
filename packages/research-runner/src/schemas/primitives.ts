@@ -23,7 +23,13 @@ export function providerNeedsApiKey(p: LlmProvider): boolean {
   return p !== 'github-models';
 }
 
-export const ScopeLevel = z.enum(['portfolio', 'platform', 'bar']);
+/**
+ * Research / PRD scope. Portfolio scope was dropped — too abstract for
+ * the agents to produce a targeted PRD. A run must be anchored to a
+ * concrete architectural surface: a platform (multiple BARs sharing a
+ * CALM model) or a single BAR.
+ */
+export const ScopeLevel = z.enum(['platform', 'bar']);
 export type ScopeLevel = z.infer<typeof ScopeLevel>;
 
 export const ResearchPath = z.enum(['research', 'archaeology']);
