@@ -113,21 +113,19 @@ export class BarService {
       ? reviews[reviews.length - 1].driftScore
       : undefined;
 
-    // Record governance score snapshot (deduplicates if unchanged).
-    // Round to integers BEFORE storing — the parser at parseScoreHistoryYaml
-    // strips decimals with `(\d+)`, so any float in memory but integer on
-    // disk made the dedup comparison fail every time (5.04 !== 5). Storing
-    // rounded values everywhere keeps the parser, the dedup, and the file
-    // all in agreement.
-    const snapshot: GovernanceScoreSnapshot = {
-      timestamp: new Date().toISOString(),
-      composite: Math.round(scores.compositeScore),
-      architecture: Math.round(scores.architecture.score),
-      security: Math.round(scores.security.score),
-      information_risk: Math.round(scores.infoRisk.score),
-      operations: Math.round(scores.operations.score),
-    };
-    this.appendScoreSnapshot(barPath, snapshot);
+    // NOTE: score-history snapshots are NO LONGER written from this
+    // read path. Every Looking Glass view (portfolio, BAR detail, sync,
+    // commit, push) called scorePillars, and each call appended a
+    // snapshot — leaving the mesh perpetually dirty and blocking
+    // pushes. Rounding + interval gates papered over the symptom but
+    // not the design. Snapshots are now recorded only via the explicit
+    // `score_snapshot` MCP tool (mcp/tools.ts) — typically triggered
+    // by a PR/CI event with a correlationId, not a UI refresh.
+    //
+    // The trend graph in the UI still works — it reads whatever
+    // snapshots already exist on disk. New entries land only when
+    // something real happens (a workflow run, an explicit user action),
+    // which is the right cadence anyway.
 
     const scoreHistory = this.readScoreHistory(barPath);
     const scoreTrend = BarService.computeGovernanceTrend(scoreHistory, s => s.composite);
