@@ -114,11 +114,16 @@ test('gatherMeshContext: bar scope walks all the way down', () => {
     // linked_repos parsed from app.yaml application.repos and normalized to owner/repo
     assert.deepEqual(bar.linked_repos, ['AliceN-ucdenver/claims-api', 'AliceN-ucdenver/claims-web']);
 
-    // sibling bars carry their own linked_repos so platform-scope research
-    // can union them for the PrdManifest.target_repos resolution.
+    // sibling bars carry their own linked_repos + CALM nodes + threats so
+    // platform-scope generate_prd_manifest can classify each as HIGH or
+    // LOW confidence against the PRD's citations.
     const siblingApp002 = ctx.platform!.sibling_bars.find(b => b.bar_id === 'APP-INS-002');
     assert.ok(siblingApp002, 'APP-INS-002 sibling bar should be present');
     assert.deepEqual(siblingApp002!.linked_repos, ['AliceN-ucdenver/policy-admin']);
+    // CALM nodes and threats are arrays (may be empty for sibling fixtures
+    // without those files; the contract is that the fields exist).
+    assert.ok(Array.isArray(siblingApp002!.calm_node_ids), 'calm_node_ids should be an array');
+    assert.ok(Array.isArray(siblingApp002!.threat_ids), 'threat_ids should be an array');
   } finally {
     destroyFixtureMesh(handle);
   }

@@ -379,6 +379,13 @@ test('generatePrdManifest: extracts endpoints from FR entries + SR citations', (
   assert.equal(manifest.grounding.final_score, 0.91);
   // target_repos comes from MeshContext.bar.linked_repos (parsed from app.yaml)
   assert.deepEqual(manifest.target_repos.sort(), ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web']);
+
+  // BAR-scope manifest: impacted_bars contains exactly the current BAR,
+  // always HIGH confidence (the PRD is about it by definition).
+  assert.equal(manifest.impacted_bars.length, 1);
+  assert.equal(manifest.impacted_bars[0].bar_id, 'APP-INS-001');
+  assert.equal(manifest.impacted_bars[0].confidence, 'high');
+  assert.deepEqual(manifest.impacted_bars[0].repos.sort(), ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web']);
 });
 
 test('generatePrdManifest: falls back to mesh/<bar-id> when linked_repos is empty', () => {
@@ -401,4 +408,74 @@ test('generatePrdManifest: falls back to mesh/<bar-id> when linked_repos is empt
     threshold: 0.85,
   });
   assert.deepEqual(manifest.target_repos, ['mesh/app-ins-001']);
+});
+
+test('generatePrdManifest: platform scope classifies siblings HIGH/LOW by CALM + threat citation overlap', () => {
+  const signals = validatePrd(CANONICAL_PRD_BODY).signals;
+  const brief: PrdBrief = {
+    research_source: { kind: 'path', relative_path: 'platforms/imdb-lite/research/celeb-fraud-2025.md' },
+    scope: { level: 'platform', id: 'PLT-IMDB' },
+    mode: 'deep', grounding: 'default', grounding_threshold: 0.85, max_iterations: 3,
+    guardrails: 'default', llm_provider: 'anthropic', cost_cap_tokens: 200_000,
+    trigger: { kind: 'local_dev' },
+  };
+  // Platform-scoped: mesh.bar is null, mesh.platform.sibling_bars carries
+  // the per-BAR CALM + threat catalogs the classifier consumes. Sibling 1
+  // owns celeb-api (referenced by FR-01 in the canonical PRD body) → HIGH.
+  // Sibling 2 owns nothing the PRD cites → LOW.
+  const platformMesh: MeshContext = {
+    ...mockMesh(),
+    bar: null,
+    platform: {
+      platform_id: 'PLT-IMDB',
+      architecture: null,
+      sibling_bars: [
+        {
+          bar_id: 'APP-IMDB-CELEBS',
+          name: 'Celebs',
+          composite_score: 0,
+          linked_repos: ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web'],
+          calm_node_ids: ['celeb-api', 'celeb-db'],   // celeb-api is cited in CANONICAL_PRD_BODY
+          threat_ids: ['THR-001'],                     // THR-001 cited by SR-01 + SR-02
+        },
+        {
+          bar_id: 'APP-IMDB-MOVIES',
+          name: 'Movies',
+          composite_score: 0,
+          linked_repos: ['AliceN-ucdenver/movie-api'],
+          calm_node_ids: ['movie-api', 'movie-db'],    // none referenced
+          threat_ids: ['THR-100'],                      // not cited
+        },
+      ],
+      related_research_summaries: [],
+    },
+  };
+  const manifest = generatePrdManifest({
+    runId: 'PRD-2026-05-17-platformtest',
+    brief,
+    meshContext: platformMesh,
+    prdBody: CANONICAL_PRD_BODY,
+    signals,
+    grounding: { final_iteration: 1, iterations: [], citation_coverage: { threats_in_scope: 1, threats_covered_by_sr: 1, calm_nodes_in_scope: 2, calm_nodes_cited_by_fr: 2, self_reported_no_count: 0 }, final_score: 0.91, passed: true },
+    threshold: 0.85,
+  });
+
+  assert.equal(manifest.impacted_bars.length, 2);
+  const celebs = manifest.impacted_bars.find(b => b.bar_id === 'APP-IMDB-CELEBS')!;
+  const movies = manifest.impacted_bars.find(b => b.bar_id === 'APP-IMDB-MOVIES')!;
+
+  // Celebs owns celeb-api (FR-01) + THR-001 → HIGH with reasoning naming both
+  assert.equal(celebs.confidence, 'high');
+  assert.match(celebs.reasoning, /celeb-api/);
+  assert.match(celebs.reasoning, /THR-001/);
+  assert.deepEqual(celebs.repos.sort(), ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web']);
+
+  // Movies owns nothing the PRD cites → LOW
+  assert.equal(movies.confidence, 'low');
+  assert.match(movies.reasoning, /No CALM nodes or threats/i);
+
+  // target_repos is the union of HIGH only — movie-api is NOT included
+  assert.deepEqual(manifest.target_repos.sort(), ['AliceN-ucdenver/celeb-api', 'AliceN-ucdenver/celeb-web']);
+  assert.ok(!manifest.target_repos.includes('AliceN-ucdenver/movie-api'),
+    'LOW-confidence BAR repos must not appear in target_repos (they surface as footer mentions instead)');
 });

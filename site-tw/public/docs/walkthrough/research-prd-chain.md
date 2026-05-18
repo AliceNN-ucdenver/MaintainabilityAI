@@ -160,8 +160,23 @@ POST /repos/AliceNN-ucdenver/celeb-api/issues     ← (4) one direct API call
 
 **Practical consequence**: the only place you maintain the target-repo list is each BAR's `app.yaml application.repos[]`. Add or remove a URL there and the next PRD run picks it up automatically. No workflow edits, no manifest hand-editing, no separate workflow file on the code-repo side.
 
-- **Platform-scope research** (no specific BAR): the runner unions every sibling BAR's `linked_repos` so the PRD dispatches to all code repos under the platform.
+- **Platform-scope research** (no specific BAR): the runner doesn't spray-and-pray. It classifies each sibling BAR as **HIGH** or **LOW** confidence based on whether the PRD's citations touch CALM nodes or threats the BAR owns (see "Platform scope: which BARs are impacted?" below). Only HIGH bars' repos end up in `target_repos`; LOW bars surface as footer mentions in the HIGH bars' landing-issues.
 - **Misconfigured BAR** (no `repos:` block): the runner falls back to a `mesh/<bar-id-lowercase>` placeholder so the manifest still validates — visible in the run logs so you can fix `app.yaml`.
+
+### Platform scope: which BARs are actually impacted?
+
+When you dispatch a PRD at platform scope (e.g. "build celebrity favorites across IMDB-lite"), the runner doesn't know up front which of the platform's BARs need work. A 5-BAR platform with 12 total code repos shouldn't get 12 identical landing-issues — most won't be relevant. The runner solves this by **citation-based impact classification**:
+
+1. `generate_prd_manifest` collects every CALM node referenced by an endpoint (`endpoints[].calm_node`) and every threat ID cited by a security requirement (`security_requirements[].citations` filtered to `THR-*`).
+2. For each sibling BAR in the platform, it cross-references:
+   - **CALM ownership** — does the BAR's `bar.arch.json` declare any of the referenced CALM nodes as a `unique-id`?
+   - **Threat ownership** — does the BAR's `threat-model.yaml` declare any of the cited threat IDs?
+3. **HIGH confidence**: at least one citation overlap. The BAR's repos go into `target_repos`; `notify-code-repos.yml` opens a landing-issue in each one. The issue body's "Why this repo?" section names the specific CALM node or threat IDs that triggered the match.
+4. **LOW confidence**: no citation overlap. The BAR is NOT auto-issued. Instead it appears in an "Other BARs in the platform — review needed?" footer at the bottom of every HIGH bar's landing-issue, with its repo slugs and a "no citation match found — check if shared-infra or downstream effects apply" note.
+
+Engineers reading a landing-issue therefore see (a) why their repo was targeted (with citation reasoning) AND (b) what other repos in the platform might also need attention — without having those other repos cluttered with auto-generated issues that may not be relevant.
+
+**Future enhancement (Phase 2, not yet shipped):** an `impact_analysis` LLM node after grounding PASS will read the PRD, each BAR's CALM, ADRs, research findings, and a per-BAR code summary (file tree + recent commit messages) to refine the classification beyond pure citation overlap — catching effects like "this changes JSON schema X which a low-confidence BAR also serializes". Phase 1 ships the deterministic floor; Phase 2 layers on top.
 
 ---
 

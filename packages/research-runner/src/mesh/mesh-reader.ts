@@ -161,21 +161,57 @@ function findBarPath(meshDir: string, barId: string): { barPath: string; platfor
   return null;
 }
 
-function listSiblingBars(platformDir: string, excludeBarId: string): { bar_id: string; name: string; composite_score: number; linked_repos: string[] }[] {
+interface SiblingBarSummary {
+  bar_id: string;
+  name: string;
+  composite_score: number;
+  linked_repos: string[];
+  calm_node_ids: string[];
+  threat_ids: string[];
+}
+
+function listSiblingBars(platformDir: string, excludeBarId: string): SiblingBarSummary[] {
   const barsDir = path.join(platformDir, 'bars');
   if (!fs.existsSync(barsDir)) { return []; }
-  const out: { bar_id: string; name: string; composite_score: number; linked_repos: string[] }[] = [];
+  const out: SiblingBarSummary[] = [];
   for (const entry of fs.readdirSync(barsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) { continue; }
-    const appYaml = loadYamlFile<AppYaml>(path.join(barsDir, entry.name, 'app.yaml'));
+    const barPath = path.join(barsDir, entry.name);
+    const appYaml = loadYamlFile<AppYaml>(path.join(barPath, 'app.yaml'));
     const app = appYaml?.application;
     if (!app?.id || app.id === excludeBarId) { continue; }
+
+    // CALM nodes the BAR owns — same shape as the bar-scope branch.
+    const calm = loadJsonFile<unknown>(path.join(barPath, 'architecture', 'bar.arch.json'));
+    const calmNodeIds = extractCalmNodeIdsFromArchJson(calm);
+
+    // Threat ids — read via the same threat-model-reader used at bar scope.
+    const tm = readThreatModelFromBar(barPath);
+    const threatIds: string[] = Array.isArray(tm?.threats)
+      ? (tm!.threats as Array<{ id?: string }>).map(t => t.id).filter((id): id is string => !!id)
+      : [];
+
     out.push({
       bar_id: app.id,
       name: app.name || app.id,
       composite_score: 0,  // v1: scorer integration lands in phase 4
       linked_repos: extractLinkedRepos(appYaml),
+      calm_node_ids: calmNodeIds,
+      threat_ids: threatIds,
     });
+  }
+  return out;
+}
+
+/** Pull `unique-id` strings out of the nodes array of a parsed bar.arch.json. */
+function extractCalmNodeIdsFromArchJson(calm: unknown): string[] {
+  if (!calm || typeof calm !== 'object') { return []; }
+  const nodes = (calm as { nodes?: unknown }).nodes;
+  if (!Array.isArray(nodes)) { return []; }
+  const out: string[] = [];
+  for (const n of nodes) {
+    const id = (n as Record<string, unknown>)['unique-id'];
+    if (typeof id === 'string' && id.length > 0) { out.push(id); }
   }
   return out;
 }

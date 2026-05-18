@@ -14,6 +14,7 @@ import type {
   MeshContext,
   PrdBrief,
   PrdManifest,
+  ImpactedBar,
 } from '../../schemas';
 import type { PrdCitationSignals } from './prd-validator';
 
@@ -30,26 +31,34 @@ export interface GenerateManifestOpts {
 /**
  * Build the PrdManifest. Endpoints come from regex-extracted FR-NN entries
  * that mention an HTTP-method + path; security requirements come straight
- * from the validator's parsed SR entries. target_repos come from the BAR's
- * linked repos in MeshContext (fall back to a placeholder when none).
+ * from the validator's parsed SR entries.
+ *
+ * impacted_bars + target_repos come from computeImpactedBars() — see that
+ * function for the HIGH/LOW classification logic. target_repos is the
+ * union of HIGH-confidence BARs' repos (LOW bars surface only as footer
+ * mentions in the landing-issues, never as auto-created issues).
  */
 export function generatePrdManifest(opts: GenerateManifestOpts): PrdManifest {
   const topic = derivePrdTopic(opts.brief, opts.prdBody);
   const endpoints = extractEndpoints(opts.prdBody);
-  const targetRepos = resolveTargetRepos(opts.meshContext);
+  const security_requirements = opts.signals.sr_entries.map(sr => ({
+    id: sr.id as `SR-${number}`,
+    // The schema's citation regex accepts THR-* / A0* / NIST-XX-N — we filter
+    // to those before passing through (FR-side IDs would fail validation).
+    citations: sr.cited.filter(c => /^(?:THR-\d+|A\d{2}|NIST-[A-Z]{2}-\d+)$/.test(c)),
+  }));
+
+  const impacted_bars = computeImpactedBars(opts.meshContext, endpoints, security_requirements);
+  const target_repos = deriveTargetRepos(impacted_bars, opts.meshContext);
 
   return {
     run_id: opts.runId,
     prd_topic: topic,
     mesh_sha: opts.meshContext.mesh_sha,
-    target_repos: targetRepos,
+    target_repos,
+    impacted_bars,
     endpoints,
-    security_requirements: opts.signals.sr_entries.map(sr => ({
-      id: sr.id as `SR-${number}`,
-      // The schema's citation regex accepts THR-* / A0* / NIST-XX-N — we filter
-      // to those before passing through (FR-side IDs would fail validation).
-      citations: sr.cited.filter(c => /^(?:THR-\d+|A\d{2}|NIST-[A-Z]{2}-\d+)$/.test(c)),
-    })),
+    security_requirements,
     grounding: {
       final_score: opts.grounding.final_score,
       threshold: opts.threshold,
@@ -57,6 +66,105 @@ export function generatePrdManifest(opts: GenerateManifestOpts): PrdManifest {
       passed: opts.grounding.passed,
     },
   };
+}
+
+/**
+ * Classify every BAR in scope as HIGH or LOW confidence based on whether
+ * the PRD's citations touch a CALM node the BAR owns or a threat the BAR
+ * declared.
+ *
+ * Inputs:
+ *   - endpoints[].calm_node     — referenced CALM ids
+ *   - security_requirements[].citations.THR-*  — referenced threat ids
+ *
+ * Per BAR:
+ *   - own_calm_nodes ∩ referenced_calm_nodes ≠ ∅  → HIGH (endpoint hit)
+ *   - own_threat_ids ∩ referenced_threat_ids ≠ ∅  → HIGH (threat hit)
+ *   - otherwise (BAR is in the platform but no citation overlap) → LOW
+ *
+ * At BAR scope, only that one BAR is in scope and it is always HIGH (the
+ * PRD is about it by definition; the linked_repos are the target). At
+ * platform scope, the current BAR is null and every sibling BAR is
+ * classified. Portfolio scope falls back to the placeholder.
+ */
+export function computeImpactedBars(
+  mesh: MeshContext,
+  endpoints: PrdManifest['endpoints'],
+  securityRequirements: PrdManifest['security_requirements'],
+): ImpactedBar[] {
+  const referencedCalm = new Set(endpoints.map(e => e.calm_node).filter(n => n && n !== 'unknown'));
+  const referencedThreats = new Set<string>();
+  for (const sr of securityRequirements) {
+    for (const c of sr.citations) {
+      if (c.startsWith('THR-')) { referencedThreats.add(c); }
+    }
+  }
+
+  // BAR scope: only the current BAR; trivially HIGH (PRD is about it).
+  if (mesh.bar) {
+    const reasoning = endpoints.length > 0 || securityRequirements.length > 0
+      ? `PRD scope is BAR ${mesh.bar.bar_id}; covers ${endpoints.length} endpoint(s), ${securityRequirements.length} security requirement(s).`
+      : `PRD scope is BAR ${mesh.bar.bar_id}.`;
+    return [{
+      bar_id: mesh.bar.bar_id,
+      repos: uniqueOwnerRepos(mesh.bar.linked_repos),
+      confidence: 'high',
+      reasoning,
+    }];
+  }
+
+  // Platform scope: classify each sibling. (When mesh.bar is null AND
+  // mesh.platform is set, the PRD is platform-scoped.)
+  const siblings = mesh.platform?.sibling_bars ?? [];
+  if (siblings.length === 0) { return []; }
+
+  return siblings.map(sib => {
+    const calmHits = sib.calm_node_ids.filter(id => referencedCalm.has(id));
+    const threatHits = sib.threat_ids.filter(id => referencedThreats.has(id));
+    if (calmHits.length > 0 || threatHits.length > 0) {
+      const parts: string[] = [];
+      if (calmHits.length > 0) {
+        parts.push(`owns CALM node${calmHits.length > 1 ? 's' : ''} ${calmHits.map(n => `\`${n}\``).join(', ')} referenced by ${endpoints.filter(e => calmHits.includes(e.calm_node)).map(e => e.fr_id).join(', ')}`);
+      }
+      if (threatHits.length > 0) {
+        parts.push(`owns threat${threatHits.length > 1 ? 's' : ''} ${threatHits.map(t => `\`${t}\``).join(', ')} cited by security requirements`);
+      }
+      return {
+        bar_id: sib.bar_id,
+        repos: uniqueOwnerRepos(sib.linked_repos),
+        confidence: 'high' as const,
+        reasoning: parts.join('; '),
+      };
+    }
+    return {
+      bar_id: sib.bar_id,
+      repos: uniqueOwnerRepos(sib.linked_repos),
+      confidence: 'low' as const,
+      reasoning: 'No CALM nodes or threats from this BAR are cited by the PRD. Listed as a low-confidence reference in case shared infra / downstream effects apply.',
+    };
+  });
+}
+
+/**
+ * target_repos = the union of HIGH-confidence BARs' repos. LOW BARs are
+ * intentionally excluded from auto-issue creation; they surface only as
+ * footer mentions in the HIGH BARs' landing-issues.
+ *
+ * Fallbacks (no HIGH bars + no impacted_bars at all): keep the manifest
+ * valid by emitting the BAR-id placeholder so the user notices something
+ * is misconfigured.
+ */
+function deriveTargetRepos(impactedBars: ImpactedBar[], mesh: MeshContext): string[] {
+  const highRepos = impactedBars
+    .filter(b => b.confidence === 'high')
+    .flatMap(b => b.repos);
+  if (highRepos.length > 0) { return uniqueOwnerRepos(highRepos); }
+
+  // Edge case: a PRD that didn't pull in any sibling-BAR citations and
+  // has no BAR scope. Surface a placeholder so the manifest still
+  // validates and the run log shows the user that nothing matched.
+  if (mesh.bar) { return [`mesh/${mesh.bar.bar_id.toLowerCase()}`]; }
+  return ['placeholder/repo'];
 }
 
 function derivePrdTopic(brief: PrdBrief, body: string): string {
@@ -117,36 +225,6 @@ function sliceSection(body: string, sectionName: string): string | null {
     if (inSection) { collected.push(line); }
   }
   return collected.length === 0 ? null : collected.join('\n');
-}
-
-/**
- * Resolve the list of code repos this PRD targets. Priority order:
- *
- *   1. The BAR's `app.yaml` `application.repos` list (normalized to
- *      `owner/repo`) — the canonical source. This is what
- *      `notify-code-repos.yml` reads at dispatch time.
- *   2. Platform scope: aggregate every sibling BAR's linked_repos.
- *   3. Last-resort fallback: `mesh/<bar_id-lowercase>` so the manifest
- *      still passes Zod validation (target_repos must be a non-empty
- *      owner/repo list). Indicates a misconfigured BAR — the run
- *      logs will show this so the user can fix app.yaml.
- */
-function resolveTargetRepos(mesh: MeshContext): string[] {
-  const bar = mesh.bar;
-  if (bar && bar.linked_repos.length > 0) {
-    return uniqueOwnerRepos(bar.linked_repos);
-  }
-  // Platform scope: union all sibling-bar linked_repos. Sibling bars
-  // carry their own linked_repos arrays so platform-level research
-  // dispatches to every code repo under the platform.
-  const platform = mesh.platform;
-  if (!bar && platform && platform.sibling_bars.length > 0) {
-    const all: string[] = [];
-    for (const sib of platform.sibling_bars) { all.push(...sib.linked_repos); }
-    if (all.length > 0) { return uniqueOwnerRepos(all); }
-  }
-  if (bar) { return [`mesh/${bar.bar_id.toLowerCase()}`]; }
-  return ['placeholder/repo'];
 }
 
 function uniqueOwnerRepos(list: string[]): string[] {

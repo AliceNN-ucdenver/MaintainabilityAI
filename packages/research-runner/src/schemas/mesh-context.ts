@@ -69,6 +69,15 @@ export const MeshContext = z.object({
       composite_score: z.number(),
       /** owner/repo entries parsed from each sibling BAR's app.yaml. */
       linked_repos: z.array(z.string().regex(/^[\w.-]+\/[\w.-]+$/)).default([]),
+      /** CALM node ids the BAR owns. Used by generate-prd-manifest's
+       *  impact classification to decide whether a sibling is HIGH
+       *  confidence (one of these nodes is referenced by an endpoint)
+       *  or LOW (no citation overlap). */
+      calm_node_ids: z.array(z.string()).default([]),
+      /** Threat ids declared in the BAR's threat-model.yaml. Used by the
+       *  same impact classification to flag siblings whose threats are
+       *  cited by the PRD's security requirements. */
+      threat_ids: z.array(z.string()).default([]),
     })),
     related_research_summaries: z.array(RelatedResearchSummary),
   }).nullable(),
