@@ -54,8 +54,12 @@ export async function callAnthropic(opts: CallAnthropicOpts): Promise<CallAnthro
     throw new Error('ANTHROPIC_API_KEY missing — set the env var or pass apiKey directly');
   }
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
-  // Match github-models default — 8K-token synth responses can run 60–90s.
-  const timeoutMs = opts.timeoutMs ?? 120_000;
+  // Sonnet at ~50–80 tok/s × 8K output = 100–160s, plus prompt-processing.
+  // 120s aborted real synth runs mid-stream; 240s gives headroom for
+  // slow days. (Real fix is streaming so the connection stays alive,
+  // but the cost/benefit isn't worth it yet — single-shot is fine
+  // until we hit 240s legitimately.)
+  const timeoutMs = opts.timeoutMs ?? 240_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 

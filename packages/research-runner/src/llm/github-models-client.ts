@@ -76,10 +76,13 @@ export async function callGitHubModels(opts: CallGitHubModelsOpts): Promise<Call
   }
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
-  // Synthesis prompts can produce 8K-token responses (and the "custom"
-  // tier models like gpt-5-mini can return much more), which routinely
-  // take 60–120s. Default to 120s so we don't abort mid-stream.
-  const timeoutMs = opts.timeoutMs ?? 120_000;
+  // Synthesis prompts can produce 8K+ output tokens (and "custom"-tier
+  // models like gpt-5-chat can return much more), which routinely take
+  // 100–180s. Match the Anthropic client at 240s for headroom on slow
+  // days. (Real fix is streaming so the connection stays alive, but
+  // the cost/benefit isn't worth it yet — single-shot is fine until
+  // we hit 240s legitimately.)
+  const timeoutMs = opts.timeoutMs ?? 240_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
