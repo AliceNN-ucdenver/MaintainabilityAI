@@ -58,7 +58,18 @@ export interface CallLlmResult {
 export async function callLlm(opts: CallLlmOpts): Promise<CallLlmResult> {
   const tierModels = MODEL_BY_TIER[opts.tier];
 
-  if (opts.provider === 'anthropic') {
+  // Hybrid routing: GitHub Models free tier caps requests at ~8K input
+  // tokens — too small for the synthesis step (full brief + every search
+  // result + mesh context routinely exceeds that). When the brief asks
+  // for github-models AND an Anthropic key is available, route synth →
+  // Anthropic and keep plan (small prompt) on github-models. Caller can
+  // force pure github-models by not setting anthropicApiKey.
+  const effectiveProvider: LlmProvider =
+    opts.provider === 'github-models' && opts.tier === 'synth' && opts.anthropicApiKey
+      ? 'anthropic'
+      : opts.provider;
+
+  if (effectiveProvider === 'anthropic') {
     if (!opts.anthropicApiKey) {
       throw new Error(`callLlm: provider=anthropic requires anthropicApiKey (set ANTHROPIC_API_KEY).`);
     }
@@ -82,7 +93,7 @@ export async function callLlm(opts: CallLlmOpts): Promise<CallLlmResult> {
     };
   }
 
-  if (opts.provider === 'github-models') {
+  if (effectiveProvider === 'github-models') {
     if (!opts.githubToken) {
       throw new Error(`callLlm: provider=github-models requires githubToken (set GITHUB_TOKEN; workflow needs \`permissions: models: read\`).`);
     }
@@ -106,5 +117,5 @@ export async function callLlm(opts: CallLlmOpts): Promise<CallLlmResult> {
     };
   }
 
-  throw new Error(`callLlm: provider "${opts.provider}" not yet implemented (phase 2c.1 ships anthropic + github-models; openai + azure-openai land later).`);
+  throw new Error(`callLlm: provider "${effectiveProvider}" not yet implemented (phase 2c.1 ships anthropic + github-models; openai + azure-openai land later).`);
 }

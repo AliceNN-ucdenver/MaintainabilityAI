@@ -56,7 +56,7 @@ test('callLlm: github-models + tier=plan routes to openai/gpt-4o-mini at models.
   assert.equal(result.costUsd, 0);
 });
 
-test('callLlm: github-models + tier=synth routes to openai/gpt-4.1 at models.github.ai', async () => {
+test('callLlm: github-models + tier=synth (no anthropicApiKey) stays on openai/gpt-4.1', async () => {
   let body: { model?: string } = {};
   const fetchImpl: typeof fetch = async (_u, init) => {
     body = JSON.parse(String((init as RequestInit).body));
@@ -68,6 +68,45 @@ test('callLlm: github-models + tier=synth routes to openai/gpt-4.1 at models.git
   });
   assert.equal(body.model, 'openai/gpt-4.1');
   assert.equal(result.model, 'openai/gpt-4.1');
+  assert.equal(result.provider, 'github-models');
+});
+
+test('callLlm: github-models + tier=synth + anthropicApiKey → hybrid routes synth to Anthropic', async () => {
+  // Why hybrid: GitHub Models free tier caps requests at ~8K input tokens
+  // — the synthesis prompt routinely exceeds that. When an Anthropic key
+  // is available, synth jumps to Claude Sonnet (200K context) while plan
+  // stays on the cheap GH Models path.
+  let url = '';
+  const fetchImpl: typeof fetch = async (u) => {
+    url = String(u);
+    return anthropicMock('ok');
+  };
+  const result = await callLlm({
+    provider: 'github-models', tier: 'synth',
+    githubToken: 'ghs_test', anthropicApiKey: 'sk-test',
+    prompt: 'x', maxTokens: 1, fetchImpl,
+  });
+  assert.equal(url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(result.provider, 'anthropic');
+  assert.equal(result.model, 'claude-sonnet-4-6');
+});
+
+test('callLlm: github-models + tier=plan + anthropicApiKey → plan STAYS on github-models (no hybrid)', async () => {
+  // Plan-tier prompts are small and fit inside the 8K cap; keep them on
+  // the free path even when an Anthropic key is set.
+  let url = '';
+  const fetchImpl: typeof fetch = async (u) => {
+    url = String(u);
+    return githubModelsMock('ok');
+  };
+  const result = await callLlm({
+    provider: 'github-models', tier: 'plan',
+    githubToken: 'ghs_test', anthropicApiKey: 'sk-test',
+    prompt: 'x', maxTokens: 1, fetchImpl,
+  });
+  assert.equal(url, 'https://models.github.ai/inference/chat/completions');
+  assert.equal(result.provider, 'github-models');
+  assert.equal(result.model, 'openai/gpt-4o-mini');
 });
 
 test('callLlm: anthropic without apiKey throws a clear error', async () => {
