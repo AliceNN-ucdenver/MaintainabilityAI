@@ -11,17 +11,21 @@
  * their result types.
  *
  * Model names use GitHub Models namespacing — e.g. `openai/gpt-4o`,
- * `openai/gpt-4o-mini`, `anthropic/claude-3-5-sonnet`. The router (in
+ * `openai/gpt-4o-mini`, `openai/gpt-4.1`. The router (in
  * llm-router.ts) maps internal logical model tiers (`plan` / `synth`) to
  * the concrete provider-specific id.
  */
 
-/** Subset of GitHub Models model ids we use. Extend as new tiers land. */
+/**
+ * Subset of GitHub Models model ids we use. Extend as new tiers land.
+ * GitHub Models does not currently host Anthropic Claude — synth tier
+ * uses `openai/gpt-4.1` (the "outperforms gpt-4o across the board" tier).
+ */
 export type GitHubModelsModel =
   | 'openai/gpt-4o'
   | 'openai/gpt-4o-mini'
-  | 'anthropic/claude-3-5-sonnet'
-  | 'anthropic/claude-3-5-haiku';
+  | 'openai/gpt-4.1'
+  | 'openai/gpt-4.1-mini';
 
 export interface CallGitHubModelsOpts {
   /** Workflow GITHUB_TOKEN. The model server checks the `models:read` permission scope. */

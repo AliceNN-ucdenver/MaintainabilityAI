@@ -24,7 +24,7 @@ export type LlmTier = 'plan' | 'synth';
 /** Per-tier per-provider model id lookup. */
 const MODEL_BY_TIER: Record<LlmTier, { anthropic: AnthropicModel; githubModels: GitHubModelsModel }> = {
   plan:  { anthropic: 'claude-haiku-4-5',  githubModels: 'openai/gpt-4o-mini' },
-  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'anthropic/claude-3-5-sonnet' },
+  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-4.1' },
 };
 
 export interface CallLlmOpts {

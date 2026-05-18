@@ -56,7 +56,7 @@ test('callLlm: github-models + tier=plan routes to openai/gpt-4o-mini at models.
   assert.equal(result.costUsd, 0);
 });
 
-test('callLlm: github-models + tier=synth routes to anthropic/claude-3-5-sonnet at models.github.ai', async () => {
+test('callLlm: github-models + tier=synth routes to openai/gpt-4.1 at models.github.ai', async () => {
   let body: { model?: string } = {};
   const fetchImpl: typeof fetch = async (_u, init) => {
     body = JSON.parse(String((init as RequestInit).body));
@@ -66,8 +66,8 @@ test('callLlm: github-models + tier=synth routes to anthropic/claude-3-5-sonnet 
     provider: 'github-models', tier: 'synth',
     githubToken: 'ghs_test', prompt: 'x', maxTokens: 1, fetchImpl,
   });
-  assert.equal(body.model, 'anthropic/claude-3-5-sonnet');
-  assert.equal(result.model, 'anthropic/claude-3-5-sonnet');
+  assert.equal(body.model, 'openai/gpt-4.1');
+  assert.equal(result.model, 'openai/gpt-4.1');
 });
 
 test('callLlm: anthropic without apiKey throws a clear error', async () => {

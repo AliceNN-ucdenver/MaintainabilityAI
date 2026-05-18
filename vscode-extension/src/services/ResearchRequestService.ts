@@ -37,9 +37,6 @@ export interface CreateRequestResult {
 
 const REQUEST_LABEL = 'research-request';
 const DERIVED_LABEL = 'oraculum-derived';
-// Apply the broad `maintainabilityai` label so research-request issues are
-// surfaced in the Oraculum panel, which lists issues by that label.
-const HUB_LABEL = 'maintainabilityai';
 
 /**
  * Add the `research-request` label to an existing mesh issue (the
@@ -55,7 +52,7 @@ export async function promoteToResearchRequest(opts: {
   if (!slug) {
     throw new Error('Cannot promote — mesh repo has no GitHub remote.');
   }
-  await githubService.addIssueLabels(slug.owner, slug.repo, opts.issueNumber, [REQUEST_LABEL, DERIVED_LABEL, HUB_LABEL]);
+  await githubService.addIssueLabels(slug.owner, slug.repo, opts.issueNumber, [REQUEST_LABEL, DERIVED_LABEL]);
   const client = await githubService.getClient();
   await client.rest.issues.createComment({
     owner: slug.owner,
@@ -85,7 +82,7 @@ export async function createResearchRequest(b: ResearchRequestBrief, opts: {
   }
   const title = buildResearchRequestTitle(b.brief);
   const body = buildResearchRequestBody(b);
-  const result = await githubService.createIssueRaw(slug.owner, slug.repo, title, body, [REQUEST_LABEL, HUB_LABEL]);
+  const result = await githubService.createIssueRaw(slug.owner, slug.repo, title, body, [REQUEST_LABEL]);
   return {
     issueNumber: result.number,
     issueUrl: result.url,
