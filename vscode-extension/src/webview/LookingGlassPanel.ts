@@ -481,6 +481,24 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         vscode.env.openExternal(vscode.Uri.parse(message.url));
         break;
 
+      case 'newResearchFromPlatform':
+        // Open the research-request wizard pre-filled with platform scope.
+        // Archeologist dispatches on the `research-request` issue label.
+        vscode.commands.executeCommand('maintainabilityai.createResearchRequest', {
+          scopeLevel: 'platform',
+          scopeId: message.slug,
+          brief: `Research for platform ${message.name} (${message.slug}).`,
+        });
+        break;
+
+      case 'newResearchFromBar':
+        vscode.commands.executeCommand('maintainabilityai.createResearchRequest', {
+          scopeLevel: 'bar',
+          scopeId: message.barId,
+          brief: `Research for BAR ${message.barName} (${message.barId}).`,
+        });
+        break;
+
       case 'backToPortfolio':
       case 'backToPlatform':
       case 'drillIntoPlatform':

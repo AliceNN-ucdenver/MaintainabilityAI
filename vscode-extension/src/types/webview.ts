@@ -336,7 +336,10 @@ export type LookingGlassWebviewMessage =
   | { type: 'savePlatformGovernance'; platformId: string; governance: { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } }
   // Red Queen — Governance Court agent type
   | { type: 'loadAgentType' }
-  | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' };
+  | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' }
+  // Research dispatch from platform / BAR views — opens NewResearchPanel pre-filled with scope
+  | { type: 'newResearchFromPlatform'; slug: string; name: string }
+  | { type: 'newResearchFromBar'; barId: string; barName: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

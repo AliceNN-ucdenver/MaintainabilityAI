@@ -878,6 +878,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
           <span class="tier-badge ${computeDisplayTier(bar)}" title="Governance tier (score-based)">${computeDisplayTier(bar)}</span>
           <span style="font-size: 12px; color: var(--text-muted);">${bar.repoCount} repo${bar.repoCount !== 1 ? 's' : ''}</span>
           <button class="btn-ghost btn-sm" id="btn-edit-app-yaml" data-bar-path="${escapeAttr(bar.path)}" title="Edit app.yaml">&#9998; Edit</button>
+          <button class="btn-ghost btn-sm" id="btn-bar-run-research" data-bar-id="${escapeAttr(bar.id)}" data-bar-name="${escapeAttr(bar.name)}" title="Dispatch the Archeologist research agent at this BAR">&#128270; Research</button>
           ${s.gitStatus?.isGitRepo ? (() => {
             const barGs = s.gitStatus?.barStatus[bar.path];
             const hasDirty = barGs?.isDirty;
@@ -1491,6 +1492,20 @@ export function attachBarDetailEvents(
     render,
   );
   attachAgentStatusListeners((msg) => vscode.postMessage(msg));
+
+  // Research dispatch — opens NewResearchPanel pre-filled with scope=bar
+  document.getElementById('btn-bar-run-research')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget as HTMLElement;
+    const barId = btn.dataset.barId;
+    const barName = btn.dataset.barName;
+    if (barId) {
+      vscode.postMessage({
+        type: 'newResearchFromBar',
+        barId,
+        barName: barName ?? barId,
+      });
+    }
+  });
 
   // App.yaml editor events
   document.getElementById('btn-edit-app-yaml')?.addEventListener('click', () => {

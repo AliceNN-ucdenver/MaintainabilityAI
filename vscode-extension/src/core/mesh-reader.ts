@@ -224,6 +224,7 @@ export class MeshReader {
 
       platformSummaries.push({
         id: platform.id,
+        slug: platformSlug,
         name: platform.name,
         barCount: bars.length,
         compositeHealth,

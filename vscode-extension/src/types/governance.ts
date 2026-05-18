@@ -169,6 +169,9 @@ export interface BarSummary {
 
 export interface PlatformSummary {
   id: string;
+  /** Directory slug under platforms/ — e.g. `imdb-lite` for id `PLT-IMDB`.
+   *  Needed by the research/PRD agents which key off the slug. */
+  slug: string;
   name: string;
   barCount: number;
   compositeHealth: number;   // Average of BAR composites

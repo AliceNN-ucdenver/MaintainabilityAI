@@ -437,6 +437,15 @@ export function renderApplicationPlatformDrillDown(
       <span class="sep">&rsaquo;</span>
       <span>${escapeHtml(platform.name)}</span>
     </div>
+    <div class="platform-actions" style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <button class="btn-secondary btn-sm" id="btn-platform-run-research"
+        data-platform-slug="${escapeAttr((platform as { slug?: string }).slug ?? currentPlatformId.toLowerCase())}"
+        data-platform-id="${escapeAttr(platform.id)}"
+        data-platform-name="${escapeAttr(platform.name)}"
+        title="Dispatch the Archeologist research agent at this platform — opens the New Research panel pre-filled with scope=platform">
+        &#128270; Run Research at Platform
+      </button>
+    </div>
     <div class="summary-grid">
       <div class="summary-card">
         <div class="label">Applications</div>
@@ -863,6 +872,21 @@ export function attachPortfolioEvents(
       barFilter: 'all',
     });
     render();
+  });
+
+  // Platform-scope research dispatch — posts message to LookingGlassPanel
+  // which executes the maintainabilityai.newResearch command with
+  // prefill={ scopeLevel: 'platform', scopeId: <slug> } so the form
+  // lands ready to dispatch.
+  document.getElementById('btn-platform-run-research')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-platform-run-research') as HTMLElement;
+    const slug = btn.dataset.platformSlug || '';
+    const name = btn.dataset.platformName || '';
+    if (!slug) {
+      vscode.postMessage({ type: 'error', message: 'Could not resolve platform slug for research dispatch.' });
+      return;
+    }
+    vscode.postMessage({ type: 'newResearchFromPlatform', slug, name });
   });
 
   // Platform architecture view toggle
