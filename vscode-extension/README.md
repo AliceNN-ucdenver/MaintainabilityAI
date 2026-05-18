@@ -165,7 +165,6 @@ Run **Scaffold SDLC Structure** to bootstrap security-first CI/CD in any project
 
 - `CLAUDE.md` — Agent instructions with detected tech stack
 - `.github/workflows/alice-remediation.yml` — 2-phase Claude remediation workflow
-- `.github/workflows/spec-ready-handler.yml` — Receives PRD `spec-ready` dispatches from the governance mesh and opens RCTRO implementation issues
 - `.github/workflows/codeql.yml` — CodeQL security scanning with SARIF processing
 - `.github/workflows/validate-prompt-hashes.yml` — Prompt pack integrity verification
 - `.github/workflows/fitness-functions.yml` — Automated quality gates

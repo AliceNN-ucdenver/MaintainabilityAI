@@ -63,7 +63,7 @@ If you are running the workshop with a team that has the v0.9 Looking Glass UX w
 Prerequisites — the **[end-to-end walkthrough](/docs/walkthrough/research-prd-chain)** scaffolding requirements section. In particular:
 
 - The mesh repo has `archeologist.yml`, `prd.yml`, `label-on-merge.yml`, `notify-code-repos.yml`, plus the `.caterpillar/prompts/research/*` and `.caterpillar/prompts/prd/*` packs (one-click via `Looking Glass` → `Settings` → `Deploy mesh workflows`)
-- Each target code repo has `spec-ready-handler.yml` (scaffolded by Cheshire)
+- No workflow files needed on the code repos — the mesh opens the PRD landing-issue directly via the GitHub Issues API
 - `TAVILY_API_KEY`, `ANTHROPIC_API_KEY` (or you have settled on `github-models`), and `GOVERNANCE_MESH_TOKEN` are pushed to the mesh repo's Actions secrets
 - The pre-flight checklist in `New Research / PRD Run` shows all green
 
@@ -74,8 +74,8 @@ The five-minute version of the path:
 3. **`Active Research / PRD Runs` shows the run.** Watch the current node update (plan_queries → tavily_search → … → synthesize_report). Adaptive cadence keeps the polling cheap.
 4. **The research PR opens on the mesh repo.** Read the rendered doc + Hatter's Tag. Merge it.
 5. **`label-on-merge.yml` labels the source issue `prd-ready`. `prd.yml` fires.** A second row appears in Active Runs — this is the PRD agent's multi-expert refinement loop. The published PRD includes a Refinement Loop Trace table so you can see how the score converged across iterations.
-6. **Merge the PRD PR.** `notify-code-repos.yml` reads `manifest.target_repos` and dispatches `spec-ready` at every code repo on the list. `spec-ready-handler.yml` in each repo creates the RCTRO implementation issue automatically.
-7. **You are now at the start of the ad-hoc path's implementation step.** The RCTRO issues are already in the right repos. Open one, comment `@claude please implement`, and the rest of Part 8 plays out as written.
+6. **Merge the PRD PR.** `notify-code-repos.yml` reads `manifest.target_repos` and **opens a PRD landing-issue directly in each code repo on the list** via the GitHub Issues API. The issue body contains the full PRD markdown + manifest JSON + audit pointers. No workflow runs on the code-repo side; the issue just appears.
+7. **You are now at the start of the ad-hoc path's implementation step.** The landing-issues are already in the right repos. Use the Looking Glass **Rabbit Hole** to manually assign one as an RCTRO implementation issue (or comment `@claude please implement` on the landing-issue directly to invoke alice-remediation.yml against the embedded manifest).
 
 What this gives the team to discuss before they start implementing:
 

@@ -1773,7 +1773,7 @@ function renderSettingsWorkflow(): string {
         <li><code>archeologist.yml</code> — research agent (market / repo archaeology)</li>
         <li><code>prd.yml</code> — PRD agent with grounding loop</li>
         <li><code>label-on-merge.yml</code> — research → PRD → spec-ready bus handler</li>
-        <li><code>notify-code-repos.yml</code> — dispatches spec-ready to target code repos</li>
+        <li><code>notify-code-repos.yml</code> — opens a PRD landing-issue in each target code repo</li>
       </ul>
       <div class="settings-row">
         <div class="settings-label">Status</div>

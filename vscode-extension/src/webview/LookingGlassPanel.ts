@@ -2731,12 +2731,12 @@ Policy file: ${filename}
     const ghUrl = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('GOVERNANCE_MESH_TOKEN')}`;
     void vscode.env.openExternal(vscode.Uri.parse(ghUrl));
 
-    // (2) Sticky checklist. Lists every code repo by slug so the user
-    //     can copy-paste the names into GitHub's "Only select
-    //     repositories" picker. Includes the mesh repo even though
-    //     spec-ready-handler.yml does not currently need contents:read
-    //     on it — that scope is harmless and pre-stages the dispatch-
-    //     payload-embedding upgrade.
+    // (2) Sticky checklist. Lists every code repo by slug so the user can
+    //     copy-paste the names into GitHub's "Only select repositories"
+    //     picker. The token only needs Issues:write — the narrowest
+    //     scope that allows POST /repos/{owner}/{repo}/issues, which is
+    //     the only call notify-code-repos.yml makes against each code
+    //     repo. No code-write, no workflow-dispatch, no broader surface.
     const repoList = codeRepos.length === 0
       ? '(no linked code repos detected — add `repos:` blocks to your BAR app.yaml files)'
       : codeRepos.map(r => `  - ${r}`).join('\n');
@@ -2746,9 +2746,11 @@ Policy file: ${filename}
       `Resource owner:  your org\n` +
       `Repository access:  Only select repositories →\n` +
       `${repoList}\n\n` +
-      `Repository permissions:  Contents = Read and write\n` +
-      `(This is what GitHub requires for POST /repos/{owner}/{repo}/dispatches —\n` +
-      ` the call notify-code-repos.yml on the mesh makes against each code repo.)\n\n` +
+      `Repository permissions:  Issues = Read and write\n` +
+      `(This is what GitHub requires for POST /repos/{owner}/{repo}/issues —\n` +
+      ` the call notify-code-repos.yml on the mesh makes against each code\n` +
+      ` repo to open the PRD landing-issue. Narrow scope: token cannot modify\n` +
+      ` code or trigger workflows.)\n\n` +
       `Expiration: pick what fits your rotation policy.\n\n` +
       `Mesh repo for reference:  ${meshLabel}\n\n` +
       `When ready, click Continue to paste the token.`;
@@ -2920,9 +2922,9 @@ Policy file: ${filename}
    * Push a secret to the mesh repo AND every linked code repo found in
    * the union of every BAR's `app.yaml application.repos[]`. Single
    * source of truth (the local VS Code value) → fan-out to all
-   * workflows that need it. Used for ANTHROPIC, OPENAI, and
-   * GOVERNANCE_MESH_TOKEN — the three secrets `alice-remediation.yml`
-   * and `spec-ready-handler.yml` consume on the code repo side.
+   * workflows that need it. Used for ANTHROPIC + OPENAI — both
+   * consumed by alice-remediation.yml on each code repo. (GMT is
+   * mesh-only now — see the Create flow above.)
    *
    * Returns a per-destination outcome so the UI can show a table
    * (mesh OK / code-repo-1 OK / code-repo-2 failed: 403 / …).

@@ -1,11 +1,21 @@
-name: "Notify Code Repos (spec-ready dispatch)"
+name: "Notify Code Repos (open PRD landing-issue)"
 
-# Fires a repository_dispatch at each target code repo when a PRD PR is labeled
-# spec-ready. The target repo's spec-ready-handler.yml (scaffolded by Cheshire
-# Cat) receives the dispatch and creates an RCTRO implementation issue.
+# When a PRD PR in the mesh is labeled `spec-ready`, this workflow opens an
+# issue in each target code repo containing the full PRD markdown + manifest
+# JSON so engineers can read the spec without leaving GitHub. Assignment
+# happens manually through the Looking Glass Rabbit Hole flow afterward.
 #
-# Required mesh repo secret: GOVERNANCE_MESH_TOKEN — PAT with repo scope on the
-# target code repos.
+# This replaces an earlier design that fired `repository_dispatch` events
+# at each code repo and required a `spec-ready-handler.yml` workflow on the
+# code-repo side. That older design needed `Contents:write` on every code
+# repo and a second workflow surface; the current design needs only
+# `Issues:write` (much narrower scope) and zero workflow files on the
+# code repo side.
+#
+# Required mesh repo secret:
+#   GOVERNANCE_MESH_TOKEN — fine-grained PAT with `Issues: write` on every
+#                            linked code repo. Mint via Looking Glass →
+#                            Settings → Research → Create.
 
 on:
   pull_request:
@@ -33,18 +43,18 @@ jobs:
       - name: Checkout mesh repo
         uses: actions/checkout@v4
 
-      - name: Resolve PRD manifest and target repos
+      - name: Load PRD markdown + manifest, resolve target repos
         id: resolve
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const path = require('path');
             const evt = context.eventName;
 
             let prd_path = '';
             let target_repos = [];
             let prd_pr_url = '';
+            let prd_pr_number = '';
 
             if (evt === 'workflow_dispatch') {
               prd_path = context.payload.inputs.prd_path;
@@ -52,29 +62,41 @@ jobs:
             } else {
               const pr = context.payload.pull_request;
               prd_pr_url = pr.html_url;
+              prd_pr_number = String(pr.number);
               const filesResp = await github.rest.pulls.listFiles({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
                 per_page: 100,
               });
-              const manifest = filesResp.data.find(f => f.filename.endsWith('.manifest.json'));
-              if (manifest) {
-                const raw = fs.readFileSync(manifest.filename, 'utf8');
-                const parsed = JSON.parse(raw);
-                target_repos = (parsed.target_repos || []).map(String);
-                prd_path = manifest.filename.replace(/\.manifest\.json$/, '.md');
-              } else {
+              const manifestFile = filesResp.data.find(f => f.filename.endsWith('.manifest.json'));
+              if (!manifestFile) {
                 core.setFailed('No .manifest.json file found in PRD PR — cannot resolve target repos.');
                 return;
               }
+              const raw = fs.readFileSync(manifestFile.filename, 'utf8');
+              const parsed = JSON.parse(raw);
+              target_repos = (parsed.target_repos || []).map(String);
+              prd_path = manifestFile.filename.replace(/\.manifest\.json$/, '.md');
             }
+
+            const manifestPath = prd_path.replace(/\.md$/, '.manifest.json');
+            const manifestRaw = fs.readFileSync(manifestPath, 'utf8');
+            const manifest = JSON.parse(manifestRaw);
+
+            // The PRD markdown is the human-readable spec; embed verbatim.
+            const prdMarkdown = fs.existsSync(prd_path) ? fs.readFileSync(prd_path, 'utf8') : '';
 
             core.setOutput('prd_path', prd_path);
             core.setOutput('prd_pr_url', prd_pr_url);
+            core.setOutput('prd_pr_number', prd_pr_number);
             core.setOutput('target_repos', JSON.stringify(target_repos));
+            core.setOutput('run_id', manifest.run_id || '');
+            core.setOutput('prd_topic', manifest.prd_topic || 'PRD');
+            core.setOutput('manifest_json', JSON.stringify(manifest, null, 2));
+            core.setOutput('prd_markdown', prdMarkdown);
 
-      - name: Dispatch to each target code repo
+      - name: Open landing-issue in each target code repo
         if: success()
         env:
           GOVERNANCE_MESH_TOKEN: ${{ secrets.GOVERNANCE_MESH_TOKEN }}
@@ -82,9 +104,46 @@ jobs:
         with:
           github-token: ${{ secrets.GOVERNANCE_MESH_TOKEN }}
           script: |
-            const target_repos = JSON.parse('${{ steps.resolve.outputs.target_repos }}');
-            const prd_path = '${{ steps.resolve.outputs.prd_path }}';
-            const prd_pr_url = '${{ steps.resolve.outputs.prd_pr_url }}';
+            const target_repos = JSON.parse(`${{ steps.resolve.outputs.target_repos }}`);
+            const prd_path = `${{ steps.resolve.outputs.prd_path }}`;
+            const prd_pr_url = `${{ steps.resolve.outputs.prd_pr_url }}`;
+            const run_id = `${{ steps.resolve.outputs.run_id }}`;
+            const prd_topic = `${{ steps.resolve.outputs.prd_topic }}`;
+            const meshRepo = `${context.repo.owner}/${context.repo.repo}`;
+
+            // Issue body — manifest JSON, then full PRD markdown, then a
+            // footer pointing at the Rabbit Hole / IssueCreatorPanel for
+            // assignment. Audit pointers (run_id, mesh sha, source PR) at
+            // the top so a `gh search issues "derived_from_prd_run_id:..."`
+            // joins the chain across repos.
+            const body = [
+              `## Source`,
+              ``,
+              prd_pr_url ? `- **PRD PR**: ${prd_pr_url}` : `- **PRD path**: \`${prd_path}\` (mesh repo \`${meshRepo}\`)`,
+              `- **Mesh repo**: ${meshRepo}`,
+              `- **derived_from_prd**: ${prd_pr_url || `https://github.com/${meshRepo}/blob/main/${prd_path}`}`,
+              `- **derived_from_prd_run_id**: \`${run_id}\``,
+              ``,
+              `## PRD Manifest`,
+              ``,
+              '```json',
+              `${{ steps.resolve.outputs.manifest_json }}`,
+              '```',
+              ``,
+              `## PRD Document`,
+              ``,
+              `${{ steps.resolve.outputs.prd_markdown }}`,
+              ``,
+              `---`,
+              ``,
+              `### Next step`,
+              ``,
+              `Open this in the **MaintainabilityAI Looking Glass → Rabbit Hole** flow to convert into an RCTRO-formatted implementation assignment with prompt packs.`,
+              ``,
+              `Or comment \`@claude please implement\` directly to invoke the existing alice-remediation.yml workflow against the manifest above.`,
+            ].join('\n');
+
+            const title = `Implement PRD: ${prd_topic}`.slice(0, 200);
 
             for (const slug of target_repos) {
               const [owner, repo] = slug.split('/');
@@ -93,18 +152,33 @@ jobs:
                 continue;
               }
               try {
-                await github.rest.repos.createDispatchEvent({
-                  owner,
-                  repo,
-                  event_type: 'spec-ready',
-                  client_payload: {
-                    mesh_repo: `${context.repo.owner}/${context.repo.repo}`,
-                    prd_path,
-                    prd_pr_url,
-                  },
+                // Idempotency: search for an existing open issue containing
+                // this run_id before creating a duplicate. A re-merge of
+                // the same PRD PR (or a manual workflow_dispatch with the
+                // same path) should comment, not duplicate.
+                const search = await github.rest.search.issuesAndPullRequests({
+                  q: `repo:${slug} is:issue is:open in:body "${run_id}"`,
+                  per_page: 5,
                 });
-                core.info(`Dispatched spec-ready to ${slug}`);
+                const existing = search.data.items.find(i => i.body && i.body.includes(run_id));
+                if (existing) {
+                  await github.rest.issues.createComment({
+                    owner, repo,
+                    issue_number: existing.number,
+                    body: `Received another spec-ready signal for the same PRD run_id \`${run_id}\` — no duplicate issue opened. Original landing-issue still tracks this PRD.`,
+                  });
+                  core.info(`Skipped duplicate for ${slug} (existing issue #${existing.number}).`);
+                  continue;
+                }
+
+                const created = await github.rest.issues.create({
+                  owner, repo,
+                  title,
+                  body,
+                  labels: ['prd-landing', 'spec-ready'],
+                });
+                core.info(`Opened landing-issue ${slug}#${created.data.number}: ${created.data.html_url}`);
               } catch (err) {
-                core.warning(`Failed to dispatch to ${slug}: ${err.message}`);
+                core.warning(`Failed to open landing-issue in ${slug}: ${err.message}`);
               }
             }

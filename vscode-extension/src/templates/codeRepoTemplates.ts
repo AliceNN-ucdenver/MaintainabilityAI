@@ -350,9 +350,6 @@ export function generateValidatePromptHashesWorkflow(extensionPath: string): str
   return readScaffoldFile(extensionPath, 'workflows', 'validate-prompt-hashes.yml');
 }
 
-export function generateSpecReadyHandlerWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'spec-ready-handler.yml');
-}
 
 export function generatePromptMappings(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'scripts', 'prompt-mappings.json');

@@ -13,11 +13,11 @@ export interface SecretDefinition {
   /**
    * Where this secret needs to live for the workflows to consume it.
    *   - 'mesh' (default): only the governance mesh repo needs it
-   *     (Tavily, USPTO — only the Archeologist on the mesh uses them).
+     *     (Tavily, USPTO, GOVERNANCE_MESH_TOKEN — the Archeologist and
+     *     notify-code-repos.yml on the mesh use them).
    *   - 'mesh+code': needs to be on the mesh AND every linked code repo
    *     (ANTHROPIC, OPENAI — alice-remediation.yml on each code repo
-   *     uses them; GOVERNANCE_MESH_TOKEN — notify-code-repos.yml on the
-   *     mesh AND spec-ready-handler.yml on each code repo).
+   *     uses them).
    * Looking Glass surfaces a 'Push to all linked code repos' action for
    * 'mesh+code' secrets that iterates every BAR's app.yaml repos and
    * pushes via `gh secret set --repo` per destination.
@@ -67,7 +67,7 @@ export const SECRETS: SecretDefinition[] = [
     envName: 'GOVERNANCE_MESH_TOKEN',
     settingKey: 'maintainabilityai.governance.meshToken',
     label: 'Governance Mesh Token',
-    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by `notify-code-repos.yml` on the mesh repo to fire `repository_dispatch` events at each linked code repo. Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub with the right scopes.',
+    description: 'GOVERNANCE_MESH_TOKEN — Fine-grained PAT used by `notify-code-repos.yml` on the mesh repo to open a PRD landing-issue in each linked code repo. Needs only `Issues: write` (narrow scope — token cannot modify code or trigger workflows). Lives on the mesh only; not pushed to code repos. Use the Create button to walk through minting one on GitHub.',
     scope: 'mesh',
   },
 ];

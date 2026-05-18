@@ -17,7 +17,7 @@
 1. **A `research-request` issue** in the mesh repo, derived from an Oraculum finding (or hand-authored).
 2. **The Archeologist run output** — a published research PR with the Hatter's Tag and JSONL audit chain.
 3. **A PRD** with multi-expert grounding, refinement-loop trace, and a sidecar `.manifest.json`.
-4. **A spec-ready implementation issue** in the target code repo with the RCTRO body the PRD manifest produces.
+4. **A PRD landing-issue** opened by the mesh in each target code repo, body containing the full PRD markdown + manifest JSON for downstream assignment via the Rabbit Hole.
 5. **One implementation PR** opened by `alice-remediation.yml`, carrying `derived_from_prd_run_id` and `derived_from_research` so the chain joins across both repos by one `jq` filter.
 6. **The full evidence chain**: `gh search` from either repo lands on every artifact in the run.
 
@@ -52,7 +52,7 @@ You can deploy everything below in one click from the extension — **`Looking G
 | Archeologist workflow | `.github/workflows/archeologist.yml` | Runs the research pipeline on `research-request` label / `@archeologist` mention |
 | PRD workflow | `.github/workflows/prd.yml` | Runs the PRD pipeline on `prd-ready` label |
 | Label-on-merge handler | `.github/workflows/label-on-merge.yml` | When a research PR merges, labels the source issue `prd-ready` to chain into the PRD agent |
-| Notify-code-repos handler | `.github/workflows/notify-code-repos.yml` | When a PRD PR is labeled `spec-ready`, fires a `repository_dispatch` at every code repo in `manifest.target_repos` |
+| Notify-code-repos handler | `.github/workflows/notify-code-repos.yml` | When a PRD PR is labeled `spec-ready`, opens a landing-issue (full PRD markdown + manifest JSON in the body) in every code repo in `manifest.target_repos` via the GitHub Issues API |
 | Research prompt packs | `.caterpillar/prompts/research/` — `query-plan.md`, `synthesis.md`, `synthesis-archaeology.md`, `gap-analysis.md` | Loaded by the Archeologist runner |
 | PRD prompt packs | `.caterpillar/prompts/prd/` — `synthesis.md`, `architecture-review.md`, `security-review.md`, `ask-experts.md` | Loaded by the PRD runner |
 
@@ -60,12 +60,11 @@ The **`New Research / PRD Run`** command's pre-flight panel verifies every one o
 
 ### On each target code repo
 
-The Cheshire **`Scaffold SDLC Structure`** command writes these. If a repo was scaffolded before v0.7, re-run the scaffold and accept the new files; existing files are preserved.
+The Cheshire **`Scaffold SDLC Structure`** command writes these. Only one workflow file is needed on the code-repo side now — the mesh creates landing-issues directly via the GitHub Issues API, no dispatch-handler required.
 
 | Artifact | Path | Purpose |
 |---|---|---|
-| Spec-ready handler | `.github/workflows/spec-ready-handler.yml` | Receives the `spec-ready` dispatch from the mesh repo, reads the PRD manifest, creates the RCTRO issue |
-| Alice remediation | `.github/workflows/alice-remediation.yml` | Picks up the RCTRO issue on `@claude please implement`, opens the implementation PR |
+| Alice remediation | `.github/workflows/alice-remediation.yml` | Picks up the landing-issue on `@claude please implement`, opens the implementation PR |
 
 ### Secrets — one configuration step, fanned out everywhere
 
@@ -77,22 +76,20 @@ The Research + PRD pipeline reads five secrets total. The Looking Glass **Resear
 | `USPTO_API_KEY` | Optional patent coverage | Mesh only | "Push to mesh" |
 | `ANTHROPIC_API_KEY` | `llm_provider: anthropic` on mesh AND `alice-remediation.yml` on each code repo | Mesh + every linked code repo | "Push to mesh + code repos" |
 | `OPENAI_API_KEY` | `llm_provider: openai` on mesh + code repos | Mesh + every linked code repo | "Push to mesh + code repos" |
-| `GOVERNANCE_MESH_TOKEN` | Cross-repo dispatch (`notify-code-repos.yml` → `repository_dispatch`) | Mesh only | "Create" (guided) or "Push to mesh" |
+| `GOVERNANCE_MESH_TOKEN` | Per-code-repo landing-issue creation (`notify-code-repos.yml` → `POST /repos/.../issues`) | Mesh only | "Create" (guided) or "Push to mesh" |
 | `GITHUB_TOKEN` | Built-in | Auto-provided per workflow | n/a — required for `llm_provider: github-models` (free Copilot routing) |
 
-**About `GOVERNANCE_MESH_TOKEN` — mesh-only token, one permission:**
+**About `GOVERNANCE_MESH_TOKEN` — mesh-only token, narrow permission:**
 
 Create a fine-grained PAT scoped to your org with **one permission**:
 
-- **Contents: Read and write** on every code repo listed in your BARs' `app.yaml`
+- **Issues: Read and write** on every code repo listed in your BARs' `app.yaml`
 
-That's the permission GitHub requires for `POST /repos/{owner}/{repo}/dispatches` — the API call `notify-code-repos.yml` on the mesh uses to fire a `repository_dispatch` event at each code repo. (GitHub bundles dispatch with Contents:write and doesn't offer a finer-grained "just dispatch" scope.) Resource owner is your org; repository access is "Only select repositories" → pick every code repo from your BARs' `app.yaml repos[]`.
+That's the permission GitHub requires for `POST /repos/{owner}/{repo}/issues` — the API call `notify-code-repos.yml` on the mesh makes against each code repo to open the PRD landing-issue. Narrow scope: the token **cannot modify code, cannot trigger workflows, cannot read non-issue surfaces**. Resource owner is your org; repository access is "Only select repositories" → pick every code repo from your BARs' `app.yaml repos[]`.
 
 Looking Glass → Settings → Research → **Create** walks you through this end to end: opens the GitHub PAT page in your browser, shows a sticky checklist listing every code-repo slug (built by walking [`MeshReader.listBars()`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/src/core/mesh-reader.ts) and deduping their `app.yaml` repos), pops an input box to paste the freshly-minted token, then saves + pushes to the mesh repo's Actions secrets — all in one click.
 
-The token lives **on the mesh repo only**. The code-repo side never sees it; `spec-ready-handler.yml` runs in the code repo's own workflow context with the auto-provided `GITHUB_TOKEN` (which already has `issues:write`). One token, one secret push, no per-code-repo babysitting.
-
-**Private mesh manifest fetch:** for now, `spec-ready-handler.yml` reads the PRD manifest from the mesh via `raw.githubusercontent.com` (unauthenticated, works for public meshes). If your mesh is private and you want the cross-repo bridge to work, you'd need to add a separate read token to each code repo manually — or wait for the dispatch-payload-embedding upgrade that ships the manifest inside the `repository_dispatch` event itself, eliminating the cross-repo read entirely.
+The token lives **on the mesh repo only**. The code-repo side never sees it. The mesh-side workflow uses it to call the GitHub Issues API directly and embeds the full PRD markdown + manifest JSON in the issue body — so there's no cross-repo read needed (works for private meshes natively) and no second workflow surface on the code-repo side to maintain.
 
 ### Research preferences (one-time)
 
@@ -147,15 +144,17 @@ MeshContext.bar.linked_repos                      ← (2) runner internal
                        │
                        │  PRD PR merges → label-on-merge labels source
                        │  issue "spec-ready" → notify-code-repos.yml
-                       │  fires + reads manifest.target_repos
+                       │  fires + reads manifest.target_repos + PRD md
                        ▼
 
-repository_dispatch                               ← (4) GitHub fires
-  event_type: "spec-ready"
-  target: AliceNN-ucdenver/celeb-api              ← exactly the repo from app.yaml
+POST /repos/AliceNN-ucdenver/celeb-api/issues     ← (4) one direct API call
+  title: "Implement PRD: <topic>"                       per target_repos entry,
+  body: { manifest.json + full PRD markdown +           authenticated with
+          audit pointers + Rabbit Hole CTA }            GOVERNANCE_MESH_TOKEN
+  labels: ["prd-landing", "spec-ready"]                 (Issues:write only)
 ```
 
-**Practical consequence**: the only place you maintain the dispatch list is each BAR's `app.yaml application.repos[]`. Add or remove a URL there and the next PRD run picks it up automatically. No workflow edits, no manifest hand-editing, no `target_repos` array in the dispatch step.
+**Practical consequence**: the only place you maintain the target-repo list is each BAR's `app.yaml application.repos[]`. Add or remove a URL there and the next PRD run picks it up automatically. No workflow edits, no manifest hand-editing, no separate workflow file on the code-repo side.
 
 - **Platform-scope research** (no specific BAR): the runner unions every sibling BAR's `linked_repos` so the PRD dispatches to all code repos under the platform.
 - **Misconfigured BAR** (no `repos:` block): the runner falls back to a `mesh/<bar-id-lowercase>` placeholder so the manifest still validates — visible in the run logs so you can fix `app.yaml`.
@@ -212,25 +211,30 @@ The published PRD includes a `## Refinement Loop Trace` table showing the score 
 
 ### Step 6 — Review and merge the PRD PR
 
-The PRD PR has both the rendered markdown and a sidecar `.manifest.json` with `endpoints`, `security_requirements`, `target_repos`, and the final grounding block. The manifest is what the cross-repo bridge consumes.
+The PRD PR has both the rendered markdown and a sidecar `.manifest.json` with `endpoints`, `security_requirements`, `target_repos`, and the final grounding block. The manifest is what drives the per-code-repo issue creation.
 
-On merge: `notify-code-repos.yml` fires. It reads `manifest.target_repos`, deduplicates against the PR's filename, and sends a `repository_dispatch` event (`event_type: spec-ready`) at every code repo on that list. The dispatch payload carries `mesh_repo`, `prd_path`, and `prd_pr_url`.
+On merge: `notify-code-repos.yml` fires. It reads `manifest.target_repos`, loads the PRD markdown + manifest JSON from disk, and **opens a landing-issue in each code repo on the list** via `POST /repos/{owner}/{repo}/issues` (one direct API call per repo, no cross-repo dispatch and no second workflow surface).
 
-### Step 7 — `spec-ready-handler.yml` creates the RCTRO issue
+### Step 7 — The mesh opens a PRD landing-issue in each code repo
 
-In the target code repo, `spec-ready-handler.yml` fires on the dispatch:
+`notify-code-repos.yml` on the mesh repo:
 
-1. Fetches `<prd_path>.manifest.json` from the mesh repo (`raw.githubusercontent.com` — works unauthenticated for public meshes; for private meshes you'd need to set a separate read token on each code repo, or wait for the dispatch-payload-embedding enhancement that eliminates the cross-repo read)
-2. Validates the manifest shape and confirms this repo is in `target_repos`
-3. Dedupes by `run_id` (re-dispatches comment on the existing issue instead of creating a duplicate)
-4. Builds an RCTRO body — Role/Context/Task/Requirements/Output, one Requirement per endpoint and one per security requirement, each with citation references back to the PRD
-5. Creates the issue with labels `rctro-feature` + `spec-ready`
+1. Reads `manifest.target_repos` from the PRD PR's `.manifest.json` file.
+2. Loads the full PRD markdown from disk + the manifest JSON.
+3. Dedupes by `run_id` against each code repo (re-runs comment on the existing landing-issue instead of duplicating).
+4. For each `owner/repo` in `target_repos`, calls `github.rest.issues.create` (`POST /repos/{owner}/{repo}/issues`) with body containing: source PR + mesh repo + audit pointers (`derived_from_prd_run_id`, `derived_from_prd`), the manifest JSON as a fenced code block, the **full PRD markdown verbatim**, and a footer pointing at the Looking Glass Rabbit Hole for assignment.
+5. Labels the issue `prd-landing` + `spec-ready`.
 
-The issue body includes `derived_from_prd: <url>` and `derived_from_prd_run_id: <run_id>` so the implementation PR can carry the same fields back through the chain.
+The landing-issue carries `derived_from_prd_run_id: <run_id>` so the implementation PR (whichever path it takes) can echo the field for the cross-repo audit join.
 
-### Step 8 — Implementation
+### Step 8 — Assign + implement
 
-Comment `@claude please implement` on the new RCTRO issue (or assign it to Copilot). `alice-remediation.yml` opens an implementation PR with passing tests and the AI-disclosure label, closing the loop.
+Two paths from the landing-issue:
+
+- **Manual (recommended).** Open the issue in **Looking Glass → Rabbit Hole**. The Rabbit Hole reads the embedded manifest, lets you pick prompt packs, and emits an RCTRO-formatted assignment issue you can hand to Copilot or `@claude please implement`.
+- **Direct.** Comment `@claude please implement` on the landing-issue directly. `alice-remediation.yml` reads the manifest from the issue body and opens an implementation PR.
+
+Either way, `alice-remediation.yml` opens the implementation PR carrying `derived_from_prd_run_id`, closing the loop.
 
 ### Step 9 — Check the evidence chain
 
@@ -261,9 +265,9 @@ You get the original `research-request` issue, the PRD PR, the spec-ready RCTRO 
 
 - **Pre-flight check fails: "archeologist.yml workflow scaffolded".** Run `Looking Glass` → `Settings` → `Deploy mesh workflows`. If you have customized any mesh workflow file, the deploy preserves it; force-redeploy via the `Redeploy` action.
 - **Pre-flight check fails: "Tavily key available".** Either set it locally via `Repository Secrets` → `Local config`, or push it to the mesh repo's Actions secrets via `Repository Secrets` → `governance`.
-- **`spec-ready` dispatch never reaches the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and the PAT has **Contents = Read and write** on the target code repo (that's GitHub's required permission for `POST /repos/.../dispatches`). The `notify-code-repos.yml` run log will show the dispatch attempt and any 401/404.
-- **The RCTRO issue claims this repo isn't in `target_repos`.** The mesh PRD manifest's `target_repos` array must include this repo's `owner/repo`. Look at `manifest.target_repos` in the PRD PR's sidecar JSON; correct it on the mesh side and let `notify-code-repos.yml` re-dispatch.
-- **Mesh is private and `spec-ready-handler.yml` can't fetch the manifest.** `GOVERNANCE_MESH_TOKEN` lives on the mesh only; the code-repo side does not get a read token by default. For now, either keep your mesh public (recommended for governance audit) or set a separate fine-grained PAT with `Contents=read` on the mesh manually on each affected code repo as `GOVERNANCE_MESH_TOKEN`. A future enhancement will ship the manifest inside the `repository_dispatch` payload, eliminating the cross-repo read entirely.
+- **Landing-issue never appears in the code repo.** Check that the mesh repo's `GOVERNANCE_MESH_TOKEN` secret is set and the PAT has **Issues = Read and write** on the target code repo (that's GitHub's required permission for `POST /repos/.../issues`). The `notify-code-repos.yml` run log will show the create attempt and any 401/404.
+- **The landing-issue is missing from a code repo but other repos got one.** The mesh PRD manifest's `target_repos` array must include the missing repo's `owner/repo`. Look at `manifest.target_repos` in the PRD PR's sidecar JSON; correct it on the mesh side (or fix the BAR's `app.yaml application.repos[]` upstream) and re-run `notify-code-repos.yml` via workflow_dispatch.
+- **Private mesh.** Works natively — no token needed on the code-repo side. The mesh-side workflow embeds the full PRD markdown + manifest in the issue body, so the code-repo side never has to read from the mesh repo at all.
 - **Notifications fire on every reload.** Known cosmetic on `pre-existing` runs only — the service seeds its snapshot with persisted state on activate, so subsequent transitions are deduped. If you see repeated dispatch toasts for the same run id, file a bug with the run id.
 
 ---

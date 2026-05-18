@@ -12,7 +12,6 @@ import {
   generateCiWorkflow,
   generateCodeqlToIssuesWorkflow,
   generateValidatePromptHashesWorkflow,
-  generateSpecReadyHandlerWorkflow,
   generatePromptMappings,
   generatePromptHashGenerator,
   generateProcessCodeqlResults,
@@ -287,9 +286,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     }
     if (selectedIds.has('alice-remediation')) {
       filesToCreate.push({ relativePath: '.github/workflows/alice-remediation.yml', content: generateAliceRemediationWorkflow(this.context.extensionPath) });
-    }
-    if (selectedIds.has('spec-ready-handler')) {
-      filesToCreate.push({ relativePath: '.github/workflows/spec-ready-handler.yml', content: generateSpecReadyHandlerWorkflow(this.context.extensionPath) });
     }
     if (selectedIds.has('codeql')) {
       filesToCreate.push({ relativePath: '.github/workflows/codeql.yml', content: generateCodeqlWorkflow(this.context.extensionPath) });
@@ -981,7 +977,6 @@ const vscode = acquireVsCodeApi();
 const FILES = [
   { id: 'claude-md', label: 'CLAUDE.md', desc: 'Claude Code agent instructions', checked: true },
   { id: 'alice-remediation', label: 'Alice Remediation', desc: '.github/workflows/alice-remediation.yml', checked: true },
-  { id: 'spec-ready-handler', label: 'Spec Ready Handler', desc: '.github/workflows/spec-ready-handler.yml — Receives PRD dispatches from the mesh; creates RCTRO issues', checked: true },
   { id: 'codeql', label: 'CodeQL Workflow', desc: '.github/workflows/codeql.yml', checked: true },
   { id: 'codeql-to-issues', label: 'CodeQL → Issues', desc: 'Workflow + automation scripts to create issues from CodeQL findings', checked: true },
   { id: 'ci-workflow', label: 'CI Workflow', desc: '.github/workflows/ci.yml — Build, test, and failure-to-issue reporting', checked: true },

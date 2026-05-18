@@ -93,7 +93,7 @@ async function testGovernanceMeshToken(key: string): Promise<KeyTestResult> {
       'x-github-api-version': '2022-11-28',
     },
   });
-  if (res.ok) { return { ok: true, message: 'GitHub token valid. Verify it has Contents=write on each linked code repo (needed for POST /repos/.../dispatches).', status: res.status }; }
+  if (res.ok) { return { ok: true, message: 'GitHub token valid. Verify it has Issues=write on each linked code repo (needed for POST /repos/.../issues).', status: res.status }; }
   if (res.status === 401) { return { ok: false, message: 'GitHub rejected the token (401 unauthorized).', status: 401 }; }
   if (res.status === 403) { return { ok: false, message: 'GitHub token lacks permissions (403 — needs at least read access).', status: 403 }; }
   return { ok: false, message: `GitHub returned ${res.status}.`, status: res.status };
