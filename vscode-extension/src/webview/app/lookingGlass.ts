@@ -174,6 +174,9 @@ const state = {
   meshRepo: '',
   // Settings state
   settingsWorkflowExists: null as boolean | null,
+  // Phase B Mesh Provisioning — skill + agent deployment status
+  settingsAgenticSkills: null as { name: string; family: string; deployed: boolean }[] | null,
+  settingsAgenticAgents: null as { name: string; deployed: boolean }[] | null,
   settingsPreferredModel: '',
   settingsDriftWeights: { critical: 15, high: 5, medium: 2, low: 1 } as { critical: number; high: number; medium: number; low: number },
   settingsReinitConfirmStep: 0,  // 0=default, 1=warning shown
@@ -1770,6 +1773,7 @@ function renderSettings(): string {
       </div>
 
       ${renderSettingsWorkflow()}
+      ${renderSettingsAgentic()}
       ${renderSettingsPromptPacks()}
       ${renderSettingsLlmModel()}
       ${renderSettingsMeshSecrets()}
@@ -1831,6 +1835,60 @@ function renderSettingsWorkflow(): string {
   `;
 }
 
+
+function renderSettingsAgentic(): string {
+  const skills = state.settingsAgenticSkills;
+  const agents = state.settingsAgenticAgents;
+  const skillCount = skills ? skills.length : 18;
+  const skillDeployed = skills ? skills.filter(s => s.deployed).length : null;
+  const agentCount = agents ? agents.length : 4;
+  const agentDeployed = agents ? agents.filter(a => a.deployed).length : null;
+
+  const skillBadge = skillDeployed === null
+    ? '<span class="badge-muted">Not checked</span>'
+    : skillDeployed === skillCount
+      ? `<span class="badge-success">✓ ${skillDeployed}/${skillCount} deployed</span>`
+      : `<span class="badge-warn">${skillDeployed}/${skillCount} deployed</span>`;
+  const agentBadge = agentDeployed === null
+    ? '<span class="badge-muted">Not checked</span>'
+    : agentDeployed === agentCount
+      ? `<span class="badge-success">✓ ${agentDeployed}/${agentCount} deployed</span>`
+      : `<span class="badge-warn">${agentDeployed}/${agentCount} deployed</span>`;
+
+  const buttonLabel = (skillDeployed === skillCount && agentDeployed === agentCount)
+    ? 'Redeploy Agents + Skills'
+    : 'Deploy Agents + Skills';
+
+  return `
+    <div class="settings-section">
+      <h3>Phase B — Mesh Provisioning (Agents + Skills) ${settingsRepoHint()}</h3>
+      <p class="text-muted">
+        Deploys the v4 agentic-SDLC infrastructure into this mesh's
+        <code>.github/agents/</code> and <code>.github/skills/</code> directories.
+        Idempotent — re-running only commits files whose content changed.
+        Agents declare the skills they use; deployment refuses any agent
+        whose <code>tools:</code> references a missing skill.
+      </p>
+      <div class="settings-row">
+        <div class="settings-label">Skills (PURE-data)</div>
+        <div>${skillBadge}</div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Agents (v4 personas)</div>
+        <div>${agentBadge}</div>
+      </div>
+      <p class="text-muted" style="margin-top: 8px; font-size: 12px;">
+        ⚠ Phase B-PR1 ships skill <em>templates</em> — the CLI subcommand
+        backends that agents shell-exec into land in B-PR1a. Deploying now
+        is safe (no agent runs are dispatched yet); the Start Why / Start
+        How buttons remain disabled until B-PR3.
+      </p>
+      <div class="settings-row">
+        <button id="btn-settings-provision-agentic" class="btn-primary">${buttonLabel}</button>
+      </div>
+    </div>
+  `;
+}
 
 function renderSettingsPromptPacks(): string {
   return `
@@ -2612,6 +2670,7 @@ function attachEventHandlers() {
     state.view = 'settings';
     state.settingsReinitConfirmStep = 0;
     vscode.postMessage({ type: 'checkWorkflowStatus' });
+    vscode.postMessage({ type: 'checkAgenticStatus' });
     vscode.postMessage({ type: 'listModels' });
     vscode.postMessage({ type: 'loadDriftWeights' });
     vscode.postMessage({ type: 'loadAgentType' });
@@ -2629,6 +2688,11 @@ function attachEventHandlers() {
   // Settings: provision workflow
   document.getElementById('btn-settings-provision')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'provisionWorkflow' });
+  });
+
+  // Settings: provision agentic infra (Phase B-PR2)
+  document.getElementById('btn-settings-provision-agentic')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'provisionAgentic' });
   });
 
   // Settings: refresh prompt packs
@@ -4265,6 +4329,19 @@ window.addEventListener('message', (event) => {
 
     case 'workflowProvisioned':
       state.settingsWorkflowExists = true;
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'agenticStatus':
+      state.settingsAgenticSkills = (message.skills ?? []) as { name: string; family: string; deployed: boolean }[];
+      state.settingsAgenticAgents = (message.agents ?? []) as { name: string; deployed: boolean }[];
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'agenticProvisioned':
+      // The extension follows up with agenticStatus which refreshes counts.
+      // This message is the success signal — render() so the badge transition
+      // is smooth if the agenticStatus arrives in the same tick.
       if (state.view === 'settings') { render(); }
       break;
 

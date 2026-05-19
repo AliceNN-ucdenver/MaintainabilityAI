@@ -10,7 +10,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentDeploymentService } from '../AgentDeploymentService';
-import { MESH_SKILLS } from '../../templates/meshSkills';
+import { MESH_AGENTS, MESH_SKILLS } from '../../templates/meshSkills';
 
 vi.mock('vscode', () => ({}));
 
@@ -122,5 +122,88 @@ describe('AgentDeploymentService.listDeployedSkills', () => {
     const removedRow = list.find(s => s.name === removed.name)!;
     expect(removedRow.deployed).toBe(false);
     expect(list.filter(s => s.deployed).length).toBe(17);
+  });
+});
+
+describe('AgentDeploymentService.deployAgents', () => {
+  let tmpMesh: string;
+  let svc: AgentDeploymentService;
+
+  beforeEach(() => {
+    tmpMesh = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-deploy-agents-'));
+    svc = new AgentDeploymentService(EXTENSION_PATH);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpMesh, { recursive: true, force: true });
+  });
+
+  it('writes all 4 .agent.md files on a clean deploy', () => {
+    const result = svc.deployAgents(tmpMesh);
+    expect(result.total).toBe(4);
+    expect(result.written).toBe(4);
+    expect(result.unchanged).toBe(0);
+    for (const agent of MESH_AGENTS) {
+      const filePath = path.join(tmpMesh, agent.relativePath);
+      expect(fs.existsSync(filePath), `${agent.name} should be written`).toBe(true);
+      const body = fs.readFileSync(filePath, 'utf8');
+      expect(body).toContain(`name: ${agent.name}`);
+      expect(body).toContain('# System Prompt');
+    }
+  });
+
+  it('is idempotent — second deploy is all unchanged', () => {
+    svc.deployAgents(tmpMesh);
+    const second = svc.deployAgents(tmpMesh);
+    expect(second.written).toBe(0);
+    expect(second.unchanged).toBe(4);
+  });
+
+  it('refuses to deploy an agent whose tools reference a Skill not in MESH_SKILLS', () => {
+    // Swap in an extension dir where ONE agent body declares a fake tool.
+    const fakeExtension = fs.mkdtempSync(path.join(os.tmpdir(), 'fake-ext-'));
+    try {
+      // Mirror all real agent + skill templates into the fake dir...
+      const realSkillsDir = path.join(EXTENSION_PATH, 'code-templates', 'skills');
+      const fakeSkillsDir = path.join(fakeExtension, 'code-templates', 'skills');
+      fs.cpSync(realSkillsDir, fakeSkillsDir, { recursive: true });
+
+      const realAgentsDir = path.join(EXTENSION_PATH, 'code-templates', 'agents-v4');
+      const fakeAgentsDir = path.join(fakeExtension, 'code-templates', 'agents-v4');
+      fs.cpSync(realAgentsDir, fakeAgentsDir, { recursive: true });
+
+      // ...then poison one agent's tools list with a non-existent Skill.
+      const target = path.join(fakeAgentsDir, 'prd-agent.agent.md');
+      const poisoned = fs.readFileSync(target, 'utf8').replace(
+        'tools:\n  - knowledge-okr',
+        'tools:\n  - knowledge-okr\n  - fictional-skill-does-not-exist',
+      );
+      fs.writeFileSync(target, poisoned, 'utf8');
+
+      const poisonedSvc = new AgentDeploymentService(fakeExtension);
+      const result = poisonedSvc.deployAgents(tmpMesh);
+      const prdRow = result.perAgent.find(p => p.name === 'prd-agent')!;
+      expect(prdRow.status).toBe('skill-missing');
+      expect(prdRow.missingSkills).toContain('fictional-skill-does-not-exist');
+      // The other 3 agents still deploy
+      expect(result.written).toBe(3);
+      expect(fs.existsSync(path.join(tmpMesh, 'prd-agent.agent.md'))).toBe(false);
+    } finally {
+      fs.rmSync(fakeExtension, { recursive: true, force: true });
+    }
+  });
+
+  it('parses tools: arrays correctly from real agent templates', () => {
+    // Sanity — every shipped agent's declared tools must already resolve.
+    const result = svc.deployAgents(tmpMesh);
+    for (const agent of result.perAgent) {
+      expect(agent.status, `${agent.name} declared a missing skill: ${agent.missingSkills?.join(', ')}`).not.toBe('skill-missing');
+    }
+  });
+
+  it('listDeployedAgents reports presence per agent', () => {
+    expect(svc.listDeployedAgents(tmpMesh).every(a => !a.deployed)).toBe(true);
+    svc.deployAgents(tmpMesh);
+    expect(svc.listDeployedAgents(tmpMesh).every(a => a.deployed)).toBe(true);
   });
 });

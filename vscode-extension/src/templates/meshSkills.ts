@@ -46,6 +46,46 @@ function skillSpec(name: string, family: MeshSkillSpec['family']): MeshSkillSpec
 }
 
 /**
+ * Phase B-PR2 agent spec — `.agent.md` files Looking Glass deploys into the
+ * mesh's `.github/agents/` directory. Each agent declares the Skills it
+ * uses in its `tools:` frontmatter; `AgentDeploymentService.deployAgents`
+ * refuses to deploy an agent whose tools reference a Skill not present
+ * in MESH_SKILLS.
+ *
+ * See §5.5 in `vscode-extension/design/agentic-sdlc.md` for the agent
+ * runtime contract (system-prompt template, Skill ordering, timeout/retry
+ * policy, completion sequence).
+ */
+export interface MeshAgentSpec {
+  /** Agent name — matches the `name:` frontmatter and the file under .github/agents/. */
+  name: string;
+  /** Path inside the mesh repo, e.g. `.github/agents/prd-agent.agent.md`. */
+  relativePath: string;
+  /** Returns the .agent.md body for this agent. */
+  generate: (extensionPath: string) => string;
+}
+
+function readAgentTemplate(extensionPath: string, name: string): string {
+  const filePath = path.join(extensionPath, 'code-templates', 'agents-v4', `${name}.agent.md`);
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+}
+
+function agentSpec(name: string): MeshAgentSpec {
+  return {
+    name,
+    relativePath: `.github/agents/${name}.agent.md`,
+    generate: (extensionPath) => readAgentTemplate(extensionPath, name),
+  };
+}
+
+export const MESH_AGENTS: MeshAgentSpec[] = [
+  agentSpec('market-research-agent'),
+  agentSpec('prd-agent'),
+  agentSpec('architect-reviewer'),
+  agentSpec('security-reviewer'),
+];
+
+/**
  * Ordered registry — search → rank → knowledge → context → audit → format.
  * Matches the §13 B-section grouping (B2 search, B3 rank, B4 knowledge,
  * B5 context, B6 audit, B7 format) so deployment progress maps 1:1 onto

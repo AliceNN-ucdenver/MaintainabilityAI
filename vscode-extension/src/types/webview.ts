@@ -410,6 +410,10 @@ export type LookingGlassWebviewMessage =
   // Red Queen — Governance Court agent type
   | { type: 'loadAgentType' }
   | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' }
+  // Phase B — Mesh Provisioning: deploy the 18 Skills + 4 Agents to the mesh's
+  // `.github/skills/` and `.github/agents/` directories. Idempotent.
+  | { type: 'provisionAgentic' }
+  | { type: 'checkAgenticStatus' }
   // Research dispatch from platform / BAR views — opens NewResearchPanel pre-filled with scope
   | { type: 'newResearchFromPlatform'; slug: string; name: string }
   | { type: 'newResearchFromBar'; barId: string; barName: string }
@@ -527,4 +531,6 @@ export type LookingGlassExtensionMessage =
     }
   | { type: 'okrSampleScaffolded'; okrId: string }
   | { type: 'okrSaved'; okrId: string }
-  | { type: 'okrCreated'; okrId: string };
+  | { type: 'okrCreated'; okrId: string }
+  | { type: 'agenticStatus'; skills: { name: string; family: string; deployed: boolean }[]; agents: { name: string; deployed: boolean }[] }
+  | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] };

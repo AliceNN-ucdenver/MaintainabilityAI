@@ -2014,15 +2014,15 @@ OKR scaffolding lands. Looking Glass shows OKRs but the buttons don't yet trigge
 
 Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tier. Restricted-tier gating works (manual escalation; auto-revise loop is Phase C).
 
-- [ ] **B1.** Deploy `.github/agents/*.agent.md` for: `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` (design-agent in D)
+- [x] **B1.** Deploy `.github/agents/*.agent.md` for: `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` (design-agent in D) — templates shipped in B-PR2; deployed via `AgentDeploymentService.deployAgents`; deployment refuses any agent whose `tools:` references a Skill not in `MESH_SKILLS` (Tweedles + missing-skill guard at deploy time)
 - [~] **B2.** Deploy search Skills (PURE data, no LLM): `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` — SKILL.md templates shipped in B-PR1; CLI subcommand backends land in B-PR1a
 - [~] **B3.** Deploy `dedupe-and-rank` Skill (PURE) — SKILL.md shipped in B-PR1; backend in B-PR1a
 - [~] **B4.** Deploy knowledge Skills: `knowledge-okr`, `knowledge-mesh-bar`, `knowledge-mesh-platform`, `knowledge-mesh-threats`, `knowledge-mesh-adrs`, `knowledge-research`, `knowledge-prd`, `knowledge-code` — SKILL.md templates shipped in B-PR1; CLI backends in B-PR1a
 - [~] **B5.** Deploy context Skills: `context-architecture`, `context-security`, `context-quality` (pure mesh aggregators; agent applies persona) — SKILL.md templates shipped in B-PR1; CLI backends in B-PR1a
 - [~] **B6.** Deploy `audit-emit-event` Skill (wraps audit-emitter.ts for agent use) — SKILL.md shipped in B-PR1; CLI backend in B-PR1a
 - [~] **B7.** Deploy `format-research-issue-update` Skill (PURE markdown formatter) — SKILL.md shipped in B-PR1; CLI backend in B-PR1a
-- [~] **B8.** `AgentDeploymentService` (`src/services/AgentDeploymentService.ts`) — replaces single-purpose `provisionWorkflow`; deploys agents + skills + retained workflows. `deploySkills` + `listDeployedSkills` shipped in B-PR1; `deployAgents` in B-PR2.
-- [ ] **B9.** Settings page → "Mesh Provisioning" with three tabs (§10.6); deprecation notices on sunset workflows
+- [x] **B8.** `AgentDeploymentService` (`src/services/AgentDeploymentService.ts`) — replaces single-purpose `provisionWorkflow`; deploys agents + skills + retained workflows. `deploySkills` + `listDeployedSkills` shipped in B-PR1; `deployAgents` + `listDeployedAgents` shipped in B-PR2 with deploy-time guard that refuses agents declaring missing Skills.
+- [~] **B9.** Settings page → "Mesh Provisioning" with three tabs (§10.6); deprecation notices on sunset workflows — single "Phase B — Mesh Provisioning (Agents + Skills)" section shipped in B-PR2 with deployment status badges + redeploy button; full 3-tab refactor + deprecation notices on `oraculum-research.yml` / `archeologist.yml` / `prd.yml` / `notify-code-repos.yml` lands when Phase B verifies end-to-end (after B-PR4).
 - [ ] **B10.** Looking Glass: wire `Start Why` / `Start How` buttons on OKR detail (issue creation with okr_id label/comment); `Start What` lands in C alongside design-bus
 - [ ] **B11.** Tier-detection wiring — `OKRService.tierFor()` reads BAR scores, drives button state on OKR detail
 - [ ] **B12.** `HatterTagService` (`src/services/HatterTagService.ts`) — parse + verify-chain CLI invocation
@@ -2168,7 +2168,7 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[x]` | Remove "Promote to research-request" from OracularPanel | `vscode-extension/src/webview/OracularPanel.ts` | A |
 | `[~]` | "Create OKR from finding" button + draft modal — disabled stub shipped in A (sidebar button); full flow Phase B | OracularPanel | A (stub) → B (full flow) |
 | `[x]` | Active Runs panel grouped by OKR id (renderRow / renderGroup; "Legacy (no OKR anchor)" fallback group for runs without `okrId`) | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
-| `[ ]` | **Settings → Mesh Provisioning** with 3 tabs (Workflows / Agents / Skills) + retained "Secrets & Models" tab | `vscode-extension/src/webview/SettingsPanel.ts` (rename / extend) | B |
+| `[~]` | **Settings → Mesh Provisioning** with 3 tabs (Workflows / Agents / Skills) + retained "Secrets & Models" tab — B-PR2 ships a single "Phase B — Mesh Provisioning (Agents + Skills)" section + redeploy button with deployment status badges. Full 3-tab refactor + deprecation notices on sunset workflows land after B-PR4 end-to-end verification. | `vscode-extension/src/webview/app/lookingGlass.ts` (renderSettingsAgentic) | B |
 | `[ ]` | Deprecation removal flow (audit-logged) for `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` | AgentDeploymentService.removeDeprecatedWorkflow | B (after Phase B verified end-to-end) |
 | `[~]` | `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data — no LLM inside) — templates shipped B-PR1; CLI backend B-PR1a | `vscode-extension/code-templates/skills/<name>/SKILL.md` | B |
 | `[~]` | `dedupe-and-rank` Skill — template shipped B-PR1; CLI backend B-PR1a | `vscode-extension/code-templates/skills/dedupe-and-rank/SKILL.md` | B |
@@ -2176,12 +2176,12 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[~]` | `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos` Skills — templates shipped B-PR1 (reference-repos slipped to D); CLI backends B-PR1a | `vscode-extension/code-templates/skills/knowledge-*/SKILL.md` | B (reference-repos in D) |
 | `[~]` | `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) — templates shipped B-PR1; CLI backends B-PR1a | `vscode-extension/code-templates/skills/context-*/SKILL.md` | B |
 | `[~]` | `audit-emit-event` Skill (wraps Court Recorder for agent use) — template shipped B-PR1; CLI backend B-PR1a | `vscode-extension/code-templates/skills/audit-emit-event/SKILL.md` | B |
-| `[ ]` | `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement) | mesh template | B |
+| `[x]` | `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement) | `vscode-extension/code-templates/agents-v4/<name>.agent.md` | B |
 | `[ ]` | `code-design-agent` `.agent.md` (one cross-cutting agent — supersedes per-repo `design-agent`) | mesh template | D |
 | `[ ]` | **`design/synthesis.md`** prompt pack — emits ONE cross-cutting code-design doc grounded on PRD + indexed code repos | `vscode-extension/prompt-packs/looking-glass/design/synthesis.md` (new) | D |
 | `[ ]` | **`design/architecture-review.md`** prompt pack — CODE-grounded architect review (CALM drift + interface contract diffs against actual code) | `vscode-extension/prompt-packs/looking-glass/design/architecture-review.md` (new) | D |
 | `[ ]` | **`design/security-review.md`** prompt pack — CODE-grounded security review (OWASP pattern scan + threat-model compliance against actual code) | `vscode-extension/prompt-packs/looking-glass/design/security-review.md` (new) | D |
-| `[~]` | AgentDeploymentService — deploys agents + skills + retained workflows. `deploySkills` + `listDeployedSkills` shipped in B-PR1; `deployAgents` lands in B-PR2 alongside the Settings → Mesh Provisioning surface. | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
+| `[x]` | AgentDeploymentService — deploys agents + skills + retained workflows. `deploySkills` / `listDeployedSkills` (B-PR1) + `deployAgents` / `listDeployedAgents` (B-PR2). Refuses to deploy any agent declaring a Skill not in `MESH_SKILLS`. | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
 | `[ ]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
 | `[ ]` | State-machine logic in `label-on-merge.yml` (round counter + tier-aware) | mesh template | C |
 | `[ ]` | HumanGate UI (Approve / Re-run / Reject + dual-signature override modal) | OKR detail view | C |

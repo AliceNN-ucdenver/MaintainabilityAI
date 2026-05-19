@@ -51,8 +51,8 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // for the showInputBox round-trip (window.prompt is unreliable in some
   // webview builds). And again when createResearchSecret landed for the
   // GMT guided-create flow.
-  'webview/app/lookingGlass.ts': 212,
-  'webview/LookingGlassPanel.ts': 101,
+  'webview/app/lookingGlass.ts': 218,
+  'webview/LookingGlassPanel.ts': 102,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
@@ -61,10 +61,6 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
 const INTENTIONAL_STANDALONE_MODULES = new Set([
   // Source-of-truth implementation mirrored into generated .redqueen/consensus.js.
   'mcp/utils/consensus.ts',
-  // Phase B-PR1: Skill templates registry. Becomes reachable in B-PR2 when
-  // the Mesh Provisioning settings UI wires `deploySkills` to a panel button.
-  'templates/meshSkills.ts',
-  'services/AgentDeploymentService.ts',
 ]);
 
 const CORE_APPROVED_DOMAIN_SERVICES = new Set([

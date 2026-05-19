@@ -18,7 +18,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { MESH_SKILLS, type MeshSkillSpec } from '../templates/meshSkills';
+import { MESH_AGENTS, MESH_SKILLS, type MeshSkillSpec } from '../templates/meshSkills';
 
 export interface DeploySkillsResult {
   /** Total skills attempted. */
@@ -29,6 +29,13 @@ export interface DeploySkillsResult {
   unchanged: number;
   /** Per-skill outcomes — useful for the Settings panel summary. */
   perSkill: { name: string; family: MeshSkillSpec['family']; status: 'written' | 'unchanged' | 'empty-template' }[];
+}
+
+export interface DeployAgentsResult {
+  total: number;
+  written: number;
+  unchanged: number;
+  perAgent: { name: string; status: 'written' | 'unchanged' | 'empty-template' | 'skill-missing'; missingSkills?: string[] }[];
 }
 
 export class AgentDeploymentService {
@@ -91,4 +98,86 @@ export class AgentDeploymentService {
       deployed: fs.existsSync(path.join(meshPath, skill.relativePath)),
     }));
   }
+
+  /**
+   * Deploy the four Phase B agents to `<meshPath>/.github/agents/<name>.agent.md`.
+   * Refuses to deploy an agent whose `tools:` references a Skill not in
+   * MESH_SKILLS — that would create a runtime "skill not found" failure on
+   * first invocation. Refusal is per-agent: an agent with missing-skill
+   * dependencies returns `status: 'skill-missing'` with the offending names;
+   * other agents still deploy.
+   *
+   * Idempotent: only writes when on-disk content differs from the bundled
+   * template, so re-deploys leave the mesh repo's git log clean.
+   */
+  deployAgents(meshPath: string): DeployAgentsResult {
+    const knownSkillNames = new Set(MESH_SKILLS.map(s => s.name));
+    const result: DeployAgentsResult = {
+      total: MESH_AGENTS.length,
+      written: 0,
+      unchanged: 0,
+      perAgent: [],
+    };
+
+    for (const agent of MESH_AGENTS) {
+      const body = agent.generate(this.extensionPath);
+      if (!body) {
+        result.perAgent.push({ name: agent.name, status: 'empty-template' });
+        continue;
+      }
+
+      // Parse the agent's tools: array out of the frontmatter and verify every
+      // referenced Skill is on the bundled registry. Hard rule from §5.5.1.
+      const declaredTools = parseToolsFromAgentBody(body);
+      const missingSkills = declaredTools.filter(t => !knownSkillNames.has(t));
+      if (missingSkills.length > 0) {
+        result.perAgent.push({ name: agent.name, status: 'skill-missing', missingSkills });
+        continue;
+      }
+
+      const destPath = path.join(meshPath, agent.relativePath);
+      const destDir = path.dirname(destPath);
+      fs.mkdirSync(destDir, { recursive: true });
+      const existing = fs.existsSync(destPath) ? fs.readFileSync(destPath, 'utf8') : null;
+      if (existing === body) {
+        result.unchanged += 1;
+        result.perAgent.push({ name: agent.name, status: 'unchanged' });
+        continue;
+      }
+      fs.writeFileSync(destPath, body, 'utf8');
+      result.written += 1;
+      result.perAgent.push({ name: agent.name, status: 'written' });
+    }
+
+    return result;
+  }
+
+  /**
+   * Report which agents are currently on disk in the mesh. Drives the
+   * Settings panel's "Agents deployed: N/4" badge.
+   */
+  listDeployedAgents(meshPath: string): { name: string; deployed: boolean }[] {
+    return MESH_AGENTS.map(agent => ({
+      name: agent.name,
+      deployed: fs.existsSync(path.join(meshPath, agent.relativePath)),
+    }));
+  }
+}
+
+/**
+ * Extract the YAML `tools:` array from an `.agent.md` body without pulling in
+ * a yaml dependency. We only need this for deploy-time validation — the
+ * frontmatter shape is well-known, so a tiny regex over the leading `---`
+ * block is enough.
+ */
+function parseToolsFromAgentBody(body: string): string[] {
+  const frontmatterMatch = body.match(/^---\n([\s\S]*?)\n---/);
+  if (!frontmatterMatch) { return []; }
+  const fm = frontmatterMatch[1];
+  const toolsBlock = fm.match(/^tools:\n((?:\s+-\s+\S.*\n?)+)/m);
+  if (!toolsBlock) { return []; }
+  return toolsBlock[1]
+    .split('\n')
+    .map(line => line.match(/^\s+-\s+(\S.*?)\s*$/)?.[1])
+    .filter((s): s is string => !!s);
 }
