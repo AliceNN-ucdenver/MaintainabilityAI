@@ -1,4 +1,4 @@
-# Agentic SDLC — Design (v4)
+# Agentic SDLC — Design (v4.2)
 
 End-to-end agent-orchestrated pipeline from **market research → PRD → design**, grounded in the governance mesh (CALM, threat models, ADRs, prior research, reference repos), with full auditable provenance and a Looking Glass-surfaced OKR anchor.
 
@@ -16,7 +16,18 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - Drops the GH-Models dependency for plan_queries + gap_analysis entirely. 429s on the runner's LLM hops become moot for the agent-driven flow.
 - `research-runner` keeps existing for the legacy CI-only path; agent-driven path replaces it.
 
-**v4 (this update) — end-to-end refactor**:
+**v4.2 (this update) — shovel-ready gap closure**:
+- **Issue + label vocabulary (§3.4)** — canonical issue body template (HTML-comment frontmatter + human-readable summary), exhaustive label table with owners and forbidden combinations. No more ambiguity about what `okr-anchor` means vs `oraculum-research` vs `design-draft`.
+- **Agent runtime contract (§5.5)** — `.agent.md` system-prompt template, scripted Skill invocation order per agent, per-Skill timeout + retry + terminal-failure policy, model-selection rules, completion sequence, agent-session death recovery, Tweedles timing, cost caps. Engineers can write `.agent.md` files tomorrow.
+- **Workflow permissions matrix (§9.1)** — every bus workflow's `on:` trigger, permission set, write target, and `concurrency:` group spec. Plus Pocket Watch threshold definition + drift measurement (§9.2) and design-bus partial-failure handling (§9.3).
+- **UX state matrix (§10.8)** — every Action card sub-state's visual treatment + click targets; live-event-ticker transport (REST polling tiered by visibility); empty/loading/error states per surface; race-condition policy; `Pause` vs `Cancel` semantics; per-repo design PR tracking strategy.
+- **Restricted-tier escalation + Dual-Signature Override (§10.9)** — concrete UX flows for the workshop's centerpiece moment. Click-by-click escalate-BAR flow; modal-based dual-signature override with fingerprint validation, audit YAML, comment-based or paste-based second-signer mechanism.
+- **Hatter's Tag canonical location (§11.1.5)** — frontmatter wins over PR-description on conflict; reviewer-bus re-syncs PR-description from frontmatter; cross-repo Tag propagation rules.
+- **Audit JSONL write protocol (§11.1.6)** — partitioned per-run, separate workflow-event files, POSIX advisory locking within a file, git-level serialization across runs.
+- **`intent_thread_uuid` lifecycle (§4.4)** — generated at OKR creation in Looking Glass, propagated through every issue body, Hatter Tag, and per-repo fan-out. The invariant: every artifact carries it; `verify-chain` enforces.
+- **Setup + ops (§17)** — new-mesh bootstrap flow (modal + IMDB-Lite seed option), GitHub App installation flow with Queen's Keyring per-OKR token scoping, secrets categories (GitHub Secrets vs local config), per-OKR + per-org cost caps, failure notification taxonomy (in-app banner / VS Code notification / GitHub issue comment).
+
+**v4 — end-to-end refactor**:
 - **OKR is the only trigger surface.** "Promote to research-request" is **removed**. The OKR detail page has `Start Why / Start How / Start What` buttons; each creates the right kind of issue with `okr_id` + objective + KRs + intent_cascade + affected BARs inlined. The agent reads OKR context cold via the `knowledge-okr` Skill — no body-parser fragility.
 - **Oraculum narrows to code-repo architecture reviews.** It no longer hosts research issues. Its old "Promote" button becomes **"Create OKR from finding"** — pre-fills an OKR draft from a review's findings, then the user starts the pipeline from the OKR screen.
 - **Custom workflow deprecation.** `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` are deprecated and replaced by `.github/agents/*.agent.md` + `.github/skills/<name>/SKILL.md` + bus workflows (`reviewer-bus`, `okr-bus`, `design-bus`). Settings screen evolves to **Mesh Provisioning** with tabs for Workflows / Agents / Skills.
@@ -250,6 +261,74 @@ This is the single most important distinction in the pipeline and must not blur.
 
 **Why this is the last Looking-Glass agent step.** Once the code-design merges, the per-repo issues are written by `design-bus.yml` (a workflow, not an agent) and from there each target repo's own coding agent picks up the slice. Those agents are governed by The Red Queen on the code side — out of scope for *this* design (which governs intent up to the point intent becomes implementation work).
 
+### 3.4 Issue body templates + label vocabulary (canonical)
+
+Every issue the OKR-driven pipeline writes follows the same body shape: a small **machine-readable frontmatter block** (HTML comments — invisible to humans, deterministic for workflows and agents) followed by a **human-readable inline summary**. Agents never parse the human summary; they read `okr_id` from the comment markers and call `knowledge-okr` for the canonical OKR YAML.
+
+**Canonical body template** (used by `Start Why / How / What`):
+
+```markdown
+<!-- agentic-sdlc:v1 -->
+<!-- okr_id: OKR-2026Q1-IMDB-001-celeb-api -->
+<!-- intent_thread_uuid: 7f3e9c2d-aaaa-bbbb-cccc-dddddddddddd -->
+<!-- phase: why | how | what -->
+<!-- parent_run_id: <run-id-of-prior-phase-or-null> -->
+<!-- governance_tier_at_create: restricted | supervised | autonomous -->
+<!-- created_by: looking-glass@<user-handle> -->
+
+# Phase: <Why | How | What — <objective short title>>
+
+**OKR:** [`OKR-2026Q1-IMDB-001-celeb-api`](../okrs/OKR-…/okr.yaml)
+**Objective:** Add celebrity profile API to IMDB-Lite — without licensing or identity-disambiguation risk.
+
+**Intent cascade**
+- Org: Grow IMDB MAU 15% YoY
+- Role: Engineering Lead — p95 < 250ms
+- Developer: Add celebrity API; feature flag
+- User: Browse celebrity profiles without flicker
+
+**Key Results**
+- KR-1: Identity-disambiguation false-merge < 0.5%
+- KR-2: Licensing audit 100%
+- KR-3: p95 < 200ms
+
+**Affected BARs** — `APP-IMDB-002 (Celebs · Restricted)`, `APP-IMDB-001 (Lite · Supervised)`
+**Target code repos** — `<org>/celeb-api`, `<org>/imdb-react-frontend`, `<org>/imdb-identity`
+
+---
+
+@copilot — Please read the canonical OKR via the `knowledge-okr` Skill and the merged prior-phase artifact (if any) via `knowledge-research` / `knowledge-prd`. Do not parse this body for OKR fields; use the Skills.
+```
+
+**Why HTML comments and not YAML frontmatter.** GitHub renders YAML frontmatter as visible code blocks at the top of issues, which clutters the human view. HTML comments are invisible. Workflows extract values with a regex (`<!-- okr_id: (.+?) -->`); agents use the `knowledge-okr` Skill instead of parsing.
+
+**Canonical label vocabulary.** Every label is owned by a specific writer; double-writes are forbidden.
+
+| Label | Color | Applied by | Applied when | Removed by |
+|---|---|---|---|---|
+| `okr-anchor` | indigo | Looking Glass on issue creation | `Start Why/How/What` button | Never (lives with issue) |
+| `oraculum-research` | cyan | Looking Glass on issue creation | `Start Why` (alongside `okr-anchor`) | Never |
+| `oraculum-prd` | emerald | Looking Glass on issue creation | `Start How` | Never |
+| `oraculum-design` | amber | Looking Glass on issue creation | `Start What` (mesh issue) | Never |
+| `oraculum-design-landing` | amber-dark | `design-bus.yml` | Per-repo fan-out (after code-design merges) | Never |
+| `research-synthesis` | cyan | author agent | When opening Why PR | Never |
+| `prd-draft` | emerald | author agent | When opening How PR | Never |
+| `design-draft` | amber | author agent | When opening What PR | Never |
+| `revision-required` | rose | `label-on-merge.yml` | Reviewer score < threshold AND tier allows auto-revise | Author agent on next push |
+| `governance-pass` | green | `label-on-merge.yml` | Both reviewers ≥ threshold AND no `goal-drift-detected` | Never |
+| `human-gate` | yellow | `label-on-merge.yml` | Round counter hit MAX_AUTO_ROUNDS for tier | Looking Glass HumanGate UI (Approve / Re-run / Reject) |
+| `goal-drift-detected` | red | `reviewer-bus.yml` (Pocket Watch step) | OKR.objective hash drift > threshold | Author agent after re-scoping |
+| `tweedles-violation` | red | `reviewer-bus.yml` | reviewer DID = author DID detected | Workflow auto-reassigns to a fresh reviewer session |
+| `dual-signature-override` | violet | Looking Glass on override commit | User completes the override modal | Never |
+| `restricted-tier` | orange | `okr-bus.yml` | OKR primary BAR is Restricted at run start | Never (informational) |
+
+**Forbidden combinations** (workflow refuses to apply):
+- `governance-pass` + `revision-required` (mutually exclusive)
+- `human-gate` + `governance-pass` (must clear human-gate first)
+- `goal-drift-detected` blocks merge regardless of other labels
+
+This vocabulary is exhaustive. Workflows that need a new label must add it to this table in a design-doc PR first — runtime invention is forbidden.
+
 ---
 
 ## 4. OKR Card — BTABoK structure
@@ -436,6 +515,25 @@ downloads:
 - **`rounds`** on each action tracks how many recycle passes happened. State machine in §6.
 - **TASA alignment** captures business/architecture goal linkage (BTABoK tiered goal alignment).
 
+### 4.4 `intent_thread_uuid` — lifecycle
+
+`intent_thread_uuid` is the **cross-repo audit correlation key**. It is what makes the chain ladder coherent across the mesh repo and N code repos. The lifecycle is strict:
+
+| Step | When | Who | Where stamped |
+|---|---|---|---|
+| **Generate** | OKR card creation (`OKRService.create()`) | Looking Glass | Written to `okr.yaml.meta.intent_thread_uuid` as a v4 UUID. Audit event `okr_created` carries it. |
+| **Propagate to phase issue** | `Start Why/How/What` button click | Looking Glass | Included in the issue body's HTML comment marker `<!-- intent_thread_uuid: ... -->` (§3.4) |
+| **Stamped on Hatter's Tag** | Agent completion step 2 (writing artifact frontmatter) | Author agent (read from `knowledge-okr` Skill response) | `hatters_tag.intent_thread_uuid` in artifact frontmatter (§11.1) |
+| **Propagate to next phase** | `Start How` reads merged Why's Hatter's Tag; `Start What` reads merged How's | Looking Glass | New phase's Hatter's Tag carries the SAME `intent_thread_uuid` AND sets `parent_intent_thread` to the prior run's `run_id` |
+| **Propagate to fan-out issues** | `design-bus.yml` per-repo issue creation | Workflow | HTML comment marker in each fan-out issue's body (§3.4) |
+| **Propagate into code-repo PRs** | Coding agent (out of scope for this design) opens a PR addressing the fan-out issue | Coding agent | New Hatter's Tag in the code-PR description carries same `intent_thread_uuid`; `parent_intent_thread` = code-design run id |
+
+**Why "thread" not "tree."** Each OKR has exactly one `intent_thread_uuid`. The audit ladder forms a tree of `run_id` → `parent_run_id` linkages WITHIN that single thread. The thread spans repositories; the tree is the run history within it.
+
+**Invariant.** Every artifact written by this pipeline (research-doc.md, prd.md, code-design.md, per-repo design issue body, per-repo code PR's Hatter Tag) MUST carry the OKR's `intent_thread_uuid` somewhere — frontmatter, body marker, or Hatter Tag. `verify-chain` walks all artifacts under `okrs/<id>/` and across linked code repos, asserts the invariant, and fails the audit on any gap.
+
+**Why not the OKR id directly.** The OKR id is human-readable and might collide with names users pick (e.g., `OKR-2026Q1-IMDB-001` is descriptive but not globally unique across orgs). The UUID is collision-free; the OKR id is the human-facing name. Hatter's Tags carry both.
+
 ---
 
 ## 5. Agents — personas (adapted from NCMS)
@@ -481,6 +579,131 @@ So:
 - **The persona text lives inline in the parent agent's `.agent.md` system prompt.** When the agent gets to the architecture section of the PRD, the system prompt has already told it to "adopt the Architect persona; reason about CALM compliance, ADR alignment, fitness-function impact, quality attributes."
 - **The grounded context comes from pure-data Skills** (`context-architecture`, `context-security`). These return structured JSON of CALM nodes, ADRs, threats, controls — never an LLM-generated narrative. The agent does the synthesis.
 - **Review mode** is a separate `architect-reviewer` agent assignment on the PR. Same persona prompt, but invoked as a new agent session for scoring. Posts a review with the certificate format.
+
+### 5.5 Agent runtime contract
+
+The pipeline depends on agents behaving predictably. This subsection nails down the contracts so every agent (existing or future) can be reasoned about and replaced.
+
+**5.5.1 `.agent.md` system prompt template.** Every agent file follows this structure:
+
+```markdown
+---
+name: prd-agent
+description: Synthesizes a mesh-grounded PRD from research + mesh context.
+tools: [knowledge-okr, knowledge-research, knowledge-mesh-bar, knowledge-mesh-platform, knowledge-mesh-threats, knowledge-mesh-adrs, context-architecture, context-security, context-quality, audit-emit-event]
+model: claude-sonnet-4-6  # set in Looking Glass Settings → Models; written here at deploy time
+max_tokens_per_run: 250000
+max_skill_calls_per_run: 40
+timeout_seconds: 900
+---
+
+# System Prompt
+
+You are <persona>. <One-paragraph role + boundaries>.
+
+## Invocation contract
+
+You will be invoked on a GitHub issue carrying the `<canonical-label>` label.
+
+1. Extract `okr_id` from the issue body's HTML comment marker `<!-- okr_id: ... -->`.
+   Do NOT parse human-readable text. If the marker is missing, post a comment
+   "could not locate okr_id marker" and stop.
+2. Call `knowledge-okr` with the extracted id. This is your canonical input.
+3. Call the prerequisite phase-knowledge Skill(s) in this order: <list>.
+4. Call context Skills as needed for the persona work: <list>.
+5. <Synthesis instructions per persona>.
+6. Open a PR with the artifact at `<canonical-path>`. Apply label `<phase-draft>`.
+7. Append the Hatter's Tag to the artifact's frontmatter (see §11.1) AND
+   to the PR description (see §11.1.5 for canonical-location precedence).
+8. Call `audit-emit-event` for every Skill invocation and the final artifact
+   write. This is non-optional — the audit chain breaks otherwise.
+
+## Hard rules
+
+- Never invoke a Skill not in the `tools:` list. The deployment workflow
+  scans this and refuses to deploy agents that reference undeclared Skills.
+- Never include the OKR YAML, PRD text, or research-doc text in the prompt
+  body — always read via Skills. This prevents copy-paste drift.
+- If any Skill returns `{ ok: false, reason }`, post a PR comment with the
+  reason and stop. Do not synthesize on partial data.
+- If you would exceed `max_skill_calls_per_run` or `max_tokens_per_run`,
+  stop and post a PR comment requesting the user to split scope.
+```
+
+**5.5.2 Skill invocation order — scripted, not discretion.** Each agent's `.agent.md` defines a **required order** of Skills. Order is enforced by the agent's instructions plus a regex check on the audit-event sequence — if the order is wrong (verified post-run by `verify-chain`), the run fails the audit even if the artifact looks fine. This makes runs reproducible.
+
+Per-agent required order (Phase B+):
+
+| Agent | Required Skill order |
+|---|---|
+| `market-research-agent` | `knowledge-okr` → `knowledge-mesh-bar` (each affected BAR) → `knowledge-mesh-threats` → `knowledge-mesh-adrs` → search Skills (parallel: tavily/arxiv/uspto/hackernews) → `dedupe-and-rank` → (gap-loop: re-invoke 1–3 search Skills) → `format-research-issue-update` → `audit-emit-event` (final) |
+| `prd-agent` | `knowledge-okr` → `knowledge-research` → `knowledge-mesh-bar`* → `knowledge-mesh-adrs` → `knowledge-mesh-threats` → `context-architecture` → `context-security` → `context-quality` → (mesh-detected-gap: `prd/ask-experts` if `deep` mode) → `audit-emit-event` (final) |
+| `code-design-agent` | `knowledge-okr` → `knowledge-prd` → `knowledge-mesh-bar`* → `knowledge-code` (each target repo) → `knowledge-reference-repos` (optional) → `context-architecture` → `context-security` → `audit-emit-event` (final) |
+| `architect-reviewer` | `knowledge-okr` → `knowledge-mesh-bar`* → `knowledge-mesh-adrs` → `context-architecture` → emit review → `audit-emit-event` |
+| `security-reviewer` | `knowledge-okr` → `knowledge-mesh-threats` → `knowledge-mesh-adrs` → `context-security` → emit review → `audit-emit-event` |
+
+\* repeats per affected BAR.
+
+**5.5.3 Per-Skill timeout + retry policy.**
+
+| Skill type | Default timeout | Retry policy | On terminal failure |
+|---|---|---|---|
+| Search Skills (tavily/arxiv/uspto/hackernews) | 30s per query | 2 retries on 5xx/timeout with exponential backoff (1s, 4s) | Return `{ ok: false, reason: <provider-error> }`; agent continues with remaining providers' results |
+| `knowledge-*` Skills (read mesh) | 5s | 1 retry on filesystem race | `{ ok: false, reason: 'mesh-read-failed' }`; agent stops + posts comment |
+| `knowledge-code` (clone + index) | 120s per repo (shallow clone, depth=1, single branch) | 1 retry on auth fail (refresh token via Queen's Keyring) | `{ ok: false, reason: 'repo-unreachable' }`; agent stops if target repo, continues if reference repo |
+| `context-*` Skills (pure aggregators) | 5s | 1 retry | `{ ok: false, reason: 'mesh-walk-failed' }`; agent stops |
+| `audit-emit-event` | 3s | 3 retries with backoff (file-lock contention) | LOG to stderr; agent continues — audit failure is recovered by `verify-chain` post-hoc |
+
+These bounds are in the agent's `.agent.md` system prompt as constants the agent enforces, AND in the Skill's CLI implementation as hard caps.
+
+**5.5.4 Agent input contract.** The agent never reads the issue body for OKR fields. The flow is strict:
+
+1. Workflow (`okr-bus.yml`) fires on `issues.labeled` with the appropriate label (§3.4).
+2. Workflow assigns `@copilot` via a comment containing the `.agent.md` agent name (e.g. `@copilot use agent prd-agent` — exact syntax per GitHub Copilot Coding Agent docs).
+3. Copilot starts a session with the agent's `.agent.md` as the system prompt + the issue body as the user message.
+4. Agent extracts `okr_id` from the body's HTML comment marker, then calls `knowledge-okr`.
+5. All subsequent context is read via Skills — never via re-parsing the body.
+
+**5.5.5 Model selection.** Model is set at agent-deploy time, not run time. `AgentDeploymentService` writes the `model:` field of each `.agent.md` based on the Looking Glass **Settings → Models** tab. Default per agent:
+
+| Agent | Default model | Why |
+|---|---|---|
+| `market-research-agent` | `claude-sonnet-4-6` | Long-context synthesis of many sources |
+| `prd-agent` | `claude-sonnet-4-6` | Structured PRD with strict format adherence |
+| `code-design-agent` | `claude-sonnet-4-6` | Largest context window — must hold PRD + multiple repo indices |
+| `architect-reviewer` | `claude-haiku-4-5` | Score against narrow grounded inputs — cheaper |
+| `security-reviewer` | `claude-haiku-4-5` | Same |
+
+Settings UI exposes a "per-agent override" selector — admins can pin reviewer agents to Sonnet for higher-stakes domains, for example. Changes are deploy-only (require a redeploy click; never live-mutate `.agent.md` on a running session).
+
+**5.5.6 Agent completion sequence.** When an agent successfully produces an artifact, the strict completion order is:
+
+1. Write the artifact file to a branch (single commit).
+2. Compute the Hatter's Tag (see §11.1) — embed in artifact frontmatter.
+3. Open a PR. Body includes (a) inline summary, (b) the Hatter's Tag YAML in a fenced block, (c) link to `okr_id` + `intent_thread_uuid`.
+4. Apply the phase-draft label (`research-synthesis` / `prd-draft` / `design-draft`).
+5. Emit final `audit-emit-event` for `artifact_written`.
+6. Stop. **Do not** assign reviewers — `reviewer-bus.yml` does that automatically on PR open.
+
+**5.5.7 Agent session death + cleanup.** An agent session can die three ways:
+
+| Death mode | Detection | Recovery |
+|---|---|---|
+| Hard timeout (`timeout_seconds` exceeded) | GitHub Copilot Coding Agent surfaces this in the issue | Looking Glass marks the action `status: failed_timeout`. User can `Re-run` from OKR detail (creates a new run with same `intent_thread_uuid`). Audit captures the failed run via stamped `agent_session_died` event written by a separate `okr-bus.yml` watchdog (sees PR open + 0 progress + 24h delta). |
+| Skill terminal failure (`{ ok: false }` returned and agent followed protocol) | PR comment from agent explaining the reason; PR remains DRAFT | Looking Glass shows `status: failed_skill` on the Action card with the agent's stop reason. User addresses root cause (e.g. add the missing API key) and clicks `Re-run`. |
+| Silent failure (no PR opened, no comment) | Watchdog in `okr-bus.yml` polls 30 min after agent assignment; if no PR + no comment, surfaces alert | Looking Glass shows `status: stalled` with "no activity in 30 min — investigate." This is the rarest case; primarily a Copilot platform outage. |
+
+Failed runs do NOT advance the OKR status. The action remains in its current sub-state (`in-progress` → `failed_*`) until the user re-runs or marks the OKR paused.
+
+**5.5.8 Tweedles enforcement timing.** The reviewer-bus checks reviewer DID ≠ author DID **before assigning the reviewer**, not after. Sequence:
+
+1. Author PR opens with the author DID in the PR description's Hatter Tag fenced block (written in agent-completion-step 3 above — so the DID is available before reviewer-bus fires).
+2. `reviewer-bus.yml` fires on `pull_request.opened` (label `*-draft`), reads the Hatter Tag fenced block from the PR body, extracts `author_did`.
+3. For each reviewer (`architect-reviewer`, `security-reviewer`), the bus reads the next available reviewer DID from the Queen's Keyring pool (a per-OKR token allocation — see §17.3).
+4. If `reviewer_did === author_did`, the bus rotates to the next DID (or fails with `tweedles-violation` label if no other available identity).
+5. Only then does the bus assign the reviewer via `@copilot use agent architect-reviewer` (or `security-reviewer`).
+
+**5.5.9 Cost cap per agent run.** Each `.agent.md` declares `max_tokens_per_run`. The agent self-enforces (stop + post comment on approach). Looking Glass also surfaces a **per-OKR rollup** of cost (§17.4). If an OKR exceeds the org's configured monthly cap, `okr-bus.yml` refuses to assign new agent runs and surfaces the cap-exceeded state on the OKR detail.
 
 ---
 
@@ -931,6 +1154,72 @@ The orchestration shifts from per-phase workflows (one per phase, each containin
 
 **State machine reference**: see §6.1 (auto-rounds + HumanGate) and §6.2 (tier-aware bounds). The reviewer-bus enforces the tier cap; the label-on-merge writes the resulting label.
 
+### 9.1 Workflow trigger + permissions matrix
+
+Each bus workflow has an exact `on:` clause and a minimal permission set. The mesh is one GitHub repository; cross-repo work is done via a **single Maintainability AI GitHub App installation** at the org level (see §17.2). The App provides per-OKR scoped tokens via the Queen's Keyring service.
+
+| Workflow | `on:` trigger | Permissions | What it writes |
+|---|---|---|---|
+| `okr-bus.yml` | `issues: [labeled]` with label-filter `okr-anchor` AND one of `oraculum-research / oraculum-prd / oraculum-design`; also `pull_request: [closed]` with `merged: true` filter for status updates; also `schedule: cron 0 * * * *` for the agent-stall watchdog | `issues: write`, `pull-requests: write`, `contents: write` (to commit `okr.yaml.actions[]` updates) | Comment on the anchor issue assigning the agent; commit to `okrs/<id>/okr.yaml` on every phase transition; emit audit events to `okrs/<id>/audit/events/okr-bus-<event-id>.jsonl` |
+| `reviewer-bus.yml` | `pull_request: [opened, synchronize, ready_for_review]` with label-filter on one of `research-synthesis / prd-draft / design-draft` | `pull-requests: write`, `contents: read`, `checks: write` (to fail-on-violation), `issues: write` (to comment on the OKR anchor issue) | PR comments assigning reviewers; review labels; Pocket Watch hash comparison output as a check-run; `tweedles-violation` or `goal-drift-detected` labels on violations |
+| `design-bus.yml` | `pull_request: [closed]` with `merged: true` AND label `design-draft` AND no `revision-required` | `pull-requests: read`, `contents: read` (to read the merged code-design.md), uses the GitHub App installation to write to target code repos | One issue per `target_code_repos[]` entry in the target repo (uses the App installation token); commit `design-fan-out.yaml` to `okrs/<id>/what/` recording each fan-out result (success / failure per repo) |
+| `label-on-merge.yml` | `pull_request: [closed]` and `pull_request_review: [submitted]` | `pull-requests: write`, `contents: read` | Applies `governance-pass` / `revision-required` / `human-gate` per the state machine; never applies `goal-drift-detected` (that's reviewer-bus) |
+| `oraculum-review.yml` (retained, narrowed) | `issues: [labeled]` with label `oraculum-review` | `pull-requests: write`, `issues: write`, `contents: read` | Same as today — code-repo arch review only; does NOT touch OKRs |
+
+**Concurrency.** Each bus workflow uses `concurrency:` to serialize writes per OKR:
+
+```yaml
+# okr-bus.yml
+concurrency:
+  group: okr-bus-${{ github.event.issue.body_okr_id || github.event.pull_request.body_okr_id }}
+  cancel-in-progress: false  # let in-flight runs finish; queue subsequent
+```
+
+The `okr_id` is parsed by a small inline step that runs first; the `concurrency.group` ensures simultaneous events on the same OKR serialize — eliminating `okr.yaml.actions[]` race conditions. Different OKRs run in parallel as expected.
+
+**`okr.yaml` actions append protocol.** Only `okr-bus.yml` writes to `okr.yaml`. The flow:
+
+1. Read current `okr.yaml`.
+2. Compute the new `actions[]` entry (or update an existing entry's status/scores/rounds).
+3. Write the file in one commit message: `okr(${okr_id}): ${phase} ${new_status} [round ${rounds}]`.
+4. Push. If push fails (someone else just pushed — the bus is the only writer, but `Settings → Mesh Provisioning` redeployment could be concurrent), the workflow retries from step 1.
+
+**GitHub App permissions (Phase B install).** The Maintainability AI GitHub App is installed at the **org** level with:
+
+| Permission | Scope | Why |
+|---|---|---|
+| Repository: Contents | read+write | Commit `okr.yaml`, design.md, audit JSONL |
+| Repository: Issues | read+write | Create + label oraculum-* issues |
+| Repository: Pull Requests | read+write | Open PRs, apply labels, post reviews |
+| Repository: Checks | read+write | Pocket Watch + Caterpillar's Challenge as required checks |
+| Repository: Metadata | read | Workflow basics |
+| Organization: Members | read | Resolve user → DID for human merge attribution |
+| Account: Models (Copilot) | read | Required to mention `@copilot use agent <name>` |
+
+Installation is **per org, on a selected list of repos**: the mesh repo + every `target_code_repos[]` entry across all OKRs. Looking Glass's `Settings → Mesh Provisioning → GitHub App` tab surfaces the install URL + the list of repos currently in scope.
+
+### 9.2 White Rabbit's Pocket Watch — drift threshold and measurement
+
+- **What's hashed.** The first line of `okr.yaml.objective.description` (canonicalized: lowercase, collapse whitespace, strip punctuation). This is stable enough to detect rewording but tolerant of minor edits.
+- **When measured.** At PR-open (`reviewer-bus.yml` step) and again at merge-attempt (`label-on-merge.yml` step). The hash from issue creation is recorded in the Hatter's Tag at run start; comparison happens against that frozen value.
+- **Drift threshold (default).** **Semantic similarity ≥ 0.85** (via embedding cosine) AND **edit distance / canonical length ≤ 0.30**. Both must hold to pass. The embedding model is configured in Settings → Models (default: `text-embedding-3-small`). For mesh repos without an embedding model configured, the gate falls back to edit-distance-only (≤ 0.30).
+- **Threshold override per OKR.** `okr.yaml.governance.pocket_watch_threshold` overrides the default (rare; audit-logged).
+- **Action on drift.** `reviewer-bus.yml` adds the `goal-drift-detected` label, posts a check-run failure with the side-by-side diff (old objective vs current PR-scope description), and writes a Pocket Watch event to the audit JSONL. Merge is blocked until the agent re-scopes OR a human approves the drift via the HumanGate UI.
+
+### 9.3 design-bus partial-failure handling
+
+When `design-bus.yml` fans out to N target repos:
+
+1. For each repo, attempt to open the landing issue using the GitHub App installation token scoped to that repo.
+2. Capture the result per repo: `{ repo, status: 'opened' | 'unreachable' | 'auth-failed' | 'permission-denied', issue_url, error }`.
+3. Write `okrs/<id>/what/design-fan-out.yaml` recording every result.
+4. **Partial-failure rule.** If ANY repo fails, the workflow:
+   - Applies `design-fan-out-partial` label to the parent code-design PR
+   - Posts a comment listing successful + failed repos
+   - Sets a check-run to PENDING (not FAIL — the rest of the fan-out succeeded, but the OKR is incomplete)
+   - Surfaces the partial state on the OKR detail screen with a `Retry` button per failed repo
+5. **Full-failure rule** (all repos failed). Apply `design-fan-out-failed` label, set check-run to FAIL, surface the cause on the OKR detail with a setup-hint link (likely the App isn't installed on those repos).
+
 ---
 
 ## 10. Looking Glass integration
@@ -1213,6 +1502,156 @@ Skills shipped in Phase B: as in §7.1–7.5.
   - `read(meshPath, runId)` → parse Hatter Tag YAML from artifact frontmatter or PR description
   - `verifyChain(meshPath, runId)` → invoke `verify-chain` CLI, return result for UI rendering
 
+### 10.8 UX state matrix — empty / loading / error / live updates
+
+Every Action card has eight sub-states (§10.3), but each sub-state needs an explicit visual contract. This table is the implementation source-of-truth.
+
+| Sub-state | Visual treatment | What it shows | What's clickable |
+|---|---|---|---|
+| `not-started` | ☐ gray title, primary `Start <phase>` button if prerequisites met | Phase name only | `Start <phase>` (if enabled) |
+| `gated` | ☐ gray title + amber chip "Gated on …" / "Restricted — escalate" | Reason chip, no action | Optional `Why blocked?` info link → tooltip with the gate's check list |
+| `in-progress` | ⏳ amber title + live event ticker (last 3 skill calls) + animated dot | Agent name, model, "Running ${last_skill_name}" | `Cancel` button (see Pause/Cancel below); `View Run` (links to issue) |
+| `under-review` | ⏳ amber + "Reviewers running…" + parallel pill for each reviewer | Reviewer names + ⏳ status per reviewer | `View PR` opens GitHub |
+| `revision-required` | ⚠ orange title + reviewer MISSING list inline + counter `Round 2/2 — auto-revising` | Per-reviewer score + MISSING list + agent status | `View PR`; `Cancel auto-revise` (forces HumanGate immediately) |
+| `blocked` | ⛔ red title + reviewer MISSING list + escalation choices | Block reason + two action buttons | `Escalate BAR` (§10.9); `Human Override` (§10.9) |
+| `human-gate` | 🛑 red title + three buttons inline | Per-reviewer scores + agent rationale | `Approve & Merge` / `Re-run` / `Reject & Re-scope` |
+| `complete` | ✓ green title + Hatter chip + audit-timeline expand | Agent, scores, chain root, artifact link | `View Tag`, `Verify Chain`, `View PR`, `Open Artifact` |
+| `failed_timeout` (new) | ⚠ red dashed border + "Run timed out after 15 min" | Last-seen skill, time elapsed | `Re-run` (new run, same intent_thread_uuid); `View Logs` (GitHub Actions URL) |
+| `failed_skill` (new) | ⚠ red dashed border + agent's stop reason | Failed Skill name + agent comment | `Re-run`; `View Comment`; `Open Setup` (if the failure is a config issue like missing API key) |
+| `stalled` (new) | ⚠ yellow dashed border + "No activity in 30 min" | When-assigned + when-last-seen | `Re-run`; `Cancel`; `Report Issue` (opens a GitHub Discussions thread) |
+
+**Live event ticker transport.** Looking Glass does NOT poll GitHub continuously. Two-tier:
+
+- **Active OKR (visible on screen):** poll GitHub REST API every **15s** for PR + issue state on this OKR's artifacts. Each tick fetches at most 4 endpoints (one per action). Aborts on screen-blur (window not visible).
+- **Background sync:** when not on an OKR detail, poll the mesh `okrs/` directory on disk for any changes (file watcher on the audit JSONL files) every **30s**. Files-on-disk change quickly because workflows commit there; this is cheap.
+- **Mesh push trigger:** Looking Glass surfaces a "↻ Sync" button on the portfolio header that runs `git fetch && git pull --ff-only` on the mesh repo. Auto-fires on app focus if it's been > 5 min since last sync.
+- **No webhooks in the v4 design.** Webhook receivers require a public endpoint Looking Glass doesn't have. Phase F (future) may add a self-hosted relay for sub-second updates; v4 lives within REST polling + filesystem watchers.
+
+**Empty + loading states for the OKR screen itself.**
+
+| Surface | Empty state | Loading state | Error state |
+|---|---|---|---|
+| OKR list | "No OKRs yet. [Create OKR]." | Skeleton rows with shimmer | "Could not read `okrs/` — is the mesh repo open?" + `Reload` |
+| OKR detail header | (always present after create) | Skeleton text | "Could not read `okr.yaml` — file may have been deleted from the mesh" |
+| Action cards | All in `not-started` after create | Skeleton card heights per sub-state | "Skill `knowledge-okr` failed: <reason>" — shown inline with `Retry` |
+| Hatter Tag sheet | (only opens on `complete` / `failed_*` action) | Spinner + "loading audit JSONL…" | "Tag fetch failed — chain may be broken. [Run verify-chain]" |
+| Footer (Export Audit Report) | Disabled until at least one phase has merged | Progress bar with stage description | Modal: "Export failed at stage X — see logs" |
+
+**Race-condition policy.** When the user is mid-action and underlying state shifts:
+
+- **HumanGate decision → upstream merge happens.** User is staring at the How HumanGate UI; meanwhile the Why PR somehow gets re-merged (rare; admin force-merge). Looking Glass debounces user clicks by 500ms and re-fetches state before submitting any HumanGate decision. If state changed, shows a banner "Upstream Why phase was re-merged — refresh to see latest. Your HumanGate choice was NOT submitted."
+- **Agent finishes while user views a stale state.** The Action card sub-state recomputes on every 15s poll. Sub-state transitions are surfaced via a brief toast: "Why phase completed — scores Arch 85 · Sec 88. [View]"
+- **Mid-action mesh edit.** User edits an unrelated mesh artifact while their OKR is running. No interaction — different files, different writers (agent writes to `okrs/`, user edits elsewhere). The 30s background filesystem watcher catches changes outside the user's edit.
+- **BAR score change mid-pipeline.** While the How phase is running, someone adds a threat-model to APP-IMDB-002 (the Restricted BAR). The BAR score recomputes via `BarService`. Looking Glass detects this on the next 15s poll, displays a yellow chip on the OKR header: "Tier may be eligible to upgrade — recheck after current phase completes." The user can NOT change the tier mid-run; the tier was frozen on the Hatter's Tag at run start (tier-creep mitigation §6.2).
+
+**Pause vs Cancel — explicit semantics.**
+
+- **`⏸ Pause OKR`** (footer button): freezes the OKR — disables all `Start <phase>` buttons across the whole OKR. Does NOT touch any running agent (let it finish). The Pause state is stored in `okr.yaml.meta.paused: true` (audit-logged). Re-clicking unpauses. Used when an OKR needs to wait on an external dependency.
+- **`Cancel` (per Action card, only visible in `in-progress` / `under-review`):** posts a comment `cancel-run-${run_id}` on the issue (a sentinel comment that the agent's polling loop watches for); also closes the PR if open. Stamps the action `status: cancelled` in `okr.yaml`. Audit captures cancellation as a `state_transition` event. A new run can be started by clicking the phase's `Start` button again.
+
+**PR status visibility — how scores appear on the Action card.**
+
+The PR description carries the Hatter's Tag fenced block (with `reviewer_scores: { architect: ..., security: ... }`). When a reviewer agent posts its structured review, `reviewer-bus.yml` parses the SCORE values from the comment body (regex against the prompt-pack's required format) and **commits the updated Hatter's Tag back to the PR description**. Looking Glass reads scores from the PR description in the 15s poll. This makes scores append-only and audit-visible without re-running anything.
+
+**Per-repo design PR tracking.** For Phase 3b fan-out, Looking Glass uses the GitHub App installation token (read scope) to fetch each `target_code_repos[]` issue + linked PRs. This avoids requiring the user to authenticate to each code repo separately. Failed reads (auth-revoked, repo deleted) display as `unreachable` on the per-repo line in the Action card with a `Re-check access` button.
+
+**Inline PR diff viewing.** Not in v4. `View PR` always navigates to GitHub. Inline diff viewing is a Phase F idea — GitHub provides this well; duplicating it in Looking Glass would be a maintenance burden for a small UX win.
+
+### 10.9 Dual-Signature Override + Restricted-tier escalation — concrete flows
+
+These are the two paths a user takes when a Restricted-tier OKR is blocked. Both must be reliable enough for the workshop's centerpiece moment.
+
+#### 10.9.1 "Escalate BAR" flow (the recommended path)
+
+When the user clicks `Escalate BAR` on a blocked Action card:
+
+1. **Looking Glass navigates** to the BAR detail page (`Platforms / IMDB-Lite / APP-IMDB-002`) inside the same VS Code panel. A persistent breadcrumb chip stays visible: `← Return to OKR-2026Q1-… (How phase blocked)`.
+2. The BAR detail page **highlights the missing artifacts** identified by the reviewer's `MISSING` list — e.g., shows a yellow border around the missing `threat-model.yaml` slot, around the empty `controls:` block, around the missing ADRs list.
+3. The user adds the artifacts via the existing BAR-editing UI. As each artifact is committed to the mesh, `BarService.scorePillars()` recomputes the BAR score. Tier transitions are logged as audit events.
+4. When the BAR's score crosses the Supervised threshold (≥ 50), Looking Glass **fires a tier-upgrade toast** on the breadcrumb chip: "✓ APP-IMDB-002 tier upgraded → Supervised. [Return to OKR]."
+5. Clicking `Return to OKR` lands the user back on the OKR detail page. The previously-blocked Action card auto-refreshes; the `Start How` button (or the auto-revise loop, if applicable) re-enables.
+6. **Audit.** The tier change is committed to the mesh as a `bar_tier_change` event under `okrs/<id>/audit/events/`. The next Hatter's Tag stamped on this OKR records the new tier and a back-reference to the upgrade event id, so the audit chain captures "this run unblocked because the BAR was escalated at <timestamp>."
+
+This is the path **the workshop teaches** — concrete, audit-logged, no human-override paperwork.
+
+#### 10.9.2 Dual-Signature Override flow (the escape hatch)
+
+For when the team can't (or shouldn't) escalate BAR governance right now but needs to ship — e.g., emergency hotfix, accepted-risk decision, deferred-governance ticket:
+
+1. User clicks `Human Override (dual signature)` on a blocked Action card.
+2. **Looking Glass opens a modal:**
+
+   ```
+   ┌─ Human Override — OKR-2026Q1-IMDB-001-celeb-api ─────────────────┐
+   │ Restricted-tier gate on Phase: How                                 │
+   │ Blocking finding: Missing threat-model on APP-IMDB-002             │
+   │                                                                    │
+   │ Two signatures required.                                           │
+   │                                                                    │
+   │ Signer 1 (you)                                                     │
+   │  GitHub:        @shawnmccarthy                                     │
+   │  Reason:        [_______________________________________] (req)    │
+   │  Risk accepted: [_______________________________________] (req)    │
+   │                                                                    │
+   │ Signer 2                                                           │
+   │  GitHub:        [@_______________________________________] (req)   │
+   │  Mechanism:     ◉ GitHub mention (post sign-here comment)          │
+   │                 ○ Pre-shared signed approval YAML (paste below)    │
+   │  [paste YAML here ___________________________________]             │
+   │                                                                    │
+   │  ☐ I confirm both signers have authority per the org's             │
+   │    Restricted-tier override policy (link: …)                       │
+   │                                                                    │
+   │              [Cancel]               [Request Signer 2]             │
+   └────────────────────────────────────────────────────────────────────┘
+   ```
+
+3. On `Request Signer 2`:
+   - Looking Glass writes a **draft** `okrs/<id>/audit/overrides/<timestamp>-override-request.yaml` containing Signer 1's fields. Audit JSONL gets a `state_transition: override_requested` event.
+   - Looking Glass opens a comment on the OKR's anchor issue:
+     ```
+     @signer2 — Dual-signature override requested for Phase How.
+     Reason: <reason>
+     Risk accepted: <risk-acceptance>
+     Reply with `/sign-override <fingerprint>` to confirm.
+     Or use the Looking Glass UI's "Sign override" action (see signer-2 docs).
+     ```
+   - The `<fingerprint>` is a one-time SHA256 of (okr_id || phase || reason || timestamp) — generated by Looking Glass at request time and embedded in the comment AND the draft override yaml.
+4. **Signer 2's path:** they either (a) reply with `/sign-override <fingerprint>` on the GitHub issue OR (b) open Looking Glass themselves, navigate to the OKR, and click `Sign override` (the OKR detail surfaces a banner "Override awaiting your signature" for any GitHub user matching `signer2`). Either path:
+   - Workflow (`okr-bus.yml`) detects the sign comment OR the LG signature commit.
+   - Validates: (i) commenter/committer GitHub handle matches Signer 2; (ii) fingerprint matches the draft; (iii) Signer 2 ≠ Signer 1 (must be different GitHub handle).
+   - Promotes the draft override to `okrs/<id>/audit/overrides/<timestamp>-override.yaml`:
+     ```yaml
+     override_id: <uuid>
+     okr_id: OKR-2026Q1-IMDB-001-celeb-api
+     phase: how
+     blocking_finding: "Missing threat-model on APP-IMDB-002"
+     signer_1:
+       github: shawnmccarthy
+       did: did:gh:user:12345
+       reason: "Emergency feature unlock — pre-launch milestone"
+       risk_accepted: "Threat model will be added by 2026-06-01 (tracked in OKR-2026Q2-IMDB-005)"
+       signed_at: 2026-05-19T15:33:00Z
+     signer_2:
+       github: alice
+       did: did:gh:user:67890
+       mechanism: github-mention
+       signed_at: 2026-05-19T15:41:00Z
+       comment_url: https://github.com/.../issues/52#issuecomment-...
+     fingerprint: sha256:f7…3a
+     ```
+   - Applies the `dual-signature-override` label to the OKR anchor issue + the blocking phase's PR.
+   - Adds the override id to the next Hatter's Tag of the unblocked phase.
+   - The Action card auto-refreshes; the blocked state lifts; the phase continues (auto-revise becomes available, or the user clicks `Start <phase>` again).
+5. **Audit visibility.** The override is included verbatim in the Audit Report Export bundle under `audit/overrides/`. The traceability matrix carries an `OVERRIDE` annotation on any Hatter's Tag stamped after the override took effect.
+
+**Hard rules.**
+
+- An override is **scoped to a single phase** of a single OKR — it does NOT unlock other OKRs on the same BAR, nor does it permanently upgrade the BAR's tier.
+- An override **expires when the OKR closes**. Re-running the same phase after expiry requires a new override.
+- Signer 2 cannot be Signer 1, cannot be a bot/agent DID (only human GitHub users), and must have org-level permissions documented in the linked Restricted-tier override policy (link visible in the modal).
+- Override creation events emit a CloudEvent of type `io.maintainabilityai.audit.override_signed` — SIEM systems can subscribe to it for compliance dashboards.
+
 ---
 
 ## 11. Audit chain — what's source-of-truth where
@@ -1284,6 +1723,44 @@ hatters_tag:
 ```
 
 This is **the auditor's master question, answered inline.** Every field is there to satisfy: *agent / prompt / threat model / test coverage / reviewer / rationale*.
+
+### 11.1.5 Canonical location + precedence rule
+
+The Hatter's Tag is written to **two** places, by different actors, at different times. The rule of precedence is unambiguous so verify-chain has a single source of truth.
+
+| Location | Written by | Written when | Authoritative for |
+|---|---|---|---|
+| **Artifact frontmatter** (e.g., top of `okrs/<id>/why/research-doc.md` between `---` fences) | The author agent, on artifact write (completion step 2 in §5.5.6) | Once, atomic with the artifact commit | **Canonical** — this is the single source of truth |
+| **PR description fenced block** (a ```yaml hatters-tag fenced block in the PR body) | Same author agent, on PR open (completion step 3); UPDATED by `reviewer-bus.yml` after each reviewer posts to inject `reviewer_dids[]` + `reviewer_scores` | Once at open, plus N times as reviewers come in | **Display mirror** of the canonical — for human readability in the GitHub UI |
+
+**Conflict resolution.** If the two diverge (e.g., a human hand-edited the PR description), the **frontmatter wins**. `verify-chain` reads the frontmatter; the PR description is informational. The reviewer-bus workflow re-syncs the PR description from the frontmatter after every update (i.e., reads frontmatter, appends its own reviewer fields, rewrites the PR description's fenced block).
+
+**Why frontmatter is canonical.** The artifact is git-history-immutable — once merged, the commit SHA pins the Hatter's Tag forever. PR descriptions are mutable forever (anyone with write access can edit). The audit chain's integrity needs an immutable anchor; the merged-artifact's frontmatter provides one.
+
+**Cross-repo Hatter's Tag (per-repo design fan-out).** When `design-bus.yml` opens an issue in `<org>/celeb-api`, that issue's body carries an HTML comment `<!-- intent_thread_uuid: 7f3e9c2d-… -->`. When the coding agent in `celeb-api` later opens a code PR addressing the issue, the coding agent (out of scope of this design, but governed by the agent-side conventions) writes a Hatter's Tag in the PR description with `parent_intent_thread: 7f3e9c2d-…`. The chain ladder reconstructs the cross-repo thread by walking `parent_intent_thread` links.
+
+### 11.1.6 Audit JSONL — write protocol + locking
+
+`okrs/<id>/audit/events/<run-id>.jsonl` is **append-only**, hash-chained, and **partitioned per-run** to eliminate contention.
+
+**Partitioning rule.** Every agent run gets its own JSONL file named by `<run-id>.jsonl`. Concurrent runs (different `run-id`) write to different files. This is the primary anti-contention mechanism.
+
+**Within a single file** (same run), the `audit-emit-event` Skill is the **only** writer. It uses POSIX advisory locking (`fcntl.flock` with `LOCK_EX`) on the file handle. Lock is held only during the `read-last-line-for-hash + append-new-line` operation (~5ms). Other Skills wait briefly on the lock.
+
+**Workflow audit events** (events emitted by `okr-bus.yml`, `reviewer-bus.yml`, etc.) write to **separate JSONL files** to avoid contention with agent-driven `audit-emit-event` Skill calls:
+
+```
+okrs/<id>/audit/events/
+  RES-2026-05-19-abc123.jsonl              # market-research-agent's events
+  PRD-2026-05-19-def456.jsonl              # prd-agent's events
+  okr-bus-state-transitions.jsonl          # all okr-bus.yml state changes
+  reviewer-bus-2026-05-19.jsonl            # one file per day for bus events
+  pocket-watch.jsonl                        # all Pocket Watch checks across runs
+```
+
+Each file is independently hash-chained. `verify-chain` walks ALL JSONL files under `audit/events/` and validates each chain. Cross-file ordering uses the CloudEvents `time` field — strictly increasing per `intent_thread_uuid`.
+
+**Concurrent commit race (when two runs write JSONL in parallel and both git-add+commit+push to the mesh).** Git itself serializes — the second push fails with `non-fast-forward`. The workflow retries: pull, re-stage, commit, push. The audit events themselves are append-only, so the merge is trivial (concatenation). If the same file is touched on both sides (different runs of the same agent — extremely unlikely given the per-run filename), the bus workflow's `concurrency:` group (§9.1) prevents this by serializing per OKR.
 
 ### 11.2 Court Recorder envelope (CloudEvents v1.0)
 
@@ -1730,4 +2207,129 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 
 ---
 
-*Last updated 2026-05-19 (v4 — OKR-driven trigger model + full UI design + Audit Report Export + phase tracking). This is a design document AND a live tracking surface — §13 and §15 update inline as work lands. Phase A unlocks the foundation; B unlocks the agents; C closes the loop; D adds design fan-out; E ships the audit export.*
+## 17. Setup + ops
+
+These are the install, secrets, cost, and failure-notification surfaces. Shovel-ready means a new org can stand the pipeline up from a clean install.
+
+### 17.1 New-mesh bootstrap flow
+
+A user opens Looking Glass with no mesh repo configured. The flow:
+
+1. **Looking Glass detects** no `meshPath` in workspace state.
+2. Shows a **bootstrap modal**:
+   ```
+   ┌─ Bootstrap your governance mesh ─────────────────────────────┐
+   │  No mesh repo configured. Choose one:                         │
+   │                                                                │
+   │   ◉ Create a new mesh repo on GitHub                          │
+   │      Org / user: [____________]  Repo name: [____________]    │
+   │      ☑ Seed with IMDB-Lite sample (recommended for workshop)  │
+   │                                                                │
+   │   ○ Use an existing mesh repo                                 │
+   │      Path or URL: [_______________________________________]   │
+   │                                                                │
+   │   ○ Open a sample mesh (read-only)                            │
+   │      [IMDB-Lite sample mesh ▾]                                 │
+   │                                                                │
+   │                          [Cancel]    [Bootstrap]              │
+   └───────────────────────────────────────────────────────────────┘
+   ```
+3. **On Bootstrap (new repo path):**
+   - Uses the user's installed `gh` CLI (or prompts to install) to: `gh auth status` → confirm; `gh repo create <org>/<repo> --private --clone`.
+   - Runs `MeshService.initializeMesh(<path>)` which writes the standard mesh structure: `platforms/`, `okrs/`, `threats/`, `controls/`, `bars/` (empty), `.caterpillar/prompts/`.
+   - If IMDB-Lite checked: calls `scaffoldImdbLitePlatform()` + `scaffoldImdbLiteOkr()` (the sample seeded under Celebs, Restricted tier per §8.1).
+   - Initial commit + push.
+4. **On Bootstrap (existing path):** validates the path has a `platforms/` directory at the root; if not, offers `MeshService.initializeMesh()` upgrade.
+5. **Looking Glass then prompts for Phase B+ setup** (if not already configured):
+   - "Install the Maintainability AI GitHub App" (§17.2) — required to deploy agents/skills/workflows.
+   - "Configure secrets" (§17.3) — required for research Skills + agent runs.
+
+The bootstrap modal is also reachable from `Settings → Workspace → Re-bootstrap` (used when migrating between meshes).
+
+### 17.2 GitHub App installation
+
+The Maintainability AI GitHub App is the single trust boundary for cross-repo operations.
+
+**Install flow:**
+
+1. From Looking Glass `Settings → Mesh Provisioning → GitHub App` tab, the user clicks **`Install / Manage`**.
+2. Looking Glass opens `https://github.com/apps/maintainabilityai/installations/new` in the system browser.
+3. The user picks: (a) which org/account to install into; (b) which repos to grant access (the mesh repo + every code repo referenced in any OKR's `target_code_repos[]`).
+4. After install, GitHub redirects to a Looking Glass deep link (`vscode://maintainabilityai.maintainabilityai/install-complete?installation_id=<id>`) that records the installation ID locally + as a `mesh-config.yaml` entry.
+5. Looking Glass verifies App access by attempting a read on the mesh repo via the App's installation token. On success, the tab shows `✓ Installed — N repos in scope`.
+
+**Per-OKR token issuance (Queen's Keyring).**
+
+When a workflow needs to write to a target code repo (e.g., `design-bus.yml` fanning out), it requests an installation token scoped to ONLY:
+- The target repo for this OKR
+- Only `contents:read`, `issues:write`, `pull-requests:read` permissions
+- 1-hour TTL (GitHub App tokens are short-lived by design)
+
+This minimizes blast radius. Tokens are requested by the workflow at run time via the GitHub Actions OIDC-token-exchange flow (mediated by a minimal `queens-keyring.yml` reusable workflow we ship). Tokens never appear in logs, never persist past the run.
+
+**Re-scope.** When a new OKR adds a code repo not currently in the App's scope, the Settings tab shows a yellow chip "Re-scope GitHub App for: `<org>/<repo>`" with a one-click link to the GitHub App's installation page filtered to the user's org.
+
+**Why a GitHub App, not a PAT.** PATs are user-bound (rotate on offboarding, leak risk), all-or-nothing scoped, and rate-limited per user. Apps are org-bound, scoped per repo, rate-limited per installation, and produce attributable `actor: maintainabilityai[bot]` events in audit logs — which is what the Hatter's Tag `author_did` field references (`did:gh:installation:<id>/agent:<agent-name>`).
+
+### 17.3 Secrets management
+
+Three categories of secret, three different homes.
+
+| Secret | Lives in | Read by | Why |
+|---|---|---|---|
+| `TAVILY_API_KEY` (research) | Mesh repo's GitHub Secrets (org-level if shared) | Tavily-search Skill at runtime via `${{ secrets.TAVILY_API_KEY }}` | Server-side API key; no user-machine access needed |
+| `ANTHROPIC_API_KEY` (agent fallback) | Mesh repo's GitHub Secrets (org-level) | Anthropic client in `research-runner` legacy CI path; NOT needed for Copilot-driven agent path | Only used in fallback scenarios |
+| `OPENAI_API_KEY` (Pocket Watch embeddings) | Mesh repo's GitHub Secrets (org-level) | `reviewer-bus.yml` for `text-embedding-3-small` calls | Embedding model for semantic-drift gate |
+| Copilot license / GitHub auth | GitHub user's account (Copilot subscription, GitHub App install) | Agent assignment | Not a "secret" — auth state |
+| `mesh-config.yaml` (installation IDs, paths) | Local workspace (`.vscode/maintainabilityai/`) — gitignored | Looking Glass | Per-user / per-machine state |
+
+**No secrets in `okr.yaml` or any artifact.** Hatter's Tags reference secret-protected resources by ID (e.g., `model: claude-sonnet-4-6`) but never embed credentials.
+
+**Secret rotation flow.** Looking Glass `Settings → Secrets & Models` tab shows last-rotated timestamps. Clicking `Rotate` for a secret opens the appropriate GitHub Settings page in the browser — Looking Glass doesn't mediate the rotation itself (trust boundary preserved). On detection of a 401/403 from a Skill, the OKR detail shows a banner with a direct link to rotate the relevant secret.
+
+### 17.4 Cost surfacing — per-OKR rollup
+
+Every Hatter's Tag has `inputTokens`, `outputTokens`, and `costUsd` (already emitted by `research-runner`'s LLM client; extended in Phase A to cover all agents).
+
+**Where shown.**
+
+- **OKR detail page** — small `$ Cost` chip on each Action card showing the run cost. Footer roll-up shows total OKR cost.
+- **OKR list view** — optional "Cost" column (off by default; toggleable in `Settings → Display`).
+- **Looking Glass `Settings → Usage` tab** (new in Phase B) — monthly cost across all OKRs, broken out by agent + by model.
+- **Audit Report Export's README.md** — total cost for the OKR's lifetime.
+
+**Cost cap enforcement.**
+
+- Per-agent `max_tokens_per_run` in the `.agent.md` (§5.5).
+- Per-OKR cap (optional): `okr.yaml.governance.max_cost_usd`. When reached, `okr-bus.yml` refuses new agent assignments and labels the OKR `cost-cap-reached`.
+- Per-org monthly cap (Phase E+, configured in Settings → Usage). Mesh-wide. When reached, ALL `Start <phase>` buttons disable across all OKRs; the org admin gets a Looking Glass notification.
+
+### 17.5 Failure notification — agent runs, workflows, sync errors
+
+A user can have multiple OKRs running concurrently and isn't watching every screen. Failures need to surface even if the user is elsewhere.
+
+**Three notification surfaces:**
+
+1. **In-app banner** on Looking Glass header — yellow for warnings (skill retried successfully, slow runs), red for failures (agent stalled, workflow failed). Banner shows the OKR id + phase + reason; clicking deep-links to the relevant Action card. Persists until the user dismisses or the issue clears.
+2. **VS Code notification** (`vscode.window.showWarningMessage` / `showErrorMessage`) for critical failures (mesh write failed, GitHub App auth revoked, cost cap reached). These pop the VS Code system notification.
+3. **GitHub issue comment** on the OKR's anchor issue — `okr-bus.yml`'s watchdog (§5.5.7) posts agent-stall comments and other workflow-level failures. The issue's notification settings drive email/desktop notifications outside VS Code.
+
+**Failure taxonomy** (each maps to one of the three surfaces):
+
+| Failure | Surface | Severity | Action recovery |
+|---|---|---|---|
+| Skill retried successfully | (silent — audit-only) | info | — |
+| Agent timeout | In-app banner + GitHub comment | error | `Re-run` from OKR detail |
+| Skill terminal failure (e.g., missing API key) | In-app banner with `Open Setup` link | error | Open Setup tab, fix config, `Re-run` |
+| Workflow run failure | GitHub Actions native notification + in-app banner | error | Inspect workflow logs; `Re-run` |
+| Tweedles violation (no available reviewer DID) | In-app banner | warning | Org admin needs to add a second App installation OR add more user-DIDs to reviewer pool |
+| Goal-drift detected | In-app banner + PR check-run failure | warning | Agent re-scopes OR HumanGate approval |
+| GitHub App auth revoked | VS Code notification + Settings banner | critical | Re-install or re-authorize the App |
+| Cost cap reached | VS Code notification + OKR banner + `cost-cap-reached` label | critical | Org admin raises cap OR user closes/archives older OKRs |
+| Mesh repo unreachable | VS Code notification | critical | Network / git config issue; user investigates |
+
+**Failure persistence.** All failure events also write CloudEvents to the appropriate audit JSONL (per §11.1.6), so they appear in the Audit Report Export's README under "Notable events during this OKR's lifetime." A failed-then-recovered run is fully reconstructible.
+
+---
+
+*Last updated 2026-05-19 (v4.2 — shovel-ready gap closure: issue/label vocabulary, agent runtime contract, workflow permissions matrix, UX state matrix, Restricted-tier flows, Hatter Tag canonical location, intent_thread_uuid lifecycle, setup + ops). v4.1 split PRD vs Code Design; v4 introduced the OKR-driven trigger model + UI + Audit Report Export + phase tracking. This is a design document AND a live tracking surface — §13 and §15 update inline as work lands.*
