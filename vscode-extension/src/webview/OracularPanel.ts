@@ -500,8 +500,31 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     const workflowPath = isResearch
       ? '.github/workflows/oraculum-research.yml'
       : '.github/workflows/oraculum-review.yml';
+
+    // For research issues, the agent needs the CURRENT run id (not a
+    // placeholder) so the synthesis lands at the right path. Earlier
+    // versions had a literal `<run-id>` in the prompt and the agent
+    // happened to pick a stale run id from "Prior research in this
+    // scope" — PR #55 modified the wrong folder. Fetch the latest
+    // data-collection comment and pull `**Run id:** \`RES-...\`` out.
+    let researchRunId = '';
+    if (isResearch) {
+      try {
+        const comments = await this.githubService.getIssueComments(
+          this.meshRepoInfo.owner,
+          this.meshRepoInfo.repo,
+          this.currentIssueNumber,
+        );
+        for (let i = comments.length - 1; i >= 0; i--) {
+          const m = comments[i].body.match(/\*\*Run id:\*\*\s*`?(RES-[A-Za-z0-9-]+)`?/);
+          if (m) { researchRunId = m[1]; break; }
+        }
+      } catch { /* best-effort — fall through to placeholder */ }
+    }
+    const runIdSlug = researchRunId || '<run-id>';
+
     const claudeCommentBody = isResearch
-      ? `@claude Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion. Write the output to \`research/<run-id>/synthesis.md\` and open a PR.`
+      ? `@claude Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion.\n\n**Write the output to a NEW file at \`research/${runIdSlug}/synthesis.md\`.** Do NOT modify any existing synthesis files for other run ids${researchRunId ? '' : ' (substitute the run id from the data-collection comment above — look for `**Run id:**`)'}.`
       : `@claude Please analyze the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
 
     if (agent === 'skip') {
@@ -610,7 +633,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
         // Earlier this hard-coded the review prompt, which posted
         // architecture-review instructions on research-synthesis issues.
         const copilotCommentBody = isResearch
-          ? `@copilot Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion. Write the output to \`research/<run-id>/synthesis.md\` and open a PR.`
+          ? `@copilot Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion.\n\n**Write the output to a NEW file at \`research/${runIdSlug}/synthesis.md\`.** Do NOT modify any existing synthesis files for other run ids${researchRunId ? '' : ' (substitute the run id from the data-collection comment above — look for `**Run id:**`)'}.`
           : `@copilot Please review the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
         await this.githubService.createIssueComment(
           this.meshRepoInfo.owner,
