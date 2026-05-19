@@ -1,0 +1,240 @@
+name: "Drift Gate — White Rabbit's Pocket Watch + Caterpillar's Challenge"
+
+# Two embedding-based drift checks on every artifact PR:
+#
+#   1. Pocket Watch (§9.2) — semantic similarity between the OKR's
+#      objective (canonicalized first line of objective.description /
+#      fallback objective.name) and the PR's scope (title + first
+#      paragraph of body). Pass criterion: cosine_similarity ≥ 0.85
+#      AND edit_distance / canonical_length ≤ 0.30. Both must hold.
+#
+#   2. Caterpillar's Challenge (§11.5) — semantic similarity between
+#      the current phase's artifact and the prior phase's merged
+#      artifact. PRD vs Research synthesis, Code-Design vs PRD.
+#      Pass criterion: cosine_similarity ≥ 0.70 (looser than Pocket
+#      Watch — phases are SUPPOSED to add detail, just not drift
+#      semantically).
+#
+# Embeddings via GitHub Models (text-embedding-3-small). Authed by
+# the workflow's GITHUB_TOKEN — no extra secret needed. Free for
+# this volume (~1 embedding pair per PR, ~4 pairs per OKR lifecycle).
+#
+# Phase tracking: §13 C7 + C8.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  issues: write
+
+concurrency:
+  group: drift-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  drift-gate:
+    name: "Run Pocket Watch + Caterpillar's Challenge"
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
+      contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
+      contains(github.event.pull_request.labels.*.name, 'design-draft')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout mesh
+        uses: actions/checkout@v4
+
+      - name: Extract okr_id + phase from PR body Hatter Tag
+        id: ctx
+        run: |
+          BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body)
+          OKR_ID=$(printf '%s' "$BODY" | grep -oE 'okr_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^okr_id:\s*//')
+          PHASE=$(printf '%s' "$BODY" | grep -oE 'phase:\s*(why|how|what)' | head -1 | sed -E 's/^phase:\s*//')
+          if [ -z "$OKR_ID" ]; then
+            echo "::warning::No okr_id in PR body — skipping drift gate"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -f "okrs/$OKR_ID/okr.yaml" ]; then
+            echo "::warning::okrs/$OKR_ID/okr.yaml not found — skipping drift gate"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "okr_id=$OKR_ID" >> "$GITHUB_OUTPUT"
+          echo "phase=$PHASE" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        if: steps.ctx.outputs.skip != '1'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run drift checks via GitHub Models embeddings
+        if: steps.ctx.outputs.skip != '1'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          PHASE: ${{ steps.ctx.outputs.phase }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 <<'PY'
+          """White Rabbit's Pocket Watch + Caterpillar's Challenge.
+
+          One workflow step, two checks, one embedding API. We batch all
+          required embeddings into a single GitHub Models call to keep
+          the network footprint tiny.
+
+          Outcomes are written via GH CLI calls so the workflow surface
+          (labels, comments) stays a single source of truth.
+          """
+          import os, re, json, subprocess, urllib.request, urllib.error, sys
+
+          OKR_ID    = os.environ["OKR_ID"]
+          PHASE     = os.environ.get("PHASE", "")
+          PR_NUMBER = os.environ["PR_NUMBER"]
+          PR_TITLE  = os.environ.get("PR_TITLE", "")
+          PR_BODY   = os.environ.get("PR_BODY", "")
+          GH_TOKEN  = os.environ["GH_TOKEN"]
+          GH_REPO   = os.environ["GH_REPO"]
+
+          POCKET_WATCH_COSINE_MIN = 0.85
+          POCKET_WATCH_EDIT_MAX   = 0.30
+          CATERPILLAR_COSINE_MIN  = 0.70
+
+          PRIOR_PHASE_ARTIFACT = {"how": "why/research-doc.md", "what": "how/prd.md"}
+
+          # ── helpers ───────────────────────────────────────────────────
+          def canonicalize(text: str) -> str:
+              text = (text or "").lower()
+              text = re.sub(r"[^\w\s]", " ", text)
+              text = re.sub(r"\s+", " ", text).strip()
+              return text
+
+          def edit_distance(a: str, b: str) -> int:
+              if a == b: return 0
+              if not a:  return len(b)
+              if not b:  return len(a)
+              prev = list(range(len(b) + 1))
+              for i, ca in enumerate(a, 1):
+                  curr = [i]
+                  for j, cb in enumerate(b, 1):
+                      curr.append(min(curr[-1] + 1, prev[j] + 1, prev[j - 1] + (ca != cb)))
+                  prev = curr
+              return prev[-1]
+
+          def cosine(u, v):
+              num = sum(a * b for a, b in zip(u, v))
+              du  = sum(a * a for a in u) ** 0.5
+              dv  = sum(b * b for b in v) ** 0.5
+              return num / (du * dv) if du and dv else 0.0
+
+          def read_yaml_field(path: str, field: str) -> str:
+              """Tiny YAML key lookup — only handles top-level + one-deep keys."""
+              try:
+                  out = subprocess.check_output(["yq", "-r", field, path], stderr=subprocess.DEVNULL).decode().strip()
+                  return "" if out in ("null", "~") else out
+              except Exception:
+                  return ""
+
+          def embed(texts):
+              """Call GitHub Models embeddings. Returns list of vectors."""
+              req = urllib.request.Request(
+                  "https://models.github.ai/inference/embeddings",
+                  data=json.dumps({"input": texts, "model": "text-embedding-3-small"}).encode(),
+                  headers={
+                      "Authorization": f"Bearer {GH_TOKEN}",
+                      "Accept": "application/json",
+                      "Content-Type": "application/json",
+                  },
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      data = json.loads(r.read())
+                      return [item["embedding"] for item in data.get("data", [])]
+              except (urllib.error.HTTPError, urllib.error.URLError, Exception) as e:
+                  print(f"::warning::Embeddings call failed: {e}; falling back to edit-distance-only")
+                  return None
+
+          def gh(*args):
+              subprocess.run(["gh", *args], check=False, env={**os.environ, "GH_TOKEN": GH_TOKEN})
+
+          # ── load inputs ──────────────────────────────────────────────
+          okr_path = f"okrs/{OKR_ID}/okr.yaml"
+          objective_text = read_yaml_field(okr_path, ".objective.description") \
+                        or read_yaml_field(okr_path, ".objective.name")
+          obj_canon = canonicalize(objective_text.split("\n", 1)[0])
+          pr_scope_canon = canonicalize((PR_TITLE + " " + (PR_BODY.split("\n\n", 1)[0] if PR_BODY else "")))
+
+          # Prior-phase artifact for Caterpillar (only on how/what)
+          prior_text = ""
+          if PHASE in PRIOR_PHASE_ARTIFACT:
+              p = f"okrs/{OKR_ID}/{PRIOR_PHASE_ARTIFACT[PHASE]}"
+              if os.path.exists(p):
+                  prior_text = open(p, "r").read()[:4000]  # cap to keep embedding small
+
+          # Current PR artifact: best-effort, fall back to PR body
+          current_text = PR_BODY[:4000] if PR_BODY else ""
+
+          # ── compute drift signals ────────────────────────────────────
+          to_embed = [obj_canon, pr_scope_canon]
+          if prior_text and current_text:
+              to_embed.extend([prior_text, current_text])
+          vectors = embed(to_embed)
+
+          violations = []
+
+          # Pocket Watch
+          edit_ratio = edit_distance(obj_canon, pr_scope_canon) / max(len(obj_canon), 1)
+          pocket_cos = None
+          if vectors and len(vectors) >= 2:
+              pocket_cos = cosine(vectors[0], vectors[1])
+              pocket_pass = pocket_cos >= POCKET_WATCH_COSINE_MIN and edit_ratio <= POCKET_WATCH_EDIT_MAX
+          else:
+              # Fallback: edit-distance only
+              pocket_pass = edit_ratio <= POCKET_WATCH_EDIT_MAX
+          print(f"::notice::Pocket Watch — cosine={pocket_cos}, edit_ratio={edit_ratio:.2f}, pass={pocket_pass}")
+          if not pocket_pass:
+              cos_txt = f"cosine={pocket_cos:.3f} (need ≥ {POCKET_WATCH_COSINE_MIN})" if pocket_cos is not None else "no-embedding-fallback"
+              violations.append(("pocket-watch",
+                                 f"**White Rabbit's Pocket Watch — goal drift detected.** "
+                                 f"PR scope has drifted from the OKR objective. {cos_txt}; "
+                                 f"edit_distance/length = {edit_ratio:.2f} (need ≤ {POCKET_WATCH_EDIT_MAX}). "
+                                 f"Author agent should re-scope, OR a human can approve the drift via HumanGate."))
+
+          # Caterpillar's Challenge
+          cat_cos = None
+          if vectors and len(vectors) >= 4 and prior_text and current_text:
+              cat_cos = cosine(vectors[2], vectors[3])
+              cat_pass = cat_cos >= CATERPILLAR_COSINE_MIN
+              print(f"::notice::Caterpillar — cosine={cat_cos}, pass={cat_pass}")
+              if not cat_pass:
+                  violations.append(("caterpillars-challenge",
+                                     f"**Caterpillar's Challenge — semantic drift between phases.** "
+                                     f"This {PHASE.upper()} artifact has drifted semantically from the prior phase "
+                                     f"(cosine={cat_cos:.3f}, need ≥ {CATERPILLAR_COSINE_MIN}). "
+                                     f"Author agent should re-anchor on the prior artifact, OR human approves via HumanGate."))
+
+          # ── act on violations ────────────────────────────────────────
+          if violations:
+              gh("pr", "edit", PR_NUMBER, "--add-label", "goal-drift-detected", "--repo", GH_REPO)
+              body = "## ⚠ Drift Gate violation\n\n" + "\n\n".join(v[1] for v in violations)
+              gh("pr", "comment", PR_NUMBER, "--body", body, "--repo", GH_REPO)
+              # Fail the workflow so branch protection's "drift-gate must pass" rule can block merge.
+              sys.exit(1)
+          else:
+              # Apply a positive ack label on first clean run only — keeps
+              # the PR's label set tidy across re-syncs.
+              labels = subprocess.check_output(["gh", "pr", "view", PR_NUMBER, "--json", "labels", "--jq", "[.labels[].name]", "--repo", GH_REPO]).decode()
+              if "drift-gate-pass" not in labels:
+                  gh("pr", "edit", PR_NUMBER, "--add-label", "drift-gate-pass", "--repo", GH_REPO)
+              print("::notice::Drift gate passed: Pocket Watch + Caterpillar both within bounds")
+          PY

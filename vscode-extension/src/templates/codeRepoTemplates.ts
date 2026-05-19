@@ -442,6 +442,18 @@ export function generateDesignBusWorkflow(extensionPath: string): string {
 }
 
 /**
+ * Phase C-PR5 — `drift-gate.yml` runs White Rabbit's Pocket Watch
+ * (OKR.objective ↔ PR scope similarity) + Caterpillar's Challenge
+ * (current phase ↔ prior phase semantic drift) via GitHub Models
+ * embeddings. Authed by the workflow's GITHUB_TOKEN — no extra
+ * secret. Fails the workflow on drift so branch protection can
+ * block merge.
+ */
+export function generateDriftGateWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'drift-gate.yml');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -467,5 +479,7 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/okr-state-machine.yml', generate: generateOkrStateMachineWorkflow },
   // Phase C-PR4 — per-repo fan-out on code-design merge
   { relativePath: '.github/workflows/design-bus.yml',        generate: generateDesignBusWorkflow },
+  // Phase C-PR5 — Pocket Watch + Caterpillar's Challenge drift gates
+  { relativePath: '.github/workflows/drift-gate.yml',        generate: generateDriftGateWorkflow },
 ];
 
