@@ -914,19 +914,36 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Dispatch the Copilot Coding Agent inline — matches the canonical
-    // pattern in IssueCreatorPanel.onAssignAgent: assign
-    // `copilot-swe-agent[bot]` (auto-triggers the cloud agent) AND post
-    // the `@copilot use agent <name>` mention so the right .agent.md
-    // persona loads per §5.5.4. Failure of the assign step is non-fatal
-    // — the comment alone is enough to trigger Copilot in most setups.
-    this.postMessage({ type: 'loading', active: true, message: `Assigning Copilot Coding Agent to issue…` });
+    // Dispatch via Copilot Coding Agent. Strategy:
+    //   1. Query `GET /repos/.../assignees` to discover the canonical
+    //      assignable handles. Custom Copilot agents declared in
+    //      `.github/agents/<name>.agent.md` show up here alongside the
+    //      standard `copilot-swe-agent[bot]`.
+    //   2. Match the OKR phase's agent name (e.g. `market-research-agent`)
+    //      to an assignable login. Tolerate `<name>`, `<name>[bot]`, and
+    //      `copilot-<name>` variants — different Copilot configs surface
+    //      the agents under different login conventions.
+    //   3. Fall back to `copilot-swe-agent[bot]` if no custom match is
+    //      found (still triggers Copilot Coding Agent; the follow-up
+    //      `@copilot use agent <name>` mention then selects the persona).
+    this.postMessage({ type: 'loading', active: true, message: 'Assigning Copilot Coding Agent…' });
+    const assignableUsers = await this.githubService.listAssignees(meshRepo.owner, meshRepo.repo);
+    const matchAgent = assignableUsers.find(u =>
+      u.login === agent
+      || u.login === `${agent}[bot]`
+      || u.login === `copilot-${agent}`
+      || u.login === `copilot-${agent}[bot]`,
+    );
+    const fallbackBot = assignableUsers.find(u => u.login === 'copilot-swe-agent[bot]');
+    const assignee = matchAgent?.login ?? fallbackBot?.login ?? 'copilot-swe-agent[bot]';
     let dispatchNote = '';
     try {
-      await this.githubService.assignIssue(meshRepo.owner, meshRepo.repo, issueNumber, ['copilot-swe-agent[bot]']);
-      dispatchNote = 'assigned Copilot Coding Agent';
+      await this.githubService.assignIssue(meshRepo.owner, meshRepo.repo, issueNumber, [assignee]);
+      dispatchNote = matchAgent
+        ? `assigned to custom agent @${assignee}`
+        : `assigned to @${assignee} (generic Copilot Coding Agent; custom \`${agent}\` not in the repo's assignable list — check .github/agents/${agent}.agent.md is deployed)`;
     } catch (err) {
-      dispatchNote = `Copilot Coding Agent assignment skipped (${toErrorMessage(err)}); falling back to @-mention dispatch`;
+      dispatchNote = `assignment failed (${toErrorMessage(err)}); falling back to @-mention dispatch`;
     }
     try {
       await this.githubService.createIssueComment(

@@ -457,6 +457,32 @@ export class GitHubService {
   }
 
   /**
+   * List every user/bot login that can be assigned to issues + PRs in
+   * this repo. When Copilot Coding Agent custom agents are configured
+   * (via `.github/agents/<name>.agent.md` files), they appear here
+   * alongside humans + the `copilot-swe-agent[bot]` standard bot. Use
+   * this to auto-discover the canonical login string for a specific
+   * agent rather than guessing at the format.
+   *
+   * Paginates up to 100 — single API call covers everything for any
+   * reasonable mesh repo. Returns empty array on error so callers can
+   * fall back to the default `copilot-swe-agent[bot]`.
+   */
+  async listAssignees(owner: string, repo: string): Promise<{ login: string; type: string }[]> {
+    try {
+      const client = await this.getClient();
+      const { data } = await client.rest.issues.listAssignees({
+        owner,
+        repo,
+        per_page: 100,
+      });
+      return data.map(u => ({ login: u.login, type: u.type }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Remove a single label from an issue or PR. Tolerates the
    * "label-not-on-issue" 404 — calling code shouldn't have to pre-check
    * which labels are present before trying to clear them.
