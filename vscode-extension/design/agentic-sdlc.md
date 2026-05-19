@@ -9,6 +9,13 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - **OKR ↔ Platform linkage** is explicit; the What lens picks the right code repos.
 - **Worked IMDB Lite sample** showing a populated OKR end-to-end against the existing seed.
 
+**v2.1 refinement (this update)**:
+- **Skills are PURE data Skills** — zero nested LLM calls. The Copilot Coding Agent does ALL reasoning (query generation, gap analysis, expert synthesis, document writing) with its own model.
+- Search Skills are individual primitives (`tavily-search`, `arxiv-search`, etc.) — the agent picks which to invoke and with what queries.
+- "Expert Skills" become **context Skills** that return structured mesh data (CALM model, threat library, ADRs); the agent does the reasoning itself.
+- Drops the GH-Models dependency for plan_queries + gap_analysis entirely. 429s on the runner's LLM hops become moot for the agent-driven flow.
+- `research-runner` keeps existing for the legacy CI-only path; agent-driven path replaces it.
+
 ---
 
 ## 1. Why this design
@@ -298,9 +305,9 @@ Each agent is a `.agent.md` file deployed by `provisionWorkflow` into the mesh's
 
 | Agent | Triggered by | Output | Skills it relies on |
 |---|---|---|---|
-| `market-research-agent` | `oraculum-research` label + `@copilot` mention | PR: `okrs/<id>/why/research-doc.md` | `market-data-collection`, `knowledge-okr`, `knowledge-mesh-*`, `audit-emit-event` |
-| `prd-agent` | `oraculum-prd` label + `@copilot` mention | PR: `okrs/<id>/how/prd.md` + `manifest.yaml` | `knowledge-research`, `knowledge-mesh-*`, `knowledge-code`, `architect-expert`, `security-expert`, `audit-emit-event` |
-| `design-agent` | `oraculum-design` label on per-repo landing issue | PR in code repo: `.governance/design.md` | `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos`, `architect-expert`, `security-expert`, `audit-emit-event` |
+| `market-research-agent` | `oraculum-research` label + `@copilot` mention | PR: `okrs/<id>/why/research-doc.md` | `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`, `dedupe-and-rank`, `format-research-issue-update`, `knowledge-okr`, `knowledge-mesh-*`, `audit-emit-event` |
+| `prd-agent` | `oraculum-prd` label + `@copilot` mention | PR: `okrs/<id>/how/prd.md` + `manifest.yaml` | `knowledge-research`, `knowledge-mesh-*`, `knowledge-code`, `context-architecture`, `context-security`, `context-quality`, `audit-emit-event` |
+| `design-agent` | `oraculum-design` label on per-repo landing issue | PR in code repo: `.governance/design.md` | `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos`, `context-architecture`, `context-security`, `audit-emit-event` |
 
 ### 5.2 Reviewer agents
 
@@ -311,17 +318,14 @@ Each agent is a `.agent.md` file deployed by `provisionWorkflow` into the mesh's
 
 Reviewer agents **do not block merge by themselves** — they post scored review comments and apply labels (`revision-required` / `governance-pass`). The recycle loop (§6) gates merge.
 
-### 5.3 Why experts are Skills, not agents
+### 5.3 Why experts are *personas in the agent's prompt*, not separate LLM calls
 
-NCMS has "Architect expert" in two modes:
-- **Q&A mode**: parent agent asks for grounded guidance during synthesis
-- **Review mode**: scores a finished artifact
+NCMS's `expert_prompts.py` has the Architect / Security personas as standalone LLM-callable units. On GitHub-hosted Copilot, every Skill invocation is a context window cost for the parent agent — there's no benefit to splitting "think like an architect" into a nested LLM call.
 
-GitHub-hosted Copilot doesn't support synchronous sub-agent calls. So:
-- Q&A mode → **`architect-expert` Skill** (bundles the persona prompt + reads mesh artifacts; the parent agent calls it mid-session)
-- Review mode → **`architect-reviewer` agent** (separate agent assignment on the PR, posts a review)
-
-Same compositional power; cleaner mapping to the primitives we have.
+So:
+- **The persona text lives inline in the parent agent's `.agent.md` system prompt.** When the agent gets to the architecture section of the PRD, the system prompt has already told it to "adopt the Architect persona; reason about CALM compliance, ADR alignment, fitness-function impact, quality attributes."
+- **The grounded context comes from pure-data Skills** (`context-architecture`, `context-security`). These return structured JSON of CALM nodes, ADRs, threats, controls — never an LLM-generated narrative. The agent does the synthesis.
+- **Review mode** is a separate `architect-reviewer` agent assignment on the PR. Same persona prompt, but invoked as a new agent session for scoring. Posts a review with the certificate format.
 
 ---
 
@@ -409,49 +413,74 @@ The human at the gate has three options (Looking Glass shows the buttons):
 
 Skills live in `.github/skills/<name>/` in the mesh repo, deployed via `provisionWorkflow`.
 
-### 7.1 Market-data-collection (Phase-1 workhorse)
+### 7.0 Design principle — Skills are PURE
 
-`market-data-collection/SKILL.md` — the Skill that wraps the existing `research-runner` data-collection pipeline.
+**No LLM calls inside any Skill.** Every Skill is a deterministic data operation:
+- Search Skills (`tavily-search` etc.) hit external APIs, return structured JSON results.
+- Knowledge Skills read mesh artifacts, return structured JSON.
+- Context Skills (formerly "expert Skills") bundle CALM + threats + ADRs for a query, return structured JSON.
+- Audit Skills write to JSONL, return chain head.
 
-```yaml
-name: market-data-collection
-description: >
-  Collect ranked market-research sources for a topic. Runs plan-queries
-  → tavily + arxiv + uspto + hackernews → dedupe + gap analysis →
-  formatted issue-update. Call this once per market-research session;
-  inspect the gap signals in the result to decide if a follow-up call
-  with broader queries is warranted.
-input:
-  topic: string
-  scope_level: 'portfolio' | 'platform' | 'bar'
-  scope_id: string
-  guardrails: 'strict' | 'default' | 'lenient'
-output:
-  artifact_path: research/<run-id>/issue-update.md
-  raw_counts: { tavily, arxiv, uspto, hackernews }
-  ranked_count: number
-  gap_signals: [topic_uncovered | low_provider_overlap | ...]
-  run_id: RES-...
-  hatter_chain_root: <sha256>
+**Reasoning happens in the parent agent.** The Copilot Coding Agent has its own LLM (Claude or whatever's behind Copilot) and is already doing synthesis. It generates query plans itself. It runs gap analysis itself. It applies the architect/security personas itself (the personas are bundled into the agent's system prompt via the `.agent.md` file).
+
+Why this matters:
+- **No GH-Models 429s on the agent path.** The runner's `plan_queries` / `gap_analysis` LLM calls hit rate limits constantly. The agent uses its own model — different budget bucket, no nested rate-limit.
+- **Skills are testable as pure functions** — given inputs, deterministic outputs.
+- **Fewer cost surfaces** — one model bill (the agent's) instead of three (agent + plan_queries + gap_analysis + experts).
+- **Better query quality** — the agent has full context (the OKR, the brief, prior research, mesh state) when generating queries. The runner's plan_queries only had the brief.
+
+The existing `research-runner` CLI is **kept for the legacy CI-only path** (workflows that fire without an agent assignment). The agent-driven path supersedes it once Phase B lands.
+
+
+
+### 7.1 Search Skills (the agent's primary tools for Phase 1)
+
+The market-research-agent calls these directly — one per provider, with queries the agent itself generated from the OKR + brief + mesh context.
+
+| Skill | Input | Output |
+|---|---|---|
+| `tavily-search` | `{ queries: string[], maxResults?: number }` | `{ envelopes: [{query, status, count}], results: ProviderResult[] }` |
+| `arxiv-search` | same shape | same shape |
+| `uspto-search` | same + `apiKey` from env | same shape, results include abstracts (two-stage XML fetch) |
+| `hackernews-search` | same shape | same shape, results include `storyText` for Show/Ask HN posts |
+| `dedupe-and-rank` | `{ results: ProviderResult[][], topN?: number }` | `{ rankedSources: RankedSource[], providerCounts: {...} }` |
+| `format-research-issue-update` | `{ topic, runId, rankedSources, providerCounts, gapSignals, meshContext }` | `{ markdown: string, byteCount: number }` |
+
+Each is a thin wrapper around the corresponding `research-runner` TypeScript client — same code, exposed as a CLI script the Skill shell-execs.
+
+**Agent flow for Phase 1** (no nested LLM calls — agent does the reasoning):
+
+```
+1. agent: read OKR + brief
+2. agent: generate query plan (its own LLM context — no `plan_queries` Skill)
+       → tavily: 5 queries
+       → arxiv: 3 queries
+       → uspto: 3 queries (Q1 narrow + Q2 medium + Q3 broad per V3 spec)
+       → hackernews: 3 queries (2-3 word casual)
+3. agent: invoke 4 search Skills in parallel
+4. agent: invoke dedupe-and-rank with all 4 result arrays
+5. agent: inspect rankedSources for coverage gaps (its own analysis)
+       → if `topic_uncovered` for a key brief term, go back to step 2
+       → max 3 search-loop iterations
+6. agent: write the synthesis directly to okrs/<id>/why/research-doc.md
+       (using V2 prompt-pack structure from .caterpillar/prompts/research/synthesis.md)
+7. agent: invoke format-research-issue-update + post as comment on the issue
+8. agent: invoke audit-emit-event for the run
+9. agent: open PR
 ```
 
-The Skill is a thin wrapper that calls `npx research-runner archeologist ...` and returns the structured result. **The research-runner CLI keeps existing — it's the implementation; the Skill is the agent-facing interface.**
+### 7.2 Why this is cleaner than the legacy runner path
 
-The market-research-agent's system prompt explicitly tells it:
-- "Call `market-data-collection` once. Inspect `gap_signals`. If `topic_uncovered` fires for a key brief term, call again with a clarified topic or scope. Maximum 3 calls per session."
+| Concern | Runner path (today, legacy) | Agent path (new) |
+|---|---|---|
+| Query generation | LLM call inside runner (GH Models, often 429s) | Agent's own model — different bucket |
+| Gap analysis | LLM call inside runner | Agent inspects rankedSources itself |
+| Synthesis | Skipped (agent does it after merge) | Agent does it inline |
+| GH-Models dependency | YES for plan + gap | NONE — agent uses Copilot's own model |
+| Failure modes | Cascading: 429 on plan → fallback to Anthropic → 429 again → outer fallback | None at this layer; agent retries via its own retry logic if needed |
+| Cost surface | 3+ LLM bills (runner plan, runner gap, agent synth) | 1 LLM bill (agent synth, which already happens) |
 
-This is the **gap-loop** in the user's ask — the agent decides itself when to re-call based on the Skill's structured output.
-
-### 7.2 Search Skills (called by `market-data-collection` internally)
-
-These exist already in research-runner as TypeScript clients. We expose them as individual Skills too so other agents (PRD, design) can do targeted lookups without re-running the whole research pipeline.
-
-| Skill | Wraps |
-|---|---|
-| `tavily-search` | `src/runner/nodes/tavily-search.ts` |
-| `arxiv-search` | `src/runner/nodes/arxiv-search.ts` |
-| `uspto-search` | `src/runner/nodes/uspto-search.ts` |
-| `hackernews-search` | `src/runner/nodes/hackernews-search.ts` |
+The `research-runner` CLI stays for the legacy CI flow (workflow fires without an agent — auto-archeologist). The agent flow is the new default.
 
 ### 7.3 Knowledge Skills (read-from-mesh)
 
@@ -469,28 +498,36 @@ These exist already in research-runner as TypeScript clients. We expose them as 
 
 All knowledge Skills are read-only, idempotent, cache-friendly.
 
-### 7.4 Expert Skills
+### 7.4 Context Skills (formerly "expert Skills" — no LLM inside)
 
-| Skill | Purpose | Bundles |
-|---|---|---|
-| `architect-expert` | Grounded answer to architecture concerns | NCMS Architect persona prompt + reads from `knowledge-mesh-*` |
-| `security-expert` | Grounded answer to security concerns | NCMS Security persona prompt + reads threats library + STRIDE/OWASP/NIST refs |
+The "expert" personas (Architect, Security) live in the **parent agent's system prompt** via the `.agent.md` file. They aren't separate LLM calls; they're personas the agent adopts at the relevant point in synthesis. What the Skills do is **assemble the grounded mesh data** the persona needs to reason against.
 
-These Skills make a small LLM call themselves (cheap tier, structured output) with the right mesh context bundled in. Returns a fixed-shape answer:
+| Skill | Returns |
+|---|---|
+| `context-architecture` | Aggregated structured data: CALM nodes + relationships for affected BARs, all ADRs touching architecture concerns, applicable fitness functions, quality attributes from each BAR |
+| `context-security` | Aggregated: threat library entries applicable to the scope, security controls already in place per BAR, OWASP/NIST control references the BAR maps to, prior threat-model documents |
+| `context-quality` | Aggregated: quality attribute definitions, performance SLOs, reliability targets per BAR |
+
+Each is a pure-data Skill that walks the mesh tree, applies a "what's relevant for this scope" filter, and returns structured JSON the agent can reason against. The agent's `.agent.md` system prompt has the Architect / Security persona text inline (adapted from NCMS `expert_prompts.py`) — the persona tells the agent how to think; the Skill gives it what to think about.
+
+Sample output of `context-architecture`:
 
 ```yaml
-mode: 'guidance'                     # vs 'review' for reviewer agents
-concerns:
-  - id: AC-1
-    severity: HIGH | MEDIUM | LOW
-    finding: "..."
-    references: ["ADR-007", "THR-114"]
-recommended_decisions:
-  - "Use canonical celebrity ids for disambiguation (per CALM celeb-id-graph)"
-  - "..."
+scope: { platform: PLT-IMDB, bars: [APP-IMDB-001, APP-IMDB-002] }
+calm_nodes:
+  - { id: bar-imdb-api, type: bar, related_threats: [THR-114, THR-122] }
+  - { id: shared-identity, type: shared-infra, related_adrs: [ADR-007] }
+relationships:
+  - { source: bar-imdb-api, dest: shared-identity, kind: depends-on }
+adrs:
+  - { id: ADR-007, title: "Use canonical celebrity ids", status: accepted, tags: [identity, disambiguation] }
+fitness_functions: [...]
+quality_attributes: [...]
 ```
 
-The parent agent (PRD, design) reads this structured answer and weaves it into its output. The reviewer agents use a parallel "review" mode that returns scored certificates instead.
+The agent reads this and applies the Architect persona to write a grounded architecture section in the PRD. Same shape for `context-security` feeding the security section.
+
+**Reviewer agents** (architect-reviewer, security-reviewer) work the same way: they invoke `context-architecture` / `context-security` to gather what to score against, then score the artifact's claims/decisions against that grounded context — using their own LLM (the Copilot session running the reviewer agent).
 
 ### 7.5 Audit Skill
 
@@ -729,9 +766,10 @@ Workflows we add/extend:
 
 ### 13.1 GitHub primitives
 
-- **Skill auto-discovery vs explicit invocation**: docs say agents "can also discover and invoke skills automatically." If the LLM forgets to call expert Skills, PRDs land ungrounded. Mitigation: the parent agent's system prompt enumerates required Skills with **exact invocation order**.
+- **Skill auto-discovery vs explicit invocation**: docs say agents "can also discover and invoke skills automatically." If the LLM forgets to call context Skills, PRDs land ungrounded. Mitigation: the parent agent's system prompt enumerates required Skills with **exact invocation order**.
 - **Skill timeout & budget**: not yet known; we model Skills as best-effort with `{ ok: false, reason }` fallback contracts.
 - **Cross-repo agent execution**: design-agent must operate IN the code repo. `notify-code-repos.yml` already handles posting the landing issue with the right context.
+- **No nested LLM calls**: by design. All reasoning is in the parent agent's context. Skills are pure data. This kills two birds: no GH-Models 429s on inner calls, and no cost surface multiplication.
 
 ### 13.2 NCMS adaptation
 
@@ -772,10 +810,11 @@ Workflows we add/extend:
 | Audit event schema (phase, okr_id, parent_run_id) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
 | Cleanup: Promote → Create OKR | `vscode-extension/src/webview/OracularPanel.ts` | A |
 | Cleanup: Active Runs by OKR | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
-| `market-data-collection/SKILL.md` + scripts | mesh template | B |
-| `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills | mesh template | B |
+| `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data) | mesh template | B |
+| `dedupe-and-rank` Skill | mesh template | B |
+| `format-research-issue-update` Skill | mesh template | B |
 | `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos` Skills | mesh template | B (D) |
-| `architect-expert`, `security-expert` Skills | mesh template | B |
+| `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) | mesh template | B |
 | `audit-emit-event` Skill | mesh template | B |
 | `market-research-agent`, `prd-agent`, `design-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files | mesh template | B (D) |
 | AgentDeploymentService | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
