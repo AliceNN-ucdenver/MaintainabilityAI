@@ -170,3 +170,99 @@ test('AuditEmitter: refuses to emit after run_complete', () => {
     fs.rmSync(dir, { recursive: true });
   }
 });
+
+// v4 — agentic-SDLC governance envelope extensions (Phase A-PR4)
+
+test('AuditEmitter: accepts new optional OKR envelope fields and round-trips them', () => {
+  const dir = tmpDir();
+  try {
+    const emitter = new AuditEmitter(dir, RUN_ID);
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'validate_brief',
+      duration_ms: 1,
+      pure: { inputs_summary: 'a', outputs_summary: 'b' },
+      // New v4 fields — set them on the envelope at emit time
+      phase: 'why',
+      okr_id: 'OKR-2026Q1-IMDB-001-celeb-api',
+      intent_thread_uuid: '7f3e9c2d-aaaa-4bbb-8ccc-dddddddddddd',
+    });
+    const events = readAuditLog(path.join(dir, `${RUN_ID}.jsonl`));
+    assert.ok(events);
+    assert.equal(events!.length, 1);
+    assert.equal(events![0].phase, 'why');
+    assert.equal(events![0].okr_id, 'OKR-2026Q1-IMDB-001-celeb-api');
+    assert.equal(events![0].intent_thread_uuid, '7f3e9c2d-aaaa-4bbb-8ccc-dddddddddddd');
+  } finally {
+    fs.rmSync(dir, { recursive: true });
+  }
+});
+
+test('AuditEmitter: legacy events (no OKR fields) still validate', () => {
+  const dir = tmpDir();
+  try {
+    const emitter = new AuditEmitter(dir, RUN_ID);
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'validate_brief',
+      duration_ms: 1,
+      pure: { inputs_summary: 'a', outputs_summary: 'b' },
+    });
+    const events = readAuditLog(path.join(dir, `${RUN_ID}.jsonl`));
+    assert.ok(events);
+    assert.equal(events!.length, 1);
+    assert.equal(events![0].phase, undefined);
+    assert.equal(events![0].okr_id, undefined);
+    assert.equal(events![0].intent_thread_uuid, undefined);
+  } finally {
+    fs.rmSync(dir, { recursive: true });
+  }
+});
+
+test('AuditEmitter: chain integrity is preserved when OKR fields participate in the hash', () => {
+  const dir = tmpDir();
+  try {
+    const emitter = new AuditEmitter(dir, RUN_ID);
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'a',
+      duration_ms: 1,
+      pure: { inputs_summary: 'i', outputs_summary: 'o' },
+      phase: 'why',
+      okr_id: 'OKR-TEST',
+      intent_thread_uuid: '7f3e9c2d-aaaa-4bbb-8ccc-dddddddddddd',
+    });
+    emitter.emit({
+      node_kind: 'pure',
+      node_name: 'b',
+      duration_ms: 1,
+      pure: { inputs_summary: 'i', outputs_summary: 'o' },
+      phase: 'why',
+      okr_id: 'OKR-TEST',
+      intent_thread_uuid: '7f3e9c2d-aaaa-4bbb-8ccc-dddddddddddd',
+    });
+    const events = readAuditLog(path.join(dir, `${RUN_ID}.jsonl`))!;
+    const root = verifyChain(events);
+    assert.notEqual(root, null);
+  } finally {
+    fs.rmSync(dir, { recursive: true });
+  }
+});
+
+test('AuditEmitter: rejects invalid intent_thread_uuid format', () => {
+  const dir = tmpDir();
+  try {
+    const emitter = new AuditEmitter(dir, RUN_ID);
+    assert.throws(
+      () => emitter.emit({
+        node_kind: 'pure',
+        node_name: 'validate_brief',
+        duration_ms: 1,
+        pure: { inputs_summary: 'a', outputs_summary: 'b' },
+        intent_thread_uuid: 'not-a-uuid',
+      }),
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true });
+  }
+});

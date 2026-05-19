@@ -32,6 +32,17 @@ const Envelope = z.object({
   prev_event_hash: Sha256.nullable(),
   /** SHA-256 of THIS event with `event_hash` set to the empty string. */
   event_hash: Sha256,
+  // ── v4 agentic-SDLC governance fields (Phase A-PR4) ─────────────────
+  // All three are OPTIONAL so legacy CI-only runs (without an OKR anchor)
+  // continue to validate. Phase B+ OKR-anchored runs populate them so
+  // verify-chain can stitch events across repos via intent_thread_uuid.
+  // See vscode-extension/design/agentic-sdlc.md §4.4 + §11.1.6.
+  /** Which OKR phase this event belongs to. */
+  phase: z.enum(['why', 'how', 'what']).optional(),
+  /** Anchor OKR id (human-readable). */
+  okr_id: z.string().optional(),
+  /** Cross-repo audit correlation key (UUID v4). */
+  intent_thread_uuid: z.string().uuid().optional(),
 });
 
 /** `pure_api` — deterministic external HTTP call (Tavily, arXiv, USPTO, HN, GitHub REST). */

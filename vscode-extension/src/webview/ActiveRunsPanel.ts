@@ -128,6 +128,11 @@ function renderHtml(): string {
   button { background: transparent; border: 1px solid var(--vscode-input-border); color: var(--vscode-foreground); padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; }
   button:hover { background: var(--vscode-input-background); }
   .error { color: #f48771; font-size: 11px; margin-top: 2px; }
+  .group-heading { font-size: 14px; font-weight: 600; margin: 24px 0 8px; padding: 4px 8px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid #a78bfa; border-radius: 2px; }
+  .group-heading.group-legacy { background: rgba(148, 163, 184, 0.08); border-left-color: #94a3b8; color: var(--vscode-descriptionForeground); }
+  .group-heading:first-child { margin-top: 0; }
+  .group-okr-icon { margin-right: 4px; }
+  .group-note { color: var(--vscode-descriptionForeground); font-weight: 400; font-size: 11px; margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -142,30 +147,62 @@ function fmtAge(ms) {
   if (ms < 86_400_000) return Math.round(ms / 3_600_000) + 'h ago';
   return Math.round(ms / 86_400_000) + 'd ago';
 }
+function renderRow(r) {
+  const status = '<span class="badge ' + r.status + '">' + r.status.replace('_', ' ') + '</span>';
+  const node = r.currentNodeLabel
+    ? '<div class="nodeLabel">' + r.currentNodeLabel + '</div><div class="meta">' + r.eventCount + ' event(s)</div>'
+    : '<span class="meta">waiting for runner…</span>';
+  const linkBtn = r.runUrl ? '<button data-act="open" data-url="' + r.runUrl + '">Open on GitHub</button>' : '';
+  const refreshBtn = r.isTerminal ? '' : '<button data-act="refresh" data-id="' + r.localId + '">Refresh</button>';
+  const removeBtn = r.isTerminal ? '<button data-act="remove" data-id="' + r.localId + '">Remove</button>' : '';
+  const errLine = r.lastError ? '<div class="error">⚠︎ ' + r.lastError + '</div>' : '';
+  return '<tr>'
+    + '<td><span class="agent">' + r.agent + '</span></td>'
+    + '<td>' + status + errLine + '</td>'
+    + '<td>' + node + '</td>'
+    + '<td><div>' + fmtAge(r.ageMs) + '</div><div class="meta">' + r.meshSlug.owner + '/' + r.meshSlug.repo + '</div></td>'
+    + '<td><div class="row-actions">' + linkBtn + refreshBtn + removeBtn + '</div></td>'
+    + '</tr>';
+}
+
+function renderGroup(label, runs, isLegacy) {
+  const heading = isLegacy
+    ? '<h2 class="group-heading group-legacy">⏵ Legacy <span class="group-note">(no OKR anchor)</span></h2>'
+    : '<h2 class="group-heading"><span class="group-okr-icon">🎯</span> ' + label + '</h2>';
+  const rows = runs.map(renderRow).join('');
+  return heading
+    + '<table><thead><tr><th>Agent</th><th>Status</th><th>Current Node</th><th>Dispatched</th><th>Actions</th></tr></thead><tbody>'
+    + rows + '</tbody></table>';
+}
+
 function render(runs) {
   const content = document.getElementById('content');
   if (!runs || runs.length === 0) {
     content.innerHTML = '<div class="empty">No runs yet. Open the command palette → "New Research / PRD Run" to dispatch one.</div>';
     return;
   }
-  const rows = runs.map(r => {
-    const status = '<span class="badge ' + r.status + '">' + r.status.replace('_', ' ') + '</span>';
-    const node = r.currentNodeLabel
-      ? '<div class="nodeLabel">' + r.currentNodeLabel + '</div><div class="meta">' + r.eventCount + ' event(s)</div>'
-      : '<span class="meta">waiting for runner…</span>';
-    const linkBtn = r.runUrl ? '<button data-act="open" data-url="' + r.runUrl + '">Open on GitHub</button>' : '';
-    const refreshBtn = r.isTerminal ? '' : '<button data-act="refresh" data-id="' + r.localId + '">Refresh</button>';
-    const removeBtn = r.isTerminal ? '<button data-act="remove" data-id="' + r.localId + '">Remove</button>' : '';
-    const errLine = r.lastError ? '<div class="error">⚠︎ ' + r.lastError + '</div>' : '';
-    return '<tr>'
-      + '<td><span class="agent">' + r.agent + '</span></td>'
-      + '<td>' + status + errLine + '</td>'
-      + '<td>' + node + '</td>'
-      + '<td><div>' + fmtAge(r.ageMs) + '</div><div class="meta">' + r.meshSlug.owner + '/' + r.meshSlug.repo + '</div></td>'
-      + '<td><div class="row-actions">' + linkBtn + refreshBtn + removeBtn + '</div></td>'
-      + '</tr>';
-  }).join('');
-  content.innerHTML = '<table><thead><tr><th>Agent</th><th>Status</th><th>Current Node</th><th>Dispatched</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  // Group by OKR id. Legacy runs (okrId null/undefined) form the
+  // "Legacy" group surfaced last.
+  const groups = new Map();
+  for (const r of runs) {
+    const key = r.okrId || '__legacy__';
+    if (!groups.has(key)) { groups.set(key, []); }
+    groups.get(key).push(r);
+  }
+  // Sort groups: OKR-anchored first (alphabetical by id), legacy last
+  const okrGroups = Array.from(groups.entries())
+    .filter(([k]) => k !== '__legacy__')
+    .sort(([a], [b]) => a.localeCompare(b));
+  const legacyGroup = groups.get('__legacy__');
+
+  let html = '';
+  for (const [okrId, runs] of okrGroups) {
+    html += renderGroup(okrId, runs, false);
+  }
+  if (legacyGroup && legacyGroup.length > 0) {
+    html += renderGroup('Legacy', legacyGroup, true);
+  }
+  content.innerHTML = html;
 
   content.querySelectorAll('button').forEach(b => {
     b.addEventListener('click', () => {

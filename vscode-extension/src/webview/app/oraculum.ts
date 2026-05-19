@@ -213,9 +213,12 @@ function renderPhaseSidebar(phases: readonly Phase[]): string {
       ${steps}
       ${state.issueNumber ? `
         <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border);">
-          <button id="btn-promote-research" class="btn-secondary" style="width: 100%; font-size: 11px;" title="Add research-request label so the Archeologist dispatches automatically on this finding">
-            \u{1F50D} Promote to research-request
+          <button id="btn-create-okr-from-finding" class="btn-secondary" style="width: 100%; font-size: 11px;" title="Phase B: pre-fills an OKR draft from this review finding. Disabled until the OKR-driven trigger flow ships." disabled>
+            \u{1F3AF} Create OKR from finding \u{1F512}
           </button>
+          <div style="margin-top: 6px; font-size: 10px; color: var(--vscode-descriptionForeground); opacity: 0.7; font-style: italic;">
+            Phase B \u2014 OKR-driven flow replaces the old promote button.
+          </div>
         </div>
       ` : ''}
     </div>
@@ -840,11 +843,10 @@ function attachEventListeners() {
     goToHub();
   });
 
-  // Sidebar: Promote this finding to a research-request (v0.9 — closes the
-  // Oraculum → Archeologist → PRD → implementation self-healing loop).
-  document.getElementById('btn-promote-research')?.addEventListener('click', () => {
-    vscode.postMessage({ type: 'promoteToResearchRequest' });
-  });
+  // Sidebar: "Create OKR from finding" is a disabled stub in Phase A.
+  // Phase B replaces the old Promote-to-research-request flow with an
+  // OKR-driven trigger model (see vscode-extension/design/agentic-sdlc.md
+  // §10.5). No click handler needed today — the button is render-disabled.
 
   // Configure: Refresh prompt packs
   document.getElementById('btn-refresh-packs')?.addEventListener('click', () => {

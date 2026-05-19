@@ -84,6 +84,13 @@ The workshop should feel like one journey, not a pile of disconnected lessons:
     <div class="docs-card-subtitle">Governance Capstone · One Cross-Cutting PR with Full Evidence</div>
     <p class="docs-card-body">Ship one cross-cutting feature across all four IMDB-lite repos with the complete evidence chain: CALM, STRIDE, RCTRO, fitness, Hatter&rsquo;s Tag, Red Queen audit log. The bonus research-first prelude shows the Archeologist, PRD agent, and cross-repo bridge all firing before the implementation work begins &mdash; same evidence chain, two entry points.</p>
   </a>
+
+  <a href="/docs/workshop/agentic-sdlc-touchpoints" class="docs-card docs-card-cyan">
+    <div class="docs-card-kicker">Reference &middot; ~8 min</div>
+    <h3 class="docs-card-title docs-card-title-lg">Agentic SDLC touchpoints</h3>
+    <div class="docs-card-subtitle">Workshop &harr; mesh-artifact map</div>
+    <p class="docs-card-body">Reference index: after each workshop Part, which mesh artifact lands on disk and how the agentic SDLC pipeline reads it. Open this alongside any workshop part to see how today&rsquo;s work feeds the OKR-driven pipeline.</p>
+  </a>
 </div>
 
 <div class="docs-note">

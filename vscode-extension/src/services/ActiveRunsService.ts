@@ -37,6 +37,15 @@ export interface ActiveRun {
   completedAt: string | null;
   /** Last error from a poll attempt; cleared on next successful poll. */
   lastError: string | null;
+  /**
+   * v4 — OKR anchor for this run, set when the run was dispatched from
+   * an OKR-driven flow (Phase B+). Optional; legacy archeologist / PRD
+   * dispatches without an OKR have it as null/undefined and surface
+   * under the "Legacy (no OKR anchor)" group in Active Runs.
+   *
+   * See vscode-extension/design/agentic-sdlc.md §3.1 (trigger model).
+   */
+  okrId?: string | null;
 }
 
 export interface RegisterOpts {
@@ -45,6 +54,8 @@ export interface RegisterOpts {
   runId: number | null;
   runUrl: string | null;
   dispatchedAt: string;
+  /** Optional OKR anchor — set by OKR-driven dispatchers in Phase B+. */
+  okrId?: string | null;
 }
 
 const STORAGE_KEY = 'maintainabilityai.activeRuns';
@@ -101,6 +112,7 @@ export class ActiveRunsService {
       lastPolledAt: null,
       completedAt: null,
       lastError: null,
+      okrId: opts.okrId ?? null,
     };
     this.runs.unshift(run);
     // Trim

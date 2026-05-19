@@ -68,3 +68,127 @@ test('buildHattersTag: includes the grounding block for PRDs', () => {
   assert.match(out, /iterations: 2/);
   assert.match(out, /passed: true/);
 });
+
+// v4 — OKR / attestation extensions (Phase A-PR4)
+
+test('buildHattersTag: omits the okr block when no OKR anchor (legacy CI runs)', () => {
+  const out = buildHattersTag(BASE_INPUT);
+  assert.doesNotMatch(out, /^okr:/m);
+  assert.doesNotMatch(out, /intent_thread_uuid:/);
+});
+
+test('buildHattersTag: emits the okr block when OKR anchor present', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    okr: {
+      intent_thread_uuid: '7f3e9c2d-aaaa-bbbb-cccc-dddddddddddd',
+      parent_intent_thread: null,
+      okr_id: 'OKR-2026Q1-IMDB-001-celeb-api',
+      phase: 'why',
+      governance_tier: 'restricted',
+    },
+  });
+  assert.match(out, /^okr:/m);
+  assert.match(out, /  intent_thread_uuid: 7f3e9c2d-aaaa-bbbb-cccc-dddddddddddd/);
+  assert.match(out, /  parent_intent_thread: null/);
+  assert.match(out, /  okr_id: OKR-2026Q1-IMDB-001-celeb-api/);
+  assert.match(out, /  phase: why/);
+  assert.match(out, /  governance_tier: restricted/);
+});
+
+test('buildHattersTag: omits parent_intent_thread when undefined (root phase)', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    okr: {
+      intent_thread_uuid: '7f3e9c2d-aaaa-bbbb-cccc-dddddddddddd',
+      okr_id: 'OKR-TEST',
+      phase: 'why',
+      governance_tier: 'supervised',
+    },
+  });
+  assert.doesNotMatch(out, /parent_intent_thread:/);
+});
+
+test('buildHattersTag: chains phases by emitting parent_intent_thread (How references Why run_id)', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    okr: {
+      intent_thread_uuid: '7f3e9c2d-aaaa-bbbb-cccc-dddddddddddd',
+      parent_intent_thread: 'RES-2026-05-17-abcdef12',
+      okr_id: 'OKR-TEST',
+      phase: 'how',
+      governance_tier: 'supervised',
+    },
+  });
+  assert.match(out, /parent_intent_thread: RES-2026-05-17-abcdef12/);
+  assert.match(out, /phase: how/);
+});
+
+test('buildHattersTag: omits the attestation block when no fields supplied', () => {
+  const out = buildHattersTag({ ...BASE_INPUT, attestation: {} });
+  assert.doesNotMatch(out, /^attestation:/m);
+});
+
+test('buildHattersTag: emits attestation when author_did + prompt pack supplied', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    attestation: {
+      author_did: 'did:gh:installation:1234567/agent:market-research-agent',
+      author_prompt_pack_version: 'research/query-plan@v3',
+      author_system_prompt_sha: 'sha256:a8c2def01923456789abcdef01234567',
+    },
+  });
+  assert.match(out, /^attestation:/m);
+  assert.match(out, /  author_did: did:gh:installation:1234567\/agent:market-research-agent/);
+  assert.match(out, /  author_prompt_pack_version: research\/query-plan@v3/);
+  assert.match(out, /  author_system_prompt_sha: sha256:a8c2def01923456789abcdef01234567/);
+});
+
+test('buildHattersTag: emits reviewer DIDs as a YAML list', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    attestation: {
+      reviewer_dids: [
+        'did:gh:installation:7654321/agent:architect-reviewer',
+        'did:gh:installation:7654321/agent:security-reviewer',
+      ],
+    },
+  });
+  assert.match(out, /  reviewer_dids:/);
+  assert.match(out, /    - did:gh:installation:7654321\/agent:architect-reviewer/);
+  assert.match(out, /    - did:gh:installation:7654321\/agent:security-reviewer/);
+});
+
+test('buildHattersTag: emits reviewer scores when supplied', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    attestation: {
+      reviewer_scores: { architect: 85, security: 78 },
+    },
+  });
+  assert.match(out, /  reviewer_scores:/);
+  assert.match(out, /    architect: 85/);
+  assert.match(out, /    security: 78/);
+});
+
+test('buildHattersTag: handles partial reviewer scores (architect only)', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    attestation: {
+      reviewer_scores: { architect: 85, security: null },
+    },
+  });
+  assert.match(out, /    architect: 85/);
+  assert.doesNotMatch(out, /    security:/);
+});
+
+test('buildHattersTag: legacy runs (no okr, no attestation) still emit valid YAML', () => {
+  // Sanity check that the schema bumps stay backwards-compatible.
+  const out = buildHattersTag(BASE_INPUT);
+  assert.match(out, /^## Hatter.s Tag/m);
+  assert.match(out, /run_id: RES-2026-05-17-abcdef12/);
+  assert.match(out, /chain_root_hash: /);
+  // No new sections leaked
+  assert.doesNotMatch(out, /^okr:/m);
+  assert.doesNotMatch(out, /^attestation:/m);
+});
