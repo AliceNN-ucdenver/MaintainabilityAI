@@ -5,3 +5,4 @@ export * from './scorecard';
 export * from './governance';
 export * from './webview';
 export * from './redqueen';
+export * from './okr';
