@@ -5,7 +5,7 @@
     <div class="docs-eyebrow">Vision · In Development <span class="docs-hero-meta">~14 min read</span></div>
     <h1 class="docs-hero-title">The Hatter's Tea Party</h1>
     <p class="docs-hero-copy">
-      A second vision sits beside The Red Queen: a place where AI agents don't fight, they <em>plan</em>. They turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design — all under a chain of provenance an auditor can read in one sitting. If the planning is governed, the coding can prosper. That's the tea party.
+      A second vision sits beside The Red Queen: a place where AI agents don't fight, they <em>plan</em>. They turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design, all under a chain of provenance an auditor can read in one sitting. If the planning is governed, the coding can prosper. That's the tea party.
     </p>
     <div class="docs-actions">
       <a href="/docs/red-queens-court" class="docs-button-secondary">Meet the Red Queen</a>
@@ -22,14 +22,14 @@
 
 ## Two visions, one governed pipeline
 
-The Red Queen — the chess piece, not the Queen of Hearts — runs the board. In Lewis Carroll's *Through the Looking-Glass* she famously says **"it takes all the running you can do, to keep in the same place"**: every piece must obey strict rules of movement or the game collapses. That's the right metaphor for the enforcement layer. She is the deterministic policy engine that **denies the wrong architectural action before it happens** — CALM flow constraints, security-critical paths, restricted-tier locks. The rails that make sure agent-generated code does not slip past governance.
+The Red Queen (the chess piece, not the Queen of Hearts) runs the board. In Lewis Carroll's *Through the Looking-Glass* she famously says **"it takes all the running you can do, to keep in the same place"**: every piece must obey strict rules of movement or the game collapses. That's the right metaphor for the enforcement layer. She is the deterministic policy engine that **denies the wrong architectural action before it happens**: CALM flow constraints, security-critical paths, restricted-tier locks. The rails that make sure agent-generated code does not slip past governance.
 
 But enforcement at the moment a PR opens is the *last* line of defense. The richer governance question is upstream:
 
 > **Was the work the agent did even the right work?**
 > Was the research grounded? Was the PRD anchored in the threat model? Was the design grounded in the actual code? Who approved each step, with what rationale?
 
-That's the **Hatter's Tea Party.** Six guests around the table — the OKR, the four research oracles (web, patents, community, academia), the PRD, the code design — and a host (the Mad Hatter himself, in our metaphor: the orchestration layer) making sure every cup gets filled in the right order, with the right tea, and the right scoring. When the tea party ends well, the Red Queen has very little to deny — the agents arrived at her gate carrying provenance, not surprises.
+That's the **Hatter's Tea Party.** Six guests around the table (the OKR, the four research oracles, the PRD, the code design) and a host (the Mad Hatter himself, in our metaphor: the orchestration layer) making sure every cup gets filled in the right order, with the right tea, and the right scoring. When the tea party ends well, the Red Queen has very little to deny. The agents arrive at her gate carrying provenance, not surprises.
 
 <svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -78,13 +78,13 @@ That's the **Hatter's Tea Party.** Six guests around the table — the OKR, the 
   <text x="400" y="267" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="700" font-family="system-ui, sans-serif">If the Hatter does the work, the Red Queen rarely has to deny.</text>
 </svg>
 
-The two are **complementary, not competing.** The Hatter governs intent (the planning agents, on the Looking Glass side). The Red Queen governs action (the coding agents, in each code repo). The hand-off between them is the per-repo issue write that ends the Looking-Glass-side pipeline — the moment intent becomes implementation work.
+The two are **complementary, not competing.** The Hatter governs intent (the planning agents, on the Looking Glass side). The Red Queen governs action (the coding agents, in each code repo). The hand-off between them is the per-repo issue write that ends the Looking-Glass-side pipeline. That's the moment intent becomes implementation work.
 
 ---
 
-## The journey — one OKR, five stages, one audit chain
+## The journey: one OKR, five stages, one audit chain
 
-Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in the BTABoK card pattern). The OKR carries the **intent cascade** — Org → Role → Developer → User — so every downstream artifact can be traced back to a strategic outcome.
+Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in the BTABoK card pattern). The OKR carries the **intent cascade** (Org → Role → Developer → User) so every downstream artifact can be traced back to a strategic outcome.
 
 <svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -151,20 +151,20 @@ Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in 
   <text x="406" y="262" text-anchor="middle" fill="#64748b" font-size="9" font-family="system-ui, sans-serif">One zip Audit Report exports the entire chain — KR → Finding → FR/SR → Design element → Code PR</text>
 </svg>
 
-The five stages are the chapters of the audit story. Every chapter writes a **Hatter's Tag** — a structured provenance record carrying the author agent's DID, model version, prompt-pack SHA, threat-model reference, reviewer DIDs, CALM nodes touched, OWASP categories, fitness results, scores, rationale. The chain ladder is what an auditor reads.
+The five stages are the chapters of the audit story. Every chapter writes a **Hatter's Tag**: a structured provenance record carrying the author agent's DID, model version, prompt-pack SHA, threat-model reference, reviewer DIDs, CALM nodes touched, OWASP categories, fitness results, scores, rationale. The chain ladder is what an auditor reads.
 
 ---
 
-## Stage 1 — Intent: the OKR that started it all
+## Stage 1 · Intent: the OKR that started it all
 
 An OKR card is **declarative intent that travels with the work.** It is not a Jira ticket. It is a single source of truth that every downstream agent reads at the start of its run.
 
-The intent cascade — **Org → Role → Developer → User** — is the Court Hierarchy from the governance roadmap. Lower layers may only *narrow* the intent above them, never broaden. If the User-level intent ever drifts from the Org-level intent, the **White Rabbit's Pocket Watch** (a goal-drift gate at each phase boundary) catches it before merge.
+The intent cascade (**Org → Role → Developer → User**) is the Court Hierarchy from the governance roadmap. Lower layers may only *narrow* the intent above them, never broaden. If the User-level intent ever drifts from the Org-level intent, the **White Rabbit's Pocket Watch** (a goal-drift gate at each phase boundary) catches it before merge.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
     <div class="docs-heading">Objective</div>
-    <div class="docs-copy">One sentence. Ambitious. Aligned with platform strategy. E.g. <em>"Add celebrity profile API to IMDB-Lite — without introducing licensing or identity-disambiguation risk."</em></div>
+    <div class="docs-copy">One sentence. Ambitious. Aligned with platform strategy. E.g. <em>"Add celebrity profile API to IMDB-Lite, without introducing licensing or identity-disambiguation risk."</em></div>
   </div>
   <div class="docs-card docs-card-indigo">
     <div class="docs-heading">Key Results</div>
@@ -180,13 +180,13 @@ The intent cascade — **Org → Role → Developer → User** — is the Court 
   </div>
 </div>
 
-This is also where the **two-tier example** becomes concrete. IMDB-Lite ships with two BARs: **`APP-IMDB-001` (Lite App, Supervised)** and **`APP-IMDB-002` (Celebs, Restricted)**. Any OKR that touches Celebs runs into the harder governance gates — and the workshop's central learning moment is feeling that wall, building the missing governance, and watching the gates unlock.
+This is also where the **two-tier example** becomes concrete. IMDB-Lite ships with two BARs: **`APP-IMDB-001` (Lite App, Supervised)** and **`APP-IMDB-002` (Celebs, Restricted)**. Any OKR that touches Celebs runs into the harder governance gates. The workshop's central learning moment is feeling that wall, building the missing governance, and watching the gates unlock.
 
 ---
 
-## Stage 2 — Why: market research grounded in four oracles + JTBD
+## Stage 2 · Why: market research grounded in four oracles + JTBD
 
-Most "AI research" is a single web search and a summary. That's not research. That's a Wikipedia-grade brief that the next agent will then build a PRD on top of — and the PRD will inherit every bias and blind spot.
+Most "AI research" is a single web search and a summary. That's not research. That's a Wikipedia-grade brief that the next agent will then build a PRD on top of. The PRD then inherits every bias and blind spot.
 
 The Hatter's Tea Party asks **four oracles** in parallel, plus a customer-jobs lens, and then *checks itself* with a gap-refinement loop.
 
@@ -264,30 +264,30 @@ The Hatter's Tea Party asks **four oracles** in parallel, plus a customer-jobs l
   <text x="400" y="361" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">10-section research doc — every claim cites S[N]</text>
 </svg>
 
-The **query plan** isn't generic. The agent reads the OKR (objective + KRs + intent_cascade + mesh context — CALM model summary, threat library, prior research) and generates **per-provider tuned queries** with topical anchors. The pack enforces this with good/bad examples baked into the prompt — for instance:
+The **query plan** isn't generic. The agent reads the OKR (objective + KRs + intent_cascade + mesh context: CALM model summary, threat library, prior research) and generates **per-provider tuned queries** with topical anchors. The pack enforces this with good/bad examples baked into the prompt. For instance:
 
-- **Web ✓** `celebrity data licensing standards GDPR CCPA 2026` — has subject anchor
-- **Web ✗** `data privacy compliance trends 2026` — matches anything, wastes recall
+- **Web ✓** `celebrity data licensing standards GDPR CCPA 2026`: has subject anchor
+- **Web ✗** `data privacy compliance trends 2026`: matches anything, wastes recall
 - **USPTO ✓** `celebrity AND disambiguation AND database` (Q1 narrow) + `entity AND resolution AND person` (Q2 medium) + `named-entity AND disambiguation AND knowledge-graph` (Q3 broad)
-- **USPTO ✗** `celebrity profile API AND identity management` — five stop-wordy terms, zero patent corpus matches
-- **HN ✓** `name dedup` · `person disambiguation` — 2–3-word casual
-- **HN ✗** `identity disambiguation hacks` — too formal, zero HN results
+- **USPTO ✗** `celebrity profile API AND identity management`: five stop-wordy terms, zero patent corpus matches
+- **HN ✓** `name dedup` · `person disambiguation`: 2–3-word casual
+- **HN ✗** `identity disambiguation hacks`: too formal, zero HN results
 
-After the first pass, the agent inspects coverage. **Low source diversity** on a finding? **Two sources contradicting each other**? **A topic from the brief with no sources at all**? It generates **three** bounded follow-up queries (one-shot, never iterative — the pack enforces the bound) and merges the second pass into the ranked source set.
+After the first pass, the agent inspects coverage. **Low source diversity** on a finding? **Two sources contradicting each other**? **A topic from the brief with no sources at all**? It generates **three** bounded follow-up queries (one-shot, never iterative; the pack enforces the bound) and merges the second pass into the ranked source set.
 
-The result is a **10-section research certificate** — Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References — with `S[N]` citations every reviewer (and the downstream PRD agent) can grep deterministically.
+The result is a **10-section research certificate** (Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References) with `S[N]` citations every reviewer (and the downstream PRD agent) can grep deterministically.
 
 ---
 
-## Stage 3 — How: a PRD refined by mesh-grounded experts
+## Stage 3 · How: a PRD refined by mesh-grounded experts
 
-The PRD is where research findings become **requirements** — Functional, Non-Functional, Security. But "ask an LLM to write a PRD" is exactly how teams end up with hallucinated requirements that no one in the org could trace back to a real constraint.
+The PRD is where research findings become **requirements**: Functional, Non-Functional, Security. But "ask an LLM to write a PRD" is exactly how teams end up with hallucinated requirements that no one in the org could trace back to a real constraint.
 
 The Hatter's Tea Party PRD has two anti-hallucination devices:
 
 1. **Bidirectional traceability mandated by the prompt.** Every `FR-NN` cites a Research finding `R[N]` or a Mesh Expert input `E[N]`. Every Security Requirement cites a STRIDE `THR-NNN` and/or OWASP `A0X` category. The synthesis pack rejects output that doesn't conform.
 
-2. **`prd/ask-experts` Skill — clarifying questions back from the mesh.** Before scoring, the PRD agent invokes this Skill in `deep` mode. It surfaces questions anchored to **detected mesh gaps** — "the BAR has no threat model, so the threat coverage in this PRD is unverifiable; whose risk decision is this?" Each question carries `scope`, `triggered_by_mesh_gap`, `why_it_matters`, `answerable_by`. The architect/PM answers, the PRD revises with answers inlined.
+2. **`prd/ask-experts` Skill: clarifying questions back from the mesh.** Before scoring, the PRD agent invokes this Skill in `deep` mode. It surfaces questions anchored to **detected mesh gaps**: "the BAR has no threat model, so the threat coverage in this PRD is unverifiable; whose risk decision is this?" Each question carries `scope`, `triggered_by_mesh_gap`, `why_it_matters`, `answerable_by`. The architect/PM answers, the PRD revises with answers inlined.
 
 <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -351,13 +351,13 @@ The PRD reviewers (`architect-reviewer`, `security-reviewer`) score **mesh-groun
 - Are OWASP categories triggered by the threat model also covered as Security Requirements?
 - Is the FR↔R↔KR traceability complete?
 
-These reviewers are **distinct Copilot agent sessions with distinct DIDs** — the **Tweedles rule**: reviewer ≠ author. NIST 800-53 SA-11 + SOC 2 CC8.1 segregation of duties enforced at the workflow level. Both DIDs stamped on the Hatter's Tag.
+These reviewers are **distinct Copilot agent sessions with distinct DIDs**, the **Tweedles rule**: reviewer ≠ author. NIST 800-53 SA-11 + SOC 2 CC8.1 segregation of duties enforced at the workflow level. Both DIDs stamped on the Hatter's Tag.
 
-> 🍵 **The PRD gate is the intent gate — not the implementation gate.** A perfectly mesh-grounded PRD can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
+> 🍵 **The PRD gate is the intent gate, not the implementation gate.** A perfectly mesh-grounded PRD can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
 
 ---
 
-## Stage 4 — What: the code design, grounded in the real repos
+## Stage 4 · What: the code design, grounded in the real repos
 
 This is where the planning agents meet reality. The **code-design-agent** is the last agent on the Looking Glass side, and it produces the artifact that gets the **heaviest scoring** in the pipeline: a cross-cutting code design grounded on the **actual code in every impacted repository**.
 
@@ -427,20 +427,20 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
 
 The two reviewers run **different prompt packs** on the design than they ran on the PRD:
 
-- **`design/architecture-review`** — CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL — a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
-- **`design/security-review`** — OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
+- **`design/architecture-review`**: CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL; a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
+- **`design/security-review`**: OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
 
-Same reviewer agents, **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point — and the workshop's pedagogical sweet spot.
+Same reviewer agents, **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point, and the workshop's pedagogical sweet spot.
 
-> 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here, it's a workflow — no LLM — and then the coding agents in each target repo, on the Red Queen's side.
+> 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here it's a workflow (no LLM), then the coding agents in each target repo, on the Red Queen's side.
 
 ---
 
-## Stage 5 — The hand-off: per-repo issue fan-out, coding agents take over
+## Stage 5 · The hand-off: per-repo issue fan-out, coding agents take over
 
-The instant the code-design merges, `design-bus.yml` (a workflow, **not** an agent) reads `target_code_repos[]` from the manifest and writes one issue per repo. Each issue lands **in that target code repo**, carries the OKR context, the merged PRD reference, and the slice of the code-design relevant to that repo. Same `intent_thread_uuid` — the audit chain crosses repositories without breaking.
+The instant the code-design merges, `design-bus.yml` (a workflow, **not** an agent) reads `target_code_repos[]` from the manifest and writes one issue per repo. Each issue lands **in that target code repo**, carries the OKR context, the merged PRD reference, and the slice of the code-design relevant to that repo. Same `intent_thread_uuid`. The audit chain crosses repositories without breaking.
 
-From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take your pick) pick up the work. They're governed by **The Red Queen** on the code side — `validate_action` MCP calls, CALM flow constraints, security-critical path locks. That's a different story, told elsewhere — but it doesn't start cold. It starts with provenance.
+From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take your pick) pick up the work. They're governed by **The Red Queen** on the code side: `validate_action` MCP calls, CALM flow constraints, security-critical path locks. That's a different story, told elsewhere. But it doesn't start cold. It starts with provenance.
 
 <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -486,13 +486,13 @@ From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take yo
 
 What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes. The audit chain has reached the point where one zip captures everything from Org-level intent to per-repo design decisions, with every reviewer, every prompt SHA, every threat model snapshot, every chain root hash documented inside.
 
-What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story — read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
+What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
 
 ---
 
-## Inside the Looking Glass — the OKR detail screen
+## Inside the Looking Glass: the OKR detail screen
 
-Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Every OKR gets a detail screen — three Action cards (Why · How · What) walking the user through the journey, with phase status, reviewer scores, Hatter Tag access, and the audit export button right there. No tab switching. No copy-paste. No "wait, where's the threat model snapshot from when I ran this?"
+Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Every OKR gets a detail screen with three Action cards (Why · How · What) walking the user through the journey, with phase status, reviewer scores, Hatter Tag access, and the audit export button right there. No tab switching. No copy-paste. No "wait, where's the threat model snapshot from when I ran this?"
 
 <svg viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -585,21 +585,21 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <text x="400" y="465" text-anchor="middle" fill="#64748b" font-size="10" font-family="system-ui, sans-serif">No tab switching. No copy-paste. The audit chain is one click away — at any phase.</text>
 </svg>
 
-The screen is **deliberately linear, not tabbed.** Tabs let a user open How without reading Why; the linear page enforces the reading order that matches the audit trail. The "Restricted blocks auto-revise" banner is inline — Restricted-gate context shouldn't require a sub-navigation. Hatter Tag access is one click on every Action card.
+The screen is **deliberately linear, not tabbed.** Tabs let a user open How without reading Why; the linear page enforces the reading order that matches the audit trail. The "Restricted blocks auto-revise" banner is inline because Restricted-gate context shouldn't require a sub-navigation. Hatter Tag access is one click on every Action card.
 
 **Signals are phase-specific.** Each Action card surfaces what actually matters at that stage, not a generic score column:
 
-- **Why (Research)** shows what the research pipeline actually produced — sources count, refinement loops, findings cited, JTBD/brief-topic coverage. Reviewer scores exist (every PR gets reviewed) but the headline is the evidence base.
-- **How (PRD)** shows PRD-specific signals — ask-experts Q&A count, FR/NFR/SR counts, and **mesh-grounding scores** (the PRD-pack reviewers score against CALM/ADRs and STRIDE/OWASP — not against code yet). MISSING items from the reviewers are inline.
-- **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. These reviewers run `design/architecture-review` + `design/security-review` against the actual indexed code repos — CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
+- **Why (Research)** shows what the research pipeline actually produced: sources count, refinement loops, findings cited, JTBD/brief-topic coverage. Reviewer scores exist (every PR gets reviewed) but the headline is the evidence base.
+- **How (PRD)** shows PRD-specific signals: ask-experts Q&A count, FR/NFR/SR counts, and **mesh-grounding scores** (the PRD-pack reviewers score against CALM/ADRs and STRIDE/OWASP, not against code yet). MISSING items from the reviewers are inline.
+- **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. These reviewers run `design/architecture-review` + `design/security-review` against the actual indexed code repos: CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
 
 ---
 
-## What the CIO gets — one zip, one answer
+## What the CIO gets: one zip, one answer
 
 Compliance reviews are slow because the evidence is scattered. The CALM model lives in one place, the threat model in another, the PRD in a Confluence space, the design in a Notion doc, the PR in GitHub, the reviewer comments somewhere in a Slack thread. To answer "how was this built?" an auditor opens six tabs and asks four people for permissions.
 
-The Audit Report Export is a **single zip** generated from the OKR detail screen. It is deterministic — the same OKR plus the same mesh state produces a byte-identical bundle.
+The Audit Report Export is a **single zip** generated from the OKR detail screen. It is deterministic: the same OKR plus the same mesh state produces a byte-identical bundle.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-cyan">
@@ -612,11 +612,11 @@ The Audit Report Export is a **single zip** generated from the OKR detail screen
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">traceability.html / .csv</div>
-    <div class="docs-copy">The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The CIO's question — "show me from outcome to code" — is one column-scroll.</div>
+    <div class="docs-copy">The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The CIO's question ("show me from outcome to code") is one column-scroll.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">Per-phase artifacts</div>
-    <div class="docs-copy">For each of Why / How / What — the merged markdown, the Hatter's Tag YAML, the CloudEvents JSONL audit log, the chain-verification output, a snapshot of the PR description, the reviewer scores. Frozen at export time.</div>
+    <div class="docs-copy">For each of Why / How / What: the merged markdown, the Hatter's Tag YAML, the CloudEvents JSONL audit log, the chain-verification output, a snapshot of the PR description, the reviewer scores. Frozen at export time.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">Frozen prompt packs</div>
@@ -624,7 +624,7 @@ The Audit Report Export is a **single zip** generated from the OKR detail screen
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">Threat model + CALM snapshots</div>
-    <div class="docs-copy">Per-phase snapshots — what the threat model and architecture model looked like at the moment each phase ran. Catches model drift that would otherwise hide between phases.</div>
+    <div class="docs-copy">Per-phase snapshots: what the threat model and architecture model looked like at the moment each phase ran. Catches model drift that would otherwise hide between phases.</div>
   </div>
 </div>
 
@@ -638,30 +638,30 @@ Three claims, each falsifiable.
 
 **Claim 1: Governance upstream is cheaper than governance at the gate.** If the Hatter's Tea Party catches a missing threat model on a Restricted-tier BAR during PRD review, the cost is one revision round. If the Red Queen catches the same issue when a coding agent tries to call an unauthorized service, the cost is a half-implemented PR, a rollback, and an incident retrospective. The earlier the gate, the smaller the blast radius.
 
-**Claim 2: Audit chains across repository boundaries are a feature, not a footnote.** Every artifact this pipeline produces carries the same `intent_thread_uuid`. The mesh repo's research doc, the same mesh's PRD, the same mesh's code-design, each target repo's landing issue, each target repo's code PR — all readable as one chain. Microsoft's Agent Governance Toolkit calls this the "reasoning-trace correlation gap." We close it from the OKR forward.
+**Claim 2: Audit chains across repository boundaries are a feature, not a footnote.** Every artifact this pipeline produces carries the same `intent_thread_uuid`. The mesh repo's research doc, the same mesh's PRD, the same mesh's code-design, each target repo's landing issue, each target repo's code PR are all readable as one chain. Microsoft's Agent Governance Toolkit calls this the "reasoning-trace correlation gap." We close it from the OKR forward.
 
-**Claim 3: The right place to put the heavy gate is the code design.** A PRD that's mesh-grounded can still be code-impossible. A design that's code-grounded but mesh-misaligned was already caught by the PRD gate. Only the code-design has both inputs in scope — and only there can the architect and security reviewers tell you whether what intent demanded is what code can deliver, without breaking what's already there.
+**Claim 3: The right place to put the heavy gate is the code design.** A PRD that's mesh-grounded can still be code-impossible. A design that's code-grounded but mesh-misaligned was already caught by the PRD gate. Only the code-design has both inputs in scope, and only there can the architect and security reviewers tell you whether what intent demanded is what code can deliver, without breaking what's already there.
 
 ---
 
-## Where this lives — and where to read next
+## Where this lives, and where to read next
 
 Everything here is **design**. Implementation is phased; you can track progress inline in the design doc itself (Phase A → E, with checkboxes for every deliverable).
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
     <div class="docs-heading">Read the full design (v4)</div>
-    <div class="docs-copy">The complete agentic SDLC design — OKR schema, agent personas, Hatter's Tag full schema, audit-report bundle structure, deliverables map with status.</div>
+    <div class="docs-copy">The complete agentic SDLC design: OKR schema, agent personas, Hatter's Tag full schema, audit-report bundle structure, deliverables map with status.</div>
     <div class="docs-copy"><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-secondary">Open on GitHub →</a></div>
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-heading">Meet the Red Queen's Court</div>
-    <div class="docs-copy">The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change — three layers, six rails, cross-repo semantic governance.</div>
+    <div class="docs-copy">The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change: three layers, six rails, cross-repo semantic governance.</div>
     <div class="docs-copy"><a href="/docs/red-queens-court" class="docs-button-secondary">Deep dive →</a>&nbsp;&nbsp;<a href="/docs/quickstart-redqueen" class="docs-button-secondary">Quickstart →</a></div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">The full vision</div>
-    <div class="docs-copy">Why architecture-first governance is the missing piece. The end-to-end agentic governed SDLC — Looking Glass substrate, Hatter's Tea Party + Red Queen's Court modalities, the 70/30 framing.</div>
+    <div class="docs-copy">Why architecture-first governance is the missing piece. The end-to-end agentic governed SDLC: Looking Glass substrate, Hatter's Tea Party + Red Queen's Court modalities, the 70/30 framing.</div>
     <div class="docs-copy"><a href="/docs/agentic-sdlc-governance" class="docs-button-secondary">Read the vision →</a></div>
   </div>
   <div class="docs-card docs-card-emerald">
