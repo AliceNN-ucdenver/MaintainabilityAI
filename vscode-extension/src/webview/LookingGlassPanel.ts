@@ -863,51 +863,51 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       ? `${baseBody}\n\n## Additional context (added by OKR owner at dispatch)\n\n${trimmed}\n`
       : baseBody;
 
-    this.postMessage({ type: 'loading', active: true, message: `Starting ${phase.toUpperCase()} — creating GitHub issue…` });
-    let issueUrl = '';
+    this.postMessage({ type: 'loading', active: true, message: `Starting ${phase.toUpperCase()} — provisioning labels + creating GitHub issue…` });
+
+    // Resolve the mesh repo (owner/name) for the GitHubService calls.
+    // detectMeshRepo populates this.meshRepoInfo on panel open; cold-
+    // start paths fall through to a fresh git-remote parse.
+    let meshRepo = this.meshRepoInfo;
+    if (!meshRepo) {
+      const url = await getRemoteOriginUrl(meshPath);
+      const parsed = url ? parseGitHubUrl(url) : null;
+      if (parsed) { meshRepo = { owner: parsed.owner, repo: parsed.repo }; }
+    }
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo from git remote — is the mesh on GitHub?' });
+      this.postMessage({ type: 'loading', active: false });
+      return;
+    }
+
+    // Provision canonical labels first so `createIssueRaw`'s ensureLabels
+    // pass doesn't fall back to the generic gray color for our anchor +
+    // phase labels. Idempotent — only writes when content differs.
+    const labelResult = await this.provisionMeshLabels(meshPath);
+    if (labelResult.failed > 0 && labelResult.created === 0 && labelResult.updated === 0 && labelResult.unchanged === 0) {
+      this.postMessage({ type: 'error', message: `Cannot provision OKR labels (${labelResult.failed}/${MESH_LABELS.length} failed). Check the GitHub App / token has Issues:write. First failure: ${labelResult.failures[0] ?? 'unknown'}` });
+      this.postMessage({ type: 'loading', active: false });
+      return;
+    }
+
     const title = `[OKR] ${phase.toUpperCase()}: ${card.objective.name}`;
-    const labels = ['okr-anchor', issueLabel].join(',');
-    const tryCreateIssue = async (): Promise<string> => {
-      const { stdout } = await execFileAsync('gh', [
-        'issue', 'create',
-        '--title', title,
-        '--body', finalBody,
-        '--label', labels,
-      ], { cwd: meshPath, timeout: 30_000 });
-      return stdout.trim();
-    };
+    let issueUrl = '';
     try {
-      issueUrl = await tryCreateIssue();
+      const result = await this.githubService.createIssueRaw(
+        meshRepo.owner,
+        meshRepo.repo,
+        title,
+        finalBody,
+        ['okr-anchor', issueLabel],
+      );
+      issueUrl = result.url;
     } catch (err) {
-      // Self-heal: gh refuses --label values that don't exist in the
-      // repo. If we hit that, auto-provision the canonical OKR label
-      // catalog and retry once. This unblocks the user on the first
-      // Start Why click in a mesh that hasn't run `Redeploy Workflows`
-      // yet (workflows + labels go together — they're co-required).
-      const msg = toErrorMessage(err);
-      if (/could not add label/i.test(msg) || /not found.*label/i.test(msg)) {
-        this.postMessage({ type: 'loading', active: true, message: 'Labels missing — provisioning canonical OKR labels then retrying…' });
-        const labelResult = await this.provisionMeshLabels(meshPath);
-        if (labelResult.created === 0) {
-          this.postMessage({ type: 'error', message: `Could not provision OKR labels (0/${MESH_LABELS.length} created). Run \`gh auth status\` and confirm the token has Issues:write. First failure: ${labelResult.failures[0] ?? 'unknown'}` });
-          this.postMessage({ type: 'loading', active: false });
-          return;
-        }
-        try {
-          issueUrl = await tryCreateIssue();
-        } catch (retryErr) {
-          this.postMessage({ type: 'error', message: `Labels provisioned (${labelResult.created}/${MESH_LABELS.length}) but issue create still failed: ${toErrorMessage(retryErr)}` });
-          this.postMessage({ type: 'loading', active: false });
-          return;
-        }
-      } else {
-        this.postMessage({ type: 'error', message: `Failed to create issue: ${msg}` });
-        this.postMessage({ type: 'loading', active: false });
-        return;
-      }
+      this.postMessage({ type: 'error', message: `Failed to create issue: ${toErrorMessage(err)}` });
+      this.postMessage({ type: 'loading', active: false });
+      return;
     }
     if (!issueUrl) {
-      this.postMessage({ type: 'error', message: 'gh issue create returned an empty URL — check `gh auth status` + workflow permissions' });
+      this.postMessage({ type: 'error', message: 'GitHub returned an empty issue URL — check the GitHub App / token has Issues:write.' });
       this.postMessage({ type: 'loading', active: false });
       return;
     }
@@ -4278,25 +4278,33 @@ Policy file: ${filename}
    * summary. Individual label failures are non-fatal — we log to
    * stderr (visible in the extension dev tools) and proceed.
    */
-  private async provisionMeshLabels(meshPath: string): Promise<{ created: number; failed: number; failures: string[] }> {
-    let created = 0;
-    let failed = 0;
+  private async provisionMeshLabels(meshPath: string): Promise<{ created: number; updated: number; unchanged: number; failed: number; failures: string[] }> {
+    // Resolve mesh owner/repo. Prefer the cached meshRepoInfo populated
+    // by detectMeshRepo on panel open; fall back to a fresh git-remote
+    // parse if missing (cold-start invocation from Start Why self-heal).
+    let repo = this.meshRepoInfo;
+    if (!repo) {
+      const url = await getRemoteOriginUrl(meshPath);
+      const parsed = url ? parseGitHubUrl(url) : null;
+      if (parsed) { repo = { owner: parsed.owner, repo: parsed.repo }; }
+    }
+    if (!repo) {
+      return { created: 0, updated: 0, unchanged: 0, failed: MESH_LABELS.length, failures: ['Cannot resolve mesh repo from git remote — is the mesh on GitHub?'] };
+    }
+    let created = 0, updated = 0, unchanged = 0, failed = 0;
     const failures: string[] = [];
     for (const label of MESH_LABELS) {
       try {
-        await execFileAsync('gh', [
-          'label', 'create', label.name,
-          '--description', label.description,
-          '--color', label.color,
-          '--force',  // idempotent — updates the label if it already exists
-        ], { cwd: meshPath, timeout: 15_000 });
-        created += 1;
+        const outcome = await this.githubService.createOrUpdateLabel(repo.owner, repo.repo, label);
+        if (outcome === 'created')   { created += 1; }
+        else if (outcome === 'updated') { updated += 1; }
+        else                          { unchanged += 1; }
       } catch (err) {
         failed += 1;
         failures.push(`${label.name}: ${toErrorMessage(err)}`);
       }
     }
-    return { created, failed, failures };
+    return { created, updated, unchanged, failed, failures };
   }
 
   private async onCheckWorkflowStatus() {
@@ -4362,12 +4370,13 @@ Policy file: ${filename}
       // the mesh repo and the runner to keep using the original versions.
       promptPackService.seedMeshPrompts(meshPath, true);
       const written = this.meshService.writeMeshWorkflows(meshPath, this.context.extensionPath);
-      // Provision the canonical OKR label catalog idempotently so
-      // `gh issue create --label okr-anchor,...` doesn't fail with
-      // "label not found" on Start Why / How / What. Non-fatal on
-      // partial failure (label create permission issues etc.) — we
-      // log via toast and let the user investigate.
+      // Provision the canonical OKR label catalog idempotently via
+      // GitHubService — labels-on-create REQUIRE the label to exist,
+      // so Start Why / How / What would otherwise fail with
+      // "could not add label" on a fresh mesh. Non-fatal on partial
+      // failure (permission issues etc.) — surfaced in the toast.
       const labelResult = await this.provisionMeshLabels(meshPath);
+      const touched = labelResult.created + labelResult.updated;
 
       await execFileAsync('git', ['add', '-A'], { cwd: meshPath });
       const { stdout: diffCheck } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: meshPath });
@@ -4377,9 +4386,9 @@ Policy file: ${filename}
         const commitMsg = `chore: redeploy mesh workflows + caterpillar prompts\n\n${written.map(w => `- ${w}`).join('\n')}\n\nGenerated by MaintainabilityAI VS Code Extension`;
         await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: meshPath });
         await execFileAsync('git', ['push'], { cwd: meshPath, timeout: 60_000 });
-        toastMessage = `Redeployed ${written.length} workflow file(s) and ${changedFiles.length - written.length >= 0 ? changedFiles.length - written.length : 0} prompt file(s); ${labelResult.created}/${MESH_LABELS.length} labels provisioned.`;
+        toastMessage = `Redeployed ${written.length} workflow file(s) and ${changedFiles.length - written.length >= 0 ? changedFiles.length - written.length : 0} prompt file(s); labels: ${labelResult.created} created, ${labelResult.updated} updated, ${labelResult.unchanged} unchanged${labelResult.failed > 0 ? `, ${labelResult.failed} failed` : ''}.`;
       } else {
-        toastMessage = `Workflows already up-to-date — nothing to commit. ${labelResult.created}/${MESH_LABELS.length} labels provisioned.`;
+        toastMessage = `Workflows already up-to-date${touched > 0 ? ` (${touched} label(s) ${labelResult.created > 0 ? 'created' : 'updated'})` : ''} — nothing to commit.`;
       }
 
       this.postMessage({ type: 'workflowProvisioned' });

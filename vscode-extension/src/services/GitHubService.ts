@@ -159,6 +159,57 @@ export class GitHubService {
     };
   }
 
+  /**
+   * Create-or-update a label with explicit name + color + description.
+   * Idempotent: if the label exists, updates color + description to
+   * match the canonical spec; if not, creates it. Returns 'created' |
+   * 'updated' | 'unchanged' so callers can surface a precise summary.
+   *
+   * Color must be 6-char hex with no leading `#` (GitHub convention).
+   *
+   * Used by Phase B/C label provisioning per the MESH_LABELS catalog
+   * — see vscode-extension/src/templates/meshLabels.ts. Falls back to
+   * `ensureLabels`'s implicit creation path when the canonical catalog
+   * is not the source (e.g. ad-hoc OWASP/STRIDE labels on Cheshire-side
+   * issue creation).
+   */
+  async createOrUpdateLabel(
+    owner: string,
+    repo: string,
+    spec: { name: string; description: string; color: string },
+  ): Promise<'created' | 'updated' | 'unchanged'> {
+    const client = await this.getClient();
+    let existing: { name: string; color: string; description: string | null } | null = null;
+    try {
+      const { data } = await client.rest.issues.getLabel({ owner, repo, name: spec.name });
+      existing = data;
+    } catch {
+      existing = null;  // 404 = label doesn't exist
+    }
+    if (!existing) {
+      await client.rest.issues.createLabel({
+        owner,
+        repo,
+        name: spec.name,
+        color: spec.color,
+        description: spec.description,
+      });
+      return 'created';
+    }
+    // Only re-PATCH when content differs — avoids needless API churn.
+    if (existing.color === spec.color && (existing.description ?? '') === spec.description) {
+      return 'unchanged';
+    }
+    await client.rest.issues.updateLabel({
+      owner,
+      repo,
+      name: spec.name,
+      color: spec.color,
+      description: spec.description,
+    });
+    return 'updated';
+  }
+
   private async ensureLabels(
     client: Octokit,
     owner: string,
