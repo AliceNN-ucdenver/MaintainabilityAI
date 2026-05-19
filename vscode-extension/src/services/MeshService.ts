@@ -18,6 +18,18 @@ import type {
 } from '../types';
 import { GovernanceScorer } from './GovernanceScorer';
 import { BarService } from './BarService';
+import { OKRService } from './OKRService';
+import type { OkrCard, OkrCreateInput } from '../types/okr';
+
+/**
+ * Workshop repo names declared on each IMDB-Lite BAR (design doc §8.1).
+ * Repos are **declared, not connected** — the GitHub repos may not
+ * exist when the mesh is scaffolded. Looking Glass shows "Declared —
+ * Not Connected" until a real repo is wired up (Phase A-PR4 ships the
+ * Connect Repo flow on the BAR detail page).
+ */
+const WORKSHOP_REPOS_LITE = ['imdb-react-frontend', 'imdb-identity', 'movie-api'] as const;
+const WORKSHOP_REPOS_CELEBS = ['celeb-api'] as const;
 import { CapabilityModelService } from './CapabilityModelService';
 import { MeshReader } from '../core/mesh-reader';
 import {
@@ -40,10 +52,15 @@ export { MeshReader } from '../core/mesh-reader';
 export class MeshService {
   private barService: BarService;
   private scorer: GovernanceScorer;
+  private okrService: OKRService;
 
   constructor() {
     this.scorer = new GovernanceScorer();
     this.barService = new BarService(this.scorer);
+    // OKRService runs without a BarScoreSource in Phase A — tierFor will
+    // fall back to 'restricted' (failsafe). Phase A-PR3 wires a BarService-
+    // backed adapter once the OKR detail view needs real-time tier.
+    this.okrService = new OKRService();
   }
 
   /** Create a MeshReader for the given path (VS Code-free). */
@@ -387,7 +404,26 @@ export class MeshService {
    * web application (React + Express API + MongoDB).
    * Overwrites any existing IMDB Lite platform so the latest templates are always used.
    */
-  scaffoldImdbLitePlatform(meshPath: string): { platformCount: number; barCount: number } {
+  /**
+   * Scaffold the IMDB-Lite sample platform with two BARs (Lite + Celebs).
+   *
+   * In Phase A-PR2 (and beyond), each BAR's `app.yaml.repos[]` is seeded
+   * with the four workshop repo names per design doc §8.1. These repos
+   * are **declared, not connected** — the GitHub repos may not exist
+   * yet. Users replace `<org>` with their actual GitHub org by editing
+   * each app.yaml, or by passing `opts.githubOrg` here (Looking Glass
+   * passes the configured org when scaffolding from the UI).
+   *
+   * The asymmetric CALM density between the two BARs is preserved (see
+   * §8: imdb-lite-application has 8 nodes + NIST controls; imdb-celebs
+   * has 6 nodes + no controls). That asymmetry is the workshop's
+   * Restricted-tier-gate teaching moment; do NOT auto-enrich Celebs
+   * at scaffold time.
+   */
+  scaffoldImdbLitePlatform(
+    meshPath: string,
+    opts: { githubOrg?: string } = {},
+  ): { platformCount: number; barCount: number } {
     // Remove existing sample platform if present
     const existingSlug = 'imdb-lite';
     const existingDir = path.join(meshPath, 'platforms', existingSlug);
@@ -402,14 +438,23 @@ export class MeshService {
     const portfolio = this.readPortfolioConfig(meshPath);
     const portfolioId = portfolio?.id || 'PF-UNKNOWN';
 
+    // Workshop repo names per design doc §8.1. `<org>` is a literal
+    // placeholder if no org is supplied — users find/replace post-scaffold,
+    // or Looking Glass passes the configured org via opts.githubOrg.
+    const org = opts.githubOrg ?? '<org>';
+    const liteRepos = WORKSHOP_REPOS_LITE.map(r => `https://github.com/${org}/${r}`);
+    const celebsRepos = WORKSHOP_REPOS_CELEBS.map(r => `https://github.com/${org}/${r}`);
+
     // BAR 1: IMDB Lite Application (movie catalog, reviews, ratings)
     this.barService.scaffoldImdbLiteSampleBar(
-      barsDir, 'IMDB Lite Application', 'APP-IMDB-001', portfolioId, platformId, 'medium'
+      barsDir, 'IMDB Lite Application', 'APP-IMDB-001', portfolioId, platformId, 'medium',
+      liteRepos,
     );
 
     // BAR 2: IMDB Celebs (celebrity news & profiles, linked to IMDB Lite)
     this.barService.scaffoldImdbCelebsSampleBar(
-      barsDir, 'IMDB Celebs', 'APP-IMDB-002', portfolioId, platformId, 'medium'
+      barsDir, 'IMDB Celebs', 'APP-IMDB-002', portfolioId, platformId, 'medium',
+      celebsRepos,
     );
 
     // Platform architecture: cross-BAR relationships + shared infrastructure
@@ -421,6 +466,95 @@ export class MeshService {
     );
 
     return { platformCount: 1, barCount: 2 };
+  }
+
+  /**
+   * Seed the Celebs-anchored sample OKR alongside the IMDB-Lite platform.
+   * See design doc §8.1 for the rationale (Celebs is Restricted tier, so
+   * an OKR anchored on it lets every learner hit the governance wall in
+   * their first hour and feel the "escalate to unlock autonomy" loop).
+   *
+   * Idempotent: if a celeb-api sample OKR already exists under this mesh
+   * (any quarter, any serial), returns the existing card unchanged. Avoids
+   * accumulating OKR-2026Q1-IMDB-001-celeb-api / OKR-2026Q1-IMDB-002-celeb-api
+   * dupes each time a user re-clicks Scaffold IMDB-Lite.
+   *
+   * Doesn't validate that the platform exists — `objectiveAlignment.platformId`
+   * can point at not-yet-scaffolded BARs and still be a valid seed (callers
+   * usually scaffoldImdbLitePlatform first, but it's not enforced).
+   */
+  scaffoldImdbLiteOkr(
+    meshPath: string,
+    opts: { owner?: string; githubOrg?: string } = {},
+  ): OkrCard | null {
+    // Idempotent: any existing sample wins. Pattern: OKR-<quarter>-IMDB-<NNN>-celeb-api
+    const existing = this.okrService.readAll(meshPath)
+      .find(s => /^OKR-\d{4}Q[1-4]-IMDB-\d+-celeb-api$/.test(s.id));
+    if (existing) {
+      return this.okrService.read(meshPath, existing.id);
+    }
+    const owner = opts.owner ?? 'maintainabilityai';
+    const org = opts.githubOrg ?? '<org>';
+
+    const draft: OkrCreateInput = {
+      idSuffix: 'celeb-api',
+      quarter: undefined,  // OKRService.create defaults to currentQuarter()
+      owner,
+      objective: {
+        name: 'Add celebrity profile API to IMDB-Lite',
+        description: [
+          'Enable IMDB-Lite to surface enriched celebrity profile data',
+          'without introducing identity-disambiguation or licensing risk.',
+          'Primary BAR is APP-IMDB-002 (IMDB Celebs) — currently Restricted.',
+        ].join(' '),
+        notes: 'Aligned with platform growth goals.',
+      },
+      keyResults: [
+        {
+          id: 'KR-1',
+          metric: 'Identity-disambiguation false-merge rate',
+          target: '< 0.5%',
+          measurement: 'Production telemetry, post-launch week 2',
+        },
+        {
+          id: 'KR-2',
+          metric: 'Licensing-compliance audit pass rate',
+          target: '100%',
+          measurement: 'Legal review checklist at GA',
+        },
+        {
+          id: 'KR-3',
+          metric: 'p95 celebrity-profile fetch latency',
+          target: '< 200ms',
+          measurement: 'Synthetic monitoring, 28-day rolling',
+        },
+      ],
+      objectiveAlignment: {
+        platformId: 'PLT-IMDB',
+        // Celebs FIRST — it's the Restricted-tier BAR and drives the gate.
+        affectedBarIds: ['APP-IMDB-002', 'APP-IMDB-001'],
+        targetCodeRepos: [
+          `${org}/celeb-api`,
+          `${org}/imdb-react-frontend`,
+        ],
+        intentCascade: {
+          org: 'Grow IMDB monthly active users 15% YoY by enriching profile depth',
+          role: 'Engineering Lead — maintain p95 < 250ms across platform endpoints; keep new APIs behind feature flags during ramp',
+          developer: 'Ship the celeb-api endpoint with identity disambiguation; mount under /api/celebs/* in the React frontend',
+          user: 'Browse celebrity filmographies and bios without flicker on mobile',
+        },
+      },
+      governance: {
+        // Effective gate is derived from BAR tier — Restricted on APP-IMDB-002
+        // wins. These overrides are informational defaults; users may relax
+        // (audit-logged) post-scaffold.
+        scoreThreshold: 75,
+        maxAutoRounds: 0,
+        maxSeverity: 'MEDIUM',
+      },
+    };
+
+    return this.okrService.create(meshPath, draft);
   }
 
   // ==========================================================================

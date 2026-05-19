@@ -350,6 +350,12 @@ export class BarService {
 
   /**
    * Scaffold a sample BAR for IMDB Lite (3-tier web app: React + Express API + MongoDB).
+   *
+   * `repos` is an optional list of repo identifiers (URL or `<org>/<repo>`
+   * shorthand) seeded into app.yaml's repos[] block. The workshop seed
+   * passes the three Lite-side workshop repos (imdb-react-frontend,
+   * imdb-identity, movie-api) via the MeshService scaffolder. When
+   * omitted, app.yaml ships with `repos: []` (existing behavior).
    */
   scaffoldImdbLiteSampleBar(
     parentDir: string,
@@ -357,7 +363,8 @@ export class BarService {
     appId: string,
     portfolioId: string,
     platformId: string,
-    criticality: Criticality
+    criticality: Criticality,
+    repos?: string[],
   ): string {
     return this.writeSampleBar(parentDir, name, appId, portfolioId, platformId, criticality, {
       arch: generateSampleImdbLiteArch(),
@@ -366,11 +373,15 @@ export class BarService {
       { rel: 'architecture/ADRs/002-mongodb-document-store.md', content: generateImdbLiteMongoAdr() },
       { rel: 'architecture/ADRs/003-jwt-rbac-authentication.md', content: generateImdbLiteJwtRbacAdr() },
       { rel: 'architecture/ADRs/004-mongodb-memory-server-testing.md', content: generateImdbLiteMongoMemoryServerAdr() },
-    ]);
+    ], repos);
   }
 
   /**
    * Scaffold a sample BAR for IMDB Celebs (celebrity news & profiles — linked to IMDB Lite).
+   *
+   * `repos` is an optional list of repo identifiers seeded into app.yaml's
+   * repos[] block. The workshop seed passes the Celebs-side workshop repo
+   * (celeb-api) via the MeshService scaffolder.
    */
   scaffoldImdbCelebsSampleBar(
     parentDir: string,
@@ -378,12 +389,13 @@ export class BarService {
     appId: string,
     portfolioId: string,
     platformId: string,
-    criticality: Criticality
+    criticality: Criticality,
+    repos?: string[],
   ): string {
     return this.writeSampleBar(parentDir, name, appId, portfolioId, platformId, criticality, {
       arch: generateSampleImdbCelebsArch(),
       decorator: generateImdbCelebsDecorator(),
-    });
+    }, [], repos);
   }
 
   private writeSampleBar(
@@ -395,12 +407,13 @@ export class BarService {
     criticality: Criticality,
     calm: { arch: string; decorator: string },
     extraFiles: { rel: string; content: string }[] = [],
+    repos?: string[],
   ): string {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const barPath = path.join(parentDir, slug);
 
     const files: { rel: string; content: string }[] = [
-      { rel: 'app.yaml', content: generateAppYaml(appId, name, portfolioId, platformId, criticality) },
+      { rel: 'app.yaml', content: generateAppYaml(appId, name, portfolioId, platformId, criticality, repos) },
       { rel: 'governance/decisions.yaml', content: generateBarDecisionsYaml() },
       // CALM architecture artifacts
       { rel: 'architecture/bar.arch.json', content: calm.arch },
