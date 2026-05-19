@@ -22,7 +22,7 @@
 
 ## Two visions, one governed pipeline
 
-The Red Queen says **"off with their heads."** She is the enforcer at the gate — a deterministic policy engine that denies the wrong architectural action before it happens. CALM flow constraints, security-critical paths, restricted-tier locks — the rails that make sure agent-generated code does not slip past governance.
+The Red Queen — the chess piece, not the Queen of Hearts — runs the board. In Lewis Carroll's *Through the Looking-Glass* she famously says **"it takes all the running you can do, to keep in the same place"**: every piece must obey strict rules of movement or the game collapses. That's the right metaphor for the enforcement layer. She is the deterministic policy engine that **denies the wrong architectural action before it happens** — CALM flow constraints, security-critical paths, restricted-tier locks. The rails that make sure agent-generated code does not slip past governance.
 
 But enforcement at the moment a PR opens is the *last* line of defense. The richer governance question is upstream:
 
