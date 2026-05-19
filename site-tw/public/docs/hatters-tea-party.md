@@ -527,45 +527,49 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <text x="36" y="177" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">☐ KR-1  False-merge &lt;0.5%      ☐ KR-2  Licensing audit 100%      ☐ KR-3  p95 fetch &lt;200ms</text>
   <!-- Action cards -->
   <!-- Why card -->
+  <!-- Why card (complete) — research signals: sources, refinement, coverage -->
   <rect x="20" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(74,222,128,0.4)"/>
   <text x="34" y="216" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">✓ Why  · Research</text>
-  <text x="240" y="216" text-anchor="end" fill="#86efac" font-size="9" font-family="system-ui, sans-serif">Rounds 1</text>
+  <text x="252" y="216" text-anchor="end" fill="#86efac" font-size="9" font-family="system-ui, sans-serif">Rounds 1</text>
   <line x1="34" y1="226" x2="252" y2="226" stroke="rgba(74,222,128,0.2)"/>
-  <text x="34" y="244" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:  market-research-agent</text>
-  <text x="34" y="258" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">PR:     #49 (merged)</text>
-  <text x="34" y="272" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Scores: Arch 85 · Sec 88</text>
-  <text x="34" y="286" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Tier:   supervised (frozen)</text>
-  <text x="34" y="300" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Hatter: chain_root a8c2…</text>
-  <rect x="34" y="312" width="80" height="20" rx="4" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.3)"/>
-  <text x="74" y="326" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui, sans-serif">View Tag ↗</text>
-  <rect x="120" y="312" width="100" height="20" rx="4" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.3)"/>
-  <text x="170" y="326" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui, sans-serif">Verify Chain ↗</text>
-  <!-- How card (blocked) -->
+  <text x="34" y="240" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:    market-research-agent</text>
+  <text x="34" y="253" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Sources:  47 ranked · 4 providers</text>
+  <text x="34" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Refine:   1 gap-loop · 3 follow-ups</text>
+  <text x="34" y="279" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Findings: 12 · S1–S38 cited</text>
+  <text x="34" y="292" fill="#86efac" font-size="9" font-family="system-ui, sans-serif">Coverage: 3/3 brief topics ✓</text>
+  <text x="34" y="305" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Hatter:   chain_root a8c2…</text>
+  <rect x="34" y="316" width="80" height="20" rx="4" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.3)"/>
+  <text x="74" y="330" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui, sans-serif">View Tag ↗</text>
+  <rect x="120" y="316" width="100" height="20" rx="4" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.3)"/>
+  <text x="170" y="330" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui, sans-serif">Verify Chain ↗</text>
+  <!-- How card (blocked) — PRD signals: ask-experts, FR/SR counts, mesh-grounding -->
   <rect x="277" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(248,113,113,0.4)"/>
   <text x="291" y="216" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">⚠ How · PRD</text>
-  <text x="497" y="216" text-anchor="end" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">Rounds 1/0</text>
+  <text x="509" y="216" text-anchor="end" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">Rounds 1/0</text>
   <line x1="291" y1="226" x2="509" y2="226" stroke="rgba(248,113,113,0.2)"/>
-  <text x="291" y="244" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:  prd-agent</text>
-  <text x="291" y="258" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">PR:     #52 (open)</text>
-  <text x="291" y="272" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Scores: Arch 78 ✓  ·  Sec 42 ✗</text>
-  <text x="291" y="286" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">MISSING: threat-model on Celebs</text>
-  <text x="291" y="300" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">⛔ Restricted blocks auto-revise</text>
-  <rect x="291" y="312" width="100" height="20" rx="4" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="341" y="326" text-anchor="middle" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Escalate BAR</text>
-  <rect x="397" y="312" width="106" height="20" rx="4" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="450" y="326" text-anchor="middle" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">Human Override</text>
-  <!-- What card (blocked, code design + fan-out subcards) -->
-  <rect x="534" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(148,163,184,0.3)"/>
-  <text x="548" y="216" fill="#cbd5e1" font-size="11" font-weight="700" font-family="system-ui, sans-serif">☐ What · Code Design</text>
-  <line x1="548" y1="226" x2="766" y2="226" stroke="rgba(148,163,184,0.2)"/>
-  <text x="548" y="244" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:    code-design-agent</text>
-  <text x="548" y="258" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Reviewers: design/arch · sec</text>
-  <text x="548" y="272" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">(CODE-grounded heavy gate)</text>
-  <text x="548" y="288" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Gated on:  How merged</text>
-  <text x="548" y="304" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Fan-out (after merge):</text>
-  <text x="548" y="318" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">• celeb-api  • imdb-react-frontend</text>
-  <text x="548" y="332" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">• imdb-identity</text>
-  <text x="548" y="348" fill="#fcd34d" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Last Looking-Glass agent step</text>
+  <text x="291" y="240" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:   prd-agent</text>
+  <text x="291" y="253" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Ask-expt: 5 Qs · 5 answered</text>
+  <text x="291" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Reqs:    12 FR · 6 NFR · 4 SR</text>
+  <text x="291" y="279" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Mesh-gnd: Arch 78 ✓ · Sec 42 ✗</text>
+  <text x="291" y="292" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">MISSING: threat-model on Celebs</text>
+  <text x="291" y="305" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">⛔ Restricted blocks auto-revise</text>
+  <rect x="291" y="316" width="100" height="20" rx="4" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="341" y="330" text-anchor="middle" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Escalate BAR</text>
+  <rect x="397" y="316" width="106" height="20" rx="4" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
+  <text x="450" y="330" text-anchor="middle" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">Human Override</text>
+  <!-- What card (gated) — code-design signals: code-grounded reviewers, this is where Arch/Sec scoring lives -->
+  <rect x="534" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="548" y="216" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">☐ What · Code Design</text>
+  <text x="766" y="216" text-anchor="end" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">heavy gate</text>
+  <line x1="548" y1="226" x2="766" y2="226" stroke="rgba(252,211,77,0.25)"/>
+  <text x="548" y="240" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:    code-design-agent</text>
+  <text x="548" y="253" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Inputs:   PRD + 3 repos (indexed)</text>
+  <text x="548" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Reviewers: design/arch · design/sec</text>
+  <text x="548" y="279" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Will score: Arch · Sec (code-grnd)</text>
+  <text x="548" y="292" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">          CALM drift · contracts · OWASP</text>
+  <text x="548" y="305" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Gated on: How merged</text>
+  <text x="548" y="318" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Fan-out → celeb-api · react · identity</text>
+  <text x="548" y="335" fill="#fcd34d" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Last Looking-Glass agent step</text>
   <!-- Footer action bar -->
   <rect x="20" y="370" width="760" height="50" rx="8" fill="rgba(30,41,59,0.7)" stroke="rgba(148,163,184,0.2)"/>
   <rect x="40" y="384" width="180" height="22" rx="4" fill="rgba(99,102,241,0.20)" stroke="rgba(99,102,241,0.45)"/>
@@ -582,6 +586,12 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
 </svg>
 
 The screen is **deliberately linear, not tabbed.** Tabs let a user open How without reading Why; the linear page enforces the reading order that matches the audit trail. The "Restricted blocks auto-revise" banner is inline — Restricted-gate context shouldn't require a sub-navigation. Hatter Tag access is one click on every Action card.
+
+**Signals are phase-specific.** Each Action card surfaces what actually matters at that stage, not a generic score column:
+
+- **Why (Research)** shows what the research pipeline actually produced — sources count, refinement loops, findings cited, JTBD/brief-topic coverage. Reviewer scores exist (every PR gets reviewed) but the headline is the evidence base.
+- **How (PRD)** shows PRD-specific signals — ask-experts Q&A count, FR/NFR/SR counts, and **mesh-grounding scores** (the PRD-pack reviewers score against CALM/ADRs and STRIDE/OWASP — not against code yet). MISSING items from the reviewers are inline.
+- **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. These reviewers run `design/architecture-review` + `design/security-review` against the actual indexed code repos — CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
 
 ---
 
