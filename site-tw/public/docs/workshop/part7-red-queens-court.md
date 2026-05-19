@@ -360,7 +360,7 @@ Break-glass override. Three properties make it safe.
 
 **Recorded.** Every override fires an audit event with the engineer's identity, the reason (free-text required), and the rule that was bypassed. The audit log is grep'able. *"Who bypassed CALM-004 last quarter and why?"* is one git query, not an archaeology session.
 
-The full break-glass UX with scoped budgets, written reasons, and CODEOWNER co-signing is documented as Phase 9 work in the <a href="/docs/impossible-things#the-road-ahead" class="markdown-link">roadmap</a>. The v1 break-glass today is environment-variable + audit-event; that is enough discipline for most teams.
+The full break-glass UX with scoped budgets, written reasons, and CODEOWNER co-signing is documented as Phase 9 work in the <a href="/docs/red-queens-court#the-road-ahead--phase-9-and-beyond" class="markdown-link">Red Queen's Court roadmap</a>. The v1 break-glass today is environment-variable + audit-event; that is enough discipline for most teams.
 
 </details>
 

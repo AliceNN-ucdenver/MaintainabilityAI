@@ -41,7 +41,7 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
 
 ## Agentic AI &mdash; autonomous
 
-<p class="docs-muted">Autonomous. GitHub-native. Governance-enforced by <a href="/docs/impossible-things" class="markdown-link">The Red Queen</a>.</p>
+<p class="docs-muted">Autonomous. GitHub-native. Governance-enforced by <a href="/docs/red-queens-court" class="markdown-link">The Red Queen</a>.</p>
 
 <div class="docs-grid docs-grid-wide">
 
@@ -190,7 +190,7 @@ The same agent &mdash; Claude Code, Copilot, or an autonomous coding agent &mdas
   <p class="docs-cta-copy">The fastest way to feel how this works is to scaffold the Red Queen into a restricted-tier repo and watch the pre-tool hooks fire as the agent works.</p>
   <div class="docs-actions docs-actions-center">
     <a href="/docs/quickstart-redqueen" class="docs-button-primary">Red Queen quickstart &rarr;</a>
-    <a href="/docs/impossible-things#the-red-queen---governance-enforced-agent-intelligence" class="docs-button-secondary">Why deterministic enforcement</a>
+    <a href="/docs/red-queens-court" class="docs-button-secondary">Why deterministic enforcement</a>
   </div>
 </div>
 
@@ -201,4 +201,4 @@ The same agent &mdash; Claude Code, Copilot, or an autonomous coding agent &mdas
 - [OWASP Prompt Packs](/docs/prompts/owasp/) &mdash; security-first prompts for all agents
 - [SDLC Framework](/docs/sdlc/) &mdash; 6-phase framework integration
 - [Golden Rules](/docs/governance/governed-golden-rules) &mdash; the human review layer
-- [Impossible Things](/docs/impossible-things) &mdash; the Red Queen vision and architecture
+- [Red Queen's Court](/docs/red-queens-court) &mdash; the Red Queen vision and architecture

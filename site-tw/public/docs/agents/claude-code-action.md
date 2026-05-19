@@ -312,7 +312,7 @@ The repo-local MCP runner starts before Claude Code Action runs. The agent calls
 
 ## Further Reading
 
-- [Impossible Things](/docs/impossible-things) — The Red Queen vision and full architecture
+- [Red Queen's Court](/docs/red-queens-court) — The Red Queen vision and full architecture
 - [Copilot Coding Agent](/docs/agents/copilot-coding-agent) — The other governed agent
 - [Multi-Agent Orchestration](/docs/agents/multi-agent) — Coordinating multiple agents
 - [Claude Code (In-Editor)](/docs/agents/claude) — Interactive assistant guide

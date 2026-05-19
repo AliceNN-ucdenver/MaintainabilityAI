@@ -238,7 +238,7 @@ Everything above maps to one question your security and compliance reviewer will
   <p class="docs-cta-copy">By which agent. With which prompt. Against which threat model. With what test coverage. Who approved. What was the rationale.</p>
   <div class="docs-actions docs-actions-center">
     <a href="/docs/governance/compliance-mapping" class="docs-button-primary">See the compliance mapping &rarr;</a>
-    <a href="/docs/impossible-things#the-road-ahead" class="docs-button-secondary">See the road ahead</a>
+    <a href="/docs/red-queens-court#the-road-ahead--phase-9-and-beyond" class="docs-button-secondary">See the road ahead</a>
   </div>
 </div>
 

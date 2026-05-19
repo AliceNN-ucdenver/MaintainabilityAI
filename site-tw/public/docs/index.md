@@ -34,11 +34,11 @@ Pick the lens you bring to AI engineering. Each persona has a focused two-page o
     <p class="docs-muted">Golden Rules &middot; Compliance mapping &middot; STRIDE &rarr;</p>
   </a>
 
-  <a href="./impossible-things" class="docs-card docs-card-indigo">
+  <a href="./agentic-sdlc-governance" class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">For leadership</div>
     <h3 class="docs-card-title">Why the gap exists &mdash; and how to close it</h3>
-    <p class="docs-card-body">The 70/30 gap between what AI accelerates and what governs whether systems survive. The market position, the operating model, the adoption path.</p>
-    <p class="docs-muted">Impossible things &middot; Operating model &middot; Compliance mapping &rarr;</p>
+    <p class="docs-card-body">The 70/30 gap between what AI accelerates and what governs whether systems survive. The market position, the operating model, the adoption path. Branches into the Hatter's Tea Party and Red Queen's Court.</p>
+    <p class="docs-muted">Agentic governed SDLC &middot; Two modalities &middot; Audit chain &rarr;</p>
   </a>
 </div>
 
@@ -148,10 +148,10 @@ Pick the lens you bring to AI engineering. Each persona has a focused two-page o
 
 | If you are... | Start with | Then read |
 |---|---|---|
-| New to the story | [Impossible Things](./impossible-things) | [Framework](./framework), [Workshop](./workshop/) |
+| New to the story | [Vision](./agentic-sdlc-governance) | [Framework](./framework), [Workshop](./workshop/) |
 | Teaching a team | [Workshop](./workshop/) | [OWASP packs](./prompts/owasp/), [Golden Rules](./governance/governed-golden-rules) |
 | Hardening a repo | [SDLC](./sdlc/) | [Maintainability](./maintainability/), [Red Queen Quickstart](./quickstart-redqueen) |
-| Enabling agents | [Agent Guides](./agents/) | [Framework](./framework), [Red Queen vision](./impossible-things#the-red-queen---governance-enforced-agent-intelligence) |
+| Enabling agents | [Agent Guides](./agents/) | [Framework](./framework), [Red Queen's Court](./red-queens-court) |
 | Preparing for audit | [Compliance Mapping](./governance/compliance-mapping) | [Golden Rules](./governance/governed-golden-rules), [Phase 4: Governance](./sdlc/phase4-governance) |
 
 ---

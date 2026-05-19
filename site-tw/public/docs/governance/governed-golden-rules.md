@@ -189,7 +189,7 @@ The shorthand for the whole set: **the agent writes the code. You decide what *g
 - <a href="/docs/workshop" class="markdown-link">Walk the workshop end to end</a>. The rules in their natural habitat.
 - <a href="/docs/framework" class="markdown-link">Read the framework</a>. How the rules connect to Looking Glass, Cheshire Cat, and Red Queen.
 - <a href="/docs/governance/compliance-mapping" class="markdown-link">See the compliance mapping</a>. How each rule&rsquo;s artifact maps to SOC 2, ISO 27001, NIST 800-53, PCI DSS, EU AI Act, NIST AI RMF, and ISO/IEC 42001.
-- <a href="/docs/impossible-things" class="markdown-link">Read the roadmap</a>. What Rules 5 and 6 become when the Hatter&rsquo;s Tag and Red Queen Phase 9 hard gate ship.
+- <a href="/docs/agentic-sdlc-governance" class="markdown-link">Read the vision</a>. The two governance modalities: <a href="/docs/hatters-tea-party" class="markdown-link">Hatter&rsquo;s Tea Party</a> for the planning side (where Rule 5 lives) and <a href="/docs/red-queens-court" class="markdown-link">Red Queen&rsquo;s Court</a> for Phase 9 enforcement (where Rule 6 lands).
 
 ---
 

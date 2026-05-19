@@ -248,7 +248,7 @@ Before making changes:<br/>
 
 ## Further Reading
 
-- [Impossible Things](/docs/impossible-things) — The Red Queen vision and architecture
+- [Red Queen's Court](/docs/red-queens-court) — The Red Queen vision and architecture
 - [Claude Code Action](/docs/agents/claude-code-action) — The other governed agent
 - [Multi-Agent Orchestration](/docs/agents/multi-agent) — Coordinating multiple agents
 - [GitHub Copilot (In-Editor)](/docs/agents/copilot) — Interactive assistant guide

@@ -8,7 +8,7 @@
       A second vision sits beside The Red Queen: a place where AI agents don't fight, they <em>plan</em>. They turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design — all under a chain of provenance an auditor can read in one sitting. If the planning is governed, the coding can prosper. That's the tea party.
     </p>
     <div class="docs-actions">
-      <a href="/docs/quickstart-redqueen" class="docs-button-secondary">Meet the Red Queen</a>
+      <a href="/docs/red-queens-court" class="docs-button-secondary">Meet the Red Queen</a>
       <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-primary">Read the design (v4)</a>
     </div>
   </div>
@@ -486,7 +486,7 @@ From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take yo
 
 What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes. The audit chain has reached the point where one zip captures everything from Org-level intent to per-repo design decisions, with every reviewer, every prompt SHA, every threat model snapshot, every chain root hash documented inside.
 
-What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story — and it has its own [quickstart](/docs/quickstart-redqueen).
+What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story — read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
 
 ---
 
@@ -655,14 +655,14 @@ Everything here is **design**. Implementation is phased; you can track progress 
     <div class="docs-copy"><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-secondary">Open on GitHub →</a></div>
   </div>
   <div class="docs-card docs-card-rose">
-    <div class="docs-heading">Meet the Red Queen</div>
-    <div class="docs-copy">The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change.</div>
-    <div class="docs-copy"><a href="/docs/quickstart-redqueen" class="docs-button-secondary">Quickstart →</a></div>
+    <div class="docs-heading">Meet the Red Queen's Court</div>
+    <div class="docs-copy">The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change — three layers, six rails, cross-repo semantic governance.</div>
+    <div class="docs-copy"><a href="/docs/red-queens-court" class="docs-button-secondary">Deep dive →</a>&nbsp;&nbsp;<a href="/docs/quickstart-redqueen" class="docs-button-secondary">Quickstart →</a></div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">The 70/30 vision</div>
-    <div class="docs-copy">Why architecture-first governance is the missing piece. The original "Art of the Possible."</div>
-    <div class="docs-copy"><a href="/docs/impossible-things" class="docs-button-secondary">Read the vision →</a></div>
+    <div class="docs-heading">The full vision</div>
+    <div class="docs-copy">Why architecture-first governance is the missing piece. The end-to-end agentic governed SDLC — Looking Glass substrate, Hatter's Tea Party + Red Queen's Court modalities, the 70/30 framing.</div>
+    <div class="docs-copy"><a href="/docs/agentic-sdlc-governance" class="docs-button-secondary">Read the vision →</a></div>
   </div>
   <div class="docs-card docs-card-emerald">
     <div class="docs-heading">Workshop</div>

@@ -30,7 +30,7 @@
 </div>
 
 <div class="docs-panel">
-  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). The generated review workflow fails closed when reviewers do not produce verdicts; hard merge blocking requires you to mark the workflow as a required status check. The standalone <code>redqueen-action</code> hard gate is planned for <a href="/docs/impossible-things#the-road-ahead" class="markdown-link">Phase 9</a>.</p>
+  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). The generated review workflow fails closed when reviewers do not produce verdicts; hard merge blocking requires you to mark the workflow as a required status check. The standalone <code>redqueen-action</code> hard gate is planned for <a href="/docs/red-queens-court#the-road-ahead--phase-9-and-beyond" class="markdown-link">Phase 9</a>.</p>
 </div>
 
 ---
@@ -485,7 +485,7 @@ Or via the UI: **Settings &rarr; Branches &rarr; Branch protection rules &rarr; 
 
 After this, any PR where the Red Queen Review workflow fails closed (missing verdicts, consensus rejection, governance violation) cannot be merged, even by admins. This is the boundary between "advisory" and "deterministic" enforcement.
 
-> **Reminder:** the hard `redqueen-action` standalone CI gate is still planned for [Phase 9](/docs/impossible-things#the-road-ahead). What you just configured is the strongest enforcement boundary available today.
+> **Reminder:** the hard `redqueen-action` standalone CI gate is still planned for [Phase 9](/docs/red-queens-court#the-road-ahead--phase-9-and-beyond). What you just configured is the strongest enforcement boundary available today.
 
 ---
 

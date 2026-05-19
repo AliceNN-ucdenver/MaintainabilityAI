@@ -237,8 +237,8 @@ export default function HomePage() {
               <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" className="site-button-secondary">
                 Explore on GitHub
               </a>
-              <Link to="/docs/impossible-things" className="site-button-cyan">
-                Read Impossible Things
+              <Link to="/docs/agentic-sdlc-governance" className="site-button-cyan">
+                Read the Vision
               </Link>
             </div>
           </div>

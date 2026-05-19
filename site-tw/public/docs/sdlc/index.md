@@ -216,7 +216,7 @@ This framework operationalizes that insight:
     <p class="docs-copy">
       Prompts are advisory. Agents can ignore them. The Red Queen adds <strong class="docs-strong">deterministic governance control points</strong> — MCP architecture awareness, pre-tool hooks, scaffold doctor checks, fail-closed review consensus, and a TypeScript policy engine that ties agent autonomy to governance scores.
     </p>
-    <a href="/docs/impossible-things#the-red-queen---governance-enforced-agent-intelligence" class="markdown-link">Read the Red Queen architecture →</a>
+    <a href="/docs/red-queens-court" class="markdown-link">Read the Red Queen architecture →</a>
   </div>
 </div>
 

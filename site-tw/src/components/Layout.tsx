@@ -14,8 +14,7 @@ export default function Layout() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-6 text-slate-300">
-            <Link className="site-nav-link" to="/docs/impossible-things">Vision</Link>
-            <Link className="site-nav-link" to="/docs/hatters-tea-party">Tea Party</Link>
+            <Link className="site-nav-link" to="/docs/agentic-sdlc-governance">Vision</Link>
             <Link className="site-nav-link" to="/docs/framework">Framework</Link>
             <Link className="site-nav-link" to="/docs/">Docs</Link>
             <Link className="site-nav-link" to="/agenda">Workshop</Link>
@@ -45,17 +44,10 @@ export default function Layout() {
             <nav className="flex flex-col px-4 py-4 space-y-3">
               <Link
                 className="site-mobile-link"
-                to="/docs/impossible-things"
+                to="/docs/agentic-sdlc-governance"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Vision
-              </Link>
-              <Link
-                className="site-mobile-link"
-                to="/docs/hatters-tea-party"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Tea Party
               </Link>
               <Link
                 className="site-mobile-link"
@@ -110,8 +102,9 @@ export default function Layout() {
             <div>
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-slate-400 text-sm">
-                <li><Link to="/docs/impossible-things" className="site-footer-link">Vision</Link></li>
+                <li><Link to="/docs/agentic-sdlc-governance" className="site-footer-link">Vision</Link></li>
                 <li><Link to="/docs/hatters-tea-party" className="site-footer-link">Hatter's Tea Party</Link></li>
+                <li><Link to="/docs/red-queens-court" className="site-footer-link">Red Queen's Court</Link></li>
                 <li><Link to="/docs/framework" className="site-footer-link">Framework</Link></li>
                 <li><Link to="/docs/" className="site-footer-link">Documentation</Link></li>
                 <li><Link to="/agenda" className="site-footer-link">Workshop</Link></li>

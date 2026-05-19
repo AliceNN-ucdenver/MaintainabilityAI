@@ -24,7 +24,7 @@ export const systemLayers: SystemLayer[] = [
     image: '/images/looking-glass-governance.png',
     body:
       'A CALM-native governance view of every application, score, threat model, and architecture decision your agents need to understand before they change code.',
-    href: '/docs/impossible-things#the-looking-glass---see-everything',
+    href: '/docs/agentic-sdlc-governance#looking-glass--the-substrate-everything-reads',
   },
   {
     title: 'The Hatter',
@@ -48,7 +48,7 @@ export const systemLayers: SystemLayer[] = [
     image: '/images/redqueen.png',
     body:
       'Hooks, MCP validation, policy rules, and fail-closed review workflows that move governance from prompt advice into enforceable control points.',
-    href: '/docs/impossible-things#the-red-queen---governance-enforced-agent-intelligence',
+    href: '/docs/red-queens-court',
   },
 ];
 
@@ -56,7 +56,7 @@ export const storySteps: LinkedCard[] = [
   {
     title: 'See the vision',
     body: 'Understand the 70/30 gap: AI handles boilerplate quickly, but architecture, security posture, and governance decide whether the system survives.',
-    href: '/docs/impossible-things',
+    href: '/docs/agentic-sdlc-governance',
   },
   {
     title: 'Learn the framework',

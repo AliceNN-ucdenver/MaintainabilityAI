@@ -266,7 +266,7 @@ Everything above lives in documentation until you bring it into the developer wo
     <p class="docs-copy">
       Prompts are advisory. Agents can ignore them. The Red Queen adds <strong class="docs-strong">deterministic governance control points</strong>: MCP architecture awareness, pre-tool hooks, scaffold doctor checks, fail-closed review consensus, and a TypeScript policy engine that ties agent autonomy to governance scores.
     </p>
-    <a href="/docs/impossible-things#the-red-queen---governance-enforced-agent-intelligence" class="markdown-link">Read the Red Queen architecture →</a>
+    <a href="/docs/red-queens-court" class="markdown-link">Read the Red Queen architecture →</a>
   </div>
 </div>
 
@@ -299,7 +299,7 @@ Everything above lives in documentation until you bring it into the developer wo
   <div class="docs-heading">Extension & Vision</div>
   <div class="docs-copy">
     <a href="/docs/sdlc/#maintainabilityai--the-vscode-extension" class="markdown-link">VSCode Extension</a>: Looking Glass + Cheshire Cat<br/>
-    <a href="/docs/impossible-things" class="markdown-link">Impossible Things</a>: Art of the Possible<br/>
+    <a href="/docs/agentic-sdlc-governance" class="markdown-link">Vision</a>: Agentic governed SDLC<br/>
     <a href="/docs/agents/alice" class="markdown-link">Alice</a>: Agentic AI proof of concept
   </div>
 </div>
