@@ -158,24 +158,42 @@ Looking Glass — Portfolio
    ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 2 — HOW: prd-agent                                        │
-│   Skill calls: knowledge-research (read merged Phase 1 doc)      │
-│                knowledge-mesh-* (CALM, threats, ADRs)            │
-│                knowledge-code  (clone + index impacted repos)    │
-│                architect-expert | security-expert                │
-│                audit-emit-event                                  │
-│   Output: prds/<run>/prd.md + manifest.yaml (target_repos)       │
-│   Reviewers: architect-reviewer + security-reviewer (PR)         │
+│   Refines via:  prd/ask-experts (mesh-anchored clarifying Qs)    │
+│   Skill calls:  knowledge-research (read merged Phase 1 doc)     │
+│                 knowledge-mesh-* (CALM, threats, ADRs)            │
+│                 context-architecture | context-security           │
+│                 audit-emit-event                                  │
+│   Output: okrs/<id>/how/prd.md + manifest.yaml (target_repos)    │
+│   Reviewers:  prd/architecture-review + prd/security-review       │
+│               (MESH-GROUNDED gate — scoring against CALM, ADRs,   │
+│               threat-model library; this is the intent gate)      │
 └─────────────────────────────────────────────────────────────────┘
    ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Phase 3 — WHAT: design-agent (fan-out per impacted repo)        │
+│  Phase 3a — WHAT (Looking-Glass side): code-design-agent         │
+│  Reads PRD + clones/indexes ALL target_code_repos at once.       │
 │   Skill calls: knowledge-prd (read merged Phase 2 doc)           │
-│                knowledge-code (the specific target repo)         │
+│                knowledge-code (one call per target repo)         │
 │                knowledge-reference-repos                         │
-│                architect-expert | security-expert                │
+│                context-architecture | context-security           │
 │                audit-emit-event                                  │
-│   Output: <code-repo>/.governance/design.md + Hatter Tag         │
-│   Reviewers: architect-reviewer + security-reviewer (PR)         │
+│   Output: ONE code-design doc — okrs/<id>/what/code-design.md    │
+│           cross-cutting; references each impacted repo by name.  │
+│   Reviewers:  design/architecture-review + design/security-review│
+│               (CODE-GROUNDED gate — CALM drift analysis, OWASP   │
+│               pattern scan against the actual code, threat-model │
+│               compliance check; this is the HEAVIEST gate).      │
+│   This is the FINAL agent step on the Looking Glass side.        │
+└─────────────────────────────────────────────────────────────────┘
+   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 3b — WHAT (Hand-off): per-repo issue fan-out (no LLM)     │
+│  design-bus.yml workflow opens one issue per target_code_repos[] │
+│  in that repo, carrying OKR context + the relevant slice of the  │
+│  merged code-design.md. From here, coding agents in each target  │
+│  repo take over — governed by The Red Queen on the code side.    │
+│  (Out of scope for THIS design; the Hatter's Tea Party ends      │
+│  when the issues are written.)                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -187,7 +205,7 @@ The OKR detail page is the **only place** a user starts a phase. Three buttons m
 |---|---|---|
 | **Start Why** | OKR status = `draft` (or `researching` if re-running) | Creates an `oraculum-research` issue with `okr_id` in the body. Embeds objective, KRs, intent_cascade, affected_bar_ids. Adds `okr-anchor` label. The `okr-bus.yml` workflow picks it up and assigns the market-research-agent. |
 | **Start How** | OKR status = `prd-pending` (Why merged) | Creates an `oraculum-prd` issue carrying the same OKR context plus a reference to the merged Phase 1 artifact. `okr-bus.yml` assigns prd-agent. |
-| **Start What** | OKR status = `design-pending` (How merged) | Fans out one `oraculum-design` issue per entry in `objectiveAlignment.target_code_repos[]`. Each issue is **created in that target code repo**, not the mesh — the design lives next to the code it shapes. Carries OKR context + PRD reference + landing-repo scope. `design-bus.yml` assigns design-agent in each repo. |
+| **Start What** | OKR status = `design-pending` (How merged) | Creates ONE `oraculum-design` issue **in the mesh** (cross-cutting), assigns the `code-design-agent`. The agent clones/indexes every `target_code_repos[]` entry and writes a single `code-design.md` grounded on the PRD + that code. Code-grounded reviewers score it (the heavy gate). Once merged, `design-bus.yml` fans out **per-repo** issues automatically (no LLM) — those land in the target code repos and trigger their coding agents. |
 
 **No more "Promote to research-request."** The flow is OKR → Start Why directly. Oraculum's old promote button is replaced by **"Create OKR from finding"** (§10.5) when a user discovers something while doing an architecture review and wants to spin a full OKR from it.
 
@@ -209,6 +227,28 @@ The OKR detail page is the **only place** a user starts a phase. Three buttons m
 | Issue-body-parsed brief (fragile) | OKR YAML read via `knowledge-okr` Skill (canonical) |
 
 The retained workflows are `oraculum-review.yml` (architecture review on code repos) and `label-on-merge.yml` (housekeeping). See §10.5 for the Settings page migration.
+
+### 3.3 PRD vs Code Design — two distinct artifacts, two distinct gates
+
+This is the single most important distinction in the pipeline and must not blur. The PRD and the code-design are **different artifacts** with **different agents**, **different grounding**, and **different reviewer gates**. Confusing them is how teams end up reviewing the wrong thing at the wrong time.
+
+| Concern | **PRD (Phase 2 — How)** | **Code Design (Phase 3a — What, Looking-Glass side)** |
+|---|---|---|
+| Author agent | `prd-agent` | `code-design-agent` |
+| Refinement loop | `prd/ask-experts` Skill (clarifying questions back from a mesh-grounded "expert" persona — the mesh IS the expert) | None — the code-design is reviewed, not refined by Q&A |
+| What it answers | "Given the intent + research findings + mesh state, **what must the system do** (FRs, NFRs, SRs)?" | "Given the PRD + the actual code in the impacted repos, **how must each repo change** to deliver the PRD?" |
+| Grounding inputs | Research doc (Phase 1) + CALM model + threat library + ADRs (mesh artifacts only) | The PRD + **every linked code repo** (cloned + indexed) + reference repos + the mesh artifacts the PRD already cites |
+| Reviewer agents | `architect-reviewer` + `security-reviewer` running [`prd/architecture-review`](../prompt-packs/looking-glass/prd/architecture-review.md) + [`prd/security-review`](../prompt-packs/looking-glass/prd/security-review.md) | Same two reviewer agents, but running **NEW** packs: `design/architecture-review` + `design/security-review` (see §7.0.5 deliverable rows) |
+| What the gate scores | **Mesh-grounding** — does the PRD cite CALM nodes that exist? are STRIDE threats covered? are ADRs respected? FR↔R↔E traceability complete? | **Code-grounding** — does the proposed design respect CALM flows in the actual code? does it introduce OWASP-pattern violations? does it satisfy the threat model when applied to the real repos? are interface contracts consistent across linked repos? |
+| Tier-aware bound applies | Yes, but the gate is lighter — most blocking failures here are "the PRD didn't cite enough" (fixable in a revision round) | Yes, and this is the **heaviest** gate. Restricted-tier BAR + a code-grounded security failure here is the most common reason an OKR stalls until governance is escalated. |
+| Output artifact | `okrs/<id>/how/prd.md` (one file) | `okrs/<id>/what/code-design.md` (one cross-cutting file referencing each impacted repo) |
+| Final approval is the start of | Code design (Phase 3a) | Per-repo issue fan-out (Phase 3b, no LLM) |
+
+**Why the PRD is NOT the heavyweight gate.** A PRD can be perfectly mesh-grounded and still propose something the actual code can't absorb without breaking. The mesh is a *model* of intent; the code is what runs. The PRD gate verifies intent is coherent. The code-design gate verifies intent is *implementable in this codebase without violating governance*.
+
+**Why the code-design is ONE doc (not per-repo).** Cross-cutting features (like adding the celeb-api endpoint and consuming it in the React frontend) need a single design that reasons about both sides at once — interface contracts, data ownership, error semantics. Splitting it into per-repo designs at the design stage loses that. The **per-repo fan-out happens AFTER the cross-cutting design is approved** — each landing issue carries only the slice relevant to that repo, but the source-of-truth design is whole.
+
+**Why this is the last Looking-Glass agent step.** Once the code-design merges, the per-repo issues are written by `design-bus.yml` (a workflow, not an agent) and from there each target repo's own coding agent picks up the slice. Those agents are governed by The Red Queen on the code side — out of scope for *this* design (which governs intent up to the point intent becomes implementation work).
 
 ---
 
@@ -267,7 +307,7 @@ howToUse:
     2. Define 3–5 SMART key results.
     3. Generate the Why (Phase 1) via the market-research agent.
     4. Generate the How (Phase 2) via the PRD agent (gated on Why merged).
-    5. Fan out the What (Phase 3) via design-agent on per-repo issues (gated on How merged).
+    5. Generate the What (Phase 3a) via code-design-agent — ONE cross-cutting doc (gated on How merged). Per-repo fan-out (Phase 3b) is automatic on merge.
     6. After delivery, complete keyResultRetrospective and valueLearning.
   notes: "Iterative — re-run any phase by creating a follow-up issue with the OKR id."
 
@@ -407,15 +447,16 @@ Each agent is a `.agent.md` file deployed by `provisionWorkflow` into the mesh's
 | Agent | Triggered by | Output | Skills it relies on |
 |---|---|---|---|
 | `market-research-agent` | `oraculum-research` label + `@copilot` mention | PR: `okrs/<id>/why/research-doc.md` | `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`, `dedupe-and-rank`, `format-research-issue-update`, `knowledge-okr`, `knowledge-mesh-*`, `audit-emit-event` |
-| `prd-agent` | `oraculum-prd` label + `@copilot` mention | PR: `okrs/<id>/how/prd.md` + `manifest.yaml` | `knowledge-research`, `knowledge-mesh-*`, `knowledge-code`, `context-architecture`, `context-security`, `context-quality`, `audit-emit-event` |
-| `design-agent` | `oraculum-design` label on per-repo landing issue | PR in code repo: `.governance/design.md` | `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos`, `context-architecture`, `context-security`, `audit-emit-event` |
+| `prd-agent` | `oraculum-prd` label + `@copilot` mention | PR: `okrs/<id>/how/prd.md` + `manifest.yaml` | `knowledge-research`, `knowledge-mesh-*`, `context-architecture`, `context-security`, `context-quality`, `audit-emit-event`. **Refines via `prd/ask-experts` Skill** (mesh-anchored clarifying questions). Does NOT clone code repos — that's the code-design-agent's job. |
+| `code-design-agent` | `oraculum-design` label + `@copilot` mention (one assignment, cross-cutting) | PR: `okrs/<id>/what/code-design.md` (ONE doc, cross-cutting) | `knowledge-prd`, `knowledge-code` (called once per target_code_repos[] entry), `knowledge-reference-repos`, `context-architecture`, `context-security`, `audit-emit-event`. **Last Looking-Glass-side agent.** |
+| ~~`design-agent` (per-repo)~~ | _superseded by `code-design-agent` (one cross-cutting design) + `design-bus.yml` fan-out_ | — | The per-repo design-agent model in v3 conflated "produce a code-grounded design" with "execute the design in this repo." v4 separates them: code-design-agent produces one doc; coding agents (out of scope) execute per-repo against the merged slice. |
 
 ### 5.2 Reviewer agents
 
 | Agent | Triggered by | Output |
 |---|---|---|
-| `architect-reviewer` | Auto-fires on any artifact PR (Phase 1/2/3) | PR review with scored certificate: `SCORE / SEVERITY / COVERED / MISSING / CHANGES` |
-| `security-reviewer` | Same | Same certificate, STRIDE / OWASP / NIST cross-refs |
+| `architect-reviewer` | Auto-fires on any artifact PR (Phase 1/2/3a) | PR review with scored certificate: `SCORE / SEVERITY / COVERED / MISSING / CHANGES`. **Runs different prompt packs depending on the artifact** — `prd/architecture-review` (mesh-grounded gate on PRDs), `design/architecture-review` (code-grounded heavyweight gate on code-design docs). |
+| `security-reviewer` | Same | Same certificate, STRIDE / OWASP / NIST cross-refs. Same pack-per-artifact split: `prd/security-review` vs `design/security-review`. |
 
 Reviewer agents **do not block merge by themselves** — they post scored review comments and apply labels (`revision-required` / `governance-pass`). The recycle loop (§6) gates merge.
 
@@ -572,6 +613,9 @@ Every agent persona and every Skill that needs a structured output references a 
 | PRD — ask experts (clarifying questions) | [`prompt-packs/looking-glass/prd/ask-experts.md`](../prompt-packs/looking-glass/prd/ask-experts.md) | `structured-review` | Runs in `deep` mode only. Each question has exactly: `scope`, `triggered_by_mesh_gap`, `question`, `why_it_matters`, `answerable_by`. **The mesh IS the expert** — questions anchor to mesh gaps. |
 | PRD — architecture review (grounding gate) | [`prompt-packs/looking-glass/prd/architecture-review.md`](../prompt-packs/looking-glass/prd/architecture-review.md) | `structured-review` (regex-parsed by `verify_grounding`) | Emits `SCORE` (0.0-1.0), `COVERED`, `MISSING`, `CHANGES`. Reads `mesh.bar.calm_summary` + `calm_node_ids` + `adrs_in_scope` + `iteration`. NCMS `ARCHITECT_REVIEW` persona. |
 | PRD — security review (grounding gate) | [`prompt-packs/looking-glass/prd/security-review.md`](../prompt-packs/looking-glass/prd/security-review.md) | `structured-review` (regex-parsed) | Same output shape as architecture-review. Reads `stride_entries` + `owasp_in_scope` + `nist_controls`. NCMS `SECURITY_REVIEW` persona. |
+| **Code Design — synthesis** (NEW, Phase D) | `prompt-packs/looking-glass/design/synthesis.md` (to author) | `markdown-with-tables` | Reads PRD + indexed target_code_repos. Emits ONE cross-cutting code-design doc with: per-repo change list, interface contracts (OpenAPI/proto/GraphQL diffs), data-ownership decisions, migration plan, rollback plan. Each section carries `addresses: [FR-X, SR-Y]` frontmatter — feeds the traceability matrix. |
+| **Code Design — architecture review** (NEW, Phase D, code-grounded) | `prompt-packs/looking-glass/design/architecture-review.md` (to author) | `structured-review` | Adapts NCMS `ARCHITECT_REVIEW` persona to read **the actual code**: CALM drift analysis (does the design's flow match the code's flow?), interface contract diffs (oasdiff / buf / graphql-inspector), module boundary respect. **This is the heavyweight gate.** |
+| **Code Design — security review** (NEW, Phase D, code-grounded) | `prompt-packs/looking-glass/design/security-review.md` (to author) | `structured-review` | Adapts the OWASP pattern scan from [`application-security.md`](../prompt-packs/looking-glass/application-security.md) to score the design against the actual code in each impacted repo. Threat-model compliance check applied to code-as-it-will-exist-after-the-design. **Also heavyweight.** |
 | Architecture domain pack (Oraculum review on code repo) | [`prompt-packs/looking-glass/architecture.md`](../prompt-packs/looking-glass/architecture.md) | Markdown guidance | CALM drift analysis: node-to-code mapping, phantom nodes, undocumented components. Used by `architect-reviewer` agent and the legacy `oraculum-review.yml` workflow. |
 | Application security domain pack | [`prompt-packs/looking-glass/application-security.md`](../prompt-packs/looking-glass/application-security.md) | Markdown guidance | OWASP Top 10 pattern scan, threat-model compliance, dependency vuln analysis, security-control verification. Used by `security-reviewer` agent and the legacy `oraculum-review.yml` workflow. |
 
@@ -973,15 +1017,26 @@ This is the screen the user spends 80% of their time on. Single scrolling page; 
 │ │  ▸ Audit timeline (62 events)                                              │ │
 │ ╰────────────────────────────────────────────────────────────────────────────╯ │
 │                                                                                │
-│ ╭─ What (Design) ────────────────────────────────── ☐ Blocked ──────────────╮ │
+│ ╭─ What — 3a. Code Design (Looking-Glass) ──────── ☐ Blocked ──────────────╮ │
+│ │  Agent:     code-design-agent                                              │ │
+│ │  Reviewers: design/architecture-review · design/security-review            │ │
+│ │             (CODE-GROUNDED gate — heaviest gate in the pipeline)           │ │
+│ │  Inputs:    PRD + cloned/indexed code repos (all targets)                  │ │
+│ │  Output:    ONE okrs/<id>/what/code-design.md (cross-cutting)              │ │
 │ │  Gated on:  How merged + tier eligibility                                  │ │
-│ │  Fan-out (one issue per target repo, opened in that repo):                 │ │
-│ │   • <org>/celeb-api               not started                              │ │
-│ │   • <org>/imdb-react-frontend     not started                              │ │
 │ │                                                                            │ │
 │ │  ⚠ Restricted tier — `Start What` disabled until either:                  │ │
 │ │     - APP-IMDB-002 score ≥ 50 (Supervised), OR                            │ │
 │ │     - Dual-signature override is recorded against this OKR                │ │
+│ ╰────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                │
+│ ╭─ What — 3b. Per-Repo Fan-Out (hand-off) ──────── ☐ Blocked ──────────────╮ │
+│ │  Trigger:   design-bus.yml on code-design.md merge (no LLM — pure workflow)│ │
+│ │  Opens 1 issue per target_code_repos[] in that repo:                       │ │
+│ │   • <org>/celeb-api               not started                              │ │
+│ │   • <org>/imdb-react-frontend     not started                              │ │
+│ │  From here: coding agents in each repo take over — governed by The Red    │ │
+│ │  Queen on the code side (out of scope for THIS pipeline).                  │ │
 │ ╰────────────────────────────────────────────────────────────────────────────╯ │
 │                                                                                │
 ├── REVIEW ──────────────────────────────────────────────────────────────────────┤
@@ -1506,14 +1561,18 @@ Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. 
 - [ ] **C8.** Caterpillar's Challenge — semantic-drift comparison hook in `reviewer-bus.yml` (research → PRD → design → code)
 - [ ] **C9.** `Start What` button (depends on design-bus.yml; Restricted-tier disabled state per §10.2)
 
-### Phase D — Design agent + per-repo reviser loop (target: 3 weeks)
+### Phase D — Code-design agent + code-grounded reviewers (target: 3 weeks)
 
-Design fan-out works end-to-end. Per-repo Hatter Tags chain back to parent OKR via `intent_thread_uuid`.
+The last Looking-Glass-side agent ships. One cross-cutting code-design doc grounded on indexed code repos, scored by code-aware reviewers, then handed off to per-repo coding agents via `design-bus.yml`.
 
-- [ ] **D1.** `design-agent.agent.md` operating on per-repo issues
-- [ ] **D2.** `knowledge-reference-repos` Skill — clones + indexes curated reference repos from mesh `reference-repos/` dir
-- [ ] **D3.** Reviser loop wired into per-repo design PR flow (reviewer-bus.yml runs on the code repo as well, not just the mesh)
-- [ ] **D4.** Hatter chain ladder visualization on OKR detail — collapsible tree showing parent intent thread → child threads per phase
+- [ ] **D1.** Author `prompt-packs/looking-glass/design/synthesis.md` — code-design pack (PRD + indexed repos → ONE cross-cutting code-design doc with `addresses: [FR-X, SR-Y]` frontmatter per section)
+- [ ] **D2.** Author `prompt-packs/looking-glass/design/architecture-review.md` — code-grounded review pack (CALM drift analysis + interface contract diffs against actual code via `oasdiff` / `buf` / `graphql-inspector`)
+- [ ] **D3.** Author `prompt-packs/looking-glass/design/security-review.md` — code-grounded review pack (OWASP pattern scan + threat-model compliance against actual code, adapting `application-security.md`)
+- [ ] **D4.** `code-design-agent.agent.md` operating on the mesh's `oraculum-design` issue (one assignment, cross-cutting — supersedes per-repo `design-agent` from v3)
+- [ ] **D5.** `knowledge-reference-repos` Skill — clones + indexes curated reference repos from mesh `reference-repos/` dir
+- [ ] **D6.** `knowledge-code` Skill — clones + indexes ONE target code repo per call; code-design-agent invokes it once per `target_code_repos[]` entry
+- [ ] **D7.** Reviewer-bus extension — when PR is a code-design (label `design-draft`), reviewer-bus invokes design/architecture-review + design/security-review packs (code-grounded) instead of the prd/* packs (mesh-grounded)
+- [ ] **D8.** Hatter chain ladder visualization on OKR detail — collapsible tree showing parent intent thread → child threads per phase
 
 ### Phase E — Audit Report Export + hardening (target: 1 week)
 
@@ -1634,7 +1693,10 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[ ]` | `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) | mesh template | B |
 | `[ ]` | `audit-emit-event` Skill (wraps Court Recorder for agent use) | mesh template | B |
 | `[ ]` | `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement) | mesh template | B |
-| `[ ]` | `design-agent` `.agent.md` | mesh template | D |
+| `[ ]` | `code-design-agent` `.agent.md` (one cross-cutting agent — supersedes per-repo `design-agent`) | mesh template | D |
+| `[ ]` | **`design/synthesis.md`** prompt pack — emits ONE cross-cutting code-design doc grounded on PRD + indexed code repos | `vscode-extension/prompt-packs/looking-glass/design/synthesis.md` (new) | D |
+| `[ ]` | **`design/architecture-review.md`** prompt pack — CODE-grounded architect review (CALM drift + interface contract diffs against actual code) | `vscode-extension/prompt-packs/looking-glass/design/architecture-review.md` (new) | D |
+| `[ ]` | **`design/security-review.md`** prompt pack — CODE-grounded security review (OWASP pattern scan + threat-model compliance against actual code) | `vscode-extension/prompt-packs/looking-glass/design/security-review.md` (new) | D |
 | `[ ]` | AgentDeploymentService — deploys agents + skills + retained workflows | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
 | `[ ]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
 | `[ ]` | State-machine logic in `label-on-merge.yml` (round counter + tier-aware) | mesh template | C |
