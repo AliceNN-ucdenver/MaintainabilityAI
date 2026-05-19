@@ -1,4 +1,4 @@
-# Agentic SDLC — Design (v3)
+# Agentic SDLC — Design (v4)
 
 End-to-end agent-orchestrated pipeline from **market research → PRD → design**, grounded in the governance mesh (CALM, threat models, ADRs, prior research, reference repos), with full auditable provenance and a Looking Glass-surfaced OKR anchor.
 
@@ -16,7 +16,18 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - Drops the GH-Models dependency for plan_queries + gap_analysis entirely. 429s on the runner's LLM hops become moot for the agent-driven flow.
 - `research-runner` keeps existing for the legacy CI-only path; agent-driven path replaces it.
 
-**v3 alignment (this update)** — reviewed against [agentic-governance-roadmap-2026.md](../../docs/design/agentic-governance-roadmap-2026.md) and [agentic-governance-landscape.md](../../site-tw/public/docs/research/agentic-governance-landscape.md):
+**v4 (this update) — end-to-end refactor**:
+- **OKR is the only trigger surface.** "Promote to research-request" is **removed**. The OKR detail page has `Start Why / Start How / Start What` buttons; each creates the right kind of issue with `okr_id` + objective + KRs + intent_cascade + affected BARs inlined. The agent reads OKR context cold via the `knowledge-okr` Skill — no body-parser fragility.
+- **Oraculum narrows to code-repo architecture reviews.** It no longer hosts research issues. Its old "Promote" button becomes **"Create OKR from finding"** — pre-fills an OKR draft from a review's findings, then the user starts the pipeline from the OKR screen.
+- **Custom workflow deprecation.** `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` are deprecated and replaced by `.github/agents/*.agent.md` + `.github/skills/<name>/SKILL.md` + bus workflows (`reviewer-bus`, `okr-bus`, `design-bus`). Settings screen evolves to **Mesh Provisioning** with tabs for Workflows / Agents / Skills.
+- **First sample OKR seeds on Celebs (Restricted tier)** — workshop's central learning moment. Why runs normally; How fails security review (missing threat model on `APP-IMDB-002`); learner must escalate Celebs governance OR dual-signature override before unlocking What. Demonstrates "governance unlocks autonomy" loop end-to-end.
+- **Full OKR screen UI design** (§10.2) with ASCII mockup: header (objective + intent cascade + tier badge) → KR table → Affected BARs (with tier) → Target repos (declared/connected) → three Action cards (Why/How/What) with phase status, scores, Hatter Tag access, recycle counter, gates → action bar (Export Audit Report, Verify Chain).
+- **Hatter Tag UI surfacing** (§10.4) — compact badge on each Action card + full-schema sheet on demand + embedded verbatim in audit report.
+- **Audit Report Export** (§11.6) — one-click bundle from OKR detail: zip with `okr-card.pdf`, `traceability.html` (KR → Research Finding → FR/SR → Design → Code matrix), per-phase artifacts + Hatter Tags + audit-events JSONL + chain-verification, `chain-ladder.yaml`, `checksums.txt`. This is the single artifact the auditor needs to answer the master question.
+- **Skills inventory grounded in real prompt files** (§7). Every Skill cites its exact prompt-pack path and its in-file good/bad-example anchors. No invented prompt content.
+- **Phase tracking inline** (§13). Each phase has checkboxes for the items shipped vs planned vs blocked. This document becomes the single source of truth for "what's done."
+
+**v3 alignment** — reviewed against [agentic-governance-roadmap-2026.md](../../docs/design/agentic-governance-roadmap-2026.md) and [agentic-governance-landscape.md](../../site-tw/public/docs/research/agentic-governance-landscape.md):
 - **OKR Cards reframed as IntentSpecs** — "declarative intent that travels with the work". Why/How/What is the intent cascade.
 - **Maps onto the existing 6-phase SDLC** (Design → Implement → Verify → Govern → Deploy → Evolve) — does NOT replace it.
 - **Reviewer ≠ Author enforcement (Tweedles)** — architect/security reviewers are distinct Copilot agent sessions with distinct DIDs. NIST 800-53 SA-11 + SOC 2 segregation of duties. Roadmap §4.5 explicit.
@@ -26,7 +37,7 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - **White Rabbit's Pocket Watch (Goal-drift gate)** — explicit hash check of OKR.objective vs final PR scope at each phase boundary.
 - **CloudEvents v1.0 audit envelope** — matches Court Recorder format so the chain merges with AGT.
 - **EU AI Act Article 12** — automatic logging, ≥6 month retention. Deadline 2 Aug 2026.
-- **Workshop alignment (§13)** — IMDB-Lite gets `app.yaml.repos[]` populated with the four workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`). Asymmetric CALM density preserved: Lite has 8 nodes + NIST controls (Supervised tier); Celebs has 6 nodes + no controls (Restricted tier — demonstrably blocked from agent autonomy until governance is built up).
+- **Workshop alignment (§12)** — IMDB-Lite gets `app.yaml.repos[]` populated with the four workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`). Asymmetric CALM density preserved: Lite has 8 nodes + NIST controls (Supervised tier); Celebs has 6 nodes + no controls (Restricted tier — demonstrably blocked from agent autonomy until governance is built up).
 
 ### The auditor's master question (the single design test)
 
@@ -132,13 +143,16 @@ Looking Glass — Portfolio
    ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 1 — WHY: market-research-agent                            │
-│   Skill calls: market-data-collection  → produces issue-update   │
-│                  (wraps research-runner; loops on gap signals)   │
-│                tavily | arxiv | uspto | hackernews               │
+│   Skill calls: tavily-search | arxiv-search | uspto-search       │
+│                | hackernews-search        (PURE — no LLM inside) │
+│                dedupe-and-rank                                   │
+│                format-research-issue-update                      │
+│                knowledge-okr (read OKR card context)             │
 │                knowledge-mesh-bar / -platform / -threats / -adrs │
-│                knowledge-okr  (read OKR card context)            │
-│                audit-emit-event  (per skill call + final)        │
-│   Output: research/<run>/synthesis.md + Hatter Tag               │
+│                context-architecture / context-security           │
+│                audit-emit-event (per skill call + final)         │
+│   Agent does all reasoning (query plan, gap analysis, synthesis) │
+│   Output: okrs/<id>/why/research-doc.md + Hatter Tag             │
 │   Reviewers: architect-reviewer + security-reviewer (PR)         │
 └─────────────────────────────────────────────────────────────────┘
    ▼
@@ -164,6 +178,37 @@ Looking Glass — Portfolio
 │   Reviewers: architect-reviewer + security-reviewer (PR)         │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 3.1 Trigger model — OKR-driven (v4)
+
+The OKR detail page is the **only place** a user starts a phase. Three buttons map directly to the pipeline:
+
+| Button | Visible when | Action |
+|---|---|---|
+| **Start Why** | OKR status = `draft` (or `researching` if re-running) | Creates an `oraculum-research` issue with `okr_id` in the body. Embeds objective, KRs, intent_cascade, affected_bar_ids. Adds `okr-anchor` label. The `okr-bus.yml` workflow picks it up and assigns the market-research-agent. |
+| **Start How** | OKR status = `prd-pending` (Why merged) | Creates an `oraculum-prd` issue carrying the same OKR context plus a reference to the merged Phase 1 artifact. `okr-bus.yml` assigns prd-agent. |
+| **Start What** | OKR status = `design-pending` (How merged) | Fans out one `oraculum-design` issue per entry in `objectiveAlignment.target_code_repos[]`. Each issue is **created in that target code repo**, not the mesh — the design lives next to the code it shapes. Carries OKR context + PRD reference + landing-repo scope. `design-bus.yml` assigns design-agent in each repo. |
+
+**No more "Promote to research-request."** The flow is OKR → Start Why directly. Oraculum's old promote button is replaced by **"Create OKR from finding"** (§10.5) when a user discovers something while doing an architecture review and wants to spin a full OKR from it.
+
+**How the agent receives OKR context.** The issue body inlines OKR context for human readability, but the agent does NOT parse the issue body. It calls the **`knowledge-okr`** Skill with `okr_id` (read from a labeled body line `<!-- okr_id: OKR-XXX -->`), which returns the canonical OKR YAML from the mesh. This is the same "cold read from mesh" pattern other knowledge Skills use — durable across rephrasing, edits, and translation.
+
+**Phase gating.** A phase button is disabled until its prerequisite phase is **merged** (not just complete). The OKR `status` field is computed from `actions[]` + PR merge state by `OKRService`; the button enables on status transitions.
+
+**Tier gating.** If the **highest-risk affected BAR** is Restricted tier (§6.2), the **Start What** button shows a yellow chip "Restricted — requires governance escalation" and is **disabled** until either (a) the BAR's pillar score rises above the Restricted threshold OR (b) a Dual-Signature Override is recorded against this OKR. Start Why and Start How still run (research and PRD don't ship code), but their reviewers will surface the same gaps so the human sees the wall coming.
+
+### 3.2 What this replaces
+
+| v3 surface | v4 surface |
+|---|---|
+| OracularPanel "Promote to research-request" button | OKR detail "Start Why" button |
+| `archeologist.yml` workflow (label-fires on `research-request`) | search Skills (`tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`) invoked by `market-research-agent` (agent does query-plan + gap-analysis reasoning itself) |
+| `oraculum-research.yml` workflow (data collection in CI) | Same Skill, no separate workflow needed |
+| `prd.yml` workflow | `prd-agent.agent.md` + `okr-bus.yml` |
+| `notify-code-repos.yml` workflow | `design-bus.yml` fans out per `target_code_repos[]` |
+| Issue-body-parsed brief (fragile) | OKR YAML read via `knowledge-okr` Skill (canonical) |
+
+The retained workflows are `oraculum-review.yml` (architecture review on code repos) and `label-on-merge.yml` (housekeeping). See §10.5 for the Settings page migration.
 
 ---
 
@@ -511,7 +556,28 @@ Why this matters:
 
 The existing `research-runner` CLI is **kept for the legacy CI-only path** (workflows that fire without an agent assignment). The agent-driven path supersedes it once Phase B lands.
 
+### 7.0.5 Prompt pack inventory (source-of-truth files)
 
+Every agent persona and every Skill that needs a structured output references a prompt pack file. These are real files on disk, versioned in `vscode-extension/prompt-packs/looking-glass/`, and seeded into the mesh by `PromptPackService.seedMeshPrompts` (which recurses subdirectories, so `research/*` and `prd/*` land in `.caterpillar/prompts/research/*` and `.caterpillar/prompts/prd/*` respectively).
+
+**The prompt is the contract.** When a reviewer asks "by which prompt was this built?", the Hatter's Tag carries a prompt-pack version + SHA pointer back to one of these files. Never inline a prompt body in a Skill or agent file — always cite the pack path so versioning works.
+
+| Concern | Pack path | Output format | Key anchors |
+|---|---|---|---|
+| Research — query plan generation | [`prompt-packs/looking-glass/research/query-plan.md`](../prompt-packs/looking-glass/research/query-plan.md) | `json-only` (4-key object: `web`, `arxiv`, `patent`, `community`) | **Per-provider good/bad examples** at lines 60–132. Tavily ✓ `celebrity data licensing standards GDPR CCPA 2026` ✗ `data privacy compliance trends 2026` (no subject anchor). arXiv ✓ `named entity disambiguation knowledge graph` ✗ `API integration challenges` (matches anything). USPTO ✓ Q1/Q2/Q3 narrow/medium/broad with `AND` boolean ✗ `celebrity profile API AND identity management` (5 stop-wordy terms → zero results). HN ✓ `name dedup` 2-3-word casual ✗ `identity disambiguation hacks` (too formal, zero HN results). |
+| Research — gap analysis (follow-up) | [`prompt-packs/looking-glass/research/gap-analysis.md`](../prompt-packs/looking-glass/research/gap-analysis.md) | `json-only` (array of exactly 3 `web` queries) | **Bounded one-shot** — never iterative. Triggers only on `low_source_diversity` / `contradiction` / `topic_uncovered` gap signals. |
+| Research — synthesis | [`prompt-packs/looking-glass/research/synthesis.md`](../prompt-packs/looking-glass/research/synthesis.md) | `markdown-with-tables` | 10 strict H2 sections in fixed order: Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References. Each finding requires Supporting + Contradicting + Confidence (HIGH/MEDIUM/LOW). |
+| Research — archaeology variant | [`prompt-packs/looking-glass/research/synthesis-archaeology.md`](../prompt-packs/looking-glass/research/synthesis-archaeology.md) | `markdown-with-tables` | Codebase archaeology synthesis (tree-sitter `ObservedArchitecture` × MeshContext CALM). Used by `redqueen-mcp` and the design-agent. |
+| PRD — synthesis | [`prompt-packs/looking-glass/prd/synthesis.md`](../prompt-packs/looking-glass/prd/synthesis.md) | `markdown-with-tables` | **Bidirectional traceability** mandated. Every FR-NN cites R-N (research) or E-N (mesh expert input). Every Security Requirement cites a STRIDE THR-NNN and/or OWASP A0X. Output sections: Input Premises, Problem Statement, Goals/Non-Goals, Functional Requirements, Non-Functional, Security Requirements, Coverage Analysis table, Risk Matrix, Success Metrics, References. |
+| PRD — ask experts (clarifying questions) | [`prompt-packs/looking-glass/prd/ask-experts.md`](../prompt-packs/looking-glass/prd/ask-experts.md) | `structured-review` | Runs in `deep` mode only. Each question has exactly: `scope`, `triggered_by_mesh_gap`, `question`, `why_it_matters`, `answerable_by`. **The mesh IS the expert** — questions anchor to mesh gaps. |
+| PRD — architecture review (grounding gate) | [`prompt-packs/looking-glass/prd/architecture-review.md`](../prompt-packs/looking-glass/prd/architecture-review.md) | `structured-review` (regex-parsed by `verify_grounding`) | Emits `SCORE` (0.0-1.0), `COVERED`, `MISSING`, `CHANGES`. Reads `mesh.bar.calm_summary` + `calm_node_ids` + `adrs_in_scope` + `iteration`. NCMS `ARCHITECT_REVIEW` persona. |
+| PRD — security review (grounding gate) | [`prompt-packs/looking-glass/prd/security-review.md`](../prompt-packs/looking-glass/prd/security-review.md) | `structured-review` (regex-parsed) | Same output shape as architecture-review. Reads `stride_entries` + `owasp_in_scope` + `nist_controls`. NCMS `SECURITY_REVIEW` persona. |
+| Architecture domain pack (Oraculum review on code repo) | [`prompt-packs/looking-glass/architecture.md`](../prompt-packs/looking-glass/architecture.md) | Markdown guidance | CALM drift analysis: node-to-code mapping, phantom nodes, undocumented components. Used by `architect-reviewer` agent and the legacy `oraculum-review.yml` workflow. |
+| Application security domain pack | [`prompt-packs/looking-glass/application-security.md`](../prompt-packs/looking-glass/application-security.md) | Markdown guidance | OWASP Top 10 pattern scan, threat-model compliance, dependency vuln analysis, security-control verification. Used by `security-reviewer` agent and the legacy `oraculum-review.yml` workflow. |
+
+**Why this matters for the agent flow.** Each `.agent.md` references the pack(s) it uses by exact path: `prd-agent.agent.md` cites `.caterpillar/prompts/prd/synthesis.md`, `.caterpillar/prompts/prd/architecture-review.md`, `.caterpillar/prompts/prd/security-review.md`. The agent reads the pack at runtime — same way the legacy `oraculum-research.yml` / `prd.yml` workflows do today. The migration is **not a prompt rewrite** — it's a relocation: prompts move from workflow-invoked LLM nodes to agent-invoked-Skill outputs and agent-persona inputs.
+
+**Anti-drift rule.** Reviewer agents MUST regex-parse the structured-review packs (architecture-review / security-review) for `SCORE`, `COVERED`, `MISSING`, `CHANGES` — same as `verify_grounding` does in the runner today. If the prompt pack changes its anchor names, the reviewer-bus.yml workflow won't be able to compute pass/fail and the OKR will stall. Pack edits go through their own PR (mesh repo) so the change is reviewed.
 
 ### 7.1 Search Skills (the agent's primary tools for Phase 1)
 
@@ -693,119 +759,404 @@ The Celebs BAR's sparseness is **not a bug — it's the workshop curriculum**. P
         events/.gitkeep
 ```
 
-### 8.1 The seeded `okr.yaml`
+### 8.1 The seeded `okr.yaml` — primary-target Celebs (Restricted)
 
-Pre-populated with the BTABoK 9-section structure, status=`draft`, all phases empty. **`objectiveAlignment.platform_id = PLT-IMDB`** and **`affected_bar_ids = [APP-IMDB-001, APP-IMDB-002]`** — wired to the existing BARs.
+The first sample OKR **anchors on Celebs (APP-IMDB-002)** — the Restricted-tier BAR. This is deliberate: the OKR will run the Why phase normally, hit a wall on How (PRD security review fails for missing threat model), and require the learner to escalate Celebs governance OR dual-signature override before unlocking What. **This is the workshop's central learning moment** — "governance unlocks autonomy" — modeled end-to-end in a sample the learner can run from minute one.
+
+`scaffoldImdbLiteOkr()` writes the file pre-populated with the BTABoK 9-section structure, status=`draft`. `objectiveAlignment.platform_id = PLT-IMDB` and `affected_bar_ids = [APP-IMDB-002, APP-IMDB-001]` (Celebs first — it's the BAR that drives tier).
 
 ```yaml
 meta:
   card: BTABoKItem
-  id: OKR-2026Q1-IMDB-001
+  id: OKR-2026Q1-IMDB-001-celeb-api
   owner: <user from extension config>
   status: draft
-overview: { name: "OKR Card", description: "...", notes: "..." }
-howToUse: { name: "...", description: "...", notes: "..." }
+  created_at: <scaffold time>
+  updated_at: <scaffold time>
+overview:
+  name: "OKR Card"
+  description: "Defines a structured approach for setting objectives, measuring progress, and aligning with strategic outcomes."
+  notes: "Bridges strategy and execution within BTABoK."
+howToUse:
+  name: "How to use this card"
+  description: |
+    1. Review the objective + KRs; adjust if your scope differs.
+    2. Click `Start Why` on the OKR detail page to run market research.
+    3. After Why merges, click `Start How` to run the PRD agent.
+    4. If the PRD security review fails (expected on Restricted-tier Celebs!),
+       either escalate APP-IMDB-002 governance (add threat model + controls +
+       ADRs) or invoke Human Override (dual signature).
+    5. After How merges, click `Start What` to fan-out per-repo design.
+    6. After delivery, complete keyResultRetrospective and valueLearning.
+  notes: "Iterative — re-run any phase from the OKR page."
 objective:
   name: "Add celebrity profile API to IMDB-Lite"
-  description: "Enable IMDB-Lite to surface enriched celebrity profile data..."
+  description: |
+    Enable IMDB-Lite to surface enriched celebrity profile data
+    without introducing identity-disambiguation or licensing risk.
+    Primary BAR is APP-IMDB-002 (IMDB Celebs) — currently Restricted.
 keyResults:
   - { id: KR-1, metric: "Identity-disambiguation false-merge rate", target: "< 0.5%", measurement: "Production telemetry, week 2" }
   - { id: KR-2, metric: "Licensing-compliance audit pass rate", target: "100%", measurement: "Legal review at GA" }
   - { id: KR-3, metric: "p95 celebrity-profile fetch latency", target: "< 200ms", measurement: "Synthetic, 28-day rolling" }
-actions: []                            # populated by agents
-keyResultRetrospective: { results: [] }
+actions: []
+keyResultRetrospective: { name: "Key Result Retrospective", description: "", results: [] }
 objectiveAlignment:
   platform_id: PLT-IMDB
-  affected_bar_ids: [APP-IMDB-001, APP-IMDB-002]
-  target_code_repos:                  # read from each bar's app.yaml.repos[]
-    - alicenn-ucdenver/imdb-lite
-    - alicenn-ucdenver/celeb-api      # (when added)
+  affected_bar_ids:
+    - APP-IMDB-002    # Celebs — primary, Restricted tier — drives the gate
+    - APP-IMDB-001    # IMDB Lite App — Supervised, consumes the new API
+  target_code_repos:
+    - <org>/celeb-api               # primary work — declared in APP-IMDB-002 app.yaml
+    - <org>/imdb-react-frontend     # consumer surface — declared in APP-IMDB-001
+  # Court Hierarchy — pre-seeded with workshop-relevant intent so the OKR
+  # is runnable immediately. Learners can edit these to match their org.
   intent_cascade:
-    org: ""
-    role: ""
-    developer: ""
-    user: ""
-valueLearning: { learnings: [] }
-downloads: { links: [] }
-governance:                            # OPTIONAL — overrides global defaults
+    org: "Grow IMDB monthly active users 15% YoY by enriching profile depth"
+    role: "Engineering Lead — maintain p95 < 250ms across platform endpoints; keep new APIs behind feature flags during ramp"
+    developer: "Ship the celeb-api endpoint with identity disambiguation; mount under /api/celebs/* in the React frontend"
+    user: "Browse celebrity filmographies and bios without flicker on mobile"
+valueLearning: { name: "Value & Learning", description: "Insights captured during execution.", learnings: [] }
+downloads: { name: "Downloads", description: "Supporting materials and references.", links: [] }
+governance:
+  # Effective gates are derived from the BAR tier (Restricted on APP-IMDB-002
+  # wins). These overrides are NOT used at seed time but the user can set
+  # them later to relax/tighten for this specific OKR (audit-logged).
   score_threshold: 75
-  max_auto_rounds: 2
+  max_auto_rounds: 0       # Restricted tier wins; auto-rounds disabled
   max_severity: MEDIUM
 ```
 
-### 8.2 End-to-end walkthrough — what the user sees
+**Why Celebs and not Lite.** A Supervised-tier OKR (Lite) would run cleanly through Phase A→B→C and never demonstrate the gate. The whole point of having the tier system is that some work gets stopped. Putting the seed on Celebs gives every learner a hands-on encounter with the Red Queen's Court in their first hour.
 
-| Step | Looking Glass surface | Mesh state |
+### 8.2 End-to-end walkthrough — what the user sees (v4 trigger model)
+
+This is the **canonical happy-and-blocked path** demonstrated in the workshop. Every step is from the OKR detail page in Looking Glass — no Oraculum, no settings, no shell.
+
+| Step | Looking Glass surface | Mesh / repo state |
 |---|---|---|
-| 1. Open IMDB-Lite platform, click "Create OKR" | New OKR draft, status=`draft`. User fills/edits objective + KRs. | `okrs/OKR-2026Q1-IMDB-001/okr.yaml` (seeded as above) |
-| 2. Click "Start Research" on the Why card | Creates `oraculum-research` issue, includes `okr_id` in body | Issue opened. archeologist.yml fires → posts data-collection comment. |
-| 3. Assign Copilot in Oraculum panel | Copilot reads issue + `knowledge-okr` Skill | market-research-agent works in a branch. |
-| 4. PR opens; reviewers fire | PR list shows scored reviews | `actions[0]` written to okr.yaml with `phase=why`, `rounds=1`, scores. |
-| 5. Reviewer scores pass → merge | OKR status → `prd-pending`; Why card flips to ✓ | Audit chain updated; `okrs/<id>/why/research-doc.md` lands. |
-| 6. Click "Generate PRD" on the How card | Creates `oraculum-prd` issue with okr_id | prd-agent fires; uses `knowledge-research` to read merged Phase 1 + `knowledge-mesh-*` + experts. |
-| 7. First review round flags 2 security gaps | `revision-required` label applied; agent revises | `actions[1].rounds = 2` |
-| 8. Round 2 passes | Merge gated by `governance-pass` label | `okrs/<id>/how/prd.md` lands; `manifest.yaml` has `target_repos`. |
-| 9. design-bus.yml fires per target repo | Opens landing issues in `alicenn-ucdenver/imdb-lite` + `alicenn-ucdenver/celeb-api` | Each issue carries `okr_id` + PRD reference. |
-| 10. User assigns Copilot on each landing issue | design-agent reads PRD + repo via knowledge Skills | Per-repo design.md PRs open. |
-| 11. After delivery, user opens OKR detail | "Mark complete" button → fills `keyResultRetrospective` + `valueLearning` | OKR status → `shipped` |
+| **1. Open Platforms → IMDB-Lite → OKRs tab** | Sample OKR `OKR-2026Q1-IMDB-001-celeb-api` is listed (status=`draft`). Tier badge: **⚠ Restricted** (read from APP-IMDB-002 score). | `okrs/OKR-…/okr.yaml` already exists (scaffolded). |
+| **2. Click the OKR → OKR detail page opens** | Three Action cards: Why ☐, How ☐ (gated on Why merged), What ☐ (gated on How merged + tier eligibility). `Start What` shows yellow chip: "Restricted — requires governance escalation". | none |
+| **3. Click `Start Why`** | Creates issue with `<!-- okr_id: OKR-…-celeb-api -->`; objective + KRs + intent_cascade + affected_bar_ids inlined for human readers. Adds labels `oraculum-research`, `okr-anchor`. Issue URL shown in a toast with "View on GitHub" + "Active Runs". | Issue opened in mesh repo. `okr-bus.yml` fires → assigns `@market-research-agent`. |
+| **4. Agent runs (no human action needed)** | Why card flips to ⏳ "Researching"; live event ticker shows skill calls (`tavily-search`, `arxiv-search`, etc.) | market-research-agent reads OKR via `knowledge-okr`, plans queries itself, invokes search Skills, writes `okrs/.../why/research-doc.md`, opens PR. |
+| **5. Reviewer agents fire on the PR** | PR list (in Active Runs) shows reviewer scores filling in. Both architect-reviewer and security-reviewer score ≥ threshold (research output is mesh-grounded; nothing in Celebs sparseness affects research quality). | `actions[0]` appended: `phase=why, rounds=1, scores={architect:85,security:88}, status=complete`. |
+| **6. PR merges (auto on Supervised-tier review path, since Why doesn't ship code)** | Why card flips to ✓ Complete. OKR status → `prd-pending`. How card enables `Start How`. | `okrs/.../why/research-doc.md` merged. Hatter Tag chain root recorded. |
+| **7. Click `Start How`** | Creates `oraculum-prd` issue; OKR context inlined; agent assigned via `okr-bus.yml`. | Issue opened. |
+| **8. PRD agent runs, opens PR** | How card flips to ⏳ "PRD synthesizing". Live events. | prd-agent reads research via `knowledge-research`, context via `context-architecture` + `context-security`, writes `okrs/.../how/prd.md`. |
+| **9. Reviewer agents fire — security-reviewer SCORES LOW** | How card flips to ⚠ "Revision Required". Scores: Architect 78 ✓ \| Security **42 ✗** (threshold 70). `MISSING` items shown inline: "No `threat-model.yaml` on APP-IMDB-002", "No NIST controls block", "No ADRs covering identity disambiguation". | `actions[1]` appended: `phase=how, rounds=0/0, status=blocked, scores={architect:78,security:42}`. |
+| **10. **Restricted gate engages** — agent does NOT auto-revise** | How card shows banner: **"Restricted tier — MAX_AUTO_ROUNDS=0. Choose: (A) Escalate APP-IMDB-002 governance, then re-run, or (B) Human Override (dual signature)."** | `revision-required` label NOT applied (it's only applied on Supervised/Autonomous tiers). PR stays open with reviewer comments. |
+| **11a. Learner chooses (A) Escalate.** Goes to Looking Glass → Platforms → IMDB-Lite → APP-IMDB-002. Adds threat model + 2 NIST controls + 1 ADR. Re-scores. | APP-IMDB-002 score jumps from 32 → 68 → tier promoted Restricted → Supervised. **Tier change recorded in audit.** Back on the OKR, the How card banner updates: "Tier upgraded — re-run available." | `bars/imdb-celebs/security/threat-model.yaml` created; ADR-NNN created; `app.yaml` controls block added; BAR score recomputed; tier change emitted as `state_transition` event. |
+| **11b. Alternatively, learner chooses (B) Override.** Modal: "Two signatures required. You: <user>. Approver: <input>." On confirmation, a `dual-signature-override.yaml` is committed under the OKR's `audit/` folder; the override + both signer DIDs are stamped on the next Hatter Tag. | `okrs/.../audit/dual-signature-override.yaml` created. | (audit-logged; tier remains Restricted but action is unblocked) |
+| **12. Re-click `Start How`** | New PRD run kicks off; carries new OKR context (and the new threat model). Reviewers re-score: Architect 84 ✓ \| Security 81 ✓. | `actions[2]` (or amends `actions[1].rounds`) — second pass passes. |
+| **13. How merges → OKR status → `design-pending`** | What card enables; `Start What` no longer yellow-chipped (BAR is now Supervised or override is on file). | `okrs/.../how/prd.md` merged. |
+| **14. Click `Start What`** | Fans out 2 issues — one in `<org>/celeb-api`, one in `<org>/imdb-react-frontend`. Each carries OKR context + PRD ref. | Two issues opened in the respective code repos. `design-bus.yml` assigns design-agent on each. |
+| **15. design-agent runs in each repo, opens PRs** | What card shows per-repo progress: `celeb-api` ⏳, `imdb-react-frontend` ⏳. | Per-repo design.md PRs opened. |
+| **16. Reviewer agents fire (reviewer-bus.yml — runs in mesh, reads PR contents via GitHub API)** | Each per-repo design gets scored. | Per-repo Hatter Tags. Parent intent thread links back to OKR. |
+| **17. Designs merge → OKR status → `building`** | What card flips to ✓. Code coding agents (out of scope of this design) implement against the merged designs. | Per-repo design merged. |
+| **18. After production delivery, learner returns to OKR** | "Mark complete" → fills `keyResultRetrospective` (actual KR values) + `valueLearning` (insights). Status → `shipped`. | OKR card closed; ready for audit. |
+| **19. Click `📦 Export Audit Report`** | Zip downloaded. Contains everything from §11.6 (Audit Report Export). | Audit report bundle generated. |
+
+**What the learner has just done.** They've experienced the full Why→How→What pipeline AND the Restricted-tier gate AND the governance-escalation loop AND audit export — in a single sitting. Every step is real (real PRs, real reviewers, real Hatter Tags, real chain). The IMDB-Lite + Celebs asymmetric seed is what makes that possible.
 
 ---
 
-## 9. Orchestration — label-driven workflows
+## 9. Orchestration — label-driven workflows (v4)
 
-Workflows we add/extend:
+The orchestration shifts from per-phase workflows (one per phase, each containing the LLM calls) to **bus workflows** (one per orchestration concern, each delegating LLM work to agents and Skills). This is the substrate that makes the v4 trigger model (§3.1) cleanly drive end-to-end runs without the user touching workflow YAML.
+
+**Active workflows in v4:**
 
 | Workflow | Trigger | Action |
 |---|---|---|
-| `archeologist.yml` (existing, **extended**) | `oraculum-research` label-add OR `@claude` on labeled issue | Run research-runner data collection; comment includes `okr_id` |
-| `oraculum-research.yml` (existing) | `@claude` on `oraculum-research` issue | Claude path for synthesis (Anthropic) |
-| **`reviewer-bus.yml`** (NEW) | Any PR with `research-synthesis` / `prd-draft` / `design-draft` label | Assigns architect-reviewer + security-reviewer agents in parallel; labels per state machine §6 |
-| **`okr-bus.yml`** (NEW) | PR merged with `governance-pass` | Updates `okrs/<id>/okr.yaml` actions[] + chain-ladder; flips status field; comments on OKR anchor issue |
-| **`design-bus.yml`** (NEW) | PRD PR merged | Fan-out: opens per-repo landing issues in `target_code_repos`, each with `oraculum-design` label + `okr_id` |
-| `notify-code-repos.yml` (existing) | Triggered by `design-bus.yml` | Posts landing issue per repo (already shipped) |
-| `label-on-merge.yml` (existing, **extended**) | PR merge | Adds `governance-pass` only when both reviewers have scored above threshold |
+| **`okr-bus.yml`** (NEW, Phase C) | Issue opened with `okr-anchor` label | Reads `okr_id` from issue body; resolves to OKR via `knowledge-okr` Skill; assigns the right agent (`market-research-agent` for `oraculum-research`, `prd-agent` for `oraculum-prd`); updates `okrs/<id>/okr.yaml` `actions[]` + `chain-ladder.yaml` on every state transition; flips OKR `status` field; posts status comments back to the anchor issue. |
+| **`reviewer-bus.yml`** (NEW, Phase C) | PR opened with `research-synthesis` / `prd-draft` / `design-draft` label | Fires architect-reviewer + security-reviewer agents **in parallel**; enforces **Tweedles** (reviewer DID ≠ author DID — checked before agent dispatch and again after review); applies labels per state machine §6; runs **White Rabbit's Pocket Watch** drift check against OKR.objective hash; runs **Caterpillar's Challenge** semantic-drift comparison vs prior phase. |
+| **`design-bus.yml`** (NEW, Phase C) | PR merged with `prd-draft` + `governance-pass` | Reads merged PRD's `target_code_repos[]` from manifest; opens one `oraculum-design` issue **in each target code repo** (not in the mesh) carrying OKR context + PRD ref + landing scope; assigns `design-agent` on each. |
+| `label-on-merge.yml` (retained, **extended**) | PR merge | Adds `governance-pass` only when both reviewers ≥ threshold AND tier allows; applies `revision-required` on Supervised/Autonomous up to MAX_AUTO_ROUNDS; emits `human-gate` label on round exhaustion. |
+| `oraculum-review.yml` (retained, **scope narrowed**) | `@claude` / `@copilot` on `oraculum-review` issue (code-repo architecture review) | Unchanged from v3 — but no longer the entry point for any OKR-anchored work. |
+
+**Deprecated (Phase B removal, audit-logged via Settings → Mesh Provisioning):**
+
+| Workflow | Replaced by |
+|---|---|
+| ~~`archeologist.yml`~~ | search Skills (`tavily-search`/`arxiv-search`/`uspto-search`/`hackernews-search`) invoked by `market-research-agent` |
+| ~~`oraculum-research.yml`~~ | `market-research-agent` + `okr-bus.yml` |
+| ~~`prd.yml`~~ | `prd-agent` + `okr-bus.yml` |
+| ~~`notify-code-repos.yml`~~ | `design-bus.yml` |
+
+**Why bus workflows.** Each bus has one concern (Tweedles + label state, or OKR-state update, or per-repo fan-out). Concerns compose; bus workflows can be reasoned about independently. The old per-phase workflows mixed LLM-call orchestration with state management, which made changing either side risky. The v4 design isolates them.
+
+**State machine reference**: see §6.1 (auto-rounds + HumanGate) and §6.2 (tier-aware bounds). The reviewer-bus enforces the tier cap; the label-on-merge writes the resulting label.
 
 ---
 
 ## 10. Looking Glass integration
 
-### 10.1 New surfaces
+The OKR screen is the **primary surface** for v4. Everything that used to be scattered across Oraculum + Active Runs + Settings now has a clear home, and there's exactly one place to "do work": the OKR detail page.
 
-- **Portfolio tile**: "OKRs" alongside Business / Applications / Policies.
-- **OKR list view**: table with Objective / Owner / Platform / Status / Phase Progress (Why ✓ / How ⏳ / What ☐) / Last Activity / Audit Chain root.
-- **OKR detail view**: BTABoK card rendered as a vertical stack:
-  - Overview / HowToUse (collapsible)
-  - Objective (editable header)
-  - Key Results table (editable, with progress sparklines once delivered)
-  - **Actions card** — three sub-cards (Why / How / What). Each shows:
-    - Phase status badge (Pending / In progress / GovPass / RevisionNeeded / HumanGate / Complete)
-    - "Start <phase>" button (gated on prior phase complete)
-    - For HumanGate: the three options (Approve / Re-run / Reject) inline
-    - Audit timeline (collapsible): every skill call, every review, hatter chain root
-  - Objective Alignment (platform + BARs + TASA goals)
-  - Key Result Retrospective (post-delivery editor)
-  - Value & Learning (notes editor)
-  - Downloads (auto-populated from action PRs/links)
+### 10.1 OKR list view
 
-### 10.2 Cleanups
+New top-level tile **"OKRs"** in the portfolio header, alongside Business / Applications / Policies / Settings.
 
-- **"Promote to research-request" in Oraculum** → replaced by **"Create OKR from finding"** which:
-  1. Pre-fills an OKR draft from the Oraculum finding
-  2. Lets the user pick platform/BARs
-  3. Opens the Phase 1 issue once user confirms
-- **Assign Agent screen** → the `@copilot` / `@claude` comment now embeds the OKR id (already substitutes run_id; add okr_id substitution from the same source).
-- **Active Runs panel** → group by OKR id, with phase context.
+Table columns: **Objective** · **Platform** · **Primary BAR (tier badge)** · **Status** · **Phase progress (Why ✓ / How ⏳ / What ☐)** · **Last activity** · **Chain root (short sha)** · **Actions** (`Open` / `Export Audit`).
 
-### 10.3 New services
+Status badges: `draft` · `researching` · `prd-pending` · `prd-blocked` · `design-pending` · `building` · `shipped` · `archived`. The `prd-blocked` state is new for v4 — it's how the Restricted-tier-gate surfaces in the list view.
+
+Filters: by platform · by status · by tier · by owner. Searchbox over objective text.
+
+### 10.2 OKR detail view — full mockup
+
+This is the screen the user spends 80% of their time on. Single scrolling page; three logical regions (header, actions, footer).
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ← Platforms / IMDB-Lite / OKRs                                                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 🎯 OKR-2026Q1-IMDB-001-celeb-api          [Status: How-Pending] [⚠ Restricted]│
+│                                                                                │
+│ Add celebrity profile API to IMDB-Lite                            [Edit] [⋮] │
+│ _Enable IMDB-Lite to surface enriched celebrity profile data without …_       │
+│                                                                                │
+│ ▾ Intent Cascade                                                              │
+│   Org       → Grow IMDB monthly active users 15% YoY                          │
+│   Role      → Engineering Lead — maintain p95 < 250ms                         │
+│   Developer → Add celebrity API; ship behind feature flag                     │
+│   User      → Browse celebrity profiles without flicker on mobile             │
+│                                                                                │
+│ ▾ Key Results                                                                  │
+│  ┌──┬──────────────────────────────────────────┬────────────┬──────────────┐  │
+│  │  │ KR-1  Identity-disambiguation false-merge│ Target<0.5%│  unmeasured  │  │
+│  │  │ KR-2  Licensing-compliance audit pass    │ Target 100%│  unmeasured  │  │
+│  │  │ KR-3  p95 celeb-profile fetch latency    │ Target<200ms│ unmeasured  │  │
+│  └──┴──────────────────────────────────────────┴────────────┴──────────────┘  │
+│                                                                                │
+│ ▾ Affected BARs                                                                │
+│   • APP-IMDB-002 (IMDB Celebs)    Score: 32   ⚠ Restricted    [Open BAR ↗]    │
+│   • APP-IMDB-001 (IMDB Lite App)  Score: 64    Supervised      [Open BAR ↗]   │
+│                                                                                │
+│ ▾ Target Code Repos                                                            │
+│   • <org>/celeb-api               [● Connected]      [Open ↗]                 │
+│   • <org>/imdb-react-frontend     [○ Declared]       [Connect…]               │
+│                                                                                │
+├── ACTIONS ─────────────────────────────────────────────────────────────────────┤
+│                                                                                │
+│ ╭─ Why (Research) ────────────── ✓ Complete · Rounds 1 · 2026-05-19 ────────╮ │
+│ │  Agent:     market-research-agent (did:gh:…/agent:market-research)         │ │
+│ │  Model:     claude-sonnet-4-6                                              │ │
+│ │  Prompt:    research/query-plan@v3 · research/synthesis@v2                 │ │
+│ │  PR:        #49 (merged 2026-05-19)                          [View PR ↗]   │ │
+│ │  Scores:    Architect 85 · Security 88                                     │ │
+│ │  Tier:      supervised (frozen at run start)                               │ │
+│ │  Hatter:    chain_root sha256:a8c2…f019    [View Tag ↗] [Verify Chain ↗]  │ │
+│ │  Artifact:  okrs/.../why/research-doc.md                     [Open ↗]      │ │
+│ │  ▸ Audit timeline (47 events)                                              │ │
+│ ╰────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                │
+│ ╭─ How (PRD) ───────────────── ⚠ Blocked · Rounds 1/0 · 2026-05-19 ────────╮ │
+│ │  Agent:     prd-agent                                                      │ │
+│ │  Model:     claude-sonnet-4-6                                              │ │
+│ │  Prompt:    prd/synthesis@v2 · prd/architecture-review@v2 · prd/security-…│ │
+│ │  PR:        #52 (open)                                       [View PR ↗]   │ │
+│ │  Scores:    Architect 78 ✓  ·  Security 42 ✗ (threshold 70)                │ │
+│ │  Tier:      restricted (MAX_AUTO_ROUNDS=0)                                 │ │
+│ │  Hatter:    chain_root sha256:b4ee…d301    [View Tag ↗] [Verify Chain ↗]  │ │
+│ │                                                                            │ │
+│ │  ▼ Reviewer findings (security)                                            │ │
+│ │   • MISSING: threat-model.yaml on APP-IMDB-002                             │ │
+│ │   • MISSING: NIST controls block (AC-6, AU-2, SC-13 expected)              │ │
+│ │   • MISSING: ADR for identity-disambiguation strategy                      │ │
+│ │                                                                            │ │
+│ │  ⛔ Restricted tier blocks auto-revision.                                  │ │
+│ │  Next:                                                                     │ │
+│ │   ● [Escalate APP-IMDB-002 governance] — open BAR detail to add artifacts │ │
+│ │   ● [Human Override — dual signature]                                     │ │
+│ │                                                                            │ │
+│ │  ▸ Audit timeline (62 events)                                              │ │
+│ ╰────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                │
+│ ╭─ What (Design) ────────────────────────────────── ☐ Blocked ──────────────╮ │
+│ │  Gated on:  How merged + tier eligibility                                  │ │
+│ │  Fan-out (one issue per target repo, opened in that repo):                 │ │
+│ │   • <org>/celeb-api               not started                              │ │
+│ │   • <org>/imdb-react-frontend     not started                              │ │
+│ │                                                                            │ │
+│ │  ⚠ Restricted tier — `Start What` disabled until either:                  │ │
+│ │     - APP-IMDB-002 score ≥ 50 (Supervised), OR                            │ │
+│ │     - Dual-signature override is recorded against this OKR                │ │
+│ ╰────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                │
+├── REVIEW ──────────────────────────────────────────────────────────────────────┤
+│ ▸ Value & Learning (post-delivery)                                            │
+│ ▸ Key Result Retrospective (post-delivery)                                    │
+│ ▸ Downloads (auto-populated)                                                  │
+│                                                                                │
+├── FOOTER ──────────────────────────────────────────────────────────────────────┤
+│ [📦 Export Audit Report]   [🔍 Verify Chain]   [⏸ Pause]   [📂 Open Mesh Folder]│
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why it's one screen, not tabs.** The OKR is a narrative — Why led to How led to What. Tabs would let the user open How without having looked at Why; the linear page enforces the reading order that matches the audit trail. The reviewer findings are inline (not behind a click) when a phase is blocked — Restricted-gate context shouldn't require a sub-navigation.
+
+### 10.3 Action card sub-states
+
+A single component renders all three Action cards. Its sub-state model:
+
+| Sub-state | Visual | When |
+|---|---|---|
+| `not-started` | ☐ gray title; primary button "Start <phase>" | No `actions[]` entry for this phase yet |
+| `gated` | ☐ gray title + reason chip ("Gated on Why merged" / "Restricted — escalate") | Prerequisite not met |
+| `in-progress` | ⏳ amber title + live event ticker (last 3 skill calls) | `actions[].status = in_progress` |
+| `under-review` | ⏳ amber title + "Reviewers running…" | PR open, reviewer-bus active |
+| `revision-required` | ⚠ orange title + reviewer findings + "Auto-revising (round 2/2)" | Supervised/Autonomous tier, score below threshold |
+| `blocked` | ⛔ red title + reviewer findings + escalation choices | Restricted tier OR auto-rounds exhausted |
+| `human-gate` | 🛑 red title + Approve / Re-run / Reject buttons | MAX_AUTO_ROUNDS reached on Supervised tier |
+| `complete` | ✓ green title + Hatter Tag chip + Audit timeline expandable | PR merged, action recorded |
+
+Sub-state is computed in `OKRService` from `actions[]` + PR merge state + BAR tier — never stored.
+
+### 10.4 Hatter's Tag UI surfacing
+
+Three places. **One source of truth** — the Hatter Tag YAML in the PR description / artifact frontmatter (mesh repo). Looking Glass renders it; never duplicates it.
+
+**(a) Compact in-card chip** on each completed Action card:
+
+```
+Hatter:    chain_root sha256:a8c2…f019    [View Tag ↗] [Verify Chain ↗]
+```
+
+**(b) Full sheet on "View Tag" click** — slides in from the right, modal width. Renders the Hatter's Tag schema (§11.1) with field grouping, DIDs masked except last 8 chars, click-to-copy.
+
+```
+┌─ Hatter's Tag — RES-2026-05-19-abc123 ──────────────────────────┐
+│ Intent Thread    7f3e9c2d-aaaa-bbbb-cccc-dddddddddddd  [copy]    │
+│ Parent           (none — root)                                   │
+│                                                                  │
+│ Author                                                           │
+│  DID            did:gh:installation:…/agent:market-research      │
+│  Model          claude-sonnet-4-6                                │
+│  Prompt SHA     sha256:a8c2…f019                                 │
+│  Prompt Pack    research/query-plan@v3 + research/synthesis@v2   │
+│                                                                  │
+│ Reviewers (Tweedles: reviewer DIDs ≠ author DID ✓)               │
+│  Architect      did:gh:installation:…/agent:architect-reviewer   │
+│                 score 85                                         │
+│  Security       did:gh:installation:…/agent:security-reviewer    │
+│                 score 88                                         │
+│                                                                  │
+│ Grounding                                                        │
+│  Threat model   platforms/imdb-lite/…/threat-model.yaml@7a3b9d   │
+│  CALM nodes     bar-imdb-api · shared-identity · celeb-db        │
+│  ADRs           ADR-007 · ADR-014                                │
+│  OWASP          A01 · A03                                        │
+│  STRIDE         THR-114 · THR-122                                │
+│                                                                  │
+│ Fitness                                                          │
+│  Cyclomatic max  9   (gate ≤ 10) ✓                               │
+│  Test coverage   84% (gate ≥ 80) ✓                               │
+│                                                                  │
+│ Governance Tier   supervised (frozen at run start)               │
+│                                                                  │
+│ Chain                                                            │
+│  Audit log     okrs/OKR-…/audit/events/RES-…jsonl  [Open]        │
+│  Root          sha256:a8c2…f019                                  │
+│  Events        47                                                │
+│  Signature     ed25519:…  ✓ verified  (Phase B+)                 │
+│                                                                  │
+│ Rationale                                                        │
+│ > Selected canonical-id approach (per ADR-007) over name-string  │
+│   matching because identity-disambiguation threats (THR-114)     │
+│   require deterministic linkage. CCPA opt-out (A01) covered via  │
+│   response-time gating.                                          │
+│                                                                  │
+│  [Open Audit JSONL]   [Verify Chain]   [Copy as YAML]            │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**(c) In the Audit Report Export** (§11.6) — verbatim YAML, one per phase, in the bundle.
+
+The `[Verify Chain]` button runs the `verify-chain` CLI (already exists in `research-runner`) against the JSONL — returns a green ✓ chip with event count + root match, or red ✗ with the first mismatch.
+
+### 10.5 Oraculum repositioned — code-repo architecture reviews only
+
+The Oraculum panel narrows scope. It now hosts **only `oraculum-review` issues** — architecture/security reviews of a code repo or a BAR. Everything OKR-anchored leaves Oraculum.
+
+**Removed in v4:**
+- "Promote to research-request" button → gone
+- Research-issue list/filter → gone (research lives on the OKR screen)
+- Kind-routing (`isResearch` vs `isReview` branch in `OracularPanel.onAssignAgent`) → simplified to review-only
+- The `oraculum-research.yml` workflow target → deprecated (see §10.6)
+
+**Replaced by:**
+- **"Create OKR from finding"** button. When a reviewer agent surfaces a finding worth a full OKR (e.g. "this BAR has no threat model"), the user clicks the finding and chooses "Create OKR." Looking Glass opens an OKR draft modal pre-filled with:
+  - Objective inferred from the finding
+  - Affected BARs = the BAR being reviewed
+  - Intent cascade fields blank (user fills)
+  - Pre-set platform_id from the BAR's parent
+- On confirm, an OKR is created in the mesh, and Looking Glass navigates to the OKR detail page. The user clicks `Start Why` from there.
+
+**Retained in Oraculum:**
+- Architecture review issues + AI-agent assignment (`@copilot` / `@claude`) for the actual review work
+- Active Runs panel (but now grouped by OKR or by review kind — not by raw run id)
+- Hub list view
+
+### 10.6 Settings page migration — "Mesh Provisioning"
+
+The current Settings panel deploys 6 workflows (`oraculum-review`, `oraculum-research`, `archeologist`, `prd`, `label-on-merge`, `notify-code-repos`). v4 reshapes this into **Mesh Provisioning** with three tabs.
+
+**Tab 1: Workflows** (reduced set; sunset notices on deprecated)
+
+| Workflow | Status | Action |
+|---|---|---|
+| `oraculum-review.yml` | ✓ Active — code-repo architecture reviews | Deploy / Redeploy |
+| `label-on-merge.yml` | ✓ Active — housekeeping | Deploy / Redeploy |
+| `okr-bus.yml` | ✦ New (Phase C) — OKR phase orchestration | Deploy |
+| `reviewer-bus.yml` | ✦ New (Phase C) — fires Tweedle reviewers in parallel | Deploy |
+| `design-bus.yml` | ✦ New (Phase C) — per-repo design fan-out | Deploy |
+| ~~`oraculum-research.yml`~~ | ⊘ Deprecated — replaced by market-research-agent + Skills | Remove (after Phase B verified) |
+| ~~`archeologist.yml`~~ | ⊘ Deprecated — same | Remove |
+| ~~`prd.yml`~~ | ⊘ Deprecated — replaced by prd-agent + okr-bus | Remove |
+| ~~`notify-code-repos.yml`~~ | ⊘ Deprecated — replaced by design-bus | Remove |
+
+The "Remove" action is **explicit and audit-logged** — the user must confirm, and a `state_transition: workflow_removed` event is appended to the mesh audit. Removed workflows can be re-deployed (rollback).
+
+**Tab 2: Agents** (Phase B+)
+
+Lists every `.github/agents/<name>.agent.md` file the mesh template ships. For each:
+- Name, description, status (deployed / not deployed / stale [version mismatch])
+- Deploy / Redeploy button (writes the agent file + PR description, doesn't auto-merge — user reviews)
+- "Open in editor" to inspect the system prompt
+
+Agents shipped in Phase B: `market-research-agent`, `prd-agent`, `design-agent`, `architect-reviewer`, `security-reviewer`.
+
+**Tab 3: Skills** (Phase B+)
+
+Lists every `.github/skills/<name>/` folder. For each:
+- Name, kind (search / knowledge / context / audit), status
+- Deploy / Redeploy button
+- "Open SKILL.md" to inspect
+
+Skills shipped in Phase B: as in §7.1–7.5.
+
+**Retained settings**: LLM model preference, research secrets (TAVILY_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY), prompt-pack refresh button. These move to a fourth tab **"Secrets & Models"** to keep the Provisioning tabs focused on deployable artifacts.
+
+### 10.7 New services
 
 - **`OKRService`** in `vscode-extension/src/services/OKRService.ts`:
-  - `readAll(meshPath)` → all OKR cards
-  - `read(meshPath, okrId)` → one card with chain ladder + computed status
-  - `create(meshPath, draft)` → seed new `okrs/<id>/` folder
+  - `readAll(meshPath)` → all OKR cards with computed status
+  - `read(meshPath, okrId)` → one card + chain ladder + computed sub-state per phase
+  - `create(meshPath, draft)` → seed new `okrs/<id>/` folder; emit `state_transition: okr_created` audit event
   - `appendAction(meshPath, okrId, action)` → audit-safe action append
   - `updateStatus(meshPath, okrId, newStatus)` → with audit event
-  - `targetCodeReposFor(meshPath, okrId)` → reads BARs' app.yaml.repos[] to derive
-- **`AgentDeploymentService`** extends `provisionWorkflow` to also seed `.github/agents/*.agent.md` and `.github/skills/<name>/`.
+  - `targetCodeReposFor(meshPath, okrId)` → reads `affected_bar_ids[].app.yaml.repos[]`
+  - `tierFor(meshPath, okrId)` → minimum tier across affected BARs (Restricted wins)
+  - `exportAuditReport(meshPath, okrId)` → see §11.6
+- **`AgentDeploymentService`** in `vscode-extension/src/services/AgentDeploymentService.ts`:
+  - `deployAgents(meshPath, extensionPath)` → write `.github/agents/*.agent.md`
+  - `deploySkills(meshPath, extensionPath)` → write `.github/skills/<name>/`
+  - `removeDeprecatedWorkflow(meshPath, name)` → audit-logged removal
+  - Replaces the old `provisionWorkflow` single-purpose method (which only knew about the legacy workflow list).
+- **`HatterTagService`** in `vscode-extension/src/services/HatterTagService.ts`:
+  - `read(meshPath, runId)` → parse Hatter Tag YAML from artifact frontmatter or PR description
+  - `verifyChain(meshPath, runId)` → invoke `verify-chain` CLI, return result for UI rendering
 
 ---
 
@@ -921,6 +1272,120 @@ At each phase boundary, a workflow step compares the hash of the OKR `objective`
 - Reviewer agent prose comments on the PR (those are on GitHub's side; we capture the SCORE in audit but not the comment body).
 - LLM model server logs (Anthropic / GH Models). We capture token counts + costs in audit, not the prompts/responses themselves.
 
+### 11.6 Audit Report Export — the single artifact that answers the auditor's question
+
+The `📦 Export Audit Report` button on the OKR detail page produces a **single zip bundle** that an auditor (internal, regulatory, or your own future self at 3 AM during an incident) can open standalone and reconstruct exactly how this OKR went from intent to code.
+
+**Why this matters.** The chain already lives in the mesh repo — Hatter Tags, JSONL, Pocket Watch hashes, signatures. But following it requires git clone, mesh literacy, JSONL tooling, and three browser tabs. An auditor will not do that. The Export bundles every relevant artifact into one zip with an index, normalized paths, and a traceability matrix that walks **KR → Research Finding → PRD FR/SR → Design element → Code PR → Hatter Tag chain root**.
+
+#### 11.6.1 Bundle structure
+
+```
+audit-report-OKR-2026Q1-IMDB-001-celeb-api-2026-05-19.zip
+├── README.md                              # human-readable index — start here
+├── okr-card.pdf                           # rendered BTABoK 9-section card
+├── okr-card.yaml                          # raw YAML at export time
+├── traceability.html                      # interactive matrix (KR → Finding → … → Code)
+├── traceability.csv                       # same data, machine-readable
+├── why/
+│   ├── research-doc.md                    # merged Phase 1 artifact
+│   ├── hatters-tag.yaml                   # full Hatter Tag (§11.1 schema)
+│   ├── audit-events.jsonl                 # CloudEvents — every skill call
+│   ├── chain-verification.txt             # verify-chain CLI output (PASS/FAIL + root)
+│   └── pr-49.html                         # snapshot of the merged PR (description + final diff)
+├── how/
+│   ├── prd.md
+│   ├── hatters-tag.yaml
+│   ├── reviewer-architect.md              # reviewer's structured-review output
+│   ├── reviewer-security.md
+│   ├── audit-events.jsonl
+│   ├── chain-verification.txt
+│   ├── pr-52.html
+│   └── tier-override.yaml                 # ONLY if dual-signature override was used
+├── what/
+│   ├── celeb-api/
+│   │   ├── design.md
+│   │   ├── hatters-tag.yaml
+│   │   ├── audit-events.jsonl
+│   │   ├── chain-verification.txt
+│   │   └── pr-link.txt                    # link to PR in the target code repo
+│   └── imdb-react-frontend/
+│       └── …
+├── chain-ladder.yaml                      # parent_intent_thread tree across all phases
+├── intent-thread.txt                      # uuid + summary list of all events under it
+├── pocket-watch.txt                       # White Rabbit goal-drift hashes per phase
+├── governance-tier-history.yaml           # tier at run start for each phase + any tier changes
+├── prompt-packs/                          # frozen copies of every prompt pack version cited
+│   ├── research-query-plan-v3.md
+│   ├── research-synthesis-v2.md
+│   ├── prd-synthesis-v2.md
+│   ├── prd-architecture-review-v2.md
+│   └── prd-security-review-v2.md
+├── threat-model-snapshots/                # threat-model.yaml at each phase's run start
+│   ├── why-threat-model.yaml
+│   ├── how-threat-model.yaml
+│   └── what-threat-model.yaml
+├── calm-snapshots/                        # CALM model state at each phase
+│   ├── why-bar-APP-IMDB-002.arch.json
+│   ├── how-bar-APP-IMDB-002.arch.json
+│   └── …
+└── checksums.txt                          # SHA256 of every file in the bundle
+```
+
+#### 11.6.2 The traceability matrix (`traceability.html` + `traceability.csv`)
+
+The matrix is the single most important artifact in the bundle. It answers the question "show me the thread from outcome to code" in one table.
+
+| KR | Research Finding (S-id) | PRD Requirement | Design Element | Code Repo | PR | Hatter Tag chain root |
+|---|---|---|---|---|---|---|
+| KR-1 (false-merge < 0.5%) | S3 (Identity disambiguation prior art — arXiv) | FR-2 (canonical-id entity resolver) + SR-1 (THR-114 mitigation) | celeb-api §3.2 entity-resolver | <org>/celeb-api | PR#14 | sha256:c2a7… |
+| KR-2 (licensing 100%) | S7 (CCPA compliance guidance — web) | SR-2 (response-time gated opt-out, A01) | celeb-api §4.1 opt-out middleware | <org>/celeb-api | PR#14 | sha256:c2a7… |
+| KR-3 (p95 < 200ms) | S11 (caching benchmarks — HN) | NFR-3 (caching strategy) | celeb-api §5.2 cache layer + imdb-react-frontend §2.3 SWR | <org>/celeb-api · <org>/imdb-react-frontend | PR#14 · PR#7 | sha256:c2a7… · sha256:f8e1… |
+
+**How the matrix is generated.** `OKRService.exportAuditReport()`:
+1. Reads merged Phase 1 artifact, extracts `S[N]` citations and the section each belongs to.
+2. Reads merged Phase 2 artifact, extracts `FR-NN` / `SR-NN` / `NFR-NN` entries and their `R[N]` / `E[N]` back-references.
+3. Reads each merged Phase 3 design.md, extracts design-element headings and their PRD-requirement references.
+4. Cross-joins by KR (read from the OKR card's `keyResults[]` + the `linked_krs` frontmatter on each FR/SR).
+5. Emits CSV + interactive HTML (sortable, filterable, deep-linked back to GitHub PR + raw artifact paths).
+
+**Where the back-links come from.** Each PRD requirement carries `linked_krs: [KR-1, KR-2]` frontmatter; each design element carries `addresses: [FR-2, SR-1]`. These are mandated by the prompt packs (§7.0.5 — `prd/synthesis.md` requires bidirectional traceability). If a requirement has no `linked_krs`, the export still emits a row but flags it `⚠ UNLINKED` so an auditor sees the gap rather than the row being silently dropped.
+
+#### 11.6.3 README.md inside the bundle
+
+Auto-generated. Structure:
+
+1. **OKR identity** — id, objective, KR list, owner, dates, final status
+2. **Auditor's master question** — quoted verbatim, with pointer-list to where each sub-answer lives
+3. **Chain integrity** — pass/fail summary for every phase's `verify-chain` run, with the chain root SHAs
+4. **Governance tier story** — tier at start, any escalations / overrides, final tier
+5. **Tweedles check** — confirmation that every reviewer DID ≠ author DID across all phases
+6. **Goal-drift (Pocket Watch)** — hash of objective at start vs at end, drift percentage
+7. **Prompt-pack versions** — every pack cited, with frozen copies in `prompt-packs/`
+8. **Index** — table of all files in the bundle with one-line descriptions
+
+#### 11.6.4 Generation pipeline
+
+`OKRService.exportAuditReport(meshPath, okrId)`:
+
+1. **Lock the source state** — record the mesh `HEAD` SHA at export time; bundle's filename includes the short SHA.
+2. **Walk `actions[]`** — for each phase, locate the merged artifact + Hatter Tag + audit JSONL + PR snapshot (via `gh pr view`).
+3. **Snapshot grounding artifacts** — for each phase, copy the threat model + CALM model **as of that phase's run start** (read from Hatter Tag's `threat_model_ref` SHA pointer).
+4. **Snapshot prompt packs** — for each unique pack version cited in any Hatter Tag, copy the frozen pack file.
+5. **Run verify-chain** for each phase; capture output.
+6. **Compute traceability matrix** — described above.
+7. **Render README.md + okr-card.pdf** (markdown → PDF via `puppeteer`).
+8. **Compute SHA256 of every file** → `checksums.txt`.
+9. **Zip**, write to user-chosen path (default: `~/Downloads/audit-report-<okr-id>-<date>.zip`).
+
+The export is **deterministic** — same OKR + same mesh state produces a byte-identical bundle. This is important for audit comparisons over time ("did the export change since we last reviewed?").
+
+#### 11.6.5 What the export does NOT include
+
+- The actual production code that ships from the merged designs. The bundle stops at the design.md merge — that's the handoff point to the code-repo coding agents (out of scope of this design). The audit report says "here's what was authorized for build"; what was built is verified by the code repo's own audit pipeline.
+- Reviewer prose comments (same reason as §11.5 — they're on GitHub's side, not durable in the mesh).
+- LLM provider request/response bodies. Token counts + costs only.
+
 ---
 
 ## 12. Workshop alignment
@@ -984,50 +1449,94 @@ That sequence is the workshop's narrative arc, end to end, with full agentic SDL
 
 ---
 
-## 13. Phased implementation plan
+## 13. Phased implementation plan (with tracking)
 
-### Phase A — Foundation (2 weeks)
+**Legend**: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` blocked · `[s]` skipped/superseded.
 
-1. `OKRService` + `okr.yaml` schema + Zod type
-2. OKR tile, list view, detail view (BTABoK card render, no buttons yet)
-3. Hatter Tag schema extension (`parent_run_id` field)
-4. Audit event schema extension (`phase`, `okr_id`, `parent_run_id`)
-5. `scaffoldImdbLiteOkr()` seeds the sample OKR alongside the platform
-6. Cleanup: "Promote to research-request" → "Create OKR from finding"
-7. Cleanup: Active Runs panel groups by OKR
+This section is the live truth-source for "what's done." Update inline as work lands. Last reviewed 2026-05-19.
 
-### Phase B — Custom Agents + Skills (3 weeks)
+### Phase A — Foundation (target: 2 weeks)
 
-1. Deploy `.github/agents/*.agent.md` for: `market-research-agent`, `prd-agent`, `design-agent`, `architect-reviewer`, `security-reviewer`
-2. Deploy `market-data-collection` Skill (wraps research-runner CLI)
-3. Deploy search Skills: `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`
-4. Deploy knowledge Skills: `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`
-5. Deploy expert Skills: `architect-expert`, `security-expert`
-6. Deploy `audit-emit-event` Skill
-7. `AgentDeploymentService` (extends provisionWorkflow)
-8. Looking Glass: wire "Start Research" / "Generate PRD" / "Generate Design" buttons
+OKR scaffolding lands. Looking Glass shows OKRs but the buttons don't yet trigger pipelines (those come in B+C). The sample OKR is seeded; learners can read it but not run it through agents yet.
 
-### Phase C — Reviewer recycle loop + orchestration (2 weeks)
+- [ ] **A1.** `okr.yaml` schema + Zod type (`vscode-extension/src/types/okr.ts`) — incl. `intent_cascade`, IntentSpec frontmatter, `governance` overrides block
+- [ ] **A2.** `OKRService` (`src/services/OKRService.ts`) — `readAll`, `read`, `create`, `appendAction`, `updateStatus`, `targetCodeReposFor`, `tierFor`
+- [ ] **A3.** OKR list view (`src/webview/app/views/okrList.ts`) + tile on portfolio header
+- [ ] **A4.** OKR detail view (`src/webview/app/views/okrDetail.ts`) — full mockup per §10.2; buttons render as disabled in Phase A
+- [ ] **A5.** `scaffoldImdbLiteOkr()` seeds the Celebs-anchored sample OKR (§8.1) — runs from `scaffoldImdbLitePlatform()` when invoked
+- [ ] **A6.** Extend `scaffoldImdbLitePlatform()` to populate `bar.app.yaml.repos[]` with workshop repo names (declared, not connected)
+- [ ] **A7.** Hatter Tag schema extension — `intent_thread_uuid` replaces `parent_run_id` (rename in `packages/research-runner/src/runner/hatters-tag-builder.ts`); add `governance_tier`, `author_did`, `reviewer_dids[]`, `prompt_pack_version` fields
+- [ ] **A8.** Audit event schema extension — add `phase`, `okr_id`, `intent_thread_uuid` to `packages/research-runner/src/runner/audit-emitter.ts`
+- [ ] **A9.** Cleanup: remove "Promote to research-request" from OracularPanel; add stubbed "Create OKR from finding" button (full flow lands in B)
+- [ ] **A10.** Cleanup: Active Runs panel groups by OKR id (degrades gracefully for legacy runs without okr_id)
+- [ ] **A11.** Workshop curriculum touchpoints doc (`docs/workshop/agentic-sdlc-touchpoints.md`) — which workshop Part produces which mesh artifact
 
-1. `reviewer-bus.yml` workflow (fires reviewers in parallel)
-2. State-machine label logic in `label-on-merge.yml` (apply `governance-pass` only when both pass)
-3. `okr-bus.yml` workflow (updates okr.yaml on each phase merge)
-4. `design-bus.yml` workflow (fan-out per repo)
-5. Bounded recycle loop wiring (round counter + HumanGate transitions)
-6. Looking Glass: HumanGate UI (Approve / Re-run / Reject buttons)
+### Phase B — Custom Agents + Skills (target: 3 weeks)
 
-### Phase D — Design agent + reviser loop (3 weeks)
+Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tier. Restricted-tier gating works (manual escalation; auto-revise loop is Phase C).
 
-1. `design-agent` operating on per-repo issues
-2. `knowledge-reference-repos` Skill (clone + index)
-3. Reviser loop: agent ↔ reviewers on per-repo design PRs
-4. Hatter chain ladder visualization in Looking Glass
+- [ ] **B1.** Deploy `.github/agents/*.agent.md` for: `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` (design-agent in D)
+- [ ] **B2.** Deploy search Skills (PURE data, no LLM): `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`
+- [ ] **B3.** Deploy `dedupe-and-rank` Skill (PURE)
+- [ ] **B4.** Deploy knowledge Skills: `knowledge-okr`, `knowledge-mesh-bar`, `knowledge-mesh-platform`, `knowledge-mesh-threats`, `knowledge-mesh-adrs`, `knowledge-research`, `knowledge-prd`, `knowledge-code`
+- [ ] **B5.** Deploy context Skills: `context-architecture`, `context-security`, `context-quality` (pure mesh aggregators; agent applies persona)
+- [ ] **B6.** Deploy `audit-emit-event` Skill (wraps audit-emitter.ts for agent use)
+- [ ] **B7.** Deploy `format-research-issue-update` Skill (PURE markdown formatter)
+- [ ] **B8.** `AgentDeploymentService` (`src/services/AgentDeploymentService.ts`) — replaces single-purpose `provisionWorkflow`; deploys agents + skills + retained workflows
+- [ ] **B9.** Settings page → "Mesh Provisioning" with three tabs (§10.6); deprecation notices on sunset workflows
+- [ ] **B10.** Looking Glass: wire `Start Why` / `Start How` buttons on OKR detail (issue creation with okr_id label/comment); `Start What` lands in C alongside design-bus
+- [ ] **B11.** Tier-detection wiring — `OKRService.tierFor()` reads BAR scores, drives button state on OKR detail
+- [ ] **B12.** `HatterTagService` (`src/services/HatterTagService.ts`) — parse + verify-chain CLI invocation
+- [ ] **B13.** Hatter Tag UI sheet (§10.4(b)) — slides in from OKR detail Action card
+- [ ] **B14.** Court Recorder CloudEvents v1.0 emitter (`packages/research-runner/src/runner/court-recorder.ts`)
+- [ ] **B15.** Queen's Keyring — short-lived GitHub App installation tokens scoped to OKR + repo set
+- [ ] **B16.** Knight's Seal — Ed25519 signing of Hatter Tags (Phase B+ stretch; can slip to C)
 
-### Phase E — Hardening (1 week)
+### Phase C — Orchestration + bounded recycle (target: 2 weeks)
 
-1. End-to-end smoke test against IMDB-Lite sample OKR (the worked example in §8)
-2. `verify-chain` CLI in Looking Glass
-3. Documentation pack for the team
+Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. Restricted tier still blocks (which is the point).
+
+- [ ] **C1.** `okr-bus.yml` workflow — listens for `okr-anchor` labeled issues; assigns the right agent based on `oraculum-research` / `oraculum-prd` label; updates `okr.yaml.actions[]` on each phase transition
+- [ ] **C2.** `reviewer-bus.yml` workflow — fires architect-reviewer + security-reviewer in parallel on PR open; enforces Tweedles (reviewer DID ≠ author DID); writes scores to PR description in parseable format
+- [ ] **C3.** `design-bus.yml` workflow — fans out per `target_code_repos[]`; opens issue in each target repo with OKR context inlined
+- [ ] **C4.** State machine in `label-on-merge.yml` — `governance-pass` only when both reviewer scores ≥ threshold AND tier allows; `revision-required` applied on Supervised/Autonomous tiers up to MAX_AUTO_ROUNDS
+- [ ] **C5.** Round counter + HumanGate transitions wired into `okr-bus.yml`
+- [ ] **C6.** HumanGate UI on OKR detail (Approve / Re-run / Reject buttons; dual-signature override modal)
+- [ ] **C7.** White Rabbit's Pocket Watch goal-drift gate — workflow step that hashes OKR.objective at phase start vs PR scope at merge; blocks merge on drift > threshold
+- [ ] **C8.** Caterpillar's Challenge — semantic-drift comparison hook in `reviewer-bus.yml` (research → PRD → design → code)
+- [ ] **C9.** `Start What` button (depends on design-bus.yml; Restricted-tier disabled state per §10.2)
+
+### Phase D — Design agent + per-repo reviser loop (target: 3 weeks)
+
+Design fan-out works end-to-end. Per-repo Hatter Tags chain back to parent OKR via `intent_thread_uuid`.
+
+- [ ] **D1.** `design-agent.agent.md` operating on per-repo issues
+- [ ] **D2.** `knowledge-reference-repos` Skill — clones + indexes curated reference repos from mesh `reference-repos/` dir
+- [ ] **D3.** Reviser loop wired into per-repo design PR flow (reviewer-bus.yml runs on the code repo as well, not just the mesh)
+- [ ] **D4.** Hatter chain ladder visualization on OKR detail — collapsible tree showing parent intent thread → child threads per phase
+
+### Phase E — Audit Report Export + hardening (target: 1 week)
+
+The auditor's master question is answerable in one click.
+
+- [ ] **E1.** `OKRService.exportAuditReport()` — generates the bundle described in §11.6
+- [ ] **E2.** `verify-chain` CLI surface in Looking Glass — runs against any phase or full OKR; result chip on Hatter Tag UI
+- [ ] **E3.** `traceability.html` interactive matrix renderer (KR → Finding → FR/SR → Design → Code)
+- [ ] **E4.** End-to-end smoke test against the IMDB-Lite sample OKR — Autonomous path on Lite, Restricted-blocked path on Celebs (proves both directions work)
+- [ ] **E5.** Documentation pack for the team — reading order, audit-report walkthrough, troubleshooting
+
+### Phase tracking checklist for v4 doc itself
+
+- [x] **v4.0** Trigger model rewrite (§3.1, §3.2) — OKR-driven; Promote removed
+- [x] **v4.1** Skills inventory grounded in real prompt files (§7.0.5)
+- [x] **v4.2** First sample OKR reseats on Celebs (§8.1, §8.2)
+- [x] **v4.3** OKR screen mockup + sub-states (§10.2, §10.3)
+- [x] **v4.4** Hatter Tag UI surfacing (§10.4)
+- [x] **v4.5** Oraculum repositioning (§10.5)
+- [x] **v4.6** Settings page → Mesh Provisioning (§10.6)
+- [x] **v4.7** Audit Report Export (§11.6)
+- [x] **v4.8** Phase tracking inline (this section)
+- [x] **v4.9** Deliverables map with status column (§15)
 
 ---
 
@@ -1037,7 +1546,7 @@ That sequence is the workshop's narrative arc, end to end, with full agentic SDL
 
 - **Skill auto-discovery vs explicit invocation**: docs say agents "can also discover and invoke skills automatically." If the LLM forgets to call context Skills, PRDs land ungrounded. Mitigation: the parent agent's system prompt enumerates required Skills with **exact invocation order**.
 - **Skill timeout & budget**: not yet known; we model Skills as best-effort with `{ ok: false, reason }` fallback contracts.
-- **Cross-repo agent execution**: design-agent must operate IN the code repo. `notify-code-repos.yml` already handles posting the landing issue with the right context.
+- **Cross-repo agent execution**: design-agent must operate IN the code repo. `design-bus.yml` (Phase C) opens the landing issue in each target repo with OKR context inlined; the design-agent then runs in that repo's context. Authentication scope is the per-task `Queen's Keyring` token.
 - **No nested LLM calls**: by design. All reasoning is in the parent agent's context. Skills are pure data. This kills two birds: no GH-Models 429s on inner calls, and no cost surface multiplication.
 
 ### 14.2 NCMS adaptation
@@ -1087,52 +1596,76 @@ That sequence is the workshop's narrative arc, end to end, with full agentic SDL
 
 ## 15. Deliverables map
 
-| Deliverable | Location | Phase |
-|---|---|---|
-| `okr.yaml` schema + Zod type (incl. `intent_cascade`, `intent_thread_uuid`, IntentSpec frontmatter) | `vscode-extension/src/types/okr.ts` | A |
-| OKRService | `vscode-extension/src/services/OKRService.ts` | A |
-| `scaffoldImdbLiteOkr` (seeds objective + Org/Role/Developer/User cascade) | `vscode-extension/src/services/MeshService.ts` (extend) | A |
-| OKR tile / list / detail views | `vscode-extension/src/webview/app/views/okr*.ts` | A |
-| `bar.app.yaml.repos[]` seeding with 4 workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`) — declared, not connected | `vscode-extension/src/services/MeshService.ts` (extend `scaffoldImdbLitePlatform`) | A |
-| Asymmetric CALM seed: rich `app-imdb-lite.arch.json` (8 nodes, 5 NIST controls, threats) vs sparse `app-imdb-celebs.arch.json` (6 nodes, no controls/threats) → drives Autonomous-vs-Restricted tier example | `vscode-extension/src/templates/mesh/calmTemplates.ts` | A (already shipped — extend with threat-model + controls blocks on imdb-lite) |
-| **Connect Repo** button for declared-but-not-connected `repos[]` entries (workshop manual connection step) | BAR detail view | A |
-| **Intent Thread UUID** generator + stamping on every Hatter's Tag | `packages/research-runner/src/runner/hatters-tag-builder.ts` (rename `parent_run_id` → `intent_thread_uuid`/`parent_intent_thread`) | A |
-| Hatter's Tag full schema: `intent_thread_uuid`, `author_did`, `author_prompt_pack_version`, `reviewer_dids[]`, `threat_model_ref`, `calm_nodes_referenced[]`, `owasp_categories[]`, `stride_threats[]`, `fitness_results`, `reviewer_scores`, `governance_tier`, `chain_root_hash` | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A → B (signature: B+) |
-| Audit event schema (phase, okr_id, intent_thread_uuid) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
-| **Court Recorder** CloudEvents v1.0 envelope emitter (SIEM-compatible JSONL, hash-chained, append-only) | `packages/research-runner/src/runner/court-recorder.ts` (new) | B |
-| **Tier-detection logic** — read BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → stamp on Hatter's Tag and gate `MAX_AUTO_ROUNDS` | `vscode-extension/src/services/BarService.ts` + agent workflow gates | B |
-| **White Rabbit's Pocket Watch** goal-drift gate — hash OKR.objective at phase boundaries; compare PR scope against initial objective; block merge if drift > threshold | mesh template (workflow) + `verify-chain` CLI | C |
-| **Caterpillar's Challenge** — explicit semantic-drift comparison step between phase artifacts (research → PRD → design → code) | mesh template (reviewer-bus.yml hook) | C |
-| **Knight's Seal** — Ed25519 commit signing with agent DID; verification step in `verify-chain` | `packages/research-runner/src/runner/knights-seal.ts` (new) + GitHub App key mgmt | B+ |
-| **Queen's Keyring** — short-lived per-task GitHub App installation tokens (scope: this OKR + repo set) | AgentDeploymentService + GitHub App config | B |
-| Cleanup: Promote → Create OKR | `vscode-extension/src/webview/OracularPanel.ts` | A |
-| Cleanup: Active Runs by OKR | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
-| `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data — no LLM inside) | mesh template | B |
-| `dedupe-and-rank` Skill | mesh template | B |
-| `format-research-issue-update` Skill | mesh template | B |
-| `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos` Skills | mesh template | B (D) |
-| `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) | mesh template | B |
-| `audit-emit-event` Skill (wraps Court Recorder for agent use) | mesh template | B |
-| `market-research-agent`, `prd-agent`, `design-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement: reviewer DID ≠ author DID check in workflow) | mesh template | B (D) |
-| AgentDeploymentService | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
-| `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
-| State-machine logic in `label-on-merge.yml` | mesh template | C |
-| HumanGate UI (Approve / Re-run / Reject) — surfaces drift score from Pocket Watch + reviewer scores | OKR detail view | C |
-| `design-agent` + reference-repos | mesh template + service | D |
-| `verify-chain` CLI surface (validates hash chain, signature chain, intent thread continuity, tier compliance) | Looking Glass action + research-runner CLI | E |
-| **Workshop curriculum touchpoints** map (which mesh artifact each workshop Part produces) | `docs/workshop/agentic-sdlc-touchpoints.md` (new) | A |
-| End-to-end smoke (IMDB Lite OKR — Autonomous path on lite, Restricted path on celebs) | docs/test | E |
+Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` blocked · `[s]` superseded.
+
+| Status | Deliverable | Location | Phase |
+|---|---|---|---|
+| `[ ]` | `okr.yaml` schema + Zod type (incl. `intent_cascade`, `intent_thread_uuid`, IntentSpec frontmatter, `governance` overrides) | `vscode-extension/src/types/okr.ts` | A |
+| `[ ]` | OKRService (`readAll`, `read`, `create`, `appendAction`, `updateStatus`, `targetCodeReposFor`, `tierFor`, `exportAuditReport`) | `vscode-extension/src/services/OKRService.ts` | A → E |
+| `[ ]` | `scaffoldImdbLiteOkr` — seeds **Celebs-anchored** sample OKR (§8.1) with pre-filled intent_cascade | `vscode-extension/src/services/MeshService.ts` (extend) | A |
+| `[ ]` | OKR list view (table + tier badges + status filter) | `vscode-extension/src/webview/app/views/okrList.ts` | A |
+| `[ ]` | OKR detail view — full mockup per §10.2 (header, KRs, BARs, Action cards, footer) | `vscode-extension/src/webview/app/views/okrDetail.ts` | A → C |
+| `[ ]` | OKR portfolio tile | `vscode-extension/src/webview/app/portfolio.ts` (extend) | A |
+| `[ ]` | `bar.app.yaml.repos[]` seeding with 4 workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`) — declared, not connected | `vscode-extension/src/services/MeshService.ts` (extend `scaffoldImdbLitePlatform`) | A |
+| `[~]` | Asymmetric CALM seed: rich `app-imdb-lite.arch.json` (8 nodes, 5 NIST controls, threats) vs sparse `app-imdb-celebs.arch.json` (6 nodes, no controls/threats) | `vscode-extension/src/templates/mesh/calmTemplates.ts` | A (extend imdb-lite with threat-model + controls blocks) |
+| `[ ]` | **Connect Repo** button + flow for declared-but-not-connected `repos[]` entries | BAR detail view | A |
+| `[ ]` | **Intent Thread UUID** generator + stamping on every Hatter's Tag (rename `parent_run_id` → `intent_thread_uuid`/`parent_intent_thread`) | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A |
+| `[ ]` | Hatter's Tag full schema: `intent_thread_uuid`, `author_did`, `author_prompt_pack_version`, `reviewer_dids[]`, `threat_model_ref`, `calm_nodes_referenced[]`, `owasp_categories[]`, `stride_threats[]`, `fitness_results`, `reviewer_scores`, `governance_tier`, `chain_root_hash` | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A → B (signature: B+) |
+| `[ ]` | Audit event schema (phase, okr_id, intent_thread_uuid) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
+| `[ ]` | **Court Recorder** CloudEvents v1.0 envelope emitter (SIEM-compatible JSONL, hash-chained, append-only) | `packages/research-runner/src/runner/court-recorder.ts` (new) | B |
+| `[ ]` | **Tier-detection logic** — `OKRService.tierFor()` reads BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → drive UI gates + Hatter's Tag stamp | `vscode-extension/src/services/OKRService.ts` + BarService | B |
+| `[ ]` | **White Rabbit's Pocket Watch** goal-drift gate — hash OKR.objective at phase boundaries; block merge if drift > threshold | mesh template (workflow) + `verify-chain` CLI | C |
+| `[ ]` | **Caterpillar's Challenge** — explicit semantic-drift comparison step between phase artifacts | mesh template (reviewer-bus.yml hook) | C |
+| `[ ]` | **Knight's Seal** — Ed25519 commit signing with agent DID; verification step in `verify-chain` | `packages/research-runner/src/runner/knights-seal.ts` (new) + GitHub App key mgmt | B+ |
+| `[ ]` | **Queen's Keyring** — short-lived per-task GitHub App installation tokens (scope: this OKR + repo set) | AgentDeploymentService + GitHub App config | B |
+| `[ ]` | **HatterTagService** — parse, render-for-UI, invoke verify-chain CLI | `vscode-extension/src/services/HatterTagService.ts` | B |
+| `[ ]` | **Hatter Tag UI sheet** (full-schema view from Action card `View Tag` button) | `vscode-extension/src/webview/app/views/hatterTagSheet.ts` | B |
+| `[ ]` | **Audit Report Export** generator (zip bundle: PDF + traceability HTML + per-phase artifacts + Hatter Tags + JSONL + verify-chain + prompt-pack snapshots + checksums) | `OKRService.exportAuditReport()` | E |
+| `[ ]` | **Traceability matrix renderer** (KR → Finding → FR/SR → Design → Code; HTML + CSV) | `vscode-extension/src/webview/app/exports/traceability.ts` | E |
+| `[ ]` | Remove "Promote to research-request" from OracularPanel | `vscode-extension/src/webview/OracularPanel.ts` | A |
+| `[ ]` | "Create OKR from finding" button + draft modal | OracularPanel | A (stub) → B (full flow) |
+| `[ ]` | Active Runs panel grouped by OKR id | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
+| `[ ]` | **Settings → Mesh Provisioning** with 3 tabs (Workflows / Agents / Skills) + retained "Secrets & Models" tab | `vscode-extension/src/webview/SettingsPanel.ts` (rename / extend) | B |
+| `[ ]` | Deprecation removal flow (audit-logged) for `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` | AgentDeploymentService.removeDeprecatedWorkflow | B (after Phase B verified end-to-end) |
+| `[ ]` | `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data — no LLM inside) | mesh template | B |
+| `[ ]` | `dedupe-and-rank` Skill | mesh template | B |
+| `[ ]` | `format-research-issue-update` Skill | mesh template | B |
+| `[ ]` | `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos` Skills | mesh template | B (reference-repos in D) |
+| `[ ]` | `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) | mesh template | B |
+| `[ ]` | `audit-emit-event` Skill (wraps Court Recorder for agent use) | mesh template | B |
+| `[ ]` | `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement) | mesh template | B |
+| `[ ]` | `design-agent` `.agent.md` | mesh template | D |
+| `[ ]` | AgentDeploymentService — deploys agents + skills + retained workflows | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
+| `[ ]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
+| `[ ]` | State-machine logic in `label-on-merge.yml` (round counter + tier-aware) | mesh template | C |
+| `[ ]` | HumanGate UI (Approve / Re-run / Reject + dual-signature override modal) | OKR detail view | C |
+| `[ ]` | `Start Why` button (OKR detail) | OKR detail view | B |
+| `[ ]` | `Start How` button | OKR detail view | B |
+| `[ ]` | `Start What` button + per-repo fan-out | OKR detail view + design-bus.yml | C |
+| `[ ]` | `knowledge-reference-repos` Skill (clones + indexes curated reference repos) | mesh template | D |
+| `[ ]` | Per-repo design reviser loop (reviewer-bus.yml runs on code repo PRs) | mesh template | D |
+| `[ ]` | Hatter chain ladder tree visualization on OKR detail | OKR detail view | D |
+| `[ ]` | `verify-chain` CLI surface in Looking Glass (validates hash chain, signature chain, intent thread continuity, tier compliance) | Looking Glass action + research-runner CLI | E |
+| `[ ]` | End-to-end smoke (IMDB Lite OKR — Supervised path on Lite, Restricted-blocked path on Celebs) | docs/test | E |
+| `[ ]` | **Workshop curriculum touchpoints** map (which mesh artifact each workshop Part produces) | `docs/workshop/agentic-sdlc-touchpoints.md` (new) | A |
+| `[s]` | ~~`oraculum-research.yml` workflow~~ | mesh template | superseded by Phase B agent path |
+| `[s]` | ~~`archeologist.yml` workflow~~ | mesh template | superseded by search Skills + `market-research-agent` |
+| `[s]` | ~~`prd.yml` workflow~~ | mesh template | superseded by prd-agent + okr-bus.yml |
+| `[s]` | ~~`notify-code-repos.yml` workflow~~ | mesh template | superseded by design-bus.yml |
 
 ---
 
 ## 16. What this is NOT
 
-- Not a full re-architecture of `research-runner` — it stays as the implementation. The Skill is its agent-facing interface.
-- Not a custom MCP server — uses built-in Copilot primitives. (redqueen-mcp keeps its existing scope: editor-side queries.)
-- Not human-out-of-the-loop. Every phase still produces a PR for human merge. Reviewers assist; they don't replace.
-- Not vendor-locked. Anthropic remains the fallback for research-runner LLM calls (synth is done by Copilot Coding Agent regardless).
-- Not "every OKR uses every agent." Smaller scopes can stop at Phase 1 or 2; the schema tolerates partial completion.
+- **Not a full re-architecture of `research-runner`** — `audit-emitter.ts`, `hatters-tag-builder.ts`, and the search clients stay as the implementation. Skills are the agent-facing interface (PURE wrappers); the runner keeps its legacy CI-only path until Phase B is verified.
+- **Not a custom MCP server** — uses built-in Copilot primitives (`.agent.md` + Skills). `redqueen-mcp` keeps its existing editor-side query scope.
+- **Not human-out-of-the-loop.** Every phase produces a PR for human merge. Reviewers assist; they don't replace. Even on Autonomous tier, branch protection still requires a human merge action — the automation only enables the merge button.
+- **Not vendor-locked.** Anthropic remains the fallback for research-runner LLM calls (synth is done by Copilot Coding Agent regardless). The `.agent.md` files don't specify a provider.
+- **Not "every OKR uses every agent."** Smaller scopes can stop at Phase 1 or 2; the schema tolerates partial completion. An OKR that's purely research (Why only) is valid.
+- **Not a code-generation pipeline.** The pipeline stops at the merged design.md per target repo. From there, code-coding agents (out of scope) implement against the merged designs in the code repos. The audit report bundle's traceability matrix names the PRs — what was *built* is verified by the code repo's own audit pipeline, not this one.
+- **Not a custom-workflow framework.** v4 deprecates custom mesh workflows in favor of `.agent.md` + Skills + bus workflows. The Settings page "Mesh Provisioning" surface is for deploying agents/skills/buses, not authoring new workflows. If you need a one-off workflow, write a regular GitHub Action — don't extend the agent platform.
+- **Not a replacement for the 6-phase SDLC.** The agentic pipeline IS the SDLC's Design → Implement boundary; Govern / Verify / Deploy / Evolve continue downstream of the merged designs.
 
 ---
 
-*Last updated 2026-05-19 (v3 — aligned with agentic-governance-roadmap-2026 + workshop-starter-imdb-lite). This is a design document, not a commitment to ship every phase. Phase A unlocks the foundation; B unlocks the agents; C closes the loop. D and E are quality of life.*
+*Last updated 2026-05-19 (v4 — OKR-driven trigger model + full UI design + Audit Report Export + phase tracking). This is a design document AND a live tracking surface — §13 and §15 update inline as work lands. Phase A unlocks the foundation; B unlocks the agents; C closes the loop; D adds design fan-out; E ships the audit export.*
