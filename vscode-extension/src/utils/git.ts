@@ -16,6 +16,18 @@ export function parseGitHubUrl(url: string): GitRepoInfo | null {
   return match ? { owner: match[1], repo: match[2] } : null;
 }
 
+/**
+ * Parse a GitHub PR URL into owner/repo/number. Accepts the canonical
+ * https://github.com/<owner>/<repo>/pull/<n> shape (`.../issues/<n>`
+ * also works since the routes are interchangeable for the API call).
+ * Returns null if the URL doesn't match.
+ */
+export function parseGitHubPullUrl(url: string): (GitRepoInfo & { number: number }) | null {
+  const match = url.match(/github\.com\/([\w.-]+)\/([\w.-]+?)\/(?:pull|issues)\/(\d+)/);
+  if (!match) { return null; }
+  return { owner: match[1], repo: match[2], number: parseInt(match[3], 10) };
+}
+
 /** Get the remote origin URL for a git repo directory. Returns null if no remote. */
 export async function getRemoteOriginUrl(cwd: string): Promise<string | null> {
   try {

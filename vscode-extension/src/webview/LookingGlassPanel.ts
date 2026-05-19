@@ -47,7 +47,7 @@ import type { OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode } from '../ty
 import { promptPackService } from '../services/PromptPackService';
 import { ScaffoldPanel } from './ScaffoldPanel';
 import { execFileAsync } from '../utils/exec';
-import { getRemoteOriginUrl, parseGitHubUrl } from '../utils/git';
+import { getRemoteOriginUrl, parseGitHubUrl, parseGitHubPullUrl } from '../utils/git';
 import { getNonce } from '../utils/getNonce';
 import { BasePanel } from './BasePanel';
 import { logger } from '../utils/Logger';
@@ -1050,13 +1050,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       if (answer !== 'Approve') { return; }
     }
 
+    const pr = parseGitHubPullUrl(action.pr);
+    if (!pr) {
+      this.postMessage({ type: 'error', message: `Cannot parse PR URL: ${action.pr}` });
+      return;
+    }
     try {
-      await execFileAsync('gh', ['pr', 'edit', action.pr, '--add-label', 'governance-pass'], { cwd: meshPath, timeout: 30_000 });
-      await execFileAsync('gh', ['pr', 'edit', action.pr, '--remove-label', 'needs-human-review'], { cwd: meshPath, timeout: 30_000 });
+      await this.githubService.addIssueLabels(pr.owner, pr.repo, pr.number, ['governance-pass']);
+      await this.githubService.removeIssueLabel(pr.owner, pr.repo, pr.number, 'needs-human-review');
       const overrideNote = approvers.length === 2
         ? `**HumanGate · Approve (dual-signature override)** — approvers: @${approvers[0]}, @${approvers[1]}. Restricted-tier OKR; reviewer findings overridden. Recorded in OKR audit chain.`
         : `**HumanGate · Approve** — reviewer findings overridden. Recorded in OKR audit chain.`;
-      await execFileAsync('gh', ['pr', 'comment', action.pr, '--body', overrideNote], { cwd: meshPath, timeout: 30_000 });
+      await this.githubService.createIssueComment(pr.owner, pr.repo, pr.number, overrideNote);
       okrService.updateAction(meshPath, okrId, actionId, { status: 'complete', completedAt: new Date().toISOString() });
       void vscode.window.showInformationMessage(`Approved ${actionId} on ${okrId}. governance-pass applied to ${action.pr}.`);
       await this.onDrillIntoOkr(okrId, 'view');
@@ -1093,9 +1098,16 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     );
     if (answer !== 'Re-run') { return; }
 
+    const pr = parseGitHubPullUrl(action.pr);
+    if (!pr) {
+      this.postMessage({ type: 'error', message: `Cannot parse PR URL: ${action.pr}` });
+      return;
+    }
     try {
-      await execFileAsync('gh', ['pr', 'edit', action.pr, '--remove-label', 'needs-human-review'], { cwd: meshPath, timeout: 30_000 });
-      await execFileAsync('gh', ['pr', 'comment', action.pr, '--body', `**HumanGate · Re-run** (round ${(action.rounds ?? 0) + 1}) — @copilot use agent ${action.agent}`], { cwd: meshPath, timeout: 30_000 });
+      await this.githubService.removeIssueLabel(pr.owner, pr.repo, pr.number, 'needs-human-review');
+      await this.githubService.createIssueComment(pr.owner, pr.repo, pr.number,
+        `**HumanGate · Re-run** (round ${(action.rounds ?? 0) + 1}) — @copilot use agent ${action.agent}`,
+      );
       okrService.updateAction(meshPath, okrId, actionId, { status: 'in_progress', rounds: (action.rounds ?? 0) + 1 });
       void vscode.window.showInformationMessage(`Re-running ${action.agent} on ${action.pr}.`);
       await this.onDrillIntoOkr(okrId, 'view');
@@ -1132,7 +1144,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     try {
       if (action.pr) {
-        await execFileAsync('gh', ['pr', 'close', action.pr, '--comment', `**HumanGate · Reject + re-scope** — closed by OKR owner.`], { cwd: meshPath, timeout: 30_000 });
+        const pr = parseGitHubPullUrl(action.pr);
+        if (pr) {
+          await this.githubService.createIssueComment(pr.owner, pr.repo, pr.number,
+            `**HumanGate · Reject + re-scope** — closed by OKR owner.`);
+          await this.githubService.closeIssue(pr.owner, pr.repo, pr.number);
+        }
       }
       okrService.updateAction(meshPath, okrId, actionId, { status: 'cancelled', completedAt: new Date().toISOString() });
       void vscode.window.showInformationMessage(`Rejected ${actionId}. PR closed; action marked cancelled. Re-scope from the OKR detail edit form and re-trigger the phase.`);

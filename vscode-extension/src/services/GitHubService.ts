@@ -456,6 +456,33 @@ export class GitHubService {
     });
   }
 
+  /**
+   * Remove a single label from an issue or PR. Tolerates the
+   * "label-not-on-issue" 404 — calling code shouldn't have to pre-check
+   * which labels are present before trying to clear them.
+   */
+  async removeIssueLabel(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    label: string
+  ): Promise<void> {
+    const client = await this.getClient();
+    try {
+      await client.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        name: label,
+      });
+    } catch (err: unknown) {
+      // 404 = label wasn't on the issue. That's a no-op for us.
+      const status = (err as { status?: number }).status;
+      if (status === 404) { return; }
+      throw err;
+    }
+  }
+
   async getIssueLabels(
     owner: string,
     repo: string,
