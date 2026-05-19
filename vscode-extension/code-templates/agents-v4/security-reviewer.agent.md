@@ -7,6 +7,10 @@ tools:
   - knowledge-mesh-adrs
   - context-security
   - audit-emit-event
+permissions:
+  contents: read           # read the artifact under review; do NOT write
+  pull-requests: write     # post the scored review + apply governance-pass-security / revision-required
+  issues: write            # audit comments on the OKR anchor issue
 model: claude-haiku-4-5
 max_tokens_per_run: 100000
 max_skill_calls_per_run: 20

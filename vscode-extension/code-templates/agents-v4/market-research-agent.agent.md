@@ -14,6 +14,10 @@ tools:
   - dedupe-and-rank
   - format-research-issue-update
   - audit-emit-event
+permissions:
+  contents: write          # create/write okrs/<id>/why/research-doc.md
+  pull-requests: write     # open the research-synthesis PR and add its label
+  issues: write            # post the formatted comment back to the OKR anchor issue
 model: claude-sonnet-4-6
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 40
