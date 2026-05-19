@@ -522,7 +522,25 @@ export class MeshService {
     const existing = this.okrService.readAll(meshPath)
       .find(s => /^OKR-\d{4}Q[1-4]-IMDB-\d+-celeb-api$/.test(s.id));
     if (existing) {
-      return this.okrService.read(meshPath, existing.id);
+      const card = this.okrService.read(meshPath, existing.id);
+      if (!card) { return null; }
+      // Self-heal: if the existing OKR carries the <org> placeholder in
+      // its targetCodeRepos AND the BARs now declare real URLs, refresh
+      // the OKR in place. Catches "user re-scaffolded the platform with
+      // a real org but the existing OKR still has the placeholder URLs"
+      // — the common case after detectMeshOwner started supplying a real
+      // org to the platform scaffold. Preserves any other user edits
+      // (objective text, KRs, intent cascade) since we only patch
+      // targetCodeRepos.
+      const hasStaleUrls = card.objectiveAlignment.targetCodeRepos
+        .some(u => u.includes('<org>'));
+      if (!hasStaleUrls) { return card; }
+      const refreshed = this.collectCelebSampleTargetRepos(meshPath, opts.githubOrg ?? '<org>');
+      const stillStale = refreshed.some(u => u.includes('<org>'));
+      if (stillStale) { return card; }  // BARs also stale — nothing to refresh from
+      return this.okrService.update(meshPath, existing.id, {
+        objectiveAlignment: { targetCodeRepos: refreshed },
+      });
     }
     const owner = opts.owner ?? 'maintainabilityai';
     const org = opts.githubOrg ?? '<org>';

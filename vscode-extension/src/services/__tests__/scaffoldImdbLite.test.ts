@@ -232,6 +232,51 @@ describe('MeshService.scaffoldImdbLiteOkr — Celebs-anchored sample', () => {
     expect(okrDirs).toHaveLength(1);
   });
 
+  it('self-heals stale <org> URLs in targetCodeRepos when BARs are re-scaffolded with a real org', () => {
+    // 1. First scaffold with default <org> placeholder — OKR + BARs all stale.
+    const first = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    expect(first.objectiveAlignment.targetCodeRepos[0]).toContain('<org>');
+
+    // 2. Re-scaffold the platform with a real org — BARs now have real URLs.
+    fs.rmSync(path.join(tmpRoot, 'platforms'), { recursive: true, force: true });
+    svc.scaffoldImdbLitePlatform(tmpRoot, { githubOrg: 'AliceNN-ucdenver' });
+
+    // 3. Re-running OKR scaffold detects the stale placeholder and refreshes
+    //    targetCodeRepos in place — same id, same intentThreadUuid, real URLs.
+    const refreshed = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    expect(refreshed.meta.id).toBe(first.meta.id);
+    expect(refreshed.meta.intentThreadUuid).toBe(first.meta.intentThreadUuid);
+    expect(refreshed.objectiveAlignment.targetCodeRepos).toEqual([
+      'https://github.com/AliceNN-ucdenver/celeb-api',
+      'https://github.com/AliceNN-ucdenver/imdb-react-frontend',
+    ]);
+  });
+
+  it('does NOT touch targetCodeRepos when the existing OKR has no <org> placeholder (preserves user edits)', () => {
+    // First scaffold with real org — no <org> placeholder anywhere.
+    fs.rmSync(path.join(tmpRoot, 'platforms'), { recursive: true, force: true });
+    svc.scaffoldImdbLitePlatform(tmpRoot, { githubOrg: 'AliceNN-ucdenver' });
+    const first = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    const originalRepos = [...first.objectiveAlignment.targetCodeRepos];
+
+    // Simulate a user hand-edit on the OKR's targetCodeRepos.
+    const okrService = svc.getOkrService();
+    okrService.update(tmpRoot, first.meta.id, {
+      objectiveAlignment: {
+        targetCodeRepos: ['https://github.com/AliceNN-ucdenver/celeb-api', 'https://github.com/somewhere-else/custom-fork'],
+      },
+    });
+
+    // Re-running scaffold sees no stale URLs — must leave the OKR alone.
+    const second = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    expect(second.objectiveAlignment.targetCodeRepos).toEqual([
+      'https://github.com/AliceNN-ucdenver/celeb-api',
+      'https://github.com/somewhere-else/custom-fork',
+    ]);
+    // Sanity: the URLs are different from the original scaffold-output
+    expect(second.objectiveAlignment.targetCodeRepos).not.toEqual(originalRepos);
+  });
+
   it('initializes audit dirs + chain-ladder.yaml', () => {
     const card = svc.scaffoldImdbLiteOkr(tmpRoot)!;
     const okrDir = path.join(tmpRoot, 'okrs', card.meta.id);
