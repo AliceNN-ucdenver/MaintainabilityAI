@@ -543,6 +543,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'startOkrWhat':
         await this.onStartOkrPhase(message.okrId, 'what');
         break;
+      case 'confirmStartOkrPhase':
+        await this.onConfirmStartOkrPhase(message.okrId, message.phase, message.additionalContext ?? '');
+        break;
       case 'loadHatterTag':
         await this.onLoadHatterTag(message.okrId, message.actionId);
         break;
@@ -762,15 +765,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Freeze tier at run start (§6.2 — mitigates tier creep).
+    // Freeze tier at run start (§6.2 — mitigates tier creep). Computed
+    // here so the prerequisite gates apply before we render the preview.
     const tier = okrService.tierForCard(meshPath, card);
     if (tier === 'restricted' && phase === 'what') {
       this.postMessage({ type: 'error', message: 'Restricted tier — escalate the BAR governance score before starting What.' });
       return;
     }
-    // Phase-prerequisite check: How requires a completed Why; What requires
-    // a completed How (per §6.1 state diagram). The UI also gates on this,
-    // but defense-in-depth catches direct-message bypasses.
     if (phase === 'how' && !card.actions.some(a => a.phase === 'why' && a.status === 'complete')) {
       this.postMessage({ type: 'error', message: 'Cannot start How: Why phase has not merged yet.' });
       return;
@@ -779,8 +780,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'Cannot start What: How phase has not merged yet.' });
       return;
     }
-    // Refuse if an action for this phase is already in flight — prevents
-    // duplicate-issue spam from a double-click.
     if (card.actions.some(a => a.phase === phase && (a.status === 'in_progress' || a.status === 'under_review'))) {
       this.postMessage({ type: 'error', message: `${phase.toUpperCase()} phase already running for ${okrId}.` });
       return;
@@ -791,15 +790,65 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const agent = agentByPhase[phase];
     const issueLabel = labelByPhase[phase];
 
-    // Compose stable per-run id + action id.
+    // Render the issue body for preview. The actual runId + actionId
+    // are computed in onConfirmStartOkrPhase so each modal show
+    // doesn't burn a stale stamp.
     const stamp = new Date();
     const ymd = stamp.toISOString().slice(0, 10);
     const short = Math.random().toString(36).slice(2, 8);
-    const phaseTag = phase.toUpperCase();
-    const runId = `${phaseTag}-${ymd}-${short}`;
+    const previewRunId = `${phase.toUpperCase()}-${ymd}-${short}`;
+    const body = renderOkrPhaseIssueBody(card, phase, agent, previewRunId);
+
+    this.postMessage({
+      type: 'startPhasePreview',
+      okrId,
+      phase,
+      agent,
+      issueLabel,
+      body,
+    });
+  }
+
+  /**
+   * Phase B-PR3/4 — actually create the GitHub issue + queued OkrAction
+   * after the user confirms in the webview Start-phase modal. Splits the
+   * preview (UI) from the action (extension-side) so the modal can render
+   * formatted markdown without fighting VS Code's native dialog limits.
+   */
+  private async onConfirmStartOkrPhase(okrId: string, phase: 'why' | 'how' | 'what', additionalContext: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+      return;
+    }
+    // Re-run gates between preview and confirm (state may have changed).
+    if (card.meta.paused) {
+      this.postMessage({ type: 'error', message: `Cannot start: OKR ${okrId} is paused.` });
+      return;
+    }
+    const tier = okrService.tierForCard(meshPath, card);
+    if (card.actions.some(a => a.phase === phase && (a.status === 'in_progress' || a.status === 'under_review'))) {
+      this.postMessage({ type: 'error', message: `${phase.toUpperCase()} phase already running for ${okrId}.` });
+      return;
+    }
+
+    const agentByPhase = { why: 'market-research-agent', how: 'prd-agent', what: 'code-design-agent' } as const;
+    const labelByPhase = { why: 'oraculum-research', how: 'oraculum-prd', what: 'oraculum-design' } as const;
+    const agent = agentByPhase[phase];
+    const issueLabel = labelByPhase[phase];
+
+    const stamp = new Date();
+    const ymd = stamp.toISOString().slice(0, 10);
+    const short = Math.random().toString(36).slice(2, 8);
+    const runId = `${phase.toUpperCase()}-${ymd}-${short}`;
     const actionId = `ACT-${card.actions.length + 1}`;
 
-    // Last completed action of the prior phase is this run's parent.
     const phaseOrder: Array<'why' | 'how' | 'what'> = ['why', 'how', 'what'];
     const priorPhase = phase === 'why' ? null : phaseOrder[phaseOrder.indexOf(phase) - 1];
     const priorAction = priorPhase
@@ -807,41 +856,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       : undefined;
     const parentIntentThread = priorAction?.intentThreadUuid ?? null;
 
-    // Render the issue body that will be posted, then preview it in the
-    // confirm modal so the user can see exactly what the agent will
-    // receive. Three branches: confirm-as-is, add-context-then-create,
-    // dismiss/cancel.
     const baseBody = renderOkrPhaseIssueBody(card, phase, agent, runId);
-    const phaseLabel = phase.toUpperCase();
-    const confirmAnswer = await vscode.window.showWarningMessage(
-      `Start ${phaseLabel} for ${okrId}?`,
-      {
-        modal: true,
-        detail: `Will post the following issue body to the mesh repo (labels: okr-anchor, ${issueLabel}):\n\n${baseBody}`,
-      },
-      `Start ${phaseLabel}`,
-      'Add context…',
-    );
-    if (confirmAnswer !== `Start ${phaseLabel}` && confirmAnswer !== 'Add context…') {
-      return;
-    }
-    let additionalContext = '';
-    if (confirmAnswer === 'Add context…') {
-      const entered = await vscode.window.showInputBox({
-        title: `Start ${phaseLabel} — additional context to append`,
-        prompt: `Appended under "Additional context" in the issue body. Examples: "focus on EU GDPR compliance", "prefer arXiv sources over Hacker News", "skip the patent search this run".`,
-        ignoreFocusOut: true,
-        placeHolder: 'Single-line guidance the agent will see at the top of the issue body.',
-      });
-      if (entered === undefined) { return; }  // Esc / dismiss
-      additionalContext = entered.trim();
-    }
-    const finalBody = additionalContext
-      ? `${baseBody}\n\n## Additional context (added by OKR owner at dispatch)\n\n${additionalContext}\n`
+    const trimmed = additionalContext.trim();
+    const finalBody = trimmed
+      ? `${baseBody}\n\n## Additional context (added by OKR owner at dispatch)\n\n${trimmed}\n`
       : baseBody;
 
-    // Open the GitHub issue. If creation fails we don't pollute the OKR's
-    // audit ladder with a phantom action.
     this.postMessage({ type: 'loading', active: true, message: `Starting ${phase.toUpperCase()} — creating GitHub issue…` });
     let issueUrl = '';
     try {
@@ -854,6 +874,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         '--label', labels,
       ], { cwd: meshPath, timeout: 30_000 });
       issueUrl = stdout.trim();
+      if (!issueUrl) {
+        throw new Error('gh issue create returned an empty URL — check `gh auth status` + workflow permissions');
+      }
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to create issue: ${toErrorMessage(err)}` });
       this.postMessage({ type: 'loading', active: false });
@@ -880,7 +903,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'okrPhaseStarted', okrId, phase, actionId, issueUrl });
       void vscode.window.showInformationMessage(
         `Started ${phase.toUpperCase()} for ${okrId}. Issue: ${issueUrl}. ` +
-        `Until Phase C wires okr-bus.yml, you may need to @-mention "@copilot use agent ${agent}" on the issue.`,
+        `Until okr-bus.yml is deployed, you may need to @-mention "@copilot use agent ${agent}" on the issue.`,
       );
       await this.onDrillIntoOkr(okrId, 'view');
     } catch (err) {

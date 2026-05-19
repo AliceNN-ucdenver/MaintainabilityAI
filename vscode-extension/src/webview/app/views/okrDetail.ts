@@ -703,6 +703,18 @@ export function getOkrDetailStyles(): string {
     .okr-human-gate-header { font-weight: 700; color: #fca5a5; margin-bottom: 0.5rem; font-size: 0.875rem; }
     .okr-human-gate-warn { margin: 0 0 0.5rem; font-size: 0.8125rem; color: #fcd34d; }
     .okr-human-gate-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .start-phase-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 3rem 2rem; }
+    .start-phase-sheet { background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 0.5rem; max-width: 820px; width: 100%; max-height: 85vh; overflow: auto; padding: 1.25rem 1.5rem; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 1rem; }
+    .start-phase-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+    .start-phase-header h3 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+    .start-phase-meta { margin: 0; font-size: 0.8125rem; color: var(--vscode-descriptionForeground); }
+    .start-phase-meta code { font-family: var(--vscode-editor-font-family, monospace); font-size: 0.75rem; }
+    .start-phase-section { display: flex; flex-direction: column; gap: 0.375rem; }
+    .start-phase-section-label { font-size: 0.8125rem; font-weight: 600; color: var(--vscode-foreground); }
+    .start-phase-body { background: var(--vscode-textCodeBlock-background, rgba(148, 163, 184, 0.08)); border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; padding: 0.75rem 0.875rem; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.8125rem; line-height: 1.5; max-height: 32vh; overflow: auto; margin: 0; white-space: pre-wrap; word-wrap: break-word; color: var(--vscode-foreground); }
+    .start-phase-textarea { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); padding: 0.5rem 0.625rem; border-radius: 0.375rem; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.8125rem; resize: vertical; min-height: 5rem; }
+    .start-phase-textarea:focus { outline: 1px solid var(--vscode-focusBorder); border-color: var(--vscode-focusBorder); }
+    .start-phase-actions { display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 0.5rem; border-top: 1px solid var(--vscode-panel-border); }
   `;
 }
 

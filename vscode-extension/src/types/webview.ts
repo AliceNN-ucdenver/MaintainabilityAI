@@ -472,7 +472,13 @@ export type LookingGlassWebviewMessage =
    */
   | { type: 'okrHumanGateApprove'; okrId: string; actionId: string; tier: string }
   | { type: 'okrHumanGateRerun'; okrId: string; actionId: string }
-  | { type: 'okrHumanGateReject'; okrId: string; actionId: string };
+  | { type: 'okrHumanGateReject'; okrId: string; actionId: string }
+  /**
+   * Phase B-PR3/4 + C-PR4 — confirm posting the Start-phase issue from
+   * the webview preview modal. additionalContext is appended to the
+   * canned body before `gh issue create` runs.
+   */
+  | { type: 'confirmStartOkrPhase'; okrId: string; phase: 'why' | 'how' | 'what'; additionalContext: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -577,6 +583,14 @@ export type LookingGlassExtensionMessage =
   | { type: 'agenticStatus'; skills: { name: string; family: string; deployed: boolean }[]; agents: { name: string; deployed: boolean }[] }
   | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] }
   | { type: 'okrPhaseStarted'; okrId: string; phase: 'why' | 'how' | 'what'; actionId: string; issueUrl: string }
+  | {
+      type: 'startPhasePreview';
+      okrId: string;
+      phase: 'why' | 'how' | 'what';
+      agent: string;
+      issueLabel: string;
+      body: string;
+    }
   | {
       type: 'hatterTagSheet';
       okrId: string;

@@ -122,6 +122,9 @@ const state = {
   // Phase B-PR4 — Hatter Tag slide-out sheet
   hatterTagSheetOpen: false,
   hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
+  // Phase B-PR3+ Start-phase preview modal — formatted body preview + multi-line additional context.
+  startPhaseModalOpen: false,
+  startPhaseModalData: null as { okrId: string; phase: 'why' | 'how' | 'what'; agent: string; issueLabel: string; body: string } | null,
   // ADR state
   adrs: [] as AdrRecord[],
   adrEditingId: null as string | null,
@@ -1476,7 +1479,9 @@ function renderView(): string {
       mode: state.currentOkrMode,
       availablePlatforms: state.currentOkrAvailablePlatforms,
       availableBars: state.currentOkrAvailableBars,
-    }) + (state.hatterTagSheetOpen ? renderHatterTagSheet() : ''); break;
+    })
+      + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
+      + (state.startPhaseModalOpen ? renderStartPhaseModal() : ''); break;
     default: content = renderNoMesh(); break;
   }
   // Overlay: platform governance editor modal
@@ -1761,6 +1766,38 @@ function renderPlatformGovernanceEditor(): string {
 // ============================================================================
 // View: Settings
 // ============================================================================
+
+function renderStartPhaseModal(): string {
+  const d = state.startPhaseModalData;
+  if (!d) { return ''; }
+  const phaseLabel = d.phase.toUpperCase();
+  const phaseTitle = d.phase === 'why' ? 'Why · Market Research' : d.phase === 'how' ? 'How · PRD' : 'What · Code Design';
+  return `
+    <div class="start-phase-overlay" data-action="close-start-phase-overlay">
+      <div class="start-phase-sheet" role="dialog" aria-modal="true" aria-label="Start ${escapeHtml(phaseLabel)} for ${escapeHtml(d.okrId)}">
+        <div class="start-phase-header">
+          <div>
+            <h3>Start ${escapeHtml(phaseLabel)} — ${escapeHtml(phaseTitle)}</h3>
+            <p class="start-phase-meta">OKR <code>${escapeHtml(d.okrId)}</code> · Agent <code>${escapeHtml(d.agent)}</code> · Labels <code>okr-anchor</code>, <code>${escapeHtml(d.issueLabel)}</code></p>
+          </div>
+          <button class="btn-ghost" data-action="close-start-phase">✕ Cancel</button>
+        </div>
+        <div class="start-phase-section">
+          <label class="start-phase-section-label">Issue body the agent will see (preview)</label>
+          <pre class="start-phase-body">${escapeHtml(d.body)}</pre>
+        </div>
+        <div class="start-phase-section">
+          <label class="start-phase-section-label" for="start-phase-extra">Additional context (optional, appended to the body)</label>
+          <textarea id="start-phase-extra" class="start-phase-textarea" placeholder="One-liner or multi-paragraph guidance for this run. Examples:&#10;  • focus on EU GDPR compliance for the licensing section&#10;  • prefer arXiv sources over Hacker News&#10;  • skip the patent search this run; we already have prior-art" rows="6"></textarea>
+        </div>
+        <div class="start-phase-actions">
+          <button class="btn-primary" data-action="confirm-start-phase">Create issue</button>
+          <button class="btn-secondary" data-action="close-start-phase">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 function renderHatterTagSheet(): string {
   const data = state.hatterTagSheetData;
@@ -3477,7 +3514,45 @@ function attachEventHandlers() {
     state.currentOkrAvailableBars = [];
     state.hatterTagSheetOpen = false;
     state.hatterTagSheetData = null;
+    state.startPhaseModalOpen = false;
+    state.startPhaseModalData = null;
     render();
+  });
+
+  // Phase B-PR3+ Start-phase modal — Cancel (✕ + footer) + click-outside
+  // close, plus Create that gathers the textarea and posts the confirm.
+  document.querySelectorAll('[data-action="close-start-phase"]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.startPhaseModalOpen = false;
+      state.startPhaseModalData = null;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-action="close-start-phase-overlay"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        state.startPhaseModalOpen = false;
+        state.startPhaseModalData = null;
+        render();
+      }
+    });
+  });
+  document.querySelectorAll('[data-action="confirm-start-phase"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const d = state.startPhaseModalData;
+      if (!d) { return; }
+      const ta = document.getElementById('start-phase-extra') as HTMLTextAreaElement | null;
+      const additionalContext = (ta?.value ?? '').trim();
+      vscode.postMessage({
+        type: 'confirmStartOkrPhase',
+        okrId: d.okrId,
+        phase: d.phase,
+        additionalContext,
+      });
+      state.startPhaseModalOpen = false;
+      state.startPhaseModalData = null;
+      render();
+    });
   });
 
   // Phase B-PR4: Hatter Tag sheet close handlers (✕ button + overlay click)
@@ -4572,6 +4647,18 @@ window.addEventListener('message', (event) => {
       // No-op visually — the server follows up with okrDetail (view mode) which
       // triggers a re-render. We swallow these here so the discriminated-union
       // dispatch doesn't fall through to the default error case.
+      break;
+    }
+    case 'startPhasePreview': {
+      state.startPhaseModalOpen = true;
+      state.startPhaseModalData = {
+        okrId: message.okrId as string,
+        phase: message.phase as 'why' | 'how' | 'what',
+        agent: message.agent as string,
+        issueLabel: message.issueLabel as string,
+        body: message.body as string,
+      };
+      render();
       break;
     }
     case 'hatterTagSheet': {
