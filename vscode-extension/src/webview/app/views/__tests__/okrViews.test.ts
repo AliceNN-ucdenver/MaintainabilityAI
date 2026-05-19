@@ -236,7 +236,7 @@ describe('renderOkrDetailView', () => {
       mode: 'edit',
       availablePlatforms: [{ id: 'PLT-IMDB', name: 'IMDB Lite', slug: 'imdb-lite', barCount: 2 }],
       availableBars: [
-        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted' },
+        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted', repos: [] },
       ],
     });
     expect(html).toContain('data-okr-field="objective.name"');
@@ -256,8 +256,8 @@ describe('renderOkrDetailView', () => {
       mode: 'edit',
       availablePlatforms: [{ id: 'PLT-IMDB', name: 'IMDB Lite', slug: 'imdb-lite', barCount: 2 }],
       availableBars: [
-        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted' },
-        { id: 'APP-IMDB-099', name: 'Unrelated BAR', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 70, tier: 'supervised' },
+        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted', repos: [] },
+        { id: 'APP-IMDB-099', name: 'Unrelated BAR', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 70, tier: 'supervised', repos: [] },
       ],
     });
     // sampleCard()'s affectedBarIds = ['APP-IMDB-002', 'APP-IMDB-001']
@@ -276,5 +276,54 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('Create OKR');
     expect(html).not.toContain('Save changes');
     expect(html).toContain('New OKR (unsaved)');
+  });
+
+  it('edit mode renders target-repo checkboxes from each BAR app.yaml', () => {
+    const html = renderOkrDetailView({
+      okr: sampleCard({
+        objectiveAlignment: {
+          ...sampleCard().objectiveAlignment,
+          targetCodeRepos: ['https://github.com/acme/celeb-api'],
+        },
+      }),
+      affectedBars: [],
+      mode: 'edit',
+      availablePlatforms: [{ id: 'PLT-IMDB', name: 'IMDB Lite', slug: 'imdb-lite', barCount: 2 }],
+      availableBars: [
+        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted', repos: ['https://github.com/acme/celeb-api'] },
+        { id: 'APP-IMDB-001', name: 'IMDB Lite App', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 64, tier: 'supervised', repos: ['https://github.com/acme/imdb-react-frontend', 'https://github.com/acme/movie-api'] },
+      ],
+    });
+    // Each BAR repo shows up as a suggestion checkbox
+    expect(html).toContain('value="https://github.com/acme/celeb-api"');
+    expect(html).toContain('value="https://github.com/acme/imdb-react-frontend"');
+    expect(html).toContain('value="https://github.com/acme/movie-api"');
+    // The repo already on the OKR is pre-checked
+    expect(html).toMatch(/value="https:\/\/github\.com\/acme\/celeb-api"[^>]*checked/);
+    // BAR repos that aren't on the OKR are NOT pre-checked
+    expect(html).not.toMatch(/value="https:\/\/github\.com\/acme\/movie-api"[^>]*checked/);
+    // Section advertises both picker + custom URL adder
+    expect(html).toContain('Custom repo URLs');
+    expect(html).toContain('data-action="repo-add"');
+  });
+
+  it('edit mode surfaces non-BAR repos as custom rows so user-added URLs survive a re-render', () => {
+    const html = renderOkrDetailView({
+      okr: sampleCard({
+        objectiveAlignment: {
+          ...sampleCard().objectiveAlignment,
+          targetCodeRepos: ['https://github.com/somewhere-else/special'],
+        },
+      }),
+      affectedBars: [],
+      mode: 'edit',
+      availablePlatforms: [],
+      availableBars: [
+        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted', repos: ['https://github.com/acme/celeb-api'] },
+      ],
+    });
+    // The OKR's URL doesn't match any BAR repo — it lands in the custom editor
+    expect(html).toContain('value="https://github.com/somewhere-else/special"');
+    expect(html).toContain('data-okr-repo-row="0"');
   });
 });

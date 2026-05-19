@@ -278,6 +278,10 @@ export interface OkrAffectedBar {
  * Mesh-wide BAR option, used to populate the affected-BARs multi-select
  * on the OKR detail edit form. Pre-grouped by platform so the form can
  * render a section per platform.
+ *
+ * `repos` carries the BAR's app.yaml `repos[]` — full GitHub URLs — so
+ * the OKR edit form can offer them as checkboxes on the Target Code
+ * Repos section without a round-trip per BAR.
  */
 export interface OkrAvailableBar {
   id: string;
@@ -286,6 +290,7 @@ export interface OkrAvailableBar {
   platformName: string;
   compositeScore: number;
   tier: GovernanceTier;
+  repos: string[];
 }
 
 /**
@@ -421,9 +426,7 @@ export type LookingGlassWebviewMessage =
   /** Save inline-edited fields. patch is OkrUpdatePatchSchema-shaped. */
   | { type: 'saveOkrEdits'; okrId: string; patch: unknown }
   /** Persist a brand-new OKR. draft is OkrCreateInputSchema-shaped. */
-  | { type: 'createOkrFromDraft'; draft: unknown }
-  /** Discard create-mode draft and return to the OKR list. */
-  | { type: 'cancelOkrDraft' };
+  | { type: 'createOkrFromDraft'; draft: unknown };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

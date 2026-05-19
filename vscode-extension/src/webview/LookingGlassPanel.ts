@@ -524,9 +524,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'createOkrFromDraft':
         await this.onCreateOkrFromDraft(message.draft);
         break;
-      case 'cancelOkrDraft':
-        await this.onGetOkrList();
-        break;
 
       case 'backToPortfolio':
       case 'backToPlatform':
@@ -726,6 +723,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       platformName: b.platformName,
       compositeScore: b.compositeScore,
       tier: b.compositeScore >= 80 ? 'autonomous' : b.compositeScore >= 50 ? 'supervised' : 'restricted',
+      repos: b.repos ?? [],
     }));
     const affectedBars = okr.objectiveAlignment.affectedBarIds.map(barId => {
       const bar = this.meshService.findBarById(meshPath, barId);

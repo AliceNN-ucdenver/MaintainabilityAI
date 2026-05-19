@@ -564,9 +564,12 @@ export class MeshService {
         platformId: 'PLT-IMDB',
         // Celebs FIRST — it's the Restricted-tier BAR and drives the gate.
         affectedBarIds: ['APP-IMDB-002', 'APP-IMDB-001'],
+        // Full GitHub URLs to match the format BARs declare in their
+        // app.yaml repos[] — so the OKR edit form's checkbox picker can
+        // mark these as pre-selected when the user opens the sample OKR.
         targetCodeRepos: [
-          `${org}/celeb-api`,
-          `${org}/imdb-react-frontend`,
+          `https://github.com/${org}/celeb-api`,
+          `https://github.com/${org}/imdb-react-frontend`,
         ],
         intentCascade: {
           org: 'Grow IMDB monthly active users 15% YoY by enriching profile depth',

@@ -172,17 +172,17 @@ describe('MeshService.scaffoldImdbLiteOkr — Celebs-anchored sample', () => {
     expect(card.governance?.maxSeverity).toBe('MEDIUM');
   });
 
-  it('uses the supplied githubOrg in target_code_repos', () => {
+  it('uses the supplied githubOrg in target_code_repos (full GitHub URL, matches BAR app.yaml format)', () => {
     const card = svc.scaffoldImdbLiteOkr(tmpRoot, { githubOrg: 'AliceNN-ucdenver' })!;
     expect(card.objectiveAlignment.targetCodeRepos).toEqual([
-      'AliceNN-ucdenver/celeb-api',
-      'AliceNN-ucdenver/imdb-react-frontend',
+      'https://github.com/AliceNN-ucdenver/celeb-api',
+      'https://github.com/AliceNN-ucdenver/imdb-react-frontend',
     ]);
   });
 
   it('uses placeholder org when githubOrg is omitted', () => {
     const card = svc.scaffoldImdbLiteOkr(tmpRoot)!;
-    expect(card.objectiveAlignment.targetCodeRepos[0]).toContain('<org>/celeb-api');
+    expect(card.objectiveAlignment.targetCodeRepos[0]).toBe('https://github.com/<org>/celeb-api');
   });
 
   it('uses supplied owner', () => {

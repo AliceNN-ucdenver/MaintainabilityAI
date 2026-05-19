@@ -62,7 +62,7 @@ export function renderOkrDetailView(state: OkrDetailRenderState): string {
       ${isForm ? renderIntentCascadeForm(okr) : ''}
       ${renderKeyResults(okr, mode)}
       ${renderAffectedBars(state, mode)}
-      ${renderTargetRepos(okr, mode)}
+      ${renderTargetRepos(state, mode)}
 
       <h2 class="okr-section-heading">Actions</h2>
       ${renderActionCard(okr, 'why', state)}
@@ -343,7 +343,8 @@ function renderAffectedBarsReadOnly(bars: OkrAffectedBar[]): string {
   `;
 }
 
-function renderTargetRepos(okr: OkrCard, mode: OkrDetailMode): string {
+function renderTargetRepos(state: OkrDetailRenderState, mode: OkrDetailMode): string {
+  const okr = state.okr!;
   if (mode === 'view') {
     const repos = okr.objectiveAlignment.targetCodeRepos;
     if (repos.length === 0) {
@@ -365,20 +366,65 @@ function renderTargetRepos(okr: OkrCard, mode: OkrDetailMode): string {
     `;
   }
 
-  const rows = okr.objectiveAlignment.targetCodeRepos.map((r, idx) => `
-    <div class="okr-repo-edit-row" data-okr-repo-row="${idx}">
-      <input class="okr-form-input" type="text" data-okr-repo-field="url"
-        value="${escapeAttr(r)}" placeholder="org/repo or https://github.com/org/repo" aria-label="Target repo" />
-      <button type="button" class="okr-button-icon" data-action="repo-remove" data-repo-row="${idx}" title="Remove repo">✕</button>
-    </div>
-  `).join('');
+  // Edit / create mode — checkbox picker grouped by BAR (sourced from each
+  // BAR's app.yaml repos[]) plus a custom-URL adder for one-offs.
+  const allBars = state.availableBars ?? [];
+  const selectedRepos = new Set(okr.objectiveAlignment.targetCodeRepos);
+  // Dedupe across BARs so the same repo doesn't appear under two BARs.
+  const seen = new Set<string>();
+  const barGroups = allBars
+    .map(bar => {
+      const repos = bar.repos.filter(r => {
+        if (seen.has(r)) { return false; }
+        seen.add(r);
+        return true;
+      });
+      if (repos.length === 0) { return ''; }
+      const rows = repos.map(r => {
+        const checked = selectedRepos.has(r) ? 'checked' : '';
+        return `
+          <label class="okr-repo-suggestion">
+            <input type="checkbox" data-okr-repo-suggestion value="${escapeAttr(r)}" ${checked} />
+            <code>${escapeHtml(r)}</code>
+          </label>
+        `;
+      }).join('');
+      return `
+        <fieldset class="okr-repo-group">
+          <legend>${escapeHtml(bar.id)} <span class="okr-muted">${escapeHtml(bar.name)}</span></legend>
+          ${rows}
+        </fieldset>
+      `;
+    })
+    .filter(s => s.length > 0)
+    .join('');
+
+  // Custom repos = anything already on the OKR that wasn't matched by an
+  // available BAR. Keeps user-added URLs editable + removable across saves.
+  const customRepos = okr.objectiveAlignment.targetCodeRepos.filter(r => !seen.has(r));
+  const customRows = customRepos.map((r, idx) => renderCustomRepoRow(r, idx)).join('');
+
   return `
     <h2 class="okr-section-heading">Target Code Repos</h2>
-    <p class="okr-section-help">Code repos the What phase will fan out to. Format: <code>org/repo</code> or full URL.</p>
-    <div class="okr-repo-editor" data-okr-repos-list>
-      ${rows}
+    <p class="okr-section-help">Code repos the What phase will fan out to. Pick from each affected BAR's <code>app.yaml</code> repos, or add a custom URL.</p>
+    <div class="okr-repo-suggestions">
+      ${barGroups || '<p class="okr-muted">No BARs declare repos yet.</p>'}
     </div>
-    <button type="button" class="okr-button-secondary okr-button-small" data-action="repo-add">+ Add Repo</button>
+    <div class="okr-repo-custom">
+      <label class="okr-form-label">Custom repo URLs</label>
+      <div class="okr-repo-editor" data-okr-repos-list>${customRows}</div>
+      <button type="button" class="okr-button-secondary okr-button-small" data-action="repo-add">+ Add custom URL</button>
+    </div>
+  `;
+}
+
+function renderCustomRepoRow(url: string, idx: number): string {
+  return `
+    <div class="okr-repo-edit-row" data-okr-repo-row="${idx}">
+      <input class="okr-form-input" type="text" data-okr-repo-field="url"
+        value="${escapeAttr(url)}" placeholder="https://github.com/org/repo" aria-label="Custom target repo URL" />
+      <button type="button" class="okr-button-icon" data-action="repo-remove" data-repo-row="${idx}" title="Remove repo">✕</button>
+    </div>
   `;
 }
 
@@ -572,6 +618,14 @@ export function getOkrDetailStyles(): string {
     .okr-kr-id-input { font-family: var(--vscode-editor-font-family, monospace); }
     .okr-repo-editor { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
     .okr-repo-edit-row { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: center; }
+    .okr-repo-suggestions { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+    .okr-repo-group { border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; padding: 0.5rem 0.75rem; }
+    .okr-repo-group legend { font-weight: 600; font-size: 0.8125rem; padding: 0 0.5rem; font-family: var(--vscode-editor-font-family, monospace); }
+    .okr-repo-suggestion { display: flex; gap: 0.5rem; align-items: center; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.875rem; }
+    .okr-repo-suggestion:hover { background: var(--vscode-list-hoverBackground); }
+    .okr-repo-suggestion input { margin: 0; }
+    .okr-repo-suggestion code { font-size: 0.8125rem; }
+    .okr-repo-custom { margin-top: 0.5rem; }
     .okr-bar-picker { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
     .okr-bar-group { border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; padding: 0.5rem 0.75rem; }
     .okr-bar-group legend { font-weight: 600; font-size: 0.8125rem; padding: 0 0.5rem; }
@@ -639,9 +693,11 @@ export function attachOkrDetailEvents(
       const container = document.querySelector('[data-okr-mode]') as HTMLElement | null;
       const mode = container?.dataset.okrMode;
       if (mode === 'create') {
-        vscode.postMessage({ type: 'cancelOkrDraft' });
+        // Discard the draft entirely and navigate back to the OKR list —
+        // there's nothing on disk to return to.
+        onBackToOkrList();
       } else if (mode === 'edit') {
-        // Re-fetch read-only view to drop unsaved edits
+        // Re-fetch read-only view to drop unsaved edits on the same OKR.
         const okrId = container?.dataset.okrId;
         if (okrId) {
           vscode.postMessage({ type: 'drillIntoOkr', okrId });
@@ -675,16 +731,19 @@ function addRepoRow(): void {
   if (!list) { return; }
   const existing = list.querySelectorAll('[data-okr-repo-row]').length;
   const div = document.createElement('div');
-  div.className = 'okr-repo-edit-row';
-  div.dataset.okrRepoRow = String(existing);
-  div.innerHTML = `
-    <input class="okr-form-input" type="text" data-okr-repo-field="url" value="" placeholder="org/repo or https://github.com/org/repo" aria-label="Target repo" />
-    <button type="button" class="okr-button-icon" data-action="repo-remove" data-repo-row="${existing}" title="Remove repo">✕</button>
-  `;
-  list.appendChild(div);
-  div.querySelector('[data-action="repo-remove"]')?.addEventListener('click', (e) => {
+  div.innerHTML = renderCustomRepoRowFragment(existing);
+  const row = div.firstElementChild as HTMLElement;
+  list.appendChild(row);
+  row.querySelector('[data-action="repo-remove"]')?.addEventListener('click', (e) => {
     removeRow(e.currentTarget as HTMLElement, '[data-okr-repo-row]');
   });
+}
+
+function renderCustomRepoRowFragment(idx: number): string {
+  return `<div class="okr-repo-edit-row" data-okr-repo-row="${idx}">
+    <input class="okr-form-input" type="text" data-okr-repo-field="url" value="" placeholder="https://github.com/org/repo" aria-label="Custom target repo URL" />
+    <button type="button" class="okr-button-icon" data-action="repo-remove" data-repo-row="${idx}" title="Remove repo">✕</button>
+  </div>`;
 }
 
 /**
@@ -714,10 +773,15 @@ function submitOkrForm(vscode: { postMessage: (msg: unknown) => void }): void {
     measurement: (row.querySelector('[data-okr-kr-field="measurement"]') as HTMLInputElement | null)?.value.trim() ?? '',
   })).filter(kr => kr.metric.length > 0);
 
+  // Target repos: checked BAR suggestions + non-empty custom rows. Dedupe
+  // because a user could paste a URL that also appears in a BAR.
+  const suggestedRepoEls = Array.from(container.querySelectorAll('[data-okr-repo-suggestion]')) as HTMLInputElement[];
+  const suggestedRepos = suggestedRepoEls.filter(cb => cb.checked).map(cb => cb.value);
   const repoRows = Array.from(container.querySelectorAll('[data-okr-repo-row]')) as HTMLElement[];
-  const targetCodeRepos = repoRows
+  const customRepos = repoRows
     .map(row => (row.querySelector('[data-okr-repo-field="url"]') as HTMLInputElement | null)?.value.trim() ?? '')
     .filter(s => s.length > 0);
+  const targetCodeRepos = Array.from(new Set([...suggestedRepos, ...customRepos]));
 
   const barCheckboxes = Array.from(container.querySelectorAll('[data-okr-bar-id]')) as HTMLInputElement[];
   const affectedBarIds = barCheckboxes
