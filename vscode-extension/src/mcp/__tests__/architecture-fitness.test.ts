@@ -61,6 +61,11 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
 const INTENTIONAL_STANDALONE_MODULES = new Set([
   // Source-of-truth implementation mirrored into generated .redqueen/consensus.js.
   'mcp/utils/consensus.ts',
+  // Phase A foundation for the agentic SDLC governance feature (see
+  // vscode-extension/design/agentic-sdlc.md §A1, A2). Wired into the
+  // OKR list + detail views in A-PR3; remove from this allowlist when
+  // those views import OKRService.
+  'services/OKRService.ts',
 ]);
 
 const CORE_APPROVED_DOMAIN_SERVICES = new Set([

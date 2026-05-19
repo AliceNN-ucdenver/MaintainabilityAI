@@ -11,5 +11,8 @@
     "src/**/*.ts",
     "src/**/*.tsx"
   ],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  "ignore": [
+    "src/types/okr.ts"
+  ]
 }
