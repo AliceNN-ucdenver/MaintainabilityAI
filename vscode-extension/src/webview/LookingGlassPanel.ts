@@ -1619,13 +1619,19 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     this.postMessage({ type: 'loading', active: true, message: `Creating ${choice.label}...` });
 
     try {
+      // Detect the org from the mesh's git remote so the sample BARs end
+      // up with real repo URLs (https://github.com/<that-org>/<repo>)
+      // instead of the <org> placeholder. Falls back to <org> if the mesh
+      // isn't a git repo or has no GitHub remote — same behavior as before.
+      const githubOrg = await this.detectMeshOwner(meshPath);
       const result = choice.value === 'imdb-lite'
-        ? this.meshService.scaffoldImdbLitePlatform(meshPath)
+        ? this.meshService.scaffoldImdbLitePlatform(meshPath, githubOrg ? { githubOrg } : {})
         : this.meshService.scaffoldSamplePlatform(meshPath);
       // IMDB-Lite ships with its sample Celebs OKR — seed it inline so the
       // OKR tab is populated immediately. Idempotent at the MeshService
       // layer (returns the existing card if one is already present), so
-      // re-running Sample Platform never accumulates dupes.
+      // re-running Sample Platform never accumulates dupes. OKR inherits
+      // URLs from BAR app.yaml directly, so no need to pass githubOrg here.
       if (choice.value === 'imdb-lite') {
         try {
           this.meshService.scaffoldImdbLiteOkr(meshPath);
@@ -3790,6 +3796,26 @@ Policy file: ${filename}
     if (parsed) {
       this.meshRepoInfo = { owner: parsed.owner, repo: parsed.repo };
       this.postMessage({ type: 'meshRepoDetected', owner: parsed.owner, repo: parsed.repo });
+    }
+  }
+
+  /**
+   * Detect the GitHub org/owner the mesh repo is connected to, for use
+   * as the default `githubOrg` when scaffolding sample BARs. Returns null
+   * if the mesh isn't a git repo, has no GitHub remote, or the URL fails
+   * to parse — callers fall back to the <org> placeholder.
+   *
+   * Sourced from `git remote get-url origin` on the mesh directory, the
+   * same source `detectGovernanceRepo` and `detectMeshRepo` already use.
+   */
+  private async detectMeshOwner(meshPath: string): Promise<string | null> {
+    if (this.meshRepoInfo?.owner) { return this.meshRepoInfo.owner; }
+    try {
+      const url = await getRemoteOriginUrl(meshPath);
+      if (!url) { return null; }
+      return parseGitHubUrl(url)?.owner ?? null;
+    } catch {
+      return null;
     }
   }
 
