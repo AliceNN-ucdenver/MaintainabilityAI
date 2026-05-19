@@ -762,27 +762,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Native VS Code confirmation dialog (replaces the unreliable webview
-    // `window.confirm` — silent no-op in some hosts).
-    const phaseLabel = phase.toUpperCase();
-    const agentName = phase === 'why' ? 'market-research-agent'
-      : phase === 'how' ? 'prd-agent' : 'code-design-agent';
-    const confirmAnswer = await vscode.window.showWarningMessage(
-      `Start ${phaseLabel} for ${okrId}?`,
-      {
-        modal: true,
-        detail:
-          `This creates an issue in the mesh repo with the okr-anchor + oraculum-${phase === 'why' ? 'research' : phase} labels ` +
-          `and appends a queued action to the OKR card.\n\n` +
-          `Until Phase C ships okr-bus.yml, you may need to manually @-mention ` +
-          `"@copilot use agent ${agentName}" on the new issue.`,
-      },
-      `Start ${phaseLabel}`,
-    );
-    if (confirmAnswer !== `Start ${phaseLabel}`) {
-      return;
-    }
-
     // Freeze tier at run start (§6.2 — mitigates tier creep).
     const tier = okrService.tierForCard(meshPath, card);
     if (tier === 'restricted' && phase === 'what') {
@@ -828,18 +807,50 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       : undefined;
     const parentIntentThread = priorAction?.intentThreadUuid ?? null;
 
-    // Open the GitHub issue first. If issue creation fails we don't pollute
-    // the OKR's audit ladder with a phantom action.
+    // Render the issue body that will be posted, then preview it in the
+    // confirm modal so the user can see exactly what the agent will
+    // receive. Three branches: confirm-as-is, add-context-then-create,
+    // dismiss/cancel.
+    const baseBody = renderOkrPhaseIssueBody(card, phase, agent, runId);
+    const phaseLabel = phase.toUpperCase();
+    const confirmAnswer = await vscode.window.showWarningMessage(
+      `Start ${phaseLabel} for ${okrId}?`,
+      {
+        modal: true,
+        detail: `Will post the following issue body to the mesh repo (labels: okr-anchor, ${issueLabel}):\n\n${baseBody}`,
+      },
+      `Start ${phaseLabel}`,
+      'Add context…',
+    );
+    if (confirmAnswer !== `Start ${phaseLabel}` && confirmAnswer !== 'Add context…') {
+      return;
+    }
+    let additionalContext = '';
+    if (confirmAnswer === 'Add context…') {
+      const entered = await vscode.window.showInputBox({
+        title: `Start ${phaseLabel} — additional context to append`,
+        prompt: `Appended under "Additional context" in the issue body. Examples: "focus on EU GDPR compliance", "prefer arXiv sources over Hacker News", "skip the patent search this run".`,
+        ignoreFocusOut: true,
+        placeHolder: 'Single-line guidance the agent will see at the top of the issue body.',
+      });
+      if (entered === undefined) { return; }  // Esc / dismiss
+      additionalContext = entered.trim();
+    }
+    const finalBody = additionalContext
+      ? `${baseBody}\n\n## Additional context (added by OKR owner at dispatch)\n\n${additionalContext}\n`
+      : baseBody;
+
+    // Open the GitHub issue. If creation fails we don't pollute the OKR's
+    // audit ladder with a phantom action.
     this.postMessage({ type: 'loading', active: true, message: `Starting ${phase.toUpperCase()} — creating GitHub issue…` });
     let issueUrl = '';
     try {
       const title = `[OKR] ${phase.toUpperCase()}: ${card.objective.name}`;
-      const body = renderOkrPhaseIssueBody(card, phase, agent, runId);
       const labels = ['okr-anchor', issueLabel].join(',');
       const { stdout } = await execFileAsync('gh', [
         'issue', 'create',
         '--title', title,
-        '--body', body,
+        '--body', finalBody,
         '--label', labels,
       ], { cwd: meshPath, timeout: 30_000 });
       issueUrl = stdout.trim();
