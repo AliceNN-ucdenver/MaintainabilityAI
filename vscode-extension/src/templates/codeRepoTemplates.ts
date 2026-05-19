@@ -396,6 +396,26 @@ export function generateNotifyCodeReposWorkflow(extensionPath: string): string {
 }
 
 /**
+ * Phase C-PR1 — `okr-bus.yml` dispatches the right agent on phase-label
+ * adds to the OKR anchor issue. Reads `<!-- okr_id: ... -->` body marker,
+ * resolves agent by label, posts `@copilot use agent <name>` comment,
+ * bumps OKR `status` field on the YAML.
+ */
+export function generateOkrBusWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'okr-bus.yml');
+}
+
+/**
+ * Phase C-PR1 — `reviewer-bus.yml` runs architect-reviewer +
+ * security-reviewer in parallel on artifact PRs with `*-draft` labels.
+ * Enforces Tweedles via author_did extraction from the PR body's
+ * Hatter's Tag. Pocket Watch + Caterpillar drift steps are Phase C-PR5.
+ */
+export function generateReviewerBusWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'reviewer-bus.yml');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -414,5 +434,8 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/prd.yml',               generate: generatePrdWorkflow },
   { relativePath: '.github/workflows/label-on-merge.yml',    generate: generateLabelOnMergeWorkflow },
   { relativePath: '.github/workflows/notify-code-repos.yml', generate: generateNotifyCodeReposWorkflow },
+  // Phase C-PR1 — agentic-SDLC bus workflows
+  { relativePath: '.github/workflows/okr-bus.yml',           generate: generateOkrBusWorkflow },
+  { relativePath: '.github/workflows/reviewer-bus.yml',      generate: generateReviewerBusWorkflow },
 ];
 

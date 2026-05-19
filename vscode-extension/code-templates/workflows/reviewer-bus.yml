@@ -1,0 +1,138 @@
+name: "Reviewer Bus — parallel architect + security review on artifact PRs"
+
+# Fires on PRs labeled `research-synthesis`, `prd-draft`, or `design-draft`.
+# Dispatches BOTH reviewer agents in parallel via Copilot mentions.
+#
+# Tweedles (§5.3): reviewer DID MUST NOT equal author DID. Phase A enforces
+# this via agent name + GitHub App installation id — since our four agents
+# have distinct names (`market-research-agent` / `prd-agent` author vs
+# `architect-reviewer` / `security-reviewer` reviewer), the DIDs naturally
+# differ. We do still parse `author_did` from the PR body's Hatter Tag
+# block for the audit log and as a defense-in-depth guard if a future
+# multi-tenant config produces a name collision.
+#
+# Pocket Watch (§11.4) + Caterpillar's Challenge (§11.5) drift checks are
+# Phase C-PR5 — appended to this workflow when those land.
+#
+# Phase tracking: §13 C2.
+
+on:
+  pull_request:
+    types: [opened, labeled, reopened]
+
+concurrency:
+  group: reviewer-bus-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch-reviewers:
+    name: "Dispatch architect + security reviewers"
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
+      contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
+      contains(github.event.pull_request.labels.*.name, 'design-draft')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout mesh repo
+        uses: actions/checkout@v4
+
+      # Re-entrance guard: if reviewer-bus already commented its dispatch
+      # for this PR, exit (labeled events can fire repeatedly on the same
+      # PR as the agent applies post-creation labels). Marker comment
+      # text is stable across replays.
+      - name: Check for prior dispatch
+        id: prior
+        run: |
+          ALREADY=$(gh pr view ${{ github.event.pull_request.number }} --json comments \
+            --jq '[.comments[] | select(.body | contains("reviewer-bus dispatched"))] | length')
+          if [ "$ALREADY" -gt 0 ]; then
+            echo "::notice::Reviewers already dispatched for this PR (count=$ALREADY); skipping."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract author_did from PR body's Hatter Tag
+        if: steps.prior.outputs.skip != '1'
+        id: tag
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # The emitter wraps the tag in ```yaml fenced block under a
+          # `## Hatter's Tag` heading. Tolerate straight + curly
+          # apostrophe heading variants. author_did is optional in
+          # legacy runs; absent → empty string, which fails open here
+          # (Tweedles can't refuse what it can't read).
+          AUTHOR_DID=$(printf '%s' "$PR_BODY" | grep -oE 'author_did: [^\n[:space:]]+' | head -1 | sed -E 's/^author_did: //')
+          echo "author_did=$AUTHOR_DID" >> "$GITHUB_OUTPUT"
+          if [ -z "$AUTHOR_DID" ]; then
+            echo "::warning::No author_did in PR body Hatter Tag — Tweedles guard is informational only on this run."
+          else
+            echo "::notice::author_did=$AUTHOR_DID"
+          fi
+
+      # Tweedles: refuse to dispatch a reviewer whose canonical agent
+      # name matches the author's. With our four-agent setup this
+      # should never fire — the architect/security reviewer agent
+      # names are distinct from market-research-agent / prd-agent /
+      # code-design-agent — but the check is cheap insurance.
+      - name: Tweedles guard — architect-reviewer
+        if: steps.prior.outputs.skip != '1'
+        id: tweedles-architect
+        run: |
+          DID="${{ steps.tag.outputs.author_did }}"
+          if [ -n "$DID" ] && echo "$DID" | grep -q "agent:architect-reviewer$"; then
+            echo "::error::tweedles-violation: PR author is architect-reviewer; cannot self-review"
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "tweedles-violation"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tweedles guard — security-reviewer
+        if: steps.prior.outputs.skip != '1'
+        id: tweedles-security
+        run: |
+          DID="${{ steps.tag.outputs.author_did }}"
+          if [ -n "$DID" ] && echo "$DID" | grep -q "agent:security-reviewer$"; then
+            echo "::error::tweedles-violation: PR author is security-reviewer; cannot self-review"
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "tweedles-violation"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify both reviewer agent files are deployed
+        if: steps.prior.outputs.skip != '1'
+        run: |
+          MISSING=""
+          for AGENT in architect-reviewer security-reviewer; do
+            if [ ! -f ".github/agents/${AGENT}.agent.md" ]; then
+              MISSING="$MISSING $AGENT"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body "**reviewer-bus**: reviewer agents not deployed:$MISSING. Open Looking Glass → Settings → Phase B — Mesh Provisioning → \"Deploy Agents + Skills\"."
+            echo "::error::Reviewer agents missing:$MISSING"
+            exit 1
+          fi
+
+      - name: Dispatch architect-reviewer
+        if: steps.prior.outputs.skip != '1' && steps.tweedles-architect.outputs.skip != '1'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "@copilot use agent architect-reviewer"
+
+      - name: Dispatch security-reviewer
+        if: steps.prior.outputs.skip != '1' && steps.tweedles-security.outputs.skip != '1'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "@copilot use agent security-reviewer"
+
+      - name: Post dispatch summary
+        if: steps.prior.outputs.skip != '1'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "**reviewer-bus dispatched** \`architect-reviewer\` and \`security-reviewer\` in parallel. They post scored reviews on completion; \`label-on-merge.yml\` (C-PR2) applies \`governance-pass\` when both pass."

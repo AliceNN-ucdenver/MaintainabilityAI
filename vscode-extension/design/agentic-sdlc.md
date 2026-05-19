@@ -2035,8 +2035,8 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 
 Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. Restricted tier still blocks (which is the point).
 
-- [ ] **C1.** `okr-bus.yml` workflow — listens for `okr-anchor` labeled issues; assigns the right agent based on `oraculum-research` / `oraculum-prd` label; updates `okr.yaml.actions[]` on each phase transition
-- [ ] **C2.** `reviewer-bus.yml` workflow — fires architect-reviewer + security-reviewer in parallel on PR open; enforces Tweedles (reviewer DID ≠ author DID); writes scores to PR description in parseable format
+- [x] **C1.** `okr-bus.yml` workflow — listens for `oraculum-research` / `oraculum-prd` / `oraculum-design` labels on issues; verifies the agent file is deployed; posts `@copilot use agent <name>` comment; flips `okr.yaml.meta.status` (researching / prd-pending / design-pending) and bumps `updatedAt`; concurrency group keyed by issue number; defense-in-depth refusal when agent file missing.
+- [x] **C2.** `reviewer-bus.yml` workflow — fires architect-reviewer + security-reviewer in parallel on `pull_request.opened` with `research-synthesis` / `prd-draft` / `design-draft` labels; extracts `author_did` from PR body Hatter Tag; Tweedles guard refuses dispatch if a reviewer agent name matches author's; re-entrance guard skips when already dispatched. Pocket Watch + Caterpillar drift steps land in C-PR5.
 - [ ] **C3.** `design-bus.yml` workflow — fans out per `target_code_repos[]`; opens issue in each target repo with OKR context inlined
 - [ ] **C4.** State machine in `label-on-merge.yml` — `governance-pass` only when both reviewer scores ≥ threshold AND tier allows; `revision-required` applied on Supervised/Autonomous tiers up to MAX_AUTO_ROUNDS
 - [ ] **C5.** Round counter + HumanGate transitions wired into `okr-bus.yml`
@@ -2182,7 +2182,7 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[ ]` | **`design/architecture-review.md`** prompt pack — CODE-grounded architect review (CALM drift + interface contract diffs against actual code) | `vscode-extension/prompt-packs/looking-glass/design/architecture-review.md` (new) | D |
 | `[ ]` | **`design/security-review.md`** prompt pack — CODE-grounded security review (OWASP pattern scan + threat-model compliance against actual code) | `vscode-extension/prompt-packs/looking-glass/design/security-review.md` (new) | D |
 | `[x]` | AgentDeploymentService — deploys agents + skills + retained workflows. `deploySkills` / `listDeployedSkills` (B-PR1) + `deployAgents` / `listDeployedAgents` (B-PR2). Refuses to deploy any agent declaring a Skill not in `MESH_SKILLS`. | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
-| `[ ]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
+| `[~]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) — okr-bus.yml + reviewer-bus.yml shipped in C-PR1 (Tweedles author_did extraction + reviewer-name guard); design-bus.yml lands in C-PR4; Pocket Watch + Caterpillar drift steps appended to reviewer-bus in C-PR5 | `vscode-extension/code-templates/workflows/<bus>.yml` | C |
 | `[ ]` | State-machine logic in `label-on-merge.yml` (round counter + tier-aware) | mesh template | C |
 | `[ ]` | HumanGate UI (Approve / Re-run / Reject + dual-signature override modal) | OKR detail view | C |
 | `[x]` | `Start Why` button (OKR detail) — creates issue with `okr-anchor` + `oraculum-research` labels and `<!-- okr_id: ... -->` body marker per §5.5.4; appends queued OkrAction with `governanceTier` frozen at run start | `vscode-extension/src/webview/LookingGlassPanel.ts` (onStartOkrPhase) + `okrDetail.ts` (renderStartButton) | B |
