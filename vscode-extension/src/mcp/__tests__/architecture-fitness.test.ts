@@ -61,6 +61,10 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
 const INTENTIONAL_STANDALONE_MODULES = new Set([
   // Source-of-truth implementation mirrored into generated .redqueen/consensus.js.
   'mcp/utils/consensus.ts',
+  // Phase B-PR1: Skill templates registry. Becomes reachable in B-PR2 when
+  // the Mesh Provisioning settings UI wires `deploySkills` to a panel button.
+  'templates/meshSkills.ts',
+  'services/AgentDeploymentService.ts',
 ]);
 
 const CORE_APPROVED_DOMAIN_SERVICES = new Set([
