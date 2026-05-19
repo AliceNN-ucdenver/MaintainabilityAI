@@ -13,7 +13,11 @@ name: "OKR Bus — agent dispatch on labeled issues"
 
 on:
   issues:
-    types: [labeled]
+    # `opened` covers the "Looking Glass created the issue with labels
+    # in one API call" case (GitHub fires both opened + labeled, but the
+    # labeled event can be flaky when labels are batched). `labeled` is
+    # the secondary trigger for label-adds-after-create.
+    types: [opened, labeled]
 
 # Per-issue serialization so two simultaneous label adds (rare but
 # possible during automated retries) don't race on the same okr.yaml.
@@ -24,10 +28,20 @@ concurrency:
 jobs:
   dispatch:
     name: "Dispatch agent for OKR phase"
+    # Fire when (a) the just-added label is a phase label, OR (b) on
+    # issue open the issue already carries a phase label (which it
+    # does when Looking Glass batches labels at creation).
     if: >-
-      github.event.label.name == 'oraculum-research' ||
-      github.event.label.name == 'oraculum-prd' ||
-      github.event.label.name == 'oraculum-design'
+      (github.event.action == 'labeled' && (
+        github.event.label.name == 'oraculum-research' ||
+        github.event.label.name == 'oraculum-prd' ||
+        github.event.label.name == 'oraculum-design'
+      )) ||
+      (github.event.action == 'opened' && (
+        contains(github.event.issue.labels.*.name, 'oraculum-research') ||
+        contains(github.event.issue.labels.*.name, 'oraculum-prd') ||
+        contains(github.event.issue.labels.*.name, 'oraculum-design')
+      ))
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -60,14 +74,29 @@ jobs:
           fi
           echo "okr_id=$OKR_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve agent name from label
+      - name: Resolve agent name from phase label
         id: agent
+        env:
+          ALL_LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+          EVENT_LABEL: ${{ github.event.label.name }}
         run: |
-          case "${{ github.event.label.name }}" in
+          # On `labeled` events github.event.label.name is populated.
+          # On `opened` events it's empty — fall through to inspecting
+          # the issue's labels array and picking the first phase label.
+          PHASE_LABEL="$EVENT_LABEL"
+          if [ -z "$PHASE_LABEL" ]; then
+            for L in oraculum-research oraculum-prd oraculum-design; do
+              if printf '%s' "$ALL_LABELS" | grep -q "\"$L\""; then
+                PHASE_LABEL="$L"
+                break
+              fi
+            done
+          fi
+          case "$PHASE_LABEL" in
             oraculum-research) AGENT=market-research-agent; NEW_STATUS=researching ;;
             oraculum-prd)      AGENT=prd-agent;             NEW_STATUS=prd-pending ;;
             oraculum-design)   AGENT=code-design-agent;     NEW_STATUS=design-pending ;;
-            *) echo "::error::Unexpected phase label"; exit 1 ;;
+            *) echo "::error::No phase label found (label='$EVENT_LABEL', issue labels=$ALL_LABELS)"; exit 1 ;;
           esac
           echo "name=$AGENT" >> "$GITHUB_OUTPUT"
           echo "new_status=$NEW_STATUS" >> "$GITHUB_OUTPUT"
