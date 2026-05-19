@@ -163,20 +163,20 @@ The intent cascade — **Org → Role → Developer → User** — is the Court 
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
-    <h4>Objective</h4>
-    <p>One sentence. Ambitious. Aligned with platform strategy. E.g. <em>"Add celebrity profile API to IMDB-Lite — without introducing licensing or identity-disambiguation risk."</em></p>
+    <div class="docs-heading">Objective</div>
+    <div class="docs-copy">One sentence. Ambitious. Aligned with platform strategy. E.g. <em>"Add celebrity profile API to IMDB-Lite — without introducing licensing or identity-disambiguation risk."</em></div>
   </div>
   <div class="docs-card docs-card-indigo">
-    <h4>Key Results</h4>
-    <p>3–5 SMART metrics. <code>Identity-disambiguation false-merge &lt; 0.5%</code>. <code>Licensing-compliance audit 100%</code>. <code>p95 fetch &lt; 200ms</code>. Each KR gets a row in the final traceability matrix.</p>
+    <div class="docs-heading">Key Results</div>
+    <div class="docs-copy">3–5 SMART metrics. <code>Identity-disambiguation false-merge &lt; 0.5%</code>. <code>Licensing-compliance audit 100%</code>. <code>p95 fetch &lt; 200ms</code>. Each KR gets a row in the final traceability matrix.</div>
   </div>
   <div class="docs-card docs-card-indigo">
-    <h4>Intent cascade</h4>
-    <p>Org, Role, Developer, User. Pre-filled at scaffold time for the workshop's IMDB sample; learners edit to match their context.</p>
+    <div class="docs-heading">Intent cascade</div>
+    <div class="docs-copy">Org, Role, Developer, User. Pre-filled at scaffold time for the workshop's IMDB sample; learners edit to match their context.</div>
   </div>
   <div class="docs-card docs-card-indigo">
-    <h4>Affected BARs</h4>
-    <p>Which Business Application Repositories does this touch? The OKR derives the <strong>governance tier</strong> from the highest-risk BAR's pillar scores. Restricted-tier BAR = heaviest gates.</p>
+    <div class="docs-heading">Affected BARs</div>
+    <div class="docs-copy">Which Business Application Repositories does this touch? The OKR derives the <strong>governance tier</strong> from the highest-risk BAR's pillar scores. Restricted-tier BAR = heaviest gates.</div>
   </div>
 </div>
 
@@ -593,28 +593,28 @@ The Audit Report Export is a **single zip** generated from the OKR detail screen
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-cyan">
-    <h4>README.md</h4>
-    <p>The auditor starts here. Quotes the master question, points to every sub-answer's location in the bundle, summarizes chain integrity, tier history, Tweedles check, goal-drift, and prompt-pack versions used.</p>
+    <div class="docs-heading">README.md</div>
+    <div class="docs-copy">The auditor starts here. Quotes the master question, points to every sub-answer's location in the bundle, summarizes chain integrity, tier history, Tweedles check, goal-drift, and prompt-pack versions used.</div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <h4>okr-card.pdf</h4>
-    <p>The BTABoK 9-section card rendered as a PDF. The Org → Role → Developer → User intent cascade is right there on page one.</p>
+    <div class="docs-heading">okr-card.pdf</div>
+    <div class="docs-copy">The BTABoK 9-section card rendered as a PDF. The Org → Role → Developer → User intent cascade is right there on page one.</div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <h4>traceability.html / .csv</h4>
-    <p>The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The CIO's question — "show me from outcome to code" — is one column-scroll.</p>
+    <div class="docs-heading">traceability.html / .csv</div>
+    <div class="docs-copy">The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The CIO's question — "show me from outcome to code" — is one column-scroll.</div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <h4>Per-phase artifacts</h4>
-    <p>For each of Why / How / What — the merged markdown, the Hatter's Tag YAML, the CloudEvents JSONL audit log, the chain-verification output, a snapshot of the PR description, the reviewer scores. Frozen at export time.</p>
+    <div class="docs-heading">Per-phase artifacts</div>
+    <div class="docs-copy">For each of Why / How / What — the merged markdown, the Hatter's Tag YAML, the CloudEvents JSONL audit log, the chain-verification output, a snapshot of the PR description, the reviewer scores. Frozen at export time.</div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <h4>Frozen prompt packs</h4>
-    <p>Every prompt pack version cited by any Hatter's Tag in the bundle, copied byte-exact. The auditor can reconstruct what the agent was told, not just what it did.</p>
+    <div class="docs-heading">Frozen prompt packs</div>
+    <div class="docs-copy">Every prompt pack version cited by any Hatter's Tag in the bundle, copied byte-exact. The auditor can reconstruct what the agent was told, not just what it did.</div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <h4>Threat model + CALM snapshots</h4>
-    <p>Per-phase snapshots — what the threat model and architecture model looked like at the moment each phase ran. Catches model drift that would otherwise hide between phases.</p>
+    <div class="docs-heading">Threat model + CALM snapshots</div>
+    <div class="docs-copy">Per-phase snapshots — what the threat model and architecture model looked like at the moment each phase ran. Catches model drift that would otherwise hide between phases.</div>
   </div>
 </div>
 
@@ -640,24 +640,24 @@ Everything here is **design**. Implementation is phased; you can track progress 
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
-    <h4>Read the full design (v4)</h4>
-    <p>The complete agentic SDLC design — OKR schema, agent personas, Hatter's Tag full schema, audit-report bundle structure, deliverables map with status.</p>
-    <p><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-secondary">Open on GitHub →</a></p>
+    <div class="docs-heading">Read the full design (v4)</div>
+    <div class="docs-copy">The complete agentic SDLC design — OKR schema, agent personas, Hatter's Tag full schema, audit-report bundle structure, deliverables map with status.</div>
+    <div class="docs-copy"><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-secondary">Open on GitHub →</a></div>
   </div>
   <div class="docs-card docs-card-rose">
-    <h4>Meet the Red Queen</h4>
-    <p>The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change.</p>
-    <p><a href="/docs/quickstart-redqueen" class="docs-button-secondary">Quickstart →</a></p>
+    <div class="docs-heading">Meet the Red Queen</div>
+    <div class="docs-copy">The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change.</div>
+    <div class="docs-copy"><a href="/docs/quickstart-redqueen" class="docs-button-secondary">Quickstart →</a></div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <h4>The 70/30 vision</h4>
-    <p>Why architecture-first governance is the missing piece. The original "Art of the Possible."</p>
-    <p><a href="/docs/impossible-things" class="docs-button-secondary">Read the vision →</a></p>
+    <div class="docs-heading">The 70/30 vision</div>
+    <div class="docs-copy">Why architecture-first governance is the missing piece. The original "Art of the Possible."</div>
+    <div class="docs-copy"><a href="/docs/impossible-things" class="docs-button-secondary">Read the vision →</a></div>
   </div>
   <div class="docs-card docs-card-emerald">
-    <h4>Workshop</h4>
-    <p>Eight-part curriculum for teams adopting governed AI engineering. Includes the IMDB-Lite sample where you can run the tea party end-to-end yourself.</p>
-    <p><a href="/agenda" class="docs-button-secondary">See the agenda →</a></p>
+    <div class="docs-heading">Workshop</div>
+    <div class="docs-copy">Eight-part curriculum for teams adopting governed AI engineering. Includes the IMDB-Lite sample where you can run the tea party end-to-end yourself.</div>
+    <div class="docs-copy"><a href="/agenda" class="docs-button-secondary">See the agenda →</a></div>
   </div>
 </div>
 
