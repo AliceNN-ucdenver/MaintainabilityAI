@@ -439,7 +439,21 @@ export type LookingGlassWebviewMessage =
    * @-mentions `@copilot use agent market-research-agent` to trigger
    * Copilot Coding Agent; Phase C automates this via `okr-bus.yml`.
    */
-  | { type: 'startOkrWhy'; okrId: string };
+  | { type: 'startOkrWhy'; okrId: string }
+  /**
+   * Phase B-PR4 — click `Start How` on the OKR detail. Mirror of Why:
+   * creates a GitHub issue with `okr-anchor` + `oraculum-prd` labels and
+   * the `<!-- okr_id: ... -->` marker. Webview pre-gates on the Why phase
+   * being complete (UI surfaces "Gated on Why merged" otherwise).
+   */
+  | { type: 'startOkrHow'; okrId: string }
+  /**
+   * Phase B-PR4 — open the Hatter Tag slide-out sheet for an action's run.
+   * Extension reads the artifact at the action's `artifact` path, parses
+   * the embedded ## Hatter's Tag YAML block, and posts back via
+   * `hatterTagSheet`.
+   */
+  | { type: 'loadHatterTag'; okrId: string; actionId: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -543,4 +557,13 @@ export type LookingGlassExtensionMessage =
   | { type: 'okrCreated'; okrId: string }
   | { type: 'agenticStatus'; skills: { name: string; family: string; deployed: boolean }[]; agents: { name: string; deployed: boolean }[] }
   | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] }
-  | { type: 'okrPhaseStarted'; okrId: string; phase: 'why' | 'how' | 'what'; actionId: string; issueUrl: string };
+  | { type: 'okrPhaseStarted'; okrId: string; phase: 'why' | 'how' | 'what'; actionId: string; issueUrl: string }
+  | {
+      type: 'hatterTagSheet';
+      okrId: string;
+      actionId: string;
+      /** Parsed tag JSON, or null if the artifact had no parseable Hatter's Tag. */
+      tag: unknown | null;
+      /** When tag is null, why — surfaced in the sheet as a friendly message. */
+      reason?: string;
+    };

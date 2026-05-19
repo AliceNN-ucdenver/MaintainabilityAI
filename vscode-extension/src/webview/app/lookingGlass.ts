@@ -119,6 +119,9 @@ const state = {
   currentOkrMode: 'view' as OkrDetailMode,
   currentOkrAvailablePlatforms: [] as OkrAvailablePlatform[],
   currentOkrAvailableBars: [] as OkrAvailableBar[],
+  // Phase B-PR4 — Hatter Tag slide-out sheet
+  hatterTagSheetOpen: false,
+  hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
   // ADR state
   adrs: [] as AdrRecord[],
   adrEditingId: null as string | null,
@@ -1473,7 +1476,7 @@ function renderView(): string {
       mode: state.currentOkrMode,
       availablePlatforms: state.currentOkrAvailablePlatforms,
       availableBars: state.currentOkrAvailableBars,
-    }); break;
+    }) + (state.hatterTagSheetOpen ? renderHatterTagSheet() : ''); break;
     default: content = renderNoMesh(); break;
   }
   // Overlay: platform governance editor modal
@@ -1758,6 +1761,33 @@ function renderPlatformGovernanceEditor(): string {
 // ============================================================================
 // View: Settings
 // ============================================================================
+
+function renderHatterTagSheet(): string {
+  const data = state.hatterTagSheetData;
+  if (!data) { return ''; }
+  const body = data.tag
+    ? `<pre class="hatter-tag-body">${escapeHtml(JSON.stringify(data.tag, null, 2))}</pre>`
+    : `<p class="hatter-tag-empty">${escapeHtml(data.reason ?? 'No tag available.')}</p>`;
+  return `
+    <div class="hatter-tag-overlay" data-action="close-hatter-tag-overlay">
+      <div class="hatter-tag-sheet" role="dialog" aria-modal="true" aria-label="Hatter's Tag for ${escapeHtml(data.actionId)}">
+        <div class="hatter-tag-header">
+          <h3>Hatter’s Tag · ${escapeHtml(data.actionId)}</h3>
+          <button class="btn-ghost" data-action="close-hatter-tag">✕ Close</button>
+        </div>
+        <div class="hatter-tag-meta">
+          OKR: <code>${escapeHtml(data.okrId)}</code>
+        </div>
+        ${body}
+        <p class="hatter-tag-note">
+          Phase E will wire <code>verify-chain</code> as a clickable badge here.
+          For now the tag's <code>chain_root_hash</code> can be checked manually
+          against <code>okrs/${escapeHtml(data.okrId)}/audit/events/</code>.
+        </p>
+      </div>
+    </div>
+  `;
+}
 
 function renderSettings(): string {
   const p = state.portfolio!;
@@ -3445,7 +3475,28 @@ function attachEventHandlers() {
     state.currentOkrMode = 'view';
     state.currentOkrAvailablePlatforms = [];
     state.currentOkrAvailableBars = [];
+    state.hatterTagSheetOpen = false;
+    state.hatterTagSheetData = null;
     render();
+  });
+
+  // Phase B-PR4: Hatter Tag sheet close handlers (✕ button + overlay click)
+  document.querySelectorAll('[data-action="close-hatter-tag"]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.hatterTagSheetOpen = false;
+      state.hatterTagSheetData = null;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-action="close-hatter-tag-overlay"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      // Only close on click of the overlay itself, not its children.
+      if (e.target === e.currentTarget) {
+        state.hatterTagSheetOpen = false;
+        state.hatterTagSheetData = null;
+        render();
+      }
+    });
   });
 
   // Linked Repo Clicks — delegated to views/barDetail.ts via attachBarDetailEvents above
@@ -4521,6 +4572,17 @@ window.addEventListener('message', (event) => {
       // No-op visually — the server follows up with okrDetail (view mode) which
       // triggers a re-render. We swallow these here so the discriminated-union
       // dispatch doesn't fall through to the default error case.
+      break;
+    }
+    case 'hatterTagSheet': {
+      state.hatterTagSheetOpen = true;
+      state.hatterTagSheetData = {
+        okrId: message.okrId as string,
+        actionId: message.actionId as string,
+        tag: (message.tag as Record<string, unknown> | null) ?? null,
+        reason: message.reason as string | undefined,
+      };
+      render();
       break;
     }
     case 'okrSampleScaffolded': {

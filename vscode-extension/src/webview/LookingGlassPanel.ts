@@ -38,6 +38,7 @@ import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
 import { AgentDeploymentService } from '../services/AgentDeploymentService';
+import { HatterTagService } from '../services/HatterTagService';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
 import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
 import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
@@ -536,6 +537,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'startOkrWhy':
         await this.onStartOkrPhase(message.okrId, 'why');
         break;
+      case 'startOkrHow':
+        await this.onStartOkrPhase(message.okrId, 'how');
+        break;
+      case 'loadHatterTag':
+        await this.onLoadHatterTag(message.okrId, message.actionId);
+        break;
 
       case 'backToPortfolio':
       case 'backToPlatform':
@@ -745,9 +752,24 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // Freeze tier at run start (§6.2 — mitigates tier creep).
     const tier = okrService.tierForCard(meshPath, card);
     if (tier === 'restricted' && phase === 'what') {
-      // What is the only phase blocked on Restricted in B-PR3; Why / How
-      // still produce auditable artifacts even on Restricted tier.
       this.postMessage({ type: 'error', message: 'Restricted tier — escalate the BAR governance score before starting What.' });
+      return;
+    }
+    // Phase-prerequisite check: How requires a completed Why; What requires
+    // a completed How (per §6.1 state diagram). The UI also gates on this,
+    // but defense-in-depth catches direct-message bypasses.
+    if (phase === 'how' && !card.actions.some(a => a.phase === 'why' && a.status === 'complete')) {
+      this.postMessage({ type: 'error', message: 'Cannot start How: Why phase has not merged yet.' });
+      return;
+    }
+    if (phase === 'what' && !card.actions.some(a => a.phase === 'how' && a.status === 'complete')) {
+      this.postMessage({ type: 'error', message: 'Cannot start What: How phase has not merged yet.' });
+      return;
+    }
+    // Refuse if an action for this phase is already in flight — prevents
+    // duplicate-issue spam from a double-click.
+    if (card.actions.some(a => a.phase === phase && (a.status === 'in_progress' || a.status === 'under_review'))) {
+      this.postMessage({ type: 'error', message: `${phase.toUpperCase()} phase already running for ${okrId}.` });
       return;
     }
 
@@ -820,6 +842,52 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Issue created (${issueUrl}) but failed to update OKR card: ${toErrorMessage(err)}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /**
+   * Phase B-PR4 — surface the Hatter's Tag YAML block from an action's
+   * artifact via the slide-out sheet on OKR detail. Read the artifact
+   * markdown, parse the `## Hatter's Tag` fenced block, post the result.
+   * Surface a friendly reason when no tag is found (legacy or in-progress
+   * actions won't have artifact data on disk yet).
+   */
+  private async onLoadHatterTag(okrId: string, actionId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: 'OKR not found' });
+      return;
+    }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action) {
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Action ${actionId} not found on this OKR` });
+      return;
+    }
+    if (!action.artifact) {
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: 'No artifact path on this action yet — agent may still be running or pre-Phase B' });
+      return;
+    }
+    const artifactPath = path.join(meshPath, action.artifact);
+    if (!fs.existsSync(artifactPath)) {
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Artifact file missing: ${action.artifact}` });
+      return;
+    }
+    try {
+      const body = fs.readFileSync(artifactPath, 'utf8');
+      const tag = new HatterTagService().parseHatterTag(body);
+      if (!tag) {
+        this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: 'No Hatter’s Tag block found in artifact (or YAML failed to parse)' });
+        return;
+      }
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag });
+    } catch (err) {
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Failed to read artifact: ${toErrorMessage(err)}` });
     }
   }
 

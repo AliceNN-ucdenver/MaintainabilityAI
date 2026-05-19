@@ -51,8 +51,8 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // for the showInputBox round-trip (window.prompt is unreliable in some
   // webview builds). And again when createResearchSecret landed for the
   // GMT guided-create flow.
-  'webview/app/lookingGlass.ts': 218,
-  'webview/LookingGlassPanel.ts': 103,
+  'webview/app/lookingGlass.ts': 220,
+  'webview/LookingGlassPanel.ts': 105,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
