@@ -457,6 +457,59 @@ export class GitHubService {
   }
 
   /**
+   * Assign GitHub Copilot Coding Agent to an issue and pick a CUSTOM
+   * agent persona declared under `.github/agents/<name>.agent.md` in
+   * the target repo.
+   *
+   * Uses the `agent_assignment` body extension on the standard
+   * `POST /repos/{owner}/{repo}/issues/{n}/assignees` endpoint — this
+   * is the actual API for Copilot custom-agent dispatch. Octokit's
+   * generated `addAssignees` doesn't expose this field, so we use the
+   * raw `client.request` API directly.
+   *
+   * The standard `assignees: ['copilot-swe-agent[bot]']` array stays
+   * required — that's what flips the issue to Copilot Coding Agent
+   * in the UI. The `agent_assignment` object then refines which
+   * `.agent.md` persona Copilot loads for this session.
+   *
+   * @param customInstructions  Optional per-dispatch guidance shown to
+   *                            the agent (e.g. "focus on EU GDPR
+   *                            compliance"). Appended to the agent's
+   *                            system prompt at runtime.
+   * @param baseBranch          Defaults to `main`. Override when the
+   *                            agent should branch off a non-default
+   *                            branch.
+   * @param model               Optional model id override; empty
+   *                            string uses the model declared in the
+   *                            agent's `.agent.md` frontmatter.
+   */
+  async assignCustomCopilotAgent(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    customAgent: string,
+    options: { customInstructions?: string; baseBranch?: string; model?: string } = {},
+  ): Promise<void> {
+    const client = await this.getClient();
+    await client.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
+      owner,
+      repo,
+      issue_number: issueNumber,
+      assignees: ['copilot-swe-agent[bot]'],
+      agent_assignment: {
+        target_repo: `${owner}/${repo}`,
+        base_branch: options.baseBranch ?? 'main',
+        custom_agent: customAgent,
+        custom_instructions: options.customInstructions ?? '',
+        model: options.model ?? '',
+      },
+      headers: {
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+  }
+
+  /**
    * List every user/bot login that can be assigned to issues + PRs in
    * this repo. When Copilot Coding Agent custom agents are configured
    * (via `.github/agents/<name>.agent.md` files), they appear here

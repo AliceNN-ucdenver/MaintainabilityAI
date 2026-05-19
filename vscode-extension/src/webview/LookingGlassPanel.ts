@@ -917,37 +917,42 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Dispatch via Copilot Coding Agent — same pattern as the legacy
-    // oraculum flow (IssueCreatorPanel.onAssignAgent):
-    //   1. Assign `copilot-swe-agent[bot]` (the standard Copilot
-    //      Coding Agent bot) — assignment auto-triggers a cloud
-    //      agent session.
-    //   2. Post `@copilot use agent <name>` as a follow-up comment
-    //      so the right `.agent.md` persona is loaded for that
-    //      session (we hope — still validating the handoff syntax).
-    //
-    // Custom-agent direct-assignment can come back later once we've
-    // confirmed the canonical handle format Copilot exposes for
-    // user-defined agents.
-    this.postMessage({ type: 'loading', active: true, message: 'Assigning Copilot Coding Agent…' });
+    // Dispatch via Copilot Coding Agent's custom-agent API. The
+    // canonical endpoint is the standard `POST .../issues/{n}/assignees`
+    // with an `agent_assignment` body extension that names the custom
+    // agent persona (must match a `.github/agents/<name>.agent.md`
+    // file in the target repo). On failure we degrade to the generic
+    // `copilot-swe-agent[bot]` assignment + `@copilot use agent <name>`
+    // handoff comment as a fallback path.
+    this.postMessage({ type: 'loading', active: true, message: `Assigning Copilot Coding Agent (custom agent: ${agent})…` });
     let dispatchNote = '';
     try {
-      await this.githubService.assignIssue(meshRepo.owner, meshRepo.repo, issueNumber, ['copilot-swe-agent[bot]']);
-      dispatchNote = 'assigned @copilot-swe-agent[bot] (Copilot Coding Agent)';
-    } catch (err) {
-      dispatchNote = `Copilot assignment failed (${toErrorMessage(err)}); falling back to @-mention only`;
-    }
-    try {
-      await this.githubService.createIssueComment(
+      await this.githubService.assignCustomCopilotAgent(
         meshRepo.owner,
         meshRepo.repo,
         issueNumber,
-        `@copilot use agent ${agent}`,
+        agent,
+        { customInstructions: trimmed, baseBranch: 'main' },
       );
+      dispatchNote = `assigned Copilot Coding Agent with custom agent \`${agent}\``;
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Issue created (${issueUrl}) but failed to post @copilot handoff comment: ${toErrorMessage(err)}` });
-      this.postMessage({ type: 'loading', active: false });
-      return;
+      const msg = toErrorMessage(err);
+      // Fallback: generic assign + handoff comment. Some accounts may
+      // not have custom-agent dispatch enabled yet, or the agent file
+      // may not have been redeployed since changes — give the user a
+      // working path either way.
+      try {
+        await this.githubService.assignIssue(meshRepo.owner, meshRepo.repo, issueNumber, ['copilot-swe-agent[bot]']);
+        await this.githubService.createIssueComment(
+          meshRepo.owner, meshRepo.repo, issueNumber,
+          `@copilot use agent ${agent}`,
+        );
+        dispatchNote = `custom-agent dispatch unavailable (${msg}); fell back to generic Copilot Coding Agent + @-mention`;
+      } catch (fallbackErr) {
+        this.postMessage({ type: 'error', message: `Both custom-agent dispatch and fallback assignment failed. Custom: ${msg}. Fallback: ${toErrorMessage(fallbackErr)}` });
+        this.postMessage({ type: 'loading', active: false });
+        return;
+      }
     }
 
     try {
