@@ -27,6 +27,7 @@ export function renderEaLensTabs(activeLens: EaLens): string {
     { id: 'business', label: 'Business', enabled: true },
     { id: 'application', label: 'Application', enabled: true },
     { id: 'policies', label: 'Policies', enabled: true },
+    { id: 'okrs', label: 'OKRs', enabled: true },
     { id: 'data', label: 'Data', enabled: false },
     { id: 'technology', label: 'Technology', enabled: false },
     { id: 'integration', label: 'Integration', enabled: false },
@@ -190,6 +191,11 @@ export function attachEaLensEvents(
         // Load policies on first switch to policies tab
         if (lens === 'policies' && (getState().policies as unknown[]).length === 0) {
           vscode.postMessage({ type: 'loadPolicies' });
+        }
+        // Load OKRs on switch to OKRs tab (always — list is cheap to refetch
+        // and we want the latest after any scaffold or external edit).
+        if (lens === 'okrs') {
+          vscode.postMessage({ type: 'getOkrList' });
         }
         render();
       }

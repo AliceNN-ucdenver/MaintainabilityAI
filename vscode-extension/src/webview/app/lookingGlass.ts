@@ -22,6 +22,13 @@ import {
   renderBarDetail, renderScoreRing, needsPush, renderGitSyncBanner,
   getBarDetailStyles, attachBarDetailEvents,
 } from './views/barDetail';
+import {
+  renderOkrListView, getOkrListStyles, attachOkrListEvents,
+} from './views/okrList';
+import {
+  renderOkrDetailView, getOkrDetailStyles, attachOkrDetailEvents,
+} from './views/okrDetail';
+import type { OkrListItem, OkrAffectedBar, OkrCard } from '../../types';
 import type {
   VsCodeApi, Criticality, GovernanceScoreSnapshot, GovernanceTrend,
   GovernanceDecision,
@@ -51,7 +58,7 @@ const vscode = acquireVsCodeApi();
 // Types (local UI-only types)
 // ============================================================================
 
-type ViewName = 'no-mesh' | 'portfolio' | 'bar-detail' | 'init-mesh' | 'add-platform' | 'create-bar' | 'org-scanner' | 'settings';
+type ViewName = 'no-mesh' | 'portfolio' | 'bar-detail' | 'init-mesh' | 'add-platform' | 'create-bar' | 'org-scanner' | 'settings' | 'okr-list' | 'okr-detail';
 
 // ============================================================================
 // State
@@ -101,6 +108,11 @@ const state = {
   topFindingsProgressPct: 0,
   topFindingsSummary: null as { architecture: string[]; security: string[]; informationRisk: string[]; operations: string[] } | null,
   topFindingsExpanded: true,
+  // OKR state (Phase A)
+  okrs: [] as OkrListItem[],
+  okrsLoading: false,
+  currentOkr: null as OkrCard | null,
+  currentOkrAffectedBars: [] as OkrAffectedBar[],
   // ADR state
   adrs: [] as AdrRecord[],
   adrEditingId: null as string | null,
@@ -1176,6 +1188,10 @@ function getStyles(): string {
 
       ${getPolicyStyles()}
 
+      ${getOkrListStyles()}
+
+      ${getOkrDetailStyles()}
+
       /* ---- Repo Picker Modal ---- */
       .repo-picker-backdrop {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -1441,6 +1457,8 @@ function renderView(): string {
     case 'create-bar': content = renderCreateBarForm(); break;
     case 'org-scanner': content = renderOrgScanner(); break;
     case 'settings': content = renderSettings(); break;
+    case 'okr-list': content = renderOkrListView({ okrs: state.okrs, isLoading: state.okrsLoading }); break;
+    case 'okr-detail': content = renderOkrDetailView({ okr: state.currentOkr, affectedBars: state.currentOkrAffectedBars }); break;
     default: content = renderNoMesh(); break;
   }
   // Overlay: platform governance editor modal
@@ -1492,6 +1510,8 @@ function renderPortfolio(): string {
       ? renderBusinessCapabilityView(state, (bars: BarSummary[]) => renderAppTileGrid(bars, state.gitStatus, needsPush(state.gitStatus), renderScoreRing))
       : state.activeLens === 'policies'
       ? renderPoliciesLensContent(state, (msg) => vscode.postMessage(msg))
+      : state.activeLens === 'okrs'
+      ? renderOkrListView({ okrs: state.okrs, isLoading: state.okrsLoading })
       : renderApplicationLensContent(p, state.currentPlatformId, state.barFilter, state.searchQuery, state.gitStatus, needsPush(state.gitStatus), renderScoreRing, state.showPlatformArch)}
   `;
 }
@@ -3339,6 +3359,16 @@ function attachEventHandlers() {
     render,
   );
 
+  // ---------- OKR Events (delegated to views/okrList.ts + views/okrDetail.ts) ----------
+  attachOkrListEvents(vscode);
+  attachOkrDetailEvents(vscode, () => {
+    state.view = 'portfolio';
+    state.activeLens = 'okrs';
+    state.currentOkr = null;
+    state.currentOkrAffectedBars = [];
+    render();
+  });
+
   // Linked Repo Clicks — delegated to views/barDetail.ts via attachBarDetailEvents above
 
   // ---------- Repo Picker Modal ----------
@@ -4371,6 +4401,28 @@ window.addEventListener('message', (event) => {
         state.platformCalmData = message.calmData as CalmDataPayload;
         render();
       }
+      break;
+    }
+
+    // OKR list + detail (Phase A — read-only)
+    case 'okrList': {
+      state.okrs = (message.okrs ?? []) as OkrListItem[];
+      state.okrsLoading = false;
+      render();
+      break;
+    }
+    case 'okrDetail': {
+      state.currentOkr = message.okr as OkrCard;
+      state.currentOkrAffectedBars = (message.affectedBars ?? []) as OkrAffectedBar[];
+      state.view = 'okr-detail';
+      render();
+      break;
+    }
+    case 'okrSampleScaffolded': {
+      // Server posts okrList right after; just route to OKR list view so user sees it
+      state.view = 'portfolio';
+      state.activeLens = 'okrs';
+      render();
       break;
     }
   }

@@ -344,7 +344,7 @@ export interface ThreatModelResult {
 // ============================================================================
 
 export type CapabilityModelType = 'insurance' | 'banking' | 'custom';
-export type EaLens = 'business' | 'application' | 'policies' | 'data' | 'technology' | 'integration';
+export type EaLens = 'business' | 'application' | 'policies' | 'okrs' | 'data' | 'technology' | 'integration';
 
 export interface CapabilityNode {
   key: string;

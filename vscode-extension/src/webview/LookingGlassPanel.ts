@@ -499,13 +499,128 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         });
         break;
 
+      // OKR list + detail (Phase A — read-only; Start buttons disabled until Phase B)
+      case 'getOkrList':
+        await this.onGetOkrList();
+        break;
+      case 'drillIntoOkr':
+        await this.onDrillIntoOkr(message.okrId);
+        break;
+      case 'scaffoldOkrSample':
+        await this.onScaffoldOkrSample();
+        break;
+
       case 'backToPortfolio':
       case 'backToPlatform':
+      case 'backToOkrList':
       case 'drillIntoPlatform':
       case 'filterBars':
       case 'searchBars':
         // These are handled client-side in the webview
         break;
+    }
+  }
+
+  /**
+   * Phase A — read all OKRs under <meshPath>/okrs/ and post a list view
+   * payload. Each row hydrates the primary-BAR tier (computed by
+   * OKRService.tierFor via the BarScoreSource adapter wired in
+   * MeshService's constructor).
+   */
+  private async onGetOkrList() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    try {
+      const okrService = this.meshService.getOkrService();
+      const summaries = okrService.readAll(meshPath);
+      const okrs = summaries.map(s => ({
+        id: s.id,
+        objective: s.objective,
+        ownerHandle: s.ownerHandle,
+        platformId: s.platformId,
+        primaryBarId: s.primaryBarId,
+        primaryBarTier: s.primaryBarTier,
+        status: s.status,
+        paused: s.paused,
+        phaseProgress: s.phaseProgress,
+        lastActivityAt: s.lastActivityAt,
+        chainRootShort: s.chainRootShort,
+        targetCodeRepos: s.targetCodeRepos,
+      }));
+      this.postMessage({ type: 'okrList', okrs });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to load OKRs: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase A — open OKR detail. Resolves affected BARs to {id, name, path,
+   * compositeScore, tier} via MeshService.findBarById so the webview can
+   * render the tier badges + "Open BAR ↗" cross-links without doing its
+   * own mesh walk.
+   */
+  private async onDrillIntoOkr(okrId: string) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    try {
+      const okrService = this.meshService.getOkrService();
+      const okr = okrService.read(meshPath, okrId);
+      if (!okr) {
+        this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+        return;
+      }
+      const affectedBars = okr.objectiveAlignment.affectedBarIds
+        .map(barId => {
+          const bar = this.meshService.findBarById(meshPath, barId);
+          if (!bar) {
+            return { id: barId, name: barId, path: '', compositeScore: 0, tier: 'restricted' as const };
+          }
+          const tier: 'autonomous' | 'supervised' | 'restricted' =
+            bar.compositeScore >= 80 ? 'autonomous'
+            : bar.compositeScore >= 50 ? 'supervised'
+            : 'restricted';
+          return {
+            id: bar.id,
+            name: bar.name,
+            path: bar.path,
+            compositeScore: bar.compositeScore,
+            tier,
+          };
+        });
+      this.postMessage({ type: 'okrDetail', okr, affectedBars });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to load OKR: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase A — scaffold the IMDB-Lite sample OKR. Idempotent at the
+   * MeshService layer (returns the existing sample if one is already
+   * present). Posts the resulting OKR id so the webview can navigate to
+   * its detail view.
+   */
+  private async onScaffoldOkrSample() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    try {
+      const card = this.meshService.scaffoldImdbLiteOkr(meshPath);
+      if (!card) {
+        this.postMessage({ type: 'error', message: 'Failed to scaffold sample OKR' });
+        return;
+      }
+      this.postMessage({ type: 'okrSampleScaffolded', okrId: card.meta.id });
+      await this.onGetOkrList();
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to scaffold sample OKR: ${toErrorMessage(err)}` });
     }
   }
 

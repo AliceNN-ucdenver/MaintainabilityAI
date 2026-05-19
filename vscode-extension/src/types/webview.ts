@@ -13,7 +13,9 @@ import type {
   AdrRecord, ThreatEntry, ThreatModelResult, OrgScanRecommendation,
   RecommendedPlatform, ExistingBarUpdate, OrgRepo, PolicyFile, NistControl,
   GitSyncStatus, ActiveReviewInfo, TopFindingsSummary, DriftWeights,
+  GovernanceTier,
 } from './governance';
+import type { OkrCard, OkrPhaseProgress, OkrStatus } from './okr';
 
 // ============================================================================
 // Webview Message Protocol (IssueCreator / Rabbit Hole)
@@ -237,6 +239,41 @@ export interface ResearchSettingsPayload {
   meshRepo: { owner: string; repo: string } | null;
 }
 
+// ── OKR view payloads ───────────────────────────────────────────────────────
+
+/**
+ * Per-OKR row data sent to the OKR list view. Computed by the extension
+ * from each OkrSummary + its primary-BAR's tier (resolved via
+ * MeshService.findBarById). The webview just renders.
+ */
+export interface OkrListItem {
+  id: string;
+  objective: string;
+  ownerHandle: string;
+  platformId: string;
+  primaryBarId: string;
+  primaryBarTier: GovernanceTier;
+  status: OkrStatus;
+  paused: boolean;
+  phaseProgress: OkrPhaseProgress;
+  lastActivityAt: string;
+  chainRootShort: string;
+  targetCodeRepos: string[];
+}
+
+/**
+ * One affected BAR's snapshot for the OKR detail view. Hydrated by the
+ * extension via MeshService.findBarById so the webview doesn't have to
+ * walk the mesh.
+ */
+export interface OkrAffectedBar {
+  id: string;
+  name: string;
+  path: string;
+  compositeScore: number;
+  tier: GovernanceTier;
+}
+
 // ============================================================================
 // Looking Glass Message Protocol
 // ============================================================================
@@ -339,7 +376,12 @@ export type LookingGlassWebviewMessage =
   | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' }
   // Research dispatch from platform / BAR views — opens NewResearchPanel pre-filled with scope
   | { type: 'newResearchFromPlatform'; slug: string; name: string }
-  | { type: 'newResearchFromBar'; barId: string; barName: string };
+  | { type: 'newResearchFromBar'; barId: string; barName: string }
+  // OKR list + detail (Phase A — read-only; Start buttons disabled until Phase B)
+  | { type: 'getOkrList' }
+  | { type: 'drillIntoOkr'; okrId: string }
+  | { type: 'backToOkrList' }
+  | { type: 'scaffoldOkrSample' };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -425,4 +467,8 @@ export type LookingGlassExtensionMessage =
   | { type: 'researchSecretPushedAll'; id: ResearchSecretId; results: Array<{ repo: string; ok: boolean; message: string }>; message: string }
   | { type: 'researchPrefsSaved' }
   // Phase 6 — Cross-BAR governance context
-  | { type: 'barGovernanceContext'; barPath: string; linkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[]; siblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[]; platformOverrides: string[] };
+  | { type: 'barGovernanceContext'; barPath: string; linkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[]; siblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[]; platformOverrides: string[] }
+  // OKR list + detail (Phase A — read-only)
+  | { type: 'okrList'; okrs: OkrListItem[] }
+  | { type: 'okrDetail'; okr: OkrCard; affectedBars: OkrAffectedBar[] }
+  | { type: 'okrSampleScaffolded'; okrId: string };

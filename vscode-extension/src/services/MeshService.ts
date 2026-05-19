@@ -57,10 +57,41 @@ export class MeshService {
   constructor() {
     this.scorer = new GovernanceScorer();
     this.barService = new BarService(this.scorer);
-    // OKRService runs without a BarScoreSource in Phase A — tierFor will
-    // fall back to 'restricted' (failsafe). Phase A-PR3 wires a BarService-
-    // backed adapter once the OKR detail view needs real-time tier.
-    this.okrService = new OKRService();
+    // OKRService gets a BarScoreSource backed by this MeshService so
+    // tierFor() returns real scores derived from the affected BARs'
+    // pillar composites (see design doc §6.2 — Restricted wins).
+    this.okrService = new OKRService({
+      compositeScoreFor: (meshPath: string, barId: string) => {
+        const bar = this.findBarById(meshPath, barId);
+        return bar?.compositeScore ?? null;
+      },
+    });
+  }
+
+  /**
+   * Look up a BAR by its id (e.g. APP-IMDB-002) across all platforms in
+   * the mesh. Returns null if no BAR matches. Used by OKRService.tierFor
+   * (via the BarScoreSource adapter above) and by the OKR detail view's
+   * "Affected BARs" section to render tier badges + scores.
+   *
+   * The implementation lists all BARs and finds by id — a linear scan.
+   * For meshes with hundreds of BARs we'd want an index; today's scale
+   * (single-digit-to-low-double-digit BARs per mesh) makes that
+   * premature.
+   */
+  findBarById(meshPath: string, barId: string): BarSummary | null {
+    const reader = this.createReader(meshPath);
+    const bars = reader.listBars();
+    return bars.find(b => b.id === barId) ?? null;
+  }
+
+  /**
+   * Returns the wired OKRService instance. Exposed so panels (e.g.
+   * LookingGlassPanel) can read/list OKRs without instantiating their
+   * own service (which would skip the BarScoreSource wiring).
+   */
+  getOkrService(): OKRService {
+    return this.okrService;
   }
 
   /** Create a MeshReader for the given path (VS Code-free). */
