@@ -69,10 +69,16 @@ function sampleCard(over: Partial<OkrCard> = {}): OkrCard {
 }
 
 describe('renderOkrListView', () => {
-  it('renders empty state with a scaffold CTA when there are no OKRs', () => {
+  it('renders empty state with a Create OKR CTA when there are no OKRs', () => {
     const html = renderOkrListView({ okrs: [] });
     expect(html).toContain('No OKRs yet');
-    expect(html).toContain('data-action="scaffold-sample-okr"');
+    expect(html).toContain('data-action="create-okr-manual"');
+    expect(html).toContain('+ Create OKR');
+  });
+
+  it('renders a Create OKR button in the header when OKRs exist', () => {
+    const html = renderOkrListView({ okrs: [sampleListItem()] });
+    expect(html).toContain('data-action="create-okr-manual"');
   });
 
   it('renders loading state', () => {

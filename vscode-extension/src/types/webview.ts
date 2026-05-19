@@ -381,7 +381,14 @@ export type LookingGlassWebviewMessage =
   | { type: 'getOkrList' }
   | { type: 'drillIntoOkr'; okrId: string }
   | { type: 'backToOkrList' }
-  | { type: 'scaffoldOkrSample' };
+  | { type: 'scaffoldOkrSample' }
+  /**
+   * Phase A — create a new OKR via native VS Code dialogs. The extension
+   * walks the user through platform → BARs → objective → owner → first KR
+   * prompts and persists via OKRService.create. Detail view opens on
+   * success.
+   */
+  | { type: 'createOkrManual' };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

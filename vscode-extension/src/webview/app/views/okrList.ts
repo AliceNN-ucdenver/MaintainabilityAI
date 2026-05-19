@@ -5,10 +5,10 @@
  * badges read from the primary affected BAR. Each row drills into the
  * OKR detail via `drillIntoOkr`.
  *
- * Empty state shows a `Scaffold sample OKR` CTA so a fresh mesh has a
- * one-click path to the IMDB-Lite Celebs sample (which depends on the
- * IMDB-Lite platform being scaffolded first; if not, the CTA opens the
- * "Sample Platform" picker via the existing samplePlatform message).
+ * Empty state shows a `+ Create OKR` primary CTA. The IMDB-Lite Celebs
+ * sample is no longer prompted from this view — it's now seeded
+ * automatically when the user scaffolds the IMDB-Lite platform from
+ * Settings → Sample Platform.
  *
  * Read-only in Phase A — there's no Edit / Pause from this view. The
  * Pause control lives on the OKR detail footer.
@@ -88,12 +88,11 @@ export function renderOkrListView(state: OkrListRenderState): string {
         <div class="okr-empty">
           <h2>No OKRs yet</h2>
           <p>OKRs are the entry point for the agentic governed SDLC pipeline.
-             The IMDB-Lite Celebs sample is a good starting point — it shows
-             the Restricted-tier gate end-to-end.</p>
-          <button class="okr-button-primary" data-action="scaffold-sample-okr">
-            Scaffold sample OKR
+             Create one to anchor a research → PRD → code-design intent thread.</p>
+          <button class="okr-button-primary" data-action="create-okr-manual">
+            + Create OKR
           </button>
-          <p class="okr-empty-note">Requires the IMDB-Lite platform scaffolded first (Settings → Sample Platform).</p>
+          <p class="okr-empty-note">Tip: scaffolding IMDB-Lite from Settings → Sample Platform also seeds a sample OKR.</p>
         </div>
       </div>
     `;
@@ -106,7 +105,7 @@ export function renderOkrListView(state: OkrListRenderState): string {
           <h1 class="okr-list-title">OKRs</h1>
           <p class="okr-list-subtitle">${state.okrs.length} OKR${state.okrs.length === 1 ? '' : 's'} · Phase A · agent buttons disabled until Phase B</p>
         </div>
-        <button class="okr-button-secondary" data-action="scaffold-sample-okr">+ Sample OKR</button>
+        <button class="okr-button-primary" data-action="create-okr-manual">+ Create OKR</button>
       </div>
       <table class="okr-list-table">
         <thead>
@@ -201,9 +200,9 @@ export function attachOkrListEvents(vscode: { postMessage: (msg: unknown) => voi
       }
     });
   });
-  document.querySelectorAll('[data-action="scaffold-sample-okr"]').forEach(btn => {
+  document.querySelectorAll('[data-action="create-okr-manual"]').forEach(btn => {
     btn.addEventListener('click', () => {
-      vscode.postMessage({ type: 'scaffoldOkrSample' });
+      vscode.postMessage({ type: 'createOkrManual' });
     });
   });
 }

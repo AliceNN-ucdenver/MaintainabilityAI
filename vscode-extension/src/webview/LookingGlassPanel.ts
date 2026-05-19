@@ -38,6 +38,7 @@ import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
+import type { OkrCreateInput } from '../types/okr';
 import { promptPackService } from '../services/PromptPackService';
 import { ScaffoldPanel } from './ScaffoldPanel';
 import { execFileAsync } from '../utils/exec';
@@ -509,6 +510,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'scaffoldOkrSample':
         await this.onScaffoldOkrSample();
         break;
+      case 'createOkrManual':
+        await this.onCreateOkrManual();
+        break;
 
       case 'backToPortfolio':
       case 'backToPlatform':
@@ -621,6 +625,142 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       await this.onGetOkrList();
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to scaffold sample OKR: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase A — create a new OKR from scratch via native VS Code dialogs.
+   *
+   * The flow is intentionally minimum-viable: we collect the fields the
+   * schema requires (platform, ≥1 BAR, objective name, owner, ≥1 KR) and
+   * default everything else. Users hand-edit the resulting okr.yaml for
+   * the rich BTABoK fields (objective notes, intent cascade, governance
+   * overrides) before Phase B's agent buttons go live.
+   *
+   * BAR selection order matters: the lowest-composite (most Restricted)
+   * BAR goes FIRST in affectedBarIds so OKRService.tierFor returns the
+   * correct "Restricted wins" gate (design doc §6.2). We sort the
+   * user's multi-select by ascending compositeScore to enforce this.
+   */
+  private async onCreateOkrManual() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+
+    const summary = this.meshService.buildPortfolioSummary(meshPath);
+    if (!summary || summary.platforms.length === 0) {
+      vscode.window.showWarningMessage(
+        'Create OKR: this mesh has no platforms yet. Scaffold one from Settings → Sample Platform, or add a platform first.',
+      );
+      return;
+    }
+
+    // 1. Pick platform
+    const platformPick = await vscode.window.showQuickPick(
+      summary.platforms.map(p => ({
+        label: p.name,
+        description: `${p.id} · ${p.barCount} BAR${p.barCount === 1 ? '' : 's'}`,
+        platform: p,
+      })),
+      { placeHolder: 'New OKR — select platform' },
+    );
+    if (!platformPick) { return; }
+    const platform = platformPick.platform;
+    if (platform.bars.length === 0) {
+      vscode.window.showWarningMessage(
+        `Platform ${platform.name} has no BARs yet. Add a BAR first, then create the OKR.`,
+      );
+      return;
+    }
+
+    // 2. Pick affected BARs (multi-select, ≥1)
+    const barPicks = await vscode.window.showQuickPick(
+      platform.bars.map(b => ({
+        label: b.name,
+        description: `${b.id} · score ${Math.round(b.compositeScore)}`,
+        bar: b,
+      })),
+      {
+        placeHolder: 'New OKR — select affected BARs (most-restricted first drives tier)',
+        canPickMany: true,
+      },
+    );
+    if (!barPicks || barPicks.length === 0) { return; }
+    // Sort ascending by composite — lowest score (most restricted) first,
+    // so the primary BAR drives the Restricted-wins tier gate.
+    const orderedBars = barPicks
+      .map(p => p.bar)
+      .slice()
+      .sort((a, b) => a.compositeScore - b.compositeScore);
+
+    // 3. Objective name
+    const objectiveName = await vscode.window.showInputBox({
+      title: 'New OKR — Objective',
+      prompt: 'One-sentence objective (e.g. "Add celebrity profile API to IMDB-Lite")',
+      validateInput: v => v.trim().length === 0 ? 'Objective is required' : null,
+      ignoreFocusOut: true,
+    });
+    if (!objectiveName) { return; }
+
+    // 4. Owner — default from git config user.name if available
+    const ownerDefault = readGitUserName() ?? '';
+    const owner = await vscode.window.showInputBox({
+      title: 'New OKR — Owner',
+      prompt: 'Owner handle (GitHub username or team name)',
+      value: ownerDefault,
+      validateInput: v => v.trim().length === 0 ? 'Owner is required' : null,
+      ignoreFocusOut: true,
+    });
+    if (!owner) { return; }
+
+    // 5. First KR metric — minimum required by schema
+    const krMetric = await vscode.window.showInputBox({
+      title: 'New OKR — Key Result 1',
+      prompt: 'Metric name (e.g. "p95 latency", "user activation rate")',
+      validateInput: v => v.trim().length === 0 ? 'At least one Key Result metric is required' : null,
+      ignoreFocusOut: true,
+    });
+    if (!krMetric) { return; }
+
+    // Build the draft. Target / measurement are placeholders the user
+    // fills in by editing okr.yaml — keeping prompt count low.
+    const draft: OkrCreateInput = {
+      owner: owner.trim(),
+      objective: {
+        name: objectiveName.trim(),
+        description: '',
+      },
+      keyResults: [
+        {
+          id: 'KR-1',
+          metric: krMetric.trim(),
+          target: 'TBD',
+          measurement: 'TBD',
+        },
+      ],
+      objectiveAlignment: {
+        platformId: platform.id,
+        affectedBarIds: orderedBars.map(b => b.id),
+        targetCodeRepos: orderedBars.flatMap(b => b.repos ?? []),
+        intentCascade: {},
+      },
+    };
+
+    try {
+      const okrService = this.meshService.getOkrService();
+      const card = okrService.create(meshPath, draft);
+      if (!card) {
+        this.postMessage({ type: 'error', message: 'Failed to create OKR (see logs)' });
+        return;
+      }
+      vscode.window.showInformationMessage(`Created ${card.meta.id} — fill in KR targets + measurements in okr.yaml.`);
+      await this.onGetOkrList();
+      // Drill into the new OKR so the user lands on its detail view
+      await this.onDrillIntoOkr(card.meta.id);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to create OKR: ${toErrorMessage(err)}` });
     }
   }
 
@@ -1465,6 +1605,22 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       const result = choice.value === 'imdb-lite'
         ? this.meshService.scaffoldImdbLitePlatform(meshPath)
         : this.meshService.scaffoldSamplePlatform(meshPath);
+      // IMDB-Lite ships with its sample Celebs OKR — seed it inline so the
+      // OKR tab is populated immediately. Idempotent at the MeshService
+      // layer (returns the existing card if one is already present), so
+      // re-running Sample Platform never accumulates dupes.
+      if (choice.value === 'imdb-lite') {
+        try {
+          this.meshService.scaffoldImdbLiteOkr(meshPath);
+        } catch (okrErr) {
+          // Non-fatal: platform is already on disk; surface as info so the
+          // user can re-trigger from the OKR tab if needed.
+          this.postMessage({
+            type: 'info',
+            message: `Platform created; sample OKR seed failed: ${toErrorMessage(okrErr)}`,
+          });
+        }
+      }
       this.postMessage({
         type: 'samplePlatformCreated',
         platformCount: result.platformCount,
@@ -3871,5 +4027,22 @@ Policy file: ${filename}
 
   protected clearCurrentPanel(): void {
     LookingGlassPanel.currentPanel = undefined;
+  }
+}
+
+/**
+ * Best-effort lookup of the user's git config user.name to pre-fill the
+ * Owner field on the Create OKR flow. Returns null on any failure — the
+ * caller treats null as "no default" and leaves the input empty.
+ */
+function readGitUserName(): string | null {
+  try {
+    const out = execFileSync('git', ['config', '--get', 'user.name'], {
+      encoding: 'utf8',
+      timeout: 1500,
+    }).trim();
+    return out.length > 0 ? out : null;
+  } catch {
+    return null;
   }
 }
