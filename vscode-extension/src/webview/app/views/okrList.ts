@@ -202,7 +202,7 @@ export function attachOkrListEvents(vscode: { postMessage: (msg: unknown) => voi
   });
   document.querySelectorAll('[data-action="create-okr-manual"]').forEach(btn => {
     btn.addEventListener('click', () => {
-      vscode.postMessage({ type: 'createOkrManual' });
+      vscode.postMessage({ type: 'createOkrDraft' });
     });
   });
 }

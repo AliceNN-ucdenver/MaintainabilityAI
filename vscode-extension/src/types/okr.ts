@@ -266,6 +266,30 @@ export type OkrCard = z.infer<typeof OkrCardSchema>;
  * filled, intent_thread_uuid is generated, lifecycle timestamps are
  * stamped.
  */
+/**
+ * Allowlisted patch for OKRService.update. Anything NOT listed here is
+ * either system-managed (meta.id, intentThreadUuid, createdAt, audit) or
+ * append-only via a dedicated method (actions[] → appendAction /
+ * updateAction). Sections we don't yet surface in the UI (overview,
+ * howToUse, keyResultRetrospective, valueLearning, downloads) stay
+ * unchanged on update so users hand-editing the YAML directly never
+ * lose those fields.
+ */
+export const OkrUpdatePatchSchema = z.object({
+  owner: z.string().min(1).optional(),
+  paused: z.boolean().optional(),
+  objective: OkrObjectiveSchema.partial().optional(),
+  keyResults: z.array(KeyResultSchema).min(1).max(7).optional(),
+  governance: OkrGovernanceSchema,
+  objectiveAlignment: z.object({
+    platformId: z.string().optional(),
+    affectedBarIds: z.array(z.string()).min(1).optional(),
+    targetCodeRepos: z.array(z.string()).optional(),
+    intentCascade: IntentCascadeSchema.partial().optional(),
+  }).optional(),
+});
+export type OkrUpdatePatch = z.infer<typeof OkrUpdatePatchSchema>;
+
 export const OkrCreateInputSchema = z.object({
   idSuffix: z.string().regex(/^[a-z0-9-]+$/, 'idSuffix must be slug-safe').optional(),  // e.g. "celeb-api"; auto-generated if omitted
   quarter: z.string().regex(/^\d{4}Q[1-4]$/, 'quarter must match YYYYQN').optional(),    // e.g. "2026Q1"; defaults to current quarter

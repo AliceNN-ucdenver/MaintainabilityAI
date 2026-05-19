@@ -28,7 +28,10 @@ import {
 import {
   renderOkrDetailView, getOkrDetailStyles, attachOkrDetailEvents,
 } from './views/okrDetail';
-import type { OkrListItem, OkrAffectedBar, OkrCard } from '../../types';
+import type {
+  OkrListItem, OkrAffectedBar, OkrCard,
+  OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode,
+} from '../../types';
 import type {
   VsCodeApi, Criticality, GovernanceScoreSnapshot, GovernanceTrend,
   GovernanceDecision,
@@ -113,6 +116,9 @@ const state = {
   okrsLoading: false,
   currentOkr: null as OkrCard | null,
   currentOkrAffectedBars: [] as OkrAffectedBar[],
+  currentOkrMode: 'view' as OkrDetailMode,
+  currentOkrAvailablePlatforms: [] as OkrAvailablePlatform[],
+  currentOkrAvailableBars: [] as OkrAvailableBar[],
   // ADR state
   adrs: [] as AdrRecord[],
   adrEditingId: null as string | null,
@@ -1458,7 +1464,13 @@ function renderView(): string {
     case 'org-scanner': content = renderOrgScanner(); break;
     case 'settings': content = renderSettings(); break;
     case 'okr-list': content = renderOkrListView({ okrs: state.okrs, isLoading: state.okrsLoading }); break;
-    case 'okr-detail': content = renderOkrDetailView({ okr: state.currentOkr, affectedBars: state.currentOkrAffectedBars }); break;
+    case 'okr-detail': content = renderOkrDetailView({
+      okr: state.currentOkr,
+      affectedBars: state.currentOkrAffectedBars,
+      mode: state.currentOkrMode,
+      availablePlatforms: state.currentOkrAvailablePlatforms,
+      availableBars: state.currentOkrAvailableBars,
+    }); break;
     default: content = renderNoMesh(); break;
   }
   // Overlay: platform governance editor modal
@@ -3366,6 +3378,9 @@ function attachEventHandlers() {
     state.activeLens = 'okrs';
     state.currentOkr = null;
     state.currentOkrAffectedBars = [];
+    state.currentOkrMode = 'view';
+    state.currentOkrAvailablePlatforms = [];
+    state.currentOkrAvailableBars = [];
     render();
   });
 
@@ -4404,18 +4419,31 @@ window.addEventListener('message', (event) => {
       break;
     }
 
-    // OKR list + detail (Phase A — read-only)
+    // OKR list + detail (Phase A — inline edit on detail page; agent
+    // Start buttons remain disabled until Phase B)
     case 'okrList': {
       state.okrs = (message.okrs ?? []) as OkrListItem[];
       state.okrsLoading = false;
+      // Reaching the list view means we're done with any edit/create session.
+      state.currentOkrMode = 'view';
       render();
       break;
     }
     case 'okrDetail': {
       state.currentOkr = message.okr as OkrCard;
       state.currentOkrAffectedBars = (message.affectedBars ?? []) as OkrAffectedBar[];
+      state.currentOkrMode = ((message as { mode?: OkrDetailMode }).mode ?? 'view') as OkrDetailMode;
+      state.currentOkrAvailablePlatforms = ((message as { availablePlatforms?: OkrAvailablePlatform[] }).availablePlatforms ?? []) as OkrAvailablePlatform[];
+      state.currentOkrAvailableBars = ((message as { availableBars?: OkrAvailableBar[] }).availableBars ?? []) as OkrAvailableBar[];
       state.view = 'okr-detail';
       render();
+      break;
+    }
+    case 'okrSaved':
+    case 'okrCreated': {
+      // No-op visually — the server follows up with okrDetail (view mode) which
+      // triggers a re-render. We swallow these here so the discriminated-union
+      // dispatch doesn't fall through to the default error case.
       break;
     }
     case 'okrSampleScaffolded': {

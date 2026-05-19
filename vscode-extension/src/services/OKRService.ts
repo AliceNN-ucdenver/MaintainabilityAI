@@ -40,8 +40,10 @@ import * as yaml from 'yaml';
 import {
   OkrCardSchema,
   OkrCreateInputSchema,
+  OkrUpdatePatchSchema,
   type OkrCard,
   type OkrCreateInput,
+  type OkrUpdatePatch,
   type OkrAction,
   type OkrStatus,
   type OkrSummary,
@@ -312,6 +314,59 @@ export class OKRService {
     card.meta.updatedAt = new Date().toISOString();
     this.writeCard(meshPath, card);
     return card;
+  }
+
+  /**
+   * Patch user-editable sections of an OKR. Allowlisted: owner, paused,
+   * objective.{name,description,notes}, keyResults (full replacement),
+   * governance, objectiveAlignment.{platformId, affectedBarIds,
+   * targetCodeRepos, intentCascade}.
+   *
+   * Immutable through this method (any attempt is silently ignored
+   * because they aren't in the schema): meta.id, intentThreadUuid,
+   * createdAt, status, actions[], audit chain. The BTABoK sections we
+   * don't surface in the UI (overview, howToUse, retrospective, value
+   * learning, downloads) are preserved as-is so hand-editing the YAML
+   * is non-destructive.
+   *
+   * Returns the updated card or null if the OKR doesn't exist. Throws if
+   * the patch fails Zod validation or the resulting card fails the full
+   * OkrCardSchema.
+   */
+  update(meshPath: string, okrId: string, patch: OkrUpdatePatch): OkrCard | null {
+    const validated = OkrUpdatePatchSchema.parse(patch);
+    const card = this.read(meshPath, okrId);
+    if (!card) { return null; }
+
+    if (validated.owner !== undefined) { card.meta.owner = validated.owner; }
+    if (validated.paused !== undefined) { card.meta.paused = validated.paused; }
+    if (validated.objective) {
+      card.objective = {
+        ...card.objective,
+        ...validated.objective,
+      };
+    }
+    if (validated.keyResults) { card.keyResults = validated.keyResults; }
+    if ('governance' in validated) { card.governance = validated.governance; }
+    if (validated.objectiveAlignment) {
+      const a = validated.objectiveAlignment;
+      if (a.platformId !== undefined) { card.objectiveAlignment.platformId = a.platformId; }
+      if (a.affectedBarIds) { card.objectiveAlignment.affectedBarIds = a.affectedBarIds; }
+      if (a.targetCodeRepos) { card.objectiveAlignment.targetCodeRepos = a.targetCodeRepos; }
+      if (a.intentCascade) {
+        card.objectiveAlignment.intentCascade = {
+          ...card.objectiveAlignment.intentCascade,
+          ...a.intentCascade,
+        };
+      }
+    }
+
+    card.meta.updatedAt = new Date().toISOString();
+    // Re-validate the full card before we persist, so a malformed patch
+    // can never produce a card that fails to load on next read.
+    const validatedCard = OkrCardSchema.parse(card);
+    this.writeCard(meshPath, validatedCard);
+    return validatedCard;
   }
 
   /** Pause / unpause the OKR. Pause freezes Start buttons in Looking Glass; it does NOT cancel in-flight runs. */

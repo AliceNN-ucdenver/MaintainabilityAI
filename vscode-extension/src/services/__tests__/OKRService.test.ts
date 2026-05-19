@@ -387,6 +387,81 @@ describe('OKRService', () => {
     });
   });
 
+  describe('update', () => {
+    it('patches objective fields without touching unrelated sections', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      const before = svc.read(tmpRoot, card.meta.id)!;
+      const updated = svc.update(tmpRoot, card.meta.id, {
+        objective: { name: 'Renamed objective', description: 'New description' },
+      });
+      expect(updated!.objective.name).toBe('Renamed objective');
+      expect(updated!.objective.description).toBe('New description');
+      // Untouched sections preserved
+      expect(updated!.keyResults).toEqual(before.keyResults);
+      expect(updated!.objectiveAlignment.affectedBarIds).toEqual(before.objectiveAlignment.affectedBarIds);
+      // updatedAt bumped
+      expect(updated!.meta.updatedAt).not.toBe(before.meta.updatedAt);
+    });
+
+    it('preserves intentThreadUuid + id + createdAt across an update', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      const updated = svc.update(tmpRoot, card.meta.id, { owner: 'someone-else' });
+      expect(updated!.meta.id).toBe(card.meta.id);
+      expect(updated!.meta.intentThreadUuid).toBe(card.meta.intentThreadUuid);
+      expect(updated!.meta.createdAt).toBe(card.meta.createdAt);
+    });
+
+    it('replaces keyResults wholesale when provided', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      const updated = svc.update(tmpRoot, card.meta.id, {
+        keyResults: [
+          { id: 'KR-1', metric: 'New metric', target: 'TBD', measurement: 'TBD' },
+          { id: 'KR-2', metric: 'Second metric', target: '100%', measurement: 'audit' },
+        ],
+      });
+      expect(updated!.keyResults).toHaveLength(2);
+      expect(updated!.keyResults[1].metric).toBe('Second metric');
+    });
+
+    it('rejects an empty keyResults array (schema enforces min(1))', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      expect(() => svc.update(tmpRoot, card.meta.id, { keyResults: [] }))
+        .toThrow();
+    });
+
+    it('updates affected BARs + target repos in objectiveAlignment', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      const updated = svc.update(tmpRoot, card.meta.id, {
+        objectiveAlignment: {
+          affectedBarIds: ['BAR-Z', 'BAR-Y'],
+          targetCodeRepos: ['org/repo-1', 'org/repo-2'],
+        },
+      });
+      expect(updated!.objectiveAlignment.affectedBarIds).toEqual(['BAR-Z', 'BAR-Y']);
+      expect(updated!.objectiveAlignment.targetCodeRepos).toEqual(['org/repo-1', 'org/repo-2']);
+    });
+
+    it('returns null for an unknown OKR id', () => {
+      expect(svc.update(tmpRoot, 'OKR-DOES-NOT-EXIST', { owner: 'x' })).toBeNull();
+    });
+
+    it('merges intentCascade partials without dropping unspecified fields', () => {
+      const card = svc.create(tmpRoot, {
+        ...freshDraft(),
+        objectiveAlignment: {
+          ...freshDraft().objectiveAlignment,
+          intentCascade: { org: 'Org goal', role: 'Role goal' },
+        },
+      })!;
+      const updated = svc.update(tmpRoot, card.meta.id, {
+        objectiveAlignment: { intentCascade: { developer: 'Dev work' } },
+      });
+      expect(updated!.objectiveAlignment.intentCascade.org).toBe('Org goal');
+      expect(updated!.objectiveAlignment.intentCascade.role).toBe('Role goal');
+      expect(updated!.objectiveAlignment.intentCascade.developer).toBe('Dev work');
+    });
+  });
+
   describe('tierFor', () => {
     it('returns restricted when no BarScoreSource is wired', () => {
       const card = svc.create(tmpRoot, freshDraft())!;

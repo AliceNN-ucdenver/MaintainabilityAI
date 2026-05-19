@@ -274,6 +274,37 @@ export interface OkrAffectedBar {
   tier: GovernanceTier;
 }
 
+/**
+ * Mesh-wide BAR option, used to populate the affected-BARs multi-select
+ * on the OKR detail edit form. Pre-grouped by platform so the form can
+ * render a section per platform.
+ */
+export interface OkrAvailableBar {
+  id: string;
+  name: string;
+  platformId: string;
+  platformName: string;
+  compositeScore: number;
+  tier: GovernanceTier;
+}
+
+/**
+ * Mesh-wide platform option for the platform-select on the edit form.
+ */
+export interface OkrAvailablePlatform {
+  id: string;
+  name: string;
+  slug: string;
+  barCount: number;
+}
+
+/**
+ * Edit-mode flags carried by the okrDetail message so the webview knows
+ * whether to render the view (read-only), edit (existing OKR being
+ * edited), or create (blank scaffold being filled in) form.
+ */
+export type OkrDetailMode = 'view' | 'edit' | 'create';
+
 // ============================================================================
 // Looking Glass Message Protocol
 // ============================================================================
@@ -377,18 +408,22 @@ export type LookingGlassWebviewMessage =
   // Research dispatch from platform / BAR views — opens NewResearchPanel pre-filled with scope
   | { type: 'newResearchFromPlatform'; slug: string; name: string }
   | { type: 'newResearchFromBar'; barId: string; barName: string }
-  // OKR list + detail (Phase A — read-only; Start buttons disabled until Phase B)
+  // OKR list + detail (Phase A — inline editing on detail page;
+  // Start buttons stay disabled until Phase B agent deployment)
   | { type: 'getOkrList' }
   | { type: 'drillIntoOkr'; okrId: string }
   | { type: 'backToOkrList' }
   | { type: 'scaffoldOkrSample' }
-  /**
-   * Phase A — create a new OKR via native VS Code dialogs. The extension
-   * walks the user through platform → BARs → objective → owner → first KR
-   * prompts and persists via OKRService.create. Detail view opens on
-   * success.
-   */
-  | { type: 'createOkrManual' };
+  /** Open the OKR detail in 'create' mode with a blank scaffold. */
+  | { type: 'createOkrDraft' }
+  /** Open the OKR detail in 'edit' mode against the named OKR. */
+  | { type: 'editOkr'; okrId: string }
+  /** Save inline-edited fields. patch is OkrUpdatePatchSchema-shaped. */
+  | { type: 'saveOkrEdits'; okrId: string; patch: unknown }
+  /** Persist a brand-new OKR. draft is OkrCreateInputSchema-shaped. */
+  | { type: 'createOkrFromDraft'; draft: unknown }
+  /** Discard create-mode draft and return to the OKR list. */
+  | { type: 'cancelOkrDraft' };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -477,5 +512,16 @@ export type LookingGlassExtensionMessage =
   | { type: 'barGovernanceContext'; barPath: string; linkedBars: { barName: string; barPath: string; relationship: string; compositeScore: number; tier: string }[]; siblingBars: { name: string; id: string; path: string; compositeScore: number; tier: string }[]; platformOverrides: string[] }
   // OKR list + detail (Phase A — read-only)
   | { type: 'okrList'; okrs: OkrListItem[] }
-  | { type: 'okrDetail'; okr: OkrCard; affectedBars: OkrAffectedBar[] }
-  | { type: 'okrSampleScaffolded'; okrId: string };
+  | {
+      type: 'okrDetail';
+      okr: OkrCard;
+      affectedBars: OkrAffectedBar[];
+      mode: OkrDetailMode;
+      /** Platforms in the mesh, for the platform-select on the edit form. */
+      availablePlatforms: OkrAvailablePlatform[];
+      /** All BARs across the mesh, for the affected-BARs multi-select. */
+      availableBars: OkrAvailableBar[];
+    }
+  | { type: 'okrSampleScaffolded'; okrId: string }
+  | { type: 'okrSaved'; okrId: string }
+  | { type: 'okrCreated'; okrId: string };

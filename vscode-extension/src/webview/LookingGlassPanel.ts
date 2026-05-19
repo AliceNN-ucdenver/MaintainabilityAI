@@ -38,7 +38,9 @@ import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
-import type { OkrCreateInput } from '../types/okr';
+import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
+import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
+import type { OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode } from '../types';
 import { promptPackService } from '../services/PromptPackService';
 import { ScaffoldPanel } from './ScaffoldPanel';
 import { execFileAsync } from '../utils/exec';
@@ -510,8 +512,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'scaffoldOkrSample':
         await this.onScaffoldOkrSample();
         break;
-      case 'createOkrManual':
-        await this.onCreateOkrManual();
+      case 'createOkrDraft':
+        await this.onCreateOkrDraft();
+        break;
+      case 'editOkr':
+        await this.onEditOkr(message.okrId);
+        break;
+      case 'saveOkrEdits':
+        await this.onSaveOkrEdits(message.okrId, message.patch);
+        break;
+      case 'createOkrFromDraft':
+        await this.onCreateOkrFromDraft(message.draft);
+        break;
+      case 'cancelOkrDraft':
+        await this.onGetOkrList();
         break;
 
       case 'backToPortfolio':
@@ -566,7 +580,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    * render the tier badges + "Open BAR ↗" cross-links without doing its
    * own mesh walk.
    */
-  private async onDrillIntoOkr(okrId: string) {
+  private async onDrillIntoOkr(okrId: string, mode: OkrDetailMode = 'view') {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) {
       this.postMessage({ type: 'error', message: 'No mesh configured' });
@@ -579,28 +593,168 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
         return;
       }
-      const affectedBars = okr.objectiveAlignment.affectedBarIds
-        .map(barId => {
-          const bar = this.meshService.findBarById(meshPath, barId);
-          if (!bar) {
-            return { id: barId, name: barId, path: '', compositeScore: 0, tier: 'restricted' as const };
-          }
-          const tier: 'autonomous' | 'supervised' | 'restricted' =
-            bar.compositeScore >= 80 ? 'autonomous'
-            : bar.compositeScore >= 50 ? 'supervised'
-            : 'restricted';
-          return {
-            id: bar.id,
-            name: bar.name,
-            path: bar.path,
-            compositeScore: bar.compositeScore,
-            tier,
-          };
-        });
-      this.postMessage({ type: 'okrDetail', okr, affectedBars });
+      this.postOkrDetail(meshPath, okr, mode);
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to load OKR: ${toErrorMessage(err)}` });
     }
+  }
+
+  private async onEditOkr(okrId: string) {
+    await this.onDrillIntoOkr(okrId, 'edit');
+  }
+
+  /**
+   * Open the OKR detail in 'create' mode with a blank-but-valid scaffold.
+   * Nothing is written to disk until the user clicks Create in the form.
+   */
+  private async onCreateOkrDraft() {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const summary = this.meshService.buildPortfolioSummary(meshPath);
+    if (!summary || summary.platforms.length === 0) {
+      this.postMessage({
+        type: 'error',
+        message: 'Create OKR: this mesh has no platforms yet. Scaffold one from Settings → Sample Platform first.',
+      });
+      return;
+    }
+    // Pick the first platform as the default for the form's platform-select.
+    // Affected BARs start empty — user picks them from the multi-select.
+    const defaultPlatform = summary.platforms[0];
+    const draft = buildBlankOkrScaffold(defaultPlatform.id, readGitUserName() ?? '');
+    this.postOkrDetail(meshPath, draft, 'create');
+  }
+
+  /**
+   * Persist a brand-new OKR from the draft form. Validates via Zod and
+   * surfaces schema errors to the user as a toast so they can fix and
+   * retry without losing in-progress field values.
+   */
+  private async onCreateOkrFromDraft(rawDraft: unknown) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const parsed = OkrCreateInputSchema.safeParse(rawDraft);
+    if (!parsed.success) {
+      this.postMessage({
+        type: 'error',
+        message: `Cannot create OKR: ${formatZodErrors(parsed.error)}`,
+      });
+      return;
+    }
+    const draft: OkrCreateInput = parsed.data;
+    // Sort affected BARs ascending by composite score so the lowest-scored
+    // (most-Restricted) BAR is primary — matches the Restricted-wins gate.
+    draft.objectiveAlignment.affectedBarIds = this.orderBarsByTier(meshPath, draft.objectiveAlignment.affectedBarIds);
+    try {
+      const okrService = this.meshService.getOkrService();
+      const card = okrService.create(meshPath, draft);
+      if (!card) {
+        this.postMessage({ type: 'error', message: 'Failed to create OKR — id may already exist.' });
+        return;
+      }
+      this.postMessage({ type: 'okrCreated', okrId: card.meta.id });
+      vscode.window.showInformationMessage(`Created ${card.meta.id}.`);
+      await this.onGetOkrList();
+      await this.onDrillIntoOkr(card.meta.id, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to create OKR: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Apply an inline-edit patch to an existing OKR. Re-validates the
+   * resulting card via OkrCardSchema before writing so a malformed patch
+   * can't corrupt the file. Returns the user to view mode on success.
+   */
+  private async onSaveOkrEdits(okrId: string, rawPatch: unknown) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const parsed = OkrUpdatePatchSchema.safeParse(rawPatch);
+    if (!parsed.success) {
+      this.postMessage({
+        type: 'error',
+        message: `Cannot save: ${formatZodErrors(parsed.error)}`,
+      });
+      return;
+    }
+    const patch: OkrUpdatePatch = parsed.data;
+    if (patch.objectiveAlignment?.affectedBarIds) {
+      patch.objectiveAlignment.affectedBarIds = this.orderBarsByTier(meshPath, patch.objectiveAlignment.affectedBarIds);
+    }
+    try {
+      const okrService = this.meshService.getOkrService();
+      const card = okrService.update(meshPath, okrId, patch);
+      if (!card) {
+        this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+        return;
+      }
+      this.postMessage({ type: 'okrSaved', okrId });
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to save OKR: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Push an okrDetail message including the supporting lists (platforms +
+   * BARs across the mesh) the webview needs to render the edit form. The
+   * lists are sent on every detail render so the webview never has to
+   * round-trip to fetch them — small enough payload (single-digit-to-
+   * low-double-digit BARs per mesh at today's scale).
+   */
+  private postOkrDetail(meshPath: string, okr: OkrCard, mode: OkrDetailMode): void {
+    const summary = this.meshService.buildPortfolioSummary(meshPath);
+    const availablePlatforms: OkrAvailablePlatform[] = (summary?.platforms ?? []).map(p => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      barCount: p.barCount,
+    }));
+    const availableBars: OkrAvailableBar[] = (summary?.allBars ?? []).map(b => ({
+      id: b.id,
+      name: b.name,
+      platformId: b.platformId,
+      platformName: b.platformName,
+      compositeScore: b.compositeScore,
+      tier: b.compositeScore >= 80 ? 'autonomous' : b.compositeScore >= 50 ? 'supervised' : 'restricted',
+    }));
+    const affectedBars = okr.objectiveAlignment.affectedBarIds.map(barId => {
+      const bar = this.meshService.findBarById(meshPath, barId);
+      if (!bar) {
+        return { id: barId, name: barId, path: '', compositeScore: 0, tier: 'restricted' as const };
+      }
+      const tier: 'autonomous' | 'supervised' | 'restricted' =
+        bar.compositeScore >= 80 ? 'autonomous'
+        : bar.compositeScore >= 50 ? 'supervised' : 'restricted';
+      return { id: bar.id, name: bar.name, path: bar.path, compositeScore: bar.compositeScore, tier };
+    });
+    this.postMessage({
+      type: 'okrDetail',
+      okr,
+      affectedBars,
+      mode,
+      availablePlatforms,
+      availableBars,
+    });
+  }
+
+  private orderBarsByTier(meshPath: string, barIds: string[]): string[] {
+    return barIds
+      .map(id => {
+        const bar = this.meshService.findBarById(meshPath, id);
+        return { id, score: bar?.compositeScore ?? 0 };
+      })
+      .sort((a, b) => a.score - b.score)
+      .map(b => b.id);
   }
 
   /**
@@ -628,141 +782,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
   }
 
-  /**
-   * Phase A — create a new OKR from scratch via native VS Code dialogs.
-   *
-   * The flow is intentionally minimum-viable: we collect the fields the
-   * schema requires (platform, ≥1 BAR, objective name, owner, ≥1 KR) and
-   * default everything else. Users hand-edit the resulting okr.yaml for
-   * the rich BTABoK fields (objective notes, intent cascade, governance
-   * overrides) before Phase B's agent buttons go live.
-   *
-   * BAR selection order matters: the lowest-composite (most Restricted)
-   * BAR goes FIRST in affectedBarIds so OKRService.tierFor returns the
-   * correct "Restricted wins" gate (design doc §6.2). We sort the
-   * user's multi-select by ascending compositeScore to enforce this.
-   */
-  private async onCreateOkrManual() {
-    const meshPath = MeshService.getMeshPath();
-    if (!meshPath) {
-      this.postMessage({ type: 'error', message: 'No mesh configured' });
-      return;
-    }
-
-    const summary = this.meshService.buildPortfolioSummary(meshPath);
-    if (!summary || summary.platforms.length === 0) {
-      vscode.window.showWarningMessage(
-        'Create OKR: this mesh has no platforms yet. Scaffold one from Settings → Sample Platform, or add a platform first.',
-      );
-      return;
-    }
-
-    // 1. Pick platform
-    const platformPick = await vscode.window.showQuickPick(
-      summary.platforms.map(p => ({
-        label: p.name,
-        description: `${p.id} · ${p.barCount} BAR${p.barCount === 1 ? '' : 's'}`,
-        platform: p,
-      })),
-      { placeHolder: 'New OKR — select platform' },
-    );
-    if (!platformPick) { return; }
-    const platform = platformPick.platform;
-    if (platform.bars.length === 0) {
-      vscode.window.showWarningMessage(
-        `Platform ${platform.name} has no BARs yet. Add a BAR first, then create the OKR.`,
-      );
-      return;
-    }
-
-    // 2. Pick affected BARs (multi-select, ≥1)
-    const barPicks = await vscode.window.showQuickPick(
-      platform.bars.map(b => ({
-        label: b.name,
-        description: `${b.id} · score ${Math.round(b.compositeScore)}`,
-        bar: b,
-      })),
-      {
-        placeHolder: 'New OKR — select affected BARs (most-restricted first drives tier)',
-        canPickMany: true,
-      },
-    );
-    if (!barPicks || barPicks.length === 0) { return; }
-    // Sort ascending by composite — lowest score (most restricted) first,
-    // so the primary BAR drives the Restricted-wins tier gate.
-    const orderedBars = barPicks
-      .map(p => p.bar)
-      .slice()
-      .sort((a, b) => a.compositeScore - b.compositeScore);
-
-    // 3. Objective name
-    const objectiveName = await vscode.window.showInputBox({
-      title: 'New OKR — Objective',
-      prompt: 'One-sentence objective (e.g. "Add celebrity profile API to IMDB-Lite")',
-      validateInput: v => v.trim().length === 0 ? 'Objective is required' : null,
-      ignoreFocusOut: true,
-    });
-    if (!objectiveName) { return; }
-
-    // 4. Owner — default from git config user.name if available
-    const ownerDefault = readGitUserName() ?? '';
-    const owner = await vscode.window.showInputBox({
-      title: 'New OKR — Owner',
-      prompt: 'Owner handle (GitHub username or team name)',
-      value: ownerDefault,
-      validateInput: v => v.trim().length === 0 ? 'Owner is required' : null,
-      ignoreFocusOut: true,
-    });
-    if (!owner) { return; }
-
-    // 5. First KR metric — minimum required by schema
-    const krMetric = await vscode.window.showInputBox({
-      title: 'New OKR — Key Result 1',
-      prompt: 'Metric name (e.g. "p95 latency", "user activation rate")',
-      validateInput: v => v.trim().length === 0 ? 'At least one Key Result metric is required' : null,
-      ignoreFocusOut: true,
-    });
-    if (!krMetric) { return; }
-
-    // Build the draft. Target / measurement are placeholders the user
-    // fills in by editing okr.yaml — keeping prompt count low.
-    const draft: OkrCreateInput = {
-      owner: owner.trim(),
-      objective: {
-        name: objectiveName.trim(),
-        description: '',
-      },
-      keyResults: [
-        {
-          id: 'KR-1',
-          metric: krMetric.trim(),
-          target: 'TBD',
-          measurement: 'TBD',
-        },
-      ],
-      objectiveAlignment: {
-        platformId: platform.id,
-        affectedBarIds: orderedBars.map(b => b.id),
-        targetCodeRepos: orderedBars.flatMap(b => b.repos ?? []),
-        intentCascade: {},
-      },
-    };
-
-    try {
-      const okrService = this.meshService.getOkrService();
-      const card = okrService.create(meshPath, draft);
-      if (!card) {
-        this.postMessage({ type: 'error', message: 'Failed to create OKR (see logs)' });
-        return;
-      }
-      vscode.window.showInformationMessage(`Created ${card.meta.id} — fill in KR targets + measurements in okr.yaml.`);
-      await this.onGetOkrList();
-      // Drill into the new OKR so the user lands on its detail view
-      await this.onDrillIntoOkr(card.meta.id);
-    } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to create OKR: ${toErrorMessage(err)}` });
-    }
-  }
 
   private async onReady() {
     const meshPath = MeshService.getMeshPath();
@@ -4045,4 +4064,59 @@ function readGitUserName(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Compose a blank-but-schema-valid OkrCard shape for the create form to
+ * render against. The card never touches disk — it's the seed the webview
+ * renders so all the form fields exist. Persistence happens on Save via
+ * OKRService.create (which generates the real id + intentThreadUuid +
+ * lifecycle timestamps).
+ */
+function buildBlankOkrScaffold(defaultPlatformId: string, defaultOwner: string): OkrCard {
+  const now = new Date().toISOString();
+  // Use a placeholder UUID + id; OKRService.create will overwrite both on save.
+  return {
+    meta: {
+      card: 'BTABoKItem',
+      id: 'OKR-DRAFT',
+      owner: defaultOwner,
+      status: 'draft',
+      paused: false,
+      createdAt: now,
+      updatedAt: now,
+      intentThreadUuid: '00000000-0000-4000-8000-000000000000',
+    },
+    overview: { name: 'OKR Card', description: '' },
+    howToUse: { name: 'How to use this card', description: '' },
+    objective: { name: '', description: '' },
+    keyResults: [
+      { id: 'KR-1', metric: '', target: '', measurement: '' },
+    ],
+    actions: [],
+    keyResultRetrospective: { name: 'Key Result Retrospective', description: '', results: [] },
+    objectiveAlignment: {
+      name: 'Objective Alignment',
+      description: '',
+      platformId: defaultPlatformId,
+      affectedBarIds: [],
+      targetCodeRepos: [],
+      intentCascade: { org: '', role: '', developer: '', user: '' },
+    },
+    valueLearning: { name: 'Value & Learning', description: '', learnings: [] },
+    downloads: { name: 'Downloads', description: '', links: [] },
+  };
+}
+
+/**
+ * Format a ZodError into a one-line, user-readable hint. Strips the
+ * deep object-path noise; we just want "objective.name: Required" not
+ * the full issue tree.
+ */
+function formatZodErrors(err: { issues: { path: (string | number)[]; message: string }[] }): string {
+  const top = err.issues.slice(0, 3).map(i => {
+    const where = i.path.length > 0 ? i.path.join('.') : 'value';
+    return `${where}: ${i.message}`;
+  }).join('; ');
+  return err.issues.length > 3 ? `${top} (+${err.issues.length - 3} more)` : top;
 }

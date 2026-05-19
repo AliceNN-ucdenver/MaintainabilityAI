@@ -223,4 +223,58 @@ describe('renderOkrDetailView', () => {
     expect(css).toContain('.okr-action-card-block');
     expect(css).toContain('.okr-action-card-done');
   });
+
+  it('view mode shows an Edit button', () => {
+    const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [], mode: 'view' });
+    expect(html).toContain('data-action="edit-okr"');
+  });
+
+  it('edit mode renders form inputs for objective, owner, KRs, intent cascade', () => {
+    const html = renderOkrDetailView({
+      okr: sampleCard(),
+      affectedBars: [],
+      mode: 'edit',
+      availablePlatforms: [{ id: 'PLT-IMDB', name: 'IMDB Lite', slug: 'imdb-lite', barCount: 2 }],
+      availableBars: [
+        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted' },
+      ],
+    });
+    expect(html).toContain('data-okr-field="objective.name"');
+    expect(html).toContain('data-okr-field="meta.owner"');
+    expect(html).toContain('data-okr-field="meta.paused"');
+    expect(html).toContain('data-okr-field="objectiveAlignment.intentCascade.org"');
+    expect(html).toContain('data-okr-kr-field="metric"');
+    expect(html).toContain('data-okr-bar-id="APP-IMDB-002"');
+    expect(html).toContain('data-action="okr-save"');
+    expect(html).toContain('data-action="okr-cancel"');
+  });
+
+  it('edit mode pre-checks affected BARs that are on the card', () => {
+    const html = renderOkrDetailView({
+      okr: sampleCard(),
+      affectedBars: [],
+      mode: 'edit',
+      availablePlatforms: [{ id: 'PLT-IMDB', name: 'IMDB Lite', slug: 'imdb-lite', barCount: 2 }],
+      availableBars: [
+        { id: 'APP-IMDB-002', name: 'IMDB Celebs', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 32, tier: 'restricted' },
+        { id: 'APP-IMDB-099', name: 'Unrelated BAR', platformId: 'PLT-IMDB', platformName: 'IMDB Lite', compositeScore: 70, tier: 'supervised' },
+      ],
+    });
+    // sampleCard()'s affectedBarIds = ['APP-IMDB-002', 'APP-IMDB-001']
+    expect(html).toMatch(/data-okr-bar-id="APP-IMDB-002"[^>]*checked/);
+    expect(html).not.toMatch(/data-okr-bar-id="APP-IMDB-099"[^>]*checked/);
+  });
+
+  it('create mode renders a Create OKR button instead of Save changes', () => {
+    const html = renderOkrDetailView({
+      okr: sampleCard({ meta: { ...sampleCard().meta, id: 'OKR-DRAFT' } }),
+      affectedBars: [],
+      mode: 'create',
+      availablePlatforms: [],
+      availableBars: [],
+    });
+    expect(html).toContain('Create OKR');
+    expect(html).not.toContain('Save changes');
+    expect(html).toContain('New OKR (unsaved)');
+  });
 });
