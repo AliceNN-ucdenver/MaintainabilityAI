@@ -533,6 +533,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'createOkrFromDraft':
         await this.onCreateOkrFromDraft(message.draft);
         break;
+      case 'startOkrWhy':
+        await this.onStartOkrPhase(message.okrId, 'why');
+        break;
 
       case 'backToPortfolio':
       case 'backToPlatform':
@@ -707,6 +710,116 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       await this.onDrillIntoOkr(okrId, 'view');
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to save OKR: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase B-PR3 — kick off a phase's agent run.
+   *
+   * For B-PR3 the only wired phase is `why`. Creates an issue in the mesh
+   * repo with the canonical labels + okr_id marker (§5.5.4) and appends a
+   * queued OkrAction to the card so the OKR list view and detail page
+   * surface "Running" immediately.
+   *
+   * No agent assignment in this PR — the user manually @-mentions the
+   * agent in the issue once it lands, OR `okr-bus.yml` (Phase C) auto-
+   * assigns. Either way, the issue + the queued action are the artifacts
+   * the bus / human latches onto.
+   */
+  private async onStartOkrPhase(okrId: string, phase: 'why' | 'how' | 'what'): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+      return;
+    }
+    if (card.meta.paused) {
+      this.postMessage({ type: 'error', message: `Cannot start: OKR ${okrId} is paused.` });
+      return;
+    }
+    // Freeze tier at run start (§6.2 — mitigates tier creep).
+    const tier = okrService.tierForCard(meshPath, card);
+    if (tier === 'restricted' && phase === 'what') {
+      // What is the only phase blocked on Restricted in B-PR3; Why / How
+      // still produce auditable artifacts even on Restricted tier.
+      this.postMessage({ type: 'error', message: 'Restricted tier — escalate the BAR governance score before starting What.' });
+      return;
+    }
+
+    const agentByPhase = { why: 'market-research-agent', how: 'prd-agent', what: 'code-design-agent' } as const;
+    const labelByPhase = { why: 'oraculum-research', how: 'oraculum-prd', what: 'oraculum-design' } as const;
+    const agent = agentByPhase[phase];
+    const issueLabel = labelByPhase[phase];
+
+    // Compose stable per-run id + action id.
+    const stamp = new Date();
+    const ymd = stamp.toISOString().slice(0, 10);
+    const short = Math.random().toString(36).slice(2, 8);
+    const phaseTag = phase.toUpperCase();
+    const runId = `${phaseTag}-${ymd}-${short}`;
+    const actionId = `ACT-${card.actions.length + 1}`;
+
+    // Last completed action of the prior phase is this run's parent.
+    const phaseOrder: Array<'why' | 'how' | 'what'> = ['why', 'how', 'what'];
+    const priorPhase = phase === 'why' ? null : phaseOrder[phaseOrder.indexOf(phase) - 1];
+    const priorAction = priorPhase
+      ? [...card.actions].reverse().find(a => a.phase === priorPhase && a.status === 'complete')
+      : undefined;
+    const parentIntentThread = priorAction?.intentThreadUuid ?? null;
+
+    // Open the GitHub issue first. If issue creation fails we don't pollute
+    // the OKR's audit ladder with a phantom action.
+    this.postMessage({ type: 'loading', active: true, message: `Starting ${phase.toUpperCase()} — creating GitHub issue…` });
+    let issueUrl = '';
+    try {
+      const title = `[OKR] ${phase.toUpperCase()}: ${card.objective.name}`;
+      const body = renderOkrPhaseIssueBody(card, phase, agent, runId);
+      const labels = ['okr-anchor', issueLabel].join(',');
+      const { stdout } = await execFileAsync('gh', [
+        'issue', 'create',
+        '--title', title,
+        '--body', body,
+        '--label', labels,
+      ], { cwd: meshPath, timeout: 30_000 });
+      issueUrl = stdout.trim();
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to create issue: ${toErrorMessage(err)}` });
+      this.postMessage({ type: 'loading', active: false });
+      return;
+    }
+
+    try {
+      okrService.appendAction(meshPath, okrId, {
+        id: actionId,
+        phase,
+        description: phase === 'why'
+          ? 'Market research synthesis (Why)'
+          : phase === 'how' ? 'PRD synthesis (How)' : 'Code-design synthesis (What)',
+        agent,
+        runId,
+        intentThreadUuid: card.meta.intentThreadUuid,
+        parentIntentThread,
+        reviewerScores: {},
+        rounds: 0,
+        governanceTier: tier,
+        status: 'in_progress',
+        createdAt: new Date().toISOString(),
+      });
+      this.postMessage({ type: 'okrPhaseStarted', okrId, phase, actionId, issueUrl });
+      void vscode.window.showInformationMessage(
+        `Started ${phase.toUpperCase()} for ${okrId}. Issue: ${issueUrl}. ` +
+        `Until Phase C wires okr-bus.yml, you may need to @-mention "@copilot use agent ${agent}" on the issue.`,
+      );
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Issue created (${issueUrl}) but failed to update OKR card: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
     }
   }
 
@@ -4243,6 +4356,41 @@ function buildBlankOkrScaffold(defaultPlatformId: string, defaultOwner: string):
     valueLearning: { name: 'Value & Learning', description: '', learnings: [] },
     downloads: { name: 'Downloads', description: '', links: [] },
   };
+}
+
+/**
+ * Render the canonical OKR phase-anchor issue body. The HTML-comment marker
+ * for `okr_id` is the source-of-truth the agent extracts per §5.5.4 — never
+ * parse human-readable text, the agent's `.agent.md` enforces this.
+ *
+ * Body shape is deliberately compact; the agent reads OKR state via
+ * `knowledge-okr` not via the issue body. The visible markdown is for the
+ * human watching the issue.
+ */
+function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', agent: string, runId: string): string {
+  const phaseLabel = phase === 'why' ? 'Why · Market Research' : phase === 'how' ? 'How · PRD' : 'What · Code Design';
+  const lines: string[] = [];
+  lines.push(`<!-- okr_id: ${card.meta.id} -->`);
+  lines.push(`<!-- phase: ${phase} -->`);
+  lines.push(`<!-- intent_thread_uuid: ${card.meta.intentThreadUuid} -->`);
+  lines.push(`<!-- run_id: ${runId} -->`);
+  lines.push('');
+  lines.push(`## ${phaseLabel}`);
+  lines.push('');
+  lines.push(`**Objective:** ${card.objective.name}`);
+  if (card.objective.description) {
+    lines.push('');
+    lines.push(card.objective.description);
+  }
+  lines.push('');
+  lines.push(`**Anchor OKR:** \`${card.meta.id}\``);
+  lines.push(`**Platform:** \`${card.objectiveAlignment.platformId}\``);
+  lines.push(`**Affected BARs:** ${card.objectiveAlignment.affectedBarIds.map(id => `\`${id}\``).join(', ')}`);
+  lines.push('');
+  lines.push(`To dispatch the agent, comment: \`@copilot use agent ${agent}\``);
+  lines.push('');
+  lines.push('_Auto-generated by MaintainabilityAI Looking Glass — Phase B Start ' + phase.toUpperCase() + '._');
+  return lines.join('\n');
 }
 
 /**

@@ -430,7 +430,16 @@ export type LookingGlassWebviewMessage =
   /** Save inline-edited fields. patch is OkrUpdatePatchSchema-shaped. */
   | { type: 'saveOkrEdits'; okrId: string; patch: unknown }
   /** Persist a brand-new OKR. draft is OkrCreateInputSchema-shaped. */
-  | { type: 'createOkrFromDraft'; draft: unknown };
+  | { type: 'createOkrFromDraft'; draft: unknown }
+  /**
+   * Phase B-PR3 — click `Start Why` on the OKR detail. Extension creates a
+   * GitHub issue in the mesh repo with `okr-anchor` + `oraculum-research`
+   * labels and the `<!-- okr_id: <id> -->` body marker per §5.5.4, then
+   * appends a queued OkrAction. Phase B execution: user manually
+   * @-mentions `@copilot use agent market-research-agent` to trigger
+   * Copilot Coding Agent; Phase C automates this via `okr-bus.yml`.
+   */
+  | { type: 'startOkrWhy'; okrId: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -533,4 +542,5 @@ export type LookingGlassExtensionMessage =
   | { type: 'okrSaved'; okrId: string }
   | { type: 'okrCreated'; okrId: string }
   | { type: 'agenticStatus'; skills: { name: string; family: string; deployed: boolean }[]; agents: { name: string; deployed: boolean }[] }
-  | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] };
+  | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] }
+  | { type: 'okrPhaseStarted'; okrId: string; phase: 'why' | 'how' | 'what'; actionId: string; issueUrl: string };

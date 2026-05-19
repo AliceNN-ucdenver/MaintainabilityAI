@@ -479,7 +479,7 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
   const latest = latestActionFor(okr, phase);
 
   const phaseSignals = renderPhaseSignals(phase, latest);
-  const startButton = renderStartButton(phase, substate);
+  const startButton = renderStartButton(phase, substate, okr, primaryTier);
 
   return `
     <div class="okr-action-card okr-action-card-${substate.tone}">
@@ -519,16 +519,46 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined): str
   `;
 }
 
-function renderStartButton(phase: OkrPhase, _substate: { tone: string }): string {
+function renderStartButton(
+  phase: OkrPhase,
+  substate: { tone: string; label: string },
+  okr: OkrCard,
+  primaryTier: 'autonomous' | 'supervised' | 'restricted',
+): string {
   const label = phase === 'why' ? 'Start Why' : phase === 'how' ? 'Start How' : 'Start What';
+
+  // Phase B-PR3: Start Why is wired. Start How + Start What remain disabled
+  // until B-PR4 (How) and Phase C (What — depends on design-bus.yml).
+  if (phase !== 'why') {
+    return `
+      <button
+        class="okr-button-primary okr-button-disabled"
+        disabled
+        title="${escapeAttr(PHASE_GATING_TOOLTIP)}"
+        data-phase="${escapeAttr(phase)}"
+      >${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>
+      <span class="okr-button-tooltip-hint">${phase === 'how' ? 'Phase B-PR4' : 'Phase C'}</span>
+    `;
+  }
+
+  // Why-phase gate logic.
+  if (okr.meta.paused) {
+    return `<button class="okr-button-primary okr-button-disabled" disabled title="OKR is paused — unpause from the detail view" data-phase="why">${escapeHtml(label)} <span class="okr-button-locked-icon">⏸</span></button>`;
+  }
+  if (substate.tone === 'progress') {
+    return `<button class="okr-button-primary okr-button-disabled" disabled title="Run already in flight" data-phase="why">${escapeHtml(label)} <span class="okr-button-locked-icon">⏳</span></button>`;
+  }
+  if (substate.tone === 'done') {
+    return `<button class="okr-button-primary okr-button-disabled" disabled title="Why phase complete — re-run flow lands in Phase C" data-phase="why">${escapeHtml(label)} <span class="okr-button-locked-icon">✓</span></button>`;
+  }
+  // Restricted tier on Why is still allowed in B-PR3 — the audit chain is
+  // the point. The Restricted gate kicks in on What (per §6.2).
+  void primaryTier;
+
   return `
-    <button
-      class="okr-button-primary okr-button-disabled"
-      disabled
-      title="${escapeAttr(PHASE_GATING_TOOLTIP)}"
-      data-phase="${escapeAttr(phase)}"
-    >${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>
-    <span class="okr-button-tooltip-hint">Phase B</span>
+    <button class="okr-button-primary" data-action="start-okr-why" data-okr-id="${escapeAttr(okr.meta.id)}" data-phase="why">
+      ${escapeHtml(label)}
+    </button>
   `;
 }
 
@@ -668,6 +698,18 @@ export function attachOkrDetailEvents(
       if (okrId) {
         vscode.postMessage({ type: 'editOkr', okrId });
       }
+    });
+  });
+  // Phase B-PR3: Start Why click handler. Confirms before firing so accidental
+  // clicks don't open a noisy GitHub issue.
+  document.querySelectorAll('[data-action="start-okr-why"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const okrId = (el as HTMLElement).dataset.okrId;
+      if (!okrId) { return; }
+      if (!window.confirm(`Start Why for ${okrId}?\n\nThis creates an issue in the mesh repo with the okr-anchor + oraculum-research labels and appends a queued action to the OKR card.\n\nUntil Phase C ships okr-bus.yml, you may need to manually @-mention "@copilot use agent market-research-agent" on the new issue.`)) {
+        return;
+      }
+      vscode.postMessage({ type: 'startOkrWhy', okrId });
     });
   });
   // KR add / remove

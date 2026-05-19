@@ -129,7 +129,7 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('Engineering Lead');
   });
 
-  it('renders all three Action cards with disabled Start buttons + Phase B tooltip', () => {
+  it('renders all three Action cards; Start Why is wired (B-PR3), Start How + What remain disabled', () => {
     const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [] });
     expect(html).toContain('Why · Research');
     expect(html).toContain('How · PRD');
@@ -137,10 +137,44 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('Start Why');
     expect(html).toContain('Start How');
     expect(html).toContain('Start What');
-    // All buttons are disabled with the Phase B tooltip
-    const disabledCount = (html.match(/<button[^>]*disabled/g) || []).length;
-    expect(disabledCount).toBeGreaterThanOrEqual(3);
+    // B-PR3: Start Why is an active button; How + What still locked.
+    expect(html).toContain('data-action="start-okr-why"');
+    // How + What carry the Phase B agent-deployment tooltip
     expect(html).toContain('Phase B: requires agent deployment');
+    // Audit-export + verify-chain + start-how + start-what = at least 4 disabled buttons.
+    const disabledCount = (html.match(/<button[^>]*disabled/g) || []).length;
+    expect(disabledCount).toBeGreaterThanOrEqual(4);
+  });
+
+  it('Start Why is disabled when the OKR is paused', () => {
+    const card = sampleCard();
+    card.meta.paused = true;
+    const html = renderOkrDetailView({ okr: card, affectedBars: [] });
+    // No clickable Start Why action — only a disabled button with the paused tooltip
+    expect(html).not.toContain('data-action="start-okr-why"');
+    expect(html).toMatch(/disabled[^>]*title="OKR is paused/);
+  });
+
+  it('Start Why is disabled when the Why phase is already in flight', () => {
+    const card = sampleCard({
+      actions: [{
+        id: 'ACT-1',
+        phase: 'why',
+        description: 'Market research',
+        agent: 'market-research-agent',
+        runId: 'WHY-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: {},
+        rounds: 0,
+        governanceTier: 'supervised',
+        status: 'in_progress',
+        createdAt: '2026-05-19T14:00:00Z',
+      }],
+    });
+    const html = renderOkrDetailView({ okr: card, affectedBars: [] });
+    expect(html).not.toContain('data-action="start-okr-why"');
+    expect(html).toMatch(/disabled[^>]*title="Run already in flight/);
   });
 
   it('gates Start How on Why and Start What on How (not-started phases show gated label)', () => {

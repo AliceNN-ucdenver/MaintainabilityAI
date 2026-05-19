@@ -2023,8 +2023,8 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 - [~] **B7.** Deploy `format-research-issue-update` Skill (PURE markdown formatter) — SKILL.md shipped in B-PR1; CLI backend in B-PR1a
 - [x] **B8.** `AgentDeploymentService` (`src/services/AgentDeploymentService.ts`) — replaces single-purpose `provisionWorkflow`; deploys agents + skills + retained workflows. `deploySkills` + `listDeployedSkills` shipped in B-PR1; `deployAgents` + `listDeployedAgents` shipped in B-PR2 with deploy-time guard that refuses agents declaring missing Skills.
 - [~] **B9.** Settings page → "Mesh Provisioning" with three tabs (§10.6); deprecation notices on sunset workflows — single "Phase B — Mesh Provisioning (Agents + Skills)" section shipped in B-PR2 with deployment status badges + redeploy button; full 3-tab refactor + deprecation notices on `oraculum-research.yml` / `archeologist.yml` / `prd.yml` / `notify-code-repos.yml` lands when Phase B verifies end-to-end (after B-PR4).
-- [ ] **B10.** Looking Glass: wire `Start Why` / `Start How` buttons on OKR detail (issue creation with okr_id label/comment); `Start What` lands in C alongside design-bus
-- [ ] **B11.** Tier-detection wiring — `OKRService.tierFor()` reads BAR scores, drives button state on OKR detail
+- [~] **B10.** Looking Glass: wire `Start Why` / `Start How` buttons on OKR detail (issue creation with okr_id label/comment); `Start What` lands in C alongside design-bus — `Start Why` shipped in B-PR3 (creates the labeled issue + appends queued OkrAction + freezes tier on the action per §6.2). `Start How` lands in B-PR4 mirroring the Why pattern.
+- [x] **B11.** Tier-detection wiring — `OKRService.tierFor()` reads BAR scores, drives button state on OKR detail — tier is frozen on every action's `governanceTier` field at issue-create time; UI surfaces the OKR's current tier in the detail header + uses substate (paused / progress / done) to gate the Start button.
 - [ ] **B12.** `HatterTagService` (`src/services/HatterTagService.ts`) — parse + verify-chain CLI invocation
 - [ ] **B13.** Hatter Tag UI sheet (§10.4(b)) — slides in from OKR detail Action card
 - [ ] **B14.** Court Recorder CloudEvents v1.0 emitter (`packages/research-runner/src/runner/court-recorder.ts`)
@@ -2156,7 +2156,7 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[~]` | Hatter's Tag full schema: `intent_thread_uuid`, `author_did`, `author_prompt_pack_version`, `reviewer_dids[]`, `threat_model_ref`, `calm_nodes_referenced[]`, `owasp_categories[]`, `stride_threats[]`, `fitness_results`, `reviewer_scores`, `governance_tier`, `chain_root_hash` — Phase A landed `okr` + `attestation` blocks (optional, populated by Phase B+ agents); cryptographic signature is Knight's Seal (B+ stretch) | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A → B (signature: B+) |
 | `[x]` | Audit event schema (phase, okr_id, intent_thread_uuid) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
 | `[ ]` | **Court Recorder** CloudEvents v1.0 envelope emitter (SIEM-compatible JSONL, hash-chained, append-only) | `packages/research-runner/src/runner/court-recorder.ts` (new) | B |
-| `[~]` | **Tier-detection logic** — `OKRService.tierFor()` reads BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → drive UI gates + Hatter's Tag stamp. Phase A: `tierFor()` shipped and feeds the OKR list tier badge + detail header. Phase B: drives `Start` button enabled/disabled state. | `vscode-extension/src/services/OKRService.ts` + BarService | A → B |
+| `[x]` | **Tier-detection logic** — `OKRService.tierFor()` reads BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → drive UI gates + Hatter's Tag stamp. Phase A: `tierFor()` shipped + feeds the OKR list tier badge + detail header. Phase B-PR3: tier is frozen on every OkrAction's `governanceTier` field at issue-create time (mitigates tier creep per §6.2); UI substate gates the Start Why button. | `vscode-extension/src/services/OKRService.ts` + BarService | A → B |
 | `[ ]` | **White Rabbit's Pocket Watch** goal-drift gate — hash OKR.objective at phase boundaries; block merge if drift > threshold | mesh template (workflow) + `verify-chain` CLI | C |
 | `[ ]` | **Caterpillar's Challenge** — explicit semantic-drift comparison step between phase artifacts | mesh template (reviewer-bus.yml hook) | C |
 | `[ ]` | **Knight's Seal** — Ed25519 commit signing with agent DID; verification step in `verify-chain` | `packages/research-runner/src/runner/knights-seal.ts` (new) + GitHub App key mgmt | B+ |
@@ -2185,7 +2185,7 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[ ]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
 | `[ ]` | State-machine logic in `label-on-merge.yml` (round counter + tier-aware) | mesh template | C |
 | `[ ]` | HumanGate UI (Approve / Re-run / Reject + dual-signature override modal) | OKR detail view | C |
-| `[ ]` | `Start Why` button (OKR detail) | OKR detail view | B |
+| `[x]` | `Start Why` button (OKR detail) — creates issue with `okr-anchor` + `oraculum-research` labels and `<!-- okr_id: ... -->` body marker per §5.5.4; appends queued OkrAction with `governanceTier` frozen at run start | `vscode-extension/src/webview/LookingGlassPanel.ts` (onStartOkrPhase) + `okrDetail.ts` (renderStartButton) | B |
 | `[ ]` | `Start How` button | OKR detail view | B |
 | `[ ]` | `Start What` button + per-repo fan-out | OKR detail view + design-bus.yml | C |
 | `[ ]` | `knowledge-reference-repos` Skill (clones + indexes curated reference repos) | mesh template | D |
