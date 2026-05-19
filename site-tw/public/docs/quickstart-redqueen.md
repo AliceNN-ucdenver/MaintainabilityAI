@@ -5,7 +5,7 @@
     <div class="docs-eyebrow">Quickstart · IMDB Celebs end-to-end <span class="docs-hero-meta">~8 min read</span></div>
     <h1 class="docs-hero-title">Install the Red Queen against a real repository</h1>
     <p class="docs-hero-copy">A hands-on walkthrough that puts pre-tool hooks, MCP validation, and a fail-closed review workflow into a real GitHub repo. We use the low-scoring <strong>IMDB Celebs</strong> BAR (5/100, restricted tier) so the strictest enforcement path actually fires &mdash; the Queen has no patience for tea-parties.</p>
-    <span class="docs-hero-flourish">&ldquo;Off with their heads &mdash; the override needs a reason.&rdquo;</span>
+    <span class="docs-hero-flourish">&ldquo;Speak when you&rsquo;re spoken to &mdash; the override needs a reason.&rdquo;</span>
   </div>
 </div>
 

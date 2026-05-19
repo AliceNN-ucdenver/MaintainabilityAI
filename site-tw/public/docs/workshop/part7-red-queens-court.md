@@ -15,7 +15,7 @@
   </div>
 </div>
 
-> *"Off with their heads,"* says the Queen. By the end of Part 7 the celeb-api has the Red Queen installed: a PreToolUse hook blocks Bash and Write before they ever fire, an MCP `validate_action` call lets agents ask before they act, and the **same CALM-layer rule we built as a fitness function in Part 4 now runs deterministically at the agent's tool-call boundary instead of after the code is written**. The score finally lifts the Architecture pillar out of red, and the celeb-api crosses into Autonomous-tier readiness.
+> *"All the ways about here belong to me,"* says the Red Queen — she's the chess piece who rules the board, not the Queen of Hearts. By the end of Part 7 the celeb-api has the Red Queen installed: a PreToolUse hook blocks Bash and Write before they ever fire, an MCP `validate_action` call lets agents ask before they act, and the **same CALM-layer rule we built as a fitness function in Part 4 now runs deterministically at the agent's tool-call boundary instead of after the code is written**. The score finally lifts the Architecture pillar out of red, and the celeb-api crosses into Autonomous-tier readiness.
 
 ---
 

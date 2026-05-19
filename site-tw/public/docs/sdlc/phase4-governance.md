@@ -5,7 +5,7 @@
     <div class="docs-eyebrow">Phase 4 of 6 · Govern <span class="docs-hero-meta">~2 min read</span></div>
     <h1 class="docs-hero-title">Governance &mdash; the human at the last gate</h1>
     <p class="docs-hero-copy">Human-in-the-loop review with the six Golden Rules, OWASP compliance, threat-coverage check, and CODEOWNER sign-off. The 30% layer where judgment ratifies what the agent produced.</p>
-    <span class="docs-hero-flourish">&ldquo;Off with their <s>heads</s> &mdash; the override needs a reason.&rdquo;</span>
+    <span class="docs-hero-flourish">&ldquo;Speak when you&rsquo;re spoken to &mdash; the override needs a reason.&rdquo;</span>
   </div>
 </div>
 
