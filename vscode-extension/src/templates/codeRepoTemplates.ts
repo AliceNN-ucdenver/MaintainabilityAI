@@ -429,6 +429,19 @@ export function generateOkrStateMachineWorkflow(extensionPath: string): string {
 }
 
 /**
+ * Phase C-PR4 — `design-bus.yml` fans out per-repo landing issues on
+ * code-design PR merge. Reads `targetCodeRepos[]` from the OKR;
+ * opens one `oraculum-design-landing` issue per entry with the OKR
+ * + design-PR context inlined. From there each target repo's coding
+ * agent picks up the slice. Cross-repo writes require either
+ * `secrets.GH_TOKEN_FANOUT` (a fine-grained PAT) or workflow-token
+ * org permissions.
+ */
+export function generateDesignBusWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'design-bus.yml');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -452,5 +465,7 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/reviewer-bus.yml',      generate: generateReviewerBusWorkflow },
   // Phase C-PR2 — state machine + round counter
   { relativePath: '.github/workflows/okr-state-machine.yml', generate: generateOkrStateMachineWorkflow },
+  // Phase C-PR4 — per-repo fan-out on code-design merge
+  { relativePath: '.github/workflows/design-bus.yml',        generate: generateDesignBusWorkflow },
 ];
 

@@ -34,8 +34,6 @@ const STATUS_LABEL: Record<OkrStatus, string> = {
   'archived': 'Archived',
 };
 
-const PHASE_GATING_TOOLTIP = 'Phase B: requires agent deployment. See /docs/hatters-tea-party';
-
 export interface OkrDetailRenderState {
   okr: OkrCard | null;
   affectedBars: OkrAffectedBar[];
@@ -558,21 +556,8 @@ function renderStartButton(
 ): string {
   const label = phase === 'why' ? 'Start Why' : phase === 'how' ? 'Start How' : 'Start What';
 
-  // Phase B-PR3+4 wire Why + How. Start What stays disabled until Phase C
-  // ships design-bus.yml (the fan-out workflow).
-  if (phase === 'what') {
-    return `
-      <button class="okr-button-primary okr-button-disabled" disabled
-        title="${escapeAttr(PHASE_GATING_TOOLTIP)}"
-        data-phase="what"
-      >${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>
-      <span class="okr-button-tooltip-hint">Phase C</span>
-    `;
-  }
-
-  // Both Why + How share the same gate logic — paused / in-progress / done /
-  // gated-on-prior-phase. The Why-phase has no prior; the How-phase requires
-  // a completed Why.
+  // Phase B-PR3+4 wire Why + How. Phase C-PR4 wires What (depends on
+  // design-bus.yml for the per-repo fan-out after the code-design merges).
   if (okr.meta.paused) {
     return `<button class="okr-button-primary okr-button-disabled" disabled title="OKR is paused — unpause from the detail view" data-phase="${escapeAttr(phase)}">${escapeHtml(label)} <span class="okr-button-locked-icon">⏸</span></button>`;
   }
@@ -580,16 +565,22 @@ function renderStartButton(
     return `<button class="okr-button-primary okr-button-disabled" disabled title="Run already in flight" data-phase="${escapeAttr(phase)}">${escapeHtml(label)} <span class="okr-button-locked-icon">⏳</span></button>`;
   }
   if (substate.tone === 'done') {
-    return `<button class="okr-button-primary okr-button-disabled" disabled title="${escapeHtml(phase === 'why' ? 'Why phase complete — re-run flow lands in Phase C' : 'How phase complete — re-run flow lands in Phase C')}" data-phase="${escapeAttr(phase)}">${escapeHtml(label)} <span class="okr-button-locked-icon">✓</span></button>`;
+    return `<button class="okr-button-primary okr-button-disabled" disabled title="${escapeHtml(phase[0].toUpperCase() + phase.slice(1))} phase complete — re-run via the HumanGate panel" data-phase="${escapeAttr(phase)}">${escapeHtml(label)} <span class="okr-button-locked-icon">✓</span></button>`;
   }
   if (phase === 'how' && !okr.actions.some(a => a.phase === 'why' && a.status === 'complete')) {
     return `<button class="okr-button-primary okr-button-disabled" disabled title="Gated on Why merged — start Why first" data-phase="how">${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>`;
   }
-  // Restricted-tier OKRs CAN still run Why + How — the audit chain is the
-  // point. The Restricted gate kicks in on What (per §6.2).
-  void primaryTier;
+  if (phase === 'what' && !okr.actions.some(a => a.phase === 'how' && a.status === 'complete')) {
+    return `<button class="okr-button-primary okr-button-disabled" disabled title="Gated on How merged — start How first" data-phase="what">${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>`;
+  }
+  // Restricted tier: Why + How allowed (audit chain is the point);
+  // What is BLOCKED until the BAR's governance score upgrades the tier
+  // (§6.2 — Restricted = 0 auto-rounds, mandatory escalation).
+  if (phase === 'what' && primaryTier === 'restricted') {
+    return `<button class="okr-button-primary okr-button-disabled" disabled title="Restricted tier — escalate the BAR governance score before starting What (§6.2)" data-phase="what">${escapeHtml(label)} <span class="okr-button-locked-icon">⛔</span></button>`;
+  }
 
-  const action = phase === 'why' ? 'start-okr-why' : 'start-okr-how';
+  const action = phase === 'why' ? 'start-okr-why' : phase === 'how' ? 'start-okr-how' : 'start-okr-what';
   return `
     <button class="okr-button-primary" data-action="${action}" data-okr-id="${escapeAttr(okr.meta.id)}" data-phase="${escapeAttr(phase)}">
       ${escapeHtml(label)}
@@ -811,6 +802,15 @@ export function attachOkrDetailEvents(
       const okrId = (el as HTMLElement).dataset.okrId;
       if (okrId) {
         vscode.postMessage({ type: 'startOkrHow', okrId });
+      }
+    });
+  });
+  // Phase C-PR4: Start What
+  document.querySelectorAll('[data-action="start-okr-what"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const okrId = (el as HTMLElement).dataset.okrId;
+      if (okrId) {
+        vscode.postMessage({ type: 'startOkrWhat', okrId });
       }
     });
   });

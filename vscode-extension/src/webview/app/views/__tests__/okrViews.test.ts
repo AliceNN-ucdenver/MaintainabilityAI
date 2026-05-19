@@ -129,7 +129,7 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('Engineering Lead');
   });
 
-  it('renders all three Action cards; Start Why is wired (B-PR3), Start How + What remain disabled', () => {
+  it('renders all three Action cards; Start Why is wired (B-PR3); How + What gated on prior phases', () => {
     const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [] });
     expect(html).toContain('Why · Research');
     expect(html).toContain('How · PRD');
@@ -137,13 +137,11 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('Start Why');
     expect(html).toContain('Start How');
     expect(html).toContain('Start What');
-    // B-PR3: Start Why is an active button; How + What still locked.
+    // Start Why is an active button (no prior phase).
     expect(html).toContain('data-action="start-okr-why"');
-    // How + What carry the Phase B agent-deployment tooltip
-    expect(html).toContain('Phase B: requires agent deployment');
-    // Audit-export + verify-chain + start-how + start-what = at least 4 disabled buttons.
-    const disabledCount = (html.match(/<button[^>]*disabled/g) || []).length;
-    expect(disabledCount).toBeGreaterThanOrEqual(4);
+    // Start How + What are gated on their prior phases having merged.
+    expect(html).toMatch(/disabled[^>]*title="Gated on Why merged/);
+    expect(html).toMatch(/disabled[^>]*title="Gated on How merged/);
   });
 
   it('Start Why is disabled when the OKR is paused', () => {
@@ -211,7 +209,33 @@ describe('renderOkrDetailView', () => {
       affectedBars: [{ id: 'APP-IMDB-002', name: 'IMDB Celebs', path: '/m/bars/imdb-celebs', compositeScore: 32, tier: 'restricted' }],
     });
     expect(html).toContain('☐ Restricted');
-    expect(html).toContain('escalate BAR');
+    // Start What button has the Restricted-tier blocked tooltip
+    expect(html).toMatch(/disabled[^>]*title="Restricted tier/);
+  });
+
+  it('Start What becomes a clickable button when How is complete and tier is not Restricted', () => {
+    const okr = sampleCard({
+      actions: [{
+        id: 'ACT-1',
+        phase: 'how',
+        description: 'PRD',
+        agent: 'prd-agent',
+        runId: 'PRD-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 85, security: 80 },
+        rounds: 1,
+        governanceTier: 'supervised',
+        status: 'complete',
+        createdAt: '2026-05-19T14:00:00Z',
+        completedAt: '2026-05-19T15:00:00Z',
+      }],
+    });
+    const html = renderOkrDetailView({
+      okr,
+      affectedBars: [{ id: 'APP-IMDB-001', name: 'IMDB Lite App', path: '/m', compositeScore: 64, tier: 'supervised' }],
+    });
+    expect(html).toContain('data-action="start-okr-what"');
   });
 
   it('renders affected BARs with tier badges and Open BAR ↗ links', () => {

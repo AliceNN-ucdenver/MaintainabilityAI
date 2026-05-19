@@ -540,6 +540,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'startOkrHow':
         await this.onStartOkrPhase(message.okrId, 'how');
         break;
+      case 'startOkrWhat':
+        await this.onStartOkrPhase(message.okrId, 'what');
+        break;
       case 'loadHatterTag':
         await this.onLoadHatterTag(message.okrId, message.actionId);
         break;

@@ -448,6 +448,15 @@ export type LookingGlassWebviewMessage =
    */
   | { type: 'startOkrHow'; okrId: string }
   /**
+   * Phase C-PR4 — click `Start What` on the OKR detail. Creates ONE
+   * cross-cutting `oraculum-design` issue in the mesh repo per §10.2
+   * step 14. The code-design-agent writes a single design.md doc
+   * grounded on the merged PRD + indexed target_code_repos. After
+   * THAT PR merges, `design-bus.yml` fans out per-repo issues to each
+   * target code repo.
+   */
+  | { type: 'startOkrWhat'; okrId: string }
+  /**
    * Phase B-PR4 — open the Hatter Tag slide-out sheet for an action's run.
    * Extension reads the artifact at the action's `artifact` path, parses
    * the embedded ## Hatter's Tag YAML block, and posts back via
