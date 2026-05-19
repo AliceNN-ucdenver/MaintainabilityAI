@@ -99,13 +99,13 @@ export default function HomePage() {
       <section className="site-shell site-section">
         <div className="max-w-3xl">
           <p className="site-eyebrow">The system</p>
-          <h2 className="site-heading">Three capabilities, one governed workflow.</h2>
+          <h2 className="site-heading">Four capabilities, one governed workflow.</h2>
           <p className="site-lede text-slate-400">
-            Looking Glass gives agents the architectural map. Cheshire turns secure intent into implementation-ready artifacts. Red Queen enforces the rules when autonomy increases.
+            Looking Glass gives agents the architectural map. The Hatter plans the work — OKR to code design, with mesh-grounded and code-grounded reviewer gates. Cheshire turns approved intent into implementation-ready artifacts. Red Queen enforces the rules when autonomy increases.
           </p>
         </div>
 
-        <div className="mt-10 grid lg:grid-cols-3 gap-6">
+        <div className="mt-10 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {systemLayers.map((layer) => (
             <Link key={layer.title} to={layer.href} className="site-system-card">
               <div className="aspect-[16/10] bg-slate-950 overflow-hidden">

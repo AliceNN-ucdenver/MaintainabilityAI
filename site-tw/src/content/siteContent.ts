@@ -27,6 +27,14 @@ export const systemLayers: SystemLayer[] = [
     href: '/docs/impossible-things#the-looking-glass---see-everything',
   },
   {
+    title: 'The Hatter',
+    label: 'Governed planning',
+    image: '/images/mad-hatter.png',
+    body:
+      'OKR → market research → PRD → code design as one audited pipeline. Mesh-grounded experts refine the PRD, code-grounded reviewers gate the design, and one Audit Report Export answers the auditor’s master question end-to-end.',
+    href: '/docs/hatters-tea-party',
+  },
+  {
     title: 'Cheshire Cat',
     label: 'Secure SDLC scaffolding',
     image: '/images/cheshire-dashboard.png',
