@@ -559,6 +559,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'okrHumanGateReject':
         await this.onHumanGateReject(message.okrId, message.actionId);
         break;
+      case 'cancelOkrAction':
+        await this.onCancelOkrAction(message.okrId, message.actionId);
+        break;
 
       case 'backToPortfolio':
       case 'backToPlatform':
@@ -973,6 +976,59 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Issue created (${issueUrl}) but failed to update OKR card: ${toErrorMessage(err)}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /**
+   * Phase B-PR3+ — disregard an in-flight action without touching its
+   * GitHub issue/PR. Used when the user already closed the issue on
+   * GitHub manually (e.g. a Copilot run died with no output) and
+   * wants the OKR card to stop showing "Running" so they can re-fire
+   * the phase cleanly.
+   *
+   * Distinct from `onHumanGateReject` which closes the PR via the
+   * GitHub API as well. This one is "I already cleaned up GitHub-
+   * side; just sync the OKR card."
+   */
+  private async onCancelOkrAction(okrId: string, actionId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+      return;
+    }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} not found` });
+      return;
+    }
+    const answer = await vscode.window.showWarningMessage(
+      `Cancel action ${actionId} on ${okrId}?`,
+      {
+        modal: true,
+        detail:
+          `Marks the OKR action as 'cancelled' so the card stops showing "Running".\n\n` +
+          `Does NOT touch the GitHub issue/PR — use this when you've already closed the issue on GitHub manually. ` +
+          `If you want Looking Glass to close the issue/PR for you, use HumanGate → Reject instead.\n\n` +
+          `After cancelling you can re-fire ${action.phase.toUpperCase()} from the OKR detail.`,
+      },
+      'Cancel run',
+    );
+    if (answer !== 'Cancel run') { return; }
+    try {
+      okrService.updateAction(meshPath, okrId, actionId, {
+        status: 'cancelled',
+        completedAt: new Date().toISOString(),
+      });
+      void vscode.window.showInformationMessage(`Cancelled ${actionId}. Re-fire ${action.phase.toUpperCase()} from the OKR detail when ready.`);
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Cancel failed: ${toErrorMessage(err)}` });
     }
   }
 

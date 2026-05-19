@@ -474,6 +474,14 @@ export type LookingGlassWebviewMessage =
   | { type: 'okrHumanGateRerun'; okrId: string; actionId: string }
   | { type: 'okrHumanGateReject'; okrId: string; actionId: string }
   /**
+   * Phase B-PR3+ — flip the OKR action's status to `cancelled` without
+   * touching its GitHub issue/PR. Used when the user already closed
+   * the issue on GitHub directly and just wants the OKR card to stop
+   * showing "Running". Distinct from HumanGateReject (which closes
+   * the PR + sets status); this just disregards the in-flight run.
+   */
+  | { type: 'cancelOkrAction'; okrId: string; actionId: string }
+  /**
    * Phase B-PR3/4 + C-PR4 — confirm posting the Start-phase issue from
    * the webview preview modal. additionalContext is appended to the
    * canned body before `gh issue create` runs.

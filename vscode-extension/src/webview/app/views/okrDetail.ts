@@ -485,6 +485,18 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
   const humanGate = latest && (latest.status === 'human_gate' || latest.status === 'blocked')
     ? renderHumanGate(okr, latest, primaryTier)
     : '';
+  // "Cancel run" affordance for actions stuck in an in-flight state
+  // when the user has already closed the GitHub issue/PR manually
+  // (or the run died and we want to re-fire cleanly). Only renders for
+  // running states — done/cancelled/failed actions don't need it.
+  const cancelRun = latest && (
+    latest.status === 'in_progress'
+    || latest.status === 'under_review'
+    || latest.status === 'revision_required'
+    || latest.status === 'stalled'
+  )
+    ? renderCancelRun(okr, latest)
+    : '';
 
   return `
     <div class="okr-action-card okr-action-card-${substate.tone}">
@@ -495,8 +507,23 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
       <p class="okr-action-rationale">${escapeHtml(substate.rationale)}</p>
       ${phaseSignals}
       ${humanGate}
-      <div class="okr-action-footer">${startButton}</div>
+      <div class="okr-action-footer">
+        ${startButton}
+        ${cancelRun}
+      </div>
     </div>
+  `;
+}
+
+function renderCancelRun(okr: OkrCard, action: OkrAction): string {
+  return `
+    <button
+      class="okr-button-secondary okr-button-small"
+      data-action="cancel-okr-action"
+      data-okr-id="${escapeAttr(okr.meta.id)}"
+      data-action-id="${escapeAttr(action.id)}"
+      title="Mark this run as cancelled (does not touch the GitHub issue)"
+    >✕ Cancel run</button>
   `;
 }
 
@@ -783,6 +810,19 @@ export function attachOkrDetailEvents(
       const e = el as HTMLElement;
       vscode.postMessage({
         type: 'okrHumanGateReject',
+        okrId: e.dataset.okrId,
+        actionId: e.dataset.actionId,
+      });
+    });
+  });
+  // Phase B-PR3+ Cancel-run — user-initiated cleanup when the GitHub
+  // issue/PR has already been closed manually and we just want the
+  // OKR card to stop showing "Running".
+  document.querySelectorAll('[data-action="cancel-okr-action"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const e = el as HTMLElement;
+      vscode.postMessage({
+        type: 'cancelOkrAction',
         okrId: e.dataset.okrId,
         actionId: e.dataset.actionId,
       });

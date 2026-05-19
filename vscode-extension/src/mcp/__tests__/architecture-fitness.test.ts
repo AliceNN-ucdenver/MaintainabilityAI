@@ -52,7 +52,7 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // webview builds). And again when createResearchSecret landed for the
   // GMT guided-create flow.
   'webview/app/lookingGlass.ts': 221,
-  'webview/LookingGlassPanel.ts': 111,
+  'webview/LookingGlassPanel.ts': 112,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
