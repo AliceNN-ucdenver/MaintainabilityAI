@@ -1987,21 +1987,28 @@ That sequence is the workshop's narrative arc, end to end, with full agentic SDL
 
 This section is the live truth-source for "what's done." Update inline as work lands. Last reviewed 2026-05-19.
 
-### Phase A — Foundation (target: 2 weeks)
+### Phase A — Foundation (target: 2 weeks) — **shipped**
 
 OKR scaffolding lands. Looking Glass shows OKRs but the buttons don't yet trigger pipelines (those come in B+C). The sample OKR is seeded; learners can read it but not run it through agents yet.
 
-- [ ] **A1.** `okr.yaml` schema + Zod type (`vscode-extension/src/types/okr.ts`) — incl. `intent_cascade`, IntentSpec frontmatter, `governance` overrides block
-- [ ] **A2.** `OKRService` (`src/services/OKRService.ts`) — `readAll`, `read`, `create`, `appendAction`, `updateStatus`, `targetCodeReposFor`, `tierFor`
-- [ ] **A3.** OKR list view (`src/webview/app/views/okrList.ts`) + tile on portfolio header
-- [ ] **A4.** OKR detail view (`src/webview/app/views/okrDetail.ts`) — full mockup per §10.2; buttons render as disabled in Phase A
-- [ ] **A5.** `scaffoldImdbLiteOkr()` seeds the Celebs-anchored sample OKR (§8.1) — runs from `scaffoldImdbLitePlatform()` when invoked
-- [ ] **A6.** Extend `scaffoldImdbLitePlatform()` to populate `bar.app.yaml.repos[]` with workshop repo names (declared, not connected)
-- [ ] **A7.** Hatter Tag schema extension — `intent_thread_uuid` replaces `parent_run_id` (rename in `packages/research-runner/src/runner/hatters-tag-builder.ts`); add `governance_tier`, `author_did`, `reviewer_dids[]`, `prompt_pack_version` fields
-- [ ] **A8.** Audit event schema extension — add `phase`, `okr_id`, `intent_thread_uuid` to `packages/research-runner/src/runner/audit-emitter.ts`
-- [ ] **A9.** Cleanup: remove "Promote to research-request" from OracularPanel; add stubbed "Create OKR from finding" button (full flow lands in B)
-- [ ] **A10.** Cleanup: Active Runs panel groups by OKR id (degrades gracefully for legacy runs without okr_id)
-- [ ] **A11.** Workshop curriculum touchpoints doc (`docs/workshop/agentic-sdlc-touchpoints.md`) — which workshop Part produces which mesh artifact
+- [x] **A1.** `okr.yaml` schema + Zod type (`vscode-extension/src/types/okr.ts`) — incl. `intent_cascade`, IntentSpec frontmatter, `governance` overrides block — shipped in A-PR1 (6758b67)
+- [x] **A2.** `OKRService` (`src/services/OKRService.ts`) — `readAll`, `read`, `create`, `appendAction`, `updateStatus`, `targetCodeReposFor`, `tierFor` — shipped in A-PR1 (6758b67); `exportAuditReport` stubbed for Phase E
+- [x] **A3.** OKR list view (`src/webview/app/views/okrList.ts`) + tile on portfolio header (rendered as the `okrs` EA lens) — shipped in A-PR3 (dd7987b)
+- [x] **A4.** OKR detail view (`src/webview/app/views/okrDetail.ts`) — full mockup per §10.2; buttons render as disabled in Phase A — shipped in A-PR3 (dd7987b); Phase A polish added inline view/edit/create modes (c836246) + BAR-sourced target-repo picker (19e9911)
+- [x] **A5.** `scaffoldImdbLiteOkr()` seeds the Celebs-anchored sample OKR (§8.1) — runs from `scaffoldImdbLitePlatform()` when invoked — shipped in A-PR2 (b029a90); auto-seed wired in A polish (5c64730); URLs now sourced from BAR app.yaml verbatim (3e1e328) with self-healing for stale `<org>` (dfbd003)
+- [x] **A6.** Extend `scaffoldImdbLitePlatform()` to populate `bar.app.yaml.repos[]` with workshop repo names (declared, not connected) — shipped in A-PR2 (b029a90); real org auto-detected from mesh git remote (eb39638)
+- [x] **A7.** Hatter Tag schema extension — `intent_thread_uuid` replaces `parent_run_id` (rename in `packages/research-runner/src/runner/hatters-tag-builder.ts`); add `governance_tier`, `author_did`, `reviewer_dids[]`, `prompt_pack_version` fields — shipped in A-PR4 (593365b)
+- [x] **A8.** Audit event schema extension — add `phase`, `okr_id`, `intent_thread_uuid` to `packages/research-runner/src/runner/audit-emitter.ts` — shipped in A-PR4 (593365b)
+- [x] **A9.** Cleanup: remove "Promote to research-request" from OracularPanel; add stubbed "Create OKR from finding" button (full flow lands in B) — shipped in A-PR4 (593365b)
+- [x] **A10.** Cleanup: Active Runs panel groups by OKR id (degrades gracefully for legacy runs without okr_id) — shipped in A-PR4 (593365b)
+- [x] **A11.** Workshop curriculum touchpoints doc (`docs/workshop/agentic-sdlc-touchpoints.md`) — which workshop Part produces which mesh artifact — shipped in A-PR4 (593365b)
+
+**Phase A also delivered (beyond plan):**
+- Inline-editable OKR detail page with three modes (view/edit/create) — replaces the original native-dialog Create flow (c836246)
+- `OKRService.update(meshPath, okrId, patch)` with allowlisted-fields patch — needed for the inline editor (c836246)
+- Target-repo picker sourced from BAR `app.yaml repos[]` with checkbox UI + custom-URL escape hatch (19e9911)
+- `detectMeshOwner` in `LookingGlassPanel.onSamplePlatform` so sample BARs get real GitHub URLs from the mesh's git remote, not `<org>` placeholder (eb39638)
+- Self-healing of stale `<org>` URLs in the sample OKR when BARs get re-scaffolded with a real org (dfbd003)
 
 ### Phase B — Custom Agents + Skills (target: 3 weeks)
 
@@ -2136,20 +2143,20 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 
 | Status | Deliverable | Location | Phase |
 |---|---|---|---|
-| `[ ]` | `okr.yaml` schema + Zod type (incl. `intent_cascade`, `intent_thread_uuid`, IntentSpec frontmatter, `governance` overrides) | `vscode-extension/src/types/okr.ts` | A |
-| `[ ]` | OKRService (`readAll`, `read`, `create`, `appendAction`, `updateStatus`, `targetCodeReposFor`, `tierFor`, `exportAuditReport`) | `vscode-extension/src/services/OKRService.ts` | A → E |
-| `[ ]` | `scaffoldImdbLiteOkr` — seeds **Celebs-anchored** sample OKR (§8.1) with pre-filled intent_cascade | `vscode-extension/src/services/MeshService.ts` (extend) | A |
-| `[ ]` | OKR list view (table + tier badges + status filter) | `vscode-extension/src/webview/app/views/okrList.ts` | A |
-| `[ ]` | OKR detail view — full mockup per §10.2 (header, KRs, BARs, Action cards, footer) | `vscode-extension/src/webview/app/views/okrDetail.ts` | A → C |
-| `[ ]` | OKR portfolio tile | `vscode-extension/src/webview/app/portfolio.ts` (extend) | A |
-| `[ ]` | `bar.app.yaml.repos[]` seeding with 4 workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`) — declared, not connected | `vscode-extension/src/services/MeshService.ts` (extend `scaffoldImdbLitePlatform`) | A |
+| `[x]` | `okr.yaml` schema + Zod type (incl. `intent_cascade`, `intent_thread_uuid`, IntentSpec frontmatter, `governance` overrides) | `vscode-extension/src/types/okr.ts` | A |
+| `[~]` | OKRService (`readAll`, `read`, `create`, `update`, `appendAction`, `updateAction`, `updateStatus`, `setPaused`, `targetCodeReposFor`, `tierFor`, `exportAuditReport`) — Phase A methods shipped; `exportAuditReport` stub returns `not-implemented-yet (Phase E)` | `vscode-extension/src/services/OKRService.ts` | A → E |
+| `[x]` | `scaffoldImdbLiteOkr` — seeds **Celebs-anchored** sample OKR (§8.1) with pre-filled intent_cascade; auto-seeded when Sample Platform → IMDB Lite chosen; idempotent + self-heals stale `<org>` URLs | `vscode-extension/src/services/MeshService.ts` (extend) | A |
+| `[x]` | OKR list view (table + tier badges + status filter) — `+ Create OKR` opens detail in `create` mode | `vscode-extension/src/webview/app/views/okrList.ts` | A |
+| `[~]` | OKR detail view — full mockup per §10.2 (header, KRs, BARs, Action cards, footer). Phase A delivered view/edit/create modes; `Start` buttons remain disabled until Phase B agent wiring; HumanGate UI lands in C | `vscode-extension/src/webview/app/views/okrDetail.ts` | A → C |
+| `[x]` | OKR portfolio entry-point — rendered as the `okrs` EA lens on the portfolio header (instead of a separate tile) | `vscode-extension/src/webview/app/lookingGlass.ts` (lens routing) | A |
+| `[x]` | `bar.app.yaml.repos[]` seeding with 4 workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`) — declared, not connected; real GitHub org auto-detected from mesh git remote | `vscode-extension/src/services/MeshService.ts` (extend `scaffoldImdbLitePlatform`) | A |
 | `[~]` | Asymmetric CALM seed: rich `app-imdb-lite.arch.json` (8 nodes, 5 NIST controls, threats) vs sparse `app-imdb-celebs.arch.json` (6 nodes, no controls/threats) | `vscode-extension/src/templates/mesh/calmTemplates.ts` | A (extend imdb-lite with threat-model + controls blocks) |
 | `[ ]` | **Connect Repo** button + flow for declared-but-not-connected `repos[]` entries | BAR detail view | A |
-| `[ ]` | **Intent Thread UUID** generator + stamping on every Hatter's Tag (rename `parent_run_id` → `intent_thread_uuid`/`parent_intent_thread`) | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A |
-| `[ ]` | Hatter's Tag full schema: `intent_thread_uuid`, `author_did`, `author_prompt_pack_version`, `reviewer_dids[]`, `threat_model_ref`, `calm_nodes_referenced[]`, `owasp_categories[]`, `stride_threats[]`, `fitness_results`, `reviewer_scores`, `governance_tier`, `chain_root_hash` | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A → B (signature: B+) |
-| `[ ]` | Audit event schema (phase, okr_id, intent_thread_uuid) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
+| `[x]` | **Intent Thread UUID** generator + stamping on every Hatter's Tag (rename `parent_run_id` → `intent_thread_uuid`/`parent_intent_thread`) | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A |
+| `[~]` | Hatter's Tag full schema: `intent_thread_uuid`, `author_did`, `author_prompt_pack_version`, `reviewer_dids[]`, `threat_model_ref`, `calm_nodes_referenced[]`, `owasp_categories[]`, `stride_threats[]`, `fitness_results`, `reviewer_scores`, `governance_tier`, `chain_root_hash` — Phase A landed `okr` + `attestation` blocks (optional, populated by Phase B+ agents); cryptographic signature is Knight's Seal (B+ stretch) | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A → B (signature: B+) |
+| `[x]` | Audit event schema (phase, okr_id, intent_thread_uuid) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
 | `[ ]` | **Court Recorder** CloudEvents v1.0 envelope emitter (SIEM-compatible JSONL, hash-chained, append-only) | `packages/research-runner/src/runner/court-recorder.ts` (new) | B |
-| `[ ]` | **Tier-detection logic** — `OKRService.tierFor()` reads BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → drive UI gates + Hatter's Tag stamp | `vscode-extension/src/services/OKRService.ts` + BarService | B |
+| `[~]` | **Tier-detection logic** — `OKRService.tierFor()` reads BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → drive UI gates + Hatter's Tag stamp. Phase A: `tierFor()` shipped and feeds the OKR list tier badge + detail header. Phase B: drives `Start` button enabled/disabled state. | `vscode-extension/src/services/OKRService.ts` + BarService | A → B |
 | `[ ]` | **White Rabbit's Pocket Watch** goal-drift gate — hash OKR.objective at phase boundaries; block merge if drift > threshold | mesh template (workflow) + `verify-chain` CLI | C |
 | `[ ]` | **Caterpillar's Challenge** — explicit semantic-drift comparison step between phase artifacts | mesh template (reviewer-bus.yml hook) | C |
 | `[ ]` | **Knight's Seal** — Ed25519 commit signing with agent DID; verification step in `verify-chain` | `packages/research-runner/src/runner/knights-seal.ts` (new) + GitHub App key mgmt | B+ |
@@ -2158,9 +2165,9 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[ ]` | **Hatter Tag UI sheet** (full-schema view from Action card `View Tag` button) | `vscode-extension/src/webview/app/views/hatterTagSheet.ts` | B |
 | `[ ]` | **Audit Report Export** generator (zip bundle: PDF + traceability HTML + per-phase artifacts + Hatter Tags + JSONL + verify-chain + prompt-pack snapshots + checksums) | `OKRService.exportAuditReport()` | E |
 | `[ ]` | **Traceability matrix renderer** (KR → Finding → FR/SR → Design → Code; HTML + CSV) | `vscode-extension/src/webview/app/exports/traceability.ts` | E |
-| `[ ]` | Remove "Promote to research-request" from OracularPanel | `vscode-extension/src/webview/OracularPanel.ts` | A |
-| `[ ]` | "Create OKR from finding" button + draft modal | OracularPanel | A (stub) → B (full flow) |
-| `[ ]` | Active Runs panel grouped by OKR id | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
+| `[x]` | Remove "Promote to research-request" from OracularPanel | `vscode-extension/src/webview/OracularPanel.ts` | A |
+| `[~]` | "Create OKR from finding" button + draft modal — disabled stub shipped in A (sidebar button); full flow Phase B | OracularPanel | A (stub) → B (full flow) |
+| `[x]` | Active Runs panel grouped by OKR id (renderRow / renderGroup; "Legacy (no OKR anchor)" fallback group for runs without `okrId`) | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
 | `[ ]` | **Settings → Mesh Provisioning** with 3 tabs (Workflows / Agents / Skills) + retained "Secrets & Models" tab | `vscode-extension/src/webview/SettingsPanel.ts` (rename / extend) | B |
 | `[ ]` | Deprecation removal flow (audit-logged) for `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` | AgentDeploymentService.removeDeprecatedWorkflow | B (after Phase B verified end-to-end) |
 | `[ ]` | `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data — no LLM inside) | mesh template | B |
@@ -2186,7 +2193,7 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[ ]` | Hatter chain ladder tree visualization on OKR detail | OKR detail view | D |
 | `[ ]` | `verify-chain` CLI surface in Looking Glass (validates hash chain, signature chain, intent thread continuity, tier compliance) | Looking Glass action + research-runner CLI | E |
 | `[ ]` | End-to-end smoke (IMDB Lite OKR — Supervised path on Lite, Restricted-blocked path on Celebs) | docs/test | E |
-| `[ ]` | **Workshop curriculum touchpoints** map (which mesh artifact each workshop Part produces) | `docs/workshop/agentic-sdlc-touchpoints.md` (new) | A |
+| `[x]` | **Workshop curriculum touchpoints** map (which mesh artifact each workshop Part produces) | `site-tw/public/docs/workshop/agentic-sdlc-touchpoints.md` | A |
 | `[s]` | ~~`oraculum-research.yml` workflow~~ | mesh template | superseded by Phase B agent path |
 | `[s]` | ~~`archeologist.yml` workflow~~ | mesh template | superseded by search Skills + `market-research-agent` |
 | `[s]` | ~~`prd.yml` workflow~~ | mesh template | superseded by prd-agent + okr-bus.yml |
