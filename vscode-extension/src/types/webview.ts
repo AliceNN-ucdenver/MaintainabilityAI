@@ -453,7 +453,17 @@ export type LookingGlassWebviewMessage =
    * the embedded ## Hatter's Tag YAML block, and posts back via
    * `hatterTagSheet`.
    */
-  | { type: 'loadHatterTag'; okrId: string; actionId: string };
+  | { type: 'loadHatterTag'; okrId: string; actionId: string }
+  /**
+   * Phase C-PR3 — HumanGate controls on the OKR detail Action card.
+   * Fire when the latest action's status is `human_gate` (auto-revision
+   * cycle exhausted per §6.1). The extension handles the actual GitHub
+   * surface (apply governance-pass override / re-comment @copilot to
+   * retry / close PR + cancel action).
+   */
+  | { type: 'okrHumanGateApprove'; okrId: string; actionId: string; tier: string }
+  | { type: 'okrHumanGateRerun'; okrId: string; actionId: string }
+  | { type: 'okrHumanGateReject'; okrId: string; actionId: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

@@ -341,6 +341,60 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('data-action="repo-add"');
   });
 
+  it('renders the HumanGate Approve/Re-run/Reject panel when latest action.status is human_gate', () => {
+    const card = sampleCard({
+      actions: [{
+        id: 'ACT-1',
+        phase: 'how',
+        description: 'PRD',
+        agent: 'prd-agent',
+        runId: 'HOW-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 60, security: 40 },
+        rounds: 2,
+        governanceTier: 'supervised',
+        status: 'human_gate',
+        createdAt: '2026-05-19T14:00:00Z',
+      }],
+    });
+    const html = renderOkrDetailView({
+      okr: card,
+      affectedBars: [{ id: 'APP-IMDB-002', name: 'IMDB Celebs', path: '/m', compositeScore: 64, tier: 'supervised' }],
+    });
+    expect(html).toContain('HumanGate — auto-revision cycle exhausted');
+    expect(html).toContain('data-action="okr-approve"');
+    expect(html).toContain('data-action="okr-rerun"');
+    expect(html).toContain('data-action="okr-reject"');
+    // No dual-signature warning at supervised tier
+    expect(html).not.toContain('dual signature');
+  });
+
+  it('renders the dual-signature warning when the HumanGate fires on Restricted tier', () => {
+    const card = sampleCard({
+      actions: [{
+        id: 'ACT-1',
+        phase: 'how',
+        description: 'PRD',
+        agent: 'prd-agent',
+        runId: 'HOW-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 30, security: 25 },
+        rounds: 0,
+        governanceTier: 'restricted',
+        status: 'human_gate',
+        createdAt: '2026-05-19T14:00:00Z',
+      }],
+    });
+    const html = renderOkrDetailView({
+      okr: card,
+      affectedBars: [{ id: 'APP-IMDB-002', name: 'IMDB Celebs', path: '/m', compositeScore: 32, tier: 'restricted' }],
+    });
+    expect(html).toContain('Restricted tier');
+    expect(html).toContain('dual signature');
+  });
+
   it('edit mode surfaces non-BAR repos as custom rows so user-added URLs survive a re-render', () => {
     const html = renderOkrDetailView({
       okr: sampleCard({

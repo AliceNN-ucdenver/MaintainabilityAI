@@ -118,6 +118,44 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "⛔ **HumanGate** — round **${{ steps.ctx.outputs.round }}** hit MAX_AUTO_ROUNDS=**${{ steps.ctx.outputs.max }}** for tier=\`${{ steps.ctx.outputs.tier }}\`. Auto-revision cycle exhausted; OKR owner must Approve / Re-run / Reject from Looking Glass → OKR detail."
 
+      # Flip the matching action's status to `human_gate` on the OKR YAML so
+      # Looking Glass surfaces the Approve / Re-run / Reject controls on
+      # the detail page without round-tripping to GitHub for labels. Match
+      # by runId, which the PR body's Hatter Tag carries (§5.5.6 step 3).
+      - name: Update action.status to human_gate
+        if: ${{ fromJSON(steps.ctx.outputs.round) >= fromJSON(steps.ctx.outputs.max) }}
+        run: |
+          OKR_ID="${{ steps.ctx.outputs.okr_id }}"
+          OKR_FILE="okrs/$OKR_ID/okr.yaml"
+          if [ -z "$OKR_ID" ] || [ ! -f "$OKR_FILE" ]; then
+            echo "::warning::OKR file missing — skipping action.status update"
+            exit 0
+          fi
+          BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body)
+          RUN_ID=$(printf '%s' "$BODY" | grep -oE 'run_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^run_id:\s*//')
+          if [ -z "$RUN_ID" ]; then
+            echo "::warning::No run_id in PR body Hatter Tag — cannot match action; skipping"
+            exit 0
+          fi
+          # yq is pre-installed on ubuntu-latest runners. The expression
+          # finds the action whose runId matches and flips its status.
+          if ! yq --version >/dev/null 2>&1; then
+            echo "::warning::yq not on PATH — skipping action.status update (will be applied on next render)"
+            exit 0
+          fi
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"human_gate\"" "$OKR_FILE"
+          # Bump updatedAt so the OKR list view reflects the state change.
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
+          git config user.name "maintainabilityai-bot"
+          git config user.email "noreply@maintainability.ai"
+          git add "$OKR_FILE"
+          git commit -m "chore(okr): $OKR_ID action $RUN_ID -> human_gate (round=${{ steps.ctx.outputs.round }}, max=${{ steps.ctx.outputs.max }}, tier=${{ steps.ctx.outputs.tier }})
+
+Auto-update by okr-state-machine.yml on revision-required label.
+Phase tracking: agentic-sdlc §13 C5."
+          git push
+
       - name: Note remaining round budget when round < MAX
         if: ${{ fromJSON(steps.ctx.outputs.round) < fromJSON(steps.ctx.outputs.max) }}
         run: |

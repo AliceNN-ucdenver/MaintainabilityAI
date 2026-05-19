@@ -543,6 +543,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'loadHatterTag':
         await this.onLoadHatterTag(message.okrId, message.actionId);
         break;
+      case 'okrHumanGateApprove':
+        await this.onHumanGateApprove(message.okrId, message.actionId, message.tier);
+        break;
+      case 'okrHumanGateRerun':
+        await this.onHumanGateRerun(message.okrId, message.actionId);
+        break;
+      case 'okrHumanGateReject':
+        await this.onHumanGateReject(message.okrId, message.actionId);
+        break;
 
       case 'backToPortfolio':
       case 'backToPlatform':
@@ -910,6 +919,160 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag });
     } catch (err) {
       this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Failed to read artifact: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase C-PR3 — HumanGate Approve. Applies the master `governance-pass`
+   * label on the PR to unblock merge, and flips the action's status to
+   * 'complete' (overriding reviewer findings, as documented in §6.4).
+   * For Restricted tier we require dual signature via a 2-step native
+   * dialog (sequential input boxes for two distinct approver handles).
+   *
+   * GitHub-side: the PR's `governance-pass` label trips branch
+   * protection to "merge unlocked" without requiring more reviews.
+   */
+  private async onHumanGateApprove(okrId: string, actionId: string, tier: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+      return;
+    }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} not found` });
+      return;
+    }
+    if (!action.pr) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} has no PR URL — cannot apply governance-pass label.` });
+      return;
+    }
+
+    let approvers: string[] = [];
+    if (tier === 'restricted') {
+      const a1 = await vscode.window.showInputBox({
+        title: `HumanGate Approve · ${okrId} (Restricted tier · dual signature required)`,
+        prompt: 'Approver #1 — GitHub handle',
+        validateInput: v => v.trim().length === 0 ? 'Approver handle is required' : null,
+        ignoreFocusOut: true,
+      });
+      if (!a1) { return; }
+      const a2 = await vscode.window.showInputBox({
+        title: `HumanGate Approve · ${okrId} (Restricted tier · dual signature required)`,
+        prompt: 'Approver #2 — GitHub handle (MUST be different from #1)',
+        validateInput: v => {
+          if (v.trim().length === 0) { return 'Approver handle is required'; }
+          if (v.trim() === a1.trim()) { return 'Must be a different approver than #1'; }
+          return null;
+        },
+        ignoreFocusOut: true,
+      });
+      if (!a2) { return; }
+      approvers = [a1.trim(), a2.trim()];
+    } else {
+      const answer = await vscode.window.showWarningMessage(
+        `Approve HumanGate for ${okrId}?`,
+        { modal: true, detail: `This applies the governance-pass label on ${action.pr}, overriding reviewer findings. The override is recorded in the OKR audit log.` },
+        'Approve',
+      );
+      if (answer !== 'Approve') { return; }
+    }
+
+    try {
+      await execFileAsync('gh', ['pr', 'edit', action.pr, '--add-label', 'governance-pass'], { cwd: meshPath, timeout: 30_000 });
+      await execFileAsync('gh', ['pr', 'edit', action.pr, '--remove-label', 'needs-human-review'], { cwd: meshPath, timeout: 30_000 });
+      const overrideNote = approvers.length === 2
+        ? `**HumanGate · Approve (dual-signature override)** — approvers: @${approvers[0]}, @${approvers[1]}. Restricted-tier OKR; reviewer findings overridden. Recorded in OKR audit chain.`
+        : `**HumanGate · Approve** — reviewer findings overridden. Recorded in OKR audit chain.`;
+      await execFileAsync('gh', ['pr', 'comment', action.pr, '--body', overrideNote], { cwd: meshPath, timeout: 30_000 });
+      okrService.updateAction(meshPath, okrId, actionId, { status: 'complete', completedAt: new Date().toISOString() });
+      void vscode.window.showInformationMessage(`Approved ${actionId} on ${okrId}. governance-pass applied to ${action.pr}.`);
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Approve failed: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase C-PR3 — HumanGate Re-run. Removes the `needs-human-review`
+   * label, re-comments `@copilot use agent <author-agent>` to retry,
+   * flips action status back to in_progress + increments rounds counter.
+   * The Round-N label on the PR bumps via reviewer-bus.yml on the next
+   * synchronize event.
+   */
+  private async onHumanGateRerun(okrId: string, actionId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) { return; }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action || !action.pr) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} missing or has no PR.` });
+      return;
+    }
+    const answer = await vscode.window.showWarningMessage(
+      `Re-run agent for ${okrId} action ${actionId}?`,
+      { modal: true, detail: `This re-comments @copilot use agent ${action.agent} on ${action.pr} so the author agent revises. Counts as round ${(action.rounds ?? 0) + 1}.` },
+      'Re-run',
+    );
+    if (answer !== 'Re-run') { return; }
+
+    try {
+      await execFileAsync('gh', ['pr', 'edit', action.pr, '--remove-label', 'needs-human-review'], { cwd: meshPath, timeout: 30_000 });
+      await execFileAsync('gh', ['pr', 'comment', action.pr, '--body', `**HumanGate · Re-run** (round ${(action.rounds ?? 0) + 1}) — @copilot use agent ${action.agent}`], { cwd: meshPath, timeout: 30_000 });
+      okrService.updateAction(meshPath, okrId, actionId, { status: 'in_progress', rounds: (action.rounds ?? 0) + 1 });
+      void vscode.window.showInformationMessage(`Re-running ${action.agent} on ${action.pr}.`);
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Re-run failed: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Phase C-PR3 — HumanGate Reject + re-scope. Closes the PR, marks the
+   * action `cancelled`, and surfaces a follow-up prompt for the user to
+   * edit the OKR action's description before re-firing.
+   */
+  private async onHumanGateReject(okrId: string, actionId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) { return; }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} not found.` });
+      return;
+    }
+    const answer = await vscode.window.showWarningMessage(
+      `Reject ${actionId} on ${okrId}?`,
+      { modal: true, detail: `This closes the agent's PR (if any) and marks the action 'cancelled'. The OKR stays open; you can re-trigger the phase from the OKR detail after re-scoping.` },
+      'Reject + re-scope',
+    );
+    if (answer !== 'Reject + re-scope') { return; }
+
+    try {
+      if (action.pr) {
+        await execFileAsync('gh', ['pr', 'close', action.pr, '--comment', `**HumanGate · Reject + re-scope** — closed by OKR owner.`], { cwd: meshPath, timeout: 30_000 });
+      }
+      okrService.updateAction(meshPath, okrId, actionId, { status: 'cancelled', completedAt: new Date().toISOString() });
+      void vscode.window.showInformationMessage(`Rejected ${actionId}. PR closed; action marked cancelled. Re-scope from the OKR detail edit form and re-trigger the phase.`);
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Reject failed: ${toErrorMessage(err)}` });
     }
   }
 

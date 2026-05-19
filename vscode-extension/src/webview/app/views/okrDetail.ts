@@ -480,6 +480,13 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
 
   const phaseSignals = renderPhaseSignals(phase, latest);
   const startButton = renderStartButton(phase, substate, okr, primaryTier);
+  // Phase C-PR3 — HumanGate panel surfaces when the latest action's
+  // status is `human_gate` (auto-revision cycle exhausted) or `blocked`
+  // (e.g. Restricted tier on What). Approve / Re-run / Reject buttons
+  // post messages the extension handles via the GitHub API.
+  const humanGate = latest && (latest.status === 'human_gate' || latest.status === 'blocked')
+    ? renderHumanGate(okr, latest, primaryTier)
+    : '';
 
   return `
     <div class="okr-action-card okr-action-card-${substate.tone}">
@@ -489,7 +496,25 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
       </div>
       <p class="okr-action-rationale">${escapeHtml(substate.rationale)}</p>
       ${phaseSignals}
+      ${humanGate}
       <div class="okr-action-footer">${startButton}</div>
+    </div>
+  `;
+}
+
+function renderHumanGate(okr: OkrCard, action: OkrAction, primaryTier: 'autonomous' | 'supervised' | 'restricted'): string {
+  const restrictedNote = primaryTier === 'restricted'
+    ? `<p class="okr-human-gate-warn">⚠ <strong>Restricted tier</strong> — Approve requires dual signature (two named approvers).</p>`
+    : '';
+  return `
+    <div class="okr-human-gate" data-okr-id="${escapeAttr(okr.meta.id)}" data-action-id="${escapeAttr(action.id)}">
+      <div class="okr-human-gate-header">⛔ HumanGate — auto-revision cycle exhausted</div>
+      ${restrictedNote}
+      <div class="okr-human-gate-actions">
+        <button class="okr-button-primary" data-action="okr-approve" data-okr-id="${escapeAttr(okr.meta.id)}" data-action-id="${escapeAttr(action.id)}" data-tier="${escapeAttr(primaryTier)}">✓ Approve</button>
+        <button class="okr-button-secondary" data-action="okr-rerun" data-okr-id="${escapeAttr(okr.meta.id)}" data-action-id="${escapeAttr(action.id)}">⟲ Re-run (counts as next round)</button>
+        <button class="okr-button-secondary" data-action="okr-reject" data-okr-id="${escapeAttr(okr.meta.id)}" data-action-id="${escapeAttr(action.id)}">✕ Reject + re-scope</button>
+      </div>
     </div>
   `;
 }
@@ -683,6 +708,10 @@ export function getOkrDetailStyles(): string {
     .hatter-tag-body { background: var(--vscode-textCodeBlock-background, rgba(148, 163, 184, 0.1)); padding: 0.75rem; border-radius: 0.375rem; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.8125rem; max-height: 50vh; overflow: auto; margin: 0 0 1rem; white-space: pre; }
     .hatter-tag-empty { color: var(--vscode-descriptionForeground); padding: 1rem; text-align: center; }
     .hatter-tag-note { font-size: 0.75rem; color: var(--vscode-descriptionForeground); opacity: 0.8; margin: 0; }
+    .okr-human-gate { margin-top: 0.75rem; padding: 0.75rem 1rem; border: 1px solid rgba(248, 113, 113, 0.4); border-radius: 0.375rem; background: rgba(248, 113, 113, 0.06); }
+    .okr-human-gate-header { font-weight: 700; color: #fca5a5; margin-bottom: 0.5rem; font-size: 0.875rem; }
+    .okr-human-gate-warn { margin: 0 0 0.5rem; font-size: 0.8125rem; color: #fcd34d; }
+    .okr-human-gate-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   `;
 }
 
@@ -720,6 +749,40 @@ export function attachOkrDetailEvents(
       if (okrId && actionId) {
         vscode.postMessage({ type: 'loadHatterTag', okrId, actionId });
       }
+    });
+  });
+  // Phase C-PR3 — HumanGate Approve / Re-run / Reject. Confirmation +
+  // dual-signature prompt happens extension-side via native VS Code
+  // dialogs (window.confirm is unreliable in webviews — see B-PR3 fix).
+  document.querySelectorAll('[data-action="okr-approve"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const e = el as HTMLElement;
+      vscode.postMessage({
+        type: 'okrHumanGateApprove',
+        okrId: e.dataset.okrId,
+        actionId: e.dataset.actionId,
+        tier: e.dataset.tier,
+      });
+    });
+  });
+  document.querySelectorAll('[data-action="okr-rerun"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const e = el as HTMLElement;
+      vscode.postMessage({
+        type: 'okrHumanGateRerun',
+        okrId: e.dataset.okrId,
+        actionId: e.dataset.actionId,
+      });
+    });
+  });
+  document.querySelectorAll('[data-action="okr-reject"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const e = el as HTMLElement;
+      vscode.postMessage({
+        type: 'okrHumanGateReject',
+        okrId: e.dataset.okrId,
+        actionId: e.dataset.actionId,
+      });
     });
   });
   document.querySelectorAll('[data-action="edit-okr"]').forEach(el => {
