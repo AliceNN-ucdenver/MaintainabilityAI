@@ -39,6 +39,7 @@ import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
 import { AgentDeploymentService } from '../services/AgentDeploymentService';
 import { HatterTagService } from '../services/HatterTagService';
+import { MESH_LABELS } from '../templates/meshLabels';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
 import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
 import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
@@ -864,21 +865,49 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     this.postMessage({ type: 'loading', active: true, message: `Starting ${phase.toUpperCase()} — creating GitHub issue…` });
     let issueUrl = '';
-    try {
-      const title = `[OKR] ${phase.toUpperCase()}: ${card.objective.name}`;
-      const labels = ['okr-anchor', issueLabel].join(',');
+    const title = `[OKR] ${phase.toUpperCase()}: ${card.objective.name}`;
+    const labels = ['okr-anchor', issueLabel].join(',');
+    const tryCreateIssue = async (): Promise<string> => {
       const { stdout } = await execFileAsync('gh', [
         'issue', 'create',
         '--title', title,
         '--body', finalBody,
         '--label', labels,
       ], { cwd: meshPath, timeout: 30_000 });
-      issueUrl = stdout.trim();
-      if (!issueUrl) {
-        throw new Error('gh issue create returned an empty URL — check `gh auth status` + workflow permissions');
-      }
+      return stdout.trim();
+    };
+    try {
+      issueUrl = await tryCreateIssue();
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to create issue: ${toErrorMessage(err)}` });
+      // Self-heal: gh refuses --label values that don't exist in the
+      // repo. If we hit that, auto-provision the canonical OKR label
+      // catalog and retry once. This unblocks the user on the first
+      // Start Why click in a mesh that hasn't run `Redeploy Workflows`
+      // yet (workflows + labels go together — they're co-required).
+      const msg = toErrorMessage(err);
+      if (/could not add label/i.test(msg) || /not found.*label/i.test(msg)) {
+        this.postMessage({ type: 'loading', active: true, message: 'Labels missing — provisioning canonical OKR labels then retrying…' });
+        const labelResult = await this.provisionMeshLabels(meshPath);
+        if (labelResult.created === 0) {
+          this.postMessage({ type: 'error', message: `Could not provision OKR labels (0/${MESH_LABELS.length} created). Run \`gh auth status\` and confirm the token has Issues:write. First failure: ${labelResult.failures[0] ?? 'unknown'}` });
+          this.postMessage({ type: 'loading', active: false });
+          return;
+        }
+        try {
+          issueUrl = await tryCreateIssue();
+        } catch (retryErr) {
+          this.postMessage({ type: 'error', message: `Labels provisioned (${labelResult.created}/${MESH_LABELS.length}) but issue create still failed: ${toErrorMessage(retryErr)}` });
+          this.postMessage({ type: 'loading', active: false });
+          return;
+        }
+      } else {
+        this.postMessage({ type: 'error', message: `Failed to create issue: ${msg}` });
+        this.postMessage({ type: 'loading', active: false });
+        return;
+      }
+    }
+    if (!issueUrl) {
+      this.postMessage({ type: 'error', message: 'gh issue create returned an empty URL — check `gh auth status` + workflow permissions' });
       this.postMessage({ type: 'loading', active: false });
       return;
     }
@@ -4231,6 +4260,45 @@ Policy file: ${filename}
     }
   }
 
+  /**
+   * Phase B/C — provision the canonical OKR label catalog in the mesh
+   * repo (idempotent via `gh label create --force`). Required because
+   * `gh issue create --label X,Y` REFUSES to add labels that don't
+   * exist; the user otherwise sees the cryptic
+   * `could not add label: 'okr-anchor' not found` error and the
+   * issue never gets created.
+   *
+   * Wired into:
+   *   - `onProvisionWorkflow` — runs alongside the workflow redeploy.
+   *   - `onConfirmStartOkrPhase` self-heal — if the gh issue create
+   *     command fails with "could not add label", we call this and
+   *     retry once.
+   *
+   * Returns counts so the caller can surface a "N/M labels created"
+   * summary. Individual label failures are non-fatal — we log to
+   * stderr (visible in the extension dev tools) and proceed.
+   */
+  private async provisionMeshLabels(meshPath: string): Promise<{ created: number; failed: number; failures: string[] }> {
+    let created = 0;
+    let failed = 0;
+    const failures: string[] = [];
+    for (const label of MESH_LABELS) {
+      try {
+        await execFileAsync('gh', [
+          'label', 'create', label.name,
+          '--description', label.description,
+          '--color', label.color,
+          '--force',  // idempotent — updates the label if it already exists
+        ], { cwd: meshPath, timeout: 15_000 });
+        created += 1;
+      } catch (err) {
+        failed += 1;
+        failures.push(`${label.name}: ${toErrorMessage(err)}`);
+      }
+    }
+    return { created, failed, failures };
+  }
+
   private async onCheckWorkflowStatus() {
     if (!this.meshRepoInfo) {
       this.postMessage({ type: 'workflowStatus', exists: false });
@@ -4294,6 +4362,12 @@ Policy file: ${filename}
       // the mesh repo and the runner to keep using the original versions.
       promptPackService.seedMeshPrompts(meshPath, true);
       const written = this.meshService.writeMeshWorkflows(meshPath, this.context.extensionPath);
+      // Provision the canonical OKR label catalog idempotently so
+      // `gh issue create --label okr-anchor,...` doesn't fail with
+      // "label not found" on Start Why / How / What. Non-fatal on
+      // partial failure (label create permission issues etc.) — we
+      // log via toast and let the user investigate.
+      const labelResult = await this.provisionMeshLabels(meshPath);
 
       await execFileAsync('git', ['add', '-A'], { cwd: meshPath });
       const { stdout: diffCheck } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: meshPath });
@@ -4303,9 +4377,9 @@ Policy file: ${filename}
         const commitMsg = `chore: redeploy mesh workflows + caterpillar prompts\n\n${written.map(w => `- ${w}`).join('\n')}\n\nGenerated by MaintainabilityAI VS Code Extension`;
         await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: meshPath });
         await execFileAsync('git', ['push'], { cwd: meshPath, timeout: 60_000 });
-        toastMessage = `Redeployed ${written.length} workflow file(s) and ${changedFiles.length - written.length >= 0 ? changedFiles.length - written.length : 0} prompt file(s) to the mesh.`;
+        toastMessage = `Redeployed ${written.length} workflow file(s) and ${changedFiles.length - written.length >= 0 ? changedFiles.length - written.length : 0} prompt file(s); ${labelResult.created}/${MESH_LABELS.length} labels provisioned.`;
       } else {
-        toastMessage = `Workflows already up-to-date — nothing to commit.`;
+        toastMessage = `Workflows already up-to-date — nothing to commit. ${labelResult.created}/${MESH_LABELS.length} labels provisioned.`;
       }
 
       this.postMessage({ type: 'workflowProvisioned' });
