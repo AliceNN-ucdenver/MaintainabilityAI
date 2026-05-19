@@ -749,6 +749,28 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Cannot start: OKR ${okrId} is paused.` });
       return;
     }
+
+    // Native VS Code confirmation dialog (replaces the unreliable webview
+    // `window.confirm` — silent no-op in some hosts).
+    const phaseLabel = phase.toUpperCase();
+    const agentName = phase === 'why' ? 'market-research-agent'
+      : phase === 'how' ? 'prd-agent' : 'code-design-agent';
+    const confirmAnswer = await vscode.window.showWarningMessage(
+      `Start ${phaseLabel} for ${okrId}?`,
+      {
+        modal: true,
+        detail:
+          `This creates an issue in the mesh repo with the okr-anchor + oraculum-${phase === 'why' ? 'research' : phase} labels ` +
+          `and appends a queued action to the OKR card.\n\n` +
+          `Until Phase C ships okr-bus.yml, you may need to manually @-mention ` +
+          `"@copilot use agent ${agentName}" on the new issue.`,
+      },
+      `Start ${phaseLabel}`,
+    );
+    if (confirmAnswer !== `Start ${phaseLabel}`) {
+      return;
+    }
+
     // Freeze tier at run start (§6.2 — mitigates tier creep).
     const tier = okrService.tierForCard(meshPath, card);
     if (tier === 'restricted' && phase === 'what') {

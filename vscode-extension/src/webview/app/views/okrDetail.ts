@@ -731,27 +731,24 @@ export function attachOkrDetailEvents(
       }
     });
   });
-  // Phase B-PR3: Start Why click handler. Confirms before firing so accidental
-  // clicks don't open a noisy GitHub issue.
+  // Phase B-PR3 / B-PR4: Start Why / Start How click handlers. Confirmation
+  // is done on the extension side via `vscode.window.showWarningMessage`
+  // ({modal:true}) — `window.confirm` doesn't work reliably inside VS Code
+  // webviews (silent no-op in some hosts).
   document.querySelectorAll('[data-action="start-okr-why"]').forEach(el => {
     el.addEventListener('click', () => {
       const okrId = (el as HTMLElement).dataset.okrId;
-      if (!okrId) { return; }
-      if (!window.confirm(`Start Why for ${okrId}?\n\nThis creates an issue in the mesh repo with the okr-anchor + oraculum-research labels and appends a queued action to the OKR card.\n\nUntil Phase C ships okr-bus.yml, you may need to manually @-mention "@copilot use agent market-research-agent" on the new issue.`)) {
-        return;
+      if (okrId) {
+        vscode.postMessage({ type: 'startOkrWhy', okrId });
       }
-      vscode.postMessage({ type: 'startOkrWhy', okrId });
     });
   });
-  // Phase B-PR4: Start How — same confirm-pattern, swaps the agent name.
   document.querySelectorAll('[data-action="start-okr-how"]').forEach(el => {
     el.addEventListener('click', () => {
       const okrId = (el as HTMLElement).dataset.okrId;
-      if (!okrId) { return; }
-      if (!window.confirm(`Start How for ${okrId}?\n\nThis creates an issue in the mesh repo with the okr-anchor + oraculum-prd labels and appends a queued action to the OKR card.\n\nThe PRD agent reads the merged Why-phase research doc via knowledge-research and grounds the PRD on it.\n\nUntil Phase C ships okr-bus.yml, you may need to manually @-mention "@copilot use agent prd-agent" on the new issue.`)) {
-        return;
+      if (okrId) {
+        vscode.postMessage({ type: 'startOkrHow', okrId });
       }
-      vscode.postMessage({ type: 'startOkrHow', okrId });
     });
   });
   // KR add / remove
