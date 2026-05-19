@@ -172,7 +172,35 @@ describe('MeshService.scaffoldImdbLiteOkr — Celebs-anchored sample', () => {
     expect(card.governance?.maxSeverity).toBe('MEDIUM');
   });
 
-  it('uses the supplied githubOrg in target_code_repos (full GitHub URL, matches BAR app.yaml format)', () => {
+  it('sources target_code_repos verbatim from BAR app.yaml repos[] (no URL reconstruction)', () => {
+    // beforeEach scaffolds the platform with the default `<org>`
+    // placeholder, so the BARs end up with URLs like
+    // https://github.com/<org>/celeb-api. The OKR scaffold reads those
+    // SAME URLs from BAR app.yaml — it does NOT reconstruct them from
+    // opts.githubOrg (passing IGNORED here proves it).
+    const card = svc.scaffoldImdbLiteOkr(tmpRoot, { githubOrg: 'IGNORED' })!;
+    expect(card.objectiveAlignment.targetCodeRepos).toEqual([
+      'https://github.com/<org>/celeb-api',
+      'https://github.com/<org>/imdb-react-frontend',
+    ]);
+  });
+
+  it('inherits the BARs scaffolded org (real org propagates from platform → OKR)', () => {
+    // Wipe + re-scaffold the platform with a real org so BAR repos use
+    // it. The OKR then naturally inherits the same URLs.
+    fs.rmSync(path.join(tmpRoot, 'platforms'), { recursive: true, force: true });
+    svc.scaffoldImdbLitePlatform(tmpRoot, { githubOrg: 'AliceNN-ucdenver' });
+    const card = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    expect(card.objectiveAlignment.targetCodeRepos).toEqual([
+      'https://github.com/AliceNN-ucdenver/celeb-api',
+      'https://github.com/AliceNN-ucdenver/imdb-react-frontend',
+    ]);
+  });
+
+  it('falls back to constructed full-URL placeholders when BARs have not been scaffolded', () => {
+    // Wipe the platform so no BARs exist on disk — the fallback path
+    // constructs URLs from opts.githubOrg.
+    fs.rmSync(path.join(tmpRoot, 'platforms'), { recursive: true, force: true });
     const card = svc.scaffoldImdbLiteOkr(tmpRoot, { githubOrg: 'AliceNN-ucdenver' })!;
     expect(card.objectiveAlignment.targetCodeRepos).toEqual([
       'https://github.com/AliceNN-ucdenver/celeb-api',
@@ -180,7 +208,8 @@ describe('MeshService.scaffoldImdbLiteOkr — Celebs-anchored sample', () => {
     ]);
   });
 
-  it('uses placeholder org when githubOrg is omitted', () => {
+  it('uses <org> placeholder when both BARs and githubOrg are absent', () => {
+    fs.rmSync(path.join(tmpRoot, 'platforms'), { recursive: true, force: true });
     const card = svc.scaffoldImdbLiteOkr(tmpRoot)!;
     expect(card.objectiveAlignment.targetCodeRepos[0]).toBe('https://github.com/<org>/celeb-api');
   });

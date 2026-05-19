@@ -564,13 +564,13 @@ export class MeshService {
         platformId: 'PLT-IMDB',
         // Celebs FIRST — it's the Restricted-tier BAR and drives the gate.
         affectedBarIds: ['APP-IMDB-002', 'APP-IMDB-001'],
-        // Full GitHub URLs to match the format BARs declare in their
-        // app.yaml repos[] — so the OKR edit form's checkbox picker can
-        // mark these as pre-selected when the user opens the sample OKR.
-        targetCodeRepos: [
-          `https://github.com/${org}/celeb-api`,
-          `https://github.com/${org}/imdb-react-frontend`,
-        ],
+        // Source target repos directly from the affected BARs' app.yaml
+        // repos[] — guarantees the OKR sample uses the EXACT same URL
+        // format the BARs declare (no second construction site to drift).
+        // Falls back to placeholder URLs only if the BARs haven't been
+        // scaffolded yet (uncommon — Looking Glass calls
+        // scaffoldImdbLitePlatform first).
+        targetCodeRepos: this.collectCelebSampleTargetRepos(meshPath, org),
         intentCascade: {
           org: 'Grow IMDB monthly active users 15% YoY by enriching profile depth',
           role: 'Engineering Lead — maintain p95 < 250ms across platform endpoints; keep new APIs behind feature flags during ramp',
@@ -589,6 +589,37 @@ export class MeshService {
     };
 
     return this.okrService.create(meshPath, draft);
+  }
+
+  /**
+   * Curated subset of BAR repos the celebrity-features sample OKR targets.
+   * Returns URLs taken VERBATIM from the affected BARs' app.yaml repos[]
+   * — same construction site, same format. Falls back to constructed
+   * placeholder URLs only if no BAR repos exist yet (the platform hasn't
+   * been scaffolded; rare since Looking Glass scaffolds platform first).
+   *
+   * The curated subset (celeb-api + imdb-react-frontend) teaches the
+   * "targetCodeRepos is the subset of BAR repos this feature actually
+   * touches" lesson — APP-IMDB-001's imdb-identity / movie-api repos
+   * aren't touched by the celebrity-features OKR.
+   */
+  private collectCelebSampleTargetRepos(meshPath: string, fallbackOrg: string): string[] {
+    const celebs = this.findBarById(meshPath, 'APP-IMDB-002');
+    const app = this.findBarById(meshPath, 'APP-IMDB-001');
+    const allBarRepos = [...(celebs?.repos ?? []), ...(app?.repos ?? [])];
+    const TARGET_NAMES = ['celeb-api', 'imdb-react-frontend'];
+    const matched: string[] = [];
+    for (const name of TARGET_NAMES) {
+      const found = allBarRepos.find(url => {
+        // basename match — handles both `https://github.com/<org>/<repo>`
+        // and the legacy `<org>/<repo>` short form just in case.
+        const base = url.split('/').filter(Boolean).pop();
+        return base === name;
+      });
+      // Fall back to constructed full-URL placeholder if BARs aren't on disk.
+      matched.push(found ?? `https://github.com/${fallbackOrg}/${name}`);
+    }
+    return matched;
   }
 
   // ==========================================================================
