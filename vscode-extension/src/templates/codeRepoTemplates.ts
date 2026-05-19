@@ -410,9 +410,22 @@ export function generateOkrBusWorkflow(extensionPath: string): string {
  * security-reviewer in parallel on artifact PRs with `*-draft` labels.
  * Enforces Tweedles via author_did extraction from the PR body's
  * Hatter's Tag. Pocket Watch + Caterpillar drift steps are Phase C-PR5.
+ *
+ * Updated in C-PR2 to also fire on `synchronize` (agent revision push)
+ * with round-counter bump via labels (round-1 → round-2 → …).
  */
 export function generateReviewerBusWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'reviewer-bus.yml');
+}
+
+/**
+ * Phase C-PR2 — `okr-state-machine.yml` promotes the master
+ * `governance-pass` label when both reviewers approve, and escalates
+ * to `needs-human-review` (HumanGate) when `revision-required` is
+ * applied at or past tier-bounded MAX_AUTO_ROUNDS (§6.2).
+ */
+export function generateOkrStateMachineWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'okr-state-machine.yml');
 }
 
 /**
@@ -437,5 +450,7 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   // Phase C-PR1 — agentic-SDLC bus workflows
   { relativePath: '.github/workflows/okr-bus.yml',           generate: generateOkrBusWorkflow },
   { relativePath: '.github/workflows/reviewer-bus.yml',      generate: generateReviewerBusWorkflow },
+  // Phase C-PR2 — state machine + round counter
+  { relativePath: '.github/workflows/okr-state-machine.yml', generate: generateOkrStateMachineWorkflow },
 ];
 

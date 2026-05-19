@@ -18,7 +18,7 @@ name: "Reviewer Bus — parallel architect + security review on artifact PRs"
 
 on:
   pull_request:
-    types: [opened, labeled, reopened]
+    types: [opened, labeled, reopened, synchronize]
 
 concurrency:
   group: reviewer-bus-${{ github.event.pull_request.number }}
@@ -43,18 +43,46 @@ jobs:
       - name: Checkout mesh repo
         uses: actions/checkout@v4
 
-      # Re-entrance guard: if reviewer-bus already commented its dispatch
-      # for this PR, exit (labeled events can fire repeatedly on the same
-      # PR as the agent applies post-creation labels). Marker comment
-      # text is stable across replays.
-      - name: Check for prior dispatch
+      # Determine whether this run should dispatch reviewers, and bump
+      # the round-N label on synchronize events (an author-agent push).
+      # Decision table:
+      #   - synchronize: bump round (round-N → round-N+1), dispatch
+      #   - opened/reopened/labeled, no round-* label yet: set round-1,
+      #     dispatch
+      #   - opened/reopened/labeled, round-* label exists: SKIP (likely
+      #     the reviewer-applied governance-pass-* / revision-required
+      #     labels that we should not re-dispatch on)
+      - name: Decide dispatch + maintain round counter
         id: prior
         run: |
-          ALREADY=$(gh pr view ${{ github.event.pull_request.number }} --json comments \
-            --jq '[.comments[] | select(.body | contains("reviewer-bus dispatched"))] | length')
-          if [ "$ALREADY" -gt 0 ]; then
-            echo "::notice::Reviewers already dispatched for this PR (count=$ALREADY); skipping."
+          # Read current round label, default empty.
+          ROUND=$(gh pr view ${{ github.event.pull_request.number }} --json labels \
+            --jq '[.labels[].name | select(startswith("round-"))] | first' | sed 's/"//g')
+          CURRENT=$(printf '%s' "$ROUND" | grep -oE '[0-9]+' | head -1)
+          if [ "${{ github.event.action }}" = "synchronize" ]; then
+            # Author-agent revision push — bump the round label.
+            CURRENT="${CURRENT:-1}"
+            NEXT=$((CURRENT + 1))
+            if [ -n "$ROUND" ]; then
+              gh pr edit ${{ github.event.pull_request.number }} --remove-label "$ROUND"
+            fi
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "round-${NEXT}"
+            echo "::notice::Round bumped: ${CURRENT} → ${NEXT}"
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+            echo "round=${NEXT}" >> "$GITHUB_OUTPUT"
+          elif [ -z "$CURRENT" ]; then
+            # First dispatch on this PR — apply round-1 + proceed.
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "round-1"
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+            echo "round=1" >> "$GITHUB_OUTPUT"
+          else
+            # round-N already exists and event is labeled/opened — the
+            # label that fired us is almost certainly a reviewer-applied
+            # outcome label (governance-pass-* / revision-required).
+            # Skip dispatch.
+            echo "::notice::round-${CURRENT} exists; skipping re-dispatch on action=${{ github.event.action }} label=${{ github.event.label.name }}"
             echo "skip=1" >> "$GITHUB_OUTPUT"
+            echo "round=${CURRENT}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Extract author_did from PR body's Hatter Tag
@@ -135,4 +163,4 @@ jobs:
         if: steps.prior.outputs.skip != '1'
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body "**reviewer-bus dispatched** \`architect-reviewer\` and \`security-reviewer\` in parallel. They post scored reviews on completion; \`label-on-merge.yml\` (C-PR2) applies \`governance-pass\` when both pass."
+            --body "**reviewer-bus dispatched** \`architect-reviewer\` and \`security-reviewer\` in parallel (round-${{ steps.prior.outputs.round }}). They post scored reviews on completion; \`okr-state-machine.yml\` promotes \`governance-pass\` when both pass — or escalates to HumanGate at MAX_AUTO_ROUNDS per §6.2."

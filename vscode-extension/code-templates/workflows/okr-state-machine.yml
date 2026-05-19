@@ -1,0 +1,125 @@
+name: "OKR State Machine — governance-pass + revision escalation"
+
+# Implements the §6.1 state diagram on artifact PRs:
+#   ReviewPending → (both scores ≥ THRESHOLD, severity ≤ MEDIUM) → GovPass
+#   ReviewPending → (either fail) → RevisionNeeded → ReviewPending (round++)
+#   round >= MAX_AUTO_ROUNDS → HumanGate
+#
+# Tier-aware bounds (§6.2):
+#   Autonomous  MAX=1
+#   Supervised  MAX=2
+#   Restricted  MAX=0  (every artifact requires human approval BEFORE assignment)
+#
+# Round counter is tracked via PR labels `round-N` rather than a body
+# marker — labels are easier to manipulate via gh CLI, visible in the
+# PR list at a glance, and don't risk confusing the Copilot session
+# (editing the PR body can trigger spurious "user wants changes" reads).
+#
+# Reviewer agents apply `governance-pass-architecture` /
+# `governance-pass-security` per §5.5.2; this workflow promotes the
+# master `governance-pass` label when both are present.
+#
+# Phase tracking: §13 C4 + C5.
+
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: state-machine-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # Step A — promote master governance-pass when both reviewers approve.
+  # ──────────────────────────────────────────────────────────────────
+  promote-govpass:
+    name: "Promote governance-pass"
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'governance-pass-architecture') &&
+      contains(github.event.pull_request.labels.*.name, 'governance-pass-security') &&
+      !contains(github.event.pull_request.labels.*.name, 'governance-pass')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Apply master governance-pass label
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "governance-pass"
+      - name: Post merge-unlocked comment
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "✓ **governance-pass** — both architect-reviewer and security-reviewer approved. Merge unlocked (subject to branch protection)."
+
+  # ──────────────────────────────────────────────────────────────────
+  # Step B — when a reviewer applies `revision-required`, check the
+  # tier's MAX_AUTO_ROUNDS and either let the agent revise or escalate
+  # to HumanGate.
+  # ──────────────────────────────────────────────────────────────────
+  revision-escalation:
+    name: "Tier-aware revision gate"
+    if: github.event.action == 'labeled' && github.event.label.name == 'revision-required'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout mesh repo
+        uses: actions/checkout@v4
+
+      - name: Resolve round + tier from PR + OKR
+        id: ctx
+        run: |
+          # Round label format: round-N. Default to 1 if absent (PR open
+          # without a prior reviewer-bus dispatch — shouldn't happen but
+          # we don't want to crash on it).
+          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+          ROUND=$(printf '%s' "$LABELS" | grep -oE 'round-[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+          ROUND="${ROUND:-1}"
+
+          # Pull okr_id from PR body's Hatter Tag block.
+          BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body)
+          OKR_ID=$(printf '%s' "$BODY" | grep -oE 'okr_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^okr_id:\s*//')
+
+          # Tier — prefer the frozen governanceTier on the latest action
+          # for this PR's run, falling back to the OKR-wide computed
+          # tier (read from the last `governanceTier:` in okr.yaml). If
+          # the OKR file isn't on disk, fall through to supervised as
+          # the safe default.
+          TIER=""
+          if [ -n "$OKR_ID" ] && [ -f "okrs/$OKR_ID/okr.yaml" ]; then
+            TIER=$(grep -E '^[[:space:]]+governanceTier:[[:space:]]*' "okrs/$OKR_ID/okr.yaml" | tail -1 | sed -E 's/^[[:space:]]+governanceTier:[[:space:]]*//; s/^["'"'"']?(autonomous|supervised|restricted)["'"'"']?$/\1/')
+          fi
+          TIER="${TIER:-supervised}"
+
+          case "$TIER" in
+            autonomous) MAX=1 ;;
+            supervised) MAX=2 ;;
+            restricted) MAX=0 ;;
+            *) MAX=2 ;;
+          esac
+
+          echo "round=$ROUND" >> "$GITHUB_OUTPUT"
+          echo "max=$MAX" >> "$GITHUB_OUTPUT"
+          echo "tier=$TIER" >> "$GITHUB_OUTPUT"
+          echo "okr_id=$OKR_ID" >> "$GITHUB_OUTPUT"
+          echo "::notice::round=$ROUND max=$MAX tier=$TIER okr_id=$OKR_ID"
+
+      - name: Escalate to HumanGate when round >= MAX
+        if: ${{ fromJSON(steps.ctx.outputs.round) >= fromJSON(steps.ctx.outputs.max) }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-human-review"
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "⛔ **HumanGate** — round **${{ steps.ctx.outputs.round }}** hit MAX_AUTO_ROUNDS=**${{ steps.ctx.outputs.max }}** for tier=\`${{ steps.ctx.outputs.tier }}\`. Auto-revision cycle exhausted; OKR owner must Approve / Re-run / Reject from Looking Glass → OKR detail."
+
+      - name: Note remaining round budget when round < MAX
+        if: ${{ fromJSON(steps.ctx.outputs.round) < fromJSON(steps.ctx.outputs.max) }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "Revision requested. **Round ${{ steps.ctx.outputs.round }} / ${{ steps.ctx.outputs.max }}** at tier=\`${{ steps.ctx.outputs.tier }}\`. Author agent will revise and push; reviewer-bus will re-fire on the new commit (round bumps automatically)."
