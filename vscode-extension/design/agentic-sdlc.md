@@ -1,4 +1,4 @@
-# Agentic SDLC — Design (v2)
+# Agentic SDLC — Design (v3)
 
 End-to-end agent-orchestrated pipeline from **market research → PRD → design**, grounded in the governance mesh (CALM, threat models, ADRs, prior research, reference repos), with full auditable provenance and a Looking Glass-surfaced OKR anchor.
 
@@ -9,12 +9,30 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - **OKR ↔ Platform linkage** is explicit; the What lens picks the right code repos.
 - **Worked IMDB Lite sample** showing a populated OKR end-to-end against the existing seed.
 
-**v2.1 refinement (this update)**:
+**v2.1 refinement**:
 - **Skills are PURE data Skills** — zero nested LLM calls. The Copilot Coding Agent does ALL reasoning (query generation, gap analysis, expert synthesis, document writing) with its own model.
 - Search Skills are individual primitives (`tavily-search`, `arxiv-search`, etc.) — the agent picks which to invoke and with what queries.
 - "Expert Skills" become **context Skills** that return structured mesh data (CALM model, threat library, ADRs); the agent does the reasoning itself.
 - Drops the GH-Models dependency for plan_queries + gap_analysis entirely. 429s on the runner's LLM hops become moot for the agent-driven flow.
 - `research-runner` keeps existing for the legacy CI-only path; agent-driven path replaces it.
+
+**v3 alignment (this update)** — reviewed against [agentic-governance-roadmap-2026.md](../../docs/design/agentic-governance-roadmap-2026.md) and [agentic-governance-landscape.md](../../site-tw/public/docs/research/agentic-governance-landscape.md):
+- **OKR Cards reframed as IntentSpecs** — "declarative intent that travels with the work". Why/How/What is the intent cascade.
+- **Maps onto the existing 6-phase SDLC** (Design → Implement → Verify → Govern → Deploy → Evolve) — does NOT replace it.
+- **Reviewer ≠ Author enforcement (Tweedles)** — architect/security reviewers are distinct Copilot agent sessions with distinct DIDs. NIST 800-53 SA-11 + SOC 2 segregation of duties. Roadmap §4.5 explicit.
+- **Tier-aware recycle bounds** — Autonomous (80–100) / Supervised (50–79) / Restricted (0–49) read from BAR score. Restricted gets 0 auto-rounds + mandatory dual signature.
+- **Hatter's Tag full provenance** — `{agent_did, model_version, system_prompt_sha, prompt_pack_version, threat_model_ref, owasp_categories, fitness_results, reviewer, rationale, intent_thread_uuid}`. Required by SOC 2 CC8.1 and EU AI Act Art. 12.
+- **Intent Thread UUID** — what `parent_run_id` becomes; stamped on every action/commit/PR/review across repos. Fills Microsoft AGT's named "reasoning-trace correlation" gap.
+- **White Rabbit's Pocket Watch (Goal-drift gate)** — explicit hash check of OKR.objective vs final PR scope at each phase boundary.
+- **CloudEvents v1.0 audit envelope** — matches Court Recorder format so the chain merges with AGT.
+- **EU AI Act Article 12** — automatic logging, ≥6 month retention. Deadline 2 Aug 2026.
+- **Workshop alignment (§13)** — IMDB-Lite gets `app.yaml.repos[]` populated with the four workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`). Asymmetric CALM density preserved: Lite has 8 nodes + NIST controls (Supervised tier); Celebs has 6 nodes + no controls (Restricted tier — demonstrably blocked from agent autonomy until governance is built up).
+
+### The auditor's master question (the single design test)
+
+From the landscape doc: *"Show me how this feature was built. By which agent. With which prompt. Against which threat model. With what test coverage. Who approved. What was the rationale."*
+
+Every artifact this pipeline produces must be reconstructible from `intent_thread_uuid` to answer that question end-to-end. If the design fails the test, it's wrong.
 
 ---
 
@@ -56,6 +74,42 @@ What's first-class and what we have to compose around:
 | `sessionStart` / `sessionEnd` hooks | ✅ | Used for governance logging. We tie the audit-emit-event Skill to these. |
 
 **Implication for our architecture**: experts (Architect, Security) become **Skills** the parent agent invokes mid-session for grounded answers; reviewers (architect-reviewer, security-reviewer) become **separate agent assignments** on the artifact PR. Same compositional power as NCMS's Python orchestrator, different shape.
+
+---
+
+## 2.5 Governance of Intent — position vs the roadmap
+
+The roadmap puts us in **Camp B**: *"Govern the SDLC the agent participates in."* Microsoft AGT governs the agent runtime; we govern how an agent earned the right to act and what it produced.
+
+The OKR Card is our **IntentSpec** — declarative intent that travels with the work. It cascades through four layers (Org → Role → Developer → User from the Court Hierarchy); lower layers can only **narrow** the intent, never broaden it.
+
+### Mapping to the 6-phase SDLC
+
+The Why/How/What is not a replacement for the 6-phase SDLC — it's how the three highest-leverage phases get **agent-orchestrated**:
+
+| 6-phase SDLC | Why/How/What | Agent role |
+|---|---|---|
+| 1. Design | **Why** (market research) + start of **How** (PRD draft) | market-research-agent → prd-agent |
+| 2. Implement | Mid-**How** + **What** (per-repo design) | prd-agent → design-agent |
+| 3. Verify | review gates on every phase PR | architect-reviewer + security-reviewer |
+| 4. Govern | OKR Card itself; Court Recorder; Knight's Seal | reviewer agents enforce; Hatter Tag captures |
+| 5. Deploy | downstream of design merge | (out of scope for this design) |
+| 6. Evolve | `keyResultRetrospective` + `valueLearning` populated post-delivery | human + agent retrospective |
+
+### The Wonderland glossary we adopt (no inventing terms)
+
+- **Intent Thread** — UUID stamped on every action/commit/PR/review for one OKR's pipeline. (`parent_run_id` becomes the Intent Thread.)
+- **Hatter's Tag** — provenance JSON appended to every artifact PR.
+- **Court Recorder** — Merkle-chained, append-only audit; CloudEvents v1.0 envelopes; SIEM-exportable.
+- **Knight's Seal** — Ed25519-signed commits with agent DID (Phase B+ deliverable).
+- **Tweedles** — segregation-of-duties gate: reviewer agent ≠ author agent.
+- **White Rabbit's Pocket Watch** — goal-drift hash check between OKR.objective and final PR scope.
+- **Queen's Keyring** — short-lived per-task agent credentials, auto-revoked at PR close.
+- **Agent Roster / AI-BOM** — every agent in the pipeline (Why/How/What/reviewer) declared with identity, model version, prompt hash, scope, owner.
+- **Caterpillar's Challenge** — the explicit comparison step that flags goal drift between phases.
+- **Oraculum's Verdict Scroll** — the architect-reviewer/security-reviewer scored certificate.
+
+Term we deliberately do **not** use: **TASA** — does not appear in either source doc. v2 mentioned it; v3 strikes it (replaced with the Court Hierarchy / intent cascade terminology).
 
 ---
 
@@ -262,11 +316,13 @@ objectiveAlignment:
   target_code_repos:                # ← derived from BARs' app.yaml.repos[]
     - alicenn-ucdenver/celeb-api
     - alicenn-ucdenver/imdb-lite-web
-  tasa_alignment:
-    - tier: business
-      goal: "Grow IMDB monthly active users 15% YoY"
-    - tier: architecture
-      goal: "Maintain p95 < 250ms across platform endpoints"
+  # Court Hierarchy / intent cascade (Org → Role → Developer → User);
+  # lower layers may only narrow the intent, never broaden it.
+  intent_cascade:
+    org: "Grow IMDB monthly active users 15% YoY"
+    role: "Engineering Lead — maintain p95 < 250ms across platform endpoints"
+    developer: "Add celebrity API; ship behind feature flag"
+    user: "Browse celebrity profiles without flicker on mobile"
 
 # Section 8 — Value & Learning
 valueLearning:
@@ -318,7 +374,20 @@ Each agent is a `.agent.md` file deployed by `provisionWorkflow` into the mesh's
 
 Reviewer agents **do not block merge by themselves** — they post scored review comments and apply labels (`revision-required` / `governance-pass`). The recycle loop (§6) gates merge.
 
-### 5.3 Why experts are *personas in the agent's prompt*, not separate LLM calls
+### 5.3 Tweedles — Reviewer MUST NOT equal Author
+
+NIST 800-53 SA-11 and SOC 2 segregation-of-duties require that the reviewer is not the author. Roadmap §4.5 says explicitly: *"agents reliably skew positive when grading their own work."*
+
+In our pipeline:
+
+- **The architect-reviewer and security-reviewer agent sessions are DISTINCT Copilot sessions** with different `.agent.md` system prompts and different agent DIDs.
+- **The workflow that fires reviewers checks the PR's author agent DID** before assigning. If the reviewer agent's DID matches the author's, the assignment is rejected.
+- **Both DIDs are recorded in the Hatter's Tag**: `author_did` and `reviewer_did[]`. An auditor can verify segregation from the artifact alone.
+- **The reviewer's session has no carry-over context** from the authoring session — the only inputs are the PR diff + the artifact + the Skills' pure data outputs.
+
+In practice today this means each agent gets a unique GitHub App installation token per session (Queen's Keyring), and the agent identity is captured in the audit envelope. Knight's Seal (Ed25519 signing) is the cryptographic upgrade for Phase B+; Phase A enforces it by GitHub-App-installation-ID-and-system-prompt-SHA.
+
+### 5.4 Why experts are *personas in the agent's prompt*, not separate LLM calls
 
 NCMS's `expert_prompts.py` has the Architect / Security personas as standalone LLM-callable units. On GitHub-hosted Copilot, every Skill invocation is a context window cost for the parent agent — there's no benefit to splitting "think like an architect" into a nested LLM call.
 
@@ -384,16 +453,27 @@ If still failing at round = MAX_AUTO_ROUNDS (default 2):
                   …continues with manual control
 ```
 
-### 6.2 Thresholds & limits
+### 6.2 Tier-aware bounds (Autonomous / Supervised / Restricted)
+
+Bounds depend on the **target BAR's governance tier**, derived from its four-pillar score (per roadmap §4.5 / Caterpillar's Challenge):
+
+| BAR tier | Score range | MAX_AUTO_ROUNDS | Merge gate |
+|---|---|---|---|
+| **Autonomous** | 80–100 | **1** (one auto-round; if pass → auto-merge eligible) | Both reviewers pass → auto-merge (with human approval still required by branch protection) |
+| **Supervised** | 50–79 | **2** (default) | Both reviewers pass → human merges; reviewer scores surfaced in Looking Glass |
+| **Restricted** | 0–49 | **0** (no auto-rounds — every artifact requires human approval BEFORE assignment) | **Mandatory dual signature** (two named human approvers). Caterpillar's Challenge must be re-run to upgrade the tier before agent autonomy unlocks. |
+
+Tier is read at runtime from the BAR's score on issue creation. **Tier creep mitigation**: the tier is recorded in the Hatter's Tag at run start; if the BAR's score changes mid-pipeline, the recorded tier stays — auditable.
+
+### 6.3 Static configuration
 
 | Config | Default | Configurable per OKR? |
 |---|---|---|
 | Score threshold (per reviewer, 0-100) | 75 | ✅ via `okr.yaml.governance.score_threshold` |
 | Max severity allowed | MEDIUM | ✅ |
-| MAX_AUTO_ROUNDS | 2 | ✅ |
-| Hand-off when MAX hit | `needs-human-review` label + reassign | (fixed behavior) |
+| Hand-off when MAX hit | `needs-human-review` label + reassign to OKR owner | (fixed behavior) |
 
-### 6.3 Why bounded vs unbounded
+### 6.4 Why bounded vs unbounded
 
 Three reasons we cap at 2 auto-rounds:
 
@@ -547,17 +627,51 @@ Implementation reuses `research-runner`'s `audit-emitter.ts` logic exactly.
 
 ---
 
-## 8. IMDB Lite — worked example
+## 8. IMDB Lite — worked example (aligned with workshop starter)
 
-This is what `scaffoldImdbLitePlatform()` should produce after we land Phase A. Validated against the current seed:
+This is what `scaffoldImdbLitePlatform()` produces today and what Phase A extends it with. The intent: the workshop starter ([docs/design/workshop-starter-imdb-lite.md](../../docs/design/workshop-starter-imdb-lite.md)) defines a five-service learning environment with four code repos; this design makes the **mesh side** of that environment auto-populate the same shape so learners can wire up real governance from minute one.
 
-**Existing seed (today)**:
-- Platform `PLT-IMDB`, slug `imdb-lite`, in `platforms/imdb-lite/`
-- BAR 1: `APP-IMDB-001` (IMDB Lite Application) — produced by `scaffoldImdbLiteSampleBar`
-- BAR 2: `APP-IMDB-002` (IMDB Celebs) — produced by `scaffoldImdbCelebsSampleBar`
-- `platforms/imdb-lite/platform.arch.json` — populated via `generateSampleImdbPlatformArch()` (cross-BAR topology + shared infra)
+### Today (current seed)
 
-**Phase A addition** — sample OKR scaffolded alongside the platform:
+| Element | Status | Notes |
+|---|---|---|
+| Platform `PLT-IMDB`, slug `imdb-lite` | ✓ | `scaffoldImdbLitePlatform()` |
+| BAR `APP-IMDB-001` (IMDB Lite Application) | ✓ | 8 CALM nodes, NIST IA-2/AC-6/SC-7/AU-2/SC-13 controls, 3 ADRs |
+| BAR `APP-IMDB-002` (IMDB Celebs) | ✓ | 6 CALM nodes, **no `controls:` block, no `threats:` block, no extra ADRs** (intentional gap) |
+| `platforms/imdb-lite/platform.arch.json` | ✓ | Cross-BAR topology via `generateSampleImdbPlatformArch()` |
+| `bar.app.yaml.repos[]` | **empty** on both | Code repos never declared in the seed |
+| Sample OKR | none | New in Phase A |
+
+### Phase A extensions to the seed
+
+**1. Populate `repos[]` on each BAR with the workshop-starter repo names** — disconnected (no real GitHub repo exists yet), but **declared by name** so the OKR's What phase can target them.
+
+```yaml
+# platforms/imdb-lite/bars/imdb-lite-application/app.yaml
+repos:
+  - url: https://github.com/<org>/imdb-react-frontend    # status: declared
+  - url: https://github.com/<org>/imdb-identity          # status: declared
+  - url: https://github.com/<org>/movie-api              # status: declared
+
+# platforms/imdb-lite/bars/imdb-celebs/app.yaml
+repos:
+  - url: https://github.com/<org>/celeb-api              # status: declared
+```
+
+`<org>` is filled at scaffold time from the user's GitHub org config. **The repos are declared in the mesh but may not yet exist on GitHub.** Looking Glass shows them as "declared, not connected" with a "Connect" button (which clones-if-exists or runs `gh repo create` if not — workshop choice).
+
+**2. Preserve the asymmetric CALM density** — it's the workshop's teaching moment:
+
+| BAR | Score (estimated) | Tier | Workshop role |
+|---|---|---|---|
+| `APP-IMDB-001` (IMDB Lite App) | ~55–70 (sec + risk pillars sparse but arch + ops are good) | **Supervised** | Agents can act, but human merges. Realistic mid-maturity baseline. |
+| `APP-IMDB-002` (IMDB Celebs) | ~25–45 (no controls, no threats, no ADRs) | **Restricted** | **Mandatory dual signature; 0 auto-rounds.** Demonstrates the system blocking agent autonomy until governance is built up — the entire point of part 7 (Red Queen's Court). |
+
+The Celebs BAR's sparseness is **not a bug — it's the workshop curriculum**. Part 4 (fitness functions) adds the `threats:` block; Part 5 (security pipeline) adds the NIST controls; Part 7 (Red Queen) shows the tier upgrade from Restricted → Supervised once governance is filled in. The agentic SDLC design must preserve this — do not auto-enrich Celebs at seed time.
+
+**3. Seed a sample OKR that targets the Celebs gap**: `OKR-2026Q1-IMDB-001-celeb-api` exists as a draft. Its Why phase would research the celebrity-data licensing risk; its How phase would produce a PRD addressing the missing controls; its What phase would drive design changes in `celeb-api`. **First-time runs the OKR against the Restricted tier and gets blocked** — exactly the lesson Part 7 teaches.
+
+### Phase A addition — sample OKR scaffolded alongside the platform:
 
 ```
 <mesh-root>/
@@ -606,7 +720,11 @@ objectiveAlignment:
   target_code_repos:                  # read from each bar's app.yaml.repos[]
     - alicenn-ucdenver/imdb-lite
     - alicenn-ucdenver/celeb-api      # (when added)
-  tasa_alignment: []
+  intent_cascade:
+    org: ""
+    role: ""
+    developer: ""
+    user: ""
 valueLearning: { learnings: [] }
 downloads: { links: [] }
 governance:                            # OPTIONAL — overrides global defaults
@@ -697,25 +815,176 @@ Workflows we add/extend:
 |---|---|---|
 | `okr.yaml` | mesh repo | OKR card BTABoK content + actions ladder |
 | `okrs/<id>/audit/events/<run>.jsonl` | mesh repo | Per-run event timeline (hash-chained) |
-| `okrs/<id>/audit/chain-ladder.yaml` | mesh repo | Cross-run lineage (parent_run_id graph) |
+| `okrs/<id>/audit/chain-ladder.yaml` | mesh repo | Cross-run lineage (intent_thread_uuid graph) |
 | `okrs/<id>/{why,how}/<artifact>.md` | mesh repo | Phase outputs (after merge) |
 | `<code-repo>/.governance/design.md` | code repo | Phase 3 outputs |
-| Each artifact's Hatter Tag footer | inline in markdown | Published summary of the audit chain for that run |
+| Each artifact's **Hatter's Tag** footer | inline in markdown | Published summary of the audit chain for that run — the auditor's single reading surface |
 
-### 11.1 Chain integrity
+### 11.1 Hatter's Tag — full provenance schema
+
+Required by SOC 2 CC8.1 ("prompt-as-design-evidence") and EU AI Act Article 12. Appended to every artifact PR:
+
+```yaml
+hatters_tag:
+  # Intent identity
+  intent_thread_uuid: 7f3e9c2d-...      # stamped on every action/commit/PR across repos
+  okr_id: OKR-2026Q1-IMDB-001
+  parent_intent_thread: <uuid or null>  # links to upstream phase
+
+  # Agent identity (Agent Roster / AI-BOM)
+  author_did: did:gh:installation:1234567/agent:prd-agent
+  author_model: claude-sonnet-4-6
+  author_system_prompt_sha: sha256:<32 hex>
+  author_prompt_pack_version: prd@v2.1
+
+  # Reviewer identities (Tweedles — MUST NOT equal author)
+  reviewer_dids:
+    - did:gh:installation:7654321/agent:architect-reviewer
+    - did:gh:installation:7654321/agent:security-reviewer
+
+  # Grounding refs
+  threat_model_ref: platforms/imdb-lite/bars/imdb-celebs/security/threat-model.yaml@sha
+  calm_nodes_referenced: [bar-imdb-api, shared-identity, celeb-db]
+  adrs_referenced: [ADR-007, ADR-014]
+  owasp_categories: [A01, A03]
+  stride_threats: [THR-114, THR-122]
+
+  # Fitness + reviewer scores
+  fitness_results:
+    cyclomatic_max: 9            # gate: ≤ 10
+    test_coverage: 84             # gate: ≥ 80
+  reviewer_scores:
+    architect: 82
+    security: 78
+  governance_tier: supervised     # taken at run start; tier creep mitigation
+
+  # Audit chain
+  audit_log_path: okrs/OKR-.../audit/events/PRD-....jsonl
+  chain_root_hash: <sha256>
+  event_count: 47
+
+  # Optional cryptographic seal (Phase B+ — Knight's Seal)
+  signature:
+    algorithm: ed25519
+    public_key_did: did:gh:installation:1234567
+    signed_at: 2026-05-19T15:01:00Z
+    signature: <base64>
+
+  # Rationale (free text — what the agent decided and why)
+  rationale: >
+    Selected canonical-id approach (per ADR-007) over name-string matching
+    because identity-disambiguation threats (THR-114) require deterministic
+    linkage. Coverage for CCPA opt-out (A01) via response-time gating.
+```
+
+This is **the auditor's master question, answered inline.** Every field is there to satisfy: *agent / prompt / threat model / test coverage / reviewer / rationale*.
+
+### 11.2 Court Recorder envelope (CloudEvents v1.0)
+
+Per-event records appended to `okrs/<id>/audit/events/<run>.jsonl` use CloudEvents v1.0 so the chain merges with Microsoft AGT and SIEMs (Splunk HEC, Sentinel, Datadog):
+
+```json
+{
+  "specversion": "1.0",
+  "type": "io.maintainabilityai.audit.skill_call",
+  "source": "agent:prd-agent@did:gh:installation:1234567",
+  "subject": "okr:OKR-2026Q1-IMDB-001/intent:7f3e9c2d-...",
+  "id": "<event-uuid>",
+  "time": "2026-05-19T15:01:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "skill": "context-architecture",
+    "input": { "bar_ids": ["APP-IMDB-001"] },
+    "duration_ms": 234,
+    "ok": true
+  },
+  "prev_event_hash": "<sha256>",       // hash chain
+  "this_event_hash": "<sha256>"
+}
+```
+
+The hash chain (`prev_event_hash` → `this_event_hash`) gives Merkle-style append-only integrity. `verify-chain` CLI walks it.
+
+### 11.3 Chain integrity rules
 
 - **Within a run**: hash-chained JSONL (`audit-emitter.ts` already does this; we reuse it).
-- **Across runs**: stitched via `parent_run_id` in each artifact's Hatter Tag + the `chain-ladder.yaml`.
-- **Tampering surface**: if anyone hand-edits a merged artifact, Hatter `chain_root_hash` no longer matches the JSONL. A `verify-chain` CLI (already exists) flags it.
+- **Across runs**: stitched via `intent_thread_uuid` + the `chain-ladder.yaml`. Inclusion proofs derivable.
+- **Tampering surface**: if anyone hand-edits a merged artifact, Hatter `chain_root_hash` no longer matches the JSONL. The `verify-chain` CLI (already exists) flags it.
+- **Retention**: ≥ 6 months in the mesh repo. EU AI Act Article 12 deadline 2 Aug 2026.
 
-### 11.2 What's NOT in the chain
+### 11.4 White Rabbit's Pocket Watch — goal-drift gate
+
+At each phase boundary, a workflow step compares the hash of the OKR `objective` text at issue creation vs the same field at PR merge. Drift = label `goal-drift-detected`, blocks merge, surfaces in Looking Glass with a side-by-side diff. The intent is to catch agents that subtly rephrase scope into something the OKR didn't authorize.
+
+### 11.5 What's NOT in the chain
 
 - Reviewer agent prose comments on the PR (those are on GitHub's side; we capture the SCORE in audit but not the comment body).
 - LLM model server logs (Anthropic / GH Models). We capture token counts + costs in audit, not the prompts/responses themselves.
 
 ---
 
-## 12. Phased implementation plan
+## 12. Workshop alignment
+
+The agentic-SDLC design must coexist with [workshop-starter-imdb-lite.md](../../docs/design/workshop-starter-imdb-lite.md), which defines a five-service learning environment learners clone and progressively govern through Parts 1–8.
+
+### 12.1 Division of responsibility
+
+| Concern | Workshop starter | This design |
+|---|---|---|
+| Five-service docker-compose stack | ✓ provides | does not touch |
+| Four code repos (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`) | learners clone from `imdb-lite-workshop-pack` | declared by name in `bar.app.yaml.repos[]` at mesh-seed time (Phase A); connection state ("declared/connected") tracked in Looking Glass |
+| Planted OWASP issues per file | ✓ provides (A03/A01/CSRF/SSRF/etc.) | used downstream as research-finding evidence in the sample OKR's Why phase |
+| BAR / platform CALM scaffolding | minimal | this design's Phase A seeds the asymmetric CALM (rich Lite / sparse Celebs) |
+| Governance scoring + tier gating | not directly | this design's tier-aware recycle bounds use Workshop's score-progression to demonstrate Restricted → Supervised → Autonomous |
+| OKR / IntentSpec layer | not in workshop spec | this design adds it; workshop curriculum could thread OKR creation into Part 8 (capstone) |
+
+### 12.2 Curriculum touchpoints (where this design enables workshop parts)
+
+| Workshop part | What it teaches | How the agentic-SDLC supports |
+|---|---|---|
+| Part 4 — Fitness Functions | Adds `threats:` + fitness blocks to Celebs | Once added, Celebs' score increases → tier upgrades from Restricted to Supervised; demonstrable in Looking Glass |
+| Part 5 — Security Pipeline | Adds NIST controls to Celebs | Same — tier upgrade and reviewer auto-passes more findings |
+| Part 6 — Team Prompt Library | Curates `.caterpillar/prompts/` | The prompt-pack version becomes a Hatter's Tag field; learners see provenance updates when they bump it |
+| Part 7 — Red Queen's Court | Policy enforcement + role separation | **The Tweedles enforcement (§5.3) is exactly this lesson.** Architecture-reviewer rejecting agent-authored PRDs is the live demo. |
+| Part 8 — Governance Capstone | End-to-end feature shipped | Learners create an OKR, run the Why/How/What pipeline, watch reviewers fire, end with a fully-audited Hatter's Tag in each artifact |
+
+### 12.3 Mesh-side artifacts the seed must produce
+
+Confirmed deliverable list for `scaffoldImdbLitePlatform()` after Phase A:
+
+- ✓ Platform `PLT-IMDB`, slug `imdb-lite` (today)
+- ✓ BAR `APP-IMDB-001` with rich CALM + ADRs (today)
+- ✓ BAR `APP-IMDB-002` with sparse CALM (today — preserved intentionally)
+- ✓ `platforms/imdb-lite/platform.arch.json` (today)
+- **NEW**: `bar.app.yaml.repos[]` populated with the four workshop repo URLs (declared, not connected)
+- **NEW**: `okrs/OKR-2026Q1-IMDB-001-celeb-api/okr.yaml` seeded as a draft (the Celebs gap is the worked example)
+- **NEW**: `okrs/<id>/audit/` directory skeleton (empty `events/` + `chain-ladder.yaml` placeholder)
+
+### 12.4 What learners experience end-to-end
+
+1. **Open Looking Glass** → see IMDB-Lite platform with two BARs.
+2. **Open the Celebs BAR** → see score ~30, badge says **Restricted**, plain "0 ADRs, 0 controls, 0 threats."
+3. **Open OKRs tab** → see the sample OKR `Add celebrity profile API to IMDB-Lite`. Why/How/What cards all show "Pending."
+4. **Click "Start Research"** on the Why card → research-request issue opens, archeologist data-collection fires.
+5. **Assign Copilot** in Oraculum → market-research-agent does its work. PR opens.
+6. **Reviewers fire** (architect-reviewer + security-reviewer, distinct DIDs). Both score the research-doc.
+7. **Merge** → OKR's Why turns ✓, intent_thread_uuid stamped.
+8. **Click "Generate PRD"** → prd-agent fires; uses `context-architecture` + `context-security` Skills to read the (sparse) Celebs governance + (rich) Lite governance + the merged research doc.
+9. **The prd-agent's draft addresses the gaps** — explicit FRs for threat-model adoption, security controls, ADRs.
+10. **Reviewers fire on PRD** — architect-reviewer scores 78, security-reviewer scores 71. Round 1 fails (security < 75).
+11. **Agent revises in round 2** (Supervised tier allows max 2 rounds). Scores: 84/82. **GovPass.**
+12. **Human merges PRD** → How turns ✓.
+13. **design-bus.yml fires** → opens landing issue in `celeb-api` code repo.
+14. **Wait** — Celebs is **still** Restricted tier. The design-bus check refuses to assign a design-agent. Looking Glass shows the issue tagged `needs-human-review` with a clear explanation: "BAR APP-IMDB-002 is Restricted; raise tier by completing Workshop Parts 4 + 5 before agent design can run."
+15. **Learner completes Parts 4 + 5** (adds threats + controls to Celebs) → score crosses to 55 → tier upgrades to Supervised.
+16. **Design-agent unblocks** → runs on `celeb-api`. Reviewers fire. Round 1 passes. Design PR merges.
+17. **OKR closes** → learner fills `keyResultRetrospective` + `valueLearning`. Full Hatter's Tag chain auditable end-to-end.
+
+That sequence is the workshop's narrative arc, end to end, with full agentic SDLC underneath.
+
+---
+
+## 13. Phased implementation plan
 
 ### Phase A — Foundation (2 weeks)
 
@@ -762,72 +1031,101 @@ Workflows we add/extend:
 
 ---
 
-## 13. Open questions & risks
+## 14. Open questions & risks
 
-### 13.1 GitHub primitives
+### 14.1 GitHub primitives
 
 - **Skill auto-discovery vs explicit invocation**: docs say agents "can also discover and invoke skills automatically." If the LLM forgets to call context Skills, PRDs land ungrounded. Mitigation: the parent agent's system prompt enumerates required Skills with **exact invocation order**.
 - **Skill timeout & budget**: not yet known; we model Skills as best-effort with `{ ok: false, reason }` fallback contracts.
 - **Cross-repo agent execution**: design-agent must operate IN the code repo. `notify-code-repos.yml` already handles posting the landing issue with the right context.
 - **No nested LLM calls**: by design. All reasoning is in the parent agent's context. Skills are pure data. This kills two birds: no GH-Models 429s on inner calls, and no cost surface multiplication.
 
-### 13.2 NCMS adaptation
+### 14.2 NCMS adaptation
 
 - **Inline `{expert_input}` placeholders in NCMS prompts** → on GitHub-hosted Copilot, the LLM calls expert Skills explicitly. Risk: the LLM forgets. Mitigation: structural check on the artifact (PRD must have `E1`/`E2` references; if missing, reviewer rejects).
 - **Reviser loop**: NCMS does it externally in Python. We do it via the PR-comment cycle + bounded state machine.
 
-### 13.3 Bounded recycle loop
+### 14.3 Bounded recycle loop
 
 - **Cost ceiling**: 2 auto-rounds + 1 HumanGate decision caps per-OKR pipeline cost. Estimated ~$2-5 per OKR on Anthropic, ~$0.20-1 on github-models (custom tier).
 - **Cycle thrashing**: if agent A keeps not addressing the same finding, MAX_AUTO_ROUNDS=2 catches it. Audit captures the repeated finding for human review.
 - **Reviewer leniency**: at first, calibrate by also requiring human OK before merge. Once reviewer scores correlate with PR quality in practice, auto-merge can be enabled.
 
-### 13.4 OKR ↔ Platform integrity
+### 14.4 OKR ↔ Platform integrity
 
 - **`affected_bar_ids` MUST reference real BARs**. We validate on save: each id resolves to a BAR in the platform.
 - **`target_code_repos` is derived, not stored**: read each BAR's `app.yaml.repos[]` at runtime so it stays in sync.
 - **What if a BAR is added/removed mid-OKR?**: the OKR view shows a warning; the user must re-derive (one click) to update.
 
-### 13.5 IMDB Lite sample correctness (validated)
+### 14.5 IMDB Lite sample correctness (validated)
 
 - ✅ Sample platform exists (`PLT-IMDB`, slug `imdb-lite`)
 - ✅ Two BARs (`APP-IMDB-001`, `APP-IMDB-002`)
 - ✅ `platform.arch.json` populated via `generateSampleImdbPlatformArch()`
+- ✅ Asymmetric CALM density preserved by design (8 nodes + controls on Lite; 6 nodes + no controls on Celebs — verified against `calmTemplates.ts:714` and `:948`)
 - ⏳ Sample OKR (Phase A deliverable — `scaffoldImdbLiteOkr()`)
-- ⏳ Each BAR's `app.yaml.repos[]` populated with realistic code repos (today: empty by default — Phase A also seeds these)
+- ⏳ Each BAR's `app.yaml.repos[]` populated with the four workshop repo names (today: empty by default — Phase A also seeds these as **declared** URLs)
+
+### 14.6 Roadmap-aligned governance risks
+
+- **Goal drift (OWASP T6)** — mitigated by White Rabbit's Pocket Watch (§11.4). Each phase boundary hashes the OKR.objective and compares.
+- **Tier creep (§4.5 of roadmap)** — mitigated by recording the tier at run start in the Hatter's Tag. If a BAR's score gets bumped mid-pipeline, the recorded tier still applies; auditor can spot tier creep.
+- **Role separation (NIST SA-11, SOC 2)** — mitigated by Tweedles (§5.3). Reviewer DID ≠ author DID; workflow enforces.
+- **Repudiation (OWASP T8) / identity spoofing (T9)** — partially mitigated by GitHub App installation tokens (Queen's Keyring) recorded in audit; **fully** mitigated only when Knight's Seal (Ed25519) ships (Phase B+).
+- **LLM-rephrasing bypass** — mitigated by pure-data Skills (no agent rewrites another agent's grounding via a Skill call). Plus the Caterpillar's Challenge: explicit comparison step that flags semantic drift between phase artifacts.
+- **Implicit-intent guesswork** — mitigated by IntentSpec frontmatter (Phase B+). The OKR Card carries `owasp_categories`, `stride_threats`, `calm_nodes`, `fitness_gates`, `governance_tier_required` — explicit, not inferred.
+- **Reviewer leniency** — at first, human still merges (Supervised default). Once reviewer calibration is verified in real OKR runs, Autonomous tier auto-merge enabled with branch protection still gating.
+
+### 14.7 EU AI Act Article 12 compliance
+
+- Automatic logging: ✓ (Court Recorder via CloudEvents envelope, hash-chained, append-only)
+- ≥ 6 month retention: ✓ (mesh repo retention)
+- Model version + inputs + operator + timestamps: ✓ (Hatter's Tag fields)
+- Deadline 2 Aug 2026: this design Phase A unblocks; Phase B closes (with Knight's Seal making it cryptographic)
 
 ---
 
-## 14. Deliverables map
+## 15. Deliverables map
 
 | Deliverable | Location | Phase |
 |---|---|---|
-| `okr.yaml` schema + Zod type | `vscode-extension/src/types/okr.ts` | A |
+| `okr.yaml` schema + Zod type (incl. `intent_cascade`, `intent_thread_uuid`, IntentSpec frontmatter) | `vscode-extension/src/types/okr.ts` | A |
 | OKRService | `vscode-extension/src/services/OKRService.ts` | A |
-| `scaffoldImdbLiteOkr` | `vscode-extension/src/services/MeshService.ts` (extend) | A |
+| `scaffoldImdbLiteOkr` (seeds objective + Org/Role/Developer/User cascade) | `vscode-extension/src/services/MeshService.ts` (extend) | A |
 | OKR tile / list / detail views | `vscode-extension/src/webview/app/views/okr*.ts` | A |
-| Hatter Tag `parent_run_id` | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A |
-| Audit event schema (phase, okr_id, parent_run_id) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
+| `bar.app.yaml.repos[]` seeding with 4 workshop repo names (`imdb-react-frontend`, `imdb-identity`, `movie-api`, `celeb-api`) — declared, not connected | `vscode-extension/src/services/MeshService.ts` (extend `scaffoldImdbLitePlatform`) | A |
+| Asymmetric CALM seed: rich `app-imdb-lite.arch.json` (8 nodes, 5 NIST controls, threats) vs sparse `app-imdb-celebs.arch.json` (6 nodes, no controls/threats) → drives Autonomous-vs-Restricted tier example | `vscode-extension/src/templates/mesh/calmTemplates.ts` | A (already shipped — extend with threat-model + controls blocks on imdb-lite) |
+| **Connect Repo** button for declared-but-not-connected `repos[]` entries (workshop manual connection step) | BAR detail view | A |
+| **Intent Thread UUID** generator + stamping on every Hatter's Tag | `packages/research-runner/src/runner/hatters-tag-builder.ts` (rename `parent_run_id` → `intent_thread_uuid`/`parent_intent_thread`) | A |
+| Hatter's Tag full schema: `intent_thread_uuid`, `author_did`, `author_prompt_pack_version`, `reviewer_dids[]`, `threat_model_ref`, `calm_nodes_referenced[]`, `owasp_categories[]`, `stride_threats[]`, `fitness_results`, `reviewer_scores`, `governance_tier`, `chain_root_hash` | `packages/research-runner/src/runner/hatters-tag-builder.ts` | A → B (signature: B+) |
+| Audit event schema (phase, okr_id, intent_thread_uuid) | `packages/research-runner/src/runner/audit-emitter.ts` | A |
+| **Court Recorder** CloudEvents v1.0 envelope emitter (SIEM-compatible JSONL, hash-chained, append-only) | `packages/research-runner/src/runner/court-recorder.ts` (new) | B |
+| **Tier-detection logic** — read BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → stamp on Hatter's Tag and gate `MAX_AUTO_ROUNDS` | `vscode-extension/src/services/BarService.ts` + agent workflow gates | B |
+| **White Rabbit's Pocket Watch** goal-drift gate — hash OKR.objective at phase boundaries; compare PR scope against initial objective; block merge if drift > threshold | mesh template (workflow) + `verify-chain` CLI | C |
+| **Caterpillar's Challenge** — explicit semantic-drift comparison step between phase artifacts (research → PRD → design → code) | mesh template (reviewer-bus.yml hook) | C |
+| **Knight's Seal** — Ed25519 commit signing with agent DID; verification step in `verify-chain` | `packages/research-runner/src/runner/knights-seal.ts` (new) + GitHub App key mgmt | B+ |
+| **Queen's Keyring** — short-lived per-task GitHub App installation tokens (scope: this OKR + repo set) | AgentDeploymentService + GitHub App config | B |
 | Cleanup: Promote → Create OKR | `vscode-extension/src/webview/OracularPanel.ts` | A |
 | Cleanup: Active Runs by OKR | `vscode-extension/src/webview/ActiveRunsPanel.ts` | A |
-| `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data) | mesh template | B |
+| `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` Skills (PURE data — no LLM inside) | mesh template | B |
 | `dedupe-and-rank` Skill | mesh template | B |
 | `format-research-issue-update` Skill | mesh template | B |
 | `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos` Skills | mesh template | B (D) |
 | `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) | mesh template | B |
-| `audit-emit-event` Skill | mesh template | B |
-| `market-research-agent`, `prd-agent`, `design-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files | mesh template | B (D) |
+| `audit-emit-event` Skill (wraps Court Recorder for agent use) | mesh template | B |
+| `market-research-agent`, `prd-agent`, `design-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement: reviewer DID ≠ author DID check in workflow) | mesh template | B (D) |
 | AgentDeploymentService | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
-| `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` | mesh template | C |
+| `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) | mesh template | C |
 | State-machine logic in `label-on-merge.yml` | mesh template | C |
-| HumanGate UI (Approve / Re-run / Reject) | OKR detail view | C |
+| HumanGate UI (Approve / Re-run / Reject) — surfaces drift score from Pocket Watch + reviewer scores | OKR detail view | C |
 | `design-agent` + reference-repos | mesh template + service | D |
-| `verify-chain` CLI surface | Looking Glass action + research-runner CLI | E |
-| End-to-end smoke (IMDB Lite OKR) | docs/test | E |
+| `verify-chain` CLI surface (validates hash chain, signature chain, intent thread continuity, tier compliance) | Looking Glass action + research-runner CLI | E |
+| **Workshop curriculum touchpoints** map (which mesh artifact each workshop Part produces) | `docs/workshop/agentic-sdlc-touchpoints.md` (new) | A |
+| End-to-end smoke (IMDB Lite OKR — Autonomous path on lite, Restricted path on celebs) | docs/test | E |
 
 ---
 
-## 15. What this is NOT
+## 16. What this is NOT
 
 - Not a full re-architecture of `research-runner` — it stays as the implementation. The Skill is its agent-facing interface.
 - Not a custom MCP server — uses built-in Copilot primitives. (redqueen-mcp keeps its existing scope: editor-side queries.)
@@ -837,4 +1135,4 @@ Workflows we add/extend:
 
 ---
 
-*Last updated 2026-05-19. This is a design document, not a commitment to ship every phase. Phase A unlocks the foundation; B unlocks the agents; C closes the loop. D and E are quality of life.*
+*Last updated 2026-05-19 (v3 — aligned with agentic-governance-roadmap-2026 + workshop-starter-imdb-lite). This is a design document, not a commitment to ship every phase. Phase A unlocks the foundation; B unlocks the agents; C closes the loop. D and E are quality of life.*
