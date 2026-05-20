@@ -55,6 +55,25 @@ export interface CopilotEnvStatus {
  */
 const BUILTIN_COPILOT_TOOLS = new Set(['read', 'edit', 'search', 'execute']);
 
+/**
+ * Tool namespaces provided by the Copilot Coding Agent's out-of-the-box
+ * MCP servers. Tools declared with a slash-prefix matching one of these
+ * (`github/list_issues`, `playwright/*`, etc.) are valid built-ins —
+ * they DON'T need to resolve against the custom MESH_SKILLS registry.
+ *
+ * Per https://docs.github.com/en/copilot/customizing-copilot/customizing-the-development-environment-for-copilot-coding-agent#tool-names-for-out-of-the-box-mcp-servers
+ * Wildcards (`github/*`) grant all read-only tools from that namespace
+ * by default; specific writes must be named explicitly.
+ */
+const MCP_NAMESPACES = new Set(['github', 'playwright']);
+
+/** True if the tool name is `<namespace>/<anything>` for a known MCP namespace. */
+function isMcpNamespacedTool(name: string): boolean {
+  const slash = name.indexOf('/');
+  if (slash < 0) { return false; }
+  return MCP_NAMESPACES.has(name.slice(0, slash));
+}
+
 export interface DeploySkillsResult {
   /** Total skills attempted. */
   total: number;
@@ -167,7 +186,11 @@ export class AgentDeploymentService {
       // capability gate per the Copilot custom-agent spec — they're not in
       // MESH_SKILLS but are valid entries in the tools list.
       const declaredTools = parseToolsFromAgentBody(body);
-      const missingSkills = declaredTools.filter(t => !knownSkillNames.has(t) && !BUILTIN_COPILOT_TOOLS.has(t));
+      const missingSkills = declaredTools.filter(t =>
+        !knownSkillNames.has(t) &&
+        !BUILTIN_COPILOT_TOOLS.has(t) &&
+        !isMcpNamespacedTool(t)
+      );
       if (missingSkills.length > 0) {
         result.perAgent.push({ name: agent.name, status: 'skill-missing', missingSkills });
         continue;
@@ -262,7 +285,12 @@ function parseToolsFromAgentBody(body: string): string[] {
   const items: string[] = [];
   for (const line of block.split('\n')) {
     const m = line.match(/^\s+-\s+(\S.*?)\s*$/);
-    if (m && !m[1].startsWith('#')) { items.push(m[1]); }
+    if (!m || m[1].startsWith('#')) { continue; }
+    // Strip inline `# comment` trailing the value (YAML-legal — e.g.
+    //   - github/add_issue_comment   # post output to OKR anchor issue
+    // parses to just `github/add_issue_comment`).
+    const value = m[1].replace(/\s+#.*$/, '').trim();
+    if (value.length > 0) { items.push(value); }
   }
   return items;
 }

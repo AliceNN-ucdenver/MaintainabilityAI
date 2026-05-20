@@ -5,12 +5,20 @@ target: github-copilot
 tools:
   # Built-in Copilot capability gate — reviewers need `read` for the
   # artifact + `search` to locate referenced ADRs/CALM nodes + `execute`
-  # to post the PR review via gh CLI. `edit` deliberately omitted —
-  # reviewers MUST NOT modify the artifact (reinforces the Tweedles
-  # author/reviewer boundary at the tool layer).
+  # for skill CLI invocations. `edit` deliberately omitted — reviewers
+  # MUST NOT modify the artifact (reinforces the Tweedles author/reviewer
+  # boundary at the tool layer).
   - read
   - search
   - execute
+  # GitHub MCP — route through api.githubcopilot.com. POST the
+  # structured review back to the artifact PR via these tools, NOT via
+  # `gh pr review` shell-out. github/* covers all read-only access
+  # needed to inspect the PR; the named writes below are the only
+  # capabilities the reviewer needs.
+  - github/*
+  - github/add_pull_request_review_comment    # post the SCORE / COVERED / MISSING / CHANGES review body
+  - github/update_issue                       # apply governance-pass-architecture or revision-required label
   # Custom skills
   - knowledge-okr
   - knowledge-mesh-bar

@@ -9,6 +9,11 @@ tools:
   - edit
   - search
   - execute
+  # GitHub MCP — route through api.githubcopilot.com (allow-listed by
+  # default). Use these INSTEAD of `gh` CLI for GitHub API operations.
+  - github/*
+  - github/add_issue_comment
+  - github/update_issue
   # Custom skills
   - knowledge-okr
   - knowledge-research

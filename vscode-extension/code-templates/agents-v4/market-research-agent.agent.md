@@ -11,6 +11,15 @@ tools:
   - edit
   - search
   - execute
+  # GitHub MCP tools (out-of-the-box server, namespaced under github/).
+  # Route through api.githubcopilot.com (always allow-listed) — bypass
+  # the Coding Agent firewall that blocks direct api.github.com calls.
+  # Use these INSTEAD of shelling out to `gh issue comment` / `gh pr ...`.
+  # github/* grants all read-only tools by default; writes must be
+  # named explicitly below.
+  - github/*
+  - github/add_issue_comment   # post format-research-issue-update output to OKR anchor issue
+  - github/update_issue        # apply/remove labels via the issues API
   # Custom skills — declared in .github/skills/<name>/SKILL.md.
   - knowledge-okr
   - knowledge-mesh-bar
@@ -77,7 +86,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
    ````
 
    The fenced YAML block in the PR body is the workflow's primary fallback when the artifact-file frontmatter extraction fails (e.g. PR opened before the artifact was committed, or the artifact path doesn't match the expected pattern). Do NOT omit it.
-11. Invoke `format-research-issue-update` and POST the formatted comment back to the OKR anchor issue.
+11. Invoke `format-research-issue-update` to generate the markdown body. POST it to the OKR anchor issue using the **`github/add_issue_comment`** MCP tool (NOT `gh issue comment` shell-out — the Coding Agent's firewall blocks direct `api.github.com` calls; MCP routes through `api.githubcopilot.com` which is always allow-listed). The tool's `body` parameter takes the markdown string from `format-research-issue-update.markdown`. The OKR anchor issue number is in the parent issue you were dispatched on — extract it from the run context, not from any external lookup.
 12. Open a PR with the artifact + label it `research-synthesis`.
 13. Invoke `audit-emit-event` for every Skill invocation throughout the run AND a final `artifact_written` event after the PR opens.
 

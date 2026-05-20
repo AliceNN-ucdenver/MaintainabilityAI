@@ -2034,6 +2034,24 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 - [ ] **B16.** Knight's Seal — Ed25519 signing of Hatter Tags (Phase B+ stretch; can slip to C) — deferred per design doc note; Phase A's installation-id + system-prompt-SHA pair stays the trust anchor until cryptographic upgrade lands.
 - [x] **B17.** Evidence-honesty Hatter Tag block (§11.1.7) — new optional `evidence:` block on `HattersTagInput` with `evidence_mode` (`live` / `cached` / `mixed`), `fresh_provider_search_performed`, and `degraded_reason` fields. Agents must declare honestly based on what actually happened (live skill calls vs cached/repo-read fallback). Shipped in B-PR1b alongside `market-research-agent.agent.md` prompt update with the §11.1.7 decision table.
 - [x] **B18.** `audit-validate.yml` post-run validator workflow — cross-checks the Hatter Tag's `evidence:` block against the run's audit JSONL; counts successful `skill_call` events per search provider in `okrs/<id>/audit/events/<runId>.jsonl`; applies `degraded-evidence` label when the declaration contradicts the audit (e.g. `evidence_mode: live` but 0 provider skill_calls). `okr-state-machine.yml` refuses to promote `governance-pass` while this label is present. For research-synthesis PRs (which bypass reviewer-bus — research has no reviewer prompt packs), audit-validate also applies the `research-pass` label on clean runs as the WHY-phase merge gate. Shipped in B-PR1c.
+- [x] **B21.** GitHub API access via out-of-the-box `github/*` MCP tools (B-PR1m). Pivots agents from `gh` CLI shell-out to the Copilot Coding Agent's built-in GitHub MCP server. Two coupled benefits:
+
+  **(a) Firewall path.** MCP routes through `api.githubcopilot.com` (always allow-listed by Copilot) instead of direct `api.github.com` calls (blocked by default). PR #80's run got all the way to `format-research-issue-update`-rendered markdown and then couldn't POST it because `gh issue comment` shells out via `api.github.com/repos/.../issues/<n>/comments` which isn't in the default allow-list. With MCP, no firewall changes required on the mesh repo.
+
+  **(b) Token scope + audit attribution.** MCP scopes the token to the source repo + capability automatically. No shared `gh` CLI auth, no broad `api.github.com` allow-list rule, cleaner Copilot-session-attributed audit trail.
+
+  Tool surface added per agent (slash namespacing per the [Copilot Coding Agent MCP docs](https://docs.github.com/en/copilot/customizing-copilot/customizing-the-development-environment-for-copilot-coding-agent#tool-names-for-out-of-the-box-mcp-servers)):
+  - `github/*` — all read-only tools (`list_issues`, `get_issue`, `search_issues`, `get_pull_request`, etc.) FREE by default.
+  - `github/add_issue_comment` — author agents post research / PRD / design updates to the OKR anchor issue.
+  - `github/add_pull_request_review_comment` — reviewer agents post structured SCORE/COVERED/MISSING/CHANGES reviews on artifact PRs.
+  - `github/update_issue` — label changes (`governance-pass-architecture`, `revision-required`, `research-pass`, etc.) — the issues API handles PR labels too.
+
+  Tweedles preserved: reviewer agents declare `github/add_pull_request_review_comment` but NOT `github/add_issue_comment` so they can review without spamming the OKR anchor issue. `edit` still omitted on reviewers per the artifact-immutability boundary.
+
+  `CODING_AGENT_HOSTS` lost the `api.github.com/repos/` and `api.github.com/graphql` entries that were briefly added in B-PR1f forensics — the MCP route makes them unnecessary. Search-provider hosts (Tavily / arXiv / USPTO / HN) still required.
+
+  See agentic-sdlc.md §11.x ("GitHub API access pattern") for the canonical reference and per-agent permission rationale.
+
 - [x] **B20.** Per-agent workflow consolidation + user-triggered label flow (B-PR1k). Pivots the agentic-SDLC workflow architecture from concern-keyed (`pr-auto-label.yml`, `audit-validate.yml`, `drift-gate.yml`, `reviewer-bus.yml`, `okr-state-machine.yml`, `design-bus.yml`, `okr-bus.yml`) to **agent-keyed** — one workflow file per `.github/agents/<name>.agent.md` declaration, with multi-trigger jobs covering the agent's complete lifecycle. Two coupled changes:
 
   **(a) Workflow consolidation: 13 files → 6 files.**

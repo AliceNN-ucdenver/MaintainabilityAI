@@ -5,12 +5,18 @@ target: github-copilot
 tools:
   # Built-in Copilot capability gate — reviewers need `read` for the
   # artifact + `search` to locate referenced threat library entries /
-  # NIST controls + `execute` to post the PR review via gh CLI. `edit`
+  # NIST controls + `execute` for skill CLI invocations. `edit`
   # deliberately omitted — reviewers MUST NOT modify the artifact
   # (Tweedles boundary at the tool layer).
   - read
   - search
   - execute
+  # GitHub MCP — route through api.githubcopilot.com. POST the
+  # structured review back to the artifact PR via these tools, NOT via
+  # `gh pr review` shell-out.
+  - github/*
+  - github/add_pull_request_review_comment    # post the SCORE / COVERED / MISSING / CHANGES review body
+  - github/update_issue                       # apply governance-pass-security or revision-required label
   # Custom skills
   - knowledge-okr
   - knowledge-mesh-threats

@@ -2110,6 +2110,16 @@ function renderSettingsCodingAgentEnv(): string {
         doesn't expose an API for this setting yet. Check the agent's audit
         JSONL for <code>fetch failed</code> entries to confirm allow-list misses.
       </p>
+      <p class="text-muted" style="font-size: 12px; background: rgba(110,231,183,0.06); border-left: 2px solid rgba(110,231,183,0.4); padding: 6px 10px; margin: 6px 0;">
+        <strong>GitHub API access is NOT in this list by design.</strong>
+        Agents use the out-of-the-box <code>github/*</code> MCP server (declared
+        in each <code>.agent.md</code>'s <code>tools:</code> list) which routes
+        through <code>api.githubcopilot.com</code> — always allow-listed by
+        Copilot. So posting issue comments, applying labels, and reading PR
+        state don't require manual firewall changes. See
+        <a href="https://docs.github.com/en/copilot/customizing-copilot/customizing-the-development-environment-for-copilot-coding-agent#tool-names-for-out-of-the-box-mcp-servers" target="_blank" rel="noopener noreferrer">Copilot Coding Agent MCP docs</a>
+        for tool names.
+      </p>
       <p class="text-muted" style="font-size: 12px; margin-top: 4px;">
         <strong>Where to paste them:</strong> open
         <a href="https://github.com/${escapeHtml(env.repoSlug)}/settings/copilot/coding_agent" target="_blank" rel="noopener noreferrer"><code>https://github.com/${escapeHtml(env.repoSlug)}/settings/copilot/coding_agent</code></a>

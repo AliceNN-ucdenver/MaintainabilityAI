@@ -203,6 +203,65 @@ describe('AgentDeploymentService.deployAgents', () => {
     }
   });
 
+  it('accepts github/* MCP-namespaced tools as valid (not missing-skill)', () => {
+    // B21: agents may declare github/* (all read-only) or github/<tool>
+    // (specific writes). These route through Copilot's MCP server, not
+    // through the custom skill registry, so they must NOT be flagged as
+    // missing skills. Same for playwright/*.
+    const fakeExtension = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-'));
+    try {
+      const realSkillsDir = path.join(EXTENSION_PATH, 'code-templates', 'skills');
+      const fakeSkillsDir = path.join(fakeExtension, 'code-templates', 'skills');
+      fs.cpSync(realSkillsDir, fakeSkillsDir, { recursive: true });
+      const realAgentsDir = path.join(EXTENSION_PATH, 'code-templates', 'agents-v4');
+      const fakeAgentsDir = path.join(fakeExtension, 'code-templates', 'agents-v4');
+      fs.cpSync(realAgentsDir, fakeAgentsDir, { recursive: true });
+
+      // The real market-research-agent.agent.md already declares github/*
+      // and github/add_issue_comment. If MCP-namespace recognition were
+      // broken these would resolve as missing-skill.
+      const fakeSvc = new AgentDeploymentService(fakeExtension);
+      const result = fakeSvc.deployAgents(tmpMesh);
+      const mr = result.perAgent.find(p => p.name === 'market-research-agent')!;
+      expect(mr.status, `missingSkills: ${mr.missingSkills?.join(', ')}`).not.toBe('skill-missing');
+    } finally {
+      fs.rmSync(fakeExtension, { recursive: true, force: true });
+    }
+  });
+
+  it('strips inline YAML comments from tool entries', () => {
+    // The agent templates use `  - github/add_issue_comment   # purpose`
+    // YAML format. The parser must extract just the tool name; the
+    // comment must not become part of it. This regression was caught by
+    // the deployAgents tests when MCP tools first landed.
+    const fakeExtension = fs.mkdtempSync(path.join(os.tmpdir(), 'inline-comment-test-'));
+    try {
+      const realSkillsDir = path.join(EXTENSION_PATH, 'code-templates', 'skills');
+      fs.cpSync(realSkillsDir, path.join(fakeExtension, 'code-templates', 'skills'), { recursive: true });
+      const realAgentsDir = path.join(EXTENSION_PATH, 'code-templates', 'agents-v4');
+      const fakeAgentsDir = path.join(fakeExtension, 'code-templates', 'agents-v4');
+      fs.cpSync(realAgentsDir, fakeAgentsDir, { recursive: true });
+
+      // Verify the parser handles a tool entry with a trailing comment +
+      // multiple spaces (the formatting we use in the real templates).
+      // Use audit-emit-event so we know it's a real skill name.
+      const target = path.join(fakeAgentsDir, 'prd-agent.agent.md');
+      const original = fs.readFileSync(target, 'utf8');
+      const withComment = original.replace(
+        '  - audit-emit-event',
+        '  - audit-emit-event              # inline comment that must be stripped',
+      );
+      fs.writeFileSync(target, withComment, 'utf8');
+
+      const fakeSvc = new AgentDeploymentService(fakeExtension);
+      const result = fakeSvc.deployAgents(tmpMesh);
+      const prd = result.perAgent.find(p => p.name === 'prd-agent')!;
+      expect(prd.status).not.toBe('skill-missing');
+    } finally {
+      fs.rmSync(fakeExtension, { recursive: true, force: true });
+    }
+  });
+
   it('listDeployedAgents reports presence per agent', () => {
     expect(svc.listDeployedAgents(tmpMesh).every(a => !a.deployed)).toBe(true);
     svc.deployAgents(tmpMesh);
@@ -261,8 +320,6 @@ describe('AgentDeploymentService.getCopilotEnvStatus', () => {
     // 4 search providers; auto-verification not possible so hosts are returned
     // as a static reference for the UI.
     expect(status.hosts.map(h => h.host).sort()).toEqual([
-      'api.github.com (graphql)',
-      'api.github.com (issues + comments)',
       'api.tavily.com',
       'api.uspto.gov',
       'data.uspto.gov',
