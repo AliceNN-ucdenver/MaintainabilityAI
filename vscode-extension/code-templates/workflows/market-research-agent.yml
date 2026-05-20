@@ -37,9 +37,18 @@ on:
   issues:
     types: [opened, labeled, reopened]
   pull_request_target:
-    types: [labeled, unlabeled]
-  pull_request:
-    types: [closed]
+    # NOTE: `closed` is here (not under a separate `pull_request:` block)
+    # so the finalize job ALSO runs under user attribution and bypasses
+    # GitHub's "Require approval for outside collaborators" gate when
+    # the merge happens on a bot-opened PR. Confirmed broken on PR #87
+    # merge (run 26183671575): event=pull_request with closed type
+    # ended up as action_required and finalize never fired → okr.yaml
+    # never flipped to status: complete → Looking Glass kept showing
+    # "running". pull_request_target with closed type runs under the
+    # merger's attribution (the human who clicked Merge), bypassing the
+    # gate. Safety analysis is the same as labeled/unlabeled — workflow
+    # definition runs from base, no PR scripts executed.
+    types: [labeled, unlabeled, closed]
 
 concurrency:
   group: market-research-agent-${{ github.event.issue.number || github.event.pull_request.number }}
@@ -522,10 +531,11 @@ jobs:
   finalize:
     name: "Finalize WHY action on PR merge"
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'pull_request_target' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged == true &&
-      contains(github.event.pull_request.labels.*.name, 'research-synthesis')
+      contains(github.event.pull_request.labels.*.name, 'research-synthesis') &&
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
