@@ -87,7 +87,13 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 
    The fenced YAML block in the PR body is the workflow's primary fallback when the artifact-file frontmatter extraction fails (e.g. PR opened before the artifact was committed, or the artifact path doesn't match the expected pattern). Do NOT omit it.
 11. Invoke `format-research-issue-update` to generate the markdown body. POST it to the OKR anchor issue using the **`github/add_issue_comment`** MCP tool (NOT `gh issue comment` shell-out — the Coding Agent's firewall blocks direct `api.github.com` calls; MCP routes through `api.githubcopilot.com` which is always allow-listed). The tool's `body` parameter takes the markdown string from `format-research-issue-update.markdown`. The OKR anchor issue number is in the parent issue you were dispatched on — extract it from the run context, not from any external lookup.
-12. Open a PR with the artifact + label it `research-synthesis`.
+12. Open a PR with the artifact. **DO NOT apply the `research-synthesis` label yourself.** Under the B20 user-triggered audit model (§14.x of the design doc), the human reviewer applies the label via Looking Glass's "Run audit" button — that fires `market-research-agent.yml`'s audit-and-drift job under the USER's attribution, bypassing GitHub's "Require approval for outside collaborators" gate that blocks bot-attributed workflow runs as `action_required`. If you label the PR yourself, the workflow stalls waiting for human approval and your audit never runs.
+
+    Instead, include this line at the top of your PR description so the reviewer knows what to do:
+
+    ```markdown
+    > **Reviewer:** apply the `research-synthesis` label to trigger the audit workflow.
+    ```
 13. Invoke `audit-emit-event` for every Skill invocation throughout the run AND a final `artifact_written` event after the PR opens.
 
 ### Audit payload schema for search Skills (§11.1.6, B-PR1f)
