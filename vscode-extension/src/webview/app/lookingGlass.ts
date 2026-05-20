@@ -2096,6 +2096,11 @@ function renderSettingsCodingAgentEnv(): string {
         doesn't expose an API for this setting yet. Check the agent's audit
         JSONL for <code>fetch failed</code> entries to confirm allow-list misses.
       </p>
+      <p class="text-muted" style="font-size: 12px; margin-top: 4px;">
+        <strong>Where to paste them:</strong> open
+        <a href="https://github.com/${escapeHtml(env.repoSlug)}/settings/copilot/coding_agent" target="_blank" rel="noopener noreferrer"><code>https://github.com/${escapeHtml(env.repoSlug)}/settings/copilot/coding_agent</code></a>
+        → scroll to <em>Recommended firewall settings</em> → toggle <em>Custom allow list</em> → paste one host per line. (The <strong>Open Coding Agent settings ↗</strong> button below jumps you straight there.)
+      </p>
       <ul style="margin: 4px 0 8px 16px; padding: 0; font-size: 13px;">
         ${hostsRows}
       </ul>
@@ -2103,6 +2108,27 @@ function renderSettingsCodingAgentEnv(): string {
         <button id="btn-copilot-firewall-open" class="btn-primary">Open Coding Agent settings ↗</button>
         <button id="btn-copilot-firewall-copy" class="btn-secondary" data-hosts="${escapeHtml(hostsAsText)}">Copy hosts</button>
       </div>
+
+      <h4 style="margin: 16px 0 8px;">Where things live (cheat sheet)</h4>
+      <p class="text-muted" style="font-size: 12px;">
+        The Copilot Coding Agent has its own admin pages, separate from
+        GitHub Actions secrets. Bookmark these for the next person:
+      </p>
+      <ul class="text-muted" style="margin: 4px 0 8px 16px; padding: 0; font-size: 12px; list-style: disc;">
+        <li>
+          <strong>Coding Agent settings + firewall:</strong>
+          <a href="https://github.com/${escapeHtml(env.repoSlug)}/settings/copilot/coding_agent" target="_blank" rel="noopener noreferrer"><code>github.com/${escapeHtml(env.repoSlug)}/settings/copilot/coding_agent</code></a>
+        </li>
+        <li>
+          <strong><code>copilot</code> environment secrets:</strong>
+          <a href="https://github.com/${escapeHtml(env.repoSlug)}/settings/environments/copilot/secrets" target="_blank" rel="noopener noreferrer"><code>github.com/${escapeHtml(env.repoSlug)}/settings/environments/copilot/secrets</code></a>
+          (the buttons above seed these via API; this page is the manual fallback)
+        </li>
+        <li>
+          <strong>Actions secrets</strong> (NOT used by the Coding Agent — only by legacy CI workflows):
+          <a href="https://github.com/${escapeHtml(env.repoSlug)}/settings/secrets/actions" target="_blank" rel="noopener noreferrer"><code>github.com/${escapeHtml(env.repoSlug)}/settings/secrets/actions</code></a>
+        </li>
+      </ul>
 
       <div class="settings-row" style="margin-top: 16px;">
         <button id="btn-copilot-env-refresh" class="btn-secondary">Refresh status</button>
