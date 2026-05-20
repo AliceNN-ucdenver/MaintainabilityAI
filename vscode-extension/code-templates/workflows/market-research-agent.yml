@@ -258,30 +258,69 @@ jobs:
             exit 0
           fi
 
-          A_EMB=$(jq -r '.data[0].embedding' /tmp/a_emb.json 2>/dev/null || echo "")
-          B_EMB=$(jq -r '.data[0].embedding' /tmp/b_emb.json 2>/dev/null || echo "")
-          if [ -z "$A_EMB" ] || [ "$A_EMB" = "null" ] || [ -z "$B_EMB" ] || [ "$B_EMB" = "null" ]; then
-            echo "::warning::GH Models returned 200 but embeddings missing — Pocket Watch skipped"
+          # Sanity check: confirm the response files contain a parseable
+          # embedding array before invoking python. Use jq -e to fail
+          # cleanly on missing path.
+          if ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/a_emb.json >/dev/null 2>&1 \
+             || ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/b_emb.json >/dev/null 2>&1; then
+            ERR_A=$(head -c 300 /tmp/a_emb.json 2>/dev/null)
+            ERR_B=$(head -c 300 /tmp/b_emb.json 2>/dev/null)
+            echo "::warning::GH Models returned 200 but response shape unexpected — Pocket Watch skipped. a=$ERR_A | b=$ERR_B"
             echo "passed=skipped" >> "$GITHUB_OUTPUT"
             echo "cosine="          >> "$GITHUB_OUTPUT"
-            echo "reason=embeddings-missing-in-response" >> "$GITHUB_OUTPUT"
+            echo "reason=response-shape-unexpected" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          COSINE=$(python3 -c "
-          import json, sys
-          a=json.loads('$A_EMB'); b=json.loads('$B_EMB')
-          if not a or not b: print('0.0'); sys.exit()
-          dot=sum(x*y for x,y in zip(a,b))
-          na=sum(x*x for x in a)**0.5; nb=sum(x*x for x in b)**0.5
-          print(f'{dot/(na*nb):.4f}' if na*nb > 0 else '0.0')
-          " 2>/dev/null || echo "")
+          # Compute cosine via python reading the FILES directly.
+          # NEVER shell-interpolate the 30kB embedding arrays into `python3 -c`
+          # — text-embedding-3-small returns 1536-dim arrays that the API
+          # may return pretty-printed with newlines, which break single-line
+          # python `-c` string literals (the exact bug we hit on PR #87:
+          # SyntaxError on EOL inside a json.loads(' ... ') call).
+          PY_ERR=/tmp/pocket-watch-py.err
+          : > "$PY_ERR"
+          COSINE=$(python3 - 2>"$PY_ERR" <<'PYEOF'
+          import json, sys, math
+          try:
+              with open('/tmp/a_emb.json') as f: a_resp = json.load(f)
+              with open('/tmp/b_emb.json') as f: b_resp = json.load(f)
+              a = a_resp['data'][0]['embedding']
+              b = b_resp['data'][0]['embedding']
+              if not isinstance(a, list) or not isinstance(b, list) or not a or not b:
+                  print(f'shape: a_type={type(a).__name__} a_len={len(a) if hasattr(a,"__len__") else "?"} b_type={type(b).__name__} b_len={len(b) if hasattr(b,"__len__") else "?"}', file=sys.stderr)
+                  sys.exit(1)
+              dot = sum(x*y for x, y in zip(a, b))
+              na = math.sqrt(sum(x*x for x in a))
+              nb = math.sqrt(sum(x*x for x in b))
+              if na * nb == 0:
+                  print('zero-norm: na={na} nb={nb}', file=sys.stderr)
+                  sys.exit(1)
+              print(f'{dot / (na * nb):.4f}')
+          except Exception as e:
+              print(f'python-exception: {type(e).__name__}: {e}', file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+          )
 
           if [ -z "$COSINE" ]; then
-            echo "::warning::Cosine computation failed — Pocket Watch skipped"
+            ERR_DETAILS=$(head -c 500 "$PY_ERR" 2>/dev/null || echo "(stderr empty)")
+            RESP_A=$(head -c 200 /tmp/a_emb.json 2>/dev/null || echo "(missing)")
+            # ::error:: is louder than ::warning:: and shows in the run summary.
+            # We still set passed=skipped (audit not blocked) but the error
+            # annotation makes the failure VISIBLE for triage. Per user
+            # feedback: "we need the pocket watch to work" — silent skip is
+            # the wrong default.
+            echo "::error title=Pocket Watch failed::cosine computation failed — $ERR_DETAILS"
+            echo "::group::Pocket Watch diagnostic"
+            echo "PY_ERR contents:"; cat "$PY_ERR"
+            echo "---"
+            echo "a_emb.json head (first 300 chars):"; head -c 300 /tmp/a_emb.json; echo ""
+            echo "b_emb.json head (first 300 chars):"; head -c 300 /tmp/b_emb.json; echo ""
+            echo "::endgroup::"
             echo "passed=skipped" >> "$GITHUB_OUTPUT"
             echo "cosine="          >> "$GITHUB_OUTPUT"
-            echo "reason=cosine-computation-failed" >> "$GITHUB_OUTPUT"
+            echo "reason=cosine-failed: ${ERR_DETAILS:0:120}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
