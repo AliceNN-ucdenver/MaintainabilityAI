@@ -45,7 +45,17 @@
   }
 
   .home-hero {
-    background: linear-gradient(135deg, #020617 0%, #0b1020 46%, #111827 100%);
+    /* Two-stop overlay: solid-ish on the left (behind the headline)
+       so the white text stays readable; thinner on the right so the
+       Alice + Cheshire + Hatter scene shows through. `auto 100%` keeps
+       the full 3-character composition visible (image is 2.4:1, hero
+       is ~1.5:1 — `cover` would crop two of the three characters). */
+    background-image:
+      linear-gradient(90deg, rgba(2, 6, 23, 0.92) 0%, rgba(2, 6, 23, 0.78) 35%, rgba(11, 16, 32, 0.4) 70%, rgba(17, 24, 39, 0.5) 100%),
+      url('/images/home-page.png');
+    background-size: auto 100%, auto;
+    background-position: right center;
+    background-repeat: no-repeat;
   }
 
   /* Three soft radial glows hinting at the three subsystems:
