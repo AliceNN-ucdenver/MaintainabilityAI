@@ -45,7 +45,7 @@ test('arxivSearch: GET to export.arxiv.org with encoded all: query', async () =>
     return new Response(SAMPLE_ATOM, { status: 200 });
   };
   const result = await arxivSearch({ query: 'agentic planning', fetchImpl });
-  assert.match(capturedUrl, /^http:\/\/export\.arxiv\.org\/api\/query\?/);
+  assert.match(capturedUrl, /^https:\/\/export\.arxiv\.org\/api\/query\?/);
   assert.match(capturedUrl, /search_query=all%3Aagentic%20planning/);
   assert.equal(result.results.length, 2);
   assert.ok(result.responseBytes > 0);

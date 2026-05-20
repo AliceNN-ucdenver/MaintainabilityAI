@@ -37,7 +37,12 @@ export interface ArxivSearchResult {
   httpStatus: number;
 }
 
-const DEFAULT_ENDPOINT = 'http://export.arxiv.org/api/query';
+// HTTPS — arXiv has supported it for years. Using plain HTTP previously
+// caused agentic-SDLC runs to be blocked by the Copilot Coding Agent
+// firewall, which allow-lists `https://export.arxiv.org/` (the canonical
+// HTTPS form); a plain-http GET against the same host is a protocol-
+// mismatch and rejected as `http block`. See B-PR1f forensics.
+const DEFAULT_ENDPOINT = 'https://export.arxiv.org/api/query';
 
 export async function arxivSearch(opts: ArxivSearchOpts): Promise<ArxivSearchResult> {
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;

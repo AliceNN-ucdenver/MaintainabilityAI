@@ -417,6 +417,40 @@ const SearchQueriesInput = z.object({
   maxResults: z.number().int().positive().optional(),
 });
 
+/**
+ * Shape that every search-skill returns on success. Mirrors what
+ * `Promise.allSettled` produces in the node wrappers — per-query
+ * envelopes (with optional error) plus the flattened results array.
+ */
+type SearchEnvelope = { query: string; error?: string };
+
+/**
+ * Decide whether a per-query envelope set means "the provider was reachable
+ * at least once" (=> `ok: true`) or "every single query failed" (=> `ok:
+ * false, reason: all-queries-failed`).
+ *
+ * Why this matters: previously the handlers returned `ok: true` even when
+ * 100% of queries failed (because `runTavilySearch` etc. use
+ * `Promise.allSettled` and never throw). That made `result_count: 0`
+ * ambiguous — could be "API reached, no matches" OR "firewall blocked
+ * every call." The agentic-SDLC evidence-honesty gate (§11.1.7) counts
+ * ok=true as a successful provider call; this fix is what makes that
+ * count actually meaningful.
+ *
+ * Returns `null` when at least one query reached the provider (the
+ * skill returns ok:true). Otherwise returns the failure reason string
+ * the skill should surface in `reason`.
+ */
+function detectAllQueriesFailed(envelopes: SearchEnvelope[], skill: string): string | null {
+  if (envelopes.length === 0) { return null; }
+  const allErrored = envelopes.every(e => e.error !== undefined && e.error.length > 0);
+  if (!allErrored) { return null; }
+  const firstError = envelopes[0].error ?? 'unknown';
+  // `all-queries-failed:` prefix is load-bearing for the audit-validate gate's
+  // pattern matching of firewall-block vs query-quality failures.
+  return `all-queries-failed: ${skill} — ${firstError}`;
+}
+
 const handleTavilySearch: SkillHandler = async (input) => {
   const parsed = SearchQueriesInput.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
@@ -428,6 +462,8 @@ const handleTavilySearch: SkillHandler = async (input) => {
       queries: parsed.data.queries,
       maxResultsPerQuery: parsed.data.maxResults,
     });
+    const failure = detectAllQueriesFailed(res.envelopes, 'tavily-search');
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
     return { ok: true, envelopes: res.envelopes, results: res.results };
   } catch (err) {
     return { ok: false, reason: `tavily-failed: ${(err as Error).message}` };
@@ -442,6 +478,8 @@ const handleArxivSearch: SkillHandler = async (input) => {
       queries: parsed.data.queries,
       maxResultsPerQuery: parsed.data.maxResults,
     });
+    const failure = detectAllQueriesFailed(res.envelopes, 'arxiv-search');
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
     return { ok: true, envelopes: res.envelopes, results: res.results };
   } catch (err) {
     return { ok: false, reason: `arxiv-failed: ${(err as Error).message}` };
@@ -459,6 +497,8 @@ const handleUsptoSearch: SkillHandler = async (input) => {
       queries: parsed.data.queries,
       maxResultsPerQuery: parsed.data.maxResults,
     });
+    const failure = detectAllQueriesFailed(res.envelopes, 'uspto-search');
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
     return { ok: true, envelopes: res.envelopes, results: res.results };
   } catch (err) {
     return { ok: false, reason: `uspto-failed: ${(err as Error).message}` };
@@ -473,6 +513,8 @@ const handleHackerNewsSearch: SkillHandler = async (input) => {
       queries: parsed.data.queries,
       hitsPerQuery: parsed.data.maxResults,
     });
+    const failure = detectAllQueriesFailed(res.envelopes, 'hackernews-search');
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
     return { ok: true, envelopes: res.envelopes, results: res.results };
   } catch (err) {
     return { ok: false, reason: `hackernews-failed: ${(err as Error).message}` };
