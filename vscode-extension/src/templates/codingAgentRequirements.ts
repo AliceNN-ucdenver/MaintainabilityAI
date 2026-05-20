@@ -102,7 +102,18 @@ export const CODING_AGENT_HOSTS: CodingAgentHostSpec[] = [
     host: 'api.uspto.gov',
     url: 'https://api.uspto.gov/',
     usedBy: ['uspto-search'],
-    purpose: 'USPTO Open Data Portal',
+    purpose: 'USPTO Open Data Portal — stage-1 patent search (returns IDs)',
+  },
+  {
+    // USPTO's two-stage fetch: api.uspto.gov returns patent IDs +
+    // grantDocumentMetaData.fileLocationURI pointers to data.uspto.gov,
+    // which is where the abstract XML actually lives. Without this entry,
+    // stage-1 succeeds with N hits but every result has empty abstract.
+    // See B-PR1f forensics.
+    host: 'data.uspto.gov',
+    url: 'https://data.uspto.gov/',
+    usedBy: ['uspto-search'],
+    purpose: 'USPTO Open Data Portal — stage-2 abstract XML fetch (resolved from fileLocationURI)',
   },
   {
     host: 'export.arxiv.org',

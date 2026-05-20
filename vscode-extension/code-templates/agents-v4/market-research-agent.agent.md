@@ -57,6 +57,34 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 12. Open a PR with the artifact + label it `research-synthesis`.
 13. Invoke `audit-emit-event` for every Skill invocation throughout the run AND a final `artifact_written` event after the PR opens.
 
+### Audit payload schema for search Skills (§11.1.6, B-PR1f)
+
+When you emit a `skill_call` event for any of `tavily-search` / `arxiv-search` / `uspto-search` / `hackernews-search`, the payload MUST include the `queries` array you sent to the skill, in addition to `skill`, `ok`, and `result_count`. This makes `verify-chain` able to replay what was searched without needing the runner log, which is transient.
+
+Example shape:
+
+```json
+{
+  "okrId": "OKR-...",
+  "runId": "WHY-...",
+  "eventKind": "skill_call",
+  "phase": "why",
+  "intentThreadUuid": "...",
+  "payload": {
+    "skill": "tavily-search",
+    "ok": true,
+    "result_count": 40,
+    "queries": [
+      "celebrity profile API licensing terms compliance 2026",
+      "celebrity data licensing GDPR CCPA publicity rights 2026",
+      "..."
+    ]
+  }
+}
+```
+
+Apply the same rule to the gap-loop second-pass `skill_call` events — include the (up to 3) follow-up queries in the payload's `queries` field. This makes the run's evidence trail self-contained: the audit JSONL alone (without runner logs) is sufficient for `verify-chain` to replay both what was searched and what was returned.
+
 ## Hard rules
 
 - Never invoke a Skill not in the `tools:` list above. Deployment refuses to land agents that reference undeclared Skills.

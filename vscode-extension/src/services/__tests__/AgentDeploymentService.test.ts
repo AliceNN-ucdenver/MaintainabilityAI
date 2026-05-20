@@ -263,6 +263,7 @@ describe('AgentDeploymentService.getCopilotEnvStatus', () => {
     expect(status.hosts.map(h => h.host).sort()).toEqual([
       'api.tavily.com',
       'api.uspto.gov',
+      'data.uspto.gov',
       'export.arxiv.org',
       'hn.algolia.com',
     ].sort());

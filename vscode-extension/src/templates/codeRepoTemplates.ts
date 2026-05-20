@@ -466,6 +466,18 @@ export function generateAuditValidateWorkflow(extensionPath: string): string {
 }
 
 /**
+ * Phase B-PR1f — `pr-auto-label.yml` applies `research-synthesis` /
+ * `prd-draft` / `design-draft` labels to artifact PRs based on changed
+ * file paths. Server-side fallback for when the author agent forgets
+ * the labeling step in its prompt (which it did on the first live-
+ * evidence WHY run on the IMDB-Lite mesh). Cannot be bypassed; works
+ * for human-authored PRs too. Idempotent on re-runs.
+ */
+export function generatePrAutoLabelWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'pr-auto-label.yml');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -495,5 +507,7 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/drift-gate.yml',        generate: generateDriftGateWorkflow },
   // Phase B-PR1c — evidence-honesty gate on artifact PRs
   { relativePath: '.github/workflows/audit-validate.yml',    generate: generateAuditValidateWorkflow },
+  // Phase B-PR1f — auto-apply artifact-phase labels by file path
+  { relativePath: '.github/workflows/pr-auto-label.yml',     generate: generatePrAutoLabelWorkflow },
 ];
 

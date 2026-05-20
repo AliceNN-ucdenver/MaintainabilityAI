@@ -99,7 +99,7 @@ jobs:
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "path=$JSONL_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Count successful skill_call events
+      - name: Count successful skill_call events + collect query lists
         id: counts
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         run: |
@@ -117,6 +117,18 @@ jobs:
           TOTAL=$((TAVILY + ARXIV + USPTO + HN))
           # Look for the optional reason carried on the gap-loop marker.
           GAP_REASON=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" | head -1)
+
+          # B-PR1f: collect distinct query counts per provider from the
+          # payload.queries arrays (the agent must include these on every
+          # search skill_call per the market-research-agent prompt).
+          count_queries() {
+            jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill) | .payload.queries // [] | .[]' "$JSONL_PATH" | sort -u | wc -l | tr -d ' '
+          }
+          TAVILY_Q=$(count_queries 'tavily-search')
+          ARXIV_Q=$(count_queries 'arxiv-search')
+          USPTO_Q=$(count_queries 'uspto-search')
+          HN_Q=$(count_queries 'hackernews-search')
+
           echo "tavily=$TAVILY"       >> "$GITHUB_OUTPUT"
           echo "arxiv=$ARXIV"         >> "$GITHUB_OUTPUT"
           echo "uspto=$USPTO"         >> "$GITHUB_OUTPUT"
@@ -124,7 +136,12 @@ jobs:
           echo "total=$TOTAL"         >> "$GITHUB_OUTPUT"
           echo "gap_loop=$GAP_LOOP"   >> "$GITHUB_OUTPUT"
           echo "gap_reason=$GAP_REASON" >> "$GITHUB_OUTPUT"
+          echo "tavily_q=$TAVILY_Q"   >> "$GITHUB_OUTPUT"
+          echo "arxiv_q=$ARXIV_Q"     >> "$GITHUB_OUTPUT"
+          echo "uspto_q=$USPTO_Q"     >> "$GITHUB_OUTPUT"
+          echo "hn_q=$HN_Q"           >> "$GITHUB_OUTPUT"
           echo "::notice::successful provider skill_calls — tavily=$TAVILY arxiv=$ARXIV uspto=$USPTO hn=$HN gap-loop=$GAP_LOOP (total=$TOTAL)"
+          echo "::notice::distinct queries by provider — tavily=$TAVILY_Q arxiv=$ARXIV_Q uspto=$USPTO_Q hn=$HN_Q"
 
       # ── Structural correctness on research-doc.md ────────────────────
       # Only runs for research-synthesis PRs — PRD + design have their
@@ -286,6 +303,10 @@ jobs:
           TOTAL: ${{ steps.counts.outputs.total }}
           GAP_LOOP: ${{ steps.counts.outputs.gap_loop }}
           GAP_REASON: ${{ steps.counts.outputs.gap_reason }}
+          TAVILY_Q: ${{ steps.counts.outputs.tavily_q }}
+          ARXIV_Q: ${{ steps.counts.outputs.arxiv_q }}
+          USPTO_Q: ${{ steps.counts.outputs.uspto_q }}
+          HN_Q: ${{ steps.counts.outputs.hn_q }}
           DOC_FOUND: ${{ steps.structure.outputs.doc_found }}
           DOC_PATH: ${{ steps.structure.outputs.doc_path }}
           H2_PRESENT: ${{ steps.structure.outputs.h2_present }}
@@ -315,13 +336,14 @@ jobs:
 
           if [ "$AUDIT_FOUND" = "true" ]; then
             printf '**Provider skill_calls** (`%s`):\n\n' "$AUDIT_PATH" >> "$BODY"
-            printf '| Provider | Successful calls |\n' >> "$BODY"
-            printf '|---|---:|\n' >> "$BODY"
-            printf '| tavily-search | %s |\n' "$TAVILY" >> "$BODY"
-            printf '| arxiv-search | %s |\n' "$ARXIV" >> "$BODY"
-            printf '| uspto-search | %s |\n' "$USPTO" >> "$BODY"
-            printf '| hackernews-search | %s |\n' "$HN" >> "$BODY"
-            printf '| **Total** | **%s** |\n\n' "$TOTAL" >> "$BODY"
+            printf '| Provider | Successful calls | Distinct queries searched |\n' >> "$BODY"
+            printf '|---|---:|---:|\n' >> "$BODY"
+            printf '| tavily-search | %s | %s |\n' "$TAVILY" "${TAVILY_Q:-0}" >> "$BODY"
+            printf '| arxiv-search | %s | %s |\n' "$ARXIV" "${ARXIV_Q:-0}" >> "$BODY"
+            printf '| uspto-search | %s | %s |\n' "$USPTO" "${USPTO_Q:-0}" >> "$BODY"
+            printf '| hackernews-search | %s | %s |\n' "$HN" "${HN_Q:-0}" >> "$BODY"
+            printf '| **Total** | **%s** | — |\n\n' "$TOTAL" >> "$BODY"
+            printf '_Query lists are preserved verbatim in the audit JSONL under `payload.queries` — `verify-chain` (Phase E) can replay them without the runner log._\n\n' >> "$BODY"
           else
             printf '_Audit JSONL not found at `%s`._\n\n' "$AUDIT_PATH" >> "$BODY"
           fi

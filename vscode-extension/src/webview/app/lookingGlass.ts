@@ -1902,6 +1902,7 @@ function renderSettingsWorkflow(): string {
         <li><code>design-bus.yml</code> — fans out per-repo landing issues to <code>targetCodeRepos[]</code> on code-design PR merge</li>
         <li><code>drift-gate.yml</code> — White Rabbit's Pocket Watch + Caterpillar's Challenge semantic-drift gates using GitHub Models embeddings</li>
         <li><code>audit-validate.yml</code> — evidence-honesty gate (§11.1.7) + research-doc structural correctness on artifact PRs; applies <code>research-pass</code> on clean WHY runs, <code>degraded-evidence</code> when the Hatter Tag's <code>evidence_mode</code> contradicts the audit JSONL or required sections are missing</li>
+        <li><code>pr-auto-label.yml</code> — applies <code>research-synthesis</code> / <code>prd-draft</code> / <code>design-draft</code> labels by file path on every PR event (server-side fallback for the author-agent prompt's labeling step; deterministic, cannot be skipped)</li>
       </ul>
       <p class="text-muted" style="margin-top: 8px;">
         <strong>Required mesh-repo secrets</strong> (configure via the <em>Research + PRD Agents</em> section below):
