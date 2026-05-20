@@ -45,7 +45,7 @@ import {
   generatePlatformDecisionsYaml,
   generateSampleImdbPlatformArch,
 } from '../templates/mesh';
-import { MESH_WORKFLOWS } from '../templates/codeRepoTemplates';
+import { MESH_WORKFLOWS, DEPRECATED_MESH_FILES } from '../templates/codeRepoTemplates';
 
 export { MeshReader } from '../core/mesh-reader';
 
@@ -655,17 +655,41 @@ export class MeshService {
    * progress reporting.
    */
   writeMeshWorkflows(meshPath: string, extensionPath: string): string[] {
-    const workflowDir = path.join(meshPath, '.github', 'workflows');
-    fs.mkdirSync(workflowDir, { recursive: true });
-
+    // Per-spec mkdir so we handle both `.github/workflows/*.yml` and
+    // `.github/actions/<name>/action.yml` (composite actions need a
+    // per-action subdirectory). Previously this only created
+    // `.github/workflows/`, which silently dropped composite actions.
     const written: string[] = [];
     for (const spec of MESH_WORKFLOWS) {
       const content = spec.generate(extensionPath);
       if (!content) { continue; }
-      fs.writeFileSync(path.join(meshPath, spec.relativePath), content, 'utf8');
+      const destPath = path.join(meshPath, spec.relativePath);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.writeFileSync(destPath, content, 'utf8');
       written.push(spec.relativePath);
     }
     return written;
+  }
+
+  /**
+   * Delete superseded workflow/action files from the mesh repo. Used after
+   * `writeMeshWorkflows` so the Redeploy click leaves the .github/ tree
+   * clean as the per-agent consolidation rolls out incrementally.
+   *
+   * Returns the list of files actually deleted (paths that didn't exist
+   * are silently skipped). Caller commits + pushes — this function only
+   * touches the working tree.
+   */
+  pruneDeprecatedWorkflows(meshPath: string): string[] {
+    const removed: string[] = [];
+    for (const relativePath of DEPRECATED_MESH_FILES) {
+      const fullPath = path.join(meshPath, relativePath);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        removed.push(relativePath);
+      }
+    }
+    return removed;
   }
 
   /**

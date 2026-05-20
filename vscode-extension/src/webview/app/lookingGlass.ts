@@ -1881,29 +1881,42 @@ function renderSettingsWorkflow(): string {
     <div class="settings-section">
       <h3>Mesh Workflows ${settingsRepoHint()}</h3>
       <p class="text-muted">
-        Looking Glass writes these GitHub Action workflows into this mesh repo's
-        <code>.github/workflows/</code> (canonical list:
-        <code>MESH_WORKFLOWS</code> in <code>src/templates/codeRepoTemplates.ts</code>):
+        Looking Glass writes these GitHub Action workflows + composite actions
+        into this mesh repo. Canonical list:
+        <code>MESH_WORKFLOWS</code> in <code>src/templates/codeRepoTemplates.ts</code>.
       </p>
-      <p class="text-muted" style="margin: 8px 0 4px;"><strong>Legacy CI pipelines</strong> (research → PRD → spec-ready handoff, pre-agentic):</p>
+      <p class="text-muted" style="margin: 8px 0 4px;"><strong>BAR-page workflow:</strong></p>
       <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc;">
-        <li><code>oraculum-review.yml</code> — automated architecture review on labeled issues</li>
-        <li><code>oraculum-research.yml</code> — research synthesis when <code>@claude</code> is mentioned on an <code>oraculum-research</code>-labeled issue</li>
-        <li><code>archeologist.yml</code> — research data-collection (plan + search + gap analysis); posts results back to the issue</li>
-        <li><code>prd.yml</code> — PRD agent with grounding loop</li>
-        <li><code>label-on-merge.yml</code> — research → PRD → spec-ready bus handler</li>
-        <li><code>notify-code-repos.yml</code> — opens a PRD landing-issue in each target code repo</li>
+        <li><code>oraculum-review.yml</code> — BAR architecture-vs-code drift review (triggered from the BAR page; separate domain from the agentic-SDLC OKR pipeline)</li>
       </ul>
-      <p class="text-muted" style="margin: 8px 0 4px;"><strong>Agentic-SDLC bus + gate workflows</strong> (Phase B + C):</p>
+      <p class="text-muted" style="margin: 8px 0 4px;"><strong>Agentic-SDLC per-agent workflows</strong> (B20 consolidation in progress):</p>
       <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc;">
-        <li><code>okr-bus.yml</code> — fires on <code>oraculum-research/prd/design</code> issue labels; bumps the OKR YAML <code>actions[]</code> + fallback agent dispatch</li>
-        <li><code>reviewer-bus.yml</code> — dispatches <code>architect-reviewer</code> + <code>security-reviewer</code> in parallel on <code>prd-draft</code> / <code>design-draft</code> PRs (research-synthesis bypasses this — descriptive doc, no scoring)</li>
-        <li><code>okr-state-machine.yml</code> — promotes master <code>governance-pass</code> when both reviewer pass-labels present; escalates to <code>needs-human-review</code> at tier MAX_AUTO_ROUNDS</li>
-        <li><code>design-bus.yml</code> — fans out per-repo landing issues to <code>targetCodeRepos[]</code> on code-design PR merge</li>
-        <li><code>drift-gate.yml</code> — White Rabbit's Pocket Watch + Caterpillar's Challenge semantic-drift gates using GitHub Models embeddings</li>
-        <li><code>audit-validate.yml</code> — evidence-honesty gate (§11.1.7) + research-doc structural correctness on artifact PRs; applies <code>research-pass</code> on clean WHY runs, <code>degraded-evidence</code> when the Hatter Tag's <code>evidence_mode</code> contradicts the audit JSONL or required sections are missing</li>
-        <li><code>pr-auto-label.yml</code> — applies <code>research-synthesis</code> / <code>prd-draft</code> / <code>design-draft</code> labels by file path on every PR event (server-side fallback for the author-agent prompt's labeling step; deterministic, cannot be skipped)</li>
+        <li><code>market-research-agent.yml</code> ✓ — full WHY lifecycle: issue dispatch on <code>oraculum-research</code>, audit-and-drift on user-applied <code>research-synthesis</code> label (evidence honesty + 10/4 H2/H3 structural check + Pocket Watch goal-drift), finalize on merge</li>
+        <li><em>prd-agent.yml</em> (Phase B-PR1l, coming) — HOW lifecycle</li>
+        <li><em>code-design-agent.yml</em> (Phase B-PR1l, coming) — WHAT lifecycle + per-repo fanout</li>
+        <li><em>architect-reviewer.yml + security-reviewer.yml</em> (Phase B-PR1l, coming) — reviewer dispatch</li>
       </ul>
+      <p class="text-muted" style="margin: 8px 0 4px;"><strong>Composite actions</strong> (referenced by the per-agent workflows above):</p>
+      <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc;">
+        <li><code>.github/actions/extract-okr-context/</code> — parse Hatter Tag from PR body</li>
+        <li><code>.github/actions/count-skill-calls/</code> — per-provider audit counts + distinct query counts</li>
+        <li><code>.github/actions/check-tier-bound/</code> — tier → MAX_AUTO_ROUNDS resolution</li>
+      </ul>
+      <p class="text-muted" style="margin: 8px 0 4px;"><strong>Transitional workflows</strong> (still in use until B-PR1l folds them into per-agent files):</p>
+      <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc;">
+        <li><code>okr-bus.yml</code> — routes <code>oraculum-prd</code> + <code>oraculum-design</code> issues to their agents (WHY branch superseded by market-research-agent.yml)</li>
+        <li><code>reviewer-bus.yml</code> — dispatches architect + security reviewers on <code>prd-draft</code> / <code>design-draft</code></li>
+        <li><code>okr-state-machine.yml</code> — promotes <code>governance-pass</code> on PRD/design PRs when both reviewers pass</li>
+        <li><code>design-bus.yml</code> — per-repo fanout on code-design merge</li>
+        <li><code>drift-gate.yml</code> — Pocket Watch + Caterpillar's Challenge on PRD/design PRs (WHY branch removed in B20)</li>
+        <li><code>audit-validate.yml</code> — evidence honesty + structural checks on PRD/design PRs (WHY branch removed in B20)</li>
+      </ul>
+      <p class="text-muted" style="margin: 8px 0; font-size: 12px;">
+        Clicking <strong>Redeploy</strong> below also prunes deprecated workflow
+        files from this mesh (legacy pre-agentic CI pipeline + replaced
+        pr-auto-label). The mesh repo's <code>.github/</code> tree stays clean
+        across consolidation rolls.
+      </p>
       <p class="text-muted" style="margin-top: 8px;">
         <strong>Required mesh-repo secrets</strong> (configure via the <em>Research + PRD Agents</em> section below):
       </p>

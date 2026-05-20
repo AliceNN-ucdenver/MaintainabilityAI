@@ -38,8 +38,12 @@ concurrency:
 jobs:
   drift-gate:
     name: "Run Pocket Watch + Caterpillar's Challenge"
+    # B20 NOTE: research-synthesis intentionally EXCLUDED — Pocket Watch
+    # for the WHY phase is owned by market-research-agent.yml's
+    # audit-and-drift job. This workflow now only handles drift checks
+    # for PRD + design PRs until B-PR1l folds it into prd-agent +
+    # code-design-agent.
     if: >-
-      contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
       contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
       contains(github.event.pull_request.labels.*.name, 'design-draft')
     runs-on: ubuntu-latest

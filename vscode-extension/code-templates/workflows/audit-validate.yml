@@ -58,10 +58,13 @@ jobs:
     # Same-repo PRs only — fork PRs would still fire under
     # pull_request_target but our agentic-SDLC flow opens copilot/...
     # branches in the same repo.
+    # B20 NOTE: research-synthesis intentionally EXCLUDED — the WHY phase
+    # is owned end-to-end by market-research-agent.yml. This workflow now
+    # only handles prd-draft + design-draft until B-PR1l folds those into
+    # prd-agent.yml + code-design-agent.yml and this file is pruned.
     if: >-
       github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name &&
-      (contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
-      contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
+      (contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
       contains(github.event.pull_request.labels.*.name, 'design-draft'))
     runs-on: ubuntu-latest
     permissions:

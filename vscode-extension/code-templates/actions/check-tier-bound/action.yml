@@ -1,0 +1,66 @@
+name: "Resolve tier-bounded MAX_AUTO_ROUNDS for an OKR action"
+description: |
+  Reads `okrs/<okr_id>/okr.yaml`, finds the action by `runId`, returns
+  the action's frozen `governanceTier` plus the resulting
+  MAX_AUTO_ROUNDS per §6.2:
+
+      Autonomous → 1
+      Supervised → 2
+      Restricted → 0  (every artifact requires HumanGate)
+
+  Falls back to supervised+2 when the action can't be matched (defensive
+  default that errs toward more review, not less).
+
+inputs:
+  okr-id:
+    description: "OKR id (used to locate okrs/<id>/okr.yaml)"
+    required: true
+  run-id:
+    description: "The action's runId to match against actions[]"
+    required: true
+
+outputs:
+  tier:
+    description: "Frozen governance tier from the matched action"
+    value: ${{ steps.resolve.outputs.tier }}
+  max_auto_rounds:
+    description: "Tier → MAX_AUTO_ROUNDS lookup (autonomous=1, supervised=2, restricted=0)"
+    value: ${{ steps.resolve.outputs.max_auto_rounds }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve tier + MAX_AUTO_ROUNDS
+      id: resolve
+      shell: bash
+      env:
+        OKR_ID: ${{ inputs.okr-id }}
+        RUN_ID: ${{ inputs.run-id }}
+      run: |
+        OKR_FILE="okrs/$OKR_ID/okr.yaml"
+        if [ ! -f "$OKR_FILE" ]; then
+          echo "::warning::okr.yaml missing at $OKR_FILE — falling back to supervised+2"
+          echo "tier=supervised"     >> "$GITHUB_OUTPUT"
+          echo "max_auto_rounds=2"   >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Match by runId. yq is preinstalled on ubuntu-latest runners.
+        TIER=""
+        if yq --version >/dev/null 2>&1; then
+          TIER=$(yq -r --arg run "$RUN_ID" '.actions[]? | select(.runId == $run) | .governanceTier' "$OKR_FILE" 2>/dev/null || true)
+        fi
+        if [ -z "$TIER" ] || [ "$TIER" = "null" ]; then
+          TIER="supervised"
+        fi
+
+        case "$TIER" in
+          autonomous) MAX=1 ;;
+          supervised) MAX=2 ;;
+          restricted) MAX=0 ;;
+          *)          MAX=2 ;;
+        esac
+
+        echo "tier=$TIER"            >> "$GITHUB_OUTPUT"
+        echo "max_auto_rounds=$MAX"  >> "$GITHUB_OUTPUT"
+        echo "::notice::tier=$TIER MAX_AUTO_ROUNDS=$MAX (runId=$RUN_ID)"

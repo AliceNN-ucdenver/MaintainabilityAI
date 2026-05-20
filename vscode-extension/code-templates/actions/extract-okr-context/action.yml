@@ -1,0 +1,72 @@
+name: "Extract OKR context from PR body"
+description: |
+  Parses okr_id, run_id, phase, intent_thread_uuid, evidence_mode,
+  fresh_provider_search_performed, and author_did from the PR body's
+  Hatter Tag block. Outputs each as a separate step output so caller
+  workflows can branch on the values.
+
+  Returns empty strings when the PR has no Hatter Tag (legacy /
+  hand-written PRs). Callers should check the okr_id output and skip
+  remaining work when empty.
+
+inputs:
+  pr-number:
+    description: "Pull request number (used to fetch PR body via gh CLI)"
+    required: true
+  github-token:
+    description: "GitHub token with pull-requests:read permission"
+    required: true
+
+outputs:
+  okr_id:
+    description: "Extracted okr_id (e.g. OKR-2026Q2-IMDB-001-celeb-api). Empty if absent."
+    value: ${{ steps.parse.outputs.okr_id }}
+  run_id:
+    description: "Extracted run_id (e.g. WHY-2026-05-20-1tqhq5). Empty if absent."
+    value: ${{ steps.parse.outputs.run_id }}
+  phase:
+    description: "Extracted phase: why | how | what. Empty if absent."
+    value: ${{ steps.parse.outputs.phase }}
+  intent_thread_uuid:
+    description: "Cross-repo correlation key. Empty if absent."
+    value: ${{ steps.parse.outputs.intent_thread_uuid }}
+  evidence_mode:
+    description: "Hatter Tag evidence_mode: live | cached | mixed. Empty if absent."
+    value: ${{ steps.parse.outputs.evidence_mode }}
+  fresh_provider_search_performed:
+    description: "Hatter Tag fresh_provider_search_performed: true | false. Empty if absent."
+    value: ${{ steps.parse.outputs.fresh_provider_search_performed }}
+  author_did:
+    description: "Hatter Tag author_did for Tweedles enforcement. Empty if absent."
+    value: ${{ steps.parse.outputs.author_did }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Parse PR body
+      id: parse
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+      run: |
+        BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body)
+        OKR_ID=$(printf '%s' "$BODY" | grep -oE 'okr_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^okr_id:\s*//')
+        RUN_ID=$(printf '%s' "$BODY" | grep -oE 'run_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^run_id:\s*//')
+        PHASE=$(printf '%s' "$BODY" | grep -oE 'phase:\s*(why|how|what)' | head -1 | sed -E 's/^phase:\s*//')
+        INTENT=$(printf '%s' "$BODY" | grep -oE 'intent_thread_uuid:\s*[A-Za-z0-9-]+' | head -1 | sed -E 's/^intent_thread_uuid:\s*//')
+        EVIDENCE_MODE=$(printf '%s' "$BODY" | grep -oE 'evidence_mode:\s*(live|cached|mixed)' | head -1 | sed -E 's/^evidence_mode:\s*//')
+        FRESH=$(printf '%s' "$BODY" | grep -oE 'fresh_provider_search_performed:\s*(true|false)' | head -1 | sed -E 's/^fresh_provider_search_performed:\s*//')
+        AUTHOR_DID=$(printf '%s' "$BODY" | grep -oE 'author_did:\s*[^[:space:]]+' | head -1 | sed -E 's/^author_did:\s*//')
+
+        {
+          echo "okr_id=$OKR_ID"
+          echo "run_id=$RUN_ID"
+          echo "phase=$PHASE"
+          echo "intent_thread_uuid=$INTENT"
+          echo "evidence_mode=$EVIDENCE_MODE"
+          echo "fresh_provider_search_performed=$FRESH"
+          echo "author_did=$AUTHOR_DID"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH"

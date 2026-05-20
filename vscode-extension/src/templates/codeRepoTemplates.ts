@@ -466,15 +466,67 @@ export function generateAuditValidateWorkflow(extensionPath: string): string {
 }
 
 /**
- * Phase B-PR1f — `pr-auto-label.yml` applies `research-synthesis` /
- * `prd-draft` / `design-draft` labels to artifact PRs based on changed
- * file paths. Server-side fallback for when the author agent forgets
- * the labeling step in its prompt (which it did on the first live-
- * evidence WHY run on the IMDB-Lite mesh). Cannot be bypassed; works
- * for human-authored PRs too. Idempotent on re-runs.
+ * Phase B-PR1f — DEPRECATED. `pr-auto-label.yml` was the server-side
+ * fallback for the author-agent's forgotten labeling step. Superseded
+ * by B20's user-triggered label flow (Looking Glass applies the label
+ * via user PAT on click of "Run audit"). Removed from MESH_WORKFLOWS
+ * registry; `pruneDeprecatedWorkflows` deletes any stale copy from
+ * mesh repos on next redeploy.
+ *
+ * Kept as an exported function for backwards-compat with downstream
+ * tests that still reference it; returns empty string so a deployer
+ * calling this directly produces no file. Will be removed entirely
+ * once B-PR1l (HOW + WHAT consolidation) lands.
  */
-export function generatePrAutoLabelWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'pr-auto-label.yml');
+export function generatePrAutoLabelWorkflow(_extensionPath: string): string {
+  return '';
+}
+
+/**
+ * Phase B20 — `market-research-agent.yml` is the agent-keyed
+ * consolidation for the WHY phase. Single workflow file with three
+ * jobs (dispatch on issue, audit-and-drift on user-applied
+ * `research-synthesis` label, finalize on merge) replacing the
+ * WHY-phase branches of okr-bus.yml + audit-validate.yml +
+ * drift-gate.yml + pr-auto-label.yml.
+ *
+ * Depends on three composite actions under `.github/actions/`:
+ *   - extract-okr-context (parse Hatter Tag from PR body)
+ *   - count-skill-calls (per-provider audit count + distinct queries)
+ *   - check-tier-bound (tier → MAX_AUTO_ROUNDS resolution)
+ *
+ * See agentic-sdlc.md §13 B20.
+ */
+export function generateMarketResearchAgentWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'market-research-agent.yml');
+}
+
+/**
+ * Composite action: extract okr_id/run_id/phase/intent_thread_uuid/
+ * evidence_mode/fresh_provider_search_performed/author_did from a PR
+ * body's Hatter Tag block. Used by every per-agent workflow's
+ * audit-and-drift + finalize jobs to read the OKR identity off a PR.
+ */
+export function generateExtractOkrContextAction(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'actions', 'extract-okr-context', 'action.yml');
+}
+
+/**
+ * Composite action: count successful skill_call events per search
+ * provider + collect distinct-query counts from an audit JSONL.
+ * Used by every per-agent workflow's audit-and-drift job.
+ */
+export function generateCountSkillCallsAction(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'actions', 'count-skill-calls', 'action.yml');
+}
+
+/**
+ * Composite action: resolve frozen governanceTier + MAX_AUTO_ROUNDS
+ * for a given OKR action by runId. Used by prd-agent + code-design-
+ * agent state-machine jobs (revision-escalation, HumanGate transitions).
+ */
+export function generateCheckTierBoundAction(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'actions', 'check-tier-bound', 'action.yml');
 }
 
 /**
@@ -490,24 +542,62 @@ export interface MeshWorkflowSpec {
 }
 
 export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
+  // ── BAR-page domain (separate from agentic-SDLC) ─────────────────────
   { relativePath: '.github/workflows/oraculum-review.yml',   generate: generateOraculumWorkflow },
-  { relativePath: '.github/workflows/oraculum-research.yml', generate: generateOraculumResearchWorkflow },
-  { relativePath: '.github/workflows/archeologist.yml',      generate: generateArcheologistWorkflow },
-  { relativePath: '.github/workflows/prd.yml',               generate: generatePrdWorkflow },
-  { relativePath: '.github/workflows/label-on-merge.yml',    generate: generateLabelOnMergeWorkflow },
-  { relativePath: '.github/workflows/notify-code-repos.yml', generate: generateNotifyCodeReposWorkflow },
-  // Phase C-PR1 — agentic-SDLC bus workflows
+
+  // ── Phase B20 per-agent workflows ────────────────────────────────────
+  // market-research-agent owns the complete WHY phase (issue dispatch +
+  // audit-and-drift + finalize). Replaces the WHY branches of okr-bus,
+  // audit-validate, drift-gate, and pr-auto-label.
+  { relativePath: '.github/workflows/market-research-agent.yml', generate: generateMarketResearchAgentWorkflow },
+  // prd-agent.yml + code-design-agent.yml + architect-reviewer.yml +
+  // security-reviewer.yml land in B-PR1l (HOW + WHAT + reviewer consolidation).
+
+  // ── Composite actions (referenced by per-agent workflows) ────────────
+  { relativePath: '.github/actions/extract-okr-context/action.yml', generate: generateExtractOkrContextAction },
+  { relativePath: '.github/actions/count-skill-calls/action.yml',   generate: generateCountSkillCallsAction },
+  { relativePath: '.github/actions/check-tier-bound/action.yml',    generate: generateCheckTierBoundAction },
+
+  // ── TRANSITIONAL: still handling HOW + WHAT until B-PR1l ─────────────
+  // okr-bus.yml's WHY branch is dead code (market-research-agent.yml
+  // intercepts oraculum-research-labeled issues first) but it still
+  // routes oraculum-prd + oraculum-design. Will be deleted in B-PR1l.
   { relativePath: '.github/workflows/okr-bus.yml',           generate: generateOkrBusWorkflow },
+  // reviewer-bus.yml dispatches architect + security reviewers; replaced
+  // by architect-reviewer.yml + security-reviewer.yml in B-PR1l.
   { relativePath: '.github/workflows/reviewer-bus.yml',      generate: generateReviewerBusWorkflow },
-  // Phase C-PR2 — state machine + round counter
+  // okr-state-machine.yml handles governance-pass promotion; folded into
+  // prd-agent.yml + code-design-agent.yml in B-PR1l.
   { relativePath: '.github/workflows/okr-state-machine.yml', generate: generateOkrStateMachineWorkflow },
-  // Phase C-PR4 — per-repo fan-out on code-design merge
+  // design-bus.yml fans out per-repo issues on code-design merge; folded
+  // into code-design-agent.yml's fanout job in B-PR1l.
   { relativePath: '.github/workflows/design-bus.yml',        generate: generateDesignBusWorkflow },
-  // Phase C-PR5 — Pocket Watch + Caterpillar's Challenge drift gates
+  // drift-gate.yml + audit-validate.yml — narrowed via if-condition to
+  // skip research-synthesis label (market-research-agent.yml owns WHY)
+  // but still run for prd-draft + design-draft. Folded into prd-agent
+  // + code-design-agent in B-PR1l.
   { relativePath: '.github/workflows/drift-gate.yml',        generate: generateDriftGateWorkflow },
-  // Phase B-PR1c — evidence-honesty gate on artifact PRs
   { relativePath: '.github/workflows/audit-validate.yml',    generate: generateAuditValidateWorkflow },
-  // Phase B-PR1f — auto-apply artifact-phase labels by file path
-  { relativePath: '.github/workflows/pr-auto-label.yml',     generate: generatePrAutoLabelWorkflow },
+];
+
+/**
+ * Files we used to deploy but no longer do — `pruneDeprecatedWorkflows`
+ * deletes any of these that still exist in the mesh repo on next
+ * "Redeploy Workflows" click. This is how Looking Glass keeps the mesh
+ * `.github/workflows/` tree clean as the per-agent consolidation rolls
+ * out incrementally.
+ *
+ * Add to this list whenever an entry is removed from MESH_WORKFLOWS.
+ * Never remove an entry once added (idempotent prune semantics).
+ */
+export const DEPRECATED_MESH_FILES: string[] = [
+  // ── Legacy CI pipeline (pre-agentic-SDLC) ────────────────────────────
+  '.github/workflows/oraculum-research.yml',
+  '.github/workflows/archeologist.yml',
+  '.github/workflows/prd.yml',
+  '.github/workflows/label-on-merge.yml',
+  '.github/workflows/notify-code-repos.yml',
+  // ── B-PR1f: replaced by user-triggered label flow (B20) ──────────────
+  '.github/workflows/pr-auto-label.yml',
 ];
 

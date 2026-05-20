@@ -1,0 +1,102 @@
+name: "Count successful skill_call audit events per search provider"
+description: |
+  Parses `okrs/<okr_id>/audit/events/<run_id>.jsonl` and emits per-provider
+  successful skill_call counts plus distinct-query counts. Successful is
+  defined as `event_kind == "skill_call" AND payload.ok != false`.
+
+  Drives the audit-and-drift jobs' evidence-honesty verdict. The skill
+  name list is fixed to the four search providers because those are the
+  ones the evidence-honesty gate cares about.
+
+inputs:
+  audit-jsonl-path:
+    description: "Path to the audit JSONL file (e.g. okrs/<id>/audit/events/<run>.jsonl)"
+    required: true
+
+outputs:
+  tavily:
+    description: "Successful tavily-search skill_call count"
+    value: ${{ steps.count.outputs.tavily }}
+  arxiv:
+    description: "Successful arxiv-search skill_call count"
+    value: ${{ steps.count.outputs.arxiv }}
+  uspto:
+    description: "Successful uspto-search skill_call count"
+    value: ${{ steps.count.outputs.uspto }}
+  hn:
+    description: "Successful hackernews-search skill_call count"
+    value: ${{ steps.count.outputs.hn }}
+  total:
+    description: "Sum of all four provider counts"
+    value: ${{ steps.count.outputs.total }}
+  gap_loop:
+    description: "Successful gap-loop marker count (0 = refinement skipped)"
+    value: ${{ steps.count.outputs.gap_loop }}
+  gap_reason:
+    description: "First gap-loop reason if present"
+    value: ${{ steps.count.outputs.gap_reason }}
+  tavily_q:
+    description: "Distinct queries searched against tavily across all events"
+    value: ${{ steps.count.outputs.tavily_q }}
+  arxiv_q:
+    description: "Distinct queries searched against arxiv"
+    value: ${{ steps.count.outputs.arxiv_q }}
+  uspto_q:
+    description: "Distinct queries searched against uspto"
+    value: ${{ steps.count.outputs.uspto_q }}
+  hn_q:
+    description: "Distinct queries searched against hackernews"
+    value: ${{ steps.count.outputs.hn_q }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Count skill calls + distinct queries
+      id: count
+      shell: bash
+      env:
+        JSONL_PATH: ${{ inputs.audit-jsonl-path }}
+      run: |
+        if [ ! -f "$JSONL_PATH" ]; then
+          echo "::warning::Audit JSONL missing at $JSONL_PATH — emitting zeros"
+          for key in tavily arxiv uspto hn total gap_loop tavily_q arxiv_q uspto_q hn_q; do
+            echo "$key=0" >> "$GITHUB_OUTPUT"
+          done
+          echo "gap_reason=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        count_skill() {
+          jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length'
+        }
+        count_queries() {
+          jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill) | .payload.queries // [] | .[]' "$JSONL_PATH" | sort -u | wc -l | tr -d ' '
+        }
+
+        TAVILY=$(count_skill 'tavily-search')
+        ARXIV=$(count_skill 'arxiv-search')
+        USPTO=$(count_skill 'uspto-search')
+        HN=$(count_skill 'hackernews-search')
+        GAP_LOOP=$(count_skill 'gap-loop')
+        TOTAL=$((TAVILY + ARXIV + USPTO + HN))
+        GAP_REASON=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" | head -1)
+
+        TAVILY_Q=$(count_queries 'tavily-search')
+        ARXIV_Q=$(count_queries 'arxiv-search')
+        USPTO_Q=$(count_queries 'uspto-search')
+        HN_Q=$(count_queries 'hackernews-search')
+
+        {
+          echo "tavily=$TAVILY"
+          echo "arxiv=$ARXIV"
+          echo "uspto=$USPTO"
+          echo "hn=$HN"
+          echo "total=$TOTAL"
+          echo "gap_loop=$GAP_LOOP"
+          echo "gap_reason=$GAP_REASON"
+          echo "tavily_q=$TAVILY_Q"
+          echo "arxiv_q=$ARXIV_Q"
+          echo "uspto_q=$USPTO_Q"
+          echo "hn_q=$HN_Q"
+        } >> "$GITHUB_OUTPUT"
+        echo "::notice::skill_calls tavily=$TAVILY arxiv=$ARXIV uspto=$USPTO hn=$HN (total=$TOTAL); gap-loop=$GAP_LOOP"

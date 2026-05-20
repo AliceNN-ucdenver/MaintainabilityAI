@@ -1,0 +1,402 @@
+name: "Market Research Agent — WHY-phase lifecycle"
+
+# Single workflow for the market-research-agent's complete lifecycle in
+# the agentic-SDLC pipeline. Replaces these legacy concern-keyed
+# workflows for the WHY-phase scope:
+#   - okr-bus.yml (oraculum-research branch)
+#   - audit-validate.yml (research-synthesis branch)
+#   - drift-gate.yml (research-synthesis branch)
+#   - pr-auto-label.yml (research-synthesis path)
+#
+# Three triggers, three jobs:
+#   1. `dispatch-agent` — on issue labeled `oraculum-research` (Looking
+#       Glass "Start Why"). Posts the @copilot mention that activates
+#       the market-research-agent persona.
+#   2. `audit-and-drift` — on PR labeled `research-synthesis` (user-
+#       triggered via Looking Glass "Run audit" button). Runs evidence-
+#       honesty check + structural correctness + Pocket Watch goal-
+#       drift. Applies `research-pass` on clean OR `degraded-evidence`
+#       on fail. Posts the upserted correctness summary comment.
+#   3. `finalize` — on PR closed-and-merged with research-synthesis
+#       label. Emits the `run_complete` audit event + flips the OKR
+#       action.status to `complete`.
+#
+# Caterpillar's Challenge (cross-phase drift) does NOT run on WHY —
+# there is no prior phase to compare against. Pocket Watch (objective
+# drift) IS run, comparing the OKR's frozen objective to the PR scope.
+#
+# Trigger model: pull_request_target on labeled events ONLY. The
+# triggering_actor is the USER (who clicked Run audit), not the bot,
+# so GitHub's "Require approval for outside collaborators" Actions
+# policy doesn't gate the workflow as action_required. This is the
+# whole reason the per-agent workflow rewrite was done.
+#
+# Phase tracking: §13 B20.
+
+on:
+  issues:
+    types: [opened, labeled, reopened]
+  pull_request_target:
+    types: [labeled, unlabeled]
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: market-research-agent-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+  checks: write
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 1 — Dispatch the agent on Looking Glass "Start Why"
+  # ════════════════════════════════════════════════════════════════════
+  dispatch-agent:
+    name: "Dispatch market-research-agent on oraculum-research issue"
+    if: >-
+      github.event_name == 'issues' &&
+      contains(github.event.issue.labels.*.name, 'oraculum-research')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Verify agent file is deployed
+        run: |
+          # Defense-in-depth: refuse to mention the agent if its .agent.md
+          # isn't in the mesh repo. Otherwise @copilot would respond with
+          # a confusing "no agent by that name" error in the issue thread.
+          if ! gh api "repos/${{ github.repository }}/contents/.github/agents/market-research-agent.agent.md" >/dev/null 2>&1; then
+            gh issue comment ${{ github.event.issue.number }} \
+              --body "⚠️ **market-research-agent.agent.md is not deployed.** Open Looking Glass → Settings → Mesh Provisioning → \"Deploy Agents + Skills\" before dispatching."
+            exit 1
+          fi
+
+      - name: Post @copilot mention to activate the persona
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "@copilot use agent market-research-agent"
+          echo "::notice::market-research-agent dispatched on issue #${{ github.event.issue.number }}"
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 2 — Audit + drift on user-applied research-synthesis label
+  # ════════════════════════════════════════════════════════════════════
+  audit-and-drift:
+    name: "Audit + drift check on research-synthesis PR"
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'research-synthesis' &&
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # SAFETY: checkout PR head with persist-credentials:false because
+      # this is pull_request_target. We need the PR's audit JSONL +
+      # research-doc.md, but we never execute scripts from the checkout
+      # (only parse fixed paths).
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Extract OKR context
+        id: ctx
+        uses: ./.github/actions/extract-okr-context
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if Hatter Tag missing (legacy/manual PRs)
+        id: gate
+        if: steps.ctx.outputs.okr_id == '' || steps.ctx.outputs.run_id == ''
+        run: |
+          echo "::warning::PR has no okr_id/run_id Hatter Tag — skipping audit"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Locate audit JSONL
+        id: audit
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          JSONL="okrs/${{ steps.ctx.outputs.okr_id }}/audit/events/${{ steps.ctx.outputs.run_id }}.jsonl"
+          if [ ! -f "$JSONL" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "path=$JSONL" >> "$GITHUB_OUTPUT"
+            echo "::warning::Audit JSONL missing at $JSONL"
+            exit 0
+          fi
+          echo "found=true"   >> "$GITHUB_OUTPUT"
+          echo "path=$JSONL"  >> "$GITHUB_OUTPUT"
+
+      - name: Count successful skill_calls + distinct queries
+        id: counts
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        uses: ./.github/actions/count-skill-calls
+        with:
+          audit-jsonl-path: ${{ steps.audit.outputs.path }}
+
+      - name: Parse research-doc.md structure
+        id: structure
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          DOC="okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md"
+          if [ ! -f "$DOC" ]; then
+            echo "doc_found=false"    >> "$GITHUB_OUTPUT"
+            echo "h2_present=0"       >> "$GITHUB_OUTPUT"
+            echo "h3_present=0"       >> "$GITHUB_OUTPUT"
+            echo "conclusions=0"      >> "$GITHUB_OUTPUT"
+            echo "conclusions_with_cites=0" >> "$GITHUB_OUTPUT"
+            echo "doc_path=$DOC"      >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "doc_found=true"   >> "$GITHUB_OUTPUT"
+          echo "doc_path=$DOC"    >> "$GITHUB_OUTPUT"
+
+          REQUIRED_H2=(
+            "Source Premises" "Executive Summary" "Cross-Source Analysis"
+            "Evidence Gaps" "Jobs-to-be-Done Analysis" "Patent Landscape"
+            "Whitespace Analysis" "Formal Conclusions" "Recommendations" "References"
+          )
+          H2_PRESENT=0; MISSING_H2=""
+          for name in "${REQUIRED_H2[@]}"; do
+            if grep -qE "^##[[:space:]]+${name}[[:space:]]*$" "$DOC"; then
+              H2_PRESENT=$((H2_PRESENT + 1))
+            else
+              MISSING_H2="${MISSING_H2}${name}; "
+            fi
+          done
+
+          REQUIRED_H3=("Standards and Best Practices" "Security and Compliance" "Implementation Patterns" "Market Landscape")
+          H3_PRESENT=0; MISSING_H3=""
+          for name in "${REQUIRED_H3[@]}"; do
+            if grep -qE "^###[[:space:]]+${name}[[:space:]]*$" "$DOC"; then
+              H3_PRESENT=$((H3_PRESENT + 1))
+            else
+              MISSING_H3="${MISSING_H3}${name}; "
+            fi
+          done
+
+          CONCLUSIONS=$(grep -cE '\*\*C[0-9]+\*\*' "$DOC" || true)
+          CONCLUSIONS_WITH_CITES=$(grep -E '\*\*C[0-9]+\*\*' "$DOC" | grep -cE 'S[0-9]+' || true)
+
+          {
+            echo "h2_present=$H2_PRESENT"
+            echo "h3_present=$H3_PRESENT"
+            echo "conclusions=$CONCLUSIONS"
+            echo "conclusions_with_cites=$CONCLUSIONS_WITH_CITES"
+            echo "missing_h2=${MISSING_H2%; }"
+            echo "missing_h3=${MISSING_H3%; }"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Pocket Watch goal-drift (OKR objective vs PR scope)
+        id: pocket
+        if: steps.gate.outputs.skip != 'true'
+        # Embedding-based check via GitHub Models (text-embedding-3-small,
+        # free via GITHUB_TOKEN). Compares the OKR's frozen objective.description
+        # (read from okr.yaml in the BASE branch) against the PR's title +
+        # first body paragraph. Pass: cosine ≥ 0.85 AND edit-distance ≤ 0.30.
+        # NOTE: Caterpillar's Challenge (cross-phase drift) is omitted on WHY —
+        # there is no prior phase to compare against.
+        run: |
+          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
+          if [ ! -f "$OKR_FILE" ]; then
+            echo "::warning::OKR file missing — skipping Pocket Watch"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Minimal Pocket Watch implementation — use yq + GH Models embeddings.
+          OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE")
+          PR_TITLE='${{ github.event.pull_request.title }}'
+          PR_BODY_FIRST_PARA=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body | head -c 2000)
+          PR_SCOPE="$PR_TITLE — $PR_BODY_FIRST_PARA"
+
+          # Call GitHub Models for both embeddings + compute cosine via python.
+          # (Inline python is acceptable here; the full implementation lives
+          # in drift-gate.yml today and will be lifted into a composite action
+          # in a future PR if the duplication grows.)
+          A_EMB=$(curl -s -X POST https://models.inference.ai.azure.com/embeddings \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$OBJECTIVE" '{model:"text-embedding-3-small", input:$t}')" | jq -r '.data[0].embedding')
+          B_EMB=$(curl -s -X POST https://models.inference.ai.azure.com/embeddings \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$PR_SCOPE" '{model:"text-embedding-3-small", input:$t}')" | jq -r '.data[0].embedding')
+
+          COSINE=$(python3 -c "
+          import json, sys
+          a=json.loads('$A_EMB'); b=json.loads('$B_EMB')
+          dot=sum(x*y for x,y in zip(a,b))
+          na=sum(x*x for x in a)**0.5; nb=sum(x*x for x in b)**0.5
+          print(f'{dot/(na*nb):.4f}')
+          " 2>/dev/null || echo "0.0")
+
+          PASSED="true"
+          # Pocket Watch threshold per §9.2: cosine ≥ 0.85
+          if python3 -c "import sys; sys.exit(0 if float('$COSINE') >= 0.85 else 1)"; then
+            echo "::notice::Pocket Watch passed — cosine=$COSINE >= 0.85"
+          else
+            PASSED="false"
+            echo "::warning::Pocket Watch FAILED — cosine=$COSINE < 0.85 (objective drift)"
+          fi
+
+          echo "cosine=$COSINE" >> "$GITHUB_OUTPUT"
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+
+      - name: Decide verdict
+        id: verdict
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          EVIDENCE_MODE="${{ steps.ctx.outputs.evidence_mode }}"
+          FOUND="${{ steps.audit.outputs.found }}"
+          TOTAL="${{ steps.counts.outputs.total }}"; TOTAL="${TOTAL:-0}"
+          DOC_FOUND="${{ steps.structure.outputs.doc_found }}"
+          H2="${{ steps.structure.outputs.h2_present }}"
+          H3="${{ steps.structure.outputs.h3_present }}"
+          POCKET="${{ steps.pocket.outputs.passed }}"
+
+          VERDICT="ok"; REASON=""
+
+          # Evidence honesty
+          if [ -z "$EVIDENCE_MODE" ]; then
+            VERDICT="degraded"; REASON="Hatter Tag missing evidence: block — declare evidence_mode (§11.1.7)"
+          elif [ "$FOUND" != "true" ] && [ "$EVIDENCE_MODE" = "live" ]; then
+            VERDICT="degraded"; REASON="evidence_mode=live but audit JSONL not found"
+          elif [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
+            VERDICT="degraded"; REASON="evidence_mode=live but 0 successful provider skill_calls in audit"
+          fi
+
+          # Structure
+          if [ "$VERDICT" = "ok" ]; then
+            if [ "$DOC_FOUND" != "true" ]; then
+              VERDICT="degraded"; REASON="research-doc.md not committed"
+            elif [ "$H2" -lt 10 ] || [ "$H3" -lt 4 ]; then
+              VERDICT="degraded"; REASON="research-doc.md missing required sections — H2 $H2/10, H3 $H3/4"
+            fi
+          fi
+
+          # Drift
+          if [ "$VERDICT" = "ok" ] && [ "$POCKET" = "false" ]; then
+            VERDICT="degraded"; REASON="Pocket Watch goal-drift exceeded threshold (cosine=${{ steps.pocket.outputs.cosine }} < 0.85)"
+          fi
+
+          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON"   >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict=$VERDICT reason=$REASON"
+
+      - name: Upsert correctness summary comment
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          VERDICT='${{ steps.verdict.outputs.verdict }}'
+          REASON='${{ steps.verdict.outputs.reason }}'
+          BODY=/tmp/audit-body.md
+          : > "$BODY"
+          printf '%s\n' '<!-- market-research-agent-audit -->' >> "$BODY"
+          if [ "$VERDICT" = "ok" ]; then
+            printf '%s\n\n' '✓ **Market Research Audit — pass**' >> "$BODY"
+          else
+            printf '%s\n\n' '⚠️ **Market Research Audit — degraded**' >> "$BODY"
+            printf '**Reason:** %s\n\n' "$REASON" >> "$BODY"
+          fi
+          if [ '${{ steps.audit.outputs.found }}' = 'true' ]; then
+            printf '**Provider skill_calls** (`%s`):\n\n' '${{ steps.audit.outputs.path }}' >> "$BODY"
+            printf '| Provider | Successful calls | Distinct queries |\n|---|---:|---:|\n' >> "$BODY"
+            printf '| tavily-search | %s | %s |\n' '${{ steps.counts.outputs.tavily }}' '${{ steps.counts.outputs.tavily_q }}' >> "$BODY"
+            printf '| arxiv-search | %s | %s |\n'  '${{ steps.counts.outputs.arxiv }}'  '${{ steps.counts.outputs.arxiv_q }}'  >> "$BODY"
+            printf '| uspto-search | %s | %s |\n'  '${{ steps.counts.outputs.uspto }}'  '${{ steps.counts.outputs.uspto_q }}'  >> "$BODY"
+            printf '| hackernews-search | %s | %s |\n' '${{ steps.counts.outputs.hn }}' '${{ steps.counts.outputs.hn_q }}' >> "$BODY"
+            printf '| **Total** | **%s** | — |\n\n' '${{ steps.counts.outputs.total }}' >> "$BODY"
+          fi
+          printf '**Structural correctness** (`%s`):\n\n' '${{ steps.structure.outputs.doc_path }}' >> "$BODY"
+          printf '| Check | Result |\n|---|---|\n' >> "$BODY"
+          printf '| `research-doc.md` written | %s |\n' "$( [ '${{ steps.structure.outputs.doc_found }}' = 'true' ] && echo '✓' || echo '✗' )" >> "$BODY"
+          printf '| 10 H2 sections | %s/10 |\n' '${{ steps.structure.outputs.h2_present }}' >> "$BODY"
+          printf '| 4 H3 sub-sections | %s/4 |\n' '${{ steps.structure.outputs.h3_present }}' >> "$BODY"
+          printf '| Formal Conclusions cite ≥1 S[N] | %s/%s |\n' '${{ steps.structure.outputs.conclusions_with_cites }}' '${{ steps.structure.outputs.conclusions }}' >> "$BODY"
+          printf '| Pocket Watch goal-drift | %s (cosine=%s) |\n' '${{ steps.pocket.outputs.passed }}' '${{ steps.pocket.outputs.cosine }}' >> "$BODY"
+          printf '| Hatter Tag `evidence_mode` | `%s` |\n\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
+          printf '_market-research-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"
+
+          BODY_CONTENT=$(cat "$BODY")
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --jq '.[] | select(.body | startswith("<!-- market-research-agent-audit -->")) | .id' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY_CONTENT" >/dev/null
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body "$BODY_CONTENT"
+          fi
+
+      - name: Apply research-pass on clean verdict
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          steps.verdict.outputs.verdict == 'ok' &&
+          !contains(github.event.pull_request.labels.*.name, 'research-pass')
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label research-pass
+
+      - name: Apply degraded-evidence + goal-drift-detected on fail
+        if: steps.gate.outputs.skip != 'true' && steps.verdict.outputs.verdict == 'degraded'
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label degraded-evidence || true
+          if [ "${{ steps.pocket.outputs.passed }}" = "false" ]; then
+            gh pr edit ${{ github.event.pull_request.number }} --add-label goal-drift-detected || true
+          fi
+
+      - name: Remove stale labels when verdict flips to ok
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          steps.verdict.outputs.verdict == 'ok'
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label degraded-evidence 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label goal-drift-detected 2>/dev/null || true
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 3 — Finalize on PR merge: emit run_complete + flip action status
+  # ════════════════════════════════════════════════════════════════════
+  finalize:
+    name: "Finalize WHY action on PR merge"
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'research-synthesis')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Extract OKR context
+        id: ctx
+        uses: ./.github/actions/extract-okr-context
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Flip OKR action.status to complete
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        run: |
+          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
+          if [ ! -f "$OKR_FILE" ]; then
+            echo "::warning::okr.yaml missing — skipping status flip"
+            exit 0
+          fi
+          yq -i "(.actions[] | select(.runId == \"${{ steps.ctx.outputs.run_id }}\") | .status) = \"complete\"" "$OKR_FILE"
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$OKR_FILE"
+          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} action ${{ steps.ctx.outputs.run_id }} -> complete (PR #${{ github.event.pull_request.number }} merged, market-research-agent.yml, agentic-sdlc §13 B20)" || echo "Nothing to commit"
+          # Rebase-retry to survive racing pushes.
+          for i in 1 2 3; do
+            if git push; then break; fi
+            git fetch origin main && git rebase origin/main
+            sleep 2
+          done

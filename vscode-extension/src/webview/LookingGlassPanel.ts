@@ -4499,6 +4499,14 @@ Policy file: ${filename}
       // the mesh repo and the runner to keep using the original versions.
       promptPackService.seedMeshPrompts(meshPath, true);
       const written = this.meshService.writeMeshWorkflows(meshPath, this.context.extensionPath);
+      // B20: prune workflow files we used to deploy but no longer do. Keeps
+      // the mesh repo's `.github/` clean as the per-agent consolidation
+      // rolls out incrementally. Safe to call every redeploy — paths that
+      // don't exist are silently skipped.
+      const pruned = this.meshService.pruneDeprecatedWorkflows(meshPath);
+      if (pruned.length > 0) {
+        console.log(`[provision-workflow] Pruned ${pruned.length} deprecated file(s): ${pruned.join(', ')}`);
+      }
       // Provision the canonical OKR label catalog idempotently via
       // GitHubService — labels-on-create REQUIRE the label to exist,
       // so Start Why / How / What would otherwise fail with
