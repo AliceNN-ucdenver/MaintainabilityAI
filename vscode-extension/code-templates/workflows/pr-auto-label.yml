@@ -26,7 +26,18 @@ name: "PR Auto-Label — apply artifact-phase labels by file path"
 # Phase tracking: §13 B-PR1f.
 
 on:
-  pull_request:
+  # pull_request_target (not pull_request) so workflows aren't blocked by
+  # the "Require approval for first-time contributors" Actions policy that
+  # treats `copilot-swe-agent[bot]` as an outside collaborator. The fix
+  # closes the gap we hit on PR #75 where pr-auto-label ran for 0s with
+  # `conclusion: action_required` and never applied the label.
+  #
+  # SAFETY: pull_request_target runs the workflow as-defined on the BASE
+  # branch (not the PR head), so a malicious PR cannot modify this
+  # workflow's logic. We never execute code FROM the PR — we only call
+  # the GitHub API (`gh pr diff --name-only`) to read the file paths the
+  # PR touches. No checkout, no eval, no sourcing PR-supplied scripts.
+  pull_request_target:
     types: [opened, synchronize, reopened]
 
 concurrency:
@@ -39,6 +50,11 @@ permissions:
 
 jobs:
   apply-labels:
+    # Same-repo PRs only. Fork PRs would still be in scope under
+    # pull_request_target but our agentic-SDLC use case only opens
+    # branches in the same repo (Copilot's `copilot/...` branches).
+    # Skipping fork PRs avoids any future ambiguity about untrusted refs.
+    if: github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

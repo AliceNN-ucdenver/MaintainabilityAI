@@ -59,9 +59,16 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 
 ### Audit payload schema for search Skills (§11.1.6, B-PR1f)
 
-When you emit a `skill_call` event for any of `tavily-search` / `arxiv-search` / `uspto-search` / `hackernews-search`, the payload MUST include the `queries` array you sent to the skill, in addition to `skill`, `ok`, and `result_count`. This makes `verify-chain` able to replay what was searched without needing the runner log, which is transient.
+When you emit a `skill_call` event for any of `tavily-search` / `arxiv-search` / `uspto-search` / `hackernews-search`, the payload MUST use **exactly these four field names** (no variations):
 
-Example shape:
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `skill` | string | yes | The skill name, e.g. `"tavily-search"` (not `"tavily"`) |
+| `ok` | boolean | yes | `true` if the skill returned `ok: true`; `false` otherwise |
+| `result_count` | integer | yes | **The integer count** of items in the skill's `results` array. NOT the array itself. NOT `results: N` or `count: N` — the field name is literally `result_count`. |
+| `queries` | string[] | yes | The exact queries you passed in `payload.queries` to the skill |
+
+Example shape (this is the canonical form — `audit-validate.yml` parses these exact field names):
 
 ```json
 {
@@ -76,14 +83,31 @@ Example shape:
     "result_count": 40,
     "queries": [
       "celebrity profile API licensing terms compliance 2026",
-      "celebrity data licensing GDPR CCPA publicity rights 2026",
-      "..."
+      "celebrity data licensing GDPR CCPA publicity rights 2026"
     ]
   }
 }
 ```
 
-Apply the same rule to the gap-loop second-pass `skill_call` events — include the (up to 3) follow-up queries in the payload's `queries` field. This makes the run's evidence trail self-contained: the audit JSONL alone (without runner logs) is sufficient for `verify-chain` to replay both what was searched and what was returned.
+Apply the same rule to the gap-loop second-pass `skill_call` events — include the (up to 3) follow-up queries in `payload.queries`. The gap-loop marker also needs `payload.skill: "gap-loop"`, `payload.reason: "low_source_diversity" | "contradiction" | "topic_uncovered"`, `payload.providers: [<targeted-providers>]`.
+
+This makes the run's evidence trail self-contained: the audit JSONL alone (without runner logs) is sufficient for `verify-chain` to replay both what was searched and what was returned.
+
+### Handling Copilot's "Output too large" guardrail
+
+Skill outputs over ~20kB are saved by Copilot's runtime to `/tmp/copilot-tool-output-<timestamp>-<hash>.txt` and a file path is returned to you instead of the inline content. **That file is NOT pure JSON** — Copilot appends runtime metadata after the JSON document, which breaks `jq <file>` parsing partway with `parse error: Invalid numeric literal at line 3, column 0`.
+
+When you need to extract a field from a saved tool-output file, use one of these patterns instead:
+
+```sh
+# Option A: pipe the first line only (works because the skill JSON is single-line)
+head -n 1 /tmp/copilot-tool-output-<...>.txt | jq -r '.envelopes[0].query'
+
+# Option B: cap the byte length and let jq stop at first error gracefully
+head -c $((20*1024*1024)) /tmp/copilot-tool-output-<...>.txt | jq -e '.results | length' || echo 0
+```
+
+Better: avoid the threshold entirely by passing the file path directly to the next skill (e.g. `cat <skill-output-file> | head -n 1 | npx ... skill-dedupe-and-rank`).
 
 ## Hard rules
 

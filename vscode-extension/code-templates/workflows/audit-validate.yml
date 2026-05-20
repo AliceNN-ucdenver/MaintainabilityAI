@@ -37,7 +37,15 @@ name: "Audit Validate — research-doc correctness + evidence-honesty gate"
 # Phase tracking: §13 B17 + B18 + B19.
 
 on:
-  pull_request:
+  # pull_request_target (not pull_request) so the workflow isn't blocked
+  # by the "Require approval for first-time contributors" Actions policy
+  # on bot-authored PRs from `copilot-swe-agent[bot]`. SAFETY: the
+  # workflow definition runs from the BASE branch — a PR cannot modify
+  # this YAML's behavior. We only read PR body text + parse the audit
+  # JSONL committed to the PR head (path-anchored, no script execution).
+  # See B-PR1f forensics on PR #75 where the prior `pull_request` event
+  # ran for 0s with `conclusion: action_required`.
+  pull_request_target:
     types: [opened, labeled, reopened, synchronize]
 
 concurrency:
@@ -47,10 +55,14 @@ concurrency:
 jobs:
   validate:
     name: "Validate evidence + structure on artifact PRs"
+    # Same-repo PRs only — fork PRs would still fire under
+    # pull_request_target but our agentic-SDLC flow opens copilot/...
+    # branches in the same repo.
     if: >-
-      contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name &&
+      (contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
       contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
-      contains(github.event.pull_request.labels.*.name, 'design-draft')
+      contains(github.event.pull_request.labels.*.name, 'design-draft'))
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -59,8 +71,18 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - name: Checkout mesh repo
+      - name: Checkout PR head
+        # Under pull_request_target the default checkout grabs the BASE
+        # branch; we need the PR head to see the agent's committed
+        # research-doc.md + audit JSONL. SAFETY: we never execute scripts
+        # FROM the checkout — only read fixed paths (audit/events/*.jsonl,
+        # why/research-doc.md). persist-credentials=false strips the git
+        # auth token from the checkout so even if PR content somehow
+        # invoked git, it couldn't push back.
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Extract Hatter Tag fields from PR body
         id: tag
