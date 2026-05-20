@@ -50,6 +50,13 @@ permissions:
   pull-requests: write
   contents: write
   checks: write
+  # B21: models:read REQUIRED for the Pocket Watch goal-drift check —
+  # the GitHub Models endpoint (models.inference.ai.azure.com/embeddings)
+  # rejects requests without this scope. Without it embedding calls
+  # silently return 401/403, our -s curl swallows the error, jq sees
+  # null, python computes cosine=0.0, and Pocket Watch falsely flags
+  # the run as goal-drift. Observed on PR #85 run 26180609548.
+  models: read
 
 jobs:
   # ════════════════════════════════════════════════════════════════════
@@ -70,14 +77,14 @@ jobs:
           # isn't in the mesh repo. Otherwise @copilot would respond with
           # a confusing "no agent by that name" error in the issue thread.
           if ! gh api "repos/${{ github.repository }}/contents/.github/agents/market-research-agent.agent.md" >/dev/null 2>&1; then
-            gh issue comment ${{ github.event.issue.number }} \
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
               --body "⚠️ **market-research-agent.agent.md is not deployed.** Open Looking Glass → Settings → Mesh Provisioning → \"Deploy Agents + Skills\" before dispatching."
             exit 1
           fi
 
       - name: Post @copilot mention to activate the persona
         run: |
-          gh issue comment ${{ github.event.issue.number }} \
+          gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
             --body "@copilot use agent market-research-agent"
           echo "::notice::market-research-agent dispatched on issue #${{ github.event.issue.number }}"
 
@@ -228,37 +235,65 @@ jobs:
           fi
 
           # Call GitHub Models for both embeddings + compute cosine via python.
-          # (Inline python is acceptable here; the full implementation lives
-          # in drift-gate.yml today and will be lifted into a composite action
-          # in a future PR if the duplication grows.)
-          A_EMB=$(curl -s -X POST https://models.inference.ai.azure.com/embeddings \
+          # We capture the full curl response (with -w "%{http_code}") so we
+          # can distinguish "API reached, real cosine" from "API errored,
+          # null embeddings, cosine artifically = 0.0". The latter must NOT
+          # block research-pass — it's infrastructure noise (e.g. missing
+          # models:read permission, throttling, transient outage). Goal-drift
+          # is the failure we care about, not GH-Models flakiness.
+          a_status=$(curl -s -w "%{http_code}" -o /tmp/a_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --arg t "$OBJECTIVE" '{model:"text-embedding-3-small", input:$t}')" | jq -r '.data[0].embedding')
-          B_EMB=$(curl -s -X POST https://models.inference.ai.azure.com/embeddings \
+            -d "$(jq -n --arg t "$OBJECTIVE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
+          b_status=$(curl -s -w "%{http_code}" -o /tmp/b_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --arg t "$PR_SCOPE" '{model:"text-embedding-3-small", input:$t}')" | jq -r '.data[0].embedding')
+            -d "$(jq -n --arg t "$PR_SCOPE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
+
+          if [ "$a_status" != "200" ] || [ "$b_status" != "200" ]; then
+            echo "::warning::GH Models endpoint returned a_status=$a_status b_status=$b_status — Pocket Watch skipped (infra issue, NOT goal drift). First 200 chars of response: $(head -c 200 /tmp/a_emb.json 2>/dev/null)"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"
+            echo "cosine="          >> "$GITHUB_OUTPUT"
+            echo "reason=models-endpoint-status:$a_status/$b_status" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          A_EMB=$(jq -r '.data[0].embedding' /tmp/a_emb.json 2>/dev/null || echo "")
+          B_EMB=$(jq -r '.data[0].embedding' /tmp/b_emb.json 2>/dev/null || echo "")
+          if [ -z "$A_EMB" ] || [ "$A_EMB" = "null" ] || [ -z "$B_EMB" ] || [ "$B_EMB" = "null" ]; then
+            echo "::warning::GH Models returned 200 but embeddings missing — Pocket Watch skipped"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"
+            echo "cosine="          >> "$GITHUB_OUTPUT"
+            echo "reason=embeddings-missing-in-response" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           COSINE=$(python3 -c "
           import json, sys
           a=json.loads('$A_EMB'); b=json.loads('$B_EMB')
+          if not a or not b: print('0.0'); sys.exit()
           dot=sum(x*y for x,y in zip(a,b))
           na=sum(x*x for x in a)**0.5; nb=sum(x*x for x in b)**0.5
-          print(f'{dot/(na*nb):.4f}')
-          " 2>/dev/null || echo "0.0")
+          print(f'{dot/(na*nb):.4f}' if na*nb > 0 else '0.0')
+          " 2>/dev/null || echo "")
 
-          PASSED="true"
+          if [ -z "$COSINE" ]; then
+            echo "::warning::Cosine computation failed — Pocket Watch skipped"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"
+            echo "cosine="          >> "$GITHUB_OUTPUT"
+            echo "reason=cosine-computation-failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # Pocket Watch threshold per §9.2: cosine ≥ 0.85
           if python3 -c "import sys; sys.exit(0 if float('$COSINE') >= 0.85 else 1)"; then
             echo "::notice::Pocket Watch passed — cosine=$COSINE >= 0.85"
+            echo "passed=true"     >> "$GITHUB_OUTPUT"
           else
-            PASSED="false"
             echo "::warning::Pocket Watch FAILED — cosine=$COSINE < 0.85 (objective drift)"
+            echo "passed=false"    >> "$GITHUB_OUTPUT"
           fi
-
-          echo "cosine=$COSINE" >> "$GITHUB_OUTPUT"
-          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+          echo "cosine=$COSINE"    >> "$GITHUB_OUTPUT"
 
       - name: Decide verdict
         id: verdict
@@ -330,7 +365,16 @@ jobs:
           printf '| 10 H2 sections | %s/10 |\n' '${{ steps.structure.outputs.h2_present }}' >> "$BODY"
           printf '| 4 H3 sub-sections | %s/4 |\n' '${{ steps.structure.outputs.h3_present }}' >> "$BODY"
           printf '| Formal Conclusions cite ≥1 S[N] | %s/%s |\n' '${{ steps.structure.outputs.conclusions_with_cites }}' '${{ steps.structure.outputs.conclusions }}' >> "$BODY"
-          printf '| Pocket Watch goal-drift | %s (cosine=%s) |\n' '${{ steps.pocket.outputs.passed }}' '${{ steps.pocket.outputs.cosine }}' >> "$BODY"
+          # Pocket Watch row — render true/false/skipped with sensible label.
+          POCKET_STATE='${{ steps.pocket.outputs.passed }}'
+          POCKET_COS='${{ steps.pocket.outputs.cosine }}'
+          POCKET_REASON='${{ steps.pocket.outputs.reason }}'
+          case "$POCKET_STATE" in
+            true)    printf '| Pocket Watch goal-drift | ✓ pass (cosine=%s) |\n' "$POCKET_COS" >> "$BODY" ;;
+            false)   printf '| Pocket Watch goal-drift | ✗ fail (cosine=%s < 0.85) |\n' "$POCKET_COS" >> "$BODY" ;;
+            skipped) printf '| Pocket Watch goal-drift | — skipped (`%s`) — does NOT block research-pass |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
+            *)       printf '| Pocket Watch goal-drift | `%s` (cosine=%s) |\n' "$POCKET_STATE" "$POCKET_COS" >> "$BODY" ;;
+          esac
           printf '| Hatter Tag `evidence_mode` | `%s` |\n\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
           printf '_market-research-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"
 
@@ -339,7 +383,11 @@ jobs:
           if [ -n "$EXISTING" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY_CONTENT" >/dev/null
           else
-            gh pr comment ${{ github.event.pull_request.number }} --body "$BODY_CONTENT"
+            # --repo is REQUIRED here — under pull_request_target with
+            # persist-credentials:false the gh CLI can't auto-detect repo
+            # context from the checkout's .git/config. Observed on PR #85
+            # run 26180609548: "GraphQL: Could not resolve to a Repository".
+            gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$BODY_CONTENT"
           fi
 
       - name: Apply research-pass on clean verdict
@@ -347,14 +395,14 @@ jobs:
           steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'ok' &&
           !contains(github.event.pull_request.labels.*.name, 'research-pass')
-        run: gh pr edit ${{ github.event.pull_request.number }} --add-label research-pass
+        run: gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label research-pass
 
       - name: Apply degraded-evidence + goal-drift-detected on fail
         if: steps.gate.outputs.skip != 'true' && steps.verdict.outputs.verdict == 'degraded'
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} --add-label degraded-evidence || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label degraded-evidence || true
           if [ "${{ steps.pocket.outputs.passed }}" = "false" ]; then
-            gh pr edit ${{ github.event.pull_request.number }} --add-label goal-drift-detected || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label goal-drift-detected || true
           fi
 
       - name: Remove stale labels when verdict flips to ok
@@ -362,8 +410,8 @@ jobs:
           steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'ok'
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label degraded-evidence 2>/dev/null || true
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label goal-drift-detected 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label degraded-evidence 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label goal-drift-detected 2>/dev/null || true
 
   # ════════════════════════════════════════════════════════════════════
   # JOB 3 — Finalize on PR merge: emit run_complete + flip action status
