@@ -223,16 +223,49 @@ jobs:
           fi
           # Minimal Pocket Watch implementation — use yq + GH Models embeddings.
           OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE" 2>/dev/null || echo "")
-          PR_TITLE='${{ github.event.pull_request.title }}'
-          PR_BODY_FIRST_PARA=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body 2>/dev/null | head -c 2000 || true)
-          PR_SCOPE="$PR_TITLE — $PR_BODY_FIRST_PARA"
+
+          # Pocket Watch comparison surface: prefer the artifact's
+          # `## Executive Summary` section — that's the agent's
+          # substantive synthesis directly addressing the OKR objective.
+          # Empirically (PR #87, run 26182982994) the original design
+          # primitive of "OKR objective vs PR title + body" returned
+          # cosine ~0.43 because PR descriptions are process metadata
+          # ("This PR adds the required market-research synthesis...")
+          # NOT substantive recap of findings. Comparing against the
+          # Executive Summary aligns the comparison with the agent's
+          # actual semantic output.
+          DOC="okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md"
+          PR_SCOPE=""
+          if [ -f "$DOC" ]; then
+            # awk between `## Executive Summary` and the next `## ` heading
+            PR_SCOPE=$(awk '/^## Executive Summary[[:space:]]*$/{flag=1; next} /^## /{if (flag) exit} flag' "$DOC" | head -c 3000)
+          fi
+          # Fallback to PR title + body if Executive Summary not present
+          # (e.g. legacy doc shapes, manual hand-written PRs).
+          if [ -z "$PR_SCOPE" ]; then
+            PR_TITLE='${{ github.event.pull_request.title }}'
+            PR_BODY_FIRST_PARA=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body 2>/dev/null | head -c 2000 || true)
+            PR_SCOPE="$PR_TITLE — $PR_BODY_FIRST_PARA"
+            SCOPE_SOURCE="pr-title+body (fallback)"
+          else
+            SCOPE_SOURCE="research-doc.md#Executive-Summary"
+          fi
 
           if [ -z "$OBJECTIVE" ] || [ -z "$PR_SCOPE" ]; then
-            echo "::warning::Empty objective or PR scope — skipping Pocket Watch"
+            echo "::warning::Empty objective or scope ($SCOPE_SOURCE) — skipping Pocket Watch"
             echo "passed=skipped" >> "$GITHUB_OUTPUT"
             echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=empty-objective-or-scope" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          # Log what we're embedding so drift verdicts are auditable. Truncate
+          # to keep log lines readable.
+          echo "::notice::Pocket Watch scope source: $SCOPE_SOURCE"
+          echo "::group::Pocket Watch inputs"
+          echo "OKR objective (${#OBJECTIVE} chars): ${OBJECTIVE:0:300}"
+          echo "PR scope (${#PR_SCOPE} chars, source=$SCOPE_SOURCE): ${PR_SCOPE:0:300}"
+          echo "::endgroup::"
 
           # Call GitHub Models for both embeddings + compute cosine via python.
           # We capture the full curl response (with -w "%{http_code}") so we

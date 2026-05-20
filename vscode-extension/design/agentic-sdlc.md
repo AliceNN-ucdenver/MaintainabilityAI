@@ -2034,6 +2034,19 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 - [ ] **B16.** Knight's Seal — Ed25519 signing of Hatter Tags (Phase B+ stretch; can slip to C) — deferred per design doc note; Phase A's installation-id + system-prompt-SHA pair stays the trust anchor until cryptographic upgrade lands.
 - [x] **B17.** Evidence-honesty Hatter Tag block (§11.1.7) — new optional `evidence:` block on `HattersTagInput` with `evidence_mode` (`live` / `cached` / `mixed`), `fresh_provider_search_performed`, and `degraded_reason` fields. Agents must declare honestly based on what actually happened (live skill calls vs cached/repo-read fallback). Shipped in B-PR1b alongside `market-research-agent.agent.md` prompt update with the §11.1.7 decision table.
 - [x] **B18.** `audit-validate.yml` post-run validator workflow — cross-checks the Hatter Tag's `evidence:` block against the run's audit JSONL; counts successful `skill_call` events per search provider in `okrs/<id>/audit/events/<runId>.jsonl`; applies `degraded-evidence` label when the declaration contradicts the audit (e.g. `evidence_mode: live` but 0 provider skill_calls). `okr-state-machine.yml` refuses to promote `governance-pass` while this label is present. For research-synthesis PRs (which bypass reviewer-bus — research has no reviewer prompt packs), audit-validate also applies the `research-pass` label on clean runs as the WHY-phase merge gate. Shipped in B-PR1c.
+- [x] **B22.** Pocket Watch comparison primitive refined for WHY-phase (B-PR1n). The §9.2 design specified "OKR objective vs PR title + body" — empirically that returns cosine ~0.43 because WHY-phase PR descriptions are process metadata ("This PR adds the required market-research synthesis…") not substantive recaps. Threshold ≥ 0.85 was never going to fire on this comparison for any real WHY artifact, regardless of whether the agent stayed on topic.
+
+  **Fix:** WHY-phase Pocket Watch now compares **OKR `objective.description` vs the `## Executive Summary` section of `research-doc.md`** (extracted via awk between the H2 markers, capped at 3 kB). That section IS the agent's substantive synthesis directly addressing the objective — semantically the right primitive. PR title + body remains as fallback for legacy doc shapes / hand-written PRs.
+
+  Threshold stays at 0.85 per §9.2 — Executive Summaries that genuinely address the OKR objective should comfortably exceed 0.7-0.8 cosine; if a WHY synthesis lands at 0.5-0.6 against the objective, that IS goal-drift and we want Pocket Watch to catch it.
+
+  Diagnostic improvements: workflow now logs the actual `OBJECTIVE` and `PR_SCOPE` strings (truncated to 300 chars each) in a `::group::` block alongside the cosine result, so a future failed verdict is debuggable from the log alone. Also surfaces which source the scope came from (`research-doc.md#Executive-Summary` vs `pr-title+body (fallback)`).
+
+  Phase 2 of B20 (prd-agent + code-design-agent workflows) will use phase-appropriate scope primitives:
+  - HOW: OKR objective vs prd.md's `## Executive Summary` section
+  - WHAT: OKR objective vs code-design.md's `## Approach` or equivalent section
+  These per-phase primitives land alongside the workflow files in B-PR1l.
+
 - [x] **B21.** GitHub API access via out-of-the-box `github/*` MCP tools (B-PR1m). Pivots agents from `gh` CLI shell-out to the Copilot Coding Agent's built-in GitHub MCP server. Two coupled benefits:
 
   **(a) Firewall path.** MCP routes through `api.githubcopilot.com` (always allow-listed by Copilot) instead of direct `api.github.com` calls (blocked by default). PR #80's run got all the way to `format-research-issue-update`-rendered markdown and then couldn't POST it because `gh issue comment` shells out via `api.github.com/repos/.../issues/<n>/comments` which isn't in the default allow-list. With MCP, no firewall changes required on the mesh repo.
