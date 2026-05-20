@@ -2162,6 +2162,39 @@ The Phase B-PR1c evidence-honesty gate WILL catch this on reviewer runs too: a r
 
 **Recommendation (pending validation).** Option 1 — per-reviewer tracking issue. It preserves Tweedles, keeps the Copilot UX humans are already used to, and the issue-noise can be hidden by an `[oraculum-internal]` label that Looking Glass filters out by default. **Until this lands, PRD-phase reviews will produce empty / partial scores and the okr-state-machine will not promote `governance-pass`.** That's a safe failure mode (no auto-merge of un-reviewed PRDs) but it does mean the HOW phase is currently human-gated, not automated. Tracked as Phase C-PR6.
 
+#### 14.8.1 Verification plan (run BEFORE picking a solution)
+
+The Copilot Coding Agent docs note a session-boundary behavior we have not directly tested for reviewer dispatch:
+
+> Once Copilot creates the draft PR, you should move your instructions and mentions of `@copilot` there rather than continuing the conversation in the original issue.
+>
+> Static Reading: Copilot reads the issue context at the moment it is assigned. To refresh scope, unassign + reassign.
+
+The sub-agent failure (`view` / `skill` / `report_progress` only) was observed when the AUTHOR session was still alive and we dispatched a sub-agent under it via PR comment. The post-session case — author session closed, draft PR ready for review, fresh `@copilot use agent <reviewer>` comment kicks off a NEW session — has NOT been tested. If a fresh PR-level `@copilot` mention starts the reviewer as the primary of a new session, the reviewer gets its full declared `tools:` list and Option 1 (tracking-issue indirection) becomes unnecessary.
+
+**Test protocol** (run on the next `Start How` → PRD PR that lands):
+
+1. Wait for the prd-agent's author session to fully terminate. Signals: draft PR is `ready for review`, author posted its final summary comment, no 👀 emoji-in-progress on the PR.
+2. Manually post `@copilot use agent architect-reviewer` as a PR comment.
+3. Observe the resulting Copilot session log. **Look for the diagnostic line we hit before:** `Agent constraint note: In this execution context the <agent-name> persona has access only to the skill and report_progress tools.`
+   - **Absent** → reviewer started in primary mode with full tools. Path works. Skip C-PR6 tracking-issue work; reviewer-bus can stay as two `gh pr comment` calls.
+   - **Present** → reviewer is in sub-agent mode regardless of session boundary. Ship C-PR6 tracking-issue pattern as designed.
+4. If step 3 passes, repeat with `@copilot use agent security-reviewer` to confirm sequential dispatch works:
+   - Do the two reviewers run sequentially (architect must finish before security can start)?
+   - Do they collide on PR state (e.g. both try to push a review comment at the same time)?
+   - Does posting both comments at once queue them or only run the first?
+5. If sequential works but parallel doesn't, reviewer-bus.yml needs a "wait-for-architect-done" gate before dispatching security. Acceptable — still simpler than tracking issues.
+
+**Exit criteria.** Test produces one of three outcomes:
+
+| Outcome | Implication | Next step |
+|---|---|---|
+| Both reviewers run as primary, sequential dispatch works | Option 1 (tracking issues) unnecessary | Update reviewer-bus.yml to use the post-session comment pattern; close C-PR6 as obviated |
+| Both reviewers run as primary, parallel dispatch races | Path works but needs serialization | Add per-reviewer gate (poll for architect's review comment before dispatching security); close C-PR6 |
+| Reviewer ends up in sub-agent mode | Path is broken | Ship C-PR6 tracking-issue pattern with this experiment's session log as justification |
+
+Record results in this section before deciding. Do NOT pre-build the tracking-issue infrastructure speculatively.
+
 ---
 
 ## 15. Deliverables map
