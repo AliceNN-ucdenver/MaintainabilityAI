@@ -1,6 +1,11 @@
 name: "Reviewer Bus — parallel architect + security review on artifact PRs"
 
-# Fires on PRs labeled `research-synthesis`, `prd-draft`, or `design-draft`.
+# Fires on PRs labeled `prd-draft` or `design-draft` — NOT research-synthesis.
+# Research-doc PRs are descriptive (synthesis from sources, no design
+# decisions to grade) and have no reviewer prompt packs; their merge gate
+# is `audit-validate.yml`'s evidence-honesty check + the `research-pass`
+# label it emits on clean runs.
+#
 # Dispatches BOTH reviewer agents in parallel via Copilot mentions.
 #
 # Tweedles (§5.3): reviewer DID MUST NOT equal author DID. Phase A enforces
@@ -28,7 +33,6 @@ jobs:
   dispatch-reviewers:
     name: "Dispatch architect + security reviewers"
     if: >-
-      contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
       contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
       contains(github.event.pull_request.labels.*.name, 'design-draft')
     runs-on: ubuntu-latest

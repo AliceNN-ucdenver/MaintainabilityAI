@@ -277,6 +277,8 @@ After the first pass, the agent inspects coverage. **Low source diversity** on a
 
 The result is a **10-section research certificate** (Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References) with `S[N]` citations every reviewer (and the downstream PRD agent) can grep deterministically.
 
+> 🍵 **The WHY phase has no persona reviewers.** Research-doc PRs are descriptive — synthesis from sources, not design decisions — so they bypass `reviewer-bus.yml` and the architect/security state machine. The merge gate is `audit-validate.yml`: it counts successful `skill_call` events for the four search providers in the run's audit JSONL and refuses the `research-pass` label if the agent declared `evidence_mode: live` but the audit shows zero live calls. This catches the failure mode where an agent loads the Skill context, can't reach the CLI backend, and silently falls back to reading repo files — making "the agent didn't really do the search" an enforceable gate, not a trust assumption.
+
 ---
 
 ## Stage 3 · How: a PRD refined by mesh-grounded experts

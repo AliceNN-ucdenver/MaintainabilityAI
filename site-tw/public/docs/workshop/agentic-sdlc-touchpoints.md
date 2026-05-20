@@ -53,10 +53,12 @@ Per [agentic-sdlc.md §13](https://github.com/AliceNN-ucdenver/MaintainabilityAI
 
 | Phase | Adds |
 |---|---|
-| **B** | Agents (`market-research-agent`, `prd-agent`, `code-design-agent`, `architect-reviewer`, `security-reviewer`) deployed via `.github/agents/`. PURE-data Skills shipped to `.github/skills/`. `Start Why / How` buttons wired. The IMDB-Lite Celebs sample runs end-to-end. |
-| **C** | Bus workflows (`okr-bus.yml`, `reviewer-bus.yml`, `design-bus.yml`). Pocket Watch goal-drift gate. HumanGate UI. Dual-signature override modal. Per-repo fan-out from `Start What`. |
+| **B** | Agents (`market-research-agent`, `prd-agent`, `code-design-agent`, `architect-reviewer`, `security-reviewer`) deployed via `.github/agents/`. PURE-data Skills shipped to `.github/skills/` with CLI backends. `Start Why / How` buttons wired. Evidence-honesty Hatter Tag block (§11.1.7) + `audit-validate.yml` post-run validator gate the WHY phase. The IMDB-Lite Celebs sample runs end-to-end. |
+| **C** | Bus workflows (`okr-bus.yml`, `reviewer-bus.yml` for PRD + design only, `design-bus.yml`). Pocket Watch goal-drift gate. HumanGate UI. Dual-signature override modal. Per-repo fan-out from `Start What`. |
 | **D** | `code-design-agent` operating on indexed code repos. `design/synthesis.md` + `design/architecture-review.md` + `design/security-review.md` prompt packs. Cross-repo chain ladder visualization. |
 | **E** | Audit Report Export — one-click zip from the OKR detail screen with traceability matrix, frozen prompt packs, chain verification. |
+
+> **WHY phase has no reviewer scoring.** Research-doc PRs are descriptive (synthesis from sources, not design decisions), so they bypass `reviewer-bus.yml` entirely. Their merge gate is `audit-validate.yml` + the `research-pass` label it emits when the Hatter Tag's `evidence_mode` matches what the audit JSONL actually shows. The reviewer state machine applies only to `prd-draft` and `design-draft` PRs.
 
 Every workshop part you've completed feeds the same mesh those phases will read from. The work isn't wasted; it's a load-bearing prerequisite.
 

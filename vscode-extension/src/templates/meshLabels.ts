@@ -71,4 +71,13 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // for the four search providers. okr-state-machine.yml refuses to
   // promote `governance-pass` while this label is present.
   { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log (§11.1.7). Blocks governance-pass.', color: 'D32F2F' },
+
+  // ── WHY-phase merge gate — audit-validate.yml applies on clean runs.
+  // Research-synthesis PRs bypass reviewer-bus (no reviewer prompt packs
+  // exist for research docs — synthesis is descriptive, not a design
+  // decision). Their merge gate is `research-pass`, set when the
+  // evidence-honesty check passes and `degraded-evidence` is absent.
+  // Branch protection on the mesh repo should require this check on PRs
+  // labeled `research-synthesis`.
+  { name: 'research-pass',           description: 'WHY-phase research doc passed the evidence-honesty gate. Merge unlocked (subject to branch protection).', color: '43A047' },
 ];

@@ -183,3 +183,30 @@ EOF
             --body "✓ **Evidence honesty gate — cleared**
 
 The Hatter Tag now matches the audit log. \`degraded-evidence\` label removed; \`governance-pass\` promotion is no longer blocked by this gate."
+
+      # ── WHY-phase merge gate ─────────────────────────────────────
+      # Research-synthesis PRs don't go through reviewer-bus (no reviewer
+      # prompt packs exist for research docs). Their merge gate IS this
+      # workflow: pass the evidence-honesty check → apply `research-pass`
+      # → branch protection unlocks merge.
+      #
+      # PRD + design PRs need reviewer scores too — for those, the
+      # `governance-pass` master label (applied by okr-state-machine.yml
+      # when both reviewer approvals AND no degraded-evidence) is the gate.
+      - name: Apply research-pass on clean WHY runs
+        if: >-
+          steps.verdict.outputs.verdict == 'ok' &&
+          contains(github.event.pull_request.labels.*.name, 'research-synthesis') &&
+          !contains(github.event.pull_request.labels.*.name, 'research-pass')
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "research-pass"
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "✓ **research-pass** — evidence-honesty gate cleared. Merge unlocked (subject to branch protection)."
+
+      - name: Remove research-pass when verdict regresses
+        if: >-
+          steps.verdict.outputs.verdict == 'degraded' &&
+          contains(github.event.pull_request.labels.*.name, 'research-synthesis') &&
+          contains(github.event.pull_request.labels.*.name, 'research-pass')
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "research-pass"
