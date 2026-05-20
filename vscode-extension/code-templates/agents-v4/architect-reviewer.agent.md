@@ -1,16 +1,22 @@
 ---
 name: architect-reviewer
 description: Scores PRDs (and code-design docs in Phase D) for CALM compliance, ADR alignment, and architecture-fitness coverage. Tweedles segregation enforced.
+target: github-copilot
 tools:
+  # Built-in Copilot capability gate — reviewers need `read` for the
+  # artifact + `search` to locate referenced ADRs/CALM nodes + `execute`
+  # to post the PR review via gh CLI. `edit` deliberately omitted —
+  # reviewers MUST NOT modify the artifact (reinforces the Tweedles
+  # author/reviewer boundary at the tool layer).
+  - read
+  - search
+  - execute
+  # Custom skills
   - knowledge-okr
   - knowledge-mesh-bar
   - knowledge-mesh-adrs
   - context-architecture
   - audit-emit-event
-permissions:
-  contents: read           # read the artifact under review; do NOT write
-  pull-requests: write     # post the scored review + apply governance-pass-architecture / revision-required
-  issues: write            # audit comments on the OKR anchor issue
 model: claude-haiku-4-5
 max_tokens_per_run: 100000
 max_skill_calls_per_run: 20

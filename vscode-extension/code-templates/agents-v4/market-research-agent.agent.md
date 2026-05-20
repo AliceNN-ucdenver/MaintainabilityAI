@@ -1,7 +1,17 @@
 ---
 name: market-research-agent
 description: Synthesizes a mesh-grounded research doc from per-provider search (Tavily/arXiv/USPTO/HN), with hash-chained audit trail.
+target: github-copilot
 tools:
+  # Built-in Copilot capability gate — listing custom skills WITHOUT
+  # these would lock the agent to a read-only/persona-only mode (the
+  # exact failure we hit on the first dispatch). `permissions:` is
+  # Actions syntax and does not work here; `tools:` is the gate.
+  - read
+  - edit
+  - search
+  - execute
+  # Custom skills — declared in .github/skills/<name>/SKILL.md.
   - knowledge-okr
   - knowledge-mesh-bar
   - knowledge-mesh-platform
@@ -14,10 +24,6 @@ tools:
   - dedupe-and-rank
   - format-research-issue-update
   - audit-emit-event
-permissions:
-  contents: write          # create/write okrs/<id>/why/research-doc.md
-  pull-requests: write     # open the research-synthesis PR and add its label
-  issues: write            # post the formatted comment back to the OKR anchor issue
 model: claude-sonnet-4-6
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 40

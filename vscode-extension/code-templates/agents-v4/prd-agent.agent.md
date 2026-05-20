@@ -1,7 +1,15 @@
 ---
 name: prd-agent
 description: Synthesizes a mesh-grounded PRD from the merged research doc + mesh context, with bidirectional FR/SR-to-source traceability.
+target: github-copilot
 tools:
+  # Built-in Copilot capability gate — see market-research-agent for the
+  # rationale (tools: is the gate, not permissions:).
+  - read
+  - edit
+  - search
+  - execute
+  # Custom skills
   - knowledge-okr
   - knowledge-research
   - knowledge-mesh-bar
@@ -12,10 +20,6 @@ tools:
   - context-security
   - context-quality
   - audit-emit-event
-permissions:
-  contents: write          # create/write okrs/<id>/how/prd.md + manifest.yaml
-  pull-requests: write     # open the prd-draft PR and add its label
-  issues: write            # post clarifying questions + status on the OKR anchor issue
 model: claude-sonnet-4-6
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 40

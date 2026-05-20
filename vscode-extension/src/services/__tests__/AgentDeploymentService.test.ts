@@ -173,10 +173,12 @@ describe('AgentDeploymentService.deployAgents', () => {
       fs.cpSync(realAgentsDir, fakeAgentsDir, { recursive: true });
 
       // ...then poison one agent's tools list with a non-existent Skill.
+      // Inject after the `- audit-emit-event` line which is the last
+      // tool every agent declares — stable anchor across agent files.
       const target = path.join(fakeAgentsDir, 'prd-agent.agent.md');
       const poisoned = fs.readFileSync(target, 'utf8').replace(
-        'tools:\n  - knowledge-okr',
-        'tools:\n  - knowledge-okr\n  - fictional-skill-does-not-exist',
+        '  - audit-emit-event',
+        '  - audit-emit-event\n  - fictional-skill-does-not-exist',
       );
       fs.writeFileSync(target, poisoned, 'utf8');
 

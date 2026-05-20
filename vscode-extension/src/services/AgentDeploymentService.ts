@@ -20,6 +20,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MESH_AGENTS, MESH_SKILLS, type MeshSkillSpec } from '../templates/meshSkills';
 
+/**
+ * Built-in tool names that GitHub Copilot custom agents recognize as
+ * the active capability gate (per the custom-agent spec). Listing
+ * custom skills WITHOUT these collapses the agent into a read-only /
+ * persona-only mode where it can't write files or execute commands —
+ * we hit that exact failure on the first dispatches before adding
+ * `read, edit, search, execute` to every agent's tools list.
+ *
+ * Reviewer agents deliberately omit `edit` to enforce the Tweedles
+ * boundary (architect / security reviewers must not modify the
+ * artifact they're scoring).
+ */
+const BUILTIN_COPILOT_TOOLS = new Set(['read', 'edit', 'search', 'execute']);
+
 export interface DeploySkillsResult {
   /** Total skills attempted. */
   total: number;
@@ -128,8 +142,11 @@ export class AgentDeploymentService {
 
       // Parse the agent's tools: array out of the frontmatter and verify every
       // referenced Skill is on the bundled registry. Hard rule from §5.5.1.
+      // Built-in Copilot tool names (read/edit/search/execute) are the active
+      // capability gate per the Copilot custom-agent spec — they're not in
+      // MESH_SKILLS but are valid entries in the tools list.
       const declaredTools = parseToolsFromAgentBody(body);
-      const missingSkills = declaredTools.filter(t => !knownSkillNames.has(t));
+      const missingSkills = declaredTools.filter(t => !knownSkillNames.has(t) && !BUILTIN_COPILOT_TOOLS.has(t));
       if (missingSkills.length > 0) {
         result.perAgent.push({ name: agent.name, status: 'skill-missing', missingSkills });
         continue;
@@ -167,17 +184,30 @@ export class AgentDeploymentService {
 /**
  * Extract the YAML `tools:` array from an `.agent.md` body without pulling in
  * a yaml dependency. We only need this for deploy-time validation — the
- * frontmatter shape is well-known, so a tiny regex over the leading `---`
- * block is enough.
+ * frontmatter shape is well-known, so a small block-walk is enough.
+ *
+ * Tolerates YAML comment lines (`  # ...`) interspersed with list items —
+ * agents-v4 templates use these to label built-in vs custom skill groups.
+ * The walk ends at the next top-level frontmatter key (any non-indented
+ * `<key>:` line) or end of frontmatter.
  */
 function parseToolsFromAgentBody(body: string): string[] {
   const frontmatterMatch = body.match(/^---\n([\s\S]*?)\n---/);
   if (!frontmatterMatch) { return []; }
   const fm = frontmatterMatch[1];
-  const toolsBlock = fm.match(/^tools:\n((?:\s+-\s+\S.*\n?)+)/m);
-  if (!toolsBlock) { return []; }
-  return toolsBlock[1]
-    .split('\n')
-    .map(line => line.match(/^\s+-\s+(\S.*?)\s*$/)?.[1])
-    .filter((s): s is string => !!s);
+  const toolsStart = fm.match(/^tools:\s*$/m);
+  if (!toolsStart || toolsStart.index === undefined) { return []; }
+  const tail = fm.slice(toolsStart.index + toolsStart[0].length);
+  // Block ends at next top-level key (a non-indented line starting a
+  // YAML key) — i.e. the first newline followed by a non-space char.
+  const nextTopLevel = tail.match(/\n(?=\S)/);
+  const block = nextTopLevel && nextTopLevel.index !== undefined
+    ? tail.slice(0, nextTopLevel.index)
+    : tail;
+  const items: string[] = [];
+  for (const line of block.split('\n')) {
+    const m = line.match(/^\s+-\s+(\S.*?)\s*$/);
+    if (m && !m[1].startsWith('#')) { items.push(m[1]); }
+  }
+  return items;
 }

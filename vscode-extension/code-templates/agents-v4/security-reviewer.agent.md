@@ -1,16 +1,22 @@
 ---
 name: security-reviewer
 description: Scores PRDs (and code-design docs in Phase D) for STRIDE/OWASP/NIST coverage + threat-model compliance. Tweedles segregation enforced.
+target: github-copilot
 tools:
+  # Built-in Copilot capability gate — reviewers need `read` for the
+  # artifact + `search` to locate referenced threat library entries /
+  # NIST controls + `execute` to post the PR review via gh CLI. `edit`
+  # deliberately omitted — reviewers MUST NOT modify the artifact
+  # (Tweedles boundary at the tool layer).
+  - read
+  - search
+  - execute
+  # Custom skills
   - knowledge-okr
   - knowledge-mesh-threats
   - knowledge-mesh-adrs
   - context-security
   - audit-emit-event
-permissions:
-  contents: read           # read the artifact under review; do NOT write
-  pull-requests: write     # post the scored review + apply governance-pass-security / revision-required
-  issues: write            # audit comments on the OKR anchor issue
 model: claude-haiku-4-5
 max_tokens_per_run: 100000
 max_skill_calls_per_run: 20
