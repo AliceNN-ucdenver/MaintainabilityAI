@@ -19,6 +19,27 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { MESH_AGENTS, MESH_SKILLS, type MeshSkillSpec } from '../templates/meshSkills';
+import {
+  CODING_AGENT_HOSTS,
+  CODING_AGENT_SECRETS,
+  COPILOT_ENVIRONMENT_NAME,
+  type CodingAgentHostSpec,
+  type CodingAgentSecretSpec,
+} from '../templates/codingAgentRequirements';
+
+/** Result of `getCopilotEnvStatus` — one row per required secret + summary. */
+export interface CopilotEnvStatus {
+  /** Whether the `copilot` GitHub Environment exists on the repo. */
+  environmentExists: boolean;
+  /** Whether the API call to list secrets succeeded (false = no auth / no access). */
+  reachable: boolean;
+  /** Per-secret presence flags. */
+  secrets: Array<CodingAgentSecretSpec & { present: boolean }>;
+  /** Per-host firewall entries — auto-verification not possible, all marked unknown. */
+  hosts: CodingAgentHostSpec[];
+  /** `<owner>/<repo>` of the mesh repo this status was computed against. */
+  repoSlug: string;
+}
 
 /**
  * Built-in tool names that GitHub Copilot custom agents recognize as
@@ -178,6 +199,40 @@ export class AgentDeploymentService {
       name: agent.name,
       deployed: fs.existsSync(path.join(meshPath, agent.relativePath)),
     }));
+  }
+
+  /**
+   * Compute the readiness status of the `copilot` GitHub Environment for
+   * agentic-SDLC runs. Surfaces which of the declared CODING_AGENT_SECRETS
+   * are present in the env (names only — GitHub never exposes values) and
+   * the hard-coded host allow-list the Coding Agent firewall needs.
+   *
+   * Drives the Settings panel's "Coding Agent Environment" section.
+   *
+   * Auto-verification of the firewall allow-list isn't possible — GitHub
+   * doesn't expose a REST API for it as of 2026-05. The hosts list is
+   * returned as a static reference + deep-link target for manual setup.
+   */
+  async getCopilotEnvStatus(
+    repoSlug: string,
+    listEnvironmentSecretNames: (owner: string, repo: string, envName: string) => Promise<Set<string> | null>,
+    environmentExists: (owner: string, repo: string, envName: string) => Promise<boolean>,
+  ): Promise<CopilotEnvStatus> {
+    const [owner, repo] = repoSlug.split('/');
+    const envExists = await environmentExists(owner, repo, COPILOT_ENVIRONMENT_NAME);
+    const presentSet = envExists
+      ? await listEnvironmentSecretNames(owner, repo, COPILOT_ENVIRONMENT_NAME)
+      : null;
+    return {
+      environmentExists: envExists,
+      reachable: presentSet !== null,
+      secrets: CODING_AGENT_SECRETS.map(spec => ({
+        ...spec,
+        present: presentSet ? presentSet.has(spec.name) : false,
+      })),
+      hosts: CODING_AGENT_HOSTS,
+      repoSlug,
+    };
   }
 }
 

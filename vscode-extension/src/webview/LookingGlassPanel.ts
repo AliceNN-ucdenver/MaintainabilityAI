@@ -38,6 +38,7 @@ import { CalmFileWatcher } from '../services/CalmFileWatcher';
 import { validate as validateCalm } from '../services/CalmValidator';
 import { AbsolemService } from '../services/AbsolemService';
 import { AgentDeploymentService } from '../services/AgentDeploymentService';
+import { codingAgentSettingsUrl, copilotEnvSecretsUrl, COPILOT_ENVIRONMENT_NAME } from '../templates/codingAgentRequirements';
 import { HatterTagService } from '../services/HatterTagService';
 import { MESH_LABELS } from '../templates/meshLabels';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
@@ -366,6 +367,22 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
       case 'checkAgenticStatus':
         this.onCheckAgenticStatus();
+        break;
+
+      case 'getCopilotEnvStatus':
+        await this.onGetCopilotEnvStatus();
+        break;
+
+      case 'setCopilotEnvSecret':
+        await this.onSetCopilotEnvSecret(message.secretName);
+        break;
+
+      case 'openCopilotFirewallSettings':
+        await this.onOpenCopilotFirewallSettings();
+        break;
+
+      case 'openCopilotEnvSecretsPage':
+        await this.onOpenCopilotEnvSecretsPage();
         break;
 
       case 'savePreferredModel':
@@ -4620,6 +4637,101 @@ Policy file: ${filename}
       skills: svc.listDeployedSkills(meshPath),
       agents: svc.listDeployedAgents(meshPath),
     });
+  }
+
+  /**
+   * Compute and post the `copilot` GitHub Environment readiness status.
+   * Drives the Settings → Coding Agent Environment section. Shows per-secret
+   * presence (names only — values are never exposed) and the firewall host
+   * list (auto-verify not possible, manual paste-in required).
+   */
+  private async onGetCopilotEnvStatus(): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({
+        type: 'copilotEnvStatus',
+        error: 'No mesh repo configured — set Repository URL in Settings → Mesh first.',
+      });
+      return;
+    }
+    try {
+      const svc = new AgentDeploymentService(this.context.extensionPath);
+      const status = await svc.getCopilotEnvStatus(
+        `${meshRepo.owner}/${meshRepo.repo}`,
+        (owner, repo, envName) => this.githubService.listEnvironmentSecretNames(owner, repo, envName),
+        (owner, repo, envName) => this.githubService.environmentExists(owner, repo, envName),
+      );
+      this.postMessage({ type: 'copilotEnvStatus', status });
+    } catch (err) {
+      this.postMessage({
+        type: 'copilotEnvStatus',
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Prompt the user for a secret value (password-masked input) and seed it
+   * into the `copilot` GitHub Environment via `gh secret set --env`. After
+   * success, re-query status so the UI flips ✗ → ✓ on the row.
+   */
+  private async onSetCopilotEnvSecret(secretName: string): Promise<void> {
+    if (!secretName || !/^[A-Z][A-Z0-9_]*$/.test(secretName)) {
+      this.postMessage({ type: 'error', message: `Invalid secret name: ${secretName}` });
+      return;
+    }
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'No mesh repo configured.' });
+      return;
+    }
+    const value = await vscode.window.showInputBox({
+      prompt: `Set ${secretName} on the \`${COPILOT_ENVIRONMENT_NAME}\` environment of ${meshRepo.owner}/${meshRepo.repo}`,
+      placeHolder: 'Paste the secret value (will be encrypted before upload)',
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: v => v.trim().length === 0 ? 'Value cannot be empty' : null,
+    });
+    if (value === undefined) { return; }  // user cancelled
+
+    this.postMessage({ type: 'loading', active: true, message: `Setting ${secretName}...` });
+    try {
+      await this.githubService.setEnvironmentSecret(
+        meshRepo.owner,
+        meshRepo.repo,
+        COPILOT_ENVIRONMENT_NAME,
+        secretName,
+        value.trim(),
+      );
+      this.postMessage({ type: 'loading', active: false });
+      vscode.window.showInformationMessage(`✓ ${secretName} set on \`${COPILOT_ENVIRONMENT_NAME}\` environment`);
+      // Re-query so the UI updates.
+      await this.onGetCopilotEnvStatus();
+    } catch (err) {
+      this.postMessage({ type: 'loading', active: false });
+      const msg = err instanceof Error ? err.message : String(err);
+      this.postMessage({ type: 'error', message: `Failed to set ${secretName}: ${msg}` });
+    }
+  }
+
+  /** Open the Coding Agent settings page so the user can paste firewall hosts. */
+  private async onOpenCopilotFirewallSettings(): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'No mesh repo configured.' });
+      return;
+    }
+    await vscode.env.openExternal(vscode.Uri.parse(codingAgentSettingsUrl(meshRepo.owner, meshRepo.repo)));
+  }
+
+  /** Open the `copilot` env secrets page as a manual fallback if API write fails. */
+  private async onOpenCopilotEnvSecretsPage(): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'No mesh repo configured.' });
+      return;
+    }
+    await vscode.env.openExternal(vscode.Uri.parse(copilotEnvSecretsUrl(meshRepo.owner, meshRepo.repo)));
   }
 
   private async onRefreshPromptPacks() {

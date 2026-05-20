@@ -183,6 +183,15 @@ const state = {
   // Phase B Mesh Provisioning — skill + agent deployment status
   settingsAgenticSkills: null as { name: string; family: string; deployed: boolean }[] | null,
   settingsAgenticAgents: null as { name: string; deployed: boolean }[] | null,
+  // Phase B-PR1e Coding Agent Environment — `copilot` env secrets + firewall checklist
+  settingsCopilotEnv: null as {
+    environmentExists: boolean;
+    reachable: boolean;
+    secrets: { name: string; purpose: string; usedBy: string[]; required: boolean; signupUrl: string; present: boolean }[];
+    hosts: { host: string; url: string; usedBy: string[]; purpose: string }[];
+    repoSlug: string;
+  } | null,
+  settingsCopilotEnvError: null as string | null,
   settingsPreferredModel: '',
   settingsDriftWeights: { critical: 15, high: 5, medium: 2, low: 1 } as { critical: number; high: number; medium: number; low: number },
   settingsReinitConfirmStep: 0,  // 0=default, 1=warning shown
@@ -1841,6 +1850,7 @@ function renderSettings(): string {
 
       ${renderSettingsWorkflow()}
       ${renderSettingsAgentic()}
+      ${renderSettingsCodingAgentEnv()}
       ${renderSettingsPromptPacks()}
       ${renderSettingsLlmModel()}
       ${renderSettingsMeshSecrets()}
@@ -1963,6 +1973,140 @@ function renderSettingsAgentic(): string {
       </p>
       <div class="settings-row">
         <button id="btn-settings-provision-agentic" class="btn-primary">${buttonLabel}</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Coding Agent Environment readiness section (B-PR1e).
+ *
+ * The Copilot Coding Agent runtime reads secrets from the `copilot` GitHub
+ * Environment (NOT Actions secrets — separate store). And its outbound
+ * firewall blocks everything except a recommended allow-list, which excludes
+ * the four free search providers we need.
+ *
+ * This section surfaces both prerequisites in one place: per-secret status
+ * with Add/Update buttons (API-managed via gh CLI sealed-box encryption)
+ * and a host checklist with a deep link to the Coding Agent settings page
+ * (UI-managed — no public REST API as of 2026-05).
+ */
+function renderSettingsCodingAgentEnv(): string {
+  const env = state.settingsCopilotEnv;
+  const err = state.settingsCopilotEnvError;
+
+  if (err) {
+    return `
+      <div class="settings-section">
+        <h3>Coding Agent Environment ${settingsRepoHint()}</h3>
+        <p class="text-muted">${escapeHtml(err)}</p>
+        <div class="settings-row">
+          <button id="btn-copilot-env-refresh" class="btn-secondary">Retry</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (!env) {
+    return `
+      <div class="settings-section">
+        <h3>Coding Agent Environment ${settingsRepoHint()}</h3>
+        <p class="text-muted">
+          The Copilot Coding Agent runtime reads secrets from the
+          <code>copilot</code> GitHub Environment (separate from Actions
+          secrets) and runs behind a recommended firewall allow-list that
+          blocks third-party APIs by default. Both must be configured for
+          the WHY-phase agent to gather live evidence.
+        </p>
+        <div class="settings-row">
+          <button id="btn-copilot-env-refresh" class="btn-primary">Check status</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const required = env.secrets.filter(s => s.required);
+  const optional = env.secrets.filter(s => !s.required);
+  const presentRequired = required.filter(s => s.present).length;
+
+  const headerBadge = !env.environmentExists
+    ? '<span class="badge-warn">✗ `copilot` environment not found</span>'
+    : !env.reachable
+      ? '<span class="badge-warn">⚠ cannot query env secrets</span>'
+      : presentRequired === required.length
+        ? `<span class="badge-success">✓ ${presentRequired}/${required.length} required secrets present</span>`
+        : `<span class="badge-warn">${presentRequired}/${required.length} required secrets present</span>`;
+
+  const renderSecretRow = (s: { name: string; purpose: string; usedBy: string[]; required: boolean; signupUrl: string; present: boolean }) => {
+    const icon = s.present ? '<span class="badge-success">✓ present</span>' : '<span class="badge-warn">✗ missing</span>';
+    const btnLabel = s.present ? 'Update' : 'Add';
+    return `
+      <div class="settings-row" style="align-items: flex-start;">
+        <div class="settings-label" style="flex: 1;">
+          <code>${escapeHtml(s.name)}</code>
+          ${s.required ? '' : ' <span class="text-muted" style="font-size: 11px;">(optional)</span>'}
+          <div class="text-muted" style="font-size: 11px; margin-top: 2px;">${escapeHtml(s.purpose)}</div>
+          <div class="text-muted" style="font-size: 11px;">Get one: <a href="${escapeHtml(s.signupUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.signupUrl)}</a></div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          ${icon}
+          <button class="btn-secondary btn-copilot-env-set-secret" data-secret-name="${escapeHtml(s.name)}">${btnLabel}</button>
+        </div>
+      </div>
+    `;
+  };
+
+  const hostsRows = env.hosts.map(h => `
+    <li>
+      <code>${escapeHtml(h.url)}</code>
+      <span class="text-muted" style="font-size: 11px;"> — ${escapeHtml(h.purpose)} (${h.usedBy.map(s => `<code>${escapeHtml(s)}</code>`).join(', ')})</span>
+    </li>
+  `).join('');
+
+  const hostsAsText = env.hosts.map(h => h.url).join('\n');
+
+  return `
+    <div class="settings-section">
+      <h3>Coding Agent Environment ${settingsRepoHint()}</h3>
+      <p class="text-muted">
+        The Copilot Coding Agent runs in a separate runtime from GitHub Actions:
+        it reads secrets from the <code>copilot</code> environment and obeys
+        its own outbound firewall. Both must be configured for the WHY-phase
+        agent to call Tavily / arXiv / USPTO / HN successfully.
+      </p>
+      <div class="settings-row">
+        <div class="settings-label">Status</div>
+        <div>${headerBadge}</div>
+      </div>
+
+      <h4 style="margin: 16px 0 8px;">Environment secrets <span class="text-muted" style="font-weight: normal; font-size: 12px;">(API-managed)</span></h4>
+      ${required.map(renderSecretRow).join('')}
+      ${optional.length > 0 ? `
+        <details style="margin: 8px 0;">
+          <summary class="text-muted" style="cursor: pointer;">Optional secrets (${optional.length})</summary>
+          ${optional.map(renderSecretRow).join('')}
+        </details>
+      ` : ''}
+
+      <h4 style="margin: 16px 0 8px;">Firewall allow-list <span class="text-muted" style="font-weight: normal; font-size: 12px;">(manual — no API yet)</span></h4>
+      <p class="text-muted" style="font-size: 12px;">
+        These hosts must be added to the Coding Agent's outbound allow-list.
+        Even arXiv + HN (no API key) fail with <code>fetch failed</code> until
+        their hosts are listed. Auto-verification isn't possible — GitHub
+        doesn't expose an API for this setting yet. Check the agent's audit
+        JSONL for <code>fetch failed</code> entries to confirm allow-list misses.
+      </p>
+      <ul style="margin: 4px 0 8px 16px; padding: 0; font-size: 13px;">
+        ${hostsRows}
+      </ul>
+      <div class="settings-row">
+        <button id="btn-copilot-firewall-open" class="btn-primary">Open Coding Agent settings ↗</button>
+        <button id="btn-copilot-firewall-copy" class="btn-secondary" data-hosts="${escapeHtml(hostsAsText)}">Copy hosts</button>
+      </div>
+
+      <div class="settings-row" style="margin-top: 16px;">
+        <button id="btn-copilot-env-refresh" class="btn-secondary">Refresh status</button>
+        <button id="btn-copilot-env-open-page" class="btn-secondary">Open env secrets page ↗</button>
       </div>
     </div>
   `;
@@ -2771,6 +2915,40 @@ function attachEventHandlers() {
   // Settings: provision agentic infra (Phase B-PR2)
   document.getElementById('btn-settings-provision-agentic')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'provisionAgentic' });
+  });
+
+  // Settings: Coding Agent Environment (B-PR1e)
+  document.getElementById('btn-copilot-env-refresh')?.addEventListener('click', () => {
+    state.settingsCopilotEnv = null;
+    state.settingsCopilotEnvError = null;
+    render();
+    vscode.postMessage({ type: 'getCopilotEnvStatus' });
+  });
+  document.getElementById('btn-copilot-firewall-open')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'openCopilotFirewallSettings' });
+  });
+  document.getElementById('btn-copilot-env-open-page')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'openCopilotEnvSecretsPage' });
+  });
+  document.getElementById('btn-copilot-firewall-copy')?.addEventListener('click', (e) => {
+    const target = e.currentTarget as HTMLButtonElement;
+    const hosts = target?.dataset.hosts ?? '';
+    if (hosts) {
+      navigator.clipboard.writeText(hosts).then(() => {
+        target.textContent = 'Copied ✓';
+        setTimeout(() => { target.textContent = 'Copy hosts'; }, 1500);
+      });
+    }
+  });
+  // Per-secret Add/Update buttons (multiple, bound by class).
+  document.querySelectorAll<HTMLButtonElement>('.btn-copilot-env-set-secret').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLButtonElement;
+      const name = target?.dataset.secretName;
+      if (name) {
+        vscode.postMessage({ type: 'setCopilotEnvSecret', secretName: name });
+      }
+    });
   });
 
   // Settings: refresh prompt packs
@@ -4472,6 +4650,17 @@ window.addEventListener('message', (event) => {
     case 'agenticStatus':
       state.settingsAgenticSkills = (message.skills ?? []) as { name: string; family: string; deployed: boolean }[];
       state.settingsAgenticAgents = (message.agents ?? []) as { name: string; deployed: boolean }[];
+      if (state.view === 'settings') { render(); }
+      break;
+
+    case 'copilotEnvStatus':
+      if (message.error) {
+        state.settingsCopilotEnv = null;
+        state.settingsCopilotEnvError = message.error as string;
+      } else {
+        state.settingsCopilotEnv = message.status as typeof state.settingsCopilotEnv;
+        state.settingsCopilotEnvError = null;
+      }
       if (state.view === 'settings') { render(); }
       break;
 

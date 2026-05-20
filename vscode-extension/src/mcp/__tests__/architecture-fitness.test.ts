@@ -50,9 +50,12 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // extension panel. Bumped once more when promptResearchSecret was added
   // for the showInputBox round-trip (window.prompt is unreliable in some
   // webview builds). And again when createResearchSecret landed for the
-  // GMT guided-create flow.
-  'webview/app/lookingGlass.ts': 221,
-  'webview/LookingGlassPanel.ts': 112,
+  // GMT guided-create flow. Bumped in B-PR1e for the Coding Agent
+  // Environment Settings section: new dispatcher cases on the panel side
+  // (getCopilotEnvStatus / setCopilotEnvSecret / openCopilotFirewallSettings
+  // / openCopilotEnvSecretsPage) and click handlers on the webview side.
+  'webview/app/lookingGlass.ts': 224,
+  'webview/LookingGlassPanel.ts': 116,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,

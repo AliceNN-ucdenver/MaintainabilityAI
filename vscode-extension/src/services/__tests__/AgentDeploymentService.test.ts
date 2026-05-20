@@ -209,3 +209,74 @@ describe('AgentDeploymentService.deployAgents', () => {
     expect(svc.listDeployedAgents(tmpMesh).every(a => a.deployed)).toBe(true);
   });
 });
+
+describe('AgentDeploymentService.getCopilotEnvStatus', () => {
+  const svc = new AgentDeploymentService(EXTENSION_PATH);
+
+  it('marks all secrets as missing when env does not exist', async () => {
+    const status = await svc.getCopilotEnvStatus(
+      'acme/example',
+      async () => null,
+      async () => false,
+    );
+    expect(status.environmentExists).toBe(false);
+    expect(status.reachable).toBe(false);
+    expect(status.secrets.every(s => !s.present)).toBe(true);
+    expect(status.repoSlug).toBe('acme/example');
+  });
+
+  it('marks all secrets as missing when env exists but listing fails', async () => {
+    const status = await svc.getCopilotEnvStatus(
+      'acme/example',
+      async () => null,           // listing API returns null = unreachable
+      async () => true,           // env exists
+    );
+    expect(status.environmentExists).toBe(true);
+    expect(status.reachable).toBe(false);
+    expect(status.secrets.every(s => !s.present)).toBe(true);
+  });
+
+  it('flags only the secrets the listing returns', async () => {
+    const status = await svc.getCopilotEnvStatus(
+      'acme/example',
+      async () => new Set(['TAVILY_API_KEY']),
+      async () => true,
+    );
+    expect(status.environmentExists).toBe(true);
+    expect(status.reachable).toBe(true);
+    const tavily = status.secrets.find(s => s.name === 'TAVILY_API_KEY')!;
+    const uspto  = status.secrets.find(s => s.name === 'USPTO_API_KEY')!;
+    expect(tavily.present).toBe(true);
+    expect(uspto.present).toBe(false);
+    expect(tavily.required).toBe(true);
+    expect(uspto.required).toBe(true);
+  });
+
+  it('returns the static firewall host list regardless of env state', async () => {
+    const status = await svc.getCopilotEnvStatus(
+      'acme/example',
+      async () => new Set(),
+      async () => false,
+    );
+    // 4 search providers; auto-verification not possible so hosts are returned
+    // as a static reference for the UI.
+    expect(status.hosts.map(h => h.host).sort()).toEqual([
+      'api.tavily.com',
+      'api.uspto.gov',
+      'export.arxiv.org',
+      'hn.algolia.com',
+    ].sort());
+  });
+
+  it('passes the correct envName to the lookup callbacks', async () => {
+    let listEnvName = '';
+    let existsEnvName = '';
+    await svc.getCopilotEnvStatus(
+      'acme/example',
+      async (_o, _r, env) => { listEnvName = env; return new Set(); },
+      async (_o, _r, env) => { existsEnvName = env; return true; },
+    );
+    expect(listEnvName).toBe('copilot');
+    expect(existsEnvName).toBe('copilot');
+  });
+});

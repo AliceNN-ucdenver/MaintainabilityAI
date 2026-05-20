@@ -295,6 +295,93 @@ export class GitHubService {
     }
   }
 
+  /**
+   * Returns the names of secrets configured on the given Environment (e.g.
+   * `copilot`), or null if the environment doesn't exist / access denied.
+   * The `copilot` environment is the secret store the Copilot Coding Agent
+   * actually reads from at runtime — distinct from repo-wide Actions secrets.
+   */
+  async listEnvironmentSecretNames(
+    owner: string,
+    repo: string,
+    environmentName: string,
+  ): Promise<Set<string> | null> {
+    try {
+      const client = await this.getClient();
+      const { data } = await client.rest.actions.listEnvironmentSecrets({
+        owner,
+        repo,
+        environment_name: environmentName,
+        per_page: 100,
+      });
+      return new Set(data.secrets.map(s => s.name));
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Set or update a secret on a repository Environment. The Copilot Coding
+   * Agent runtime reads from this store; the agentic-SDLC search Skills
+   * (`skill-tavily-search`, `skill-uspto-search`, etc.) pull their API keys
+   * from environment-scoped secrets via `process.env`.
+   *
+   * Implementation: shells out to `gh secret set --env <name>`, which handles
+   * the libsodium sealed-box encryption against the env's public key. Same
+   * pattern as `setRepoSecret` for Actions secrets — keeps the dependency
+   * surface minimal (no libsodium-wrappers required).
+   */
+  async setEnvironmentSecret(
+    owner: string,
+    repo: string,
+    environmentName: string,
+    secretName: string,
+    secretValue: string,
+  ): Promise<void> {
+    const { execFileAsync } = await import('../utils/exec');
+
+    try {
+      await execFileAsync('gh', [
+        'secret', 'set', secretName,
+        '--repo', `${owner}/${repo}`,
+        '--env', environmentName,
+        '--body', secretValue,
+      ]);
+    } catch (err: unknown) {
+      const message = toErrorMessage(err);
+      if (message.includes('not found') || message.includes('ENOENT')) {
+        throw new Error(
+          'GitHub CLI (gh) is not installed. Install it from https://cli.github.com/ and run "gh auth login" first.'
+        );
+      }
+      throw new Error(`Failed to set env secret: ${message}`);
+    }
+  }
+
+  /**
+   * Returns true if the named Environment (e.g. `copilot`) exists on the repo.
+   * The `copilot` environment is created automatically by GitHub the first
+   * time the Coding Agent runs in the repo; if a user hasn't dispatched the
+   * agent yet, the env may not exist and secret operations will fail.
+   */
+  async environmentExists(
+    owner: string,
+    repo: string,
+    environmentName: string,
+  ): Promise<boolean> {
+    try {
+      const client = await this.getClient();
+      // The Octokit-generated REST namespace doesn't include getEnvironment
+      // (Environments API is partially typed); use the raw request to be safe.
+      await client.request('GET /repos/{owner}/{repo}/environments/{environment_name}', {
+        owner, repo, environment_name: environmentName,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // ============================================================================
   // Issue Comments & Monitoring (Phases 4-6)
   // ============================================================================
