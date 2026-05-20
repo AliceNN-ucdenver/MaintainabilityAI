@@ -1,22 +1,40 @@
-name: "Audit Validate — evidence-honesty gate on artifact PRs"
+name: "Audit Validate — research-doc correctness + evidence-honesty gate"
 
-# Cross-checks the Hatter Tag's `evidence:` block (set by the author
-# agent in its PR body) against the audit JSONL the agent emitted via
-# `skill-audit-emit-event`. If the agent declared `evidence_mode: live`
-# but zero successful `skill_call` events exist for the four search
-# providers (tavily/arxiv/uspto/hackernews), apply the
-# `degraded-evidence` label and post a diagnostic PR comment.
+# Two checks per PR, surfaced in ONE upserted "Research correctness
+# summary" comment:
+#
+#   1. Evidence honesty (§11.1.7) — cross-checks the Hatter Tag's
+#      `evidence:` block (set by the author agent in its PR body)
+#      against the audit JSONL the agent emitted via
+#      `skill-audit-emit-event`. If the agent declared
+#      `evidence_mode: live` but zero successful `skill_call` events
+#      exist for the four search providers (tavily/arxiv/uspto/
+#      hackernews), apply the `degraded-evidence` label.
+#
+#   2. Structural correctness (research-synthesis only) — parses
+#      `okrs/<id>/why/research-doc.md` and checks the 10 required
+#      H2 sections, 4 required H3 sub-sections under Cross-Source
+#      Analysis, and Formal Conclusions citation density. The
+#      synthesis prompt-pack enforces these as load-bearing for the
+#      downstream PRD agent.
 #
 # The state machine (`okr-state-machine.yml`) refuses to promote
 # `governance-pass` while `degraded-evidence` is present (§11.1.7).
 #
+# WHY-phase merge gate: `research-pass` label applied here on clean
+# WHY runs; branch protection should require it. Research-synthesis
+# PRs bypass reviewer-bus entirely.
+#
+# Comment strategy: single upserted comment marked with
+# `<!-- audit-validate -->` so every push edits the same comment
+# instead of spamming the PR.
+#
 # Why this exists: an agent that loads SKILL.md context but has no
 # live CLI backend will silently fall back to reading repo files and
-# produce an artifact that LOOKS grounded. The audit log is the only
-# tamper-evident record of what actually happened — this workflow
-# turns that record into an enforceable gate.
+# produce an artifact that LOOKS grounded. The audit log + structural
+# parse are the only tamper-evident records of what actually happened.
 #
-# Phase tracking: §13 B1c (post-run validator).
+# Phase tracking: §13 B17 + B18 + B19.
 
 on:
   pull_request:
@@ -27,8 +45,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate-evidence:
-    name: "Validate Hatter Tag evidence_mode vs audit JSONL"
+  validate:
+    name: "Validate evidence + structure on artifact PRs"
     if: >-
       contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
       contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
@@ -52,8 +70,8 @@ jobs:
           RUN_ID=$(printf '%s' "$BODY" | grep -oE 'run_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^run_id:\s*//')
           EVIDENCE_MODE=$(printf '%s' "$BODY" | grep -oE 'evidence_mode:\s*(live|cached|mixed)' | head -1 | sed -E 's/^evidence_mode:\s*//')
           DECLARED_FRESH=$(printf '%s' "$BODY" | grep -oE 'fresh_provider_search_performed:\s*(true|false)' | head -1 | sed -E 's/^fresh_provider_search_performed:\s*//')
-          echo "okr_id=$OKR_ID" >> "$GITHUB_OUTPUT"
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "okr_id=$OKR_ID"             >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID"             >> "$GITHUB_OUTPUT"
           echo "evidence_mode=$EVIDENCE_MODE" >> "$GITHUB_OUTPUT"
           echo "declared_fresh=$DECLARED_FRESH" >> "$GITHUB_OUTPUT"
           echo "::notice::okr_id=$OKR_ID run_id=$RUN_ID evidence_mode=$EVIDENCE_MODE declared_fresh=$DECLARED_FRESH"
@@ -75,32 +93,126 @@ jobs:
           if [ ! -f "$JSONL_PATH" ]; then
             echo "::warning::Audit JSONL missing at $JSONL_PATH — cannot validate evidence"
             echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "path=$JSONL_PATH" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "path=$JSONL_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Count successful skill_call events per search provider
+      - name: Count successful skill_call events
         id: counts
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         run: |
           JSONL_PATH="${{ steps.audit.outputs.path }}"
           # An event counts as "successful" if event_kind=skill_call AND
-          # payload.skill matches one of the four search providers AND
-          # payload.ok != false. The skill writes payload.ok=true on
-          # success; the OR with absence is for older logs that didn't
-          # include the ok field.
-          TAVILY=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "tavily-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
-          ARXIV=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "arxiv-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
-          USPTO=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "uspto-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
-          HN=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "hackernews-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
+          # payload.skill matches the target AND payload.ok != false.
+          count_skill() {
+            jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length'
+          }
+          TAVILY=$(count_skill 'tavily-search')
+          ARXIV=$(count_skill 'arxiv-search')
+          USPTO=$(count_skill 'uspto-search')
+          HN=$(count_skill 'hackernews-search')
+          GAP_LOOP=$(count_skill 'gap-loop')
           TOTAL=$((TAVILY + ARXIV + USPTO + HN))
-          echo "tavily=$TAVILY"   >> "$GITHUB_OUTPUT"
-          echo "arxiv=$ARXIV"     >> "$GITHUB_OUTPUT"
-          echo "uspto=$USPTO"     >> "$GITHUB_OUTPUT"
-          echo "hn=$HN"           >> "$GITHUB_OUTPUT"
-          echo "total=$TOTAL"     >> "$GITHUB_OUTPUT"
-          echo "::notice::successful provider skill_calls — tavily=$TAVILY arxiv=$ARXIV uspto=$USPTO hn=$HN (total=$TOTAL)"
+          # Look for the optional reason carried on the gap-loop marker.
+          GAP_REASON=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" | head -1)
+          echo "tavily=$TAVILY"       >> "$GITHUB_OUTPUT"
+          echo "arxiv=$ARXIV"         >> "$GITHUB_OUTPUT"
+          echo "uspto=$USPTO"         >> "$GITHUB_OUTPUT"
+          echo "hn=$HN"               >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL"         >> "$GITHUB_OUTPUT"
+          echo "gap_loop=$GAP_LOOP"   >> "$GITHUB_OUTPUT"
+          echo "gap_reason=$GAP_REASON" >> "$GITHUB_OUTPUT"
+          echo "::notice::successful provider skill_calls — tavily=$TAVILY arxiv=$ARXIV uspto=$USPTO hn=$HN gap-loop=$GAP_LOOP (total=$TOTAL)"
+
+      # ── Structural correctness on research-doc.md ────────────────────
+      # Only runs for research-synthesis PRs — PRD + design have their
+      # own structural reviewers (architect/security) in reviewer-bus.
+      - name: Parse research-doc.md structure
+        id: structure
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          contains(github.event.pull_request.labels.*.name, 'research-synthesis')
+        run: |
+          OKR_ID="${{ steps.tag.outputs.okr_id }}"
+          DOC_PATH="okrs/$OKR_ID/why/research-doc.md"
+          if [ ! -f "$DOC_PATH" ]; then
+            echo "doc_found=false"        >> "$GITHUB_OUTPUT"
+            echo "h2_present=0"           >> "$GITHUB_OUTPUT"
+            echo "h2_required=10"         >> "$GITHUB_OUTPUT"
+            echo "h3_present=0"           >> "$GITHUB_OUTPUT"
+            echo "h3_required=4"          >> "$GITHUB_OUTPUT"
+            echo "conclusions=0"          >> "$GITHUB_OUTPUT"
+            echo "conclusions_with_cites=0" >> "$GITHUB_OUTPUT"
+            echo "missing_h2=ALL — research-doc.md not written" >> "$GITHUB_OUTPUT"
+            echo "missing_h3=ALL — research-doc.md not written" >> "$GITHUB_OUTPUT"
+            echo "doc_path=$DOC_PATH"     >> "$GITHUB_OUTPUT"
+            echo "::warning::research-doc.md missing at $DOC_PATH"
+            exit 0
+          fi
+          echo "doc_found=true"  >> "$GITHUB_OUTPUT"
+          echo "doc_path=$DOC_PATH" >> "$GITHUB_OUTPUT"
+
+          # Canonical H2 names from the synthesis pack — load-bearing
+          # for the downstream PRD agent's parser.
+          REQUIRED_H2=(
+            "Source Premises"
+            "Executive Summary"
+            "Cross-Source Analysis"
+            "Evidence Gaps"
+            "Jobs-to-be-Done Analysis"
+            "Patent Landscape"
+            "Whitespace Analysis"
+            "Formal Conclusions"
+            "Recommendations"
+            "References"
+          )
+          H2_PRESENT=0
+          MISSING_H2=""
+          for name in "${REQUIRED_H2[@]}"; do
+            # Match exact heading (allow trailing whitespace; reject numbered prefixes like "## 1. Foo")
+            if grep -qE "^##[[:space:]]+${name}[[:space:]]*$" "$DOC_PATH"; then
+              H2_PRESENT=$((H2_PRESENT + 1))
+            else
+              MISSING_H2="${MISSING_H2}${name}; "
+            fi
+          done
+
+          # Canonical H3 sub-sections under Cross-Source Analysis
+          REQUIRED_H3=(
+            "Standards and Best Practices"
+            "Security and Compliance"
+            "Implementation Patterns"
+            "Market Landscape"
+          )
+          H3_PRESENT=0
+          MISSING_H3=""
+          for name in "${REQUIRED_H3[@]}"; do
+            if grep -qE "^###[[:space:]]+${name}[[:space:]]*$" "$DOC_PATH"; then
+              H3_PRESENT=$((H3_PRESENT + 1))
+            else
+              MISSING_H3="${MISSING_H3}${name}; "
+            fi
+          done
+
+          # Count C[N] formal conclusions + how many cite at least one S[N]
+          # on the same line. The synthesis pack requires ≥2 (or ≥1 for
+          # LOW confidence) — we only check ≥1 here because parsing LOW
+          # in shell with multi-line scopes is fragile.
+          CONCLUSIONS=$(grep -cE '\*\*C[0-9]+\*\*' "$DOC_PATH" || true)
+          CONCLUSIONS_WITH_CITES=$(grep -E '\*\*C[0-9]+\*\*' "$DOC_PATH" | grep -cE 'S[0-9]+' || true)
+
+          echo "h2_present=$H2_PRESENT"       >> "$GITHUB_OUTPUT"
+          echo "h2_required=10"               >> "$GITHUB_OUTPUT"
+          echo "h3_present=$H3_PRESENT"       >> "$GITHUB_OUTPUT"
+          echo "h3_required=4"                >> "$GITHUB_OUTPUT"
+          echo "conclusions=$CONCLUSIONS"     >> "$GITHUB_OUTPUT"
+          echo "conclusions_with_cites=$CONCLUSIONS_WITH_CITES" >> "$GITHUB_OUTPUT"
+          # Truncate the missing lists so they fit on a comment line.
+          echo "missing_h2=${MISSING_H2%; }"  >> "$GITHUB_OUTPUT"
+          echo "missing_h3=${MISSING_H3%; }"  >> "$GITHUB_OUTPUT"
+          echo "::notice::structural — H2 ${H2_PRESENT}/10, H3 ${H3_PRESENT}/4, C[N] cited ${CONCLUSIONS_WITH_CITES}/${CONCLUSIONS}"
 
       - name: Decide gate verdict
         id: verdict
@@ -111,102 +223,181 @@ jobs:
           FOUND="${{ steps.audit.outputs.found }}"
           TOTAL="${{ steps.counts.outputs.total }}"
           TOTAL="${TOTAL:-0}"
+          IS_RESEARCH="${{ contains(github.event.pull_request.labels.*.name, 'research-synthesis') }}"
+          DOC_FOUND="${{ steps.structure.outputs.doc_found }}"
+          H2_PRESENT="${{ steps.structure.outputs.h2_present }}"
+          H3_PRESENT="${{ steps.structure.outputs.h3_present }}"
 
-          # Default OK
           VERDICT="ok"
           REASON=""
 
-          # Audit missing on a PR that claims live evidence -> degraded
+          # Evidence honesty checks
           if [ "$FOUND" != "true" ] && [ "$EVIDENCE_MODE" = "live" ]; then
             VERDICT="degraded"
-            REASON="evidence_mode=live but no audit JSONL found at okrs/$OKR_ID/audit/events/$RUN_ID.jsonl"
+            REASON="evidence_mode=live but no audit JSONL found at ${{ steps.audit.outputs.path }}"
           fi
-
-          # Claim live but no successful provider skill_call -> degraded
           if [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
             VERDICT="degraded"
             REASON="evidence_mode=live but audit log contains 0 successful skill_call events for any of tavily/arxiv/uspto/hackernews"
           fi
-
-          # Claim fresh=true but no successful provider skill_call -> degraded
           if [ "$FOUND" = "true" ] && [ "$DECLARED_FRESH" = "true" ] && [ "$TOTAL" -eq 0 ]; then
             VERDICT="degraded"
             REASON="fresh_provider_search_performed=true but audit log shows 0 successful provider skill_calls"
           fi
-
-          # Hatter Tag missing the evidence block entirely on an artifact PR -> degraded
-          # (forces every agent-authored PR to declare honesty explicitly)
           if [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"
             REASON="Hatter Tag is missing the evidence: block — declare evidence_mode + fresh_provider_search_performed (§11.1.7)"
+          fi
+
+          # Structural checks (research-synthesis only)
+          if [ "$IS_RESEARCH" = "true" ]; then
+            if [ "$DOC_FOUND" != "true" ]; then
+              VERDICT="degraded"
+              REASON="research-doc.md not written at ${{ steps.structure.outputs.doc_path }}"
+            elif [ "$H2_PRESENT" -lt 10 ] || [ "$H3_PRESENT" -lt 4 ]; then
+              VERDICT="degraded"
+              REASON="research-doc.md missing required sections — H2 ${H2_PRESENT}/10, H3 ${H3_PRESENT}/4. Synthesis pack heading names are load-bearing for the PRD agent's parser."
+            fi
           fi
 
           echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
           echo "reason=$REASON"   >> "$GITHUB_OUTPUT"
           echo "::notice::verdict=$VERDICT reason=$REASON"
 
-      - name: Apply degraded-evidence label + diagnostic comment
-        if: steps.verdict.outputs.verdict == 'degraded'
+      # ── Single upserted "Research correctness summary" comment ───────
+      # Marker comment `<!-- audit-validate -->` lets us find + edit the
+      # existing comment on subsequent runs instead of spamming the PR.
+      - name: Build correctness summary body
+        id: summary
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          VERDICT: ${{ steps.verdict.outputs.verdict }}
+          REASON: ${{ steps.verdict.outputs.reason }}
+          IS_RESEARCH: ${{ contains(github.event.pull_request.labels.*.name, 'research-synthesis') }}
+          AUDIT_FOUND: ${{ steps.audit.outputs.found }}
+          AUDIT_PATH: ${{ steps.audit.outputs.path }}
+          OKR_ID: ${{ steps.tag.outputs.okr_id }}
+          RUN_ID: ${{ steps.tag.outputs.run_id }}
+          EVIDENCE_MODE: ${{ steps.tag.outputs.evidence_mode }}
+          TAVILY: ${{ steps.counts.outputs.tavily }}
+          ARXIV: ${{ steps.counts.outputs.arxiv }}
+          USPTO: ${{ steps.counts.outputs.uspto }}
+          HN: ${{ steps.counts.outputs.hn }}
+          TOTAL: ${{ steps.counts.outputs.total }}
+          GAP_LOOP: ${{ steps.counts.outputs.gap_loop }}
+          GAP_REASON: ${{ steps.counts.outputs.gap_reason }}
+          DOC_FOUND: ${{ steps.structure.outputs.doc_found }}
+          DOC_PATH: ${{ steps.structure.outputs.doc_path }}
+          H2_PRESENT: ${{ steps.structure.outputs.h2_present }}
+          H3_PRESENT: ${{ steps.structure.outputs.h3_present }}
+          CONCLUSIONS: ${{ steps.structure.outputs.conclusions }}
+          CONCLUSIONS_WITH_CITES: ${{ steps.structure.outputs.conclusions_with_cites }}
+          MISSING_H2: ${{ steps.structure.outputs.missing_h2 }}
+          MISSING_H3: ${{ steps.structure.outputs.missing_h3 }}
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} --add-label "degraded-evidence"
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "$(cat <<'EOF'
-⚠️ **Evidence honesty gate — degraded**
+          # Body is built by appending one line at a time to keep the
+          # YAML scalar indent clean — nested heredocs with markdown at
+          # column 1 break YAML parsing (the markdown `**` looks like
+          # a YAML anchor reference).
+          GAP_LOOP="${GAP_LOOP:-0}"
+          icon() { if [ "$1" = "true" ]; then echo "✓"; else echo "✗"; fi; }
 
-The Hatter Tag declares one thing; the audit log shows another. \`okr-state-machine.yml\` will refuse to promote \`governance-pass\` while \`degraded-evidence\` is present.
+          BODY=/tmp/audit-validate-body.md
+          : > "$BODY"
+          printf '%s\n' '<!-- audit-validate -->' >> "$BODY"
 
-**Reason:** ${{ steps.verdict.outputs.reason }}
+          if [ "$VERDICT" = "ok" ]; then
+            printf '%s\n\n' '✓ **Research correctness summary — pass**' >> "$BODY"
+          else
+            printf '%s\n\n' '⚠️ **Research correctness summary — degraded**' >> "$BODY"
+            printf '**Reason:** %s\n\n' "$REASON" >> "$BODY"
+          fi
 
-**Counts from \`okrs/${{ steps.tag.outputs.okr_id }}/audit/events/${{ steps.tag.outputs.run_id }}.jsonl\`:**
+          if [ "$AUDIT_FOUND" = "true" ]; then
+            printf '**Provider skill_calls** (`%s`):\n\n' "$AUDIT_PATH" >> "$BODY"
+            printf '| Provider | Successful calls |\n' >> "$BODY"
+            printf '|---|---:|\n' >> "$BODY"
+            printf '| tavily-search | %s |\n' "$TAVILY" >> "$BODY"
+            printf '| arxiv-search | %s |\n' "$ARXIV" >> "$BODY"
+            printf '| uspto-search | %s |\n' "$USPTO" >> "$BODY"
+            printf '| hackernews-search | %s |\n' "$HN" >> "$BODY"
+            printf '| **Total** | **%s** |\n\n' "$TOTAL" >> "$BODY"
+          else
+            printf '_Audit JSONL not found at `%s`._\n\n' "$AUDIT_PATH" >> "$BODY"
+          fi
 
-| Provider | Successful \`skill_call\` events |
-|---|---:|
-| tavily-search | ${{ steps.counts.outputs.tavily }} |
-| arxiv-search | ${{ steps.counts.outputs.arxiv }} |
-| uspto-search | ${{ steps.counts.outputs.uspto }} |
-| hackernews-search | ${{ steps.counts.outputs.hn }} |
-| **Total** | **${{ steps.counts.outputs.total }}** |
+          if [ "$IS_RESEARCH" = "true" ]; then
+            H2_OK="false"; [ "$H2_PRESENT" = "10" ] && H2_OK="true"
+            H3_OK="false"; [ "$H3_PRESENT" = "4" ] && H3_OK="true"
+            CITES_OK="false"
+            if [ -n "$CONCLUSIONS" ] && [ "$CONCLUSIONS" != "0" ] && [ "$CONCLUSIONS_WITH_CITES" = "$CONCLUSIONS" ]; then
+              CITES_OK="true"
+            fi
+            H2_NOTE=""; [ -n "$MISSING_H2" ] && H2_NOTE=" — missing: \`$MISSING_H2\`"
+            H3_NOTE=""; [ -n "$MISSING_H3" ] && H3_NOTE=" — missing: \`$MISSING_H3\`"
 
-**How to fix:**
-- If the search-skill backends were unavailable this run, update the PR body's Hatter Tag to \`evidence_mode: cached\` (or \`mixed\` if some providers worked) and add a \`degraded_reason\` explaining the cause. Push the amended PR body and this gate will pass.
-- If the backends WERE available and the search skills should have been called, re-run the agent: \`@copilot use agent market-research-agent\` on the OKR anchor issue.
+            printf '**Structural correctness** (`%s`):\n\n' "$DOC_PATH" >> "$BODY"
+            printf '| Check | Result |\n' >> "$BODY"
+            printf '|---|---|\n' >> "$BODY"
+            printf '| `research-doc.md` written | %s |\n' "$(icon "$DOC_FOUND")" >> "$BODY"
+            printf '| 10 required H2 sections present | %s %s/10%s |\n' "$(icon "$H2_OK")" "$H2_PRESENT" "$H2_NOTE" >> "$BODY"
+            printf '| 4 required H3 sub-sections under Cross-Source Analysis | %s %s/4%s |\n' "$(icon "$H3_OK")" "$H3_PRESENT" "$H3_NOTE" >> "$BODY"
+            printf '| Formal Conclusions cite at least one S[N] | %s %s/%s |\n' "$(icon "$CITES_OK")" "$CONCLUSIONS_WITH_CITES" "$CONCLUSIONS" >> "$BODY"
+            if [ "$GAP_LOOP" -gt 0 ]; then
+              printf '| Refinement (gap-loop second pass) | ✓ ran (`%s`) |\n' "${GAP_REASON:-unspecified}" >> "$BODY"
+            else
+              printf '| Refinement (gap-loop second pass) | — skipped (coverage was sufficient) |\n' >> "$BODY"
+            fi
+            printf '| Hatter Tag `evidence_mode` declaration | `%s` |\n\n' "${EVIDENCE_MODE:-(missing)}" >> "$BODY"
+          else
+            printf '_Structural check skipped — only runs on `research-synthesis` PRs._\n\n' >> "$BODY"
+          fi
 
-See \`.caterpillar/prompts/research/synthesis.md\` for the evidence-mode decision table.
-EOF
-)"
+          printf '_audit-validate.yml · run `%s` · §11.1.7_\n' "${{ github.run_id }}" >> "$BODY"
+          echo "::notice::Built correctness summary body ($(wc -c < "$BODY") bytes)"
 
-      - name: Remove stale degraded-evidence label when verdict flips to ok
-        if: steps.verdict.outputs.verdict == 'ok' && contains(github.event.pull_request.labels.*.name, 'degraded-evidence')
+      - name: Upsert correctness summary comment
+        if: steps.gate.outputs.skip != 'true'
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "degraded-evidence"
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "✓ **Evidence honesty gate — cleared**
+          BODY=$(cat /tmp/audit-validate-body.md)
+          # Find an existing audit-validate comment by marker.
+          EXISTING_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --jq '.[] | select(.body | startswith("<!-- audit-validate -->")) | .id' | head -1)
+          if [ -n "$EXISTING_ID" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING_ID" -f body="$BODY" >/dev/null
+            echo "::notice::Updated existing audit-validate comment $EXISTING_ID"
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+            echo "::notice::Created new audit-validate comment"
+          fi
 
-The Hatter Tag now matches the audit log. \`degraded-evidence\` label removed; \`governance-pass\` promotion is no longer blocked by this gate."
+      # ── Label management ─────────────────────────────────────────────
+      - name: Apply degraded-evidence label
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          steps.verdict.outputs.verdict == 'degraded' &&
+          !contains(github.event.pull_request.labels.*.name, 'degraded-evidence')
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "degraded-evidence"
 
-      # ── WHY-phase merge gate ─────────────────────────────────────
-      # Research-synthesis PRs don't go through reviewer-bus (no reviewer
-      # prompt packs exist for research docs). Their merge gate IS this
-      # workflow: pass the evidence-honesty check → apply `research-pass`
-      # → branch protection unlocks merge.
-      #
-      # PRD + design PRs need reviewer scores too — for those, the
-      # `governance-pass` master label (applied by okr-state-machine.yml
-      # when both reviewer approvals AND no degraded-evidence) is the gate.
+      - name: Remove degraded-evidence when verdict flips to ok
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          steps.verdict.outputs.verdict == 'ok' &&
+          contains(github.event.pull_request.labels.*.name, 'degraded-evidence')
+        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label "degraded-evidence"
+
+      # Research-synthesis WHY-phase merge gate.
       - name: Apply research-pass on clean WHY runs
         if: >-
+          steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'ok' &&
           contains(github.event.pull_request.labels.*.name, 'research-synthesis') &&
           !contains(github.event.pull_request.labels.*.name, 'research-pass')
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} --add-label "research-pass"
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "✓ **research-pass** — evidence-honesty gate cleared. Merge unlocked (subject to branch protection)."
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "research-pass"
 
       - name: Remove research-pass when verdict regresses
         if: >-
+          steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'degraded' &&
           contains(github.event.pull_request.labels.*.name, 'research-synthesis') &&
           contains(github.event.pull_request.labels.*.name, 'research-pass')
-        run: |
-          gh pr edit ${{ github.event.pull_request.number }} --remove-label "research-pass"
+        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label "research-pass"
