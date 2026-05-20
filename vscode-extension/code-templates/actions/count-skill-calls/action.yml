@@ -66,11 +66,15 @@ runs:
           exit 0
         fi
 
+        # Defensive: same pipefail concern as extract-okr-context — if the
+        # JSONL has a malformed line jq exits non-zero, killing the step.
+        # `|| echo 0` falls back to a zero count instead of failing the
+        # whole audit.
         count_skill() {
-          jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length'
+          (jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill and (.payload.ok != false))' "$JSONL_PATH" 2>/dev/null | jq -s 'length' 2>/dev/null) || echo 0
         }
         count_queries() {
-          jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill) | .payload.queries // [] | .[]' "$JSONL_PATH" | sort -u | wc -l | tr -d ' '
+          (jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill) | .payload.queries // [] | .[]' "$JSONL_PATH" 2>/dev/null | sort -u | wc -l | tr -d ' ') || echo 0
         }
 
         TAVILY=$(count_skill 'tavily-search')
@@ -79,7 +83,7 @@ runs:
         HN=$(count_skill 'hackernews-search')
         GAP_LOOP=$(count_skill 'gap-loop')
         TOTAL=$((TAVILY + ARXIV + USPTO + HN))
-        GAP_REASON=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" | head -1)
+        GAP_REASON=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" 2>/dev/null | head -1 || true)
 
         TAVILY_Q=$(count_queries 'tavily-search')
         ARXIV_Q=$(count_queries 'arxiv-search')

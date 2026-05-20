@@ -203,17 +203,29 @@ jobs:
         # NOTE: Caterpillar's Challenge (cross-phase drift) is omitted on WHY —
         # there is no prior phase to compare against.
         run: |
+          set +e  # tolerate per-step failures (curl/yq/python) — we'll
+                  # synthesize a sensible fallback instead of killing the
+                  # whole audit job over a single embedding call.
+
           OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
           if [ ! -f "$OKR_FILE" ]; then
             echo "::warning::OKR file missing — skipping Pocket Watch"
             echo "passed=skipped" >> "$GITHUB_OUTPUT"
+            echo "cosine=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Minimal Pocket Watch implementation — use yq + GH Models embeddings.
-          OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE")
+          OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE" 2>/dev/null || echo "")
           PR_TITLE='${{ github.event.pull_request.title }}'
-          PR_BODY_FIRST_PARA=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body | head -c 2000)
+          PR_BODY_FIRST_PARA=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body 2>/dev/null | head -c 2000 || true)
           PR_SCOPE="$PR_TITLE — $PR_BODY_FIRST_PARA"
+
+          if [ -z "$OBJECTIVE" ] || [ -z "$PR_SCOPE" ]; then
+            echo "::warning::Empty objective or PR scope — skipping Pocket Watch"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"
+            echo "cosine=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # Call GitHub Models for both embeddings + compute cosine via python.
           # (Inline python is acceptable here; the full implementation lives

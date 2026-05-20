@@ -45,19 +45,32 @@ runs:
   steps:
     - name: Parse PR body
       id: parse
+      # NOTE: GitHub Actions composite-action shell runs with
+      #   bash -eo pipefail {0}
+      # which means grep with NO match (exit 1) kills the step. Older
+      # PRs may not include every Hatter Tag field (e.g. author_did is
+      # optional pre-§11.1 attestation block), so we wrap each grep
+      # pipeline in `|| true` to allow non-matches to yield empty
+      # strings rather than crashing the whole action.
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         PR_NUMBER: ${{ inputs.pr-number }}
       run: |
         BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body)
-        OKR_ID=$(printf '%s' "$BODY" | grep -oE 'okr_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^okr_id:\s*//')
-        RUN_ID=$(printf '%s' "$BODY" | grep -oE 'run_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^run_id:\s*//')
-        PHASE=$(printf '%s' "$BODY" | grep -oE 'phase:\s*(why|how|what)' | head -1 | sed -E 's/^phase:\s*//')
-        INTENT=$(printf '%s' "$BODY" | grep -oE 'intent_thread_uuid:\s*[A-Za-z0-9-]+' | head -1 | sed -E 's/^intent_thread_uuid:\s*//')
-        EVIDENCE_MODE=$(printf '%s' "$BODY" | grep -oE 'evidence_mode:\s*(live|cached|mixed)' | head -1 | sed -E 's/^evidence_mode:\s*//')
-        FRESH=$(printf '%s' "$BODY" | grep -oE 'fresh_provider_search_performed:\s*(true|false)' | head -1 | sed -E 's/^fresh_provider_search_performed:\s*//')
-        AUTHOR_DID=$(printf '%s' "$BODY" | grep -oE 'author_did:\s*[^[:space:]]+' | head -1 | sed -E 's/^author_did:\s*//')
+
+        extract() {
+          # $1 = grep extended regex, $2 = sed strip prefix
+          printf '%s' "$BODY" | grep -oE "$1" 2>/dev/null | head -1 | sed -E "$2" || true
+        }
+
+        OKR_ID=$(extract       'okr_id:[[:space:]]*[A-Za-z0-9._-]+'                's/^okr_id:[[:space:]]*//')
+        RUN_ID=$(extract       'run_id:[[:space:]]*[A-Za-z0-9._-]+'                's/^run_id:[[:space:]]*//')
+        PHASE=$(extract        'phase:[[:space:]]*(why|how|what)'                  's/^phase:[[:space:]]*//')
+        INTENT=$(extract       'intent_thread_uuid:[[:space:]]*[A-Za-z0-9-]+'      's/^intent_thread_uuid:[[:space:]]*//')
+        EVIDENCE_MODE=$(extract 'evidence_mode:[[:space:]]*(live|cached|mixed)'    's/^evidence_mode:[[:space:]]*//')
+        FRESH=$(extract        'fresh_provider_search_performed:[[:space:]]*(true|false)' 's/^fresh_provider_search_performed:[[:space:]]*//')
+        AUTHOR_DID=$(extract   'author_did:[[:space:]]*[^[:space:]]+'              's/^author_did:[[:space:]]*//')
 
         {
           echo "okr_id=$OKR_ID"
