@@ -395,13 +395,26 @@ jobs:
           steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'ok' &&
           !contains(github.event.pull_request.labels.*.name, 'research-pass')
-        run: gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label research-pass
+        run: |
+          # Self-heal: `gh pr edit --add-label` requires the label to
+          # exist on the repo. If Looking Glass's provisionMeshLabels
+          # never ran (or skipped this one), create it inline. `gh label
+          # create` exits 0 even if the label already exists, so this is
+          # idempotent — we don't need the `|| true` dance.
+          gh label create research-pass \
+            --repo ${{ github.repository }} \
+            --color 43A047 \
+            --description "WHY-phase research doc passed the audit gate. Merge unlocked (subject to branch protection)." 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label research-pass
 
       - name: Apply degraded-evidence + goal-drift-detected on fail
         if: steps.gate.outputs.skip != 'true' && steps.verdict.outputs.verdict == 'degraded'
         run: |
+          # Self-heal label creation (see Apply research-pass step for rationale).
+          gh label create degraded-evidence --repo ${{ github.repository }} --color D32F2F --description "Hatter Tag evidence_mode contradicts the audit log. Blocks governance-pass." 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label degraded-evidence || true
           if [ "${{ steps.pocket.outputs.passed }}" = "false" ]; then
+            gh label create goal-drift-detected --repo ${{ github.repository }} --color D32F2F --description "Pocket Watch / Caterpillar drift gate failed. Merge blocked." 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label goal-drift-detected || true
           fi
 
