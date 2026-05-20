@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import type { ResearchBrief, PrdBrief } from './schemas';
 import { runArcheologist } from './runner/archeologist';
 import { runPrd } from './runner/prd';
+import { isSkillName, readStdin, runSkill, SKILLS } from './runner/skills';
 
 const PKG = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'),
@@ -176,18 +177,53 @@ async function prdCmd(argv: string[]): Promise<void> {
 }
 
 function help(): void {
+  const skillNames = Object.keys(SKILLS).map(n => `skill-${n}`).sort().join('\n  ');
   process.stdout.write(`research-runner v${PKG.version}
 
 Usage:
   research-runner archeologist --brief "<topic>" --scope-level <platform|bar> --scope-id ID [--path research|archaeology] [...]
   research-runner prd --research-pr <url|path> --scope-level <platform|bar> --scope-id ID [...]
+  research-runner skill-<name>   # one-shot skill subcommand; reads JSON from stdin, writes JSON to stdout
+
+Skills (called by .agent.md tools: declarations under \$MESH_PATH):
+  ${skillNames}
 
 See README.md for the full flag surface.
 `);
 }
 
+/**
+ * skill-* dispatcher. Reads a JSON object from stdin, calls runSkill,
+ * writes the result as JSON to stdout. Exits non-zero on `ok: false` so
+ * the calling agent (or shell wrapper) can detect failure via exit code
+ * in addition to the structured `{ok: false, reason}` payload.
+ */
+async function skillCmd(skillName: string): Promise<void> {
+  if (!isSkillName(skillName)) {
+    process.stdout.write(JSON.stringify({ ok: false, reason: `unknown-skill: ${skillName}` }) + '\n');
+    process.exit(1);
+  }
+  const stdinRaw = await readStdin();
+  let input: unknown = {};
+  if (stdinRaw.trim().length > 0) {
+    try {
+      input = JSON.parse(stdinRaw);
+    } catch (err) {
+      process.stdout.write(JSON.stringify({ ok: false, reason: `bad-stdin-json: ${(err as Error).message}` }) + '\n');
+      process.exit(1);
+    }
+  }
+  const result = await runSkill(skillName, input);
+  process.stdout.write(JSON.stringify(result) + '\n');
+  if (result.ok === false) { process.exit(1); }
+}
+
 async function main(): Promise<void> {
   const [, , subcommand, ...rest] = process.argv;
+  if (subcommand && subcommand.startsWith('skill-')) {
+    await skillCmd(subcommand.slice('skill-'.length));
+    return;
+  }
   switch (subcommand) {
     case 'archeologist': await archeologistCmd(rest); break;
     case 'prd':          await prdCmd(rest); break;

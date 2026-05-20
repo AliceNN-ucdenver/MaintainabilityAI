@@ -191,4 +191,48 @@ test('buildHattersTag: legacy runs (no okr, no attestation) still emit valid YAM
   // No new sections leaked
   assert.doesNotMatch(out, /^okr:/m);
   assert.doesNotMatch(out, /^attestation:/m);
+  assert.doesNotMatch(out, /^evidence:/m);
+});
+
+test('buildHattersTag: emits evidence block when present (live mode)', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    evidence: { evidence_mode: 'live', fresh_provider_search_performed: true },
+  });
+  assert.match(out, /^evidence:/m);
+  assert.match(out, /evidence_mode: live/);
+  assert.match(out, /fresh_provider_search_performed: true/);
+  assert.doesNotMatch(out, /degraded_reason:/);
+});
+
+test('buildHattersTag: emits degraded_reason when evidence_mode is cached', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    evidence: {
+      evidence_mode: 'cached',
+      fresh_provider_search_performed: false,
+      degraded_reason: 'tavily-skill-backend-missing',
+    },
+  });
+  assert.match(out, /evidence_mode: cached/);
+  assert.match(out, /fresh_provider_search_performed: false/);
+  assert.match(out, /degraded_reason: tavily-skill-backend-missing/);
+});
+
+test('buildHattersTag: quotes degraded_reason when it contains YAML-sensitive chars', () => {
+  const out = buildHattersTag({
+    ...BASE_INPUT,
+    evidence: {
+      evidence_mode: 'mixed',
+      fresh_provider_search_performed: true,
+      degraded_reason: 'rerun-after-review: 2026-05-19, #2',
+    },
+  });
+  // The colon would otherwise break the YAML scalar — should be JSON-quoted.
+  assert.match(out, /degraded_reason: "rerun-after-review: 2026-05-19, #2"/);
+});
+
+test('buildHattersTag: legacy runs (evidence undefined) emit no evidence block', () => {
+  const out = buildHattersTag(BASE_INPUT);
+  assert.doesNotMatch(out, /^evidence:/m);
 });

@@ -58,6 +58,36 @@ export interface HattersTagAttestation {
   };
 }
 
+/**
+ * Evidence-mode block (v4 §11.1.7) — forces authors to be honest about
+ * whether the artifact's citations came from a fresh provider search or
+ * from cached/reused sources.
+ *
+ * Why this exists: the first round of agentic runs (run #21) loaded the
+ * SKILL.md context but had no live skill backends, so the agent silently
+ * fell back to reading repo files and produced an updated artifact that
+ * LOOKED grounded but cited zero live signals. The validator workflow
+ * (B-PR1c) cross-checks `fresh_provider_search_performed === true`
+ * against the audit JSONL's `skill_call` events for the four search
+ * providers — mismatch ⇒ `degraded-evidence` label ⇒ governance-pass
+ * promotion blocked.
+ *
+ *   live     — every cited source came from a fresh provider call this run
+ *   cached   — agent reused prior research without re-running providers
+ *   mixed    — some cited sources are fresh, some carried forward
+ *
+ * `degraded_reason` is REQUIRED on `cached` / `mixed` so the gate can
+ * surface a human-readable cause (e.g. "tavily-skill-backend-missing",
+ * "rate-limited", "rerun-after-review").
+ */
+export interface HattersTagEvidence {
+  evidence_mode: 'live' | 'cached' | 'mixed';
+  /** True iff at least one of the four search providers (tavily/arxiv/uspto/hackernews) was successfully called this run. */
+  fresh_provider_search_performed: boolean;
+  /** Free-text cause when evidence_mode !== 'live'. */
+  degraded_reason?: string;
+}
+
 export interface HattersTagInput {
   run_id: string;
   /** Git SHA of the mesh repo at run start. */
@@ -97,6 +127,8 @@ export interface HattersTagInput {
   okr?: HattersTagOkrContext;
   /** v4: Phase B+ agent runs populate this; legacy runs omit it. */
   attestation?: HattersTagAttestation;
+  /** v4 §11.1.7: agentic runs populate this; legacy CI runs omit it. */
+  evidence?: HattersTagEvidence;
 }
 
 function hasAnyAttestationField(a: HattersTagAttestation): boolean {
@@ -174,6 +206,18 @@ export function buildHattersTag(input: HattersTagInput): string {
       if (input.attestation.reviewer_scores.security != null) {
         lines.push(`    security: ${input.attestation.reviewer_scores.security}`);
       }
+    }
+  }
+  if (input.evidence) {
+    lines.push('evidence:');
+    lines.push(`  evidence_mode: ${input.evidence.evidence_mode}`);
+    lines.push(`  fresh_provider_search_performed: ${input.evidence.fresh_provider_search_performed}`);
+    if (input.evidence.degraded_reason) {
+      // Escape any colons / hashes that would break the bare YAML scalar.
+      const escaped = /[:#]/.test(input.evidence.degraded_reason)
+        ? JSON.stringify(input.evidence.degraded_reason)
+        : input.evidence.degraded_reason;
+      lines.push(`  degraded_reason: ${escaped}`);
     }
   }
   lines.push('audit:');
