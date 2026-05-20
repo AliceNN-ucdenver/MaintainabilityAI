@@ -1,13 +1,31 @@
-name: "Extract OKR context from PR body"
+name: "Extract OKR context from artifact frontmatter (PR body fallback)"
 description: |
-  Parses okr_id, run_id, phase, intent_thread_uuid, evidence_mode,
-  fresh_provider_search_performed, and author_did from the PR body's
-  Hatter Tag block. Outputs each as a separate step output so caller
-  workflows can branch on the values.
+  Resolves the OKR context for the artifact PR — okr_id, run_id, phase,
+  intent_thread_uuid, evidence_mode, fresh_provider_search_performed,
+  author_did — by reading the artifact file's YAML frontmatter (the
+  canonical source per §11.1.5 of agentic-sdlc.md). The PR body is a
+  human-readable mirror that may or may not contain the Hatter Tag
+  block; we don't depend on it.
 
-  Returns empty strings when the PR has no Hatter Tag (legacy /
-  hand-written PRs). Callers should check the okr_id output and skip
-  remaining work when empty.
+  Resolution strategy (in order):
+    1. Inspect changed files via `gh pr diff --name-only`. Match
+       `^okrs/<id>/(why|how|what)/(research-doc|prd|code-design)\.md$`
+       to extract okr_id + phase from the path itself.
+    2. Match `^okrs/<id>/audit/events/(<runId>)\.jsonl$` to extract
+       run_id.
+    3. Read the artifact file's YAML frontmatter (lines between leading
+       `---` markers) to extract evidence_mode, fresh_provider_search_
+       performed, intent_thread_uuid, author_did.
+    4. Fall back to PR-body extraction for any fields still empty
+       (backwards compatibility with older agent runs that put the
+       Hatter Tag in the body).
+
+  Returns empty strings when the PR has no artifact file matching the
+  expected paths (legacy / hand-written PRs). Callers should check the
+  okr_id output and skip remaining work when empty.
+
+  REQUIRES the workflow to have checked out the PR head before calling
+  this action (so the artifact file is on disk).
 
 inputs:
   pr-number:
@@ -39,38 +57,93 @@ outputs:
   author_did:
     description: "Hatter Tag author_did for Tweedles enforcement. Empty if absent."
     value: ${{ steps.parse.outputs.author_did }}
+  artifact_path:
+    description: "Repo-relative path to the artifact file detected in the PR's changed-files (e.g. okrs/<id>/why/research-doc.md). Empty if no artifact path matched."
+    value: ${{ steps.parse.outputs.artifact_path }}
 
 runs:
   using: "composite"
   steps:
-    - name: Parse PR body
+    - name: Resolve OKR context from artifact + audit JSONL + PR body
       id: parse
-      # NOTE: GitHub Actions composite-action shell runs with
-      #   bash -eo pipefail {0}
-      # which means grep with NO match (exit 1) kills the step. Older
-      # PRs may not include every Hatter Tag field (e.g. author_did is
-      # optional pre-§11.1 attestation block), so we wrap each grep
-      # pipeline in `|| true` to allow non-matches to yield empty
-      # strings rather than crashing the whole action.
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         PR_NUMBER: ${{ inputs.pr-number }}
       run: |
-        BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body)
+        # ── Stage 1: derive okr_id + phase from changed-file paths ─────
+        # Path is the canonical source of truth — far more reliable than
+        # parsing free-text PR bodies. Patterns are anchored:
+        #   okrs/<id>/why/research-doc.md  → phase=why
+        #   okrs/<id>/how/prd.md           → phase=how
+        #   okrs/<id>/what/code-design.md  → phase=what
+        OKR_ID=""; PHASE=""; ARTIFACT=""
+        PATHS=$(gh pr diff "$PR_NUMBER" --name-only 2>/dev/null || true)
+        ARTIFACT_LINE=$(printf '%s\n' "$PATHS" | grep -oE '^okrs/[^/]+/(why|how|what)/(research-doc|prd|code-design)\.md$' | head -1 || true)
+        if [ -n "$ARTIFACT_LINE" ]; then
+          OKR_ID=$(printf '%s' "$ARTIFACT_LINE" | sed -E 's|^okrs/([^/]+)/.*|\1|')
+          PHASE=$(printf '%s'  "$ARTIFACT_LINE" | sed -E 's|^okrs/[^/]+/(why\|how\|what)/.*|\1|')
+          ARTIFACT="$ARTIFACT_LINE"
+        fi
 
-        extract() {
-          # $1 = grep extended regex, $2 = sed strip prefix
-          printf '%s' "$BODY" | grep -oE "$1" 2>/dev/null | head -1 | sed -E "$2" || true
+        # ── Stage 2: derive run_id from audit JSONL path ────────────────
+        RUN_ID=""
+        if [ -n "$OKR_ID" ]; then
+          AUDIT_LINE=$(printf '%s\n' "$PATHS" | grep -oE "^okrs/$OKR_ID/audit/events/[^/]+\.jsonl$" | head -1 || true)
+          if [ -n "$AUDIT_LINE" ]; then
+            RUN_ID=$(printf '%s' "$AUDIT_LINE" | sed -E 's|^.*/([^/]+)\.jsonl$|\1|')
+          fi
+        fi
+
+        # ── Stage 3: read artifact YAML frontmatter for remaining fields
+        # §11.1.5: frontmatter is canonical; PR body is a (lossy) mirror.
+        # The artifact's leading `---` block carries okr_id/run_id (we
+        # cross-check against the path-derived values) plus evidence_mode,
+        # fresh_provider_search_performed, intent_thread_uuid, author_did.
+        FM=""
+        if [ -n "$ARTIFACT" ] && [ -f "$ARTIFACT" ]; then
+          # Extract between the first two `---` lines. Use awk; sed
+          # multi-line ranges with anchored bounds are fragile under bash -e.
+          FM=$(awk '/^---[[:space:]]*$/ { c++; if (c==2) exit; next } c==1 { print }' "$ARTIFACT" || true)
+        fi
+
+        fm_extract() {
+          # $1 = field name. Match `<field>:<space><value>` anywhere in
+          # the frontmatter block. Strips quotes. Empty on no match.
+          if [ -z "$FM" ]; then return; fi
+          printf '%s\n' "$FM" | grep -E "^[[:space:]]*$1:[[:space:]]*" | head -1 \
+            | sed -E "s|^[[:space:]]*$1:[[:space:]]*||" \
+            | sed -E 's/^["'\'']?//; s/["'\'']?$//' || true
         }
 
-        OKR_ID=$(extract       'okr_id:[[:space:]]*[A-Za-z0-9._-]+'                's/^okr_id:[[:space:]]*//')
-        RUN_ID=$(extract       'run_id:[[:space:]]*[A-Za-z0-9._-]+'                's/^run_id:[[:space:]]*//')
-        PHASE=$(extract        'phase:[[:space:]]*(why|how|what)'                  's/^phase:[[:space:]]*//')
-        INTENT=$(extract       'intent_thread_uuid:[[:space:]]*[A-Za-z0-9-]+'      's/^intent_thread_uuid:[[:space:]]*//')
-        EVIDENCE_MODE=$(extract 'evidence_mode:[[:space:]]*(live|cached|mixed)'    's/^evidence_mode:[[:space:]]*//')
-        FRESH=$(extract        'fresh_provider_search_performed:[[:space:]]*(true|false)' 's/^fresh_provider_search_performed:[[:space:]]*//')
-        AUTHOR_DID=$(extract   'author_did:[[:space:]]*[^[:space:]]+'              's/^author_did:[[:space:]]*//')
+        INTENT=$(fm_extract 'intent_thread_uuid')
+        EVIDENCE_MODE=$(fm_extract 'evidence_mode')
+        FRESH=$(fm_extract 'fresh_provider_search_performed')
+        AUTHOR_DID=$(fm_extract 'author_did')
+
+        # If frontmatter also has okr_id/run_id/phase, prefer it when
+        # path resolution failed (defensive — shouldn't happen if file
+        # is at the expected path, but cheap insurance).
+        if [ -z "$OKR_ID" ]; then OKR_ID=$(fm_extract 'okr_id');  fi
+        if [ -z "$RUN_ID" ]; then RUN_ID=$(fm_extract 'run_id');  fi
+        if [ -z "$PHASE" ];  then PHASE=$(fm_extract  'phase');   fi
+
+        # ── Stage 4: PR body fallback for older runs ────────────────────
+        # If anything is still missing, look at the PR body. Pre-B20 PRs
+        # sometimes put the Hatter Tag YAML block directly in the body.
+        if [ -z "$OKR_ID" ] || [ -z "$RUN_ID" ] || [ -z "$EVIDENCE_MODE" ]; then
+          BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body 2>/dev/null || true)
+          body_extract() {
+            printf '%s' "$BODY" | grep -oE "$1" 2>/dev/null | head -1 | sed -E "$2" || true
+          }
+          [ -z "$OKR_ID" ]        && OKR_ID=$(body_extract        'okr_id:[[:space:]]*[A-Za-z0-9._-]+'                 's/^okr_id:[[:space:]]*//')
+          [ -z "$RUN_ID" ]        && RUN_ID=$(body_extract        'run_id:[[:space:]]*[A-Za-z0-9._-]+'                 's/^run_id:[[:space:]]*//')
+          [ -z "$PHASE" ]         && PHASE=$(body_extract         'phase:[[:space:]]*(why|how|what)'                   's/^phase:[[:space:]]*//')
+          [ -z "$INTENT" ]        && INTENT=$(body_extract        'intent_thread_uuid:[[:space:]]*[A-Za-z0-9-]+'       's/^intent_thread_uuid:[[:space:]]*//')
+          [ -z "$EVIDENCE_MODE" ] && EVIDENCE_MODE=$(body_extract 'evidence_mode:[[:space:]]*(live|cached|mixed)'      's/^evidence_mode:[[:space:]]*//')
+          [ -z "$FRESH" ]         && FRESH=$(body_extract         'fresh_provider_search_performed:[[:space:]]*(true|false)' 's/^fresh_provider_search_performed:[[:space:]]*//')
+          [ -z "$AUTHOR_DID" ]    && AUTHOR_DID=$(body_extract    'author_did:[[:space:]]*[^[:space:]]+'               's/^author_did:[[:space:]]*//')
+        fi
 
         {
           echo "okr_id=$OKR_ID"
@@ -80,6 +153,7 @@ runs:
           echo "evidence_mode=$EVIDENCE_MODE"
           echo "fresh_provider_search_performed=$FRESH"
           echo "author_did=$AUTHOR_DID"
+          echo "artifact_path=$ARTIFACT"
         } >> "$GITHUB_OUTPUT"
 
-        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH"
+        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH artifact=$ARTIFACT"

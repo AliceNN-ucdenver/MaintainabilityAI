@@ -273,11 +273,22 @@ The **query plan** isn't generic. The agent reads the OKR (objective + KRs + int
 - **HN ✓** `name dedup` · `person disambiguation`: 2–3-word casual
 - **HN ✗** `identity disambiguation hacks`: too formal, zero HN results
 
-After the first pass, the agent inspects coverage. **Low source diversity** on a finding? **Two sources contradicting each other**? **A topic from the brief with no sources at all**? It generates **three** bounded follow-up queries (one-shot, never iterative; the pack enforces the bound) and merges the second pass into the ranked source set.
+After the first pass, the agent inspects coverage. **Low source diversity** on a finding? **Two sources contradicting each other**? **A topic from the brief with no sources at all**? It runs **one bounded second pass**: generates up to **three** follow-up queries TOTAL distributed across the providers where the gap exists, emits a `gap-loop` marker event to the audit JSONL (with `reason: topic_uncovered | low_source_diversity | contradiction`), and re-invokes only the relevant search Skills. The bound is enforced by the prompt — multiple iterations would blow the cost cap and produce spurious "I tried harder" signal without changing outcomes. If coverage is still thin after the second pass, the agent notes it honestly in the artifact's `## Evidence Gaps` section instead of looping further.
 
 The result is a **10-section research certificate** (Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References) with `S[N]` citations every reviewer (and the downstream PRD agent) can grep deterministically.
 
-> 🍵 **The WHY phase has no persona reviewers.** Research-doc PRs are descriptive — synthesis from sources, not design decisions — so they bypass `reviewer-bus.yml` and the architect/security state machine. The merge gate is `audit-validate.yml`: it counts successful `skill_call` events for the four search providers in the run's audit JSONL and refuses the `research-pass` label if the agent declared `evidence_mode: live` but the audit shows zero live calls. This catches the failure mode where an agent loads the Skill context, can't reach the CLI backend, and silently falls back to reading repo files — making "the agent didn't really do the search" an enforceable gate, not a trust assumption.
+> 🍵 **The WHY phase has no persona reviewers.** Research-doc PRs are descriptive — synthesis from sources, not design decisions — so they bypass `reviewer-bus.yml` and the architect/security state machine. The merge gate is `market-research-agent.yml`'s audit-and-drift job (B20 per-agent workflow consolidation): it counts successful `skill_call` events for the four search providers in the run's audit JSONL, parses the artifact's frontmatter for the canonical Hatter Tag, runs the Pocket Watch goal-drift check, and refuses the `research-pass` label if the agent declared `evidence_mode: live` but the audit shows zero live calls (or if structural sections are missing, or if cosine similarity to the OKR objective dropped below 0.85). This catches the failure mode where an agent loads the Skill context, can't reach the CLI backend, and silently falls back to reading repo files — making "the agent didn't really do the search" an enforceable gate, not a trust assumption.
+
+### How the agent reports back
+
+Throughout the run, the agent emits **hash-chained audit events** to `okrs/<id>/audit/events/<run-id>.jsonl` via the `audit-emit-event` skill — one event per skill call, plus a final `artifact_written` event. Each event carries `prev_event_hash` linking forward, so any tampering with past events breaks every subsequent hash and is detectable offline via `verify-chain` (Phase E).
+
+On a successful run the artifact ships with a Hatter Tag in **two places** (per §11.1.5):
+
+- **Canonical:** YAML frontmatter at the top of `research-doc.md` — `okr_id`, `run_id`, `phase`, `intent_thread_uuid`, `parent_intent_thread`, an `evidence:` block (`evidence_mode: live | cached | mixed`, `fresh_provider_search_performed`, optional `degraded_reason`), and the `chain_root_hash`.
+- **Display mirror:** a fenced YAML code block in the PR description so reviewers see provenance inline without opening the file. `market-research-agent.yml` reads from the frontmatter when extracting OKR context (canonical), with the PR-body block as a fallback for older runs.
+
+When the user clicks **Run audit** in Looking Glass, the workflow runs server-side under the user's PAT, parses the frontmatter, posts a single upserted "Market Research Audit" comment with per-provider call counts and distinct-query counts (so reviewers see exactly what was searched), and applies `research-pass` on clean or `degraded-evidence` on fail. Branch protection on the mesh repo gates merge on `research-pass`.
 
 ---
 

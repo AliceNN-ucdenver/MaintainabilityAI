@@ -127,6 +127,28 @@ export const CODING_AGENT_HOSTS: CodingAgentHostSpec[] = [
     usedBy: ['hackernews-search'],
     purpose: 'Hacker News Algolia Search API (no key required, but firewall-blocked by default)',
   },
+  // ── GitHub API endpoints the agent needs to post issue updates ──────
+  // Confirmed blocked on PR #81's run: `gh issue list` and the issues
+  // REST endpoint both hit the DNS proxy block. format-research-issue-
+  // update's output is useless if the agent can't POST it back to the
+  // anchor issue or attach it as a PR comment.
+  //
+  // GitHub's default allow-list covers /copilot_internal/ and /compare/
+  // sub-paths on api.github.com but NOT the /issues + /issues/{n}/comments
+  // endpoints. Adding the parent /issues path covers both list + comment
+  // workflows the agent uses.
+  {
+    host: 'api.github.com (issues + comments)',
+    url: 'https://api.github.com/repos/',
+    usedBy: ['format-research-issue-update (POST issue comment)', 'agent self-status updates'],
+    purpose: 'GitHub REST API for issue list + comment posting (parent /repos/ path covers issue + PR comment endpoints)',
+  },
+  {
+    host: 'api.github.com (graphql)',
+    url: 'https://api.github.com/graphql',
+    usedBy: ['gh CLI (issue list, pr view --json)'],
+    purpose: 'gh CLI uses the GraphQL endpoint for most query operations; without this `gh issue list` and JSON queries fail',
+  },
 ];
 
 /** The Environment name the Copilot Coding Agent reads from. Fixed by GitHub. */

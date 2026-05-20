@@ -261,6 +261,8 @@ describe('AgentDeploymentService.getCopilotEnvStatus', () => {
     // 4 search providers; auto-verification not possible so hosts are returned
     // as a static reference for the UI.
     expect(status.hosts.map(h => h.host).sort()).toEqual([
+      'api.github.com (graphql)',
+      'api.github.com (issues + comments)',
       'api.tavily.com',
       'api.uspto.gov',
       'data.uspto.gov',

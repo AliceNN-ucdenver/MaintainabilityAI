@@ -389,6 +389,48 @@ Each row in the table below names a concrete threat, the design control that add
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
 | **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` (Phase B-PR1c) cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow. (§11.1.7) | ✓ |
 
+### AEGIS overlay — where this design fits in the agentic-AI security landscape
+
+STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence laundering, prompt injection from data-not-instructions confusion). Three industry frameworks sit on top of STRIDE for the agentic case. The Hatter's Tea Party design satisfies most of their controls; some gaps remain.
+
+**Forrester AEGIS (Agentic AI Guardrails for Information Security)** — six domains, three core principles. The closest enterprise-governance framework for agentic systems, published 2025.
+
+| Forrester domain | Forrester named control | Hatter's Tea Party implementation | Status |
+|---|---|---|:-:|
+| Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Per-phase gate workflows (`market-research-agent.yml`, audit-validate, drift-gate) enforce policy in CI, not just at PR review | ✓ |
+| Identity & Access Management | Agents as hybrid identities with just-in-time privileges | Per-agent `.agent.md` declares minimum-necessary `tools:` list; deployment refuses to land an agent referencing an undeclared Skill (§5.5.1) | ✓ |
+| Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
+| Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped; pack-signature verification queued for Phase B+ Knight's Seal | 🛠 |
+| Threat Management & SecOps | Real-time monitoring + detection engineering | Hash-chained audit JSONL is queryable; `verify-chain` (Phase E) replays the full run from disk; gap-loop refinement events visible in audit trail | ✓ |
+| Zero Trust | "Least agency" — minimum permissions per goal | Reviewer agents `tools:` deliberately omit `edit` (Tweedles boundary); skill backends are pure-data, can't mutate beyond their declared writes | ✓ |
+
+**Core principles (all three):** _Least Agency_ ✓ (per-agent tool whitelists), _Continuous Assurance_ ✓ (every PR re-runs the gate workflows, not point-in-time review), _Explainable Outcomes_ ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
+
+**AEGIS Pre-Execution Firewall** ([arXiv 2603.12621](https://arxiv.org/abs/2603.12621)) — runtime tool-call interception with Ed25519 + SHA-256 hash-chained audit. Direct lineage to our `audit-emit-event` skill:
+
+| AEGIS Pre-Execution Firewall control | Hatter's Tea Party implementation | Status |
+|---|---|---|:-:|
+| SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
+| Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash` — `verify-chain` catches it offline | ✓ |
+| Pre-execution interception (log before side effect) | `skill-audit-emit-event` is the first call inside each skill invocation; recorded before the skill emits its result | ✓ |
+| Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`; Ed25519 lands in Knight's Seal (Phase B+) | 🛠 |
+| Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
+
+**Aegis Protocol** ([arXiv 2508.19267](https://arxiv.org/abs/2508.19267)) — cryptographic protocol for open agentic ecosystems. Three pillars: W3C DIDs (non-spoofable agent identity), NIST PQC (communication integrity), Halo2 ZKP (verifiable, privacy-preserving policy compliance). Formalizes a game-based definition of "Excessive Agency."
+
+The Aegis Protocol's _Excessive Agency_ game maps directly to our **Pocket Watch goal-drift** check (§9.2): if the agent's PR scope diverges too far from the OKR's frozen objective (cosine similarity < 0.85), the agent has exceeded its authorized agency and the workflow refuses to merge. The protocol's ZKP-based policy proofs are not yet implemented — they're a Phase B+ candidate when third-party verifiable governance attestation becomes a requirement.
+
+**ASTRIDE** ([arXiv 2512.04785](https://arxiv.org/pdf/2512.04785)) — formal STRIDE extension that adds category **"A" for AI-Agent-Specific Attacks**: prompt manipulation, context/memory poisoning, inter-agent influence. Our threat model covers `A.prompt-injection` and `A.memory-poisoning` (Hatter Tag pins mesh_sha so a poisoned mesh state is detectable across runs); `A.inter-agent-influence` (an upstream agent's output steering a downstream agent toward a different goal) is partially addressed by the Caterpillar's Challenge cross-phase drift check.
+
+**What auditable evidence looks like under this overlay.** A reviewer (internal auditor, regulator, downstream consumer) can take just two files from any merged artifact — `okrs/<id>/<phase>/<artifact>.md` and `okrs/<id>/audit/events/<run>.jsonl` — and:
+
+1. Verify the Hatter Tag's declared `chain_root_hash` matches the SHA-256 of the JSONL's last event (replay verification — AEGIS Pre-Execution Firewall pattern)
+2. Confirm every claim in the artifact traces back to a `skill_call` event in the audit (provenance — Forrester Data Security)
+3. Replay the agent's query plan from `payload.queries` on each search event (reproducibility — Forrester Explainable Outcomes)
+4. Detect tampering: any modification to a past audit event breaks every subsequent `prev_event_hash` (tamper-evidence)
+
+No live system access required. No proprietary tooling. Just two files and a SHA-256 implementation.
+
 ### Honest gaps for a future phase
 
 These are open. They are the design's known unknowns. Each is queued for a named future phase or remains a research item:

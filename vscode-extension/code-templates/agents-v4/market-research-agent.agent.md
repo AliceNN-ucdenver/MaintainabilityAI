@@ -52,7 +52,31 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
    d. Re-invoke `dedupe-and-rank` over the union of first-pass + second-pass results.
    **Do NOT loop further.** The bound is enforced; multiple iterations blow the cost cap and produce spurious "I tried harder" signal without changing outcomes. If coverage is still thin after the second pass, note it honestly in the `## Evidence Gaps` section of the synthesis instead of looping.
 9. Write the synthesis directly to `okrs/<id>/why/research-doc.md` using the strict 10-H2-section format from `.caterpillar/prompts/research/synthesis.md`: Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References. Each finding requires Supporting + Contradicting + Confidence (HIGH/MEDIUM/LOW). The post-run validator parses these heading strings literally — do NOT renumber, paraphrase, or add prefixes like `## 1. Source Premises`.
-10. Append the Hatter's Tag to the artifact's frontmatter (see §11.1 of the design doc) AND to the PR description. The Hatter's Tag MUST include an `evidence:` block describing how the run was grounded — see "Evidence honesty" below.
+10. Append the Hatter's Tag to **both** the artifact's frontmatter (canonical, per §11.1.5) AND the PR description (display mirror). The Hatter's Tag MUST include an `evidence:` block. The PR description's copy is a fenced YAML code block — required so `audit-validate` can extract the OKR context even when the artifact path detection fails. Format the PR description as:
+
+   ````markdown
+   <human-readable summary of the artifact, tables, findings, etc.>
+
+   ---
+
+   ## Hatter's Tag
+   ```yaml
+   okr_id: OKR-...
+   run_id: WHY-...
+   phase: why
+   intent_thread_uuid: ...
+   parent_intent_thread: ...
+   evidence:
+     evidence_mode: live
+     fresh_provider_search_performed: true
+     # degraded_reason on cached/mixed
+   author_did: ...
+   audit:
+     chain_root_hash: ...
+   ```
+   ````
+
+   The fenced YAML block in the PR body is the workflow's primary fallback when the artifact-file frontmatter extraction fails (e.g. PR opened before the artifact was committed, or the artifact path doesn't match the expected pattern). Do NOT omit it.
 11. Invoke `format-research-issue-update` and POST the formatted comment back to the OKR anchor issue.
 12. Open a PR with the artifact + label it `research-synthesis`.
 13. Invoke `audit-emit-event` for every Skill invocation throughout the run AND a final `artifact_written` event after the PR opens.
