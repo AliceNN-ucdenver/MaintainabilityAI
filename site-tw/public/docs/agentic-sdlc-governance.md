@@ -409,7 +409,7 @@ STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence la
 **AEGIS Pre-Execution Firewall** ([arXiv 2603.12621](https://arxiv.org/abs/2603.12621)) — runtime tool-call interception with Ed25519 + SHA-256 hash-chained audit. Direct lineage to our `audit-emit-event` skill:
 
 | AEGIS Pre-Execution Firewall control | Hatter's Tea Party implementation | Status |
-|---|---|---|:-:|
+|---|---|:-:|
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash` — `verify-chain` catches it offline | ✓ |
 | Pre-execution interception (log before side effect) | `skill-audit-emit-event` is the first call inside each skill invocation; recorded before the skill emits its result | ✓ |
