@@ -39,10 +39,15 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   promote-govpass:
     name: "Promote governance-pass"
+    # Both reviewers approved AND the evidence-honesty gate did not flag
+    # the artifact (§11.1.7). degraded-evidence is applied by
+    # audit-validate.yml when the Hatter Tag's evidence_mode contradicts
+    # the audit JSONL; we refuse to promote while that label is present.
     if: >-
       contains(github.event.pull_request.labels.*.name, 'governance-pass-architecture') &&
       contains(github.event.pull_request.labels.*.name, 'governance-pass-security') &&
-      !contains(github.event.pull_request.labels.*.name, 'governance-pass')
+      !contains(github.event.pull_request.labels.*.name, 'governance-pass') &&
+      !contains(github.event.pull_request.labels.*.name, 'degraded-evidence')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,6 +59,27 @@ jobs:
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "✓ **governance-pass** — both architect-reviewer and security-reviewer approved. Merge unlocked (subject to branch protection)."
+
+  # Inform the user when both reviewer approvals are in but degraded-evidence
+  # is blocking promotion — otherwise the PR sits silently with two green
+  # reviews and no master label, looking stuck.
+  blocked-by-evidence:
+    name: "Block governance-pass on degraded-evidence"
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'governance-pass-architecture') &&
+      contains(github.event.pull_request.labels.*.name, 'governance-pass-security') &&
+      !contains(github.event.pull_request.labels.*.name, 'governance-pass') &&
+      contains(github.event.pull_request.labels.*.name, 'degraded-evidence') &&
+      github.event.action == 'labeled' &&
+      (github.event.label.name == 'governance-pass-architecture' || github.event.label.name == 'governance-pass-security')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Post evidence-blocked comment
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "⛔ **governance-pass blocked by \`degraded-evidence\`** — both reviewer agents approved, but the evidence-honesty gate (§11.1.7) flagged this PR. Resolve the \`degraded-evidence\` label (update the Hatter Tag or re-run the agent with live skill backends) and the master \`governance-pass\` label will be applied automatically."
 
   # ──────────────────────────────────────────────────────────────────
   # Step B — when a reviewer applies `revision-required`, check the

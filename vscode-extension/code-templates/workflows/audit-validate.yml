@@ -1,0 +1,185 @@
+name: "Audit Validate — evidence-honesty gate on artifact PRs"
+
+# Cross-checks the Hatter Tag's `evidence:` block (set by the author
+# agent in its PR body) against the audit JSONL the agent emitted via
+# `skill-audit-emit-event`. If the agent declared `evidence_mode: live`
+# but zero successful `skill_call` events exist for the four search
+# providers (tavily/arxiv/uspto/hackernews), apply the
+# `degraded-evidence` label and post a diagnostic PR comment.
+#
+# The state machine (`okr-state-machine.yml`) refuses to promote
+# `governance-pass` while `degraded-evidence` is present (§11.1.7).
+#
+# Why this exists: an agent that loads SKILL.md context but has no
+# live CLI backend will silently fall back to reading repo files and
+# produce an artifact that LOOKS grounded. The audit log is the only
+# tamper-evident record of what actually happened — this workflow
+# turns that record into an enforceable gate.
+#
+# Phase tracking: §13 B1c (post-run validator).
+
+on:
+  pull_request:
+    types: [opened, labeled, reopened, synchronize]
+
+concurrency:
+  group: audit-validate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate-evidence:
+    name: "Validate Hatter Tag evidence_mode vs audit JSONL"
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'research-synthesis') ||
+      contains(github.event.pull_request.labels.*.name, 'prd-draft') ||
+      contains(github.event.pull_request.labels.*.name, 'design-draft')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout mesh repo
+        uses: actions/checkout@v4
+
+      - name: Extract Hatter Tag fields from PR body
+        id: tag
+        run: |
+          BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq .body)
+          OKR_ID=$(printf '%s' "$BODY" | grep -oE 'okr_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^okr_id:\s*//')
+          RUN_ID=$(printf '%s' "$BODY" | grep -oE 'run_id:\s*[A-Za-z0-9._-]+' | head -1 | sed -E 's/^run_id:\s*//')
+          EVIDENCE_MODE=$(printf '%s' "$BODY" | grep -oE 'evidence_mode:\s*(live|cached|mixed)' | head -1 | sed -E 's/^evidence_mode:\s*//')
+          DECLARED_FRESH=$(printf '%s' "$BODY" | grep -oE 'fresh_provider_search_performed:\s*(true|false)' | head -1 | sed -E 's/^fresh_provider_search_performed:\s*//')
+          echo "okr_id=$OKR_ID" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "evidence_mode=$EVIDENCE_MODE" >> "$GITHUB_OUTPUT"
+          echo "declared_fresh=$DECLARED_FRESH" >> "$GITHUB_OUTPUT"
+          echo "::notice::okr_id=$OKR_ID run_id=$RUN_ID evidence_mode=$EVIDENCE_MODE declared_fresh=$DECLARED_FRESH"
+
+      - name: Skip when Hatter Tag absent (legacy / hand-written PRs)
+        id: gate
+        if: steps.tag.outputs.okr_id == '' || steps.tag.outputs.run_id == ''
+        run: |
+          echo "::warning::PR body has no okr_id/run_id Hatter Tag fields — skipping evidence validation (legacy PR)"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Locate audit JSONL
+        id: audit
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          OKR_ID="${{ steps.tag.outputs.okr_id }}"
+          RUN_ID="${{ steps.tag.outputs.run_id }}"
+          JSONL_PATH="okrs/$OKR_ID/audit/events/$RUN_ID.jsonl"
+          if [ ! -f "$JSONL_PATH" ]; then
+            echo "::warning::Audit JSONL missing at $JSONL_PATH — cannot validate evidence"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "path=$JSONL_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Count successful skill_call events per search provider
+        id: counts
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        run: |
+          JSONL_PATH="${{ steps.audit.outputs.path }}"
+          # An event counts as "successful" if event_kind=skill_call AND
+          # payload.skill matches one of the four search providers AND
+          # payload.ok != false. The skill writes payload.ok=true on
+          # success; the OR with absence is for older logs that didn't
+          # include the ok field.
+          TAVILY=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "tavily-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
+          ARXIV=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "arxiv-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
+          USPTO=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "uspto-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
+          HN=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "hackernews-search" and (.payload.ok != false))' "$JSONL_PATH" | jq -s 'length')
+          TOTAL=$((TAVILY + ARXIV + USPTO + HN))
+          echo "tavily=$TAVILY"   >> "$GITHUB_OUTPUT"
+          echo "arxiv=$ARXIV"     >> "$GITHUB_OUTPUT"
+          echo "uspto=$USPTO"     >> "$GITHUB_OUTPUT"
+          echo "hn=$HN"           >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL"     >> "$GITHUB_OUTPUT"
+          echo "::notice::successful provider skill_calls — tavily=$TAVILY arxiv=$ARXIV uspto=$USPTO hn=$HN (total=$TOTAL)"
+
+      - name: Decide gate verdict
+        id: verdict
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          EVIDENCE_MODE="${{ steps.tag.outputs.evidence_mode }}"
+          DECLARED_FRESH="${{ steps.tag.outputs.declared_fresh }}"
+          FOUND="${{ steps.audit.outputs.found }}"
+          TOTAL="${{ steps.counts.outputs.total }}"
+          TOTAL="${TOTAL:-0}"
+
+          # Default OK
+          VERDICT="ok"
+          REASON=""
+
+          # Audit missing on a PR that claims live evidence -> degraded
+          if [ "$FOUND" != "true" ] && [ "$EVIDENCE_MODE" = "live" ]; then
+            VERDICT="degraded"
+            REASON="evidence_mode=live but no audit JSONL found at okrs/$OKR_ID/audit/events/$RUN_ID.jsonl"
+          fi
+
+          # Claim live but no successful provider skill_call -> degraded
+          if [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
+            VERDICT="degraded"
+            REASON="evidence_mode=live but audit log contains 0 successful skill_call events for any of tavily/arxiv/uspto/hackernews"
+          fi
+
+          # Claim fresh=true but no successful provider skill_call -> degraded
+          if [ "$FOUND" = "true" ] && [ "$DECLARED_FRESH" = "true" ] && [ "$TOTAL" -eq 0 ]; then
+            VERDICT="degraded"
+            REASON="fresh_provider_search_performed=true but audit log shows 0 successful provider skill_calls"
+          fi
+
+          # Hatter Tag missing the evidence block entirely on an artifact PR -> degraded
+          # (forces every agent-authored PR to declare honesty explicitly)
+          if [ -z "$EVIDENCE_MODE" ]; then
+            VERDICT="degraded"
+            REASON="Hatter Tag is missing the evidence: block — declare evidence_mode + fresh_provider_search_performed (§11.1.7)"
+          fi
+
+          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON"   >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict=$VERDICT reason=$REASON"
+
+      - name: Apply degraded-evidence label + diagnostic comment
+        if: steps.verdict.outputs.verdict == 'degraded'
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "degraded-evidence"
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "$(cat <<'EOF'
+⚠️ **Evidence honesty gate — degraded**
+
+The Hatter Tag declares one thing; the audit log shows another. \`okr-state-machine.yml\` will refuse to promote \`governance-pass\` while \`degraded-evidence\` is present.
+
+**Reason:** ${{ steps.verdict.outputs.reason }}
+
+**Counts from \`okrs/${{ steps.tag.outputs.okr_id }}/audit/events/${{ steps.tag.outputs.run_id }}.jsonl\`:**
+
+| Provider | Successful \`skill_call\` events |
+|---|---:|
+| tavily-search | ${{ steps.counts.outputs.tavily }} |
+| arxiv-search | ${{ steps.counts.outputs.arxiv }} |
+| uspto-search | ${{ steps.counts.outputs.uspto }} |
+| hackernews-search | ${{ steps.counts.outputs.hn }} |
+| **Total** | **${{ steps.counts.outputs.total }}** |
+
+**How to fix:**
+- If the search-skill backends were unavailable this run, update the PR body's Hatter Tag to \`evidence_mode: cached\` (or \`mixed\` if some providers worked) and add a \`degraded_reason\` explaining the cause. Push the amended PR body and this gate will pass.
+- If the backends WERE available and the search skills should have been called, re-run the agent: \`@copilot use agent market-research-agent\` on the OKR anchor issue.
+
+See \`.caterpillar/prompts/research/synthesis.md\` for the evidence-mode decision table.
+EOF
+)"
+
+      - name: Remove stale degraded-evidence label when verdict flips to ok
+        if: steps.verdict.outputs.verdict == 'ok' && contains(github.event.pull_request.labels.*.name, 'degraded-evidence')
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "degraded-evidence"
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "✓ **Evidence honesty gate — cleared**
+
+The Hatter Tag now matches the audit log. \`degraded-evidence\` label removed; \`governance-pass\` promotion is no longer blocked by this gate."

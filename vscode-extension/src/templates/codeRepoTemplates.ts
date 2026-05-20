@@ -454,6 +454,18 @@ export function generateDriftGateWorkflow(extensionPath: string): string {
 }
 
 /**
+ * Phase B-PR1c — `audit-validate.yml` cross-checks the Hatter Tag's
+ * `evidence:` block against the audit JSONL. Applies `degraded-evidence`
+ * when the author agent declared `evidence_mode: live` but the audit log
+ * contains zero successful `skill_call` events for the four search
+ * providers (tavily/arxiv/uspto/hackernews). okr-state-machine.yml
+ * refuses to promote `governance-pass` while this label is present.
+ */
+export function generateAuditValidateWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'audit-validate.yml');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -481,5 +493,7 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/design-bus.yml',        generate: generateDesignBusWorkflow },
   // Phase C-PR5 — Pocket Watch + Caterpillar's Challenge drift gates
   { relativePath: '.github/workflows/drift-gate.yml',        generate: generateDriftGateWorkflow },
+  // Phase B-PR1c — evidence-honesty gate on artifact PRs
+  { relativePath: '.github/workflows/audit-validate.yml',    generate: generateAuditValidateWorkflow },
 ];
 

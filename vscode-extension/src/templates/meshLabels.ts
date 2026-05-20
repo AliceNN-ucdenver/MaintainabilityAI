@@ -64,4 +64,11 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   { name: 'design-fan-out-partial',  description: 'design-bus.yml fan-out partially succeeded (§9.3); see PR comment for details.',       color: 'FB8C00' },
   { name: 'design-fan-out-failed',   description: 'design-bus.yml fan-out failed for ALL target repos (§9.3).',                           color: 'D32F2F' },
   { name: 'cost-cap-reached',        description: 'Per-OKR cost cap exceeded (§17.4); okr-bus.yml refuses new dispatches.',                color: 'D32F2F' },
+
+  // ── Evidence-honesty gate (§11.1.7) — audit-validate.yml applies ───
+  // Set on artifact PRs whose Hatter Tag declares `evidence_mode: live`
+  // but whose audit JSONL contains zero successful skill_call events
+  // for the four search providers. okr-state-machine.yml refuses to
+  // promote `governance-pass` while this label is present.
+  { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log (§11.1.7). Blocks governance-pass.', color: 'D32F2F' },
 ];

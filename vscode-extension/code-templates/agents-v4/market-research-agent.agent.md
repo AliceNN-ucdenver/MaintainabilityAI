@@ -47,7 +47,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 7. Invoke `dedupe-and-rank` over the four result arrays.
 8. Inspect `rankedSources` + `providerCounts` for coverage gaps. If you see `low_source_diversity` / `contradiction` / `topic_uncovered` for a key brief term, generate up to 3 follow-up queries (your reasoning, not a Skill) and re-invoke the matching search Skills. Maximum 3 gap-loop iterations.
 9. Write the synthesis directly to `okrs/<id>/why/research-doc.md` using the strict 10-H2-section format from `.caterpillar/prompts/research/synthesis.md`: Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References. Each finding requires Supporting + Contradicting + Confidence (HIGH/MEDIUM/LOW).
-10. Append the Hatter's Tag to the artifact's frontmatter (see §11.1 of the design doc) AND to the PR description.
+10. Append the Hatter's Tag to the artifact's frontmatter (see §11.1 of the design doc) AND to the PR description. The Hatter's Tag MUST include an `evidence:` block describing how the run was grounded — see "Evidence honesty" below.
 11. Invoke `format-research-issue-update` and POST the formatted comment back to the OKR anchor issue.
 12. Open a PR with the artifact + label it `research-synthesis`.
 13. Invoke `audit-emit-event` for every Skill invocation throughout the run AND a final `artifact_written` event after the PR opens.
@@ -59,6 +59,18 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 - If any Skill returns `{ ok: false, reason }`: search-Skills are non-blocking (continue with the other providers' results); `knowledge-*` failures stop the run with a PR comment citing the reason; `audit-emit-event` failures log to stderr but do not stop the run (chain integrity is recovered by `verify-chain`).
 - If you would exceed `max_skill_calls_per_run` (40) or `max_tokens_per_run` (250000), stop and post a PR comment requesting the user split the OKR scope.
 - Do NOT assign reviewers — `reviewer-bus.yml` (Phase C) does that on PR open.
+
+## Evidence honesty (§11.1.7 — non-negotiable)
+
+You MUST set the Hatter's Tag `evidence:` block based on what ACTUALLY happened this run, not what was supposed to happen. The post-run validator workflow (`audit-validate.yml`) cross-checks your declaration against the audit JSONL and will apply a `degraded-evidence` label (blocking governance-pass promotion) on mismatch.
+
+Decide as follows:
+
+- **`evidence_mode: live`** + **`fresh_provider_search_performed: true`** — at least one of `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` returned `{ok: true}` with `results.length > 0` this run, AND your synthesis cites results from at least one fresh provider call. This is the only mode that qualifies for autonomous-tier promotion.
+- **`evidence_mode: mixed`** + **`fresh_provider_search_performed: true`** + **`degraded_reason: "<cause>"`** — some providers succeeded but others failed (e.g. USPTO rate-limited, HN timed out) AND you carried forward findings from prior `okrs/<id>/why/research-doc.md` content to fill the gap. List the failure cause(s).
+- **`evidence_mode: cached`** + **`fresh_provider_search_performed: false`** + **`degraded_reason: "<cause>"`** — every search Skill failed, or you reused a prior research doc without re-running providers (e.g. minor edit pass, all backends 401'd). The artifact is grounded only in mesh + cached sources. Required cause examples: `"all-search-skills-backend-missing"`, `"no-okr-changes-since-last-run"`, `"network-isolation-mode"`.
+
+Do NOT mark `evidence_mode: live` if the search Skills returned `{ok: false}` and you fell back to reading repo files directly. That is `cached` with `degraded_reason: "search-skills-unavailable-fallback-to-repo-read"`. The validator catches this by counting `skill_call` events in the audit log — if zero of the four search providers show a successful `skill_call` event, declaring `live` will fail the gate.
 
 ## Persona — Architect + Security blend
 
