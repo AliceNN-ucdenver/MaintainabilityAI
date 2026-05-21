@@ -58,6 +58,22 @@ Every artifact this pipeline produces must be reconstructible from `intent_threa
 
 ---
 
+## Documentation portfolio — where to read what
+
+This document is the **index + cross-cutting design**. The per-agent + future capability deep-dives live in companion docs. Read whichever maps to what you're trying to learn:
+
+| Document | What it covers | When to read |
+|---|---|---|
+| **`agentic-sdlc.md`** (this doc) | Trigger model · OKR card schema · audit chain · orchestration · threat model · Looking Glass integration · phased plan + deliverables map | The framework as a whole; phase status; cross-agent concerns |
+| **[`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md)** | WHY phase agent — pipeline, skills used, audit gates, run history (PR #103 reference) | Working on the market-research-agent or the WHY phase audit-and-drift workflow |
+| **[`agentic-sdlc-prd.md`](agentic-sdlc-prd.md)** | HOW phase agent — pipeline, the B24 self-critique pivot in full, audit gates including Pocket Watch + Caterpillar drift, run history (PR #105 reference) | Working on the prd-agent or the HOW phase audit-and-drift workflow; especially relevant when something says "reviewer" — read this first |
+| **[`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md)** | WHAT phase agent — Phase D sub-deliverables D0–D12, code-grounded review packs, the cross-repo hand-off canonical spec | Building Phase D; designing the code-design-agent; specifying the per-repo fan-out and cross-repo Hatter Tag continuation |
+| **[`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md)** | Future / out-of-scope — archaeology research mode, Knight's Seal v2 (cosign / sigstore), verify-chain UI, audit report export, chain-ladder viz, origin-story record, Foundry non-goal | Reserved future capabilities (seams designed-for, not built); confirming what is and isn't on the roadmap |
+
+The index keeps the canonical truth on phase status (§13) and deliverables (§15). Child docs deepen specific areas but always link back here for cross-cutting facts.
+
+---
+
 ## 1. Why this design
 
 Today (post-Phase-7) we have:
@@ -2202,7 +2218,7 @@ This section is the live truth-source for "what's done." Update inline as work l
 - **Phase A** — shipped. OKR scaffold + sample (Celebs-anchored OKR-2026Q2-IMDB-001-celeb-api) + Looking Glass detail view + Hatter Tag schema.
 - **Phase B** — agent path runnable end-to-end on Supervised + Restricted tiers. WHY merged cleanly (PR #103). HOW expected to merge cleanly with `prd-pass` on the next end-to-end test after the B25 fixes (verify-chain + prompt rewrite + chain-ladder writer) deploy.
 - **Phase C** — orchestration workflows in place; reviewer-dispatch path still deferred per §14.8 (HOW is currently human-gated via the Looking Glass "Run Audit" button; auto-merge of un-reviewed PRDs is intentionally not enabled).
-- **Phase D / E** — not yet started (`code-design-agent`, `verify-chain` CLI surface in Looking Glass, audit-report export).
+- **Phase D / E** — not yet started. Phase D full design spec lives in [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) (`code-design-agent`, the three new code-grounded prompt packs, the `knowledge-code` Skill, the hand-off canonical spec). Phase E (`verify-chain` CLI surface in Looking Glass, audit-report export) detailed at §11.7 + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §3-§4.
 
 **Latest end-to-end test (2026-05-21):**
 - WHY (PR #103) — clean. 9 hash-chained audit events, Pocket Watch 0.74, FR/SR coverage perfect.
@@ -2447,96 +2463,18 @@ Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. 
 
 ### Phase D — code-design-agent + code-grounded reviewers + hand-off completion (target: 3 weeks)
 
-The third and **last** Looking-Glass-side agent. Where Phase B's market-research-agent grounded on the web and Phase B's prd-agent grounded on the mesh, the code-design-agent grounds on **the actual code** in every impacted repo. That makes the WHAT-phase audit the heaviest gate in the entire pipeline — and the most expensive — but also the one that catches "the PRD was perfectly mesh-grounded and still proposes something the codebase can't absorb without breaking."
+The third and **last** Looking-Glass-side agent. Where Phase B's market-research-agent grounded on the web and Phase B's prd-agent grounded on the mesh, the code-design-agent grounds on **the actual code** in every impacted repo. WHAT-phase audit is the heaviest gate in the entire pipeline — and the most expensive — but also the one that catches "the PRD was perfectly mesh-grounded and still proposes something the codebase can't absorb without breaking."
 
-**Phase D scope at a glance.**
+**Full Phase D spec → [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md).** That doc owns: scope at a glance · all sub-deliverables (D0–D12) · the hand-off canonical spec (cross-repo Hatter Tag continuation, design-bus.yml partial-failure handling, tier-gating on receiving repos) · open decisions (D8 reviewer dispatch pattern).
 
-- ONE agent (`code-design-agent`) producing ONE cross-cutting `code-design.md` per OKR — NOT per-repo (cross-cutting features need a single design that reasons about all impacted repos together; per-repo fan-out happens AFTER this artifact merges via `design-bus.yml` per §3.5).
-- ONE workflow file (`code-design-agent.yml`) following the Phase B per-agent pattern (B20): dispatch + audit-and-drift + finalize + design-bus fan-out trigger.
-- TWO new mesh Skills (`knowledge-code`, `knowledge-reference-repos`) that clone + index code via tree-sitter (deterministic, polyglot, NOT a full code-intelligence service — see §16 archaeology future for the same data model).
-- THREE new prompt packs (`design/synthesis`, `design/architecture-review`, `design/security-review`) — the review packs adapt the existing PRD-side packs to read indexed-code data, not mesh artifacts.
-- ONE open decision (D6 below): whether to keep self-critique (B24 pattern from HOW) or bring separate code-grounded reviewer agents back for WHAT, since code-grounding IS an independent evidence axis (the author hasn't read the code, the reviewer has).
-- ONE Caterpillar drift primitive (`code-design.md ## Approach` vs `prd.md ## Problem Statement`) — gets calibrated in D-PR1's first end-to-end run, same way B22 calibrated WHY's Pocket Watch threshold.
+Phase D status flips here as the deliverables ship — the codedesigner doc is the truth-source for *design intent*, the index's §13 is the truth-source for *what's actually built*. Until D-PR1 ships, this section just shows the placeholders:
 
-**Sub-deliverables.**
-
-- [ ] **D0.** **Code-design pipeline overview** in this design doc (this section). Establishes the data flow + decision tree + verdict gates *before* writing prompt packs. Inputs: PRD + every `target_code_repos[]` entry's `knowledge-code` extract + `context-architecture` + `context-security` mesh snapshots. Output: ONE `okrs/<id>/what/code-design.md` with: per-repo change list, interface contracts (OpenAPI / proto / GraphQL diffs), data-ownership decisions, migration plan, rollback plan, fan-out manifest. Each section carries `addresses: [FR-X, SR-Y]` frontmatter (per-FR / per-SR traceability — feeds the §11.7 traceability matrix). Same Hatter Tag schema as HOW + the §11.5 Knight's Seal.
-
-- [ ] **D1.** **Prompt pack `design/synthesis.md`.** Operating contract for the code-design-agent's *first-pass* synthesis. Reads PRD + indexed code repos. Required sections (10 — mirrors HOW's contract for tooling reuse):
-  1. Input Premises — references PRD `FR-NN` + `SR-NN` ids verbatim
-  2. Problem Restatement — *one-sentence* statement of what the cross-cutting code change accomplishes
-  3. Repo Inventory — per `target_code_repos[]` entry: language, framework, primary architectural pattern, current CALM-node alignment
-  4. Per-Repo Change List — per-repo subsection with `addresses: [FR-X, SR-Y]` frontmatter; what files change, what files are added, what files are deleted
-  5. Interface Contracts — OpenAPI / protobuf / GraphQL diffs for any cross-repo interface; `oasdiff` / `buf` / `graphql-inspector` style change classification (breaking / non-breaking / additive)
-  6. Data Ownership — which repo owns which entity post-change
-  7. Migration Plan — ordered steps including rollback points
-  8. Rollback Plan — verified per repo
-  9. Risk Matrix — same shape as HOW's risk matrix but populated with code-specific risks
-  10. Hatter Tag (frontmatter at the top in YAML) — `intent_thread_uuid`, `parent_intent_thread = prd-action's intent_thread_uuid`, `evidence_mode: code` (NEW canonical value for WHAT — `live` is WHY, `mesh` is HOW, `code` is WHAT), `seal_pub` + `seal_sig` (B27)
-
-- [ ] **D2.** **Prompt pack `design/architecture-review.md`.** Code-grounded review pack. The reviewer reads the actual code via `knowledge-code` outputs (NOT the mesh's CALM model). Three structural checks:
-  - **CALM drift analysis** — does the proposed design's flow match what the code actually does today? Detected via tree-sitter cross-module-call extraction + comparison to the mesh's declared CALM node-edge graph. Drift output is `additions: [...]`, `removals: [...]`, `mutations: [...]`.
-  - **Interface contract diffs** — for every cross-repo interface change in §5, classify breaking / non-breaking / additive via `oasdiff` (OpenAPI) / `buf` (protobuf) / `graphql-inspector` (GraphQL). A breaking change without a matching migration step in §7 is a `SEVERITY: MAJOR` finding.
-  - **Module boundary respect** — does the design introduce cross-module dependencies that violate the BAR's CALM layer rules (declared in `bar.app.yaml`)? Layer-violation = `SEVERITY: BLOCKING`.
-  - Output format: `SCORE / SEVERITY / COVERED / MISSING / CHANGES` (same NCMS structured-review shape used at PRD time).
-
-- [ ] **D3.** **Prompt pack `design/security-review.md`.** Code-grounded security review. Adapts OWASP pattern-scan + threat-model compliance from `application-security.md` to score the design against actual code in each impacted repo. Three structural checks:
-  - **OWASP pattern scan** — for every endpoint / data-handling change in §4-§5, derive applicable OWASP categories (A01-A10) from endpoint shape (auth-touching → A07; user-input → A03; etc.). A change that introduces an A0X-touching code path without a matching `SR-NN` in the PRD is a finding.
-  - **Threat-model compliance** — every STRIDE threat declared in the BAR's `threat-model.yaml` whose scope overlaps the design's changes MUST have either: (a) a mitigation in the design's §4-§5, or (b) an explicit `evidence_mode: pre-existing-mitigation` annotation pointing to the code path that already handles it.
-  - **NIST control mapping** — for any data flow that crosses a NIST-mapped trust boundary (read from `bar.app.yaml` + portfolio NIST catalog), the design must cite the relevant control families. Missing citations = finding.
-  - Same `SCORE / SEVERITY / COVERED / MISSING / CHANGES` output format.
-
-- [ ] **D4.** **`code-design-agent.agent.md`** — primary-mode dispatch on `oraculum-design` label via `assignCustomCopilotAgent` body-extension (same pattern as B-PR3's Start Why / Start How). Declares `tools:` = `knowledge-okr` + `knowledge-prd` + `knowledge-code` + `knowledge-reference-repos` + `context-architecture` + `context-security` + `audit-emit-event`. Model = `claude-sonnet-4-6` (largest context window — must hold PRD + multiple repo indices simultaneously). `max_skill_calls_per_run: 60` (higher than HOW's 40 because each `knowledge-code` call counts). System prompt mirrors `prd-agent.agent.md`'s structure including the B25 hard rule on `audit-emit-event` (never write JSONL by hand; STOP if runner unreachable).
-
-- [ ] **D5.** **`knowledge-reference-repos` Skill (PURE-data).** Optional input — clones + indexes curated reference repos from `mesh/.caterpillar/reference-repos/` (a per-mesh-configured list of "patterns we want the agent to honor"). Tree-sitter polyglot extraction, same data model as `knowledge-code` but with `reference: true` flag in the output so the agent treats them as exemplars not as edit targets. Used when the team wants to anchor a code-design against a known-good pattern (e.g. "build the new celeb-api endpoint to match the auth pattern in `<org>/reference-auth-service`").
-
-- [ ] **D6.** **`knowledge-code` Skill (PURE-data).** Clones + indexes ONE target code repo per call; code-design-agent invokes it once per `target_code_repos[]` entry. **Tree-sitter polyglot** extraction (`tree-sitter-typescript`, `tree-sitter-python`, `tree-sitter-go`, etc.; lazy-loaded based on detected primary language). Returns an `ObservedArchitecture` JSON shape:
-  - `modules[]` — per-file: path, language, exported symbols, imported symbols, primary architectural layer (inferred from path conventions + import-flow analysis).
-  - `cross_module_calls[]` — approximate call graph (NOT type-resolved; LSP/SCIP-grade resolution is a v2 ask, see §16 archaeology future).
-  - `exposed_interfaces[]` — REST routes (Express/Fastify/Hono/NestJS), proto definitions, GraphQL schemas extracted at parse time.
-  - `tests[]` — test-file inventory + assertion count per file (signal for "is this code well-covered").
-  - **Deterministic** — same repo state in → same JSON out. The agent uses this output as grounding evidence; reviewers cite it back in their structured reviews.
-
-- [ ] **D7.** **`code-design-agent.yml` workflow** (per-agent pattern from B20). Three jobs:
-  - **dispatch** — fires on `issues.labeled` with label `oraculum-design`; refuses to dispatch unless `okrs/<id>/how/prd.md` is merged on main (prerequisite check, same pattern as B-PR4's HOW-requires-WHY).
-  - **audit-and-drift** — fires on `pull_request_target: labeled` with `design-draft`. Verifies: audit chain (B25); Knight's Seal (B27); evidence-honesty (`code-design.md`'s Hatter Tag declares `evidence_mode: code` AND ≥1 `knowledge-code` skill_call per `target_code_repos[]` entry — partial coverage = `degraded`); structural correctness (10 H2 sections + per-repo subsections + `addresses:[FR-X, SR-Y]` frontmatter coverage); **Pocket Watch** (cosine OKR objective vs `code-design.md ## Problem Restatement`, threshold to calibrate in D-PR1 first run); **Caterpillar's Challenge** (cosine `code-design.md ## Approach` vs `prd.md ## Problem Statement`, threshold ≥ 0.70 — same as HOW's cross-phase drift); reviewer dispatch per D8 decision.
-  - **finalize** — fires on PR merge. Flips action.status to complete + meta.status `design-pending` → `shipped` (or `building` if WHAT triggers `design-bus.yml` next). Appends to `chain-ladder.yaml` (per B25 pattern) with `phase: what`, `parent_intent_thread = prd action's thread`. Triggers `design-bus.yml` fan-out per §3.5.
-
-- [ ] **D8.** **OPEN DECISION — reviewer dispatch pattern for code-grounded reviews.** Phase B's B24 collapsed PRD-time reviewers into single-agent self-critique because the author + reviewer read the same mesh state (no independent evidence surface). For WHAT, **code-grounding IS an independent axis** — the author + reviewer can read the code differently, the reviewer can run linters / `oasdiff` / pattern scans the author skipped. Three candidates:
-
-  | Approach | How it works | Pro | Con |
-  |---|---|---|---|
-  | **(a) Persona-switch self-critique** (B24 pattern carried forward) | code-design-agent inhabits architect + security personas after first-pass synthesis; tier-bound rounds. | Simplest. Reuses the proven B24 infrastructure. | Same agent reads the same `knowledge-code` outputs — "independent code-grounding" is *evidence available* but not *evidence revealed by a separate agent*. |
-  | **(b) Per-reviewer tracking-issue dispatch** | `code-design-agent.yml`'s audit-and-drift job opens a tracking issue with `agent_assignment: architect-reviewer` body extension. The reviewer runs in primary mode (full `tools:`), reads `knowledge-code` outputs fresh, posts a structured review back. Same for security. | Reviewers genuinely read code with fresh eyes. Closes Tweedles loophole. | Two extra agent dispatches per WHAT run. Tracking-issue noise. Risk of MCP failure modes from §14.8. |
-  | **(c) Hybrid — self-critique by default, escalate to (b) on Restricted tier** | Autonomous + Supervised tiers use (a); Restricted tier triggers separate reviewer agents via (b). | Cost-control for happy path; rigor where it matters. | Two code paths to maintain. Tier-aware dispatch logic. |
-
-  **Recommendation pending end-to-end test:** start with **(a)** for D-PR1 to ship code-design-agent quickly; collect a few real WHAT runs; if self-critique misses code-grounded findings that a separate reviewer would catch (track via post-merge code-review feedback from humans), pivot to **(c)**. Do NOT pre-build (b)'s tracking-issue infrastructure until the data justifies it. This decision lands as a B-PR-style entry in §13 when D-PR1 ships and produces evidence.
-
-- [ ] **D9.** **`design-bus.yml` workflow** — per-repo fan-out on code-design PR merge. Full spec in §3.5 above. Includes: tier-gating on the receiving repo (refuse auto-assign on Restricted-tier BAR target repos), partial-failure handling with `design-fan-out-partial` label, `okrs/<id>/what/design-fan-out.yaml` per-repo result record, cross-repo Hatter Tag continuation contract.
-
-- [ ] **D10.** **Looking Glass UX — Stage 4 / Stage 5 OKR detail card.** Phase D adds two new sub-cards to the OKR detail page:
-  - **What (3a) — Code Design** — same shape as the HOW card: agent, sources (mesh-skill calls + per-`target_code_repos[]` `knowledge-code` calls), refine (self-review rounds OR reviewer scores per D8 decision), findings (per-repo change-list count + interface-contract change count), coverage (FR/SR addressed coverage + threat-model coverage), drift (Pocket Watch + Caterpillar), Knight's Seal badge per §11.5.
-  - **What (3b) — Per-Repo Fan-Out** — list of `target_code_repos[]` with per-row status (opened / unreachable / forbidden / blocked-on-tier), landing-issue link, fanned-at timestamp. Retry-fan-out button per failed row. Read live from `design-fan-out.yaml` + GitHub API for each target repo's issue state.
-
-- [ ] **D11.** **Hatter chain ladder visualization on OKR detail.** Collapsible tree showing: OKR root → WHY action → HOW action → WHAT action → per-repo implementation PRs (cross-repo links via `parent_intent_thread`). Built from `chain-ladder.yaml` (mesh side) + per-target-repo PR Hatter Tag reads. Lands as the visual completion of §11.7 chain-ladder writer's data.
-
-- [ ] **D12.** **End-to-end smoke against the IMDB sample OKR.** Repeat the WHY + HOW E2E pattern but full pipeline: WHY → HOW → WHAT → per-repo fan-out on the IMDB-Celebs Restricted-tier sample. Restricted-tier path: WHY merges → HOW merges (with self-review-exhausted because the BAR is Restricted and MAX_AUTO_ROUNDS=0) → WHAT dispatches but cannot auto-progress past Run Audit because the BAR is still Restricted. Demonstrates the tier-gate works end-to-end and the Looking Glass UX surfaces the blocked state correctly.
-
-#### Original Phase D one-liners (superseded by D0-D12 above — kept for git-blame archaeology)
-
-<details>
-<summary>Pre-expansion D1-D8 entries (collapsed)</summary>
-
-- [s] ~~**D1.** Author `prompt-packs/looking-glass/design/synthesis.md` — code-design pack (PRD + indexed repos → ONE cross-cutting code-design doc with `addresses: [FR-X, SR-Y]` frontmatter per section)~~ — superseded by D1 above with full pack contract.
-- [s] ~~**D2.** Author `prompt-packs/looking-glass/design/architecture-review.md` — code-grounded review pack (CALM drift analysis + interface contract diffs against actual code via `oasdiff` / `buf` / `graphql-inspector`)~~ — superseded.
-- [s] ~~**D3.** Author `prompt-packs/looking-glass/design/security-review.md` — code-grounded review pack (OWASP pattern scan + threat-model compliance against actual code, adapting `application-security.md`)~~ — superseded.
-- [s] ~~**D4.** `code-design-agent.agent.md` operating on the mesh's `oraculum-design` issue (one assignment, cross-cutting — supersedes per-repo `design-agent` from v3)~~ — superseded.
-- [s] ~~**D5.** `knowledge-reference-repos` Skill — clones + indexes curated reference repos from mesh `reference-repos/` dir~~ — superseded.
-- [s] ~~**D6.** `knowledge-code` Skill — clones + indexes ONE target code repo per call; code-design-agent invokes it once per `target_code_repos[]` entry~~ — superseded.
-- [s] ~~**D7.** Reviewer-bus extension — when PR is a code-design (label `design-draft`), reviewer-bus invokes design/architecture-review + design/security-review packs (code-grounded) instead of the prd/* packs (mesh-grounded)~~ — superseded (note: reviewer-bus is retired post-B23; this work lives in D7+D8 above).
-- [s] ~~**D8.** Hatter chain ladder visualization on OKR detail — collapsible tree showing parent intent thread → child threads per phase~~ — superseded by D11.
-
-</details>
+- [ ] **D0–D7.** Pipeline overview · 3 prompt packs (`design/synthesis`, `design/architecture-review`, `design/security-review`) · `code-design-agent.agent.md` · `knowledge-code` + `knowledge-reference-repos` Skills · `code-design-agent.yml` workflow.
+- [ ] **D8.** OPEN DECISION — reviewer dispatch pattern (self-critique vs separate code-grounded reviewers vs hybrid). Recommendation: start with self-critique (B24 pattern); pivot only on empirical evidence.
+- [ ] **D9.** `design-bus.yml` workflow — per-repo fan-out (full spec in §3.5).
+- [ ] **D10.** Looking Glass UX — Stage 4 / Stage 5 OKR detail cards.
+- [ ] **D11.** Hatter chain ladder visualization on OKR detail.
+- [ ] **D12.** End-to-end smoke against the IMDB sample OKR (Restricted-tier path expected to block at WHAT).
 
 ### Phase E — Audit Report Export + hardening (target: 1 week)
 
@@ -2769,86 +2707,19 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 
 ---
 
-## 16. Future / out-of-scope (designed-for, not built)
+## 16. Future / out-of-scope
 
-These are capabilities the design *reserves* for — the seams + extension points exist + threat model has them in scope — but they are **not in the current implementation budget**. Each is designed enough that adding it later doesn't require reshaping what's already shipped.
+Capabilities the design **reserves for** — seams + extension points exist, threat model has them in scope — but they are explicitly outside the current implementation budget. Each is designed enough that adding it later doesn't require reshaping what's already shipped.
 
-### 16.1 Archaeology research mode — code-grounded WHY phase
+**Full spec → [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md).** Covers:
 
-**What it is.** A second mode for the `market-research-agent` (or a sibling agent `archaeology-agent` — naming decision deferred until D-PR1 ships). Today's WHY phase grounds on **the web** (Tavily / arXiv / USPTO / HN). Archaeology mode grounds on **the actual code** in one or more impacted repos. Use cases:
-
-- BAR with existing code where the team needs to *model what's already running* before deciding what to change.
-- Discovery work: a Restricted-tier BAR with sparse CALM artifacts where the team needs a code-derived starting model.
-- Repo intake: when a new repo is added to a BAR and we need an architecture model derived from it (not just a hand-written CALM).
-
-**Why we kept the data model.** Phase D's `knowledge-code` Skill (D6) extracts the same `ObservedArchitecture` shape archaeology mode needs. The Skill is built for code-design-agent's WHAT-phase use; archaeology mode reuses it for WHY-phase use.
-
-**Pipeline (replaces nodes 3-7 of the standard WHY agent's research path):**
-
-| Node | Kind | Input | Output | Notes |
-|---|---|---|---|---|
-| 4a | `analyze_architecture` | pure | repo clone | `ObservedArchitecture` JSON (modules / cross_module_calls / exposed_interfaces / tests) | Reuses `knowledge-code` Skill output |
-| 5a | `identify_gaps` | pure | observed arch + `MeshContext.bar.calm_model` + layer rules | `Gap[]` + a derived `QueryPlan` (web-only follow-up) | Compares observed code to declared CALM. Layer violations + module conflicts + missing-control flags surface as gaps |
-| 6a | targeted web research | LLM | the derived QueryPlan | filtered findings | Same Tavily / arXiv invocation as standard WHY but with mesh-grounded gap-derived queries |
-| 7a | `synthesize_report` (archaeology variant) | LLM | observed arch + MeshContext + research findings | `research-doc.md` with sections specific to code-grounded findings | Same Hatter Tag schema; same Knight's Seal v1 signing path |
-
-**Output sections (archaeology research-doc.md):**
-
-1. Input Premises (same as web-mode)
-2. Repo Inventory (which repos were indexed, primary language, framework, file counts)
-3. Observed Architecture Summary (per-module layer assignments, call-graph shape, exposed interfaces)
-4. CALM Drift Findings (where observed code diverges from declared CALM)
-5. Layer Violations (where module imports cross CALM-declared layer boundaries)
-6. Security-Control Coverage Gaps (which threat-model entries the observed code does not appear to address)
-7. Targeted Web Findings (filtered web research scoped to the gaps from §4-§6)
-8. Recommendations (per-gap: address-in-code / update-CALM / accept-as-tech-debt)
-9. References (same S[N]/C[N] schema as web-mode for the targeted-web subset; plus a separate F[N] = file-reference schema for code-derived claims)
-10. Hatter Tag (frontmatter — `evidence_mode: code` per the same canonical-values rule that WHAT uses)
-
-**Threshold + drift adjustments.** Pocket Watch primitive becomes `objective.description` vs `research-doc.md ## Observed Architecture Summary` (the structural summary is the substantive section, not Executive Summary which doesn't exist in this mode). Threshold to calibrate in archaeology-PR1 first end-to-end run.
-
-**Why this is out-of-scope today.** Web-mode is shipping reliably (PR #103 clean) and covers the immediate WHY phase need. Archaeology mode requires `knowledge-code` to ship first (D6), which itself requires the code-design-agent infrastructure (D1-D12). Building archaeology before WHAT phase is built would orphan it. Order: ship D, then layer archaeology onto the same `knowledge-code` Skill.
-
-### 16.2 Knight's Seal v2 — cosign / sigstore persistent signing
-
-Full motivation + design seam documented in §11.5. Summary:
-
-- v1 (B27) uses a **per-run ephemeral Ed25519 keypair** generated inside the agent's sandbox; public key + signature in the audit log; private key destroyed at session end. Verifies for the audit-retention window (≥6 months) but a verifier has to trust the public key embedded in the audit log itself.
-- v2 replaces the ephemeral keypair with a **persistent GitHub-App-anchored identity** in the [sigstore](https://www.sigstore.dev/) transparency log via [cosign](https://docs.sigstore.dev/cosign/overview/). A third-party verifier can confirm "this artifact was signed by *the App* during the OKR's WHAT phase merge window" without trusting the audit log's own contents.
-- v2 also enables **signed prompt-pack deployment** — `.caterpillar/prompts/*` packs ship signed; mesh repos refuse to load unsigned packs. Closes the threat-model gap at §14.X (compromised pack version applied silently).
-- **Triggers landing v2:** (a) regulatory ask for third-party verifiability (EU AI Act Article 12 interpretation by an audit firm), (b) cross-org artifact consumption (one org's OKR feeds another org's mesh and the receiving org needs to verify), (c) a real-world supply-chain incident that exposes the embedded-key weakness.
-
-### 16.3 `verify-chain` CLI surface in Looking Glass (Phase E)
-
-Phase E ships `verify-chain` as a standalone CLI (E2 in §13). §16 reserves the **UI surface** for it:
-
-- **One-click chip on the Hatter Tag UI** (overlay panel that already exists for "View Tag ↗"). Adds a `🔗 Verify Chain` button next to the existing fields. Click → runs the CLI against the current phase's chain (or with shift-click, walks the chain-ladder cross-phase too). Result chip turns ✓ / ✗.
-- **Full-page chain replay log** for when verify fails. Shows event-by-event diff: which event recomputed-hash matched vs which didn't; which signature was wrong; which intent_thread_uuid broke continuity.
-- **Audit Report Export integration.** The §11.7 bundle's README.md includes a `verify-chain` invocation example so an offline auditor can re-run the same check against the bundled JSONL.
-
-### 16.4 Audit Report Export bundle (Phase E)
-
-Full spec already at §11.7 (subsections 11.7.1 – 11.7.5). §16 acknowledges this is reserved future work — the *bundle layout* and *traceability matrix data model* are settled; the *export generator code* is queued as E1.
-
-### 16.5 Hatter chain ladder visualization (Phase D D11)
-
-Full spec in §13's D11. Reserved here for completeness — the data (`chain-ladder.yaml`) is being written today by B25; the visualization is the UI completion of that data, scheduled with the rest of Phase D.
-
-### 16.6 Origin-story design folded forward
-
-The historical `docs/design/research-and-prd-agents.md` v0.1 design doc covered (a) the archaeology research mode, (b) the original Knight's Seal / Ed25519 plan, (c) the cross-repo bridge contract, (d) the multi-expert + 4-reviewer architecture (PRD time). All four have been re-homed:
-- (a) → §16.1 (this section) for the archaeology mode.
-- (b) → §11.5 (v1) + §16.2 (v2 cosign) for the cryptographic signing story.
-- (c) → §3.5 for the hand-off canonical spec.
-- (d) → §13 B24 entry for why the multi-expert + 4-reviewer design was *replaced* by self-critique at PRD time, and §13 D8 for the open decision on whether to bring separate reviewers back for WHAT phase.
-
-With these four folded in, the v0.1 origin-story doc no longer has unique content. It can be retired (deleted) — agentic-sdlc.md is the single canonical source going forward.
-
-### 16.7 Foundry / self-hosted inference (explicit non-goal)
-
-The v0.1 design listed AI Foundry as a v2.0 enterprise deployment target. **This is no longer the roadmap.** We're all-in on the GitHub Copilot Coding Agent runtime: no Foundry, no self-hosted inference, no proprietary orchestration stack. The differentiators are the audit chain + threat model + governance gates — not the runtime. One-click adoption beats running our own stack.
-
-If a real customer with a third-party-only-cloud-policy emerges, the agent design is portable enough that the .agent.md / Skills surface could ride a different runtime — but we don't build for that hypothetical.
+- §1 Archaeology research mode — code-grounded WHY phase (reuses Phase D's `knowledge-code` Skill)
+- §2 Knight's Seal v2 — cosign / sigstore persistent signing (replaces v1's per-run ephemeral key with a transparency-log-anchored identity)
+- §3 `verify-chain` CLI surface in Looking Glass (one-click chip + full-page replay log)
+- §4 Audit Report Export bundle (Phase E generator work — spec already in §11.7)
+- §5 Hatter chain ladder visualization (UI completion of the §11.6 chain-ladder writer's data; cross-ref Phase D D11)
+- §6 Origin-story design folded forward (historical `docs/design/research-and-prd-agents.md` retirement record)
+- §7 Foundry / self-hosted inference — **explicit non-goal**
 
 ---
 
