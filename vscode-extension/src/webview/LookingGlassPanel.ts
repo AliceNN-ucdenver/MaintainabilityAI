@@ -715,13 +715,42 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     if (docText) {
       // H2 section count — same canonical sets the audit-and-drift
       // workflows check, surfaced here so the Coverage line shows it.
-      const requiredH2 = phase === 'why'
-        ? ['Source Premises', 'Executive Summary', 'Cross-Source Analysis', 'Evidence Gaps', 'JTBD Analysis', 'Patent Landscape', 'Whitespace Analysis', 'Formal Conclusions', 'Recommendations', 'References']
+      // Each required section is an array of acceptable heading strings —
+      // the agent decides which form to write and we accept any of them.
+      // PR #110 wrote "JTBD Analysis", PR #114 wrote "Jobs-to-be-Done
+      // Analysis"; same section, different display string. Fighting the
+      // agent over wording loses; tolerance wins.
+      const requiredH2: string[][] = phase === 'why'
+        ? [
+          ['Source Premises'],
+          ['Executive Summary'],
+          ['Cross-Source Analysis'],
+          ['Evidence Gaps'],
+          ['JTBD Analysis', 'Jobs-to-be-Done Analysis'],
+          ['Patent Landscape'],
+          ['Whitespace Analysis'],
+          ['Formal Conclusions'],
+          ['Recommendations'],
+          ['References'],
+        ]
         : phase === 'how'
-        ? ['Input Premises', 'Problem Statement', 'Goals', 'Functional Requirements', 'Non-Functional Requirements', 'Security Requirements', 'Coverage Analysis', 'Risk Matrix', 'Success Metrics', 'References']
+        ? [
+          ['Input Premises'],
+          ['Problem Statement'],
+          ['Goals'],
+          ['Functional Requirements'],
+          ['Non-Functional Requirements'],
+          ['Security Requirements'],
+          ['Coverage Analysis'],
+          ['Risk Matrix'],
+          ['Success Metrics'],
+          ['References'],
+        ]
         : [];
       if (requiredH2.length > 0) {
-        const present = requiredH2.filter(name => new RegExp(`^##\\s+${name}`, 'm').test(docText)).length;
+        const present = requiredH2.filter(alts =>
+          alts.some(name => new RegExp(`^##\\s+${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'm').test(docText)),
+        ).length;
         result.h2Present = present;
         result.h2Total = requiredH2.length;
       }

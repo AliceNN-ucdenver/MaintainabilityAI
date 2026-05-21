@@ -63,12 +63,20 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
    ```
    The runner reads these on every `runSkill()` invocation to auto-emit the `skill_call` audit event (B28 Court Recorder Auto-Logging — design [agentic-sdlc.md](../docs/design/agentic-sdlc.md) §11.6). If your runtime resets the shell between `execute` calls, prepend the four `KEY=value` assignments inline to every npx invocation (`OKR_ID=... RUN_ID=... INTENT_THREAD_UUID=... PHASE=how npx ... skill-X`) to ensure the runner sees them. The vars are constant for the whole run.
 
-2. Call `knowledge-okr` with the extracted id.
-3. Call `knowledge-research` to read the merged Why-phase research doc. If `{ ok: false, reason: 'research-not-merged-yet' }`, stop with a PR comment — the gating dependency is missing.
-4. Call `knowledge-mesh-bar` ONCE per `objectiveAlignment.affectedBarIds[]` entry.
-5. Call `knowledge-mesh-adrs` with the OKR's primary concern keyword.
-6. Call `knowledge-mesh-threats` with the same.
-7. Call `context-architecture` with `{platformId, barIds}` — grounding data for the Architecture section's Architect-persona reasoning.
+**How to "call" / "invoke" any skill below.** Every skill in this run MUST be invoked by piping JSON stdin into the runner CLI inside your `execute` shell:
+
+```sh
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner skill-<name>
+```
+
+This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Recorder Auto-Logging). Do **NOT** use Copilot's `skill_use` tool — that only loads the SKILL.md into your context, it does NOT run the skill's backend, and the chain stays empty. PR #114 surfaced this exact gap in WHY phase: agent loaded `knowledge-okr` via `skill_use`, never ran the runner, audit chain had no proof the data was actually consulted. If you find yourself reasoning about data you never invoked the runner for, STOP — the chain is your evidence trail.
+
+2. Invoke `knowledge-okr` with `{"okrId":"<id>"}`.
+3. Invoke `knowledge-research` with `{"okrId":"<id>"}` to read the merged Why-phase research doc. If `{ ok: false, reason: 'research-not-merged-yet' }`, stop with a PR comment — the gating dependency is missing.
+4. Invoke `knowledge-mesh-bar` with `{"barId":"<id>"}` ONCE per `objectiveAlignment.affectedBarIds[]` entry.
+5. Invoke `knowledge-mesh-adrs` with `{"concern":"<keyword>"}` using the OKR's primary concern keyword.
+6. Invoke `knowledge-mesh-threats` with `{"concern":"<keyword>"}` using the same.
+7. Invoke `context-architecture` with `{"platformId":"<id>","barIds":["..."]}` — grounding data for the Architecture section's Architect-persona reasoning.
 8. Call `context-security` with the same — grounding data for the Security Requirements section.
 9. Call `context-quality` with the same — grounding data for the Non-Functional Requirements section.
 10. (Optional, `deep` mode only) If the gathered context surfaces unresolved gaps the OKR doesn't already address, generate clarifying questions per `.caterpillar/prompts/prd/ask-experts.md` and POST them as a PR comment for human input (best-effort via `github/add_issue_comment` — the MCP tool has been flaky in practice; logging the formatter skill call in the audit chain is the canonical record).

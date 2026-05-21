@@ -282,17 +282,28 @@ jobs:
           echo "doc_found=true"   >> "$GITHUB_OUTPUT"
           echo "doc_path=$DOC"    >> "$GITHUB_OUTPUT"
 
+          # Each required section accepts a regex alternation of heading
+          # strings — agent has been observed inconsistent ("JTBD Analysis"
+          # vs "Jobs-to-be-Done Analysis" across PR #110 vs PR #114, same
+          # section). Tolerance > fighting the model on wording.
           REQUIRED_H2=(
-            "Source Premises" "Executive Summary" "Cross-Source Analysis"
-            "Evidence Gaps" "JTBD Analysis" "Patent Landscape"
-            "Whitespace Analysis" "Formal Conclusions" "Recommendations" "References"
+            "Source Premises"
+            "Executive Summary"
+            "Cross-Source Analysis"
+            "Evidence Gaps"
+            "JTBD Analysis|Jobs-to-be-Done Analysis"
+            "Patent Landscape"
+            "Whitespace Analysis"
+            "Formal Conclusions"
+            "Recommendations"
+            "References"
           )
           H2_PRESENT=0; MISSING_H2=""
-          for name in "${REQUIRED_H2[@]}"; do
-            if grep -qE "^##[[:space:]]+${name}[[:space:]]*$" "$DOC"; then
+          for pattern in "${REQUIRED_H2[@]}"; do
+            if grep -qE "^##[[:space:]]+(${pattern})[[:space:]]*$" "$DOC"; then
               H2_PRESENT=$((H2_PRESENT + 1))
             else
-              MISSING_H2="${MISSING_H2}${name}; "
+              MISSING_H2="${MISSING_H2}${pattern}; "
             fi
           done
 

@@ -62,11 +62,19 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
    ```
    The runner reads these on every `runSkill()` invocation to auto-emit the `skill_call` audit event (B28 Court Recorder Auto-Logging — design [agentic-sdlc.md](../docs/design/agentic-sdlc.md) §11.6). If your runtime resets the shell between `execute` calls, prepend the four `KEY=value` assignments inline to every npx invocation (`OKR_ID=... RUN_ID=... INTENT_THREAD_UUID=... PHASE=why npx ... skill-X`) to ensure the runner sees them. The vars are constant for the whole run.
 
-2. Call `knowledge-okr` with the extracted id. This is your canonical input.
-3. Call `knowledge-mesh-bar` ONCE per `objectiveAlignment.affectedBarIds[]` entry. These BARs' CALM + threats + ADRs ground your synthesis.
-4. Call `knowledge-mesh-threats` with the OKR's primary concern keyword and `knowledge-mesh-adrs` with the same. These bound your "what does the mesh already know" baseline.
+**How to "call" / "invoke" any skill below.** Every skill in this run MUST be invoked by piping JSON stdin into the runner CLI inside your `execute` shell:
+
+```sh
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner skill-<name>
+```
+
+This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Recorder Auto-Logging). Do **NOT** use Copilot's `skill_use` tool — that only loads the SKILL.md into your context, it does NOT run the skill's backend, and the chain stays empty. PR #114 surfaced this exact gap: agent loaded `knowledge-okr` via `skill_use`, never ran the runner, audit chain had no proof the data was actually consulted; the UI reported "0 mesh skill_calls" honestly. If you find yourself reasoning about data you never invoked the runner for, STOP — the chain is your evidence trail.
+
+2. Invoke `knowledge-okr` with `{"okrId":"<extracted id>"}`. Canonical input; chain event 1.
+3. Invoke `knowledge-mesh-bar` with `{"barId":"<id>"}` ONCE per `objectiveAlignment.affectedBarIds[]` entry. These BARs' CALM + threats + ADRs ground your synthesis.
+4. Invoke `knowledge-mesh-threats` with `{"concern":"<primary keyword>"}` AND `knowledge-mesh-adrs` with the same. These bound your "what does the mesh already know" baseline.
 5. Generate a query plan from the OKR objective + mesh context — YOUR own reasoning, no Skill needed. Per provider: Tavily 3–5 web queries with subject anchors; arXiv 2–3 formal-domain queries; USPTO Q1/Q2/Q3 narrow→broad with `AND` boolean and 1–3 terms; HN 2–3 short casual queries. See `.caterpillar/prompts/research/query-plan.md` for examples.
-6. Invoke `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` in parallel.
+6. Invoke `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` in parallel. **All four must produce a `skill_call` event in the chain** — the audit-and-drift workflow counts per-provider and the evidence-honesty gate fails if a provider you claim sources from has zero invocations. Do not summarize results from `skill_use` context loading and pretend they came from real search.
 7. Invoke `dedupe-and-rank` over the four result arrays.
 8. Inspect `rankedSources` + `providerCounts` for coverage gaps. If you see `low_source_diversity` / `contradiction` / `topic_uncovered` for a key brief term, run **ONE bounded second pass** — never iterative, never multi-round:
    a. Generate up to **3 follow-up queries TOTAL** (your reasoning, not a Skill). Distribute them across the providers where the gap exists; don't re-query providers that already had strong coverage.
