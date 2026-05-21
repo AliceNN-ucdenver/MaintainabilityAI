@@ -33,7 +33,11 @@ tools:
   - dedupe-and-rank
   - format-research-issue-update
   - audit-emit-event
-model: claude-sonnet-4.6
+# No `model:` override — defer to Copilot Coding Agent's session default
+# ("auto"). Pinning here invites silent fallback warnings ("specifies
+# unknown model X, ignoring") and risks version-pin staleness as Copilot's
+# supported model ids evolve. Letting Copilot pick keeps us on whatever
+# model is currently best-tested with the Coding Agent runtime.
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 40
 timeout_seconds: 900

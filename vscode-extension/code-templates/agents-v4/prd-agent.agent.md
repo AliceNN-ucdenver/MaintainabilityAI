@@ -30,7 +30,12 @@ tools:
   - self-review-architect
   - self-review-security
   - audit-emit-event
-model: claude-sonnet-4.6
+# No `model:` override — defer to Copilot Coding Agent's session default
+# ("auto"). Pinning here invites the "specifies unknown model X, ignoring
+# model override" silent fallback we saw pre-claude-sonnet-4.6 (PR #112
+# ran on gpt-5.3-codex despite declaring claude-sonnet-4-6). Letting
+# Copilot pick removes the version-pin risk + keeps us on whatever model
+# is currently best-tested with the Coding Agent runtime.
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 40
 timeout_seconds: 900
