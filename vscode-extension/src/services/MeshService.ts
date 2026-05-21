@@ -554,7 +554,6 @@ export class MeshService {
         description: [
           'Enable IMDB-Lite to surface enriched celebrity profile data',
           'without introducing identity-disambiguation or licensing risk.',
-          'Primary BAR is APP-IMDB-002 (IMDB Celebs) — currently Restricted.',
         ].join(' '),
         notes: 'Aligned with platform growth goals.',
       },

@@ -30,7 +30,7 @@ tools:
   - self-review-architect
   - self-review-security
   - audit-emit-event
-model: claude-sonnet-4-6
+model: claude-sonnet-4.6
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 40
 timeout_seconds: 900
