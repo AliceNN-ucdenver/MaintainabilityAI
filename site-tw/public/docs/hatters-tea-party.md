@@ -184,11 +184,11 @@ This is also where the **two-tier example** becomes concrete. IMDB-Lite ships wi
 
 ---
 
-## Stage 2 · Why: market research grounded in four oracles + JTBD
+## Stage 2 · Why: four independent sources of evidence, checked against itself
 
-Most "AI research" is a single web search and a summary. That's not research. That's a Wikipedia-grade brief that the next agent will then build a PRD on top of. The PRD then inherits every bias and blind spot.
+Most "AI research" is a single web search and a summary. That's not research — that's a one-source brief. Build a product spec on top of it and the spec inherits whatever was wrong or missing in that single source.
 
-The Hatter's Tea Party asks **four oracles** in parallel, plus a customer-jobs lens, and then *checks itself* with a gap-refinement loop.
+This stage does the opposite. It pulls from **four independent kinds of evidence** in parallel — what the web is saying about the topic right now, what academic researchers have proven, what's been patented (the incumbent IP landscape), and what working developers complain about — and adds a fifth lens that asks **what the customer is actually trying to get done**. Then it grades its own coverage and runs one more targeted sweep if anything looks thin.
 
 <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -264,45 +264,54 @@ The Hatter's Tea Party asks **four oracles** in parallel, plus a customer-jobs l
   <text x="400" y="361" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">10-section research doc — every claim cites S[N]</text>
 </svg>
 
-The **query plan** isn't generic. The agent reads the OKR (objective + KRs + intent_cascade + mesh context: CALM model summary, threat library, prior research) and generates **per-provider tuned queries** with topical anchors. The pack enforces this with good/bad examples baked into the prompt. For instance:
+### What the system does
 
-- **Web ✓** `celebrity data licensing standards GDPR CCPA 2026`: has subject anchor
-- **Web ✗** `data privacy compliance trends 2026`: matches anything, wastes recall
-- **USPTO ✓** `celebrity AND disambiguation AND database` (Q1 narrow) + `entity AND resolution AND person` (Q2 medium) + `named-entity AND disambiguation AND knowledge-graph` (Q3 broad)
-- **USPTO ✗** `celebrity profile API AND identity management`: five stop-wordy terms, zero patent corpus matches
-- **HN ✓** `name dedup` · `person disambiguation`: 2–3-word casual
-- **HN ✗** `identity disambiguation hacks`: too formal, zero HN results
+**The agent reads the business context before it searches anything.** Before the first query is sent, it loads the objective, the success metrics, the strategy chain that links the objective from org leadership down to the end user, and the company's existing record of architecture, known security threats, and prior research on adjacent topics. From that grounding it writes search queries that are tailored to each source — a query that works on a general-purpose web search engine is useless on a patent database, and a casual phrasing that gets results on a developer forum gets ignored by an academic index. The system enforces this with worked examples baked into the prompt, so the agent can't drift into the vague phrasing that wastes a research budget without producing anything useful.
 
-After the first pass, the agent inspects coverage. **Low source diversity** on a finding? **Two sources contradicting each other**? **A topic from the brief with no sources at all**? It runs **one bounded second pass**: generates up to **three** follow-up queries TOTAL distributed across the providers where the gap exists, emits a `gap-loop` marker event to the audit JSONL (with `reason: topic_uncovered | low_source_diversity | contradiction`), and re-invokes only the relevant search Skills. The bound is enforced by the prompt — multiple iterations would blow the cost cap and produce spurious "I tried harder" signal without changing outcomes. If coverage is still thin after the second pass, the agent notes it honestly in the artifact's `## Evidence Gaps` section instead of looping further.
+**Then it grades its own coverage.** After the first sweep of all five lenses, the agent asks three questions of the results: is there a finding that only one source supports? Are two sources contradicting each other? Is there a topic the original brief mentioned that came back with no evidence at all? If any answer is yes, the agent runs **one bounded follow-up sweep** — up to three additional queries, targeted at exactly the gap that prompted them, and only the lens where that gap exists. The bound is hard: one follow-up sweep, not a recursive loop. We tried unbounded loops in prototyping; they multiplied the cost without changing the conclusions. If coverage is still thin after the follow-up, the agent doesn't paper it over — it writes the unresolved gap out plainly in a section called **Evidence Gaps**, which the next stage inherits and a reviewer can challenge.
 
-The result is a **10-section research certificate** (Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References) with `S[N]` citations every reviewer (and the downstream PRD agent) can grep deterministically.
+**The output is a structured research document with ten required sections** — an executive summary, a comparison across sources, an evidence-gaps list, a customer-needs analysis, a patent landscape, a whitespace map, formal conclusions with confidence ratings, and recommendations — and every claim in the document carries a tag pointing back to the source it came from. The next stage (the product spec) traces individual requirements back to specific source tags. There's no path for an unsupported claim to launder its way into the design.
 
-> 🍵 **The WHY phase has no persona reviewers.** Research-doc PRs are descriptive — synthesis from sources, not design decisions — so they bypass `reviewer-bus.yml` and the architect/security state machine. The merge gate is `market-research-agent.yml`'s audit-and-drift job (B20 per-agent workflow consolidation): it counts successful `skill_call` events for the four search providers in the run's audit JSONL, parses the artifact's frontmatter for the canonical Hatter Tag, runs the Pocket Watch goal-drift check, and refuses the `research-pass` label if the agent declared `evidence_mode: live` but the audit shows zero live calls (or if structural sections are missing, or if cosine similarity to the OKR objective dropped below 0.85). This catches the failure mode where an agent loads the Skill context, can't reach the CLI backend, and silently falls back to reading repo files — making "the agent didn't really do the search" an enforceable gate, not a trust assumption.
+### How it's guarded
 
-### How the agent reports back
+The Why stage has no human-style reviewer because research is descriptive, not a design decision — there's no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently confirms four things.
 
-Throughout the run, the agent emits **hash-chained audit events** to `okrs/<id>/audit/events/<run-id>.jsonl` via the `audit-emit-event` skill — one event per skill call, plus a final `artifact_written` event. Each event carries `prev_event_hash` linking forward, so any tampering with past events breaks every subsequent hash and is detectable offline via `verify-chain` (Phase E).
+| Check | What it confirms |
+|---|---|
+| **The agent actually searched** | The run's activity log shows successful calls to each evidence source — not a silent fall-back to reading already-committed files |
+| **The document is structurally complete** | All ten required sections are present, in the canonical order |
+| **Every claim is sourced** | Every formal conclusion in the document cites at least one of the evidence tags |
+| **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective (a comparison based on meaning, not just shared keywords — catches an agent that drifted onto an adjacent topic) |
 
-On a successful run the artifact ships with a Hatter Tag in **two places** (per §11.1.5):
+Only when all four pass does the system apply the green-flag label that unlocks merge. If any fail, it applies a specific failure label naming exactly which check failed, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
 
-- **Canonical:** YAML frontmatter at the top of `research-doc.md` — `okr_id`, `run_id`, `phase`, `intent_thread_uuid`, `parent_intent_thread`, an `evidence:` block (`evidence_mode: live | cached | mixed`, `fresh_provider_search_performed`, optional `degraded_reason`), and the `chain_root_hash`.
-- **Display mirror:** a fenced YAML code block in the PR description so reviewers see provenance inline without opening the file. `market-research-agent.yml` reads from the frontmatter when extracting OKR context (canonical), with the PR-body block as a fallback for older runs.
+### Why the audit is trustworthy
 
-When the user clicks **Run audit** in Looking Glass, the workflow runs server-side under the user's PAT, parses the frontmatter, posts a single upserted "Market Research Audit" comment with per-provider call counts and distinct-query counts (so reviewers see exactly what was searched), and applies `research-pass` on clean or `degraded-evidence` on fail. Branch protection on the mesh repo gates merge on `research-pass`.
+Three things happen automatically during every run, and together they make the result self-auditing — no separate process needs to "keep notes."
+
+**1. The document carries its own receipt.** The artifact ships with a small block of metadata at the top — the objective it belongs to, the unique run identifier, the agent that produced it, and what mode it was in (was this a live search, or did it reuse already-known evidence?). The same block also appears in the pull-request description so reviewers see it without opening the file. If the document gets moved, copied, or quoted out of context six months later, the receipt is still attached.
+
+**2. The activity log is tamper-evident.** Every search the agent ran, every analysis step it took, is recorded as a sequence of entries chained together by cryptographic hashes — each entry references the hash of the one before it. The same trick that secures a blockchain. You can't quietly edit an earlier entry without breaking every entry that follows, and the break is detectable. There's no need to *trust* that nobody altered the record; the record proves itself, and it can be verified offline. Important in regulated industries where "show me the work" needs a yes-or-no answer, not a paper trail to interpret.
+
+**3. The audit IS the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request — what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic. Pass everything → green-flag label → merge unlocks. Fail anything → specific failure label naming the cause + the same comment showing where to look.
+
+For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the sources those queries returned, and a tamper-evident log of the whole run — all without anyone having to remember to take minutes.
 
 ---
 
-## Stage 3 · How: a PRD refined by mesh-grounded experts
+## Stage 3 · How: the product spec, with every requirement tied to a real constraint
 
-The PRD is where research findings become **requirements**: Functional, Non-Functional, Security. But "ask an LLM to write a PRD" is exactly how teams end up with hallucinated requirements that no one in the org could trace back to a real constraint.
+Stage 2 produced research. Stage 3 turns that research into a **Product Requirements Document** — the spec the team will build from. Asking an AI to "write a PRD" the naive way is how teams end up with requirements that look plausible but don't match the system they actually have and that nobody can trace back to a real constraint. Stage 3 won't let that happen.
 
-The Hatter's Tea Party PRD has two anti-hallucination devices:
+It does three things the naive approach doesn't.
 
-1. **Bidirectional traceability mandated by the prompt.** Every `FR-NN` cites a Research finding `R[N]` or a Mesh Expert input `E[N]`. Every Security Requirement cites a STRIDE `THR-NNN` and/or OWASP `A0X` category. The synthesis pack rejects output that doesn't conform.
+**It reads everything that matters before writing anything.** Before the first requirement is drafted, the agent loads the objective, the research document from Stage 2, every business system the objective touches, the architectural decisions already on record for those systems, the known security threats they face, and the company's quality standards (latency targets, availability commitments, that kind of thing). Nothing in the spec can be made up — the agent is required to cite the source of every claim, and the system rejects the spec if any citation is missing.
 
-2. **`prd/ask-experts` Skill: clarifying questions back from the mesh.** Before scoring, the PRD agent invokes this Skill in `deep` mode. It surfaces questions anchored to **detected mesh gaps**: "the BAR has no threat model, so the threat coverage in this PRD is unverifiable; whose risk decision is this?" Each question carries `scope`, `triggered_by_mesh_gap`, `why_it_matters`, `answerable_by`. The architect/PM answers, the PRD revises with answers inlined.
+**Every requirement is traceable in both directions.** Each feature requirement carries a tag pointing back to the research finding or expert input it came from. Each security requirement carries a tag pointing to a known threat from the industry-standard catalogs (STRIDE for threat categorization, OWASP for application-security risks, NIST for control families). The downstream audit doesn't take the agent's word for it — it walks every requirement and rejects the document if any tag is missing or unresolvable.
 
-<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
+**The agent then critiques its own draft, twice, from different angles.** This is the part that changed recently and is worth explaining clearly.
+
+<svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
     <linearGradient id="prdBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -315,58 +324,93 @@ The Hatter's Tea Party PRD has two anti-hallucination devices:
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#fb923c"/>
     </marker>
   </defs>
-  <rect width="800" height="320" rx="12" fill="url(#prdBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">PRD — REFINED BY MESH-GROUNDED EXPERTS</text>
-  <!-- PRD draft -->
-  <rect x="40" y="60" width="180" height="84" rx="10" fill="rgba(110,231,183,0.10)" stroke="rgba(110,231,183,0.4)"/>
-  <text x="130" y="82" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="700" font-family="system-ui, sans-serif">prd-agent</text>
-  <text x="130" y="100" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Reads research + mesh</text>
-  <text x="130" y="113" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">FR · NFR · SR draft</text>
-  <text x="130" y="126" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">bidirectional traceability</text>
-  <text x="130" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">(R[N] → FR-NN → KR)</text>
-  <line x1="220" y1="100" x2="252" y2="100" stroke="#a5b4fc" stroke-width="2" marker-end="url(#prdArrow)"/>
-  <!-- ask-experts -->
-  <rect x="255" y="56" width="180" height="90" rx="10" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.4)"/>
-  <text x="345" y="78" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700" font-family="system-ui, sans-serif">ask-experts</text>
-  <text x="345" y="96" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Clarifying questions</text>
-  <text x="345" y="109" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">anchored to mesh gaps</text>
-  <text x="345" y="122" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">("no threat-model →</text>
-  <text x="345" y="135" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">whose risk decision?")</text>
-  <line x1="435" y1="100" x2="467" y2="100" stroke="#a5b4fc" stroke-width="2" marker-end="url(#prdArrow)"/>
-  <!-- Two reviewers -->
-  <rect x="470" y="56" width="180" height="40" rx="8" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.4)"/>
-  <text x="560" y="73" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">architect-reviewer</text>
-  <text x="560" y="88" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">prd/architecture-review</text>
-  <rect x="470" y="104" width="180" height="40" rx="8" fill="rgba(248,113,113,0.15)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="560" y="121" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">security-reviewer</text>
-  <text x="560" y="136" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">prd/security-review</text>
-  <text x="710" y="76" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">SCORE</text>
-  <text x="710" y="92" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">0.0–1.0</text>
-  <text x="710" y="120" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">COVERED</text>
-  <text x="710" y="136" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">MISSING</text>
-  <!-- Mesh-grounded gate label -->
-  <rect x="465" y="158" width="195" height="22" rx="11" fill="rgba(110,231,183,0.12)" stroke="rgba(110,231,183,0.3)"/>
-  <text x="563" y="173" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">MESH-GROUNDED — intent gate</text>
-  <!-- Revision loop -->
-  <path d="M 130 158 Q 130 218, 250 218 Q 370 218, 370 158" fill="none" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="6"/>
-  <text x="250" y="234" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="700" font-family="system-ui, sans-serif">REVISION LOOP (bounded by tier)</text>
-  <text x="250" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Autonomous: 1 round · Supervised: 2 rounds · Restricted: 0 (HumanGate)</text>
+  <rect width="800" height="360" rx="12" fill="url(#prdBg)"/>
+  <text x="400" y="28" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">PRD — SELF-CRITIQUED AS ARCHITECT + SECURITY</text>
+  <!-- Mesh inputs (left) -->
+  <rect x="30" y="60" width="180" height="120" rx="10" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
+  <text x="120" y="82" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Mesh inputs</text>
+  <text x="120" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Merged research</text>
+  <text x="120" y="115" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">BAR snapshots</text>
+  <text x="120" y="130" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">ADRs · Threats</text>
+  <text x="120" y="145" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Architecture · Security</text>
+  <text x="120" y="160" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Quality standards</text>
+  <text x="120" y="174" text-anchor="middle" fill="#7dd3fc" font-size="9" font-style="italic" font-family="system-ui, sans-serif">(no external search)</text>
+  <line x1="210" y1="120" x2="260" y2="120" stroke="#a5b4fc" stroke-width="2" marker-end="url(#prdArrow)"/>
+  <!-- prd-agent center -->
+  <circle cx="345" cy="120" r="65" fill="rgba(110,231,183,0.15)" stroke="rgba(110,231,183,0.4)" stroke-width="1.5"/>
+  <text x="345" y="105" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="700" font-family="system-ui, sans-serif">prd-agent</text>
+  <text x="345" y="122" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600" font-family="system-ui, sans-serif">First-pass synthesis</text>
+  <text x="345" y="138" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">FR-NN · NFR · SR-NN</text>
+  <text x="345" y="151" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">bidirectional cites</text>
+  <line x1="410" y1="120" x2="445" y2="120" stroke="#a5b4fc" stroke-width="2" marker-end="url(#prdArrow)"/>
+  <!-- Self-critique personas (right) -->
+  <rect x="450" y="62" width="200" height="50" rx="8" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.4)"/>
+  <text x="550" y="80" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Architect persona</text>
+  <text x="550" y="95" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM coverage · ADR alignment</text>
+  <text x="550" y="107" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">fitness-function impact</text>
+  <rect x="450" y="120" width="200" height="50" rx="8" fill="rgba(248,113,113,0.15)" stroke="rgba(248,113,113,0.4)"/>
+  <text x="550" y="138" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Security persona</text>
+  <text x="550" y="153" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">STRIDE · OWASP · NIST</text>
+  <text x="550" y="165" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">control coverage</text>
+  <text x="700" y="98" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">SCORE</text>
+  <text x="700" y="111" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">SEVERITY</text>
+  <text x="700" y="142" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">COVERED</text>
+  <text x="700" y="155" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">MISSING</text>
+  <!-- Bounded loop arrow -->
+  <path d="M 550 175 Q 550 220, 400 220 Q 290 220, 290 195" fill="none" stroke="#fb923c" stroke-width="2" stroke-dasharray="6" marker-end="url(#prdLoop)"/>
+  <text x="400" y="238" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">BOUNDED SELF-CRITIQUE LOOP</text>
+  <text x="400" y="252" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Autonomous: up to 3 rounds · Supervised: 2 · Restricted: 0 (human review)</text>
+  <text x="400" y="266" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">stops early when both personas return PASS or MINOR with no MISSING items</text>
+  <!-- Audit chain row -->
+  <rect x="100" y="282" width="600" height="34" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.3)"/>
+  <text x="400" y="297" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="700" font-family="system-ui, sans-serif">Every persona critique, every round → one tamper-evident audit event</text>
+  <text x="400" y="310" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Architect round 1 · Security round 1 · Architect round 2 · ... (hash-chained alongside synthesis evidence)</text>
   <!-- Output -->
-  <rect x="250" y="266" width="300" height="38" rx="8" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.3)"/>
-  <text x="400" y="284" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">okrs/&lt;id&gt;/how/prd.md merged</text>
-  <text x="400" y="298" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">+ manifest.yaml with target_code_repos[]</text>
+  <rect x="200" y="324" width="400" height="28" rx="8" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.3)"/>
+  <text x="400" y="343" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">PRD opens as PR · awaits Run Audit · merges to main</text>
 </svg>
 
-The PRD reviewers (`architect-reviewer`, `security-reviewer`) score **mesh-grounding**:
+### Why one agent self-critiques instead of two separate reviewers
 
-- Does every FR cite a real CALM node? An ADR that exists?
-- Are all STRIDE threats in scope addressed? Any unjustified `NOT APPLICABLE` exclusions?
-- Are OWASP categories triggered by the threat model also covered as Security Requirements?
-- Is the FR↔R↔KR traceability complete?
+An earlier version of this stage ran two extra agents the moment the spec was opened for review — one playing "architect," one playing "security" — to grade it independently. In practice both extra agents were reading the same internal records the original agent had just read. The "independent review" was a re-grade of identical inputs by a differently-named agent. It added latency, doubled the failure surface (two more processes that could time out), and tripled the moving pieces — without changing the quality of the review.
 
-These reviewers are **distinct Copilot agent sessions with distinct DIDs**, the **Tweedles rule**: reviewer ≠ author. NIST 800-53 SA-11 + SOC 2 CC8.1 segregation of duties enforced at the workflow level. Both DIDs stamped on the Hatter's Tag.
+So we collapsed it. The same agent that drafts the spec also critiques it, twice, from different angles:
 
-> 🍵 **The PRD gate is the intent gate, not the implementation gate.** A perfectly mesh-grounded PRD can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
+- **First as an architect** — checking whether the spec aligns with the company's existing architectural decisions, fits the system's quality requirements, and doesn't propose work outside the declared boundaries. Produces a structured verdict: an overall score, a severity (`pass` / `minor` / `major` / `blocking`), what it covered well, what's missing, what should change.
+- **Then as a security reviewer** — checking whether every security threat in scope has a corresponding requirement that addresses it, whether industry control categories triggered by the threat model are reflected in the spec. Same structured verdict shape.
+
+If both critiques come back clean (`pass` or `minor` with no missing items), the loop exits. If either flagged gaps, the agent revises the spec and runs both critiques again. **The number of revision rounds is bounded by how much risk the system is willing to accept on automation alone** — a low-risk (Autonomous-tier) initiative gets up to 3 rounds, a medium-risk (Supervised) gets 2, a high-risk (Restricted) gets 0 and ships straight to human review. The agent doesn't decide its own bound; the business system's risk profile does.
+
+Every critique becomes its own entry in the tamper-evident activity log — round 1 architecture, round 1 security, round 2 architecture, and so on. A reviewer walking the log later sees the full conversation the agent had with itself: what it caught, what it fixed, what it couldn't close.
+
+For the next stage (the code design), we may bring separate reviewer agents back — there, the reviewers grade against actual code in the target repositories, which IS a different source of evidence than what the spec author had. Here, where the author and the reviewer would both read the same records, the independence axis wasn't real.
+
+### How it's guarded
+
+The same merge gate pattern as Stage 2 — pull-request stays blocked until the system can independently confirm five things.
+
+| Check | What it confirms |
+|---|---|
+| **The agent actually consulted the records** | The activity log shows the agent looked up the objective, the research, every affected business system, the relevant architectural decisions, the known threats, and the quality standards. A spec that grounded on nothing is a spec the agent invented |
+| **The spec is structurally complete** | All ten required sections are present, in canonical order — problem statement, goals, feature requirements, non-functional requirements, security requirements, coverage analysis, risk matrix, success metrics, references |
+| **Every feature requirement traces to a source** | Each feature requirement carries a tag pointing back to a specific research finding or expert input. Missing tags → reject |
+| **Every security requirement traces to a known threat** | Each security requirement carries at least one industry-standard category (STRIDE threat id or OWASP risk category). Unbacked security claims → reject |
+| **The spec hasn't drifted off the objective** | A meaning-based comparison (not just keyword overlap) between the original objective and the spec's problem statement. Catches an agent that started writing a spec for an adjacent problem |
+| **The spec hasn't drifted from the research** | The same meaning-based comparison between the spec's problem statement and the prior-stage research summary. Catches an agent that quietly lost the research findings in translation |
+| **The agent's self-critique converged** | The architect and security verdicts from the final round are both `pass` or `minor`. If the agent ran out of revision rounds without converging, the spec ships but flagged for mandatory human review |
+
+When all checks pass, the system applies the green-flag label that unlocks merge. When any check fails, it applies a specific failure label naming exactly which check failed — one label per cause, so a reviewer reads the label and immediately knows where to look:
+
+- **`prd-pass`** — clean, merge unlocked
+- **`degraded-evidence`** — the agent didn't actually consult the records it claimed to
+- **`structure-invalid`** — sections missing, or feature/security requirements missing their source tags
+- **`goal-drift-detected`** — the spec drifted off the original objective
+- **`caterpillar-drift-detected`** — the spec drifted off the upstream research
+- **`self-review-exhausted`** — the agent ran out of revision rounds without resolving the gaps it identified itself
+
+The audit comment posted on the pull request shows exactly what each check found, with the specific score on every meaning-comparison check (so a 0.71 vs a 0.43 isn't ambiguous about how close the spec was to passing).
+
+> 🍵 **This stage is the intent gate, not the implementation gate.** A perfectly grounded spec can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
 
 ---
 
