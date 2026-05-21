@@ -370,14 +370,14 @@ Each row in the table below names a concrete threat, the design control that add
 |---|---|---|:-:|
 | **Spoof** | Reviewer impersonates the author agent on the same PR | Tweedles check in `reviewer-bus.yml` reads `author_did` from PR-description Hatter Tag before assigning a reviewer; rotates DID or labels `tweedles-violation` on collision (§5.5.8) | ✓ |
 | **Spoof** | Dual-signature override second-signer is impersonated | Fingerprint validation tying request to OKR + phase + reason + timestamp; Signer 2 confirmed via GitHub commenter handle or signed YAML commit; signer ≠ signer (§10.9.2) | ✓ |
-| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag at Phase A; cryptographic signature (Ed25519) in Phase B+ via Knight's Seal | 🛠 |
+| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag at Phase A; **Knight's Seal v1 — per-run ephemeral Ed25519 keypair** signs the chain-root hash + artifact SHA in Phase B (planned for the next push as B27); `seal-broken` CI label blocks merge on signature mismatch. Cosign-anchored persistent signing for long-term third-party verifiability is a future enhancement | 🛠 |
 | **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain (§11.1.5) | 🛠 |
 | **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id (eliminates contention); POSIX advisory locking within file; per-run filenames prevent cross-run collision (§11.1.6) | ✓ |
 | **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel (§9.1) | ✓ |
 | **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective; compares with semantic similarity ≥ 0.85 AND edit-distance ≤ 0.30; `goal-drift-detected` label blocks merge (§9.2) | ✓ |
 | **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes (§6.2) | ✓ |
 | **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted (§10.9.2) | ✓ |
-| **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; cryptographically sealed in Phase B+ | 🛠 |
+| **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal v1** (Phase B, B27) signs the chain-root + artifact SHA with a per-run Ed25519 keypair so the agent's own session is the only thing that could have produced the signature. Persistent third-party verifiability (cosign / sigstore) is a future enhancement | 🛠 |
 | **Info disclosure** | LLM provider retains our prompts indefinitely | Out of our trust boundary; the design captures cost + token counts only, not prompt bodies | ⚠ |
 | **Info disclosure** | Sensitive research-source content lands in audit export | Pure-data Skills emit structured findings; no automated sensitive-content classification on results | ⚠ |
 | **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) — Phase E follow-on | ⚠ |
@@ -400,7 +400,7 @@ STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence la
 | Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Per-phase gate workflows (`market-research-agent.yml`, audit-validate, drift-gate) enforce policy in CI, not just at PR review | ✓ |
 | Identity & Access Management | Agents as hybrid identities with just-in-time privileges | Per-agent `.agent.md` declares minimum-necessary `tools:` list; deployment refuses to land an agent referencing an undeclared Skill (§5.5.1) | ✓ |
 | Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
-| Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped; pack-signature verification queued for Phase B+ Knight's Seal | 🛠 |
+| Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped; **pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
 | Threat Management & SecOps | Real-time monitoring + detection engineering | Hash-chained audit JSONL is queryable; `verify-chain` (Phase E) replays the full run from disk; gap-loop refinement events visible in audit trail | ✓ |
 | Zero Trust | "Least agency" — minimum permissions per goal | Reviewer agents `tools:` deliberately omit `edit` (Tweedles boundary); skill backends are pure-data, can't mutate beyond their declared writes | ✓ |
 
@@ -414,7 +414,7 @@ STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence la
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash` — `verify-chain` catches it offline | ✓ |
 | **Pre-merge chain re-verification (CI gate)** | `audit-and-drift` workflow replays the SHA-256 chain end-to-end against the canonical serialization before any PR can merge. Implemented inline (independent of the runner) so a runner bug can't silently pass; applies `chain-forgery-detected` label and blocks merge on mismatch. Closes the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
 | Pre-execution interception (log before side effect) | `skill-audit-emit-event` is the first call inside each skill invocation; recorded before the skill emits its result | ✓ |
-| Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`; Ed25519 lands in Knight's Seal (Phase B+) | 🛠 |
+| Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`. **Phase B (B27) lands Knight's Seal v1** — per-run **ephemeral** Ed25519 keypair generated at agent dispatch; signs the chain-root hash + final artifact SHA; public key + signature posted in the `artifact_written` audit event; private key destroyed at session end (no key store, no rotation policy). CI verifies the signature pre-merge and applies `seal-broken` on failure. Cosign / sigstore-anchored persistent signing — for verifying a year-old artifact without trusting its own embedded key — is queued as a future enhancement | 🛠 |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 
 **Aegis Protocol** ([arXiv 2508.19267](https://arxiv.org/abs/2508.19267)) — cryptographic protocol for open agentic ecosystems. Three pillars: W3C DIDs (non-spoofable agent identity), NIST PQC (communication integrity), Halo2 ZKP (verifiable, privacy-preserving policy compliance). Formalizes a game-based definition of "Excessive Agency."
@@ -445,14 +445,14 @@ These are open. They are the design's known unknowns. Each is queued for a named
     <div class="docs-copy">A Tavily / arXiv / HN result containing crafted prompt-injection text can manipulate the market-research-agent into following attacker-supplied instructions. Mitigation requires a sanitization layer on Skill outputs and an agent-prompt structure that explicitly partitions data from instructions. Research item; not in Phase B scope.</div>
   </div>
   <div class="docs-card docs-card-amber">
-    <div class="docs-card-kicker">Phase B+</div>
+    <div class="docs-card-kicker">Phase B — planned next</div>
     <div class="docs-heading">Knight's Seal — Ed25519 signing</div>
-    <div class="docs-copy">Phase A enforces author identity via GitHub App installation ID + system-prompt SHA stamped on every Hatter Tag. The cryptographic seal that binds these together is Phase B+. Until it ships, a capable insider with mesh write access can tamper with merged artifacts; <code>verify-chain</code> catches it after the fact, not preventively.</div>
+    <div class="docs-copy">Phase A enforces author identity via GitHub App installation ID + system-prompt SHA stamped on every Hatter Tag. <strong>Knight's Seal v1 (B27 in the implementation plan) ships an ephemeral per-run Ed25519 keypair</strong> — generated at agent dispatch, signs the chain-root hash + final artifact SHA, public key + signature posted in the <code>artifact_written</code> audit event, private key destroyed at session end. CI verifies the signature before merge and blocks with <code>seal-broken</code> on mismatch. Looking Glass surfaces a <em>"Phase seal-checked ✓"</em> badge on each phase card so reviewers see the signature status without leaving the UI. <strong>Future evolution:</strong> persistent signing via cosign / sigstore so a third-party auditor can verify a year-old artifact without trusting the public key embedded in its own audit log.</div>
   </div>
   <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Phase B+</div>
+    <div class="docs-card-kicker">Future — cosign era</div>
     <div class="docs-heading">Prompt-pack signature verification</div>
-    <div class="docs-copy">Packs deploy from the mesh template. Hatter Tag records the pack version and SHA on each run, so post-hoc auditing works — but a compromised template-repo committer can ship a malicious pack and we won't refuse to load it. Signed-pack-only deployment is queued for Phase B+ Settings → Mesh Provisioning.</div>
+    <div class="docs-copy">Packs deploy from the mesh template. Hatter Tag records the pack version and SHA on each run, so post-hoc auditing works — but a compromised template-repo committer can ship a malicious pack and we won't refuse to load it. <strong>Signed-pack-only deployment</strong> pairs with the cosign-anchored Knight's Seal evolution: both prompt packs and Hatter Tag signatures land in the same persistent-signing root of trust.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Trust boundary</div>
