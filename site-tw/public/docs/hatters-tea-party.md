@@ -387,7 +387,7 @@ If both critiques come back clean (`pass` or `minor` with no missing items), the
 
 Every critique becomes its own entry in the tamper-evident activity log — round 1 architecture, round 1 security, round 2 architecture, and so on. A reviewer walking the log later sees the full conversation the agent had with itself: what it caught, what it fixed, what it couldn't close.
 
-For the next stage (the code design), we may bring separate reviewer agents back — there, the reviewers grade against actual code in the target repositories, which IS a different source of evidence than what the spec author had. Here, where the author and the reviewer would both read the same records, the independence axis wasn't real.
+The next stage (the code design) starts the same way — persona-switch self-critique inside the code-design-agent — but the personas read **the actual code** in the target repositories, not just the spec. Because the code is genuinely a different evidence surface (the agent has to *look at it* to score it), if real-world runs show self-critique misses code-grounded findings a separately-dispatched reviewer would catch, we'll bring those reviewers back for the WHAT phase. The decision is data-driven, not designed-in.
 
 ### How it's guarded
 
@@ -469,16 +469,16 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
   <text x="355" y="239" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">addresses: [FR-X, SR-Y]</text>
   <!-- Arrow to reviewers -->
   <line x1="455" y1="185" x2="497" y2="185" stroke="#a5b4fc" stroke-width="2" marker-end="url(#cdArrow)"/>
-  <!-- Reviewers (right column) -->
+  <!-- Self-critique personas (right column) — same agent, two persona-switched rounds -->
   <rect x="500" y="98" width="270" height="70" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
-  <text x="635" y="121" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">architect-reviewer</text>
-  <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design/architecture-review pack</text>
+  <text x="635" y="121" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Architect persona</text>
+  <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design/architecture-review prompt pack</text>
   <text x="635" y="154" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM drift · interface contract diffs</text>
   <rect x="500" y="180" width="270" height="70" rx="10" fill="rgba(248,113,113,0.10)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="635" y="203" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="700" font-family="system-ui, sans-serif">security-reviewer</text>
-  <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design/security-review pack</text>
+  <text x="635" y="203" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Security persona</text>
+  <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design/security-review prompt pack</text>
   <text x="635" y="236" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">OWASP scan · threat-model compliance</text>
-  <text x="635" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">against actual repos</text>
+  <text x="635" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">against actual repos · code-grounded</text>
   <!-- Code-grounded gate label -->
   <rect x="495" y="262" width="280" height="28" rx="14" fill="rgba(252,211,77,0.15)" stroke="rgba(252,211,77,0.4)" stroke-width="1.5"/>
   <text x="635" y="280" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CODE-GROUNDED — implementation gate</text>
@@ -488,12 +488,12 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
   <text x="400" y="338" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Last agent step on the Looking Glass side</text>
 </svg>
 
-The two reviewers run **different prompt packs** on the design than they ran on the PRD:
+The code-design-agent runs **different prompt packs** in its two personas than it did at PRD time:
 
-- **`design/architecture-review`**: CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL; a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
-- **`design/security-review`**: OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
+- **`design/architecture-review`** (Architect persona): CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL; a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
+- **`design/security-review`** (Security persona): OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
 
-Same reviewer agents, **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point, and the workshop's pedagogical sweet spot.
+Same self-critique pattern as the PRD stage — **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point, and the workshop's pedagogical sweet spot.
 
 > 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here it's a workflow (no LLM), then the coding agents in each target repo, on the Red Queen's side.
 
@@ -703,7 +703,7 @@ Three claims, each falsifiable.
 
 **Claim 2: Audit chains across repository boundaries are a feature, not a footnote.** Every artifact this pipeline produces carries the same `intent_thread_uuid`. The mesh repo's research doc, the same mesh's PRD, the same mesh's code-design, each target repo's landing issue, each target repo's code PR are all readable as one chain. Microsoft's Agent Governance Toolkit calls this the "reasoning-trace correlation gap." We close it from the OKR forward.
 
-**Claim 3: The right place to put the heavy gate is the code design.** A PRD that's mesh-grounded can still be code-impossible. A design that's code-grounded but mesh-misaligned was already caught by the PRD gate. Only the code-design has both inputs in scope, and only there can the architect and security reviewers tell you whether what intent demanded is what code can deliver, without breaking what's already there.
+**Claim 3: The right place to put the heavy gate is the code design.** A PRD that's mesh-grounded can still be code-impossible. A design that's code-grounded but mesh-misaligned was already caught by the PRD gate. Only the code-design has both inputs in scope, and only there can the Architect and Security personas (running code-grounded prompt packs against the actual repos) tell you whether what intent demanded is what code can deliver, without breaking what's already there.
 
 > 🎩 **Where this runs.** Every agent in the Hatter's Tea Party runs in **GitHub's hosted Coding Cloud agent** runtime — no agent-orchestration stack to deploy, no inference infra to operate, no third-party model platform required. The mesh is a GitHub repo, the agents are `.github/agents/*.agent.md` files, the gates are GitHub Actions workflows, and the LLM is reached through the Coding Agent's built-in MCP routes. Cost ceiling: a few dollars per OKR pipeline. Onboarding ceiling: one GitHub App install. We considered enterprise inference targets (Azure AI Foundry, self-hosted) and chose not to — the audit chain + threat model are the differentiators, not the runtime, and the value of one-click adoption beats the value of running our own stack.
 
