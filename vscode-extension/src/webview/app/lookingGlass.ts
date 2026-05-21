@@ -4362,7 +4362,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       // If we already have portfolio data, just toggle the refresh button
       if (state.portfolio && state.view === 'portfolio') {
         const btn = document.getElementById('btn-refresh') as HTMLButtonElement | null;
-        if (btn) { btn.disabled = message.active; }
+        if (btn) { btn.disabled = message.active as boolean; }
       } else if (!state.portfolio && state.view !== 'init-mesh' && state.view !== 'no-mesh') {
         render();
       }
@@ -4683,26 +4683,26 @@ const inboundHandlers: Record<string, InboundHandler> = {
       // Phase 5 — Orchestration + Platform Governance
     },
     'orchestrationPolicyLoaded': (message: WebviewInboundMessage) => {
-      state.orchPolicy = (message as { policy: typeof state.orchPolicy }).policy;
+      state.orchPolicy = (message as unknown as { policy: typeof state.orchPolicy }).policy;
       if (state.view === 'settings') { render(); }
     },
     'orchestrationPolicySaved': (_message: WebviewInboundMessage) => {
       if (state.view === 'settings') { render(); }
     },
     'agentTypeLoaded': (message: WebviewInboundMessage) => {
-      state.agentType = (message as { agentType: 'claude' | 'copilot' | 'both' }).agentType;
+      state.agentType = (message as unknown as { agentType: 'claude' | 'copilot' | 'both' }).agentType;
       if (state.view === 'settings') { render(); }
     },
     'agentTypeSaved': (_message: WebviewInboundMessage) => {
       if (state.view === 'settings') { render(); }
     },
     'researchSettings': (message: WebviewInboundMessage) => {
-      state.researchSettings = (message as { payload: typeof state.researchSettings }).payload;
+      state.researchSettings = (message as unknown as { payload: typeof state.researchSettings }).payload;
       state.researchSecretStatus = {};
       if (state.view === 'settings') { render(); }
     },
     'researchSecretSaved': (message: WebviewInboundMessage) => {
-      const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; hasValue: boolean };
+      const msg = message as unknown as { id: 'anthropic' | 'openai' | 'tavily'; hasValue: boolean };
       if (state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
         if (s) { s.hasVsCodeValue = msg.hasValue; }
@@ -4715,7 +4715,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       }, 4000);
     },
     'researchTestResult': (message: WebviewInboundMessage) => {
-      const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
+      const msg = message as unknown as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
       state.researchSecretStatus[msg.id] = { kind: msg.ok ? 'success' : 'error', message: msg.message };
       if (state.view === 'settings') { render(); }
       window.setTimeout(() => {
@@ -4724,7 +4724,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       }, 6000);
     },
     'researchSecretPushed': (message: WebviewInboundMessage) => {
-      const msg = message as { id: ResearchSecretId; ok: boolean; message: string };
+      const msg = message as unknown as { id: ResearchSecretId; ok: boolean; message: string };
       if (msg.ok && state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
         if (s && s.hasGitHubSecret !== null) { s.hasGitHubSecret = true; }
@@ -4737,7 +4737,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       }, 6000);
     },
     'researchSecretPushedAll': (message: WebviewInboundMessage) => {
-      const msg = message as { id: ResearchSecretId; results: Array<{ repo: string; ok: boolean; message: string }>; message: string };
+      const msg = message as unknown as { id: ResearchSecretId; results: Array<{ repo: string; ok: boolean; message: string }>; message: string };
       const allOk = msg.results.length > 0 && msg.results.every(r => r.ok);
       if (allOk && state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
@@ -4761,14 +4761,14 @@ const inboundHandlers: Record<string, InboundHandler> = {
       vscode.postMessage({ type: 'loadResearchSettings' });
     },
     'platformGovernanceLoaded': (message: WebviewInboundMessage) => {
-      const pgMsg = message as { platformId: string; governance: typeof state.platGov };
+      const pgMsg = message as unknown as { platformId: string; governance: typeof state.platGov };
       if (state.platGovEditing === pgMsg.platformId) {
         state.platGov = pgMsg.governance;
         render();
       }
     },
     'platformGovernanceSaved': (message: WebviewInboundMessage) => {
-      const psMsg = message as { platformId: string };
+      const psMsg = message as unknown as { platformId: string };
       if (state.platGovEditing === psMsg.platformId) {
         state.platGovEditing = null;
         state.platGov = null;
@@ -4776,7 +4776,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       render();
     },
     'barGovernanceContext': (message: WebviewInboundMessage) => {
-      const bgMsg = message as { barPath: string; linkedBars: typeof state.barLinkedBars; siblingBars: typeof state.barSiblingBars; platformOverrides: string[] };
+      const bgMsg = message as unknown as { barPath: string; linkedBars: typeof state.barLinkedBars; siblingBars: typeof state.barSiblingBars; platformOverrides: string[] };
       state.barLinkedBars = bgMsg.linkedBars;
       state.barSiblingBars = bgMsg.siblingBars;
       state.barPlatformOverrides = bgMsg.platformOverrides;
@@ -4829,7 +4829,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       // Payload shape: { okrId, signals: { why?, how?, what? } }. Each
       // phase signal is the populated OkrPhaseSignal shape from the
       // backend GitHub-API fetch.
-      const msg = message as { okrId: string; signals: OkrPhaseSignals };
+      const msg = message as unknown as { okrId: string; signals: OkrPhaseSignals };
       if (state.currentOkr && state.currentOkr.meta.id === msg.okrId) {
         state.okrPhaseSignals = msg.signals;
         render();

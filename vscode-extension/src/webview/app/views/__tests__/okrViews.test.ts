@@ -55,6 +55,7 @@ function sampleCard(over: Partial<OkrCard> = {}): OkrCard {
       platformId: 'PLT-IMDB',
       affectedBarIds: ['APP-IMDB-002', 'APP-IMDB-001'],
       targetCodeRepos: ['<org>/celeb-api'],
+      targetCodeRepoStatus: {},
       intentCascade: {
         org: 'Grow IMDB MAU 15% YoY',
         role: 'Engineering Lead — p95 < 250ms',
