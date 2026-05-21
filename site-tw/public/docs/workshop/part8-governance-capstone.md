@@ -414,7 +414,7 @@ The current workshop ends here. Implementation is on you and your team.
 
 The handoff goes: research PR merges in mesh → PRD PR opens → PRD PR merges → Cheshire RCTRO issue lands in code repo → alice-remediation implements (Parts 3-7 above) → ships.
 
-You can read the [Research + PRD agents design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/docs/design/research-and-prd-agents.md) for the architectural details: Looking Glass-side placement, mesh-rooted destinations, NCMS-pattern semistructured prompts with full ID-based bidirectional traceability, deterministic API calls (Tavily / arXiv / USPTO / HN), tree-sitter archaeology, the cyclic refinement loop with score progression, the four-expert review pattern (architect knowledge + security knowledge + architect review + security review), pre-call and post-call guardrails with audit integration, and the full Looking Glass UX integration.
+You can read the [agentic-SDLC design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md) for the architectural details: Looking Glass-side placement, mesh-rooted destinations, NCMS-pattern semistructured prompts with full ID-based bidirectional traceability, deterministic API calls (Tavily / arXiv / USPTO / HN), the OKR-driven trigger model, persona-switch self-critique at PRD time (replacing the original four-expert review pattern), audit-chain verification + Knight's Seal v1, and the full Looking Glass UX integration. The future codebase-archaeology research mode (tree-sitter `ObservedArchitecture` extraction) is reserved in that doc's §16.
 
 When that lands, the workshop's full arc will be:
 

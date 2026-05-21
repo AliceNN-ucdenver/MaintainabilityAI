@@ -294,5 +294,5 @@ You get the original `research-request` issue, the PRD PR, the spec-ready RCTRO 
 ## Where to go next
 
 - **Workshop Part 8** — the full IMDB-lite capstone shows the same chain landing one cross-cutting feature across four repos. Now has a *bonus: research-first* path that uses this walkthrough's flow instead of the ad-hoc starting point.
-- **Design doc** — `docs/design/research-and-prd-agents.md` carries the detailed node graph, audit schemas, and Hatter's Tag spec for every artifact above.
-- **Roadmap** — research-runner package roadmap (v0.3 → v1.0) is in the same design doc; v0.8 (Looking Glass UX) and v0.9 (Oraculum integration) are the slices this walkthrough exercises.
+- **Design doc** — `vscode-extension/design/agentic-sdlc.md` is the live truth-source: §3 (trigger model + hand-off canonical spec), §5 (agents), §7 (skills inventory), §11 (audit chain including Knight's Seal v1 in §11.5 and chain-ladder in §11.7), §13 (phase plan + B25 audit-fabrication defense + B27 Knight's Seal + Phase D code-design-agent), §15 (deliverables map), §16 (future capabilities including archaeology research mode + cosign Knight's Seal v2).
+- **Roadmap** — phase-by-phase implementation plan lives in agentic-sdlc.md §13 (Phase A through Phase E); §15 has the deliverables-map snapshot of what's shipped vs in-flight.

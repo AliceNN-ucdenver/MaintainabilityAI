@@ -24,15 +24,12 @@ npm install
 # Run Tailwind site dev server (Vite)
 npm run dev
 
-# Build everything (site + docs) for deployment
-npm run build
-
-# Build site only
-npm run build:site
-
-# Build docs only (Markdown → HTML in site-tw/dist/docs)
-npm run docs
+# Build the site for deployment
+npm run build       # alias for build:site
+npm run build:site  # cd site-tw && vite build
 ```
+
+Docs are served as **raw markdown** from `site-tw/public/docs/*.md` and rendered **client-side** by the React `MarkdownPage` component (`site-tw/src/components/MarkdownPage.tsx`). There is no separate docs build step — Vite copies `site-tw/public/` into `dist/` and the React app fetches the markdown at request time.
 
 ### Testing and Linting
 ```bash
@@ -52,19 +49,16 @@ npx snyk code test            # SAST code analysis
 
 ## Project Architecture
 
-### Dual-Site Structure
-This repo deploys **two** sites as one GitHub Pages artifact:
+### Single-Vite-Site Structure
+The whole `maintainability.ai` GitHub Pages deploy is one Vite build:
 
-1. **Main site** (`/site-tw`) — Tailwind marketing pages built with Vite
-   - Source: `site-tw/src/`, `site-tw/index.html`, `site-tw/agenda.html`
-   - Output: `site-tw/dist/` (published at `/`)
-   - Custom domain: CNAME file in `site-tw/public/CNAME`
+- **Main site source:** `site-tw/src/`, `site-tw/index.html`, `site-tw/agenda.html` (Tailwind + React + Vite).
+- **Docs source:** `site-tw/public/docs/*.md` — raw markdown copied verbatim into `site-tw/dist/docs/` by Vite's public-dir handling.
+- **Docs renderer:** `site-tw/src/components/MarkdownPage.tsx` — fetches the `.md` file at request time and renders it client-side with the React-side markdown library. Routing happens via `site-tw/src/lib/docsRouting.ts`.
+- **Output:** `site-tw/dist/` (published at `/`).
+- **Custom domain:** CNAME file in `site-tw/public/CNAME`.
 
-2. **Docs site** (`/docs`) — Markdown files converted to static HTML
-   - Source: `docs/*.md`, `docs/owasp/*.md`, `docs/workshop/*.md`, `docs/governance/*.md`
-   - Script: `scripts/build-docs.mjs` (MarkdownIt + Shiki syntax highlighting)
-   - Output: `site-tw/dist/docs/` (published at `/docs`)
-   - Template: Uses Tailwind styles from main site (`/styles.css`)
+There is no `scripts/build-docs.mjs` step anymore — markdown rendering is client-side only. To add a new doc, drop a `.md` file under `site-tw/public/docs/` and reference it from the docs routing component.
 
 ### OWASP Workshop Structure
 
@@ -274,14 +268,11 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
 ## Important Files
 
 ### Build and Configuration
-- **[`scripts/build-docs.mjs`](scripts/build-docs.mjs)**: Converts Markdown to HTML
-  - Uses MarkdownIt + Shiki (github-dark theme)
-  - Wraps in Tailwind prose template
-  - Recursively walks `/docs` → `site-tw/dist/docs`
-
-- **[`site-tw/vite.config.js`](site-tw/vite.config.js)**: Vite build configuration
-  - Copies `public/` dir (includes CNAME) to `dist/`
-  - Root: `.`, outDir: `dist`, emptyOutDir: `true`
+- **[`site-tw/vite.config.mjs`](site-tw/vite.config.mjs)**: Vite build configuration
+  - Copies `public/` dir (includes CNAME + raw markdown docs) to `dist/`
+  - Mermaid chunk-split: parser is lazy-loaded only on docs pages that render diagrams
+- **[`site-tw/src/components/MarkdownPage.tsx`](site-tw/src/components/MarkdownPage.tsx)**: Client-side markdown renderer for the `/docs/*` routes — fetches the `.md` file from `public/docs/`, renders inline. Replaces the old `scripts/build-docs.mjs` build-time renderer.
+- **[`site-tw/src/lib/docsRouting.ts`](site-tw/src/lib/docsRouting.ts)**: Docs route registration / slug → markdown-path mapping.
 
 ### CI/CD Workflows
 - **[`.github/workflows/pages.yml`](.github/workflows/pages.yml)**: Build & deploy to GitHub Pages
@@ -384,7 +375,7 @@ MaintainabilityAI/
 │  ├─ governance/governed-golden-rules.md     # 6 Golden Rules guide
 │  └─ workshop/part1-3.md                 # Workshop curriculum
 ├─ site-tw/                               # Tailwind marketing site
-├─ scripts/build-docs.mjs                 # Markdown → HTML compiler
+├─ site-tw/public/docs/                   # Raw markdown — served as-is, rendered client-side by MarkdownPage.tsx
 └─ .github/workflows/                     # CI/CD (Pages, CodeQL, Snyk)
 ```
 

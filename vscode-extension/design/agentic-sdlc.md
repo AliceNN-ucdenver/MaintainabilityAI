@@ -25,7 +25,7 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - **Hatter's Tag canonical location (§11.1.5)** — frontmatter wins over PR-description on conflict; reviewer-bus re-syncs PR-description from frontmatter; cross-repo Tag propagation rules.
 - **Audit JSONL write protocol (§11.1.6)** — partitioned per-run, separate workflow-event files, POSIX advisory locking within a file, git-level serialization across runs.
 - **`intent_thread_uuid` lifecycle (§4.4)** — generated at OKR creation in Looking Glass, propagated through every issue body, Hatter Tag, and per-repo fan-out. The invariant: every artifact carries it; `verify-chain` enforces.
-- **Setup + ops (§17)** — new-mesh bootstrap flow (modal + IMDB-Lite seed option), GitHub App installation flow with Queen's Keyring per-OKR token scoping, secrets categories (GitHub Secrets vs local config), per-OKR + per-org cost caps, failure notification taxonomy (in-app banner / VS Code notification / GitHub issue comment).
+- **Setup + ops (§18)** — new-mesh bootstrap flow (modal + IMDB-Lite seed option), GitHub App installation flow with Queen's Keyring per-OKR token scoping, secrets categories (GitHub Secrets vs local config), per-OKR + per-org cost caps, failure notification taxonomy (in-app banner / VS Code notification / GitHub issue comment).
 
 **v4 — end-to-end refactor**:
 - **OKR is the only trigger surface.** "Promote to research-request" is **removed**. The OKR detail page has `Start Why / Start How / Start What` buttons; each creates the right kind of issue with `okr_id` + objective + KRs + intent_cascade + affected BARs inlined. The agent reads OKR context cold via the `knowledge-okr` Skill — no body-parser fragility.
@@ -34,7 +34,7 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - **First sample OKR seeds on Celebs (Restricted tier)** — workshop's central learning moment. Why runs normally; How fails security review (missing threat model on `APP-IMDB-002`); learner must escalate Celebs governance OR dual-signature override before unlocking What. Demonstrates "governance unlocks autonomy" loop end-to-end.
 - **Full OKR screen UI design** (§10.2) with ASCII mockup: header (objective + intent cascade + tier badge) → KR table → Affected BARs (with tier) → Target repos (declared/connected) → three Action cards (Why/How/What) with phase status, scores, Hatter Tag access, recycle counter, gates → action bar (Export Audit Report, Verify Chain).
 - **Hatter Tag UI surfacing** (§10.4) — compact badge on each Action card + full-schema sheet on demand + embedded verbatim in audit report.
-- **Audit Report Export** (§11.6) — one-click bundle from OKR detail: zip with `okr-card.pdf`, `traceability.html` (KR → Research Finding → FR/SR → Design → Code matrix), per-phase artifacts + Hatter Tags + audit-events JSONL + chain-verification, `chain-ladder.yaml`, `checksums.txt`. This is the single artifact the auditor needs to answer the master question.
+- **Audit Report Export** (§11.7) — one-click bundle from OKR detail: zip with `okr-card.pdf`, `traceability.html` (KR → Research Finding → FR/SR → Design → Code matrix), per-phase artifacts + Hatter Tags + audit-events JSONL + chain-verification, `chain-ladder.yaml`, `checksums.txt`. This is the single artifact the auditor needs to answer the master question.
 - **Skills inventory grounded in real prompt files** (§7). Every Skill cites its exact prompt-pack path and its in-file good/bad-example anchors. No invented prompt content.
 - **Phase tracking inline** (§13). Each phase has checkboxes for the items shipped vs planned vs blocked. This document becomes the single source of truth for "what's done."
 
@@ -123,7 +123,7 @@ The Why/How/What is not a replacement for the 6-phase SDLC — it's how the thre
 - **Intent Thread** — UUID stamped on every action/commit/PR/review for one OKR's pipeline. (`parent_run_id` becomes the Intent Thread.)
 - **Hatter's Tag** — provenance JSON appended to every artifact PR.
 - **Court Recorder** — Merkle-chained, append-only audit; CloudEvents v1.0 envelopes; SIEM-exportable.
-- **Knight's Seal** — Ed25519-signed commits with agent DID (Phase B+ deliverable).
+- **Knight's Seal** — per-run ephemeral Ed25519 signature over the chain root + artifact SHA + run identity. **Phase B (B27)** — full spec §11.5. v2 cosign / sigstore for persistent third-party verifiability is in §16 future.
 - **Tweedles** — segregation-of-duties gate: reviewer agent ≠ author agent.
 - **White Rabbit's Pocket Watch** — goal-drift hash check between OKR.objective and final PR scope.
 - **Queen's Keyring** — short-lived per-task agent credentials, auto-revoked at PR close.
@@ -328,6 +328,114 @@ Every issue the OKR-driven pipeline writes follows the same body shape: a small 
 - `goal-drift-detected` blocks merge regardless of other labels
 
 This vocabulary is exhaustive. Workflows that need a new label must add it to this table in a design-doc PR first — runtime invention is forbidden.
+
+### 3.5 The hand-off — per-repo fan-out from mesh to code repos (canonical)
+
+When the code-design PR merges in the mesh repo, the Looking Glass-side governance is **done**. The next move is `design-bus.yml` (a workflow, not an agent) opening one landing issue per `target_code_repos[]` entry in each target code repo. From that moment forward, governance shifts to The Red Queen's side (the coding agent in each code repo, governed by `validate_action` MCP gates — out of scope for *this* document). What stays in scope here is exactly how the hand-off is performed so the cross-repo audit chain stays intact.
+
+**Trigger.** `design-bus.yml` fires on `pull_request_target: closed` with `merged == true`, label `design-draft`, and (for tier-gated runs) `governance-pass`. Same-repo PR check (`base.repo.full_name == head.repo.full_name`) — fork PRs skipped.
+
+**What it reads.**
+1. The merged `okrs/<id>/what/code-design.md` from main (the base ref after merge).
+2. `okrs/<id>/okr.yaml` — to derive `target_code_repos[]` (= `affectedBarIds[].app.yaml.repos[]` union; each entry resolves to a `<owner>/<repo>` slug).
+3. The merged code-design PR body — to extract the canonical Hatter Tag (carries `intent_thread_uuid` for this run + `chain_root_hash` for cross-repo audit traversal).
+4. The latest action's `runId` from `okr.yaml` matching the merged PR — establishes the `parent_intent_thread` for the landing issues.
+
+**Landing-issue body template (canonical — every fan-out issue MUST match this shape):**
+
+```markdown
+<!-- okr_id: OKR-2026Q2-IMDB-001-celeb-api -->
+<!-- intent_thread_uuid: 2e28b567-ab8a-4ad0-a29d-632673f412a9 -->
+<!-- parent_intent_thread: <code-design-action's intentThreadUuid> -->
+<!-- design_pr_url: https://github.com/<mesh-org>/<mesh-repo>/pull/<n> -->
+<!-- design_chain_root: 144d97db8daf60b1a669... -->
+<!-- repo_scope: celeb-api -->
+<!-- phase: implementation -->
+
+## Implementation landing — from OKR-2026Q2-IMDB-001-celeb-api
+
+**You are receiving this issue because the OKR's `target_code_repos[]` includes this repository.** Looking Glass / The Hatter's Tea Party has shipped a code-design that touches this repo. Your job (as a coding agent or human implementer) is to execute the slice relevant to this repo.
+
+### Where to read
+- **OKR (full context):** `<mesh-repo>/okrs/OKR-2026Q2-IMDB-001-celeb-api/okr.yaml`
+- **PRD (the requirements):** `<mesh-repo>/okrs/OKR-2026Q2-IMDB-001-celeb-api/how/prd.md`
+- **Code design (the architectural plan):** `<mesh-repo>/okrs/OKR-2026Q2-IMDB-001-celeb-api/what/code-design.md`
+- **Audit chain (provenance):** `<mesh-repo>/okrs/OKR-2026Q2-IMDB-001-celeb-api/audit/events/`
+
+### Your slice — what the code-design says about *this repo*
+<!-- design-bus.yml extracts the per-repo section from code-design.md based on
+     repo_scope and embeds it here verbatim. Section format: `## Repo: <slug>`
+     with `addresses: [FR-X, SR-Y]` frontmatter the code-design-agent wrote. -->
+
+[per-repo extract from code-design.md]
+
+### Cross-repo audit chain — when your PR lands
+
+Open your implementation PR with a Hatter Tag in the description that sets:
+
+```yaml
+intent_thread_uuid: 2e28b567-ab8a-4ad0-a29d-632673f412a9   # same as this issue
+parent_intent_thread: <code-design-action's intentThreadUuid>   # same as this issue
+```
+
+This keeps your code PR linked back to the OKR through the same audit thread the Hatter's Tea Party walked. The mesh-repo `verify-chain` CLI follows these markers across repositories. Governance from this point forward is The Red Queen's domain — see your repo's own pipeline.
+```
+
+**Fan-out execution (per target repo).**
+
+1. **Authenticate.** Uses the GitHub App's installation token for the target repo (NOT a long-lived PAT). The App is installed per-org on the mesh + every `target_code_repos[]` entry; if a target repo is missing from the install, the fan-out marks it `unreachable` (see partial-failure below).
+2. **Render the landing-issue body** from the template above with all canonical markers populated.
+3. **Open the issue** via `gh api repos/{owner}/{repo}/issues -X POST` with labels `oraculum-design-landing` + `okr-anchor`.
+4. **Emit a `state_transition` audit event** in the mesh-repo audit log (per landing): `{event_kind: "state_transition", payload: {action: "design-fan-out", target_repo: "<slug>", landing_issue_url: "...", ok: true}}`. Use `audit-emit-event` Skill so the event is hash-chained — gives the cross-repo lineage a tamper-evident record.
+5. **Record per-repo result** in `okrs/<id>/what/design-fan-out.yaml` (NEW file, written by the workflow):
+
+```yaml
+# Per-repo fan-out result. One entry per target_code_repos[] entry.
+# Written by design-bus.yml on code-design PR merge.
+fan_out:
+  - repo: celeb-api
+    landing_issue_url: https://github.com/.../celeb-api/issues/42
+    status: opened
+    fanned_at: 2026-05-21T14:23:00Z
+  - repo: imdb-react-frontend
+    landing_issue_url: https://github.com/.../imdb-react-frontend/issues/18
+    status: opened
+    fanned_at: 2026-05-21T14:23:02Z
+  - repo: imdb-identity
+    landing_issue_url: null
+    status: unreachable
+    reason: github-app-not-installed
+    fanned_at: 2026-05-21T14:23:04Z
+```
+
+6. **Commit `design-fan-out.yaml`** + push back to main (same finalize pattern as the WHY/HOW finalize steps).
+
+**Cross-repo Hatter Tag continuation.**
+
+When the coding agent in the target repo (out of scope here, but governed by Red Queen-side conventions) opens its implementation PR, it MUST write a Hatter Tag in the PR description carrying:
+- `intent_thread_uuid` = **same value as the OKR's** (constant across the whole intent thread).
+- `parent_intent_thread` = the code-design action's `intentThreadUuid` (= what the landing issue's marker said).
+- `chain_root_hash` = the code repo's OWN audit chain root for this PR (NOT the mesh's — each repo has its own audit pipeline).
+
+`verify-chain` walks `parent_intent_thread` links across repos to reconstruct the full thread: OKR root → WHY action → HOW action → WHAT action → per-repo implementation PRs. The §11.7 `chain-ladder.yaml` (written by each phase's finalize) anchors the mesh-side traversal; cross-repo traversal works by GitHub-App-token-reading each linked repo's PR Hatter Tag.
+
+**Partial-failure handling (§9.3 expanded).**
+
+| Outcome | Per-repo status | Parent code-design PR label | Looking Glass UX |
+|---|---|---|---|
+| All N fan-outs opened | `opened` for all | none | Stage 5 card shows ✓ on every target-repo row |
+| Some open, some fail | mix of `opened` / `unreachable` / `forbidden` | `design-fan-out-partial` (color `F59E0B`) | Stage 5 shows ✗ on failed rows + a "Retry fan-out" affordance per failed repo |
+| All fail | all `unreachable` / `forbidden` | `design-fan-out-failed` (color `D32F2F`) | Stage 5 blocks the OKR from advancing to `shipped`; user must fix App install or remove `target_code_repos[]` entries |
+
+The fan-out NEVER auto-retries on its own — failures are surfaced for human triage. Re-triggering happens via the Looking Glass "Retry fan-out" button (re-runs the fan-out step but ONLY for entries with non-`opened` status).
+
+**Tier gating on the receiving end.**
+
+If the target repo's primary BAR is Restricted-tier, `design-bus.yml` still opens the landing issue but adds the label `needs-human-review` + posts a comment explaining the tier gate. The coding agent in that repo can ALSO refuse to auto-assign on Restricted (its own validate_action gate); the design-bus side is best-effort attribution, not a replacement for the receiving repo's gate.
+
+**Why this lives in §3.5 (not §9).** §3 is about the trigger model — how phases connect. The hand-off IS a connector: from mesh-side governance (where the audit chain owns the intent thread) to code-side governance (where The Red Queen takes over). §9 covers workflow-level operational concerns (permissions, partial-failure plumbing, concurrency groups). §3.5 is the *contract* both sides honor.
+
+**Out of scope.** Anything that happens *inside* the target repo's coding agent — its `validate_action` decisions, its CALM-flow constraints, its security-critical-path locks. That story lives in The Red Queen's design doc.
 
 ---
 
@@ -569,7 +677,7 @@ In our pipeline:
 - **Both DIDs are recorded in the Hatter's Tag**: `author_did` and `reviewer_did[]`. An auditor can verify segregation from the artifact alone.
 - **The reviewer's session has no carry-over context** from the authoring session — the only inputs are the PR diff + the artifact + the Skills' pure data outputs.
 
-In practice today this means each agent gets a unique GitHub App installation token per session (Queen's Keyring), and the agent identity is captured in the audit envelope. Knight's Seal (Ed25519 signing) is the cryptographic upgrade for Phase B+; Phase A enforces it by GitHub-App-installation-ID-and-system-prompt-SHA.
+In practice today this means each agent gets a unique GitHub App installation token per session (Queen's Keyring), and the agent identity is captured in the audit envelope. **Knight's Seal v1 (Phase B / B27)** is the cryptographic upgrade — see §11.5. Phase A enforces identity by GitHub-App-installation-ID-and-system-prompt-SHA; B27 hardens that with the per-run Ed25519 signature.
 
 ### 5.4 Why experts are *personas in the agent's prompt*, not separate LLM calls
 
@@ -699,11 +807,11 @@ Failed runs do NOT advance the OKR status. The action remains in its current sub
 
 1. Author PR opens with the author DID in the PR description's Hatter Tag fenced block (written in agent-completion-step 3 above — so the DID is available before reviewer-bus fires).
 2. `reviewer-bus.yml` fires on `pull_request.opened` (label `*-draft`), reads the Hatter Tag fenced block from the PR body, extracts `author_did`.
-3. For each reviewer (`architect-reviewer`, `security-reviewer`), the bus reads the next available reviewer DID from the Queen's Keyring pool (a per-OKR token allocation — see §17.3).
+3. For each reviewer (`architect-reviewer`, `security-reviewer`), the bus reads the next available reviewer DID from the Queen's Keyring pool (a per-OKR token allocation — see §18.3).
 4. If `reviewer_did === author_did`, the bus rotates to the next DID (or fails with `tweedles-violation` label if no other available identity).
 5. Only then does the bus assign the reviewer via `@copilot use agent architect-reviewer` (or `security-reviewer`).
 
-**5.5.9 Cost cap per agent run.** Each `.agent.md` declares `max_tokens_per_run`. The agent self-enforces (stop + post comment on approach). Looking Glass also surfaces a **per-OKR rollup** of cost (§17.4). If an OKR exceeds the org's configured monthly cap, `okr-bus.yml` refuses to assign new agent runs and surfaces the cap-exceeded state on the OKR detail.
+**5.5.9 Cost cap per agent run.** Each `.agent.md` declares `max_tokens_per_run`. The agent self-enforces (stop + post comment on approach). Looking Glass also surfaces a **per-OKR rollup** of cost (§18.4). If an OKR exceeds the org's configured monthly cap, `okr-bus.yml` refuses to assign new agent runs and surfaces the cap-exceeded state on the OKR detail.
 
 ---
 
@@ -1123,7 +1231,7 @@ This is the **canonical happy-and-blocked path** demonstrated in the workshop. E
 | **16. Reviewer agents fire (reviewer-bus.yml — runs in mesh, reads PR contents via GitHub API)** | Each per-repo design gets scored. | Per-repo Hatter Tags. Parent intent thread links back to OKR. |
 | **17. Designs merge → OKR status → `building`** | What card flips to ✓. Code coding agents (out of scope of this design) implement against the merged designs. | Per-repo design merged. |
 | **18. After production delivery, learner returns to OKR** | "Mark complete" → fills `keyResultRetrospective` (actual KR values) + `valueLearning` (insights). Status → `shipped`. | OKR card closed; ready for audit. |
-| **19. Click `📦 Export Audit Report`** | Zip downloaded. Contains everything from §11.6 (Audit Report Export). | Audit report bundle generated. |
+| **19. Click `📦 Export Audit Report`** | Zip downloaded. Contains everything from §11.7 (Audit Report Export). | Audit report bundle generated. |
 
 **What the learner has just done.** They've experienced the full Why→How→What pipeline AND the Restricted-tier gate AND the governance-escalation loop AND audit export — in a single sitting. Every step is real (real PRs, real reviewers, real Hatter Tags, real chain). The IMDB-Lite + Celebs asymmetric seed is what makes that possible.
 
@@ -1158,7 +1266,7 @@ The orchestration shifts from per-phase workflows (one per phase, each containin
 
 ### 9.1 Workflow trigger + permissions matrix
 
-Each bus workflow has an exact `on:` clause and a minimal permission set. The mesh is one GitHub repository; cross-repo work is done via a **single Maintainability AI GitHub App installation** at the org level (see §17.2). The App provides per-OKR scoped tokens via the Queen's Keyring service.
+Each bus workflow has an exact `on:` clause and a minimal permission set. The mesh is one GitHub repository; cross-repo work is done via a **single Maintainability AI GitHub App installation** at the org level (see §18.2). The App provides per-OKR scoped tokens via the Queen's Keyring service.
 
 | Workflow | `on:` trigger | Permissions | What it writes |
 |---|---|---|---|
@@ -1417,7 +1525,7 @@ Hatter:    chain_root sha256:a8c2…f019    [View Tag ↗] [Verify Chain ↗]
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**(c) In the Audit Report Export** (§11.6) — verbatim YAML, one per phase, in the bundle.
+**(c) In the Audit Report Export** (§11.7) — verbatim YAML, one per phase, in the bundle.
 
 The `[Verify Chain]` button runs the `verify-chain` CLI (already exists in `research-runner`) against the JSONL — returns a green ✓ chip with event count + root match, or red ✗ with the first mismatch.
 
@@ -1494,7 +1602,7 @@ Skills shipped in Phase B: as in §7.1–7.5.
   - `updateStatus(meshPath, okrId, newStatus)` → with audit event
   - `targetCodeReposFor(meshPath, okrId)` → reads `affected_bar_ids[].app.yaml.repos[]`
   - `tierFor(meshPath, okrId)` → minimum tier across affected BARs (Restricted wins)
-  - `exportAuditReport(meshPath, okrId)` → see §11.6
+  - `exportAuditReport(meshPath, okrId)` → see §11.7
 - **`AgentDeploymentService`** in `vscode-extension/src/services/AgentDeploymentService.ts`:
   - `deployAgents(meshPath, extensionPath)` → write `.github/agents/*.agent.md`
   - `deploySkills(meshPath, extensionPath)` → write `.github/skills/<name>/`
@@ -1801,18 +1909,118 @@ The hash chain (`prev_event_hash` → `this_event_hash`) gives Merkle-style appe
 
 At each phase boundary, a workflow step compares the hash of the OKR `objective` text at issue creation vs the same field at PR merge. Drift = label `goal-drift-detected`, blocks merge, surfaces in Looking Glass with a side-by-side diff. The intent is to catch agents that subtly rephrase scope into something the OKR didn't authorize.
 
-### 11.5 What's NOT in the chain
+### 11.5 Knight's Seal v1 — Ed25519 ephemeral signing (B27)
+
+The B25 chain-verification step proves the *audit log* is internally consistent (every event's hash equals its recomputation against the canonical serialization). It does NOT prove **who** produced the chain. An insider with mesh write access could in principle drop a self-consistent JSONL into a PR that's otherwise unconnected to a real agent run. Knight's Seal closes that gap by binding the chain to a per-run cryptographic identity.
+
+**Trust property.** When the seal verifies, the reviewer knows: *"This chain root + this artifact's bytes were both produced inside one specific agent session that owned a one-shot signing key. Anyone who later edits the artifact, hand-modifies the JSONL, or substitutes a different agent's audit log will fail the signature check."*
+
+**Key material — ephemeral per run.**
+- At agent dispatch (the moment the GitHub App posts the `agent_assignment` body extension to the issue), a fresh Ed25519 keypair is generated **inside the Copilot Coding Agent's sandbox**.
+- The PRIVATE key never leaves the agent process. No key store. No rotation policy. No revocation list. The session ends → the private key is gone → no one — including the agent itself — can produce another signature attributable to that run.
+- The PUBLIC key is included in the `artifact_written` audit event payload, alongside the signature. Public-key-in-audit is the cosign-era anti-pattern; here it's deliberate — we're not trying to verify against a long-lived third-party trust root yet. We're trying to bind chain + artifact + session identity for the duration of the audit retention window (≥ 6 months per Article 12).
+- The keypair is generated using `crypto.generateKeyPair('ed25519', {})` from Node's standard library inside the runner's `audit-emit-event` skill. No new dependencies.
+
+**What's signed — three values concatenated, in canonical order.**
+The signing input is the SHA-256 of:
+
+```
+"knights-seal:v1\n" + chain_root_hash + "\n" + artifact_sha256 + "\n" + okr_id + "\n" + run_id + "\n" + intent_thread_uuid
+```
+
+Each of those values is already in the Hatter Tag. The signature is over their cryptographic hash, so the seal is small (64-byte Ed25519 signature) regardless of how big the artifact gets.
+
+| Field | Source | Why it's in the signing input |
+|---|---|---|
+| `knights-seal:v1` | constant | Domain separation — keeps this signature space distinct from any future signing use. |
+| `chain_root_hash` | last event's `event_hash` in the JSONL | Binds the signature to the entire audit chain (since each event's hash transitively depends on every prior event). |
+| `artifact_sha256` | SHA-256 of the merged artifact bytes (`research-doc.md` / `prd.md` / `code-design.md`) | Binds the signature to the specific bytes that landed on main. Tampering with the file post-merge breaks the seal. |
+| `okr_id`, `run_id`, `intent_thread_uuid` | Hatter Tag frontmatter | Prevents replay across OKRs / runs / phases — a signature from a different run can't be substituted in. |
+
+**Where it lives in the artifact.** The Hatter Tag YAML gets two new fields:
+
+```yaml
+audit:
+  chain_root_hash: 144d97db8daf60b1a669...
+  seal_v: 1
+  seal_pub: ed25519:MCowBQYDK2VwAyEA...     # base64url, ~44 chars
+  seal_sig: base64url:8KqLpVc...              # base64url, ~88 chars (64 bytes)
+```
+
+These are added by `audit-emit-event` when the agent emits its FINAL event of the run (the `artifact_written` event), at which point the chain root is locked. The `audit-verify-chain` Skill (B25) gets a sibling `audit-verify-seal` Skill that:
+
+1. Reads `seal_pub` + `seal_sig` from the Hatter Tag.
+2. Re-derives the signing input by re-reading `chain_root_hash`, `artifact_sha256` (computed from the merged artifact bytes), `okr_id`, `run_id`, `intent_thread_uuid`.
+3. Returns `{ok: true}` if `ed25519.verify(seal_pub, signing_input_sha256, seal_sig)`, else `{ok: false, reason}`.
+
+**CI gate — same shape as B25's chain-verify.** Both `prd-agent.yml` and `market-research-agent.yml` get a new step after `Verify audit chain integrity`:
+
+```yaml
+- name: Verify Knight's Seal signature
+  id: seal
+  if: steps.gate.outputs.skip != 'true' && steps.chain.outputs.ok == 'true'
+  env:
+    ARTIFACT_PATH: ${{ steps.structure.outputs.doc_path }}
+    SEAL_PUB: ${{ steps.ctx.outputs.seal_pub }}
+    SEAL_SIG: ${{ steps.ctx.outputs.seal_sig }}
+    CHAIN_ROOT: ${{ steps.chain.outputs.head }}
+    OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+    RUN_ID: ${{ steps.ctx.outputs.run_id }}
+    INTENT_THREAD: ${{ steps.ctx.outputs.intent_thread_uuid }}
+  run: |
+    python3 <<'PYEOF'
+    # Inline Ed25519 verify using cryptography library.
+    # Independent of the runner (defense-in-depth, same pattern as verify-chain).
+    # ...
+    PYEOF
+```
+
+Verdict logic adds a `seal_fail` flag (checked AFTER `chain_fail` but BEFORE evidence-honesty). New `seal-broken` label (color `8E0000` — even darker than `chain-forgery-detected`). The label is the highest-severity of all the audit failure labels because a broken seal is the most expensive failure mode to investigate (chain says intact + structure says intact, but the run identity doesn't match — that's a *substitution attack*, not an honest agent mistake).
+
+**Looking Glass UI — "Phase seal-checked ✓" badge.** §10.4 (Hatter Tag UI surfacing) adds a per-phase-card visual:
+- **Green ✓** when the latest run on this phase has a `seal_pub` + `seal_sig` in its Hatter Tag AND the artifact's audit-and-drift verdict is `ok` (which means the CI verified the seal). Displays as `🛡️ Sealed`.
+- **Red ✗** when the audit-and-drift workflow applied `seal-broken`. Displays as `⚠ Seal broken — substitution suspected`.
+- **Grey ⏳** during the run window when the artifact hasn't been audited yet.
+- **Hidden** for legacy / pre-B27 runs (when `seal_v` is absent from the Hatter Tag — graceful degradation).
+
+The badge sits next to the existing chain-root chip + Verify Chain button on each phase card. Clicking it expands into the seal details (public key fingerprint, signing-input components, signed-at timestamp from the `artifact_written` event).
+
+**Why the public key is in the audit log (and why that's fine for v1).**
+A purist signing scheme would have the verifier fetch the public key from a long-lived registry. We don't have one — the GitHub App's installation is the closest thing, and even that rotates. v1's design choice: the public key is published in the same audit log that contains the chain it signs. **An attacker who can substitute the entire (audit log + Hatter Tag + artifact) tuple in coordination still wins.** But that's the same threat model the chain-verification step already addresses (it requires the attacker to also produce a self-consistent SHA-256 chain — which is the cosign / Knight's-Seal-v2 work item). For now, the seal raises the bar from *"any insider with write access can fabricate a chain"* (post-B25 baseline) to *"an insider must coordinate the chain + the seal + the artifact bytes + match the published public key against historical references"* — which is the realistic-threat ceiling.
+
+**Future evolution — Knight's Seal v2 (cosign / sigstore).**
+- Replace the ephemeral per-run keypair with a **persistent installation-level signing identity** anchored in [cosign](https://docs.sigstore.dev/cosign/overview/) or [sigstore](https://www.sigstore.dev/).
+- The signature root of trust moves from "the public key embedded in this audit log" to "the GitHub App's identity in sigstore's transparency log."
+- Verifier becomes: anyone with sigstore-tools + the app's identity can verify the artifact + chain + Hatter Tag without trusting the audit log itself.
+- Pairs with **signed prompt packs** — both Hatter Tags and `.caterpillar/prompts/` deploy from the same cosign-anchored trust root.
+- Lands when there's a real third-party-verifiability requirement (regulatory ask, external audit firm, cross-org artifact consumption). Not in the v1 budget; designed-for-don't-block.
+
+**Sub-deliverables (Phase B / B27).**
+- B27a — Runner side: `crypto.generateKeyPair('ed25519')` inside `audit-emit-event` Skill's first call per run; cache keypair in a runner-process singleton keyed by `run_id`; sign + emit on `artifact_written`.
+- B27b — Skill: new `audit-verify-seal` Skill (mirrors `audit-verify-chain` shape).
+- B27c — CI: new `Verify Knight's Seal signature` step in both agent workflows; new `seal-broken` label; verdict logic; PR-comment row in the audit summary.
+- B27d — Hatter Tag: extend `HattersTagInput` Zod schema with `audit.seal_v` / `seal_pub` / `seal_sig` optional fields (v1 doesn't break v0 tags).
+- B27e — Looking Glass: per-phase "Phase sealed ✓ / ✗ / ⏳" badge on OKR detail cards; expandable details panel; signature fingerprint render.
+- B27f — Tests: 3+ skill tests (happy path, tampered artifact, tampered chain); 1 workflow snapshot test; UI rendering test.
+- B27g — Docs: §11.5 (this section) + AEGIS / governance marketing updates → already landed in commit `9b33c9d` previewing the spec.
+
+**Open spec items to resolve during B27 implementation (not blockers):**
+- **Replay against pulled artifacts.** If a reviewer pulls the artifact locally and re-saves with different line endings (CRLF on Windows checkout), `artifact_sha256` differs. Decision: canonicalize line endings to LF before SHA-256 — same convention as git's `text=auto` autocrlf normalization on the storage side.
+- **Audit Report Export bundle.** The Phase E export includes `seal_pub`, signature, and a CLI snippet so an auditor can re-verify offline. Spec lands with E1.
+- **Pre-Knight's-Seal artifacts.** Existing PR #103 + PR #105 don't have seals (they predate B27). `audit-verify-seal` returns `{ok: true, reason: "pre-v1-no-seal"}` for those — does NOT retroactively flag them as broken. The badge shows `—` (n/a) for pre-v1 phase cards.
+
+### 11.6 What's NOT in the chain
 
 - Reviewer agent prose comments on the PR (those are on GitHub's side; we capture the SCORE in audit but not the comment body).
 - LLM model server logs (Anthropic / GH Models). We capture token counts + costs in audit, not the prompts/responses themselves.
 
-### 11.6 Audit Report Export — the single artifact that answers the auditor's question
+### 11.7 Audit Report Export — the single artifact that answers the auditor's question
 
 The `📦 Export Audit Report` button on the OKR detail page produces a **single zip bundle** that an auditor (internal, regulatory, or your own future self at 3 AM during an incident) can open standalone and reconstruct exactly how this OKR went from intent to code.
 
 **Why this matters.** The chain already lives in the mesh repo — Hatter Tags, JSONL, Pocket Watch hashes, signatures. But following it requires git clone, mesh literacy, JSONL tooling, and three browser tabs. An auditor will not do that. The Export bundles every relevant artifact into one zip with an index, normalized paths, and a traceability matrix that walks **KR → Research Finding → PRD FR/SR → Design element → Code PR → Hatter Tag chain root**.
 
-#### 11.6.1 Bundle structure
+#### 11.7.1 Bundle structure
 
 ```
 audit-report-OKR-2026Q1-IMDB-001-celeb-api-2026-05-19.zip
@@ -1866,7 +2074,7 @@ audit-report-OKR-2026Q1-IMDB-001-celeb-api-2026-05-19.zip
 └── checksums.txt                          # SHA256 of every file in the bundle
 ```
 
-#### 11.6.2 The traceability matrix (`traceability.html` + `traceability.csv`)
+#### 11.7.2 The traceability matrix (`traceability.html` + `traceability.csv`)
 
 The matrix is the single most important artifact in the bundle. It answers the question "show me the thread from outcome to code" in one table.
 
@@ -1885,7 +2093,7 @@ The matrix is the single most important artifact in the bundle. It answers the q
 
 **Where the back-links come from.** Each PRD requirement carries `linked_krs: [KR-1, KR-2]` frontmatter; each design element carries `addresses: [FR-2, SR-1]`. These are mandated by the prompt packs (§7.0.5 — `prd/synthesis.md` requires bidirectional traceability). If a requirement has no `linked_krs`, the export still emits a row but flags it `⚠ UNLINKED` so an auditor sees the gap rather than the row being silently dropped.
 
-#### 11.6.3 README.md inside the bundle
+#### 11.7.3 README.md inside the bundle
 
 Auto-generated. Structure:
 
@@ -1898,7 +2106,7 @@ Auto-generated. Structure:
 7. **Prompt-pack versions** — every pack cited, with frozen copies in `prompt-packs/`
 8. **Index** — table of all files in the bundle with one-line descriptions
 
-#### 11.6.4 Generation pipeline
+#### 11.7.4 Generation pipeline
 
 `OKRService.exportAuditReport(meshPath, okrId)`:
 
@@ -1914,10 +2122,10 @@ Auto-generated. Structure:
 
 The export is **deterministic** — same OKR + same mesh state produces a byte-identical bundle. This is important for audit comparisons over time ("did the export change since we last reviewed?").
 
-#### 11.6.5 What the export does NOT include
+#### 11.7.5 What the export does NOT include
 
 - The actual production code that ships from the merged designs. The bundle stops at the design.md merge — that's the handoff point to the code-repo coding agents (out of scope of this design). The audit report says "here's what was authorized for build"; what was built is verified by the code repo's own audit pipeline.
-- Reviewer prose comments (same reason as §11.5 — they're on GitHub's side, not durable in the mesh).
+- Reviewer prose comments (same reason as §11.6 — they're on GitHub's side, not durable in the mesh).
 - LLM provider request/response bodies. Token counts + costs only.
 
 ---
@@ -2046,14 +2254,14 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 - [x] **B13.** Hatter Tag UI sheet (§10.4(b)) — slides in from OKR detail Action card. Phase B-PR4 ships an overlay modal showing the parsed tag JSON when an action's `hatterChainRoot` is set; falls back to a friendly reason when the artifact is missing / unparseable / pre-Phase B.
 - [x] **B14.** Court Recorder CloudEvents v1.0 emitter (`packages/research-runner/src/runner/court-recorder.ts`) — wraps audit-emitter events in CloudEvents v1.0 envelopes (mai.<event_kind> prefix on `type`, UUID v4 ids, ISO timestamps, phase in `subject`). Stateless `buildCloudEventsEnvelope` + `serializeCloudEventsEnvelope` ready for adoption by the audit-emit-event Skill backend in B-PR1a.
 - [ ] **B15.** Queen's Keyring — short-lived GitHub App installation tokens scoped to OKR + repo set — deferred to Phase B+ stretch / Phase C lead-in. Existing GitHub App auth covers Phase B testing.
-- [ ] **B16.** Knight's Seal — Ed25519 signing of Hatter Tags (Phase B+ stretch; can slip to C) — deferred per design doc note; Phase A's installation-id + system-prompt-SHA pair stays the trust anchor until cryptographic upgrade lands.
+- [s] **B16.** ~~Knight's Seal — Ed25519 signing of Hatter Tags (Phase B+ stretch; can slip to C)~~ — superseded by **B27** which lands the same capability inside Phase B (no longer a stretch). The v1 ephemeral-keypair design (§11.5) ships alongside B27; the cosign / sigstore persistent-signing evolution is documented as future work in §16.
 - [x] **B17.** Evidence-honesty Hatter Tag block (§11.1.7) — new optional `evidence:` block on `HattersTagInput` with `evidence_mode` (`live` / `cached` / `mixed`), `fresh_provider_search_performed`, and `degraded_reason` fields. Agents must declare honestly based on what actually happened (live skill calls vs cached/repo-read fallback). Shipped in B-PR1b alongside `market-research-agent.agent.md` prompt update with the §11.1.7 decision table.
 - [x] **B18.** `audit-validate.yml` post-run validator workflow — cross-checks the Hatter Tag's `evidence:` block against the run's audit JSONL; counts successful `skill_call` events per search provider in `okrs/<id>/audit/events/<runId>.jsonl`; applies `degraded-evidence` label when the declaration contradicts the audit (e.g. `evidence_mode: live` but 0 provider skill_calls). `okr-state-machine.yml` refuses to promote `governance-pass` while this label is present. For research-synthesis PRs (which bypass reviewer-bus — research has no reviewer prompt packs), audit-validate also applies the `research-pass` label on clean runs as the WHY-phase merge gate. Shipped in B-PR1c.
 - [x] **B22.** Pocket Watch comparison primitive refined for WHY-phase (B-PR1n). The §9.2 design specified "OKR objective vs PR title + body" — empirically that returns cosine ~0.43 because WHY-phase PR descriptions are process metadata ("This PR adds the required market-research synthesis…") not substantive recaps. Threshold ≥ 0.85 was never going to fire on this comparison for any real WHY artifact, regardless of whether the agent stayed on topic.
 
   **Fix:** WHY-phase Pocket Watch now compares **OKR `objective.description` vs the `## Executive Summary` section of `research-doc.md`** (extracted via awk between the H2 markers, capped at 3 kB). That section IS the agent's substantive synthesis directly addressing the objective — semantically the right primitive. PR title + body remains as fallback for legacy doc shapes / hand-written PRs.
 
-  **Threshold lowered from 0.85 to 0.65** to match the new primitive's semantics. The §9.2 original threshold of 0.85 was calibrated for *same-text-paraphrased* comparisons (OBJECTIVE-vs-OBJECTIVE — catching subtle rewrites). The new primitive (OBJECTIVE vs EXECUTIVE-SUMMARY) is *same-topic-different-framing*: synthesis adds findings, citations, and analysis that naturally dilute cosine even when the agent stayed perfectly on topic. Empirically (PR #87 run 26183287182, OBJECTIVE 188 chars vs Executive Summary 737 chars, both centered on celebrity profile API + licensing + identity disambiguation), cosine landed at **0.6966**. Truly off-topic syntheses score 0.40-0.50, drifted ones around 0.55. 0.65 catches both while admitting on-topic but expanded syntheses. Aligns with §11.5 Caterpillar's Challenge threshold (0.70 for cross-phase drift) with a small buffer for natural variance in Executive Summary phrasing.
+  **Threshold lowered from 0.85 to 0.65** to match the new primitive's semantics. The §9.2 original threshold of 0.85 was calibrated for *same-text-paraphrased* comparisons (OBJECTIVE-vs-OBJECTIVE — catching subtle rewrites). The new primitive (OBJECTIVE vs EXECUTIVE-SUMMARY) is *same-topic-different-framing*: synthesis adds findings, citations, and analysis that naturally dilute cosine even when the agent stayed perfectly on topic. Empirically (PR #87 run 26183287182, OBJECTIVE 188 chars vs Executive Summary 737 chars, both centered on celebrity profile API + licensing + identity disambiguation), cosine landed at **0.6966**. Truly off-topic syntheses score 0.40-0.50, drifted ones around 0.55. 0.65 catches both while admitting on-topic but expanded syntheses. Aligns with §11.4 cross-phase drift threshold (Caterpillar's Challenge variant of the Pocket Watch) (0.70 for cross-phase drift) with a small buffer for natural variance in Executive Summary phrasing.
 
   Diagnostic improvements: workflow now logs the actual `OBJECTIVE` and `PR_SCOPE` strings (truncated to 300 chars each) in a `::group::` block alongside the cosine result, so a future failed verdict is debuggable from the log alone. Also surfaces which source the scope came from (`research-doc.md#Executive-Summary` vs `pr-title+body (fallback)`).
 
@@ -2191,7 +2399,7 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 
   **(c) Runner side: `audit-verify-chain` Skill.** A new `audit-verify-chain` skill is registered in `packages/research-runner/src/runner/skills.ts` and shipped at `vscode-extension/code-templates/skills/audit-verify-chain/SKILL.md`. Reads `{okrId, runId}` from stdin, replays the chain with the same `canonicalStringify` + SHA-256 used by `audit-emit-event`, returns `{ok, chainHead, eventCount}` on success or `{ok: false, reason: "forged-hash-line-N: recorded=… recomputed=…"}` on first failure. Three tests cover the happy path, a PR #105-style fabricated chain (asserts `forged-hash-line-1` in the failure reason), and missing-JSONL. CLI: `npx @maintainabilityai/research-runner skill-audit-verify-chain`. Useful for local debugging, future agent invocation, and any third-party auditor who wants offline replay.
 
-  **(d) Cross-phase audit ladder writer.** `okrs/<id>/audit/chain-ladder.yaml` was scaffolded empty (`chain: []`) by `OKRService.scaffoldOkrCard` with a comment saying *"Written by okr-bus.yml as each phase merges"* — but `okr-bus.yml` was never built. The cross-phase audit ladder (§11.6 audit export bundle) has been silently empty since Phase A scaffolded. Both `prd-agent.yml` and `market-research-agent.yml` finalize steps now append a row `{phase, run_id, intent_thread_uuid, chain_root_hash, parent_intent_thread, merge_commit_sha, merged_at, pr_number}` to `chain-ladder.yaml` on PR merge. Right-sized for the immediate gap vs building `okr-bus.yml` as a separate workflow. WHY's `parent_intent_thread` is the OKR root thread; HOW's is the most-recent prior WHY action's thread.
+  **(d) Cross-phase audit ladder writer.** `okrs/<id>/audit/chain-ladder.yaml` was scaffolded empty (`chain: []`) by `OKRService.scaffoldOkrCard` with a comment saying *"Written by okr-bus.yml as each phase merges"* — but `okr-bus.yml` was never built. The cross-phase audit ladder (§11.7 audit export bundle) has been silently empty since Phase A scaffolded. Both `prd-agent.yml` and `market-research-agent.yml` finalize steps now append a row `{phase, run_id, intent_thread_uuid, chain_root_hash, parent_intent_thread, merge_commit_sha, merged_at, pr_number}` to `chain-ladder.yaml` on PR merge. Right-sized for the immediate gap vs building `okr-bus.yml` as a separate workflow. WHY's `parent_intent_thread` is the OKR root thread; HOW's is the most-recent prior WHY action's thread.
 
   **(e) UI parser sync — false `FR cited 0/8 ✗` display.** The audit workflow's awk parser at `prd-agent.yml:286` correctly emits `FR=8/8 cited` on prd.md files using either `**FR-NN**` bold or `### FR-NN` heading form. But `LookingGlassPanel.fetchPhaseSignal` was still using a bold-only regex (`\*\*FR-\d+\*\*`) with a 400-char citation-proximity window, causing the UI to show `FR cited 0/8 ✗` on PRs where the workflow correctly reported `FR=8/8 cited` (observed on PR #105). The UI parser now uses the same tolerance as the workflow + a shared `countCovered` helper that mirrors the awk pattern.
 
@@ -2221,6 +2429,8 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
   - `lookingGlass.ts` `renderRepoPickerModal` (22) — modal renderer with many conditional paths. Pre-existing.
   - `okrDetail.ts` `renderPrCascade` (45) — debatable. State-branchy by design; splitting may not help readability.
 
+- [ ] **B27.** Knight's Seal v1 — per-run ephemeral Ed25519 signing of the Hatter Tag chain + artifact bytes (supersedes B16, full spec in §11.5). Closes the T9 *"agent identity in audit log forged"* threat by binding the chain-root hash + artifact SHA + run identity to a one-shot keypair generated inside the Copilot Coding Agent's sandbox. Private key destroyed at session end — no key store, no rotation policy, no revocation list. Public key + 64-byte signature posted in the `artifact_written` audit event. CI re-derives the signing input and verifies pre-merge; mismatch applies the new `seal-broken` label (highest-severity audit failure, color `8E0000`) and blocks merge. Looking Glass surfaces a per-phase "Phase sealed ✓ / ✗ / ⏳ / —" badge on the OKR detail card so reviewers see signature status at a glance. The future cosign / sigstore evolution (Knight's Seal v2 — persistent identity in a transparency log, long-term third-party verifiability without trusting the audit log's embedded key) is documented in §16 as a designed-for future capability, not a B27 dependency. Sub-deliverables B27a–B27g enumerated in §11.5; tests + UI rendering + Hatter Tag schema extension all land in the same push.
+
 ### Phase C — Orchestration + bounded recycle (target: 2 weeks)
 
 Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. Restricted tier still blocks (which is the point).
@@ -2235,24 +2445,104 @@ Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. 
 - [x] **C8.** Caterpillar's Challenge — semantic-drift comparison hook in `reviewer-bus.yml` (research → PRD → design → code) — implemented as a second check in the same `drift-gate.yml`. Compares current-phase artifact (PR body or full doc) against the prior phase's merged artifact (`okrs/<id>/why/research-doc.md` for How, `okrs/<id>/how/prd.md` for What). Threshold: cosine ≥ 0.70 (looser than Pocket Watch since phases add detail). Only runs on `how` and `what` PRs.
 - [x] **C9.** `Start What` button (depends on design-bus.yml; Restricted-tier disabled state per §10.2) — Start What now follows the same pattern as Start Why / Start How via the parameterized `onStartOkrPhase('what')` handler. UI gates on (a) How phase complete (else "Gated on How merged" tooltip) and (b) tier != Restricted (else "escalate the BAR governance score" tooltip). The What action's GitHub issue is created in the mesh repo with `okr-anchor` + `oraculum-design` labels; the merged code-design PR's downstream fan-out is `design-bus.yml`'s job.
 
-### Phase D — Code-design agent + code-grounded reviewers (target: 3 weeks)
+### Phase D — code-design-agent + code-grounded reviewers + hand-off completion (target: 3 weeks)
 
-The last Looking-Glass-side agent ships. One cross-cutting code-design doc grounded on indexed code repos, scored by code-aware reviewers, then handed off to per-repo coding agents via `design-bus.yml`.
+The third and **last** Looking-Glass-side agent. Where Phase B's market-research-agent grounded on the web and Phase B's prd-agent grounded on the mesh, the code-design-agent grounds on **the actual code** in every impacted repo. That makes the WHAT-phase audit the heaviest gate in the entire pipeline — and the most expensive — but also the one that catches "the PRD was perfectly mesh-grounded and still proposes something the codebase can't absorb without breaking."
 
-- [ ] **D1.** Author `prompt-packs/looking-glass/design/synthesis.md` — code-design pack (PRD + indexed repos → ONE cross-cutting code-design doc with `addresses: [FR-X, SR-Y]` frontmatter per section)
-- [ ] **D2.** Author `prompt-packs/looking-glass/design/architecture-review.md` — code-grounded review pack (CALM drift analysis + interface contract diffs against actual code via `oasdiff` / `buf` / `graphql-inspector`)
-- [ ] **D3.** Author `prompt-packs/looking-glass/design/security-review.md` — code-grounded review pack (OWASP pattern scan + threat-model compliance against actual code, adapting `application-security.md`)
-- [ ] **D4.** `code-design-agent.agent.md` operating on the mesh's `oraculum-design` issue (one assignment, cross-cutting — supersedes per-repo `design-agent` from v3)
-- [ ] **D5.** `knowledge-reference-repos` Skill — clones + indexes curated reference repos from mesh `reference-repos/` dir
-- [ ] **D6.** `knowledge-code` Skill — clones + indexes ONE target code repo per call; code-design-agent invokes it once per `target_code_repos[]` entry
-- [ ] **D7.** Reviewer-bus extension — when PR is a code-design (label `design-draft`), reviewer-bus invokes design/architecture-review + design/security-review packs (code-grounded) instead of the prd/* packs (mesh-grounded)
-- [ ] **D8.** Hatter chain ladder visualization on OKR detail — collapsible tree showing parent intent thread → child threads per phase
+**Phase D scope at a glance.**
+
+- ONE agent (`code-design-agent`) producing ONE cross-cutting `code-design.md` per OKR — NOT per-repo (cross-cutting features need a single design that reasons about all impacted repos together; per-repo fan-out happens AFTER this artifact merges via `design-bus.yml` per §3.5).
+- ONE workflow file (`code-design-agent.yml`) following the Phase B per-agent pattern (B20): dispatch + audit-and-drift + finalize + design-bus fan-out trigger.
+- TWO new mesh Skills (`knowledge-code`, `knowledge-reference-repos`) that clone + index code via tree-sitter (deterministic, polyglot, NOT a full code-intelligence service — see §16 archaeology future for the same data model).
+- THREE new prompt packs (`design/synthesis`, `design/architecture-review`, `design/security-review`) — the review packs adapt the existing PRD-side packs to read indexed-code data, not mesh artifacts.
+- ONE open decision (D6 below): whether to keep self-critique (B24 pattern from HOW) or bring separate code-grounded reviewer agents back for WHAT, since code-grounding IS an independent evidence axis (the author hasn't read the code, the reviewer has).
+- ONE Caterpillar drift primitive (`code-design.md ## Approach` vs `prd.md ## Problem Statement`) — gets calibrated in D-PR1's first end-to-end run, same way B22 calibrated WHY's Pocket Watch threshold.
+
+**Sub-deliverables.**
+
+- [ ] **D0.** **Code-design pipeline overview** in this design doc (this section). Establishes the data flow + decision tree + verdict gates *before* writing prompt packs. Inputs: PRD + every `target_code_repos[]` entry's `knowledge-code` extract + `context-architecture` + `context-security` mesh snapshots. Output: ONE `okrs/<id>/what/code-design.md` with: per-repo change list, interface contracts (OpenAPI / proto / GraphQL diffs), data-ownership decisions, migration plan, rollback plan, fan-out manifest. Each section carries `addresses: [FR-X, SR-Y]` frontmatter (per-FR / per-SR traceability — feeds the §11.7 traceability matrix). Same Hatter Tag schema as HOW + the §11.5 Knight's Seal.
+
+- [ ] **D1.** **Prompt pack `design/synthesis.md`.** Operating contract for the code-design-agent's *first-pass* synthesis. Reads PRD + indexed code repos. Required sections (10 — mirrors HOW's contract for tooling reuse):
+  1. Input Premises — references PRD `FR-NN` + `SR-NN` ids verbatim
+  2. Problem Restatement — *one-sentence* statement of what the cross-cutting code change accomplishes
+  3. Repo Inventory — per `target_code_repos[]` entry: language, framework, primary architectural pattern, current CALM-node alignment
+  4. Per-Repo Change List — per-repo subsection with `addresses: [FR-X, SR-Y]` frontmatter; what files change, what files are added, what files are deleted
+  5. Interface Contracts — OpenAPI / protobuf / GraphQL diffs for any cross-repo interface; `oasdiff` / `buf` / `graphql-inspector` style change classification (breaking / non-breaking / additive)
+  6. Data Ownership — which repo owns which entity post-change
+  7. Migration Plan — ordered steps including rollback points
+  8. Rollback Plan — verified per repo
+  9. Risk Matrix — same shape as HOW's risk matrix but populated with code-specific risks
+  10. Hatter Tag (frontmatter at the top in YAML) — `intent_thread_uuid`, `parent_intent_thread = prd-action's intent_thread_uuid`, `evidence_mode: code` (NEW canonical value for WHAT — `live` is WHY, `mesh` is HOW, `code` is WHAT), `seal_pub` + `seal_sig` (B27)
+
+- [ ] **D2.** **Prompt pack `design/architecture-review.md`.** Code-grounded review pack. The reviewer reads the actual code via `knowledge-code` outputs (NOT the mesh's CALM model). Three structural checks:
+  - **CALM drift analysis** — does the proposed design's flow match what the code actually does today? Detected via tree-sitter cross-module-call extraction + comparison to the mesh's declared CALM node-edge graph. Drift output is `additions: [...]`, `removals: [...]`, `mutations: [...]`.
+  - **Interface contract diffs** — for every cross-repo interface change in §5, classify breaking / non-breaking / additive via `oasdiff` (OpenAPI) / `buf` (protobuf) / `graphql-inspector` (GraphQL). A breaking change without a matching migration step in §7 is a `SEVERITY: MAJOR` finding.
+  - **Module boundary respect** — does the design introduce cross-module dependencies that violate the BAR's CALM layer rules (declared in `bar.app.yaml`)? Layer-violation = `SEVERITY: BLOCKING`.
+  - Output format: `SCORE / SEVERITY / COVERED / MISSING / CHANGES` (same NCMS structured-review shape used at PRD time).
+
+- [ ] **D3.** **Prompt pack `design/security-review.md`.** Code-grounded security review. Adapts OWASP pattern-scan + threat-model compliance from `application-security.md` to score the design against actual code in each impacted repo. Three structural checks:
+  - **OWASP pattern scan** — for every endpoint / data-handling change in §4-§5, derive applicable OWASP categories (A01-A10) from endpoint shape (auth-touching → A07; user-input → A03; etc.). A change that introduces an A0X-touching code path without a matching `SR-NN` in the PRD is a finding.
+  - **Threat-model compliance** — every STRIDE threat declared in the BAR's `threat-model.yaml` whose scope overlaps the design's changes MUST have either: (a) a mitigation in the design's §4-§5, or (b) an explicit `evidence_mode: pre-existing-mitigation` annotation pointing to the code path that already handles it.
+  - **NIST control mapping** — for any data flow that crosses a NIST-mapped trust boundary (read from `bar.app.yaml` + portfolio NIST catalog), the design must cite the relevant control families. Missing citations = finding.
+  - Same `SCORE / SEVERITY / COVERED / MISSING / CHANGES` output format.
+
+- [ ] **D4.** **`code-design-agent.agent.md`** — primary-mode dispatch on `oraculum-design` label via `assignCustomCopilotAgent` body-extension (same pattern as B-PR3's Start Why / Start How). Declares `tools:` = `knowledge-okr` + `knowledge-prd` + `knowledge-code` + `knowledge-reference-repos` + `context-architecture` + `context-security` + `audit-emit-event`. Model = `claude-sonnet-4-6` (largest context window — must hold PRD + multiple repo indices simultaneously). `max_skill_calls_per_run: 60` (higher than HOW's 40 because each `knowledge-code` call counts). System prompt mirrors `prd-agent.agent.md`'s structure including the B25 hard rule on `audit-emit-event` (never write JSONL by hand; STOP if runner unreachable).
+
+- [ ] **D5.** **`knowledge-reference-repos` Skill (PURE-data).** Optional input — clones + indexes curated reference repos from `mesh/.caterpillar/reference-repos/` (a per-mesh-configured list of "patterns we want the agent to honor"). Tree-sitter polyglot extraction, same data model as `knowledge-code` but with `reference: true` flag in the output so the agent treats them as exemplars not as edit targets. Used when the team wants to anchor a code-design against a known-good pattern (e.g. "build the new celeb-api endpoint to match the auth pattern in `<org>/reference-auth-service`").
+
+- [ ] **D6.** **`knowledge-code` Skill (PURE-data).** Clones + indexes ONE target code repo per call; code-design-agent invokes it once per `target_code_repos[]` entry. **Tree-sitter polyglot** extraction (`tree-sitter-typescript`, `tree-sitter-python`, `tree-sitter-go`, etc.; lazy-loaded based on detected primary language). Returns an `ObservedArchitecture` JSON shape:
+  - `modules[]` — per-file: path, language, exported symbols, imported symbols, primary architectural layer (inferred from path conventions + import-flow analysis).
+  - `cross_module_calls[]` — approximate call graph (NOT type-resolved; LSP/SCIP-grade resolution is a v2 ask, see §16 archaeology future).
+  - `exposed_interfaces[]` — REST routes (Express/Fastify/Hono/NestJS), proto definitions, GraphQL schemas extracted at parse time.
+  - `tests[]` — test-file inventory + assertion count per file (signal for "is this code well-covered").
+  - **Deterministic** — same repo state in → same JSON out. The agent uses this output as grounding evidence; reviewers cite it back in their structured reviews.
+
+- [ ] **D7.** **`code-design-agent.yml` workflow** (per-agent pattern from B20). Three jobs:
+  - **dispatch** — fires on `issues.labeled` with label `oraculum-design`; refuses to dispatch unless `okrs/<id>/how/prd.md` is merged on main (prerequisite check, same pattern as B-PR4's HOW-requires-WHY).
+  - **audit-and-drift** — fires on `pull_request_target: labeled` with `design-draft`. Verifies: audit chain (B25); Knight's Seal (B27); evidence-honesty (`code-design.md`'s Hatter Tag declares `evidence_mode: code` AND ≥1 `knowledge-code` skill_call per `target_code_repos[]` entry — partial coverage = `degraded`); structural correctness (10 H2 sections + per-repo subsections + `addresses:[FR-X, SR-Y]` frontmatter coverage); **Pocket Watch** (cosine OKR objective vs `code-design.md ## Problem Restatement`, threshold to calibrate in D-PR1 first run); **Caterpillar's Challenge** (cosine `code-design.md ## Approach` vs `prd.md ## Problem Statement`, threshold ≥ 0.70 — same as HOW's cross-phase drift); reviewer dispatch per D8 decision.
+  - **finalize** — fires on PR merge. Flips action.status to complete + meta.status `design-pending` → `shipped` (or `building` if WHAT triggers `design-bus.yml` next). Appends to `chain-ladder.yaml` (per B25 pattern) with `phase: what`, `parent_intent_thread = prd action's thread`. Triggers `design-bus.yml` fan-out per §3.5.
+
+- [ ] **D8.** **OPEN DECISION — reviewer dispatch pattern for code-grounded reviews.** Phase B's B24 collapsed PRD-time reviewers into single-agent self-critique because the author + reviewer read the same mesh state (no independent evidence surface). For WHAT, **code-grounding IS an independent axis** — the author + reviewer can read the code differently, the reviewer can run linters / `oasdiff` / pattern scans the author skipped. Three candidates:
+
+  | Approach | How it works | Pro | Con |
+  |---|---|---|---|
+  | **(a) Persona-switch self-critique** (B24 pattern carried forward) | code-design-agent inhabits architect + security personas after first-pass synthesis; tier-bound rounds. | Simplest. Reuses the proven B24 infrastructure. | Same agent reads the same `knowledge-code` outputs — "independent code-grounding" is *evidence available* but not *evidence revealed by a separate agent*. |
+  | **(b) Per-reviewer tracking-issue dispatch** | `code-design-agent.yml`'s audit-and-drift job opens a tracking issue with `agent_assignment: architect-reviewer` body extension. The reviewer runs in primary mode (full `tools:`), reads `knowledge-code` outputs fresh, posts a structured review back. Same for security. | Reviewers genuinely read code with fresh eyes. Closes Tweedles loophole. | Two extra agent dispatches per WHAT run. Tracking-issue noise. Risk of MCP failure modes from §14.8. |
+  | **(c) Hybrid — self-critique by default, escalate to (b) on Restricted tier** | Autonomous + Supervised tiers use (a); Restricted tier triggers separate reviewer agents via (b). | Cost-control for happy path; rigor where it matters. | Two code paths to maintain. Tier-aware dispatch logic. |
+
+  **Recommendation pending end-to-end test:** start with **(a)** for D-PR1 to ship code-design-agent quickly; collect a few real WHAT runs; if self-critique misses code-grounded findings that a separate reviewer would catch (track via post-merge code-review feedback from humans), pivot to **(c)**. Do NOT pre-build (b)'s tracking-issue infrastructure until the data justifies it. This decision lands as a B-PR-style entry in §13 when D-PR1 ships and produces evidence.
+
+- [ ] **D9.** **`design-bus.yml` workflow** — per-repo fan-out on code-design PR merge. Full spec in §3.5 above. Includes: tier-gating on the receiving repo (refuse auto-assign on Restricted-tier BAR target repos), partial-failure handling with `design-fan-out-partial` label, `okrs/<id>/what/design-fan-out.yaml` per-repo result record, cross-repo Hatter Tag continuation contract.
+
+- [ ] **D10.** **Looking Glass UX — Stage 4 / Stage 5 OKR detail card.** Phase D adds two new sub-cards to the OKR detail page:
+  - **What (3a) — Code Design** — same shape as the HOW card: agent, sources (mesh-skill calls + per-`target_code_repos[]` `knowledge-code` calls), refine (self-review rounds OR reviewer scores per D8 decision), findings (per-repo change-list count + interface-contract change count), coverage (FR/SR addressed coverage + threat-model coverage), drift (Pocket Watch + Caterpillar), Knight's Seal badge per §11.5.
+  - **What (3b) — Per-Repo Fan-Out** — list of `target_code_repos[]` with per-row status (opened / unreachable / forbidden / blocked-on-tier), landing-issue link, fanned-at timestamp. Retry-fan-out button per failed row. Read live from `design-fan-out.yaml` + GitHub API for each target repo's issue state.
+
+- [ ] **D11.** **Hatter chain ladder visualization on OKR detail.** Collapsible tree showing: OKR root → WHY action → HOW action → WHAT action → per-repo implementation PRs (cross-repo links via `parent_intent_thread`). Built from `chain-ladder.yaml` (mesh side) + per-target-repo PR Hatter Tag reads. Lands as the visual completion of §11.7 chain-ladder writer's data.
+
+- [ ] **D12.** **End-to-end smoke against the IMDB sample OKR.** Repeat the WHY + HOW E2E pattern but full pipeline: WHY → HOW → WHAT → per-repo fan-out on the IMDB-Celebs Restricted-tier sample. Restricted-tier path: WHY merges → HOW merges (with self-review-exhausted because the BAR is Restricted and MAX_AUTO_ROUNDS=0) → WHAT dispatches but cannot auto-progress past Run Audit because the BAR is still Restricted. Demonstrates the tier-gate works end-to-end and the Looking Glass UX surfaces the blocked state correctly.
+
+#### Original Phase D one-liners (superseded by D0-D12 above — kept for git-blame archaeology)
+
+<details>
+<summary>Pre-expansion D1-D8 entries (collapsed)</summary>
+
+- [s] ~~**D1.** Author `prompt-packs/looking-glass/design/synthesis.md` — code-design pack (PRD + indexed repos → ONE cross-cutting code-design doc with `addresses: [FR-X, SR-Y]` frontmatter per section)~~ — superseded by D1 above with full pack contract.
+- [s] ~~**D2.** Author `prompt-packs/looking-glass/design/architecture-review.md` — code-grounded review pack (CALM drift analysis + interface contract diffs against actual code via `oasdiff` / `buf` / `graphql-inspector`)~~ — superseded.
+- [s] ~~**D3.** Author `prompt-packs/looking-glass/design/security-review.md` — code-grounded review pack (OWASP pattern scan + threat-model compliance against actual code, adapting `application-security.md`)~~ — superseded.
+- [s] ~~**D4.** `code-design-agent.agent.md` operating on the mesh's `oraculum-design` issue (one assignment, cross-cutting — supersedes per-repo `design-agent` from v3)~~ — superseded.
+- [s] ~~**D5.** `knowledge-reference-repos` Skill — clones + indexes curated reference repos from mesh `reference-repos/` dir~~ — superseded.
+- [s] ~~**D6.** `knowledge-code` Skill — clones + indexes ONE target code repo per call; code-design-agent invokes it once per `target_code_repos[]` entry~~ — superseded.
+- [s] ~~**D7.** Reviewer-bus extension — when PR is a code-design (label `design-draft`), reviewer-bus invokes design/architecture-review + design/security-review packs (code-grounded) instead of the prd/* packs (mesh-grounded)~~ — superseded (note: reviewer-bus is retired post-B23; this work lives in D7+D8 above).
+- [s] ~~**D8.** Hatter chain ladder visualization on OKR detail — collapsible tree showing parent intent thread → child threads per phase~~ — superseded by D11.
+
+</details>
 
 ### Phase E — Audit Report Export + hardening (target: 1 week)
 
 The auditor's master question is answerable in one click.
 
-- [ ] **E1.** `OKRService.exportAuditReport()` — generates the bundle described in §11.6
+- [ ] **E1.** `OKRService.exportAuditReport()` — generates the bundle described in §11.7
 - [ ] **E2.** `verify-chain` CLI surface in Looking Glass — runs against any phase or full OKR; result chip on Hatter Tag UI
 - [ ] **E3.** `traceability.html` interactive matrix renderer (KR → Finding → FR/SR → Design → Code)
 - [ ] **E4.** End-to-end smoke test against the IMDB-Lite sample OKR — Autonomous path on Lite, Restricted-blocked path on Celebs (proves both directions work)
@@ -2267,7 +2557,7 @@ The auditor's master question is answerable in one click.
 - [x] **v4.4** Hatter Tag UI surfacing (§10.4)
 - [x] **v4.5** Oraculum repositioning (§10.5)
 - [x] **v4.6** Settings page → Mesh Provisioning (§10.6)
-- [x] **v4.7** Audit Report Export (§11.6)
+- [x] **v4.7** Audit Report Export (§11.7)
 - [x] **v4.8** Phase tracking inline (this section)
 - [x] **v4.9** Deliverables map with status column (§15)
 - [x] **v4.10** `A.false-audit-fabrication` threat closed end-to-end (B25 — prompt rewrite + CI verify-chain + chain-ladder writer + AEGIS/ASTRIDE docs in `site-tw/public/docs/agentic-sdlc-governance.md`)
@@ -2429,7 +2719,8 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[x]` | **Tier-detection logic** — `OKRService.tierFor()` reads BAR pillar scores → derive `governance_tier` (Autonomous/Supervised/Restricted) → drive UI gates + Hatter's Tag stamp. Phase A: `tierFor()` shipped + feeds the OKR list tier badge + detail header. Phase B-PR3: tier is frozen on every OkrAction's `governanceTier` field at issue-create time (mitigates tier creep per §6.2); UI substate gates the Start Why button. | `vscode-extension/src/services/OKRService.ts` + BarService | A → B |
 | `[x]` | **White Rabbit's Pocket Watch** goal-drift gate — hash OKR.objective at phase boundaries; block merge if drift > threshold — implemented in `drift-gate.yml` via GitHub Models embeddings (text-embedding-3-small) authed by workflow GITHUB_TOKEN. Edit-distance-only fallback when embeddings unavailable. | `vscode-extension/code-templates/workflows/drift-gate.yml` | C |
 | `[x]` | **Caterpillar's Challenge** — explicit semantic-drift comparison step between phase artifacts — second check in `drift-gate.yml`. Compares current phase against prior phase's merged artifact via cosine similarity (threshold 0.70). | `vscode-extension/code-templates/workflows/drift-gate.yml` | C |
-| `[ ]` | **Knight's Seal** — Ed25519 commit signing with agent DID; verification step in `verify-chain` | `packages/research-runner/src/runner/knights-seal.ts` (new) + GitHub App key mgmt | B+ |
+| `[ ]` | **Knight's Seal v1 — per-run ephemeral Ed25519 signing** (B27, supersedes B16). Signs `sha256("knights-seal:v1\n" + chain_root_hash + "\n" + artifact_sha256 + "\n" + okr_id + "\n" + run_id + "\n" + intent_thread_uuid)`. Public key + signature in Hatter Tag (`audit.seal_pub` / `audit.seal_sig`). New `audit-verify-seal` Skill + CI verify step + `seal-broken` label + Looking Glass per-phase seal badge. Full spec §11.5. | `packages/research-runner/src/runner/skills.ts` (extend audit-emit-event with keypair-gen + sign on `artifact_written`; new `audit-verify-seal` handler) + `vscode-extension/code-templates/skills/audit-verify-seal/SKILL.md` + `vscode-extension/code-templates/workflows/{prd,market-research}-agent.yml` (new verify step + `seal-broken` label) + `vscode-extension/src/webview/app/views/okrDetail.ts` (seal badge) | B (post-B26) |
+| `[ ]` | **Knight's Seal v2 — cosign / sigstore persistent signing** (§16 future). Replaces v1's ephemeral key with a GitHub-App-anchored identity in the sigstore transparency log; verifier no longer needs to trust the public key embedded in the audit log. Pairs with signed-prompt-pack deployment from the same root of trust. Lands when there's a third-party verifiability requirement (regulatory, cross-org artifact consumption). | TBD — likely a new `packages/research-runner/src/runner/cosign-seal.ts` + cosign CLI invocation in CI | Future |
 | `[ ]` | **Queen's Keyring** — short-lived per-task GitHub App installation tokens (scope: this OKR + repo set) | AgentDeploymentService + GitHub App config | B |
 | `[x]` | **HatterTagService** — parse, render-for-UI, invoke verify-chain CLI — `parseHatterTag` + `verifyChain` (stub for Phase E `verify-chain` CLI) shipped in B-PR4 | `vscode-extension/src/services/HatterTagService.ts` | B |
 | `[x]` | **Hatter Tag UI sheet** (full-schema view from Action card `View Tag` button) — overlay modal rendering parsed tag JSON with friendly fallbacks for missing/unparseable artifacts; Phase E adds the `verify-chain` badge | `vscode-extension/src/webview/app/lookingGlass.ts` (renderHatterTagSheet) | B |
@@ -2478,7 +2769,90 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 
 ---
 
-## 16. What this is NOT
+## 16. Future / out-of-scope (designed-for, not built)
+
+These are capabilities the design *reserves* for — the seams + extension points exist + threat model has them in scope — but they are **not in the current implementation budget**. Each is designed enough that adding it later doesn't require reshaping what's already shipped.
+
+### 16.1 Archaeology research mode — code-grounded WHY phase
+
+**What it is.** A second mode for the `market-research-agent` (or a sibling agent `archaeology-agent` — naming decision deferred until D-PR1 ships). Today's WHY phase grounds on **the web** (Tavily / arXiv / USPTO / HN). Archaeology mode grounds on **the actual code** in one or more impacted repos. Use cases:
+
+- BAR with existing code where the team needs to *model what's already running* before deciding what to change.
+- Discovery work: a Restricted-tier BAR with sparse CALM artifacts where the team needs a code-derived starting model.
+- Repo intake: when a new repo is added to a BAR and we need an architecture model derived from it (not just a hand-written CALM).
+
+**Why we kept the data model.** Phase D's `knowledge-code` Skill (D6) extracts the same `ObservedArchitecture` shape archaeology mode needs. The Skill is built for code-design-agent's WHAT-phase use; archaeology mode reuses it for WHY-phase use.
+
+**Pipeline (replaces nodes 3-7 of the standard WHY agent's research path):**
+
+| Node | Kind | Input | Output | Notes |
+|---|---|---|---|---|
+| 4a | `analyze_architecture` | pure | repo clone | `ObservedArchitecture` JSON (modules / cross_module_calls / exposed_interfaces / tests) | Reuses `knowledge-code` Skill output |
+| 5a | `identify_gaps` | pure | observed arch + `MeshContext.bar.calm_model` + layer rules | `Gap[]` + a derived `QueryPlan` (web-only follow-up) | Compares observed code to declared CALM. Layer violations + module conflicts + missing-control flags surface as gaps |
+| 6a | targeted web research | LLM | the derived QueryPlan | filtered findings | Same Tavily / arXiv invocation as standard WHY but with mesh-grounded gap-derived queries |
+| 7a | `synthesize_report` (archaeology variant) | LLM | observed arch + MeshContext + research findings | `research-doc.md` with sections specific to code-grounded findings | Same Hatter Tag schema; same Knight's Seal v1 signing path |
+
+**Output sections (archaeology research-doc.md):**
+
+1. Input Premises (same as web-mode)
+2. Repo Inventory (which repos were indexed, primary language, framework, file counts)
+3. Observed Architecture Summary (per-module layer assignments, call-graph shape, exposed interfaces)
+4. CALM Drift Findings (where observed code diverges from declared CALM)
+5. Layer Violations (where module imports cross CALM-declared layer boundaries)
+6. Security-Control Coverage Gaps (which threat-model entries the observed code does not appear to address)
+7. Targeted Web Findings (filtered web research scoped to the gaps from §4-§6)
+8. Recommendations (per-gap: address-in-code / update-CALM / accept-as-tech-debt)
+9. References (same S[N]/C[N] schema as web-mode for the targeted-web subset; plus a separate F[N] = file-reference schema for code-derived claims)
+10. Hatter Tag (frontmatter — `evidence_mode: code` per the same canonical-values rule that WHAT uses)
+
+**Threshold + drift adjustments.** Pocket Watch primitive becomes `objective.description` vs `research-doc.md ## Observed Architecture Summary` (the structural summary is the substantive section, not Executive Summary which doesn't exist in this mode). Threshold to calibrate in archaeology-PR1 first end-to-end run.
+
+**Why this is out-of-scope today.** Web-mode is shipping reliably (PR #103 clean) and covers the immediate WHY phase need. Archaeology mode requires `knowledge-code` to ship first (D6), which itself requires the code-design-agent infrastructure (D1-D12). Building archaeology before WHAT phase is built would orphan it. Order: ship D, then layer archaeology onto the same `knowledge-code` Skill.
+
+### 16.2 Knight's Seal v2 — cosign / sigstore persistent signing
+
+Full motivation + design seam documented in §11.5. Summary:
+
+- v1 (B27) uses a **per-run ephemeral Ed25519 keypair** generated inside the agent's sandbox; public key + signature in the audit log; private key destroyed at session end. Verifies for the audit-retention window (≥6 months) but a verifier has to trust the public key embedded in the audit log itself.
+- v2 replaces the ephemeral keypair with a **persistent GitHub-App-anchored identity** in the [sigstore](https://www.sigstore.dev/) transparency log via [cosign](https://docs.sigstore.dev/cosign/overview/). A third-party verifier can confirm "this artifact was signed by *the App* during the OKR's WHAT phase merge window" without trusting the audit log's own contents.
+- v2 also enables **signed prompt-pack deployment** — `.caterpillar/prompts/*` packs ship signed; mesh repos refuse to load unsigned packs. Closes the threat-model gap at §14.X (compromised pack version applied silently).
+- **Triggers landing v2:** (a) regulatory ask for third-party verifiability (EU AI Act Article 12 interpretation by an audit firm), (b) cross-org artifact consumption (one org's OKR feeds another org's mesh and the receiving org needs to verify), (c) a real-world supply-chain incident that exposes the embedded-key weakness.
+
+### 16.3 `verify-chain` CLI surface in Looking Glass (Phase E)
+
+Phase E ships `verify-chain` as a standalone CLI (E2 in §13). §16 reserves the **UI surface** for it:
+
+- **One-click chip on the Hatter Tag UI** (overlay panel that already exists for "View Tag ↗"). Adds a `🔗 Verify Chain` button next to the existing fields. Click → runs the CLI against the current phase's chain (or with shift-click, walks the chain-ladder cross-phase too). Result chip turns ✓ / ✗.
+- **Full-page chain replay log** for when verify fails. Shows event-by-event diff: which event recomputed-hash matched vs which didn't; which signature was wrong; which intent_thread_uuid broke continuity.
+- **Audit Report Export integration.** The §11.7 bundle's README.md includes a `verify-chain` invocation example so an offline auditor can re-run the same check against the bundled JSONL.
+
+### 16.4 Audit Report Export bundle (Phase E)
+
+Full spec already at §11.7 (subsections 11.7.1 – 11.7.5). §16 acknowledges this is reserved future work — the *bundle layout* and *traceability matrix data model* are settled; the *export generator code* is queued as E1.
+
+### 16.5 Hatter chain ladder visualization (Phase D D11)
+
+Full spec in §13's D11. Reserved here for completeness — the data (`chain-ladder.yaml`) is being written today by B25; the visualization is the UI completion of that data, scheduled with the rest of Phase D.
+
+### 16.6 Origin-story design folded forward
+
+The historical `docs/design/research-and-prd-agents.md` v0.1 design doc covered (a) the archaeology research mode, (b) the original Knight's Seal / Ed25519 plan, (c) the cross-repo bridge contract, (d) the multi-expert + 4-reviewer architecture (PRD time). All four have been re-homed:
+- (a) → §16.1 (this section) for the archaeology mode.
+- (b) → §11.5 (v1) + §16.2 (v2 cosign) for the cryptographic signing story.
+- (c) → §3.5 for the hand-off canonical spec.
+- (d) → §13 B24 entry for why the multi-expert + 4-reviewer design was *replaced* by self-critique at PRD time, and §13 D8 for the open decision on whether to bring separate reviewers back for WHAT phase.
+
+With these four folded in, the v0.1 origin-story doc no longer has unique content. It can be retired (deleted) — agentic-sdlc.md is the single canonical source going forward.
+
+### 16.7 Foundry / self-hosted inference (explicit non-goal)
+
+The v0.1 design listed AI Foundry as a v2.0 enterprise deployment target. **This is no longer the roadmap.** We're all-in on the GitHub Copilot Coding Agent runtime: no Foundry, no self-hosted inference, no proprietary orchestration stack. The differentiators are the audit chain + threat model + governance gates — not the runtime. One-click adoption beats running our own stack.
+
+If a real customer with a third-party-only-cloud-policy emerges, the agent design is portable enough that the .agent.md / Skills surface could ride a different runtime — but we don't build for that hypothetical.
+
+---
+
+## 17. What this is NOT
 
 - **Not a full re-architecture of `research-runner`** — `audit-emitter.ts`, `hatters-tag-builder.ts`, and the search clients stay as the implementation. Skills are the agent-facing interface (PURE wrappers); the runner keeps its legacy CI-only path until Phase B is verified.
 - **Not a custom MCP server** — uses built-in Copilot primitives (`.agent.md` + Skills). `redqueen-mcp` keeps its existing editor-side query scope.
@@ -2491,11 +2865,11 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 
 ---
 
-## 17. Setup + ops
+## 18. Setup + ops
 
 These are the install, secrets, cost, and failure-notification surfaces. Shovel-ready means a new org can stand the pipeline up from a clean install.
 
-### 17.1 New-mesh bootstrap flow
+### 18.1 New-mesh bootstrap flow
 
 A user opens Looking Glass with no mesh repo configured. The flow:
 
@@ -2525,12 +2899,12 @@ A user opens Looking Glass with no mesh repo configured. The flow:
    - Initial commit + push.
 4. **On Bootstrap (existing path):** validates the path has a `platforms/` directory at the root; if not, offers `MeshService.initializeMesh()` upgrade.
 5. **Looking Glass then prompts for Phase B+ setup** (if not already configured):
-   - "Install the Maintainability AI GitHub App" (§17.2) — required to deploy agents/skills/workflows.
-   - "Configure secrets" (§17.3) — required for research Skills + agent runs.
+   - "Install the Maintainability AI GitHub App" (§18.2) — required to deploy agents/skills/workflows.
+   - "Configure secrets" (§18.3) — required for research Skills + agent runs.
 
 The bootstrap modal is also reachable from `Settings → Workspace → Re-bootstrap` (used when migrating between meshes).
 
-### 17.2 GitHub App installation
+### 18.2 GitHub App installation
 
 The Maintainability AI GitHub App is the single trust boundary for cross-repo operations.
 
@@ -2555,7 +2929,7 @@ This minimizes blast radius. Tokens are requested by the workflow at run time vi
 
 **Why a GitHub App, not a PAT.** PATs are user-bound (rotate on offboarding, leak risk), all-or-nothing scoped, and rate-limited per user. Apps are org-bound, scoped per repo, rate-limited per installation, and produce attributable `actor: maintainabilityai[bot]` events in audit logs — which is what the Hatter's Tag `author_did` field references (`did:gh:installation:<id>/agent:<agent-name>`).
 
-### 17.3 Secrets management
+### 18.3 Secrets management
 
 Three categories of secret, three different homes.
 
@@ -2571,7 +2945,7 @@ Three categories of secret, three different homes.
 
 **Secret rotation flow.** Looking Glass `Settings → Secrets & Models` tab shows last-rotated timestamps. Clicking `Rotate` for a secret opens the appropriate GitHub Settings page in the browser — Looking Glass doesn't mediate the rotation itself (trust boundary preserved). On detection of a 401/403 from a Skill, the OKR detail shows a banner with a direct link to rotate the relevant secret.
 
-### 17.4 Cost surfacing — per-OKR rollup
+### 18.4 Cost surfacing — per-OKR rollup
 
 Every Hatter's Tag has `inputTokens`, `outputTokens`, and `costUsd` (already emitted by `research-runner`'s LLM client; extended in Phase A to cover all agents).
 
@@ -2588,7 +2962,7 @@ Every Hatter's Tag has `inputTokens`, `outputTokens`, and `costUsd` (already emi
 - Per-OKR cap (optional): `okr.yaml.governance.max_cost_usd`. When reached, `okr-bus.yml` refuses new agent assignments and labels the OKR `cost-cap-reached`.
 - Per-org monthly cap (Phase E+, configured in Settings → Usage). Mesh-wide. When reached, ALL `Start <phase>` buttons disable across all OKRs; the org admin gets a Looking Glass notification.
 
-### 17.5 Failure notification — agent runs, workflows, sync errors
+### 18.5 Failure notification — agent runs, workflows, sync errors
 
 A user can have multiple OKRs running concurrently and isn't watching every screen. Failures need to surface even if the user is elsewhere.
 
