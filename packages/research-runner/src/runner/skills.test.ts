@@ -1031,6 +1031,45 @@ test('B28: canonical fields (skill/ok/duration_ms) override anything in auditMet
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+test('B28a.v1.1: 8 parallel runSkill invocations all auto-emit events (regression for PR #108 lock-contention)', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-PAR', 'okr.yaml'),
+      'meta:\n  id: OKR-PAR\n  intentThreadUuid: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb\n');
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-PAR', runId: 'WHY-PAR-1', intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', phase: 'why' }, async () => {
+        // PR #108 scenario: agent calls Tavily + arXiv + USPTO + HN
+        // in parallel. Pre-B28a.v1.1 only 1 of 4 events landed because
+        // the 3-retry-50ms-linear lock budget was too tight. With the
+        // 20-retry exponential budget, ALL events must land.
+        //
+        // We fire 8 parallel knowledge-okr calls (well over the worst-
+        // case observed parallelism) to stress-test the lock. Each is
+        // a fast handler so the 8 auto-emit attempts hit the file lock
+        // at nearly the same instant.
+        const launches: Promise<unknown>[] = [];
+        for (let i = 0; i < 8; i++) {
+          launches.push(runSkill('knowledge-okr', { okrId: 'OKR-PAR' }));
+        }
+        await Promise.all(launches);
+        // All 8 events must appear in the chain — zero silent drops.
+        const chain = readChain(mesh, 'OKR-PAR', 'WHY-PAR-1');
+        assert.equal(chain.length, 8, `expected 8 events, got ${chain.length} (silent drops indicate lock-budget regression)`);
+        // Every event must be hash-chained correctly.
+        const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-PAR', runId: 'WHY-PAR-1' });
+        assert.equal(verify.ok, true, `chain integrity broken: ${verify.ok === false ? verify.reason : ''}`);
+        if (verify.ok) {
+          // 8 skill_calls + 1 verify-chain SHOULD NOT add an event
+          // (verify-chain is in NO_AUTO_EMIT_SKILLS), so eventCount=8.
+          assert.equal(verify.eventCount, 8);
+          assert.equal(verify.sealed, true);
+          assert.equal(verify.sealVerified, true);
+        }
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 test('B28: chained auto-emit + audit-verify-chain end-to-end (sealed + chained)', async () => {
   const mesh = tmpMesh();
   try {

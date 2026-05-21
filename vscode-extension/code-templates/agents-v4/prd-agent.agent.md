@@ -110,7 +110,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
     - `evidence_mode: mesh` — the canonical value for HOW phase. HOW grounds entirely on **mesh artifacts** (the merged research-doc, knowledge-mesh-bar snapshots, ADRs, threats, context-architecture/security/quality outputs) — there are NO external search providers in this phase. Do NOT use `live` (that means "external search providers returned results" — a WHY-phase concept that doesn't apply here). Do NOT use `cached` (that means "search providers failed, falling back to prior data"). Do NOT invent your own value (e.g. `mesh-grounded`, `internal`) — the audit-and-drift workflow checks for canonical values only.
     - `fresh_provider_search_performed: false` — HOW never calls search providers.
     - `author_did`
-    - `chain_root_hash`
+    - `chain_root_hash` — the `event_hash` of event_id=1 in `okrs/<id>/audit/events/<runId>.jsonl`. Under B28 the runner auto-emits event_id=1 from your first `runSkill()` call (typically `knowledge-okr`), so the chain root exists BEFORE you ever call `audit-emit-event` explicitly. Read it from the file with `jq -r 'select(.event_id == 1) | .event_hash' <path>`. NOT the chainHead from any downstream event.
     - a `self_review:` block summarizing rounds + final per-persona scores
 19. Open the PR with the changes. **Open it as ready-for-review (NOT draft)** — Looking Glass's Run Audit button only surfaces on ready-for-review PRs, and a draft PR confuses the human reviewer about whether you're done. Do NOT post issue comments and do NOT apply `prd-draft` from this agent run — repository automation handles that when the human clicks Run Audit. Include this line at the top of your PR description so the reviewer knows what to do:
 

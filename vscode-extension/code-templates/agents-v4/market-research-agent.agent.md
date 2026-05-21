@@ -95,7 +95,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
      # degraded_reason on cached/mixed
    author_did: ...
    audit:
-     chain_root_hash: <the `chainHead` returned by your FIRST audit-emit-event call (root of this run's chain). NOT the last event's hash.>
+     chain_root_hash: <the `event_hash` of event_id=1 in okrs/<id>/audit/events/<runId>.jsonl. Under B28 the runner auto-emits event_id=1 from your first runSkill() call (typically knowledge-okr), so the chain root exists BEFORE you ever call audit-emit-event explicitly. Read it from the file with `jq -r 'select(.event_id == 1) | .event_hash' <path>`. Do NOT use the chainHead from your gap-loop audit-emit-event call — that's a downstream event, not the root.>
    ```
    ````
 

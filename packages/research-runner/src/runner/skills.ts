@@ -757,8 +757,21 @@ const AuditEmitInput = z.object({
   intentThreadUuid: z.string().min(1),
 });
 
-const LOCK_RETRY_LIMIT = 3;
-const LOCK_RETRY_BASE_MS = 50;
+/**
+ * Audit-JSONL file-lock retry budget. Sized for parallel auto-emission:
+ * the agent often fires 4 search skills concurrently, each completing in
+ * ~500ms–3s. When their handlers return at similar times, all 4 try to
+ * grab the JSONL lock simultaneously. Pre-B28a.v1.1 the budget was
+ * `3 × 50ms linear = 300ms max` which silently dropped 3 of 4 events on
+ * PR #108. New budget: 20 retries with exponential 2^n backoff capped at
+ * 500ms each (sequence: 100, 200, 400, 500, 500, 500, …) ≈ 9.6s total
+ * wait — comfortably tolerates 4–8 parallel skill invocations while
+ * staying well under the runner's overall step timeout. Total emission
+ * latency stays unchanged in the happy-path single-writer case.
+ */
+const LOCK_RETRY_LIMIT = 20;
+const LOCK_RETRY_BASE_MS = 100;
+const LOCK_RETRY_MAX_MS = 500;
 
 /** Recursive key-sorted JSON stringify so the event hash is canonical. */
 function canonicalStringify(value: unknown): string {
@@ -890,7 +903,12 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
       lockFd = fs.openSync(lockPath, 'wx');
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
-        await sleep(LOCK_RETRY_BASE_MS * (attempt + 1));
+        // Exponential backoff capped at LOCK_RETRY_MAX_MS. With 20
+        // attempts the wait sequence is 100, 200, 400, 500, 500, … ≈
+        // 9.6s total — enough headroom for 4–8 parallel auto-emissions
+        // from skills firing concurrently (B28a.v1.1).
+        const wait = Math.min(LOCK_RETRY_BASE_MS * (2 ** attempt), LOCK_RETRY_MAX_MS);
+        await sleep(wait);
         continue;
       }
       return { ok: false, reason: `audit-lock-failed: ${(err as Error).message}` };
@@ -1095,10 +1113,14 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
       const extras = (result as { auditMetadata?: Record<string, unknown> }).auditMetadata ?? {};
       const payload: Record<string, unknown> = { ...extras, skill: name, ok: result.ok, duration_ms };
       if (!result.ok) { payload.reason = result.reason; }
-      // Best-effort: an audit-write failure must not shadow the real skill
-      // result. The chain-verify CI gate is the catch-net for missed events.
+      // Best-effort: an audit-write failure must not shadow the real
+      // skill result. But we MUST surface the failure to stderr — pre-
+      // B28a.v1.1 these were silently swallowed and PR #108 dropped 3
+      // of 4 parallel-search events with no warning. The chain-verify
+      // CI gate still catches gaps post-hoc; this stderr line catches
+      // them at write time.
       try {
-        await handleAuditEmitEvent({
+        const emit = await handleAuditEmitEvent({
           okrId: ctx.okrId,
           runId: ctx.runId,
           phase: ctx.phase,
@@ -1106,7 +1128,12 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
           eventKind: 'skill_call',
           payload,
         });
-      } catch { /* swallow — chain-verify catches gaps */ }
+        if (!emit.ok) {
+          process.stderr.write(`::warning::audit auto-emit failed for skill ${name}: ${emit.reason}\n`);
+        }
+      } catch (err) {
+        process.stderr.write(`::warning::audit auto-emit threw for skill ${name}: ${(err as Error).message}\n`);
+      }
     }
   }
 
