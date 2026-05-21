@@ -497,7 +497,12 @@ jobs:
           # unique-id dedup + 12-line window. Same regex tolerance from
           # B31 ([CRSE]-?[0-9]+ for FR citations; THR-?[0-9]+|A0[1-9]|A10
           # for SR anchors).
-          read FR_COUNT FR_WITH_CITES SR_COUNT SR_WITH_ANCHORS <<<"$(python3 <<PYEOF
+          # DOC must be exported to the python subprocess explicitly —
+          # bash 'DOC=...' assignment alone doesn't propagate to children.
+          # PR #118 audit re-run hit `KeyError: 'DOC'` here before the
+          # inline DOC="$DOC" prefix. Inline-env beats `export DOC` so we
+          # don't mutate step-level state.
+          read FR_COUNT FR_WITH_CITES SR_COUNT SR_WITH_ANCHORS <<<"$(DOC="$DOC" python3 <<PYEOF
           import re, os
           body = open(os.environ['DOC'], 'r', encoding='utf-8').read()
           lines = body.split('\n')
