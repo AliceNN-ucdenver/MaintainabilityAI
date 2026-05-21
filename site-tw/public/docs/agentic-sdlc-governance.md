@@ -25,14 +25,14 @@
 
 ## A human/agent SDLC — the gap nobody is filling
 
-Software is shifting to a development model where **humans lead and AI agents execute** — at scale, in parallel, across every repository at once. The human is the persona at the wheel: setting intent, approving scope, owning outcome. The agents handle the typing. They're fast enough now that the keyboard is no longer the bottleneck.
+Software is shifting to a development model where **humans lead and AI agents execute**, at scale, in parallel, across every repository at once. The human is the persona at the wheel: setting intent, approving scope, owning outcome. The agents handle the typing. They're fast enough now that the keyboard is no longer the bottleneck.
 
 The bottleneck is **whether the human at the wheel can see the architecture clearly enough to lead, and whether the agents executing can see it clearly enough to follow.** Today, both sides operate blind.
 
-- The **human** gets a one-line objective from leadership, a whiteboard sketch from a meeting last quarter, and a Slack channel — no map of which BARs in their portfolio are healthy, no view of the threat model the new feature will brush against, no read on whether the OKR they just approved is even within the org's governance tolerance.
-- The **agent** gets a prompt and a code repo — no read of the CALM architecture model, no view of the STRIDE threat catalog, no awareness that Service A must never reach the database directly, no signal that this BAR requires PCI-DSS compliance.
+- The **human** gets a one-line objective from leadership, a whiteboard sketch from a meeting last quarter, and a Slack channel. No map of which BARs in their portfolio are healthy. No view of the threat model the new feature will brush against. No read on whether the OKR they just approved is even within the org's governance tolerance.
+- The **agent** gets a prompt and a code repo. No read of the CALM architecture model. No view of the STRIDE threat catalog. No awareness that Service A must never reach the database directly. No signal that this BAR requires PCI-DSS compliance.
 
-The result: humans approve work without instruments; agents ship work without guardrails. The 70% of code that's boilerplate-shaped — CRUD, scaffolding, patterns — gets done brilliantly. The 30% that's **architecture, security, threat awareness, and governance** is where systems fail, breaches happen, and technical debt compounds into organizational debt.
+The result: humans approve work without instruments; agents ship work without guardrails. The 70% of code that's boilerplate-shaped (CRUD, scaffolding, patterns) gets done brilliantly. The 30% that's **architecture, security, threat awareness, and governance** is where systems fail, breaches happen, and technical debt compounds into organizational debt.
 
 This is the gap. Every AI agent in your organization operates in an **architectural vacuum**, and every human leading those agents is leading **without instruments**.
 
@@ -72,7 +72,7 @@ This is the gap. Every AI agent in your organization operates in an **architectu
   <text x="400" y="197" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MaintainabilityAI closes the 30%</text>
 </svg>
 
-We close the gap **from both directions**. Humans get a control plane that shows the architecture, the threats, the scores, the audit chain — instruments at the wheel. Agents get the same map, formatted for them, and gates that refuse to let them ship outside it. The human leads; the agents execute; the governance is shared.
+We close the gap **from both directions**. Humans get a control plane that shows the architecture, the threats, the scores, the audit chain. Instruments at the wheel. Agents get the same map, formatted for them, and gates that refuse to let them ship outside it. The human leads; the agents execute; the governance is shared.
 
 ---
 
@@ -153,7 +153,7 @@ The Hatter governs what should be built and how it should be designed. The Red Q
 
 ## Meet the two modalities
 
-Two roles, one control plane, every artifact audit-chained from intent to shipped code. The Hatter governs **before** code is written — the human leading the agentic SDLC sees what their initiative will touch, the agents executing see the same map. The Red Queen governs **while** code is written — each agent action checked against the architecture deterministically. **For a CIO, this is the spending control on what gets built; for a CIRO, it's the explainability of every regulated decision; for a CISO, it's the threat-model coverage that doesn't collapse the moment agents accelerate.**
+Two roles, one control plane, every artifact audit-chained from intent to shipped code. The Hatter governs **before** code is written: the human leading the agentic SDLC sees what their initiative will touch, and the agents executing see the same map. The Red Queen governs **while** code is written: each agent action checked against the architecture deterministically. **For a CIO, this is spending control on what gets built. For a CIRO, it's explainability of every regulated decision. For a CISO, it's threat-model coverage that doesn't collapse the moment agents accelerate.**
 
 <div class="docs-flex-block">
   <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of the planning modality" class="docs-inline-image" />
@@ -297,34 +297,38 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   <!-- LEFT: visual canvas -->
   <rect x="24" y="50" width="370" height="300" rx="10" fill="rgba(99,102,241,0.06)" stroke="rgba(99,102,241,0.3)"/>
   <text x="44" y="74" fill="#a5b4fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">VISUAL CANVAS · ReactFlow + ELK.js</text>
-  <!-- Architecture graph -->
-  <!-- Frontend -->
-  <rect x="60" y="100" width="120" height="46" rx="8" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.6)"/>
-  <text x="120" y="120" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">imdb-react-frontend</text>
-  <text x="120" y="135" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">presentation layer</text>
-  <!-- Identity -->
-  <rect x="60" y="180" width="120" height="46" rx="8" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.6)"/>
-  <text x="120" y="200" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">imdb-identity</text>
-  <text x="120" y="215" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">auth · JWT issuer</text>
-  <!-- Celeb API -->
-  <rect x="230" y="100" width="120" height="46" rx="8" fill="rgba(167,139,250,0.18)" stroke="rgba(167,139,250,0.6)"/>
-  <text x="290" y="120" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">celeb-api</text>
-  <text x="290" y="135" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">domain service</text>
-  <!-- Movie API -->
-  <rect x="230" y="180" width="120" height="46" rx="8" fill="rgba(167,139,250,0.18)" stroke="rgba(167,139,250,0.6)"/>
-  <text x="290" y="200" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">movie-api</text>
-  <text x="290" y="215" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">domain service</text>
-  <!-- DB -->
-  <rect x="145" y="260" width="120" height="46" rx="8" fill="rgba(74,222,128,0.18)" stroke="rgba(74,222,128,0.6)"/>
-  <text x="205" y="280" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">data-store</text>
-  <text x="205" y="295" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">MongoDB cluster</text>
-  <!-- Edges -->
-  <line x1="180" y1="123" x2="230" y2="123" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
-  <line x1="180" y1="203" x2="230" y2="123" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)" opacity="0.7"/>
-  <line x1="180" y1="203" x2="230" y2="203" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
-  <line x1="290" y1="146" x2="240" y2="260" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
-  <line x1="290" y1="226" x2="240" y2="263" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
-  <text x="44" y="335" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Drag · drop · edit · re-layout</text>
+  <!-- Architecture graph — 3 columns: clients | services | data -->
+  <!-- COL 1: Frontend + Identity (clients / auth) -->
+  <rect x="44" y="100" width="106" height="40" rx="8" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.6)"/>
+  <text x="97" y="118" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">imdb-react-frontend</text>
+  <text x="97" y="131" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">presentation layer</text>
+  <rect x="44" y="190" width="106" height="40" rx="8" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.6)"/>
+  <text x="97" y="208" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">imdb-identity</text>
+  <text x="97" y="221" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">auth · JWT issuer</text>
+  <!-- COL 2: celeb-api + movie-api (domain services) -->
+  <rect x="180" y="100" width="100" height="40" rx="8" fill="rgba(167,139,250,0.18)" stroke="rgba(167,139,250,0.6)"/>
+  <text x="230" y="118" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">celeb-api</text>
+  <text x="230" y="131" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">domain service</text>
+  <rect x="180" y="190" width="100" height="40" rx="8" fill="rgba(167,139,250,0.18)" stroke="rgba(167,139,250,0.6)"/>
+  <text x="230" y="208" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">movie-api</text>
+  <text x="230" y="221" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">domain service</text>
+  <!-- COL 3: data-store (data tier, right side) -->
+  <rect x="305" y="145" width="80" height="40" rx="8" fill="rgba(74,222,128,0.18)" stroke="rgba(74,222,128,0.6)"/>
+  <text x="345" y="163" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">data-store</text>
+  <text x="345" y="176" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">MongoDB</text>
+  <!-- Edges — auth flow first (frontend → identity), then data path -->
+  <line x1="97" y1="140" x2="97" y2="190" stroke="#fcd34d" stroke-width="1.6" marker-end="url(#calmArrow)"/>
+  <text x="103" y="168" fill="#fcd34d" font-size="8" font-style="italic" font-family="system-ui, sans-serif">auth</text>
+  <line x1="150" y1="120" x2="180" y2="120" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
+  <line x1="150" y1="210" x2="180" y2="120" stroke="#a5b4fc" stroke-width="1.2" marker-end="url(#calmArrow)" opacity="0.6"/>
+  <line x1="150" y1="210" x2="180" y2="210" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
+  <line x1="280" y1="120" x2="305" y2="160" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
+  <line x1="280" y1="210" x2="305" y2="170" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
+  <!-- Column labels -->
+  <text x="97" y="74" text-anchor="middle" fill="#64748b" font-size="8" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CLIENTS</text>
+  <text x="230" y="74" text-anchor="middle" fill="#64748b" font-size="8" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">SERVICES</text>
+  <text x="345" y="74" text-anchor="middle" fill="#64748b" font-size="8" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">DATA</text>
+  <text x="44" y="265" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Drag · drop · edit · re-layout — ELK.js auto-routes edges around nodes</text>
   <!-- Sync arrows -->
   <line x1="394" y1="200" x2="436" y2="200" stroke="#fcd34d" stroke-width="2" marker-end="url(#calmSync)"/>
   <line x1="436" y1="220" x2="394" y2="220" stroke="#fcd34d" stroke-width="2" marker-end="url(#calmSync)"/>
@@ -700,33 +704,33 @@ Five actors the Hatter must withstand:
   <text x="400" y="470" text-anchor="middle" fill="#64748b" font-size="9" font-style="italic" font-family="system-ui, sans-serif">All open in GitHub for community review — honesty beats marketing claims</text>
 </svg>
 
-**The executive read.** Ten STRIDE controls + four ASTRIDE (AI-agent-specific) controls are in design. Three are partial — strong variants land in later phases. Five are honest gaps we name openly below. We publish row-by-row detail in the [design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md); the high-level summary by STRIDE category is below.
+**The executive read.** Ten STRIDE controls plus four ASTRIDE (AI-agent-specific) controls are in design today. Three are partial; strong variants land in later phases. Five are honest gaps we name openly below. Row-by-row detail lives in the [design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md); the high-level summary by STRIDE category sits below.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">Spoof · ✓ in design</div>
     <div class="docs-heading">Identity cannot be faked</div>
-    <div class="docs-copy">Every artifact is signed by the agent session that produced it. At PRD time, the same agent inhabits Architect + Security personas in bounded self-critique — impersonation is structurally impossible because there are no separate reviewer agents to spoof. <strong>Knight's Seal v1 (Phase B, next push)</strong> adds a per-run cryptographic signature over the chain root + artifact bytes; tampering breaks the signature.</div>
+    <div class="docs-copy">Every artifact is signed by the agent session that produced it. At PRD time, the same agent inhabits Architect + Security personas in bounded self-critique. Impersonation is structurally impossible because there are no separate reviewer agents to spoof. <strong>Knight's Seal v1 (Phase B, next push)</strong> adds a per-run cryptographic signature over the chain root + artifact bytes; tampering breaks the signature.</div>
   </div>
   <div class="docs-card docs-card-amber">
     <div class="docs-card-kicker">Tamper · ✓ / 🛠</div>
     <div class="docs-heading">Audit chain is tamper-evident</div>
-    <div class="docs-copy">Every step the agent takes is hash-chained. Modifying any past entry breaks every entry after it — detectable offline. Before any PR can merge, an independent re-verification replays the chain end-to-end; mismatch blocks the merge. Goal drift is caught by a semantic-similarity check (Pocket Watch). Tier-creep is prevented by freezing the governance tier at run start.</div>
+    <div class="docs-copy">Every step the agent takes is hash-chained. Modifying any past entry breaks every entry after it, detectable offline. Before any PR can merge, an independent re-verification replays the chain end-to-end; mismatch blocks the merge. Goal drift is caught by a semantic-similarity check (Pocket Watch). Tier-creep is prevented by freezing the governance tier at run start.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Repudiate · ✓</div>
     <div class="docs-heading">Every decision is attributable</div>
-    <div class="docs-copy">"Who approved this?" and "Which agent produced this?" both have one-step answers. Dual-signature overrides preserve both signer identities, the reason, the timestamp, and the GitHub comment URL. Knight's Seal makes the agent attribution cryptographic — only that specific agent session could have produced the signature.</div>
+    <div class="docs-copy">"Who approved this?" and "Which agent produced this?" both have one-step answers. Dual-signature overrides preserve both signer identities, the reason, the timestamp, and the GitHub comment URL. Knight's Seal makes the agent attribution cryptographic: only that specific agent session could have produced the signature.</div>
   </div>
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Info disclosure · ⚠</div>
     <div class="docs-heading">Honest gaps we name</div>
-    <div class="docs-copy">LLM provider prompt retention is outside our trust boundary; we capture costs + token counts, not prompt bodies. Audit-export bundles include research, PRD, and design verbatim — there's no automated PII / IP / secrets redaction layer yet. Phase E will add one for external sharing.</div>
+    <div class="docs-copy">LLM provider prompt retention is outside our trust boundary; we capture costs + token counts, not prompt bodies. Audit-export bundles include research, PRD, and design verbatim. There's no automated PII / IP / secrets redaction layer yet. Phase E will add one for external sharing.</div>
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">DoS · ✓ / ⚠</div>
     <div class="docs-heading">Cost + blast-radius caps</div>
-    <div class="docs-copy">Per-Skill, per-agent, per-OKR, and per-org cost caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure. Open gap: per-OKR fan-out blast radius — one OKR can write landing issues to many target repos; cap + warn threshold queued for Phase C.</div>
+    <div class="docs-copy">Per-Skill, per-agent, per-OKR, and per-org cost caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure. Open gap: per-OKR fan-out blast radius. One OKR can write landing issues to many target repos; cap + warn threshold queued for Phase C.</div>
   </div>
   <div class="docs-card docs-card-emerald">
     <div class="docs-card-kicker">Elevation of Privilege · ✓ / 🛠 / ⚠</div>
@@ -772,62 +776,98 @@ Five actors the Hatter must withstand:
 
 </details>
 
-### AEGIS overlay — where this design fits in the agentic-AI security landscape
+### AEGIS overlay: where this design fits in the agentic-AI security landscape
 
-**The bottom line for an enterprise security leader:** the Hatter's Tea Party already satisfies most of the industry's published agentic-AI governance frameworks — and we publish, in this document, the specific controls we satisfy, the ones in flight, and the gaps that remain. No marketing claims; everything below is a row in the design doc with an open GitHub issue.
+**Bottom line for an enterprise security leader.** The Hatter's Tea Party already satisfies most of the industry's published agentic-AI governance frameworks. We publish the specific controls we satisfy, the ones in flight, and the gaps that remain. No marketing claims. Every row is open in GitHub.
 
-STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence laundering, prompt injection from data-not-instructions confusion). Three industry frameworks sit on top of STRIDE for the agentic case: **Forrester AEGIS** (enterprise governance domains + principles), the **AEGIS Pre-Execution Firewall** (runtime cryptographic controls — arXiv 2603.12621), and **ASTRIDE** (the formal STRIDE extension that adds the "A" category for AI-agent-specific attacks — arXiv 2512.04785). The tables below name each framework's controls and our implementation status.
+STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidence laundering, or prompt injection from data-not-instructions confusion. Three industry frameworks sit on top of STRIDE for the agentic case. Each is summarized below with a one-line implementation status; the full row-by-row detail expands when you click.
 
-#### 1. Forrester AEGIS — Agentic AI Guardrails for Information Security
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">Framework 1 · ✓ 5 of 6 domains</div>
+    <div class="docs-heading">Forrester AEGIS</div>
+    <div class="docs-copy"><strong>Agentic AI Guardrails for Information Security.</strong> Six enterprise governance domains, three core principles (Least Agency, Continuous Assurance, Explainable Outcomes). Forrester, 2025. We satisfy 5 of 6 domains today. The sixth (prompt-pack signature verification under Application Security &amp; DevSecOps) pairs with the cosign-era Knight's Seal evolution.</div>
+  </div>
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">Framework 2 · ✓ 5 of 6 controls</div>
+    <div class="docs-heading">AEGIS Pre-Execution Firewall</div>
+    <div class="docs-copy">Runtime cryptographic controls for agentic tool calls: Ed25519 signing + SHA-256 hash-chained audit. Direct lineage to our <code>audit-emit-event</code> skill. The pre-merge chain re-verification gate (added in B25) was the major recent landing. Ed25519 signing arrives in Phase B as Knight's Seal v1 (B27). <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
+  </div>
+  <div class="docs-card docs-card-cyan">
+    <div class="docs-card-kicker">Framework 3 · 🛠 partial</div>
+    <div class="docs-heading">Aegis Protocol</div>
+    <div class="docs-copy">Cryptographic protocol for open agentic ecosystems: W3C DIDs for identity, NIST PQC for communication, Halo2 ZKP for verifiable policy. Formalizes "Excessive Agency" as a game. We map it directly to <strong>Pocket Watch goal-drift</strong>: when an agent's PR scope diverges too far from the OKR objective (cosine &lt; 0.85), agency has been exceeded and merge is refused. ZKP policy proofs are a Phase B+ candidate when third-party verifiable attestation becomes a requirement. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></span></div>
+  </div>
+  <div class="docs-card docs-card-rose">
+    <div class="docs-card-kicker">Framework 4 · ✓ 3 of 4 A-categories</div>
+    <div class="docs-heading">ASTRIDE</div>
+    <div class="docs-copy">Formal STRIDE extension that adds an "A" category for AI-agent-specific attacks: prompt manipulation, memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above shows the agent-side controls. The fourth A-category we name openly — <code>A.false-audit-fabrication</code> — surfaced on PR #105 and was closed by B25's pre-merge <code>verify-chain</code> CI gate. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></span></div>
+  </div>
+</div>
 
-Six domains, three core principles. Published 2025 — the closest enterprise-governance framework for agentic systems.
+<details>
+<summary><strong>Forrester AEGIS — row-by-row detail for security teams</strong> (click to expand)</summary>
 
 | Forrester domain | Forrester named control | Hatter's Tea Party implementation | Status |
 |---|---|---|:-:|
-| Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Per-phase gate workflows (`market-research-agent.yml`, audit-validate, drift-gate) enforce policy in CI, not just at PR review | ✓ |
+| Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Per-phase gate workflows (`market-research-agent.yml`, `prd-agent.yml`, audit-validate, drift-gate) enforce policy in CI, not just at PR review | ✓ |
 | Identity & Access Management | Agents as hybrid identities with just-in-time privileges | Per-agent `.agent.md` declares minimum-necessary `tools:` list; deployment refuses to land an agent referencing an undeclared Skill | ✓ |
 | Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
-| Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped; **pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
+| Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped. **Pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
 | Threat Management & SecOps | Real-time monitoring + detection engineering | Hash-chained audit JSONL is queryable; `verify-chain` (Phase E) replays the full run from disk; gap-loop refinement events visible in audit trail | ✓ |
 | Zero Trust | "Least agency" — minimum permissions per goal | Reviewer agents `tools:` deliberately omit `edit` (Tweedles boundary); skill backends are pure-data, can't mutate beyond their declared writes | ✓ |
 
-**Core principles (all three):** _Least Agency_ ✓ (per-agent tool whitelists), _Continuous Assurance_ ✓ (every PR re-runs the gate workflows, not point-in-time review), _Explainable Outcomes_ ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
+**Core principles satisfaction.** *Least Agency* ✓ (per-agent tool whitelists). *Continuous Assurance* ✓ (every PR re-runs the gate workflows, not point-in-time review). *Explainable Outcomes* ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
 
-#### 2. AEGIS Pre-Execution Firewall — runtime cryptographic controls
+</details>
 
-[arXiv 2603.12621](https://arxiv.org/abs/2603.12621). Runtime tool-call interception with Ed25519 + SHA-256 hash-chained audit. Direct lineage to our `audit-emit-event` skill:
+<details>
+<summary><strong>AEGIS Pre-Execution Firewall — row-by-row detail for security teams</strong> (click to expand)</summary>
 
 | AEGIS Pre-Execution Firewall control | Hatter's Tea Party implementation | Status |
 |---|---|:-:|
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
-| Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash` — `verify-chain` catches it offline | ✓ |
-| **Pre-merge chain re-verification (CI gate)** | `audit-and-drift` workflow replays the SHA-256 chain end-to-end against the canonical serialization before any PR can merge. Implemented inline (independent of the runner) so a runner bug can't silently pass; applies `chain-forgery-detected` label and blocks merge on mismatch. Closes the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
+| Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash`; `verify-chain` catches it offline | ✓ |
+| **Pre-merge chain re-verification (CI gate)** | `audit-and-drift` workflow replays the SHA-256 chain end-to-end against the canonical serialization before any PR can merge. Implemented inline (independent of the runner) so a runner bug can't silently pass. Applies `chain-forgery-detected` label and blocks merge on mismatch. Closed the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
 | Pre-execution interception (log before side effect) | `skill-audit-emit-event` is the first call inside each skill invocation; recorded before the skill emits its result | ✓ |
-| Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`. **Phase B (B27) lands Knight's Seal v1** — per-run **ephemeral** Ed25519 keypair generated at agent dispatch; signs the chain-root hash + final artifact SHA; public key + signature posted in the `artifact_written` audit event; private key destroyed at session end (no key store, no rotation policy). CI verifies the signature pre-merge and applies `seal-broken` on failure. Cosign / sigstore-anchored persistent signing — for verifying a year-old artifact without trusting its own embedded key — is queued as a future enhancement | 🛠 |
+| Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`. **Phase B (B27) lands Knight's Seal v1**: per-run **ephemeral** Ed25519 keypair generated at agent dispatch, signs the chain-root hash + final artifact SHA, public key + signature posted in the `artifact_written` audit event, private key destroyed at session end (no key store, no rotation policy). CI verifies the signature pre-merge and applies `seal-broken` on failure. Cosign / sigstore-anchored persistent signing for year-old verifiability is a future enhancement | 🛠 |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 
-#### 3. Aegis Protocol — cryptographic identity + verifiable policy
+</details>
 
-[arXiv 2508.19267](https://arxiv.org/abs/2508.19267). Three pillars: W3C DIDs (non-spoofable agent identity), NIST PQC (communication integrity), Halo2 ZKP (verifiable, privacy-preserving policy compliance). Formalizes a game-based definition of "Excessive Agency."
+#### Two files. Any auditor. Full story.
 
-The Aegis Protocol's _Excessive Agency_ game maps directly to our **Pocket Watch goal-drift** check: if the agent's PR scope diverges too far from the OKR's frozen objective (cosine similarity < 0.85), the agent has exceeded its authorized agency and the workflow refuses to merge. The protocol's ZKP-based policy proofs are not yet implemented — they're a Phase B+ candidate when third-party verifiable governance attestation becomes a requirement.
+Anyone reviewing a merged artifact — internal auditor, regulator, downstream consumer, an incident-response team at 3 AM — takes **two files** off disk and reconstructs the whole run:
 
-#### 4. ASTRIDE — STRIDE + the "A" category for AI-agent-specific attacks
+- `okrs/<id>/<phase>/<artifact>.md` (the merged research-doc, PRD, or code-design)
+- `okrs/<id>/audit/events/<run>.jsonl` (the hash-chained activity log)
 
-[arXiv 2512.04785](https://arxiv.org/pdf/2512.04785). Formal STRIDE extension that adds category **"A" for AI-Agent-Specific Attacks**: prompt manipulation, context/memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above visualizes which controls in the Hatter's design come from classical STRIDE versus the new "A" extension. Our threat model covers `A.prompt-injection` and `A.memory-poisoning` (Hatter Tag pins mesh_sha so a poisoned mesh state is detectable across runs); `A.inter-agent-influence` (an upstream agent's output steering a downstream agent toward a different goal) is partially addressed by the Caterpillar's Challenge cross-phase drift check.
+No live system access. No proprietary tooling. Just SHA-256. Four checks land the story:
 
-A fourth A-category surfaced on PR #105 and is now in scope: **`A.false-audit-fabrication`** — an agent that loses access to the audit-emission runner reasons that *"the audit is non-blocking anyway"* and writes the JSONL by hand with fabricated hash values to appear compliant. The prompt-level mitigation is a hard rule against direct JSONL writes (the agent must STOP and post a PR comment if the runner is unreachable). The structural mitigation is the new pre-merge **`verify-chain`** CI step that re-replays the SHA-256 chain against the canonical serialization — implemented independently of the runner so a runner bug can't silently pass. On verification failure the merge gate refuses with a `chain-forgery-detected` label. This converts what was previously a silent governance-bypass into a blocking failure that names its own cause.
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">Check 1 · Chain replay</div>
+    <div class="docs-heading">The chain still verifies</div>
+    <div class="docs-copy">Recompute the SHA-256 chain over the JSONL. The result must match the <code>chain_root_hash</code> in the Hatter Tag. This is the same check the pre-merge <code>verify-chain</code> CI step ran before the artifact was allowed to merge. Same algorithm, same result, offline.</div>
+  </div>
+  <div class="docs-card docs-card-emerald">
+    <div class="docs-card-kicker">Check 2 · Provenance</div>
+    <div class="docs-heading">Every claim has a source</div>
+    <div class="docs-copy">Every research finding, PRD requirement, or design decision traces back to a <code>skill_call</code> event in the audit log. No source = no claim. Maps directly to Forrester's Data Security domain.</div>
+  </div>
+  <div class="docs-card docs-card-amber">
+    <div class="docs-card-kicker">Check 3 · Reproducibility</div>
+    <div class="docs-heading">Replay the queries</div>
+    <div class="docs-copy">Each search event carries its <code>payload.queries</code> verbatim. Re-running them six months later produces a comparable result set (subject to provider drift). Forrester Explainable Outcomes, on the cheap.</div>
+  </div>
+  <div class="docs-card docs-card-rose">
+    <div class="docs-card-kicker">Check 4 · Tamper detection</div>
+    <div class="docs-heading">Modifications break the chain</div>
+    <div class="docs-copy">Any edit to a past audit event breaks every subsequent <code>prev_event_hash</code>. Once Knight's Seal v1 ships, the chain root is also cryptographically signed by the agent's per-run keypair, so substitution attempts fail the signature check too.</div>
+  </div>
+</div>
 
-#### What auditable evidence looks like (the CIO / CIRO / CISO read)
-
-A reviewer — internal auditor, regulator, downstream consumer, or your own incident-response team at 3 AM — can take **just two files** from any merged artifact (`okrs/<id>/<phase>/<artifact>.md` and `okrs/<id>/audit/events/<run>.jsonl`) and reconstruct the full story:
-
-1. **Verify the Hatter Tag's declared `chain_root_hash`** matches the SHA-256 of the JSONL's last event — replay verification, AEGIS Pre-Execution Firewall pattern. *This is the same check the pre-merge `verify-chain` CI step ran before the artifact was allowed to merge — same algorithm, same result.*
-2. **Confirm every claim in the artifact traces back** to a `skill_call` event in the audit — provenance, Forrester Data Security.
-3. **Replay the agent's query plan** from `payload.queries` on each search event — reproducibility, Forrester Explainable Outcomes.
-4. **Detect tampering** — any modification to a past audit event breaks every subsequent `prev_event_hash` (tamper-evidence). Once Knight's Seal v1 ships (B27), the chain root is also cryptographically signed; any substitution attempt fails the signature check too.
-
-No live system access required. No proprietary tooling. Just two files and a SHA-256 implementation. **This is what closes EU AI Act Article 12 (≥6 month retention, model + inputs + operator + timestamps; deadline 2 Aug 2026) and what makes SOC 2 CC8.1 demonstrable on every artifact this pipeline produces.**
+> 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record.
 
 ### Honest gaps — what we will address
 
