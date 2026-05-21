@@ -23,8 +23,9 @@
  * distinct from the pipeline runner's `node_kind` events. This is the
  * canonical agentic-SDLC audit format per design §11.1.6.
  */
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign as cryptoSign, verify as cryptoVerify, createPrivateKey, createPublicKey, type KeyObject } from 'node:crypto';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
@@ -409,6 +410,116 @@ const handleKnowledgeResearch: SkillHandler = async (input) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────
+// Context skills — per-BAR slices of mesh state for PRD agent grounding
+//
+// The prd-agent invokes these AFTER `knowledge-mesh-bar` so the heavy
+// lifting (CALM, threats, ADRs, controls) is already in its working set.
+// These return a focused, persona-specific slice the agent's Architect /
+// Security / Quality lenses each consume in turn during synthesis.
+//
+// Contract: input `{platformId, barIds}` — both required. If any BAR
+// isn't resolvable in the mesh, we return ok:false (HOW agent halts per
+// the "PRDs MUST be grounded" hard rule rather than fabricating).
+// ─────────────────────────────────────────────────────────────────────
+
+const ContextInput = z.object({
+  platformId: z.string().min(1),
+  barIds: z.array(z.string().min(1)).min(1),
+});
+
+interface PerBarContext {
+  barId: string;
+  platformId: string;
+  /** Each handler fills its own slice (architecture / security / quality). */
+  slice: Record<string, unknown>;
+}
+
+/**
+ * Resolve a list of BAR ids to mesh paths. Returns ok:false on the first
+ * unresolvable id so the agent fails fast rather than synthesizing
+ * against a partial scope.
+ */
+function resolveBarsOrFail(
+  barIds: string[],
+): { ok: true; found: Array<{ barId: string; barDir: string; platformSlug: string }> } | { ok: false; reason: string } {
+  const mesh = meshPath();
+  const found: Array<{ barId: string; barDir: string; platformSlug: string }> = [];
+  for (const barId of barIds) {
+    const r = findBarDir(mesh, barId);
+    if (!r) { return { ok: false, reason: `bar-not-found: ${barId}` }; }
+    found.push({ barId, barDir: r.barDir, platformSlug: r.platformSlug });
+  }
+  return { ok: true, found };
+}
+
+/**
+ * `context-architecture` — CALM model + ADRs + fitness functions, scoped to
+ * the OKR's affected BARs. The Architect persona uses this to ground FRs
+ * against declared nodes and flag CALM-drift.
+ */
+const handleContextArchitecture: SkillHandler = async (input) => {
+  const parsed = ContextInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const resolved = resolveBarsOrFail(parsed.data.barIds);
+  if (!resolved.ok) { return resolved; }
+  const bars: PerBarContext[] = [];
+  for (const { barId, barDir, platformSlug } of resolved.found) {
+    const calmModel = readJson(path.join(barDir, 'architecture', 'bar.arch.json'));
+    const fitnessFunctions = readYaml(path.join(barDir, 'architecture', 'fitness-functions.yaml'));
+    const adrDir = path.join(barDir, 'architecture', 'ADRs');
+    const adrs: Array<{ id: string; title: string }> = [];
+    for (const name of readDirShallow(adrDir)) {
+      if (!name.endsWith('.md')) { continue; }
+      try {
+        const body = fs.readFileSync(path.join(adrDir, name), 'utf8');
+        const titleMatch = body.match(/^#\s+(.+)/m);
+        adrs.push({ id: name.replace(/\.md$/, ''), title: (titleMatch?.[1] ?? name).trim() });
+      } catch { /* skip */ }
+    }
+    bars.push({ barId, platformId: platformSlug, slice: { calmModel, fitnessFunctions, adrs } });
+  }
+  return { ok: true, scope: parsed.data, bars };
+};
+
+/**
+ * `context-security` — threats + controls, scoped to the affected BARs.
+ * The Security persona maps SRs to STRIDE THR-NNN + OWASP A0X + NIST
+ * controls from this slice.
+ */
+const handleContextSecurity: SkillHandler = async (input) => {
+  const parsed = ContextInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const resolved = resolveBarsOrFail(parsed.data.barIds);
+  if (!resolved.ok) { return resolved; }
+  const bars: PerBarContext[] = [];
+  for (const { barId, barDir, platformSlug } of resolved.found) {
+    const threats = readYaml(path.join(barDir, 'architecture', 'threat-model.yaml'));
+    const controls = readYaml(path.join(barDir, 'security', 'security-controls.yaml'));
+    bars.push({ barId, platformId: platformSlug, slice: { threats, controls } });
+  }
+  return { ok: true, scope: parsed.data, bars };
+};
+
+/**
+ * `context-quality` — quality attributes + fitness functions, scoped to the
+ * affected BARs. The Quality persona uses this to land NFRs (perf, SLO,
+ * reliability) anchored to declared QA targets.
+ */
+const handleContextQuality: SkillHandler = async (input) => {
+  const parsed = ContextInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const resolved = resolveBarsOrFail(parsed.data.barIds);
+  if (!resolved.ok) { return resolved; }
+  const bars: PerBarContext[] = [];
+  for (const { barId, barDir, platformSlug } of resolved.found) {
+    const qualityAttributes = readYaml(path.join(barDir, 'architecture', 'quality-attributes.yaml'));
+    const fitnessFunctions = readYaml(path.join(barDir, 'architecture', 'fitness-functions.yaml'));
+    bars.push({ barId, platformId: platformSlug, slice: { qualityAttributes, fitnessFunctions } });
+  }
+  return { ok: true, scope: parsed.data, bars };
+};
+
+// ─────────────────────────────────────────────────────────────────────
 // Search skills — thin wrappers over the existing search nodes
 // ─────────────────────────────────────────────────────────────────────
 
@@ -654,6 +765,93 @@ async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Knight's Seal v1 — per-run ephemeral Ed25519 signing (B27)
+//
+// Each run gets an ephemeral Ed25519 keypair generated on first
+// `audit-emit-event` call. The PUBLIC key is persisted beside the audit
+// JSONL so verify-chain (and future external auditors) can validate
+// signatures forever. The PRIVATE key lives in `os.tmpdir()` for the
+// duration of the run — NEVER inside the mesh repo (so a careless
+// `git add` can't commit it).
+//
+// Per-event flow:
+//   1. Build event with event_hash='' and signature=''
+//   2. event_hash = sha256(canonical(event))   ← chain integrity
+//   3. signature  = Ed25519(privKey, event_hash)   ← nonrepudiation
+//   4. Persist {...event, event_hash, signature}
+//
+// Verify flow (in audit-verify-chain):
+//   1. Recompute event_hash (set signature='' AND event_hash='')
+//   2. Match recorded event_hash (current chain check)
+//   3. Verify Ed25519(pubKey, recorded event_hash, recorded signature)
+//
+// Backward compat: a chain with NO signature fields is reported as
+// `sealed: false, sealVerified: false` but still passes if hashes are
+// intact. A chain with PARTIAL signatures is treated as tampering.
+// ─────────────────────────────────────────────────────────────────────
+
+function knightSealPubKeyPath(okrId: string, runId: string): string {
+  return path.join(meshPath(), 'okrs', okrId, 'audit', 'keys', `${runId}.pub.pem`);
+}
+
+function knightSealPrivKeyPath(okrId: string, runId: string): string {
+  // Tmpdir-scoped to avoid any chance of `git add`-ing a private key.
+  // Filename collision-resistant via okrId+runId.
+  return path.join(os.tmpdir(), '.research-runner-keys', `${okrId.replace(/[^A-Za-z0-9_-]/g, '_')}--${runId.replace(/[^A-Za-z0-9_-]/g, '_')}.priv.pem`);
+}
+
+/**
+ * Load the run's private key from tmp, or generate + persist a fresh
+ * keypair if this is the first event for the run. Returns both KeyObjects.
+ */
+function loadOrCreateRunKeypair(okrId: string, runId: string): { privKey: KeyObject; pubKey: KeyObject } {
+  const privPath = knightSealPrivKeyPath(okrId, runId);
+  const pubPath = knightSealPubKeyPath(okrId, runId);
+
+  if (fs.existsSync(privPath) && fs.existsSync(pubPath)) {
+    const privPem = fs.readFileSync(privPath, 'utf8');
+    const pubPem = fs.readFileSync(pubPath, 'utf8');
+    return {
+      privKey: createPrivateKey({ key: privPem, format: 'pem' }),
+      pubKey: createPublicKey({ key: pubPem, format: 'pem' }),
+    };
+  }
+
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' }) as string;
+  const pubPem = publicKey.export({ type: 'spki', format: 'pem' }) as string;
+
+  fs.mkdirSync(path.dirname(privPath), { recursive: true });
+  fs.writeFileSync(privPath, privPem, { encoding: 'utf8', mode: 0o600 });
+
+  fs.mkdirSync(path.dirname(pubPath), { recursive: true });
+  fs.writeFileSync(pubPath, pubPem, 'utf8');
+
+  return { privKey: privateKey, pubKey: publicKey };
+}
+
+/** Returns null if no public key has been persisted for this run yet. */
+function tryLoadRunPublicKey(okrId: string, runId: string): KeyObject | null {
+  const pubPath = knightSealPubKeyPath(okrId, runId);
+  if (!fs.existsSync(pubPath)) { return null; }
+  try {
+    return createPublicKey({ key: fs.readFileSync(pubPath, 'utf8'), format: 'pem' });
+  } catch { return null; }
+}
+
+function signEventHash(privKey: KeyObject, eventHashHex: string): string {
+  // Ed25519 signs raw bytes — we sign the UTF-8 bytes of the hex digest,
+  // which is the canonical chain anchor. Output: 64-byte signature, hex.
+  return cryptoSign(null, Buffer.from(eventHashHex, 'utf8'), privKey).toString('hex');
+}
+
+function verifyEventSignature(pubKey: KeyObject, eventHashHex: string, signatureHex: string): boolean {
+  try {
+    return cryptoVerify(null, Buffer.from(eventHashHex, 'utf8'), pubKey, Buffer.from(signatureHex, 'hex'));
+  } catch { return false; }
+}
+
 /**
  * `audit-emit-event` — append one hash-chained event to
  * `<mesh>/okrs/<id>/audit/events/<runId>.jsonl`.
@@ -696,6 +894,8 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
           nextEventId = last.event_id + 1;
         }
       }
+      const { privKey, pubKey } = loadOrCreateRunKeypair(okrId, runId);
+      const publicKeyPem = pubKey.export({ type: 'spki', format: 'pem' }) as string;
       const draft = {
         event_id: nextEventId,
         ts: new Date().toISOString(),
@@ -706,12 +906,19 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
         event_kind: eventKind,
         payload,
         prev_event_hash: prevHash,
+        // Embed public key on event 1 so a single-line audit excerpt
+        // still names its signer. Subsequent events reference the same
+        // committed key on disk; embedding on every line would balloon
+        // the JSONL with no integrity gain.
+        public_key: nextEventId === 1 ? publicKeyPem : null,
         event_hash: '',
+        signature: '',
       };
       const hash = sha256(canonicalStringify(draft));
-      const finalEvent = { ...draft, event_hash: hash };
+      const signature = signEventHash(privKey, hash);
+      const finalEvent = { ...draft, event_hash: hash, signature };
       fs.appendFileSync(filePath, JSON.stringify(finalEvent) + '\n', 'utf8');
-      return { ok: true, chainHead: hash, eventId: nextEventId };
+      return { ok: true, chainHead: hash, eventId: nextEventId, sealed: true };
     } finally {
       if (lockFd !== null) { fs.closeSync(lockFd); }
       try { fs.unlinkSync(lockPath); } catch { /* lock already gone */ }
@@ -758,6 +965,11 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
   } catch (err) {
     return { ok: false, reason: `read-failed: ${(err as Error).message}` };
   }
+  const pubKey = tryLoadRunPublicKey(okrId, runId);
+  // Track signature state across the whole chain. v1 contract: either
+  // EVERY event is signed (sealed=true) or NO event is signed (legacy
+  // pre-B27 chain, sealed=false). Partial signatures = tampering.
+  let signedCount = 0;
   let prev: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     let event: Record<string, unknown>;
@@ -776,14 +988,38 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (typeof recordedHash !== 'string') {
       return { ok: false, reason: `missing-event-hash-line-${i + 1}` };
     }
-    const draft = { ...event, event_hash: '' };
+    const recordedSignature = typeof event.signature === 'string' ? event.signature : null;
+    // Recompute hash with BOTH event_hash and signature zeroed, since
+    // both are filled in after the hash is computed at write time.
+    const draft = { ...event, event_hash: '', signature: recordedSignature !== null ? '' : undefined };
+    if (recordedSignature === null) { delete (draft as Record<string, unknown>).signature; }
     const recomputed = sha256(canonicalStringify(draft));
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
+    if (recordedSignature !== null) { signedCount++; }
     prev = recordedHash;
   }
-  return { ok: true, chainHead: prev, eventCount: lines.length };
+
+  // Knight's Seal verification: enforce all-or-nothing.
+  const sealed = signedCount > 0;
+  let sealVerified = false;
+  if (sealed) {
+    if (signedCount !== lines.length) {
+      return { ok: false, reason: `partial-signatures: ${signedCount}/${lines.length} events signed (chain tampered)` };
+    }
+    if (!pubKey) {
+      return { ok: false, reason: `public-key-missing: events are signed but no <runId>.pub.pem found in audit/keys/` };
+    }
+    for (let i = 0; i < lines.length; i++) {
+      const event = JSON.parse(lines[i]) as { event_hash: string; signature: string };
+      if (!verifyEventSignature(pubKey, event.event_hash, event.signature)) {
+        return { ok: false, reason: `signature-mismatch-line-${i + 1}: Ed25519 verify failed` };
+      }
+    }
+    sealVerified = true;
+  }
+  return { ok: true, chainHead: prev, eventCount: lines.length, sealed, sealVerified };
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -797,6 +1033,9 @@ export const SKILLS: Record<string, SkillHandler> = {
   'knowledge-mesh-threats': handleKnowledgeMeshThreats,
   'knowledge-mesh-adrs': handleKnowledgeMeshAdrs,
   'knowledge-research': handleKnowledgeResearch,
+  'context-architecture': handleContextArchitecture,
+  'context-security': handleContextSecurity,
+  'context-quality': handleContextQuality,
   'tavily-search': handleTavilySearch,
   'arxiv-search': handleArxivSearch,
   'uspto-search': handleUsptoSearch,

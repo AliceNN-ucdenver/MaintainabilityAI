@@ -269,6 +269,129 @@ test('knowledge-research parses R-N findings + Whitespace + References', async (
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+// ─── context-* (HOW-phase BAR-scoped slices) ────────────────────────
+
+test('SKILLS registry exposes the three context-* skills used by prd-agent', () => {
+  for (const name of ['context-architecture', 'context-security', 'context-quality']) {
+    assert.ok(isSkillName(name), `${name} should be in SKILLS`);
+    assert.equal(typeof SKILLS[name], 'function');
+  }
+});
+
+test('context-architecture returns CALM model + ADRs + fitness functions per BAR', async () => {
+  const mesh = tmpMesh();
+  try {
+    const barDir = path.join(mesh, 'platforms', 'imdb', 'bars', 'celeb-api');
+    writeYaml(path.join(barDir, 'app.yaml'),
+      'application:\n  id: APP-CELEB-001\n  name: Celebrity API\n');
+    fs.mkdirSync(path.join(barDir, 'architecture'), { recursive: true });
+    fs.writeFileSync(path.join(barDir, 'architecture', 'bar.arch.json'),
+      JSON.stringify({ nodes: [{ id: 'frontend' }, { id: 'api' }] }), 'utf8');
+    writeYaml(path.join(barDir, 'architecture', 'fitness-functions.yaml'),
+      'fitness:\n  - id: FF-PERF-001\n    metric: p95_latency_ms\n    target: 200\n');
+    fs.mkdirSync(path.join(barDir, 'architecture', 'ADRs'), { recursive: true });
+    fs.writeFileSync(path.join(barDir, 'architecture', 'ADRs', 'ADR-0001-postgres.md'),
+      '# Use Postgres\n\n## Status\nAccepted\n', 'utf8');
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('context-architecture', { platformId: 'PLT-IMDB', barIds: ['APP-CELEB-001'] });
+      assert.equal(r.ok, true);
+      if (r.ok) {
+        const bars = r.bars as Array<{ barId: string; platformId: string; slice: { calmModel: { nodes: unknown[] }; fitnessFunctions: unknown; adrs: Array<{ id: string; title: string }> } }>;
+        assert.equal(bars.length, 1);
+        assert.equal(bars[0].barId, 'APP-CELEB-001');
+        assert.equal(bars[0].platformId, 'imdb');
+        assert.equal(bars[0].slice.calmModel.nodes.length, 2);
+        assert.ok(bars[0].slice.fitnessFunctions);
+        assert.equal(bars[0].slice.adrs.length, 1);
+        assert.equal(bars[0].slice.adrs[0].id, 'ADR-0001-postgres');
+        assert.equal(bars[0].slice.adrs[0].title, 'Use Postgres');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('context-security returns threats + controls per BAR', async () => {
+  const mesh = tmpMesh();
+  try {
+    const barDir = path.join(mesh, 'platforms', 'imdb', 'bars', 'celeb-api');
+    writeYaml(path.join(barDir, 'app.yaml'),
+      'application:\n  id: APP-CELEB-001\n  name: Celebrity API\n');
+    writeYaml(path.join(barDir, 'architecture', 'threat-model.yaml'),
+      'threats:\n  - id: THR-001\n    category: Spoofing\n    description: Identity disambiguation\n');
+    writeYaml(path.join(barDir, 'security', 'security-controls.yaml'),
+      'controls:\n  - id: CTRL-001\n    family: AC\n    description: Deny-by-default authorization\n');
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('context-security', { platformId: 'PLT-IMDB', barIds: ['APP-CELEB-001'] });
+      assert.equal(r.ok, true);
+      if (r.ok) {
+        const bars = r.bars as Array<{ barId: string; slice: { threats: { threats: Array<{ id: string }> }; controls: { controls: Array<{ id: string }> } } }>;
+        assert.equal(bars.length, 1);
+        assert.equal(bars[0].slice.threats.threats[0].id, 'THR-001');
+        assert.equal(bars[0].slice.controls.controls[0].id, 'CTRL-001');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('context-quality returns quality attributes + fitness functions per BAR', async () => {
+  const mesh = tmpMesh();
+  try {
+    const barDir = path.join(mesh, 'platforms', 'imdb', 'bars', 'celeb-api');
+    writeYaml(path.join(barDir, 'app.yaml'),
+      'application:\n  id: APP-CELEB-001\n  name: Celebrity API\n');
+    writeYaml(path.join(barDir, 'architecture', 'quality-attributes.yaml'),
+      'quality:\n  - attribute: availability\n    target: 99.9\n');
+    writeYaml(path.join(barDir, 'architecture', 'fitness-functions.yaml'),
+      'fitness:\n  - id: FF-AVAIL-001\n    metric: uptime_pct\n    target: 99.9\n');
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('context-quality', { platformId: 'PLT-IMDB', barIds: ['APP-CELEB-001'] });
+      assert.equal(r.ok, true);
+      if (r.ok) {
+        const bars = r.bars as Array<{ barId: string; slice: { qualityAttributes: { quality: Array<{ attribute: string }> }; fitnessFunctions: { fitness: Array<{ id: string }> } } }>;
+        assert.equal(bars.length, 1);
+        assert.equal(bars[0].slice.qualityAttributes.quality[0].attribute, 'availability');
+        assert.equal(bars[0].slice.fitnessFunctions.fitness[0].id, 'FF-AVAIL-001');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('context-* skills fail fast when any BAR is unresolvable (PRDs MUST be grounded)', async () => {
+  const mesh = tmpMesh();
+  try {
+    const barDir = path.join(mesh, 'platforms', 'imdb', 'bars', 'celeb-api');
+    writeYaml(path.join(barDir, 'app.yaml'),
+      'application:\n  id: APP-CELEB-001\n  name: Celebrity API\n');
+    await withMeshPath(mesh, async () => {
+      for (const skill of ['context-architecture', 'context-security', 'context-quality']) {
+        const r = await runSkill(skill, { platformId: 'PLT-IMDB', barIds: ['APP-CELEB-001', 'APP-MISSING'] });
+        assert.equal(r.ok, false, `${skill} should fail when any BAR is unresolvable`);
+        if (r.ok === false) { assert.match(r.reason, /bar-not-found: APP-MISSING/); }
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('context-* skills reject malformed input (bad-input)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const cases = [
+        { platformId: '', barIds: ['APP-1'] },
+        { platformId: 'PLT-X', barIds: [] },
+        { platformId: 'PLT-X' },
+      ];
+      for (const skill of ['context-architecture', 'context-security', 'context-quality']) {
+        for (const input of cases) {
+          const r = await runSkill(skill, input);
+          assert.equal(r.ok, false, `${skill} should reject ${JSON.stringify(input)}`);
+          if (r.ok === false) { assert.match(r.reason, /bad-input/); }
+        }
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 // ─── search skills (input validation only — provider clients have their own tests) ──
 
 test('tavily-search requires TAVILY_API_KEY', async () => {
@@ -537,6 +660,163 @@ test('audit-verify-chain reports missing JSONL', async () => {
       const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-M', runId: 'WHY-M-1' });
       assert.equal(verify.ok, false);
       if (verify.ok === false) { assert.match(verify.reason, /audit-jsonl-missing/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+// ─── Knight's Seal v1 (B27) — Ed25519 signing on every audit event ──
+
+test("Knight's Seal: audit-emit-event signs events + persists public key beside JSONL", async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-SEAL', runId: 'WHY-SEAL-1', phase: 'why' as const, intentThreadUuid: '66666666-6666-6666-6666-666666666666' };
+      const first = await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
+      assert.equal(first.ok, true);
+      if (first.ok) { assert.equal(first.sealed, true); }
+
+      // Public key landed in the mesh next to the chain.
+      const pubPath = path.join(mesh, 'okrs', 'OKR-SEAL', 'audit', 'keys', 'WHY-SEAL-1.pub.pem');
+      assert.ok(fs.existsSync(pubPath), 'public key should be persisted under audit/keys/');
+      const pubPem = fs.readFileSync(pubPath, 'utf8');
+      assert.match(pubPem, /BEGIN PUBLIC KEY/);
+
+      // Private key never lands in the mesh tree.
+      const meshFiles: string[] = [];
+      const walk = (d: string): void => {
+        for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+          const p = path.join(d, e.name);
+          if (e.isDirectory()) { walk(p); } else { meshFiles.push(p); }
+        }
+      };
+      walk(mesh);
+      for (const f of meshFiles) {
+        assert.doesNotMatch(f, /\.priv\.pem$/, `private key leaked into mesh: ${f}`);
+      }
+
+      // First event JSONL line carries public_key + signature.
+      const jsonl = path.join(mesh, 'okrs', 'OKR-SEAL', 'audit', 'events', 'WHY-SEAL-1.jsonl');
+      const ev1 = JSON.parse(fs.readFileSync(jsonl, 'utf8').trim()) as { public_key: string | null; signature: string };
+      assert.ok(typeof ev1.public_key === 'string' && ev1.public_key.includes('BEGIN PUBLIC KEY'));
+      assert.match(ev1.signature, /^[0-9a-f]{128}$/);
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test("Knight's Seal: audit-verify-chain reports sealed:true sealVerified:true on a clean run", async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-SEAL2', runId: 'WHY-SEAL-2', phase: 'why' as const, intentThreadUuid: '77777777-7777-7777-7777-777777777777' };
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } });
+      await runSkill('audit-emit-event', { ...base, eventKind: 'artifact_written', payload: { path: 'okrs/OKR-SEAL2/why/research-doc.md' } });
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-SEAL2', runId: 'WHY-SEAL-2' });
+      assert.equal(verify.ok, true);
+      if (verify.ok) {
+        assert.equal(verify.sealed, true);
+        assert.equal(verify.sealVerified, true);
+        assert.equal(verify.eventCount, 3);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test("Knight's Seal: audit-verify-chain catches a tampered signature (Ed25519 mismatch)", async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-TAMPER', runId: 'WHY-TAMPER-1', phase: 'why' as const, intentThreadUuid: '88888888-8888-8888-8888-888888888888' };
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } });
+
+      // Flip one byte of the signature on event 2 (still a valid hex
+      // string, still 128 chars, but won't verify against the hash).
+      const jsonl = path.join(mesh, 'okrs', 'OKR-TAMPER', 'audit', 'events', 'WHY-TAMPER-1.jsonl');
+      const lines = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim().length > 0);
+      const ev2 = JSON.parse(lines[1]) as { signature: string };
+      const flipped = (parseInt(ev2.signature[0], 16) ^ 1).toString(16) + ev2.signature.slice(1);
+      lines[1] = JSON.stringify({ ...ev2, signature: flipped });
+      fs.writeFileSync(jsonl, lines.join('\n') + '\n', 'utf8');
+
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-TAMPER', runId: 'WHY-TAMPER-1' });
+      assert.equal(verify.ok, false);
+      if (verify.ok === false) { assert.match(verify.reason, /signature-mismatch-line-2|forged-hash-line-2/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test("Knight's Seal: audit-verify-chain catches partial-signature tampering", async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-PARTIAL', runId: 'WHY-PART-1', phase: 'why' as const, intentThreadUuid: '99999999-9999-9999-9999-999999999999' };
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } });
+
+      // Attacker strips signature off event 2 hoping the verifier
+      // treats partial chains as "legacy unsigned." It must NOT.
+      const jsonl = path.join(mesh, 'okrs', 'OKR-PARTIAL', 'audit', 'events', 'WHY-PART-1.jsonl');
+      const lines = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim().length > 0);
+      const ev2 = JSON.parse(lines[1]) as Record<string, unknown>;
+      delete ev2.signature;
+      lines[1] = JSON.stringify(ev2);
+      fs.writeFileSync(jsonl, lines.join('\n') + '\n', 'utf8');
+
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-PARTIAL', runId: 'WHY-PART-1' });
+      assert.equal(verify.ok, false);
+      // Stripping the signature also changes the hash, so we expect
+      // either forged-hash or partial-signatures. Both block the merge.
+      if (verify.ok === false) { assert.match(verify.reason, /partial-signatures|forged-hash-line-2/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test("Knight's Seal: audit-verify-chain accepts a legacy unsigned chain (sealed:false)", async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      // Hand-craft a pre-B27 chain — no signature, no public_key field.
+      // event_hash is computed correctly so the chain check passes.
+      const dir = path.join(mesh, 'okrs', 'OKR-LEGACY', 'audit', 'events');
+      fs.mkdirSync(dir, { recursive: true });
+
+      function canonical(obj: unknown): string {
+        if (obj === null || typeof obj !== 'object') { return JSON.stringify(obj); }
+        if (Array.isArray(obj)) { return '[' + obj.map(canonical).join(',') + ']'; }
+        const o = obj as Record<string, unknown>;
+        const keys = Object.keys(o).sort();
+        return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}';
+      }
+      function hash(s: string): string {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        return require('node:crypto').createHash('sha256').update(s, 'utf8').digest('hex');
+      }
+
+      const draft1 = {
+        event_id: 1, ts: '2026-01-01T00:00:00.000Z',
+        okr_id: 'OKR-LEGACY', run_id: 'WHY-LEG-1',
+        intent_thread_uuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        phase: 'why', event_kind: 'skill_call',
+        payload: { skill: 'knowledge-okr', ok: true },
+        prev_event_hash: null, event_hash: '',
+      };
+      const h1 = hash(canonical(draft1));
+      const e1 = { ...draft1, event_hash: h1 };
+
+      const draft2 = { ...draft1, event_id: 2, ts: '2026-01-01T00:00:01.000Z', payload: { skill: 'tavily-search', ok: true }, prev_event_hash: h1 };
+      const h2 = hash(canonical(draft2));
+      const e2 = { ...draft2, event_hash: h2 };
+
+      fs.writeFileSync(path.join(dir, 'WHY-LEG-1.jsonl'), [JSON.stringify(e1), JSON.stringify(e2)].join('\n') + '\n', 'utf8');
+
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-LEGACY', runId: 'WHY-LEG-1' });
+      assert.equal(verify.ok, true);
+      if (verify.ok) {
+        assert.equal(verify.sealed, false);
+        assert.equal(verify.sealVerified, false);
+        assert.equal(verify.eventCount, 2);
+      }
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
