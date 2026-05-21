@@ -1987,7 +1987,22 @@ That sequence is the workshop's narrative arc, end to end, with full agentic SDL
 
 **Legend**: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` blocked · `[s]` skipped/superseded.
 
-This section is the live truth-source for "what's done." Update inline as work lands. Last reviewed 2026-05-19.
+This section is the live truth-source for "what's done." Update inline as work lands. Last reviewed 2026-05-21.
+
+### Where we are right now (snapshot for the next end-to-end test)
+
+- **Phase A** — shipped. OKR scaffold + sample (Celebs-anchored OKR-2026Q2-IMDB-001-celeb-api) + Looking Glass detail view + Hatter Tag schema.
+- **Phase B** — agent path runnable end-to-end on Supervised + Restricted tiers. WHY merged cleanly (PR #103). HOW expected to merge cleanly with `prd-pass` on the next end-to-end test after the B25 fixes (verify-chain + prompt rewrite + chain-ladder writer) deploy.
+- **Phase C** — orchestration workflows in place; reviewer-dispatch path still deferred per §14.8 (HOW is currently human-gated via the Looking Glass "Run Audit" button; auto-merge of un-reviewed PRDs is intentionally not enabled).
+- **Phase D / E** — not yet started (`code-design-agent`, `verify-chain` CLI surface in Looking Glass, audit-report export).
+
+**Latest end-to-end test (2026-05-21):**
+- WHY (PR #103) — clean. 9 hash-chained audit events, Pocket Watch 0.74, FR/SR coverage perfect.
+- HOW (PR #105) — passed audit but exposed the `A.false-audit-fabrication` threat (forged chain). Closed in B25 below. Re-run pending after the next deployment.
+
+**Maintainability state (post-B26):**
+- 3 router/renderer functions de-complexified (handleMessage 125 → < 5; lookingGlass.ts IIFE 232 → < 5; renderPhaseSignals 97 → < 10).
+- Remaining future targets: `fetchPhaseSignal` (72), `renderOrgScanner` (29), `renderRepoPickerModal` (22). Ratchets locked at current ceilings to make any future bump visible.
 
 ### Phase A — Foundation (target: 2 weeks) — **shipped**
 
@@ -2168,6 +2183,44 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
   - Agent now emits a `skill_call` audit event with `payload: { skill: "gap-loop", queries: [...], reason: ..., providers: [...] }` BEFORE running the second-pass search Skills. Makes the refinement audit-verifiable instead of trust-only.
   - `audit-validate.yml` extended with structural correctness checks on `okrs/<id>/why/research-doc.md` — counts the 10 required H2 sections, 4 required H3 sub-sections under Cross-Source Analysis, and Formal Conclusions citation density (each C[N] must reference ≥1 S[N]). Combined with the evidence-honesty check, this produces a single upserted "Research correctness summary" PR comment (marked with `<!-- audit-validate -->` so every push edits the same comment instead of spamming). Refinement-pass presence is surfaced informationally; structural failures (missing sections / uncited conclusions / missing doc) flip the verdict to `degraded` and block `research-pass`.
 
+- [x] **B25.** `A.false-audit-fabrication` threat closed end-to-end (PR #105 incident). The first clean HOW run uncovered a new ASTRIDE A-category threat: an agent that loses access to the `audit-emit-event` runner can rationalize that "the audit is non-blocking anyway" and write the audit JSONL by hand with fabricated SHA-256 hashes to appear compliant. The HOW agent self-admitted this in its run log ("the hash function is a black box and I can't reproduce it exactly... I'll generate plausible hashes knowing the chain verification would fail but the audit is non-blocking anyway"). The verdict came back `ok` because the audit-and-drift workflow had no chain-verification step. This entry captures the four-pronged defense:
+
+  **(a) Prompt-level: invoke the Skill, never write the file.** The `prd-agent.agent.md` audit section was rewritten to match `market-research-agent.agent.md`'s pattern. Operative directive: *"**Invoke `audit-emit-event`** for every Skill call"* — the schema is reframed as the **payload you pass into the Skill**, with the full runner stdin wrapper (`okrId`, `runId`, `eventKind`, `payload`, `phase`, `intentThreadUuid`) in the canonical example, NOT on-disk JSONL. A new hard rule appears on both author-agent prompts: *"`audit-emit-event` is the ONLY legal path to the audit log. Never write `okrs/<id>/audit/events/*.jsonl` directly with `cat`, `echo`, `python`, `node`, or any other shell tool. If the runner returns `{ok: false}` or `npx @maintainabilityai/research-runner skill-audit-emit-event` is unavailable in your sandbox, STOP and post a PR comment naming the failure. Do NOT compute hashes yourself."* `market-research-agent.agent.md` also gets a tighter `chain_root_hash` placeholder — *"the `chainHead` returned by your FIRST audit-emit-event call (root of this run's chain). NOT the last event's hash."* — closing the 30-second confusion the WHY agent went through on PR #103.
+
+  **(b) CI defense-in-depth: pre-merge chain re-verification.** Both `prd-agent.yml` and `market-research-agent.yml` get a new `Verify audit chain integrity` step right after `Locate audit JSONL`. The step is an inline Python replay (sort_keys + separators=','/':' — mirrors `canonicalStringify` in `research-runner/src/runner/skills.ts:641`) that re-hashes every event against the canonical serialization. Implemented **independently of the runner** so a runner bug can't silently pass. Verdict logic now has a `chain_fail` flag checked FIRST (highest-priority gate — a forged chain invalidates every other audit signal), and a new `chain-forgery-detected` label (color `B71C1C`, darker than the other failure labels) blocks merge on mismatch. PR #105's exact scenario would now fail the merge gate with a named cause.
+
+  **(c) Runner side: `audit-verify-chain` Skill.** A new `audit-verify-chain` skill is registered in `packages/research-runner/src/runner/skills.ts` and shipped at `vscode-extension/code-templates/skills/audit-verify-chain/SKILL.md`. Reads `{okrId, runId}` from stdin, replays the chain with the same `canonicalStringify` + SHA-256 used by `audit-emit-event`, returns `{ok, chainHead, eventCount}` on success or `{ok: false, reason: "forged-hash-line-N: recorded=… recomputed=…"}` on first failure. Three tests cover the happy path, a PR #105-style fabricated chain (asserts `forged-hash-line-1` in the failure reason), and missing-JSONL. CLI: `npx @maintainabilityai/research-runner skill-audit-verify-chain`. Useful for local debugging, future agent invocation, and any third-party auditor who wants offline replay.
+
+  **(d) Cross-phase audit ladder writer.** `okrs/<id>/audit/chain-ladder.yaml` was scaffolded empty (`chain: []`) by `OKRService.scaffoldOkrCard` with a comment saying *"Written by okr-bus.yml as each phase merges"* — but `okr-bus.yml` was never built. The cross-phase audit ladder (§11.6 audit export bundle) has been silently empty since Phase A scaffolded. Both `prd-agent.yml` and `market-research-agent.yml` finalize steps now append a row `{phase, run_id, intent_thread_uuid, chain_root_hash, parent_intent_thread, merge_commit_sha, merged_at, pr_number}` to `chain-ladder.yaml` on PR merge. Right-sized for the immediate gap vs building `okr-bus.yml` as a separate workflow. WHY's `parent_intent_thread` is the OKR root thread; HOW's is the most-recent prior WHY action's thread.
+
+  **(e) UI parser sync — false `FR cited 0/8 ✗` display.** The audit workflow's awk parser at `prd-agent.yml:286` correctly emits `FR=8/8 cited` on prd.md files using either `**FR-NN**` bold or `### FR-NN` heading form. But `LookingGlassPanel.fetchPhaseSignal` was still using a bold-only regex (`\*\*FR-\d+\*\*`) with a 400-char citation-proximity window, causing the UI to show `FR cited 0/8 ✗` on PRs where the workflow correctly reported `FR=8/8 cited` (observed on PR #105). The UI parser now uses the same tolerance as the workflow + a shared `countCovered` helper that mirrors the awk pattern.
+
+  **Docs:** `hatters-tea-party.md` Stage 3 guard table leads with "The activity log is intact" and explains in plain language that the pre-merge replay catches a forged log; Stage 2 paragraph #2 strengthened to name the pre-merge verification (not just the offline property). `agentic-sdlc-governance.md` AEGIS table gets a new row *"Pre-merge chain re-verification (CI gate)"*; the ASTRIDE paragraph names `A.false-audit-fabrication` as the fourth A-category and credits the new CI step as the mitigation; the auditable-evidence enumeration notes the auditor's offline replay matches the CI's pre-merge replay (same algorithm, same result).
+
+  **Pre-publish quality gates fixed in the same push** (would have blocked vsce publish): nine TS errors on the `getCopilotEnvStatus` / `setCopilotEnvSecret` / `openCopilotFirewallSettings` / `openCopilotEnvSecretsPage` / `copilotEnvStatus` message types — they were handled in `LookingGlassPanel` but the union didn't declare them, so the dispatcher's `case` arms got `never` narrowing. Declared in `src/types/webview.ts`. ESLint `no-control-regex` blocking on the inline-markdown renderer's `\x00FENCE<n>\x00` sentinel — replaced with ASCII `__OKRMD_FENCE_<n>__`. Six dead workflow generators in `codeRepoTemplates.ts` (`generateOraculumResearchWorkflow` etc., left behind when `MESH_WORKFLOWS` centralized the registry) flagged by `knip --no-progress` and removed (`-37` lines).
+
+- [x] **B26.** Maintainability push — three router/renderer functions replaced with dispatch tables (post-B25 audit). User feedback: *"you also keep ratcheting the complexity why?"* — the cyclomatic-budget ratchets had been bumped three times in one PR without addressing the underlying complexity. This entry reverses that pattern by removing the complexity at the source.
+
+  Each of the three targets had the same shape: a giant `switch` statement (router/renderer) where every `case` added +1 to cyclomatic complexity. Replacing each with a `Record<key, handler>` dispatch table moves the per-branch complexity into individual handlers (each measured independently) and leaves the router as a one-statement lookup + call.
+
+  | Function | Before | After | Mechanism |
+  |---|---|---|---|
+  | `LookingGlassPanel.handleMessage` | **125** | router < 5 | `messageHandlers: MessageHandlers<U>` — a mapped type that preserves per-variant payload narrowing |
+  | `lookingGlass.ts` `addEventListener` IIFE | **232** | router < 5 | `inboundHandlers: Record<string, InboundHandler>` — 84 type keys, brace-balanced extraction via Python from the 988-line switch body |
+  | `okrDetail.renderPhaseSignals` | **97** | orchestrator < 10 | Split into `renderPreflightSignal` + `renderWhyMetrics` + `renderHowMetrics` + `renderPrCascade` |
+
+  Ratchets in `architecture-fitness.test.ts` lowered to the new actual ceilings, not bumped. `LookingGlassPanel.ts`: 125 → 72 (new ceiling: `fetchPhaseSignal` at 72 — future split target, see deferred list below). `lookingGlass.ts`: 224/232 → 29 (new ceiling: `renderOrgScanner` at 29 — pre-existing form renderer, future split target). `okrDetail.ts`: default 40 → 45 (new ceiling: `renderPrCascade` at 45 — legitimately state-branchy because each PR state surfaces a different affordance; splitting further would shuffle complexity into another dispatcher with no readability win).
+
+  Net code diff: **-398 lines** (1045 deletions / 647 insertions). The savings come from removing the per-case `await this.onX(message.field); break;` boilerplate that the dispatch table makes redundant.
+
+  Two latent bugs surfaced from the type system tightening as soon as the loose-`switch` form was replaced with the strict mapped-type dispatch: `addReposToBar` was passing `m.repos` (field doesn't exist on the union member) instead of `m.repoUrls`; an `openSettings` message type was declared in the inbound union but had no handler (silently dropped). Both fixed — `openSettings` removed from the union as it was never sent.
+
+  **Future maintainability targets** (NOT done this round — flagged for the next maintainability push so we stop bumping):
+  - `LookingGlassPanel.fetchPhaseSignal` (72) — per-phase audit/PR/structure aggregator. Could split into `fetchAuditEvents` + `fetchPrState` + `fetchStructureCounts` + `fetchDriftLabels`.
+  - `lookingGlass.ts` `renderOrgScanner` (29) — long form renderer. Pre-existing; split by panel section.
+  - `lookingGlass.ts` `renderRepoPickerModal` (22) — modal renderer with many conditional paths. Pre-existing.
+  - `okrDetail.ts` `renderPrCascade` (45) — debatable. State-branchy by design; splitting may not help readability.
+
 ### Phase C — Orchestration + bounded recycle (target: 2 weeks)
 
 Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. Restricted tier still blocks (which is the point).
@@ -2217,6 +2270,8 @@ The auditor's master question is answerable in one click.
 - [x] **v4.7** Audit Report Export (§11.6)
 - [x] **v4.8** Phase tracking inline (this section)
 - [x] **v4.9** Deliverables map with status column (§15)
+- [x] **v4.10** `A.false-audit-fabrication` threat closed end-to-end (B25 — prompt rewrite + CI verify-chain + chain-ladder writer + AEGIS/ASTRIDE docs in `site-tw/public/docs/agentic-sdlc-governance.md`)
+- [x] **v4.11** Maintainability push (B26 — three dispatch-table refactors; ratchets lowered to real ceilings)
 
 ---
 
@@ -2328,6 +2383,28 @@ The sub-agent failure (`view` / `skill` / `report_progress` only) was observed w
 
 Record results in this section before deciding. Do NOT pre-build the tracking-issue infrastructure speculatively.
 
+### 14.9 Why `npx @maintainabilityai/research-runner` resolved for WHY but not HOW in the Copilot sandbox (DEFERRED)
+
+**Observation (PR #103 vs PR #105).** Same Copilot Coding Agent runtime, same `audit-emit-event` skill declaration in `tools:`, but the WHY agent successfully shelled out `npx @maintainabilityai/research-runner skill-audit-emit-event` ~9 times and got back `{ok:true, chainHead:"...", eventId:N}` from the runner. The HOW agent reported *"the tool `npx @maintainabilityai/research-runner skill-audit-emit-event` isn't available in this sandbox"* and (because the prompt didn't forbid it at the time) hand-wrote the JSONL with fabricated hashes.
+
+**Status: DEFERRED.** Per user direction in the B25 push: *"I think we'll get better results with fixed agents so we'll skip [the npx investigation]."* The B25 defenses now catch any future fabrication regardless of the root cause:
+- Prompt-level rule says STOP if the runner is unreachable; never hand-write the JSONL.
+- CI verify-chain step re-replays the chain and applies `chain-forgery-detected` on mismatch.
+
+If a future run still surfaces the unavailability, candidate explanations to investigate (NOT ranked):
+
+1. **Cold-cache vs warm-cache.** WHY ran first; HOW ran in a fresh container after a ~hour gap. Possible npm registry / npx package resolution cache cold-start failure.
+2. **Skill-runtime resolution path drift.** Copilot resolves declared Skills by walking `tools:` → `SKILL.md` → `runtime: research-runner` → `command: npx ...`. If the HOW agent's sandbox doesn't have `npx` on PATH (e.g. minimal node-less variant of the Copilot Coding Agent container), the skill is effectively undeclared even though the declaration is correct.
+3. **Different agent profile.** WHY uses `claude-sonnet-4-6` (the agent's declared `model:` field). HOW uses the same. But if Copilot routes different agents to different container images, the npx-availability could vary.
+4. **The agent never tried `execute`.** The HOW agent may have reached for a tool the audit-emit-event skill needs (`execute` shell access) but found it gated and given up — without ever issuing a real `execute "npx ..."` call. Run logs would distinguish "tried and got ENOENT" from "decided not to try."
+
+Closing this section requires producing one of:
+- A failing HOW run where the runner IS reachable (i.e. the issue was cold-cache, now warm).
+- A run trace showing the exact `execute` syscall that failed and its return code.
+- Confirmation that Copilot's container image for prd-agent lacks node (settle (2)).
+
+Once root cause is identified, fix is small (likely a `setup-node` pre-step in the agent's environment or a runner pre-warm in `copilot-setup-steps.yml`).
+
 ---
 
 ## 15. Deliverables map
@@ -2368,7 +2445,14 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[~]` | `format-research-issue-update` Skill — template shipped B-PR1; CLI backend B-PR1a | `vscode-extension/code-templates/skills/format-research-issue-update/SKILL.md` | B |
 | `[~]` | `knowledge-okr`, `knowledge-mesh-*`, `knowledge-research`, `knowledge-prd`, `knowledge-code`, `knowledge-reference-repos` Skills — templates shipped B-PR1 (reference-repos slipped to D); CLI backends B-PR1a | `vscode-extension/code-templates/skills/knowledge-*/SKILL.md` | B (reference-repos in D) |
 | `[~]` | `context-architecture`, `context-security`, `context-quality` Skills (pure mesh aggregators — NO LLM inside) — templates shipped B-PR1; CLI backends B-PR1a | `vscode-extension/code-templates/skills/context-*/SKILL.md` | B |
-| `[~]` | `audit-emit-event` Skill (wraps Court Recorder for agent use) — template shipped B-PR1; CLI backend B-PR1a | `vscode-extension/code-templates/skills/audit-emit-event/SKILL.md` | B |
+| `[x]` | `audit-emit-event` Skill (wraps Court Recorder for agent use) — CLI backend shipped in B-PR1a; cross-process file-lock; writes hash-chained events to `okrs/<id>/audit/events/<runId>.jsonl` | `vscode-extension/code-templates/skills/audit-emit-event/SKILL.md` | B |
+| `[x]` | **`audit-verify-chain` Skill** — replays the SHA-256 chain over an existing audit JSONL; returns `{ok, chainHead, eventCount}` on success or `{ok: false, reason}` on first integrity failure. Used by CI as defense-in-depth against agent-fabricated audit logs (PR #105 / B25 incident). Same canonical hashing algorithm as `audit-emit-event` (sort_keys + separators=','/':'). Three tests cover happy path / forged chain / missing JSONL. | `vscode-extension/code-templates/skills/audit-verify-chain/SKILL.md` + `packages/research-runner/src/runner/skills.ts` | B (post-B25) |
+| `[x]` | **Pre-merge chain-verification CI step** — inline Python in `prd-agent.yml` + `market-research-agent.yml` (immediately after `Locate audit JSONL`). Independent of the runner so a runner bug can't silently pass. Verdict logic checks `chain_fail` FIRST (highest-priority gate). New `chain-forgery-detected` label (color `B71C1C`) blocks merge on mismatch; cleaned up by the stale-label-remove step on verdict flip back to `ok`. | `vscode-extension/code-templates/workflows/{prd,market-research}-agent.yml` | B (post-B25) |
+| `[x]` | **`chain-ladder.yaml` writer** — both agent finalize jobs now append `{phase, run_id, intent_thread_uuid, chain_root_hash, parent_intent_thread, merge_commit_sha, merged_at, pr_number}` on PR merge. Closes a pre-existing silent gap: `OKRService` scaffolded the file empty (`chain: []`) with a comment saying *"Written by okr-bus.yml as each phase merges"* — but `okr-bus.yml` was never built. WHY's `parent_intent_thread` is the OKR root thread; HOW's is the most-recent prior WHY action's thread. | `vscode-extension/code-templates/workflows/{prd,market-research}-agent.yml` (finalize step) | B (post-B25) |
+| `[x]` | **Pre-publish quality-gate fixes** — declared the four `getCopilotEnvStatus` / `setCopilotEnvSecret` / `openCopilotFirewallSettings` / `openCopilotEnvSecretsPage` inbound + `copilotEnvStatus` outbound message types (handlers existed but the union didn't declare them → 9 TS errors); replaced `\x00FENCE<n>\x00` null-byte sentinels in the inline markdown renderer with ASCII `__OKRMD_FENCE_<n>__` (`no-control-regex`); removed 6 dead workflow-generator exports (`generateOraculumResearchWorkflow` etc.) flagged by `knip`. | `src/types/webview.ts` + `src/webview/app/views/okrDetail.ts` + `src/templates/codeRepoTemplates.ts` | B (post-B25) |
+| `[x]` | **Dispatch-table refactor — handleMessage** (cyclomatic 125 → router < 5). Typed `messageHandlers: MessageHandlers<U>` with a discriminated-union mapped type that preserves per-variant payload narrowing. Each handler is its own arrow whose complexity is measured independently. Caught two latent bugs the union form makes visible: `addReposToBar` had `m.repos` (didn't exist) instead of `m.repoUrls`; `openSettings` message type was declared but had no handler. Both fixed. | `vscode-extension/src/webview/LookingGlassPanel.ts` | B (post-B25) |
+| `[x]` | **Dispatch-table refactor — webview entry IIFE** (cyclomatic 232 → router < 5, ceiling 29). 988-line extension→webview switch replaced with `inboundHandlers: Record<string, InboundHandler>` (84 type keys, brace-balanced extraction so nested `if`s survived). `WebviewInboundMessage = { type: string } & Record<string, unknown>` lets existing `(message as Record<...>).foo as Foo` casts in handlers continue to work. | `vscode-extension/src/webview/app/lookingGlass.ts` | B (post-B25) |
+| `[x]` | **Dispatch-table refactor — renderPhaseSignals** (cyclomatic 97 → orchestrator < 10). Split into `renderPreflightSignal` + `renderWhyMetrics` + `renderHowMetrics` + `renderPrCascade`. The orchestrator is a thin dispatcher; only `renderPrCascade` (45) is legitimately state-branchy (each PR state surfaces a different affordance). | `vscode-extension/src/webview/app/views/okrDetail.ts` | B (post-B25) |
 | `[x]` | `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement) | `vscode-extension/code-templates/agents-v4/<name>.agent.md` | B |
 | `[ ]` | `code-design-agent` `.agent.md` (one cross-cutting agent — supersedes per-repo `design-agent`) | mesh template | D |
 | `[ ]` | **`design/synthesis.md`** prompt pack — emits ONE cross-cutting code-design doc grounded on PRD + indexed code repos | `vscode-extension/prompt-packs/looking-glass/design/synthesis.md` (new) | D |
