@@ -741,6 +741,17 @@ jobs:
           fi
           yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"complete\"" "$OKR_FILE"
           yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .completedAt) = \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"" "$OKR_FILE"
+          # Persist chain_root_hash on the action so Looking Glass can
+          # render the Knight's Seal badge + View Tag / Verify Chain
+          # buttons on the WHY card (gated on action.hatterChainRoot
+          # being non-empty). Pre-B27.v1.2 the field was never written
+          # so the card displayed only metrics — no provenance link.
+          CHAIN_ROOT_HASH="${{ steps.ctx.outputs.chain_root_hash }}"
+          if [ -n "$CHAIN_ROOT_HASH" ]; then
+            yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot) = \"$CHAIN_ROOT_HASH\"" "$OKR_FILE"
+          else
+            echo "::warning::No chain_root_hash extracted from Hatter Tag — actions[].hatterChainRoot left empty; UI seal badge will not render for this run"
+          fi
           # 2. Roll OKR.meta.status forward: researching -> prd-pending so
           #    Looking Glass's status badge auto-updates and "Start How"
           #    becomes the natural next call to action.

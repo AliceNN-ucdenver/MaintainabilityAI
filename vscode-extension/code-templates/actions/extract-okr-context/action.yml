@@ -60,6 +60,9 @@ outputs:
   artifact_path:
     description: "Repo-relative path to the artifact file detected in the PR's changed-files (e.g. okrs/<id>/why/research-doc.md). Empty if no artifact path matched."
     value: ${{ steps.parse.outputs.artifact_path }}
+  chain_root_hash:
+    description: "Hatter Tag audit.chain_root_hash — sha256 of event_id=1 in the run's audit JSONL. Used by the finalize step to set actions[].hatterChainRoot and the chain-ladder.yaml entry, which Looking Glass reads to render the Knight's Seal badge. Empty if absent."
+    value: ${{ steps.parse.outputs.chain_root_hash }}
 
 runs:
   using: "composite"
@@ -120,6 +123,18 @@ runs:
         EVIDENCE_MODE=$(fm_extract 'evidence_mode')
         FRESH=$(fm_extract 'fresh_provider_search_performed')
         AUTHOR_DID=$(fm_extract 'author_did')
+        # chain_root_hash lives under nested `audit:` block:
+        #   audit:
+        #     chain_root_hash: <sha256>
+        # fm_extract is a flat-grep, so it would match the top-level
+        # `audit:` line (returning empty after the colon) and miss the
+        # nested value. Grep the indented child directly. Hex-only so we
+        # never grab the `audit:` parent line by accident.
+        CHAIN_ROOT_HASH=""
+        if [ -n "$FM" ]; then
+          CHAIN_ROOT_HASH=$(printf '%s\n' "$FM" | grep -oE '^[[:space:]]+chain_root_hash:[[:space:]]*[0-9a-f]{64}' | head -1 \
+            | sed -E 's|^[[:space:]]+chain_root_hash:[[:space:]]*||' || true)
+        fi
 
         # If frontmatter also has okr_id/run_id/phase, prefer it when
         # path resolution failed (defensive — shouldn't happen if file
@@ -143,6 +158,7 @@ runs:
           [ -z "$EVIDENCE_MODE" ] && EVIDENCE_MODE=$(body_extract 'evidence_mode:[[:space:]]*(live|cached|mixed)'      's/^evidence_mode:[[:space:]]*//')
           [ -z "$FRESH" ]         && FRESH=$(body_extract         'fresh_provider_search_performed:[[:space:]]*(true|false)' 's/^fresh_provider_search_performed:[[:space:]]*//')
           [ -z "$AUTHOR_DID" ]    && AUTHOR_DID=$(body_extract    'author_did:[[:space:]]*[^[:space:]]+'               's/^author_did:[[:space:]]*//')
+          [ -z "$CHAIN_ROOT_HASH" ] && CHAIN_ROOT_HASH=$(body_extract 'chain_root_hash:[[:space:]]*[0-9a-f]{64}'      's/^chain_root_hash:[[:space:]]*//')
         fi
 
         {
@@ -154,6 +170,7 @@ runs:
           echo "fresh_provider_search_performed=$FRESH"
           echo "author_did=$AUTHOR_DID"
           echo "artifact_path=$ARTIFACT"
+          echo "chain_root_hash=$CHAIN_ROOT_HASH"
         } >> "$GITHUB_OUTPUT"
 
-        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH artifact=$ARTIFACT"
+        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH artifact=$ARTIFACT chain_root=${CHAIN_ROOT_HASH:0:12}"
