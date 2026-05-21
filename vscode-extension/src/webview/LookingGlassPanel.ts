@@ -61,22 +61,31 @@ import { computeDecayedScore } from '../mcp/utils/score-decay';
 import type { GovernanceTimestamps } from '../types/redqueen';
 
 /**
- * Count how many marker matches in `docText` have at least one occurrence
- * of `citationPattern` within the next ~400 chars. Used by phase-signal
- * structural counts (FR-citation / SR-anchor coverage) — kept in sync
- * with the workflow's awk pattern (prd-agent.yml line 286) so the UI's
- * Coverage card matches the audit verdict.
+ * FR/SR structural counter — dedupes by id (PR #118 PRDs wrote both
+ * `### FR-01` heading AND `**FR-01**` bold for every FR, doubling the
+ * raw count and skewing the cited ratio). Matches the workflow's Python
+ * rewrite in prd-agent.yml for parity. Default 12-line window covers a
+ * typical FR section incl. the `Traces to:` / acceptance-criteria block.
  */
-function countCovered(docText: string, markerRe: RegExp, citationRe: RegExp): number {
-  const re = new RegExp(markerRe.source, markerRe.flags.includes('g') ? markerRe.flags : markerRe.flags + 'g');
-  let count = 0;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(docText)) !== null) {
-    const window = docText.slice(match.index, match.index + 400);
-    if (citationRe.test(window)) { count++; }
-    if (match.index === re.lastIndex) { re.lastIndex++; }
+function countUniqueIds(
+  docLines: string[],
+  markerRe: RegExp,
+  idRe: RegExp,
+  citationRe: RegExp,
+  windowLines = 12,
+): { total: number; covered: number } {
+  const seen = new Map<string, number>();
+  for (let i = 0; i < docLines.length; i++) {
+    if (!markerRe.test(docLines[i])) { continue; }
+    const m = docLines[i].match(idRe);
+    if (m && !seen.has(m[0])) { seen.set(m[0], i); }
   }
-  return count;
+  let covered = 0;
+  for (const [, start] of seen) {
+    const win = docLines.slice(start, start + windowLines).join('\n');
+    if (citationRe.test(win)) { covered++; }
+  }
+  return { total: seen.size, covered };
 }
 
 /**
@@ -790,27 +799,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         const SR_MARKER_RE = /^(\*\*SR-\d+\*\*|### +SR-\d+)/m;
         const FR_CITE_RE = /\b[CRSE]-?\d+\b/;
         const SR_ANCHOR_RE = /\b(?:THR-?\d+|A0[1-9]|A10)\b/;
-
-        function countUniqueIds(
-          docLines: string[],
-          markerRe: RegExp,
-          idRe: RegExp,
-          citationRe: RegExp,
-          windowLines = 12,
-        ): { total: number; covered: number } {
-          const seen = new Map<string, number>();
-          for (let i = 0; i < docLines.length; i++) {
-            if (!markerRe.test(docLines[i])) { continue; }
-            const m = docLines[i].match(idRe);
-            if (m && !seen.has(m[0])) { seen.set(m[0], i); }
-          }
-          let covered = 0;
-          for (const [, start] of seen) {
-            const win = docLines.slice(start, start + windowLines).join('\n');
-            if (citationRe.test(win)) { covered++; }
-          }
-          return { total: seen.size, covered };
-        }
 
         const docLines = docText.split('\n');
         const frResult = countUniqueIds(docLines, FR_MARKER_RE, /\bFR-\d+\b/, FR_CITE_RE);
