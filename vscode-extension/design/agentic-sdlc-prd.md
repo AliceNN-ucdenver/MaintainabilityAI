@@ -10,6 +10,27 @@ For cross-cutting concerns (audit chain, OKR card, orchestration), read [`agenti
 
 ---
 
+## What the prd-agent owns vs. what the runtime/workflow owns (B28)
+
+Under Court Recorder Auto-Logging (design [agentic-sdlc.md](agentic-sdlc.md) §11.6), the boundary between the LLM and the deterministic infrastructure is explicit:
+
+| Concern | prd-agent owns | Runtime / workflow owns |
+|---|---|---|
+| Calling the right skills in the right order | ✅ | — |
+| Skill INPUTS (which BAR, which concern, which queries) | ✅ | — |
+| Synthesis of skill outputs into PRD prose | ✅ | — |
+| FR / SR / Coverage-Analysis content + structural correctness | ✅ | — |
+| Self-review reasoning (SCORE, SEVERITY, COVERED, MISSING, CHANGES) | ✅ | — |
+| Writing self-review as a structured `### Self-review — <persona> (round N)` block in the PR body | ✅ | — |
+| `skill_call` audit event emission | — | ✅ Runtime auto-emits inside `runSkill()` |
+| `artifact_written` audit event emission | — | ✅ Workflow detects via `git diff` |
+| `self_review` audit event emission | — | ✅ Workflow parses PR-body blocks |
+| Hash chaining + canonical serialization | — | ✅ Runtime (B25) |
+| Ed25519 sealing | — | ✅ Runtime (B27) |
+| `state_transition` / `human_gate` events | — | ✅ Workflow |
+
+The agent literally **cannot** write to the audit log. It produces content (the PRD, the structured self-review blocks); deterministic code produces events. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written or self_review payloads).
+
 ## Current state — Tier-1 hardening complete, validation gate pending
 
 The prd-agent runs end-to-end through the HOW phase with full audit-chain verification, Pocket Watch + Caterpillar drift gates, FR-citation + SR-anchor structural correctness, persona-switch self-critique, **Knight's Seal v1 cryptographic sealing**, and **grounded `context-*` aggregators**. Last E2E run: PR #105 (post-B25 audit-fabrication fix, pre-Tier-1). **Phase B Tier-1 hardening shipped in research-runner 0.1.26 + extension build 2026-05-21.**

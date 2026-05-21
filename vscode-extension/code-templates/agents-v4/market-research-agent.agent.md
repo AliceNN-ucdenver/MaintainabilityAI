@@ -60,7 +60,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 7. Invoke `dedupe-and-rank` over the four result arrays.
 8. Inspect `rankedSources` + `providerCounts` for coverage gaps. If you see `low_source_diversity` / `contradiction` / `topic_uncovered` for a key brief term, run **ONE bounded second pass** — never iterative, never multi-round:
    a. Generate up to **3 follow-up queries TOTAL** (your reasoning, not a Skill). Distribute them across the providers where the gap exists; don't re-query providers that already had strong coverage.
-   b. BEFORE invoking the search Skills again, emit a marker via `audit-emit-event` with `eventKind: "skill_call"` and `payload: { skill: "gap-loop", queries: [<the 3 queries>], reason: "low_source_diversity" | "contradiction" | "topic_uncovered", providers: [<targeted providers>] }`. This marker makes the refinement audit-verifiable; the post-run validator (`audit-validate.yml`) surfaces its presence in the PR correctness summary.
+   b. BEFORE invoking the search Skills again, emit a **semantic gap-loop marker** via `audit-emit-event` with `eventKind: "skill_call"` and `payload: { skill: "gap-loop", queries: [<the 3 queries>], reason: "low_source_diversity" | "contradiction" | "topic_uncovered", providers: [<targeted providers>] }`. This is an **explicit declarative marker** the agent emits — the runner doesn't know what a gap-loop is, only that you noticed one. (Note: under B28 Court Recorder Auto-Logging, the runner auto-emits a `skill_call` event for each search-skill invocation that follows; the gap-loop marker is the one place where the agent still calls `audit-emit-event` directly because it carries semantic meaning the runner can't infer.)
    c. Re-invoke ONLY the relevant search Skills (e.g. if only USPTO was thin, don't re-run Tavily/arXiv/HN).
    d. Re-invoke `dedupe-and-rank` over the union of first-pass + second-pass results.
    **Do NOT loop further.** The bound is enforced; multiple iterations blow the cost cap and produce spurious "I tried harder" signal without changing outcomes. If coverage is still thin after the second pass, note it honestly in the `## Evidence Gaps` section of the synthesis instead of looping.
@@ -96,43 +96,29 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
     ```markdown
     > **Reviewer:** open this OKR in Looking Glass and click "🔍 Run Audit" to trigger the audit + drift workflow.
     ```
-13. Invoke `audit-emit-event` for every Skill invocation throughout the run AND a final `artifact_written` event after the PR opens.
+13. **Audit events are emitted FOR you — you do NOT call `audit-emit-event` for `skill_call` or `artifact_written` events.** Per Court Recorder Auto-Logging (B28, design §11.6):
+    - **`skill_call` events** — the runner auto-emits one per `runSkill()` invocation with payload `{skill, ok, duration_ms, reason?, queries?, result_count?}`. The search-skill handlers self-declare `queries` + `result_count` so the auto-emitted event carries everything `count-skill-calls` needs.
+    - **Gap-loop marker** — the ONE place you still call `audit-emit-event` directly (step 8b). The gap-loop is a semantic declaration the runner can't infer.
+    - **`artifact_written` event** — the workflow detects the artifact path via `git diff` and emits the event after step 12. You do not call `audit-emit-event` for it.
 
-### Audit payload schema for search Skills (§11.1.6, B-PR1f)
+    Net: focus on **getting the data, getting the context, synthesizing the artifact**. The runner + workflow handle the audit log.
 
-When you emit a `skill_call` event for any of `tavily-search` / `arxiv-search` / `uspto-search` / `hackernews-search`, the payload MUST use **exactly these four field names** (no variations):
+### Audit payload schema for search Skills (§11.1.6) — what the runner auto-emits
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `skill` | string | yes | The skill name, e.g. `"tavily-search"` (not `"tavily"`) |
-| `ok` | boolean | yes | `true` if the skill returned `ok: true`; `false` otherwise |
-| `result_count` | integer | yes | **The integer count** of items in the skill's `results` array. NOT the array itself. NOT `results: N` or `count: N` — the field name is literally `result_count`. |
-| `queries` | string[] | yes | The exact queries you passed in `payload.queries` to the skill |
+The runner auto-emits a `skill_call` event with this payload for each search-skill invocation. You don't author it — the handler self-declares `queries` + `result_count` via `auditMetadata`, and the runner merges them in:
 
-Example shape (this is the canonical form — `audit-validate.yml` parses these exact field names):
+| Field | Type | Description |
+|---|---|---|
+| `skill` | string | The skill name, e.g. `"tavily-search"` (canonical — never overridable). |
+| `ok` | boolean | `true` on success, `false` otherwise (canonical). |
+| `duration_ms` | number | Wall-clock time of the handler — auto-captured (canonical). |
+| `queries` | string[] | The exact queries you passed in the skill's input. Declared by the search-skill handler's `auditMetadata`. |
+| `result_count` | integer | The number of items in the skill's `results` array. Declared by the search-skill handler's `auditMetadata`. |
+| `reason` | string | Failure reason — present only when `ok: false`. |
 
-```json
-{
-  "okrId": "OKR-...",
-  "runId": "WHY-...",
-  "eventKind": "skill_call",
-  "phase": "why",
-  "intentThreadUuid": "...",
-  "payload": {
-    "skill": "tavily-search",
-    "ok": true,
-    "result_count": 40,
-    "queries": [
-      "celebrity profile API licensing terms compliance 2026",
-      "celebrity data licensing GDPR CCPA publicity rights 2026"
-    ]
-  }
-}
-```
+The `count-skill-calls` action reads `payload.queries[]` (for the distinct-query count) and `payload.skill + payload.ok` (for the per-skill success count). All of these come from the runner's auto-emission; the audit JSONL alone is sufficient for `verify-chain` to replay both what was searched and what was returned.
 
-Apply the same rule to the gap-loop second-pass `skill_call` events — include the (up to 3) follow-up queries in `payload.queries`. The gap-loop marker also needs `payload.skill: "gap-loop"`, `payload.reason: "low_source_diversity" | "contradiction" | "topic_uncovered"`, `payload.providers: [<targeted-providers>]`.
-
-This makes the run's evidence trail self-contained: the audit JSONL alone (without runner logs) is sufficient for `verify-chain` to replay both what was searched and what was returned.
+**The gap-loop marker** (step 8b) is the one event you still emit explicitly via `audit-emit-event`. Use payload `{skill: "gap-loop", queries: [<3 follow-up queries>], reason: "low_source_diversity" | "contradiction" | "topic_uncovered", providers: [<targeted providers>]}`. The runner does NOT auto-emit a duplicate event for the explicit call because `audit-emit-event` itself is in the no-auto-emit set (avoids recursion).
 
 ### Handling Copilot's "Output too large" guardrail
 
@@ -153,7 +139,7 @@ Better: avoid the threshold entirely by passing the file path directly to the ne
 ## Hard rules
 
 - Never invoke a Skill not in the `tools:` list above. Deployment refuses to land agents that reference undeclared Skills.
-- **`audit-emit-event` is the ONLY legal path to the audit log.** Never write `okrs/<id>/audit/events/*.jsonl` directly with `cat`, `echo`, `python`, `node`, or any other shell tool. The runner produces hash-chained events — agent-authored events break the chain. If `audit-emit-event` returns `{ok: false}` OR the `npx @maintainabilityai/research-runner skill-audit-emit-event` command is unavailable in your sandbox, STOP and post a PR comment naming the failure. Do NOT compute hashes yourself. The `verify-chain` CI step re-hashes every event and a fabricated chain will fail the merge gate with the `chain-forgery-detected` label.
+- **You do NOT call `audit-emit-event` for `skill_call` or `artifact_written` events.** Per B28 Court Recorder Auto-Logging (design §11.6), the runner auto-emits a `skill_call` event for every `runSkill()` invocation; the workflow emits `artifact_written` from `git diff`. The only event you still call `audit-emit-event` for is the **gap-loop semantic marker** (step 8b) — the runner can't infer that. **Never write `okrs/<id>/audit/events/*.jsonl` directly** with `cat`, `echo`, `python`, `node`, or any other shell tool. The runner is the only legitimate writer; a hand-rolled JSONL fails the chain-verify CI gate with the `chain-forgery-detected` label. If your runtime is broken in a way that prevents `runSkill()` from auto-emitting (e.g. session-context env vars missing), STOP and post a PR comment.
 - Never include the OKR YAML, BAR YAML, or any mesh artifact text in your prompt body — always read via Skills. This prevents copy-paste drift between artifacts.
 - **`okr_id` and `run_id` come from the issue body HTML comment markers and ONLY from those markers.** Never invent, generate, derive, or modify either value. They are the action's identity in `okr.yaml.actions[]`; the finalize workflow uses `run_id` to flip status on PR merge via `yq select(.runId == "<value>")`. A made-up run_id makes finalize a no-op and leaves the OKR stuck in `in_progress` after the PR is merged.
 - If any Skill returns `{ ok: false, reason }`: search-Skills are non-blocking (continue with the other providers' results); `knowledge-*` failures stop the run with a PR comment citing the reason; `audit-emit-event` failures log to stderr but do not stop the run (chain integrity is recovered by `verify-chain`).

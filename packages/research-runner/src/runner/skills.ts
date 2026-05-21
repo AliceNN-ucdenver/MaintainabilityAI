@@ -42,10 +42,17 @@ import { readSessionContext } from './session-context';
  * Shape every skill returns. Tagged union so the agent can branch on `ok`.
  * Handlers MUST NOT throw — they return `{ok: false, reason}` instead so
  * the calling agent can keep going (per SKILL.md error contracts).
+ *
+ * Optional `auditMetadata` field (B28): structured key/value pairs that the
+ * auto-emitter merges into the `skill_call` event payload. Handlers use it
+ * to declare audit-worthy details (search-skill `queries` + `result_count`,
+ * etc.) without the agent having to re-author them in an audit-emit-event
+ * call. Canonical fields (`skill`, `ok`, `duration_ms`, `reason`) always
+ * win on collision so handlers can't accidentally overwrite them.
  */
 export type SkillResult =
-  | ({ ok: true } & Record<string, unknown>)
-  | { ok: false; reason: string };
+  | ({ ok: true; auditMetadata?: Record<string, unknown> } & Record<string, unknown>)
+  | { ok: false; reason: string; auditMetadata?: Record<string, unknown> };
 
 export type SkillHandler = (input: unknown) => Promise<SkillResult>;
 
@@ -567,18 +574,19 @@ const handleTavilySearch: SkillHandler = async (input) => {
   const parsed = SearchQueriesInput.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
   const apiKey = process.env.TAVILY_API_KEY;
-  if (!apiKey) { return { ok: false, reason: 'tavily-api-key-missing' }; }
+  if (!apiKey) { return { ok: false, reason: 'tavily-api-key-missing', auditMetadata: { queries: parsed.data.queries, result_count: 0 } }; }
   try {
     const res = await runTavilySearch({
       apiKey,
       queries: parsed.data.queries,
       maxResultsPerQuery: parsed.data.maxResults,
     });
+    const auditMetadata = { queries: parsed.data.queries, result_count: res.results.length };
     const failure = detectAllQueriesFailed(res.envelopes, 'tavily-search');
-    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
-    return { ok: true, envelopes: res.envelopes, results: res.results };
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes, auditMetadata }; }
+    return { ok: true, envelopes: res.envelopes, results: res.results, auditMetadata };
   } catch (err) {
-    return { ok: false, reason: `tavily-failed: ${(err as Error).message}` };
+    return { ok: false, reason: `tavily-failed: ${(err as Error).message}`, auditMetadata: { queries: parsed.data.queries, result_count: 0 } };
   }
 };
 
@@ -590,11 +598,12 @@ const handleArxivSearch: SkillHandler = async (input) => {
       queries: parsed.data.queries,
       maxResultsPerQuery: parsed.data.maxResults,
     });
+    const auditMetadata = { queries: parsed.data.queries, result_count: res.results.length };
     const failure = detectAllQueriesFailed(res.envelopes, 'arxiv-search');
-    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
-    return { ok: true, envelopes: res.envelopes, results: res.results };
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes, auditMetadata }; }
+    return { ok: true, envelopes: res.envelopes, results: res.results, auditMetadata };
   } catch (err) {
-    return { ok: false, reason: `arxiv-failed: ${(err as Error).message}` };
+    return { ok: false, reason: `arxiv-failed: ${(err as Error).message}`, auditMetadata: { queries: parsed.data.queries, result_count: 0 } };
   }
 };
 
@@ -602,18 +611,19 @@ const handleUsptoSearch: SkillHandler = async (input) => {
   const parsed = SearchQueriesInput.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
   const apiKey = process.env.USPTO_API_KEY;
-  if (!apiKey) { return { ok: false, reason: 'uspto-api-key-missing' }; }
+  if (!apiKey) { return { ok: false, reason: 'uspto-api-key-missing', auditMetadata: { queries: parsed.data.queries, result_count: 0 } }; }
   try {
     const res = await runUsptoSearch({
       apiKey,
       queries: parsed.data.queries,
       maxResultsPerQuery: parsed.data.maxResults,
     });
+    const auditMetadata = { queries: parsed.data.queries, result_count: res.results.length };
     const failure = detectAllQueriesFailed(res.envelopes, 'uspto-search');
-    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
-    return { ok: true, envelopes: res.envelopes, results: res.results };
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes, auditMetadata }; }
+    return { ok: true, envelopes: res.envelopes, results: res.results, auditMetadata };
   } catch (err) {
-    return { ok: false, reason: `uspto-failed: ${(err as Error).message}` };
+    return { ok: false, reason: `uspto-failed: ${(err as Error).message}`, auditMetadata: { queries: parsed.data.queries, result_count: 0 } };
   }
 };
 
@@ -625,11 +635,12 @@ const handleHackerNewsSearch: SkillHandler = async (input) => {
       queries: parsed.data.queries,
       hitsPerQuery: parsed.data.maxResults,
     });
+    const auditMetadata = { queries: parsed.data.queries, result_count: res.results.length };
     const failure = detectAllQueriesFailed(res.envelopes, 'hackernews-search');
-    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes }; }
-    return { ok: true, envelopes: res.envelopes, results: res.results };
+    if (failure) { return { ok: false, reason: failure, envelopes: res.envelopes, auditMetadata }; }
+    return { ok: true, envelopes: res.envelopes, results: res.results, auditMetadata };
   } catch (err) {
-    return { ok: false, reason: `hackernews-failed: ${(err as Error).message}` };
+    return { ok: false, reason: `hackernews-failed: ${(err as Error).message}`, auditMetadata: { queries: parsed.data.queries, result_count: 0 } };
   }
 };
 
@@ -1078,7 +1089,11 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
   if (!NO_AUTO_EMIT_SKILLS.has(name)) {
     const ctx = readSessionContext();
     if (ctx) {
-      const payload: Record<string, unknown> = { skill: name, ok: result.ok, duration_ms };
+      // Merge handler-declared auditMetadata first so canonical fields
+      // (skill / ok / duration_ms / reason) always win on collision —
+      // handlers can't accidentally lie about what they were called.
+      const extras = (result as { auditMetadata?: Record<string, unknown> }).auditMetadata ?? {};
+      const payload: Record<string, unknown> = { ...extras, skill: name, ok: result.ok, duration_ms };
       if (!result.ok) { payload.reason = result.reason; }
       // Best-effort: an audit-write failure must not shadow the real skill
       // result. The chain-verify CI gate is the catch-net for missed events.

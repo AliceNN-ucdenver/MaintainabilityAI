@@ -978,6 +978,59 @@ test('B28: runSkill rejects unknown-skill BEFORE looking up session context', as
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+test('B28: auditMetadata declared by a skill handler is merged into the auto-emitted event payload', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-META', runId: 'WHY-B28-META', intentThreadUuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', phase: 'why' }, async () => {
+        // tavily-search is gated by TAVILY_API_KEY. We're not exercising
+        // the network — just confirming the handler returns auditMetadata
+        // (queries + result_count) on the well-known failure path
+        // (api-key-missing), and that runSkill's auto-emit merges it in.
+        const prev = process.env.TAVILY_API_KEY;
+        delete process.env.TAVILY_API_KEY;
+        try {
+          const r = await runSkill('tavily-search', { queries: ['celebrity api licensing', 'celebrity data GDPR'] });
+          assert.equal(r.ok, false);
+          // The auto-emitted event captures queries + result_count via auditMetadata.
+          const chain = readChain(mesh, 'OKR-B28-META', 'WHY-B28-META');
+          assert.equal(chain.length, 1);
+          const evt = chain[0] as { event_kind: string; payload: { skill: string; ok: boolean; queries: string[]; result_count: number; reason: string } };
+          assert.equal(evt.event_kind, 'skill_call');
+          assert.equal(evt.payload.skill, 'tavily-search');
+          assert.equal(evt.payload.ok, false);
+          assert.equal(evt.payload.reason, 'tavily-api-key-missing');
+          assert.deepEqual(evt.payload.queries, ['celebrity api licensing', 'celebrity data GDPR']);
+          assert.equal(evt.payload.result_count, 0);
+        } finally {
+          if (prev !== undefined) { process.env.TAVILY_API_KEY = prev; }
+        }
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: canonical fields (skill/ok/duration_ms) override anything in auditMetadata (handlers can\'t lie about themselves)', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-B28-LIE', 'okr.yaml'),
+      'meta:\n  id: OKR-B28-LIE\n  intentThreadUuid: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb\n');
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-LIE', runId: 'WHY-B28-LIE', intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', phase: 'why' }, async () => {
+        await runSkill('knowledge-okr', { okrId: 'OKR-B28-LIE' });
+        // knowledge-okr doesn't declare auditMetadata. The auto-emit
+        // produces the minimal {skill, ok, duration_ms} shape. This
+        // confirms the canonical fields are always present.
+        const chain = readChain(mesh, 'OKR-B28-LIE', 'WHY-B28-LIE');
+        const evt = chain[0] as { payload: { skill: string; ok: boolean; duration_ms: number } };
+        assert.equal(evt.payload.skill, 'knowledge-okr');
+        assert.equal(evt.payload.ok, true);
+        assert.ok(typeof evt.payload.duration_ms === 'number');
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 test('B28: chained auto-emit + audit-verify-chain end-to-end (sealed + chained)', async () => {
   const mesh = tmpMesh();
   try {

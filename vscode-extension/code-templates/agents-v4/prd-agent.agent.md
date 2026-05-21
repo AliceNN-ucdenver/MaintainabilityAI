@@ -66,32 +66,29 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
 
 12. Set `round = 1`. Resolve `MAX_AUTO_ROUNDS` from the OKR's primary affected BAR tier: Autonomous=3, Supervised=2, Restricted=0. If MAX_AUTO_ROUNDS is 0, skip the self-critique loop and proceed to step 17 (the artifact will land for human review without self-revision).
 
-13. **Architect persona self-review.** Switch to the Architect persona. Apply the criteria from `.caterpillar/prompts/prd/architecture-review.md` against the PRD you just wrote. Produce a structured critique with these exact anchor names (the audit parser depends on them):
+13. **Architect persona self-review.** Switch to the Architect persona. Apply the criteria from `.caterpillar/prompts/prd/architecture-review.md` against the PRD you just wrote. Produce a structured critique with these exact anchor names (the workflow parser depends on them):
     - `SCORE` (float, 0.0–1.0)
     - `SEVERITY` (one of: `PASS`, `MINOR`, `MAJOR`, `BLOCKING`)
     - `COVERED` (array of strings — what the PRD addresses well, anchored to CALM nodes / ADRs)
     - `MISSING` (array of strings — gaps, anchored to specific mesh artifacts the PRD should reference)
     - `CHANGES` (array of specific revision requests — actionable, not vague)
 
-    Emit a `self_review` audit event with payload:
-    ```yaml
-    event_kind: self_review
-    payload:
-      round: <N>
-      persona: architect
-      score: <float>
-      severity: <PASS|MINOR|MAJOR|BLOCKING>
-      covered: [<strings>]
-      missing: [<strings>]
-      changes: [<strings>]
-      prompt_pack: prd/architecture-review.md
+    **Write this critique as a structured block at the bottom of the PR body** (NOT as an audit-emit-event call — the workflow parses your PR body and emits the audit event deterministically). Format exactly:
+
+    ```markdown
+    ### Self-review — Architect (round <N>)
+    SCORE: <float 0.0–1.0>
+    SEVERITY: <PASS|MINOR|MAJOR|BLOCKING>
+    COVERED: [<comma-separated strings>]
+    MISSING: [<comma-separated strings>]
+    CHANGES: [<comma-separated strings>]
     ```
 
-14. **Security persona self-review.** Switch to the Security persona. Apply the criteria from `.caterpillar/prompts/prd/security-review.md`. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Emit a `self_review` audit event with `persona: security` and `prompt_pack: prd/security-review.md`.
+14. **Security persona self-review.** Switch to the Security persona. Apply the criteria from `.caterpillar/prompts/prd/security-review.md`. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block to the PR body with header `### Self-review — Security (round <N>)`.
 
 15. **Convergence check.**
     - If BOTH personas returned `SEVERITY` in `{PASS, MINOR}` AND `MISSING` is empty for both → break out of the loop; PRD is converged.
-    - If round `>=` MAX_AUTO_ROUNDS → break out; emit a `self_review_exhausted` audit event noting the unresolved persona + remaining MISSING. The PR will open with a clear "needs human review" signal in the body.
+    - If round `>=` MAX_AUTO_ROUNDS → break out and append a final block `### Self-review — Exhausted (round <N>)` noting the unresolved persona + remaining MISSING. The PR will open with a clear "needs human review" signal in the body.
     - Otherwise → proceed to step 16 (revise the PRD).
 
 16. **Revise the PRD.** Apply the union of CHANGES from both personas to `okrs/<id>/how/prd.md`. Tighten section coverage to address each MISSING entry (cite the relevant ADR / threat / CALM node by id). Increment `round`, return to step 13.
@@ -110,34 +107,27 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
     ```markdown
     > **Reviewer:** open this OKR in Looking Glass and click "🔍 Run Audit" to trigger the audit + drift workflow.
     ```
-20. **Invoke `audit-emit-event`** after every mesh-Skill call (steps 2–9: `knowledge-*`, `context-*`), after each `self_review` per persona per round (steps 13–14), and a final `artifact_written` event after the PR opens (step 19). The Skill is your ONLY legal path to the audit log — the `audit-emit-event` runner is what produces the hash chain. **Never write `okrs/<id>/audit/events/*.jsonl` directly** (see Hard rules below for what to do if the runner is unreachable).
+20. **Audit events are emitted FOR you — you do NOT call `audit-emit-event` for skill_calls or self_reviews.** Per Court Recorder Auto-Logging (B28, design §11.6):
+    - **`skill_call` events** — the runner auto-emits one per `runSkill()` invocation, using the session-context env vars (`OKR_ID`, `RUN_ID`, `INTENT_THREAD_UUID`, `PHASE`) the workflow sets at job start. Every skill you call (knowledge-*, context-*) lands a `skill_call` event automatically; there is nothing you need to do for these to appear in the chain.
+    - **`self_review` events** — the workflow's audit-and-drift job parses the `### Self-review — <persona> (round <N>)` blocks from your PR body and emits one `self_review` event per persona per round, deterministically. Just write the blocks correctly (steps 13–14) and the events appear.
+    - **`artifact_written` events** — the workflow detects the artifact path via `git diff` on the PR head, computes the sha256, and emits the event after step 19. You do not need to invoke audit-emit-event for the artifact.
 
-## Audit payload schema (§11.1.6)
+    Net: **you focus on getting the data, getting the context, synthesizing the PRD**. The runner and workflows handle the audit log. If you find yourself reaching for `audit-emit-event`, ask whether the event would belong to one of the three deterministic categories above — if yes, skip the call.
 
-When you invoke `audit-emit-event`, the stdin JSON has a fixed wrapper (`okrId`, `runId`, `eventKind`, `phase`, `intentThreadUuid`) plus an event-kind-specific `payload` you author. For `skill_call` events the payload MUST use exactly these field names — the audit-and-drift workflow counts events whose `payload.skill` matches each canonical name:
+## Audit payload schema (§11.1.6) — what the runner auto-emits
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `skill` | string | yes | The skill name, **singular** (e.g. `"knowledge-okr"`). Do NOT bundle with `payload.skills: [...]` — bundled events match zero per-skill counters and the evidence-honesty gate fails the run. |
-| `ok` | boolean | yes | `true` if the skill returned successfully, `false` otherwise. The counter ignores `ok: false` events. |
-| `notes` | string | optional | Free-text — useful for recording skill-version mismatches (e.g. `"context-architecture unavailable in runner v0.1.23 — proceeded with reduced grounding"`). Notes do NOT replace per-call events; the runner version note still needs one event per skill you tried. |
+The runner emits a `skill_call` event for every `runSkill()` call. You don't author this — the runner does — but here's the shape so you can reason about what shows up in the chain:
 
-Canonical invocation (this is the runner stdin — NOT a JSONL file format):
+| Field | Type | Notes |
+|---|---|---|
+| `skill` | string | Singular skill name (e.g. `"knowledge-okr"`). One event per call. |
+| `ok` | boolean | `true` on success, `false` on failure. Failures are honestly logged with `reason`. |
+| `duration_ms` | number | Wall-clock time of the handler — auto-captured by the runner. |
+| `reason` | string (only when `ok: false`) | The handler's failure reason. Auto-populated from the skill result. |
 
-```sh
-echo '{
-  "okrId": "OKR-2026Q2-IMDB-001-celeb-api",
-  "runId": "HOW-2026-05-21-abc123",
-  "eventKind": "skill_call",
-  "phase": "how",
-  "intentThreadUuid": "2e28b567-ab8a-4ad0-a29d-632673f412a9",
-  "payload": { "skill": "knowledge-okr", "ok": true }
-}' | npx @maintainabilityai/research-runner skill-audit-emit-event
-```
+The audit-and-drift workflow's `count-skill-calls` step filters by `event_kind == 'skill_call' && payload.skill == '<name>' && payload.ok != false`. Auto-emitted events match this filter automatically.
 
-The runner returns `{"ok":true, "chainHead":"<sha256>", "eventId":<n>}`. Use the FIRST call's `chainHead` as your Hatter Tag's `chain_root_hash`.
-
-If a skill is unavailable in this runtime, still invoke `audit-emit-event` once per skill you tried with `payload.ok: false` and `payload.notes: "<the reason>"`. The audit-and-drift workflow distinguishes "agent tried and failed" from "agent never tried" — the former is honest, the latter looks like hallucination.
+If a skill returns `{ok: false}` (e.g. `context-architecture` can't resolve a BAR), the auto-emitted event still lands — with `ok: false` and the reason. That's the honest record. The agent's "PRDs MUST be grounded" hard rule still applies: stop the run rather than synthesize against missing context.
 
 ## Required artifact format
 
@@ -152,14 +142,14 @@ The audit-and-drift workflow parses the prd.md file with these patterns — matc
 ## Hard rules
 
 - Never invoke a Skill not in `tools:`.
-- **`audit-emit-event` is the ONLY legal path to the audit log.** Never write `okrs/<id>/audit/events/*.jsonl` directly with `cat`, `echo`, `python`, `node`, or any other shell tool. The runner produces hash-chained events — agent-authored events break the chain. If `audit-emit-event` returns `{ok: false}` OR the `npx @maintainabilityai/research-runner skill-audit-emit-event` command is unavailable in your sandbox, **STOP and post a PR comment** naming the failure (e.g. `"audit-emit-event runner unreachable — cannot produce hash-chained audit log; refusing to ship a forged chain"`). Do NOT compute hashes yourself, do NOT write the JSONL file by hand, do NOT generate "plausible" hashes. The `verify-chain` CI step re-hashes every event and a fabricated chain will fail the merge gate with the `chain-forgery-detected` label — but the prompt-level rule is the primary defense. A forged chain destroys the governance contract this whole pipeline exists to enforce.
+- **You do NOT call `audit-emit-event` for `skill_call` or `self_review` events.** Per B28 Court Recorder Auto-Logging (design §11.6), `skill_call` events are auto-emitted by the runner inside `runSkill()`; `self_review` events are emitted by the audit-and-drift workflow by parsing your structured PR-body blocks (steps 13–14). The audit chain is built by deterministic code, not by you remembering to log. **Never write `okrs/<id>/audit/events/*.jsonl` directly** with `cat`, `echo`, `python`, `node`, or any other shell tool — the runner is the only legitimate writer. A hand-rolled JSONL fails the chain-verify CI gate with the `chain-forgery-detected` label (B25 defense). If your runtime is broken in a way that prevents `runSkill()` from auto-emitting (e.g. session-context env vars missing), STOP and post a PR comment naming the failure rather than trying to compensate.
 - Never include OKR YAML / research-doc text inline — always go through Skills. Copy-paste creates drift between artifacts.
 - **`okr_id` and `run_id` come from the issue body HTML comment markers and ONLY from those markers.** Never invent, generate, derive, or modify either value. They are the action's identity in `okr.yaml.actions[]`; the finalize workflow uses `run_id` to flip status on PR merge via `yq select(.runId == "<value>")`. A made-up run_id makes finalize a no-op and leaves the OKR stuck in `in_progress` after the PR is merged.
 - If a `context-*` Skill returns `{ ok: false }`, stop. PRDs MUST be grounded.
 - Every FR MUST cite at least one R-N (research finding) or E-N (expert input) source. The Coverage Analysis table is the contract — if a Cross-Source Analysis finding (R-N) maps to no FR, you owe an Evidence Gap entry explaining why.
 - Every SR MUST cite at least one STRIDE THR-NNN or OWASP A0X. Same coverage rule.
 - The self-critique loop is bounded by `MAX_AUTO_ROUNDS` resolved from the tier. NEVER exceed.
-- When emitting `self_review` events: ONE event PER persona PER round (so an Autonomous-tier max-3-round PRD that needed all three rounds emits 6 self_review events).
+- Write ONE `### Self-review — <persona> (round <N>)` block per persona per round in the PR body (so an Autonomous-tier max-3-round PRD that needed all three rounds writes 6 blocks). The audit-and-drift workflow parses these into 6 `self_review` events deterministically. The contract is the block format — you write blocks, the workflow emits events.
 - Persona-switching is internal. You do NOT call out to a separate reviewer agent. The persona-switch is a prompt-level discipline: when you're the Architect, you score architecture fitness; when you're the Security reviewer, you score threat-model coverage; both score against the PRD YOU just wrote.
 - **Do NOT post issue comments or apply labels directly.** Repository automation posts issue updates, applies the pass/degraded labels, and routes downstream signals. Your job stops at "commit the artifact + open the PR ready-for-review." `github/update_issue` + `github/add_issue_comment` MCP tools have been observed unreliable in the Coding Agent runtime; even when they work, using them short-circuits the user-triggered audit flow.
 - **Open your PR as ready-for-review, not draft.** Looking Glass gates the Run Audit button on `state == open && !draft`. A draft PR hides the affordance and confuses the reviewer about whether you converged.

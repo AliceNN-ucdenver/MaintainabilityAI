@@ -8,6 +8,26 @@ For cross-cutting concerns (audit chain, OKR card, orchestration), read [`agenti
 
 ---
 
+## What the market-research-agent owns vs. what the runtime/workflow owns (B28)
+
+Under Court Recorder Auto-Logging (design [agentic-sdlc.md](agentic-sdlc.md) §11.6), the boundary between the LLM and the deterministic infrastructure is explicit:
+
+| Concern | market-research-agent owns | Runtime / workflow owns |
+|---|---|---|
+| Query plan generation (Tavily / arXiv / USPTO / HN) | ✅ | — |
+| Calling the right skills in the right order | ✅ | — |
+| Gap-loop **decision** + the 3 follow-up queries | ✅ | — |
+| Gap-loop semantic marker (one explicit `audit-emit-event` call before re-running searches — the runner can't infer the gap-loop) | ✅ | — |
+| Synthesis of skill outputs into the 10-H2-section research doc | ✅ | — |
+| Findings (R-N), evidence gaps, formal conclusions, recommendations | ✅ | — |
+| `skill_call` audit event emission (Tavily / arXiv / USPTO / HN + dedupe + format) | — | ✅ Runtime auto-emits inside `runSkill()`. Search-skill handlers self-declare `queries` + `result_count` via `auditMetadata`; the runner merges them into the event payload so `count-skill-calls` keeps working unchanged. |
+| `artifact_written` audit event emission | — | ✅ Workflow detects via `git diff` |
+| Hash chaining + canonical serialization | — | ✅ Runtime (B25) |
+| Ed25519 sealing | — | ✅ Runtime (B27) |
+| `state_transition` / `human_gate` events | — | ✅ Workflow |
+
+The agent literally **cannot** write to the audit log (except the declarative gap-loop marker, which is semantic and the runner can't infer). It produces content (the research doc, the query plan); deterministic code produces events. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written payloads).
+
 ## Current state — shipped, runnable end-to-end
 
 The market-research-agent is the **most mature agent in the pipeline**. Last clean E2E run: PR #103 on `AliceNN-ucdenver/alicenn-ucdenver-governance-mesh`. The agent dispatches via the OKR-driven `Start Why` button, runs four search providers in parallel, deduplicates + ranks, runs a bounded gap-analysis follow-up pass when coverage is weak, synthesizes a research-doc.md with full traceability, and emits a hash-chained audit JSONL signed by the audit-emit-event Skill.
