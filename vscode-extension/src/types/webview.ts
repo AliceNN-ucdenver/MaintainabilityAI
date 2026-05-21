@@ -16,6 +16,7 @@ import type {
   GovernanceTier,
 } from './governance';
 import type { OkrCard, OkrPhaseProgress, OkrStatus } from './okr';
+import type { CopilotEnvStatus } from '../services/AgentDeploymentService';
 
 // ============================================================================
 // Webview Message Protocol (IssueCreator / Rabbit Hole)
@@ -414,6 +415,11 @@ export type LookingGlassWebviewMessage =
   // `.github/skills/` and `.github/agents/` directories. Idempotent.
   | { type: 'provisionAgentic' }
   | { type: 'checkAgenticStatus' }
+  // Coding Agent Environment readiness (Settings → Coding Agent Environment)
+  | { type: 'getCopilotEnvStatus' }
+  | { type: 'setCopilotEnvSecret'; secretName: string }
+  | { type: 'openCopilotFirewallSettings' }
+  | { type: 'openCopilotEnvSecretsPage' }
   // One-button Deploy All — runs provisionWorkflow + provisionAgentic sequentially
   // (the new consolidated Settings → Mesh Provisioning button).
   | { type: 'provisionAll' }
@@ -574,6 +580,9 @@ export type LookingGlassExtensionMessage =
   | { type: 'workflowStatus'; exists: boolean }
   | { type: 'workflowProvisioned' }
   | { type: 'preferredModelSaved'; family: string }
+  // Coding Agent Environment readiness response — either status or error.
+  | { type: 'copilotEnvStatus'; status: CopilotEnvStatus }
+  | { type: 'copilotEnvStatus'; error: string }
   | { type: 'meshReinitialized' }
   | { type: 'driftWeightsLoaded'; weights: DriftWeights }
   | { type: 'driftWeightsSaved' }

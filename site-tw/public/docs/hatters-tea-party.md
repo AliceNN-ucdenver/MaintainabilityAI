@@ -291,9 +291,9 @@ Three things happen automatically during every run, and together they make the r
 
 **1. The document carries its own receipt.** The artifact ships with a small block of metadata at the top — the objective it belongs to, the unique run identifier, the agent that produced it, and what mode it was in (was this a live search, or did it reuse already-known evidence?). The same block also appears in the pull-request description so reviewers see it without opening the file. If the document gets moved, copied, or quoted out of context six months later, the receipt is still attached.
 
-**2. The activity log is tamper-evident.** Every search the agent ran, every analysis step it took, is recorded as a sequence of entries chained together by cryptographic hashes — each entry references the hash of the one before it. The same trick that secures a blockchain. You can't quietly edit an earlier entry without breaking every entry that follows, and the break is detectable. There's no need to *trust* that nobody altered the record; the record proves itself, and it can be verified offline. Important in regulated industries where "show me the work" needs a yes-or-no answer, not a paper trail to interpret.
+**2. The activity log is tamper-evident — and we re-verify it before every merge.** Every search the agent ran, every analysis step it took, is recorded as a sequence of entries chained together by cryptographic hashes — each entry references the hash of the one before it. The same trick that secures a blockchain. You can't quietly edit an earlier entry without breaking every entry that follows, and the break is detectable. We don't just *trust* the chain exists — before any pull request can merge, an independent verification step replays the chain end-to-end and recomputes every hash. If the math doesn't balance — including the case where an agent tries to bypass the proper logging tool and hand-writes entries to look compliant — the merge refuses with a `chain-forgery-detected` label. The record proves itself, and the proof runs automatically on every audit.
 
-**3. The audit IS the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request — what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic. Pass everything → green-flag label → merge unlocks. Fail anything → specific failure label naming the cause + the same comment showing where to look.
+**3. The audit IS the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request — what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic, **whether the activity-log chain still verifies**. Pass everything → green-flag label → merge unlocks. Fail anything → specific failure label naming the cause + the same comment showing where to look.
 
 For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the sources those queries returned, and a tamper-evident log of the whole run — all without anyone having to remember to take minutes.
 
@@ -391,6 +391,7 @@ The same merge gate pattern as Stage 2 — pull-request stays blocked until the 
 
 | Check | What it confirms |
 |---|---|
+| **The activity log is intact** | The system re-replays the agent's own activity log end-to-end and recomputes the cryptographic chain. If a single entry doesn't match — including the agent fabricating entries it never actually ran — the chain breaks and the merge refuses. This is the gate that survives a misbehaving agent: even if the agent tries to look compliant by hand-writing a clean log, the chain math gives it away |
 | **The agent actually consulted the records** | The activity log shows the agent looked up the objective, the research, every affected business system, the relevant architectural decisions, the known threats, and the quality standards. A spec that grounded on nothing is a spec the agent invented |
 | **The spec is structurally complete** | All ten required sections are present, in canonical order — problem statement, goals, feature requirements, non-functional requirements, security requirements, coverage analysis, risk matrix, success metrics, references |
 | **Every feature requirement traces to a source** | Each feature requirement carries a tag pointing back to a specific research finding or expert input. Missing tags → reject |
@@ -402,6 +403,7 @@ The same merge gate pattern as Stage 2 — pull-request stays blocked until the 
 When all checks pass, the system applies the green-flag label that unlocks merge. When any check fails, it applies a specific failure label naming exactly which check failed — one label per cause, so a reviewer reads the label and immediately knows where to look:
 
 - **`prd-pass`** — clean, merge unlocked
+- **`chain-forgery-detected`** — the activity-log chain didn't replay; an agent's claimed history doesn't match the math
 - **`degraded-evidence`** — the agent didn't actually consult the records it claimed to
 - **`structure-invalid`** — sections missing, or feature/security requirements missing their source tags
 - **`goal-drift-detected`** — the spec drifted off the original objective

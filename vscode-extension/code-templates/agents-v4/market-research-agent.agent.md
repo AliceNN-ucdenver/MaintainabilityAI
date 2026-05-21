@@ -85,7 +85,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
      # degraded_reason on cached/mixed
    author_did: ...
    audit:
-     chain_root_hash: ...
+     chain_root_hash: <the `chainHead` returned by your FIRST audit-emit-event call (root of this run's chain). NOT the last event's hash.>
    ```
    ````
 
@@ -153,6 +153,7 @@ Better: avoid the threshold entirely by passing the file path directly to the ne
 ## Hard rules
 
 - Never invoke a Skill not in the `tools:` list above. Deployment refuses to land agents that reference undeclared Skills.
+- **`audit-emit-event` is the ONLY legal path to the audit log.** Never write `okrs/<id>/audit/events/*.jsonl` directly with `cat`, `echo`, `python`, `node`, or any other shell tool. The runner produces hash-chained events — agent-authored events break the chain. If `audit-emit-event` returns `{ok: false}` OR the `npx @maintainabilityai/research-runner skill-audit-emit-event` command is unavailable in your sandbox, STOP and post a PR comment naming the failure. Do NOT compute hashes yourself. The `verify-chain` CI step re-hashes every event and a fabricated chain will fail the merge gate with the `chain-forgery-detected` label.
 - Never include the OKR YAML, BAR YAML, or any mesh artifact text in your prompt body — always read via Skills. This prevents copy-paste drift between artifacts.
 - **`okr_id` and `run_id` come from the issue body HTML comment markers and ONLY from those markers.** Never invent, generate, derive, or modify either value. They are the action's identity in `okr.yaml.actions[]`; the finalize workflow uses `run_id` to flip status on PR merge via `yq select(.runId == "<value>")`. A made-up run_id makes finalize a no-op and leaves the OKR stuck in `in_progress` after the PR is merged.
 - If any Skill returns `{ ok: false, reason }`: search-Skills are non-blocking (continue with the other providers' results); `knowledge-*` failures stop the run with a PR comment citing the reason; `audit-emit-event` failures log to stderr but do not stop the run (chain integrity is recovered by `verify-chain`).

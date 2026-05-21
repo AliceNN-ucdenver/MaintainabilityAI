@@ -59,6 +59,25 @@ import { computeTier, scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/con
 import { computeDecayedScore } from '../mcp/utils/score-decay';
 import type { GovernanceTimestamps } from '../types/redqueen';
 
+/**
+ * Count how many marker matches in `docText` have at least one occurrence
+ * of `citationPattern` within the next ~400 chars. Used by phase-signal
+ * structural counts (FR-citation / SR-anchor coverage) — kept in sync
+ * with the workflow's awk pattern (prd-agent.yml line 286) so the UI's
+ * Coverage card matches the audit verdict.
+ */
+function countCovered(docText: string, markerRe: RegExp, citationRe: RegExp): number {
+  const re = new RegExp(markerRe.source, markerRe.flags.includes('g') ? markerRe.flags : markerRe.flags + 'g');
+  let count = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(docText)) !== null) {
+    const window = docText.slice(match.index, match.index + 400);
+    if (citationRe.test(window)) { count++; }
+    if (match.index === re.lastIndex) { re.lastIndex++; }
+  }
+  return count;
+}
+
 export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, LookingGlassExtensionMessage> {
   public static currentPanel: LookingGlassPanel | undefined;
   private static readonly viewType = 'maintainabilityai.lookingGlass';
@@ -969,17 +988,25 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         result.briefTopicsTotal = requiredTopics.length;
         result.briefTopicsCovered = present;
       } else if (phase === 'how') {
-        const frMatches = docText.match(/\*\*FR-\d+\*\*/g) ?? [];
-        const nfrMatches = docText.match(/\*\*NFR-\d+\*\*/g) ?? [];
-        const srMatches = docText.match(/\*\*SR-\d+\*\*/g) ?? [];
-        result.frCount = frMatches.length;
-        result.nfrCount = nfrMatches.length;
-        result.srCount = srMatches.length;
-        // Citation coverage — approximate by counting FR lines that have R-N or E-N nearby.
-        const frCitedMatches = docText.match(/\*\*FR-\d+\*\*[\s\S]{0,400}?\b[RE]-\d+\b/g) ?? [];
-        result.frWithCites = frCitedMatches.length;
-        const srAnchoredMatches = docText.match(/\*\*SR-\d+\*\*[\s\S]{0,400}?(THR-\d+|A0[1-9]|A10)/g) ?? [];
-        result.srAnchored = srAnchoredMatches.length;
+        // Match both the **FR-NN** bold form AND the ### FR-NN(:) heading
+        // form — same tolerance as the workflow's structure-check awk
+        // (prd-agent.yml lines 279/286). Prior bold-only regex missed
+        // heading-form FRs entirely (observed on PR #105: UI showed FR=0/8
+        // while workflow correctly reported FR=8/8 cited).
+        const FR_RE = /(?:\*\*FR-\d+\*\*|^###\s+FR-\d+(?::|\s|$))/gm;
+        const NFR_RE = /(?:\*\*NFR-\d+\*\*|^###\s+NFR-\d+(?::|\s|$))/gm;
+        const SR_RE = /(?:\*\*SR-\d+\*\*|^###\s+SR-\d+(?::|\s|$))/gm;
+        result.frCount = (docText.match(FR_RE) ?? []).length;
+        result.nfrCount = (docText.match(NFR_RE) ?? []).length;
+        result.srCount = (docText.match(SR_RE) ?? []).length;
+        // Coverage: for each FR marker, check whether R-N / E-N appears
+        // within ~4 lines after (matches the workflow awk pattern).
+        // We split on the marker and look at the first 400 chars of
+        // each segment — close enough to the workflow's awk and
+        // matches both heading-line and inline-bold FRs without
+        // requiring a per-segment line walker.
+        result.frWithCites = countCovered(docText, FR_RE, /\b[RE]-\d+\b/);
+        result.srAnchored = countCovered(docText, SR_RE, /\b(?:THR-\d+|A0[1-9]|A10)\b/);
       }
     }
 
@@ -1237,7 +1264,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
     const phase = phaseStr as 'why' | 'how' | 'what';
-    const agentName = phase === 'why' ? 'market-research-agent' : phase === 'how' ? 'prd-agent' : 'code-design-agent';
     const artifactName = phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md';
 
     // Fetch current audit failure reasons + cosine from the audit

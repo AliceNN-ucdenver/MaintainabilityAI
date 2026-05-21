@@ -159,6 +159,52 @@ jobs:
           echo "found=true"   >> "$GITHUB_OUTPUT"
           echo "path=$JSONL"  >> "$GITHUB_OUTPUT"
 
+      # Defense-in-depth against agent-fabricated audit chains. See the
+      # same step in prd-agent.yml for the rationale + PR #105 incident.
+      # Inline Python so the verification is INDEPENDENT of the runner.
+      - name: Verify audit chain integrity
+        id: chain
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+        run: |
+          python3 <<'PYEOF'
+          import json, hashlib, os
+          jsonl = os.environ['JSONL']
+          ok, reason, head, n, prev = True, '', '', 0, None
+          def canonical(v):
+              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=True)
+          with open(jsonl, 'r', encoding='utf-8') as f:
+              lines = [l.strip() for l in f if l.strip()]
+          for i, line in enumerate(lines):
+              try:
+                  event = json.loads(line)
+              except Exception as e:
+                  ok = False; reason = f'bad-jsonl-line-{i+1}: {e}'; break
+              n += 1
+              if event.get('event_id') != i + 1:
+                  ok = False; reason = f"event-id-mismatch-line-{i+1}: expected {i+1} got {event.get('event_id')}"; break
+              if event.get('prev_event_hash') != prev:
+                  ok = False; reason = f"prev-hash-mismatch-line-{i+1}: expected {prev} got {event.get('prev_event_hash')}"; break
+              recorded = event.get('event_hash')
+              if not isinstance(recorded, str):
+                  ok = False; reason = f'missing-event-hash-line-{i+1}'; break
+              draft = dict(event); draft['event_hash'] = ''
+              recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
+              if recorded != recomputed:
+                  ok = False; reason = f'forged-hash-line-{i+1}: recorded={recorded[:16]} recomputed={recomputed[:16]}'; break
+              prev = recorded
+          head = prev or ''
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'ok={"true" if ok else "false"}\n')
+              f.write(f'reason={reason}\n')
+              f.write(f'head={head}\n')
+              f.write(f'count={n}\n')
+          status = 'PASS' if ok else 'FAIL'
+          print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""} reason={reason}')
+          PYEOF
+
       - name: Count successful skill_calls + distinct queries
         id: counts
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
@@ -413,6 +459,8 @@ jobs:
           H2="${{ steps.structure.outputs.h2_present }}"
           H3="${{ steps.structure.outputs.h3_present }}"
           POCKET="${{ steps.pocket.outputs.passed }}"
+          CHAIN_OK="${{ steps.chain.outputs.ok }}"
+          CHAIN_REASON="${{ steps.chain.outputs.reason }}"
 
           VERDICT="ok"; REASON=""
           # Discrete failure-kind flags — used by the label-apply step to
@@ -425,15 +473,24 @@ jobs:
           EVIDENCE_FAIL="false"
           STRUCTURE_FAIL="false"
           DRIFT_FAIL="false"
+          CHAIN_FAIL="false"
+
+          # Chain verification is the HIGHEST-PRIORITY gate — a forged
+          # chain invalidates every other audit signal. Check it first.
+          if [ "$FOUND" = "true" ] && [ "$CHAIN_OK" = "false" ]; then
+            VERDICT="degraded"; REASON="Audit chain verification failed: $CHAIN_REASON"
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
 
           # Evidence honesty
-          if [ -z "$EVIDENCE_MODE" ]; then
+          if [ "$VERDICT" = "ok" ] && [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence: block — declare evidence_mode (§11.1.7)"
             EVIDENCE_FAIL="true"
-          elif [ "$FOUND" != "true" ] && [ "$EVIDENCE_MODE" = "live" ]; then
+          elif [ "$VERDICT" = "ok" ] && [ "$FOUND" != "true" ] && [ "$EVIDENCE_MODE" = "live" ]; then
             VERDICT="degraded"; REASON="evidence_mode=live but audit JSONL not found"
             EVIDENCE_FAIL="true"
-          elif [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
+          elif [ "$VERDICT" = "ok" ] && [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
             VERDICT="degraded"; REASON="evidence_mode=live but 0 successful provider skill_calls in audit"
             EVIDENCE_FAIL="true"
           fi
@@ -460,7 +517,8 @@ jobs:
           echo "evidence_fail=$EVIDENCE_FAIL"   >> "$GITHUB_OUTPUT"
           echo "structure_fail=$STRUCTURE_FAIL" >> "$GITHUB_OUTPUT"
           echo "drift_fail=$DRIFT_FAIL"         >> "$GITHUB_OUTPUT"
-          echo "::notice::verdict=$VERDICT reason=$REASON (evidence_fail=$EVIDENCE_FAIL structure_fail=$STRUCTURE_FAIL drift_fail=$DRIFT_FAIL)"
+          echo "chain_fail=$CHAIN_FAIL"         >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict=$VERDICT reason=$REASON (chain_fail=$CHAIN_FAIL evidence_fail=$EVIDENCE_FAIL structure_fail=$STRUCTURE_FAIL drift_fail=$DRIFT_FAIL)"
 
       - name: Upsert correctness summary comment
         if: steps.gate.outputs.skip != 'true'
@@ -544,6 +602,10 @@ jobs:
           # labeled "Hatter Tag declared live but 0 skill_calls" even
           # when skill_calls were healthy. Now each label maps to its
           # actual cause.
+          if [ "${{ steps.verdict.outputs.chain_fail }}" = "true" ]; then
+            gh label create chain-forgery-detected --repo ${{ github.repository }} --color B71C1C --description "Audit JSONL hash chain failed verification — agent may have written events directly instead of via audit-emit-event. Merge blocked." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label chain-forgery-detected || true
+          fi
           if [ "${{ steps.verdict.outputs.evidence_fail }}" = "true" ]; then
             gh label create degraded-evidence --repo ${{ github.repository }} --color D32F2F --description "Hatter Tag evidence_mode contradicts the audit log. Blocks the pass label." 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label degraded-evidence || true
@@ -562,6 +624,7 @@ jobs:
           steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'ok'
         run: |
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label chain-forgery-detected 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label degraded-evidence 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label structure-invalid 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label goal-drift-detected 2>/dev/null || true
@@ -633,10 +696,31 @@ jobs:
           fi
           NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
+
+          # 3. Append this run to chain-ladder.yaml — cross-phase audit
+          # ladder stitching WHY → HOW → WHAT runs by intent_thread_uuid +
+          # parent_intent_thread. Scaffolded empty (chain: []) by
+          # OKRService; the original design routed writes through
+          # okr-bus.yml but that workflow was never built. Doing it
+          # here from each agent's finalize captures the lineage at
+          # merge time when all the values are known.
+          # For WHY, parent_intent_thread is the OKR's root thread.
+          LADDER="okrs/${{ steps.ctx.outputs.okr_id }}/audit/chain-ladder.yaml"
+          if [ ! -f "$LADDER" ]; then
+            printf '%s\n' '# Cross-phase audit chain ladder. Written by each agent workflow on PR merge.' 'chain: []' > "$LADDER"
+          fi
+          OKR_THREAD=$(yq -r '.meta.intentThreadUuid // ""' "$OKR_FILE")
+          ACTION_THREAD=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .intentThreadUuid // \"\"" "$OKR_FILE")
+          CHAIN_ROOT=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot // \"\"" "$OKR_FILE")
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          yq -i \
+            "(.chain) += [{\"phase\": \"why\", \"run_id\": \"$RUN_ID\", \"intent_thread_uuid\": \"$ACTION_THREAD\", \"parent_intent_thread\": \"$OKR_THREAD\", \"chain_root_hash\": \"$CHAIN_ROOT\", \"merge_commit_sha\": \"$MERGE_SHA\", \"merged_at\": \"$NOW\", \"pr_number\": ${{ github.event.pull_request.number }}}]" \
+            "$LADDER"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$OKR_FILE"
-          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} WHY complete (action ${{ steps.ctx.outputs.run_id }} -> complete; meta.status researching -> prd-pending; PR #${{ github.event.pull_request.number }})" || echo "Nothing to commit"
+          git add "$OKR_FILE" "$LADDER"
+          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} WHY complete (action ${{ steps.ctx.outputs.run_id }} -> complete; meta.status researching -> prd-pending; chain-ladder append; PR #${{ github.event.pull_request.number }})" || echo "Nothing to commit"
           # Rebase-retry to survive racing pushes.
           for i in 1 2 3; do
             if git push; then break; fi

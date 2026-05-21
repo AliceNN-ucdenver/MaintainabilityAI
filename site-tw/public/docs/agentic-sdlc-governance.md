@@ -412,6 +412,7 @@ STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence la
 |---|---|:-:|
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash` — `verify-chain` catches it offline | ✓ |
+| **Pre-merge chain re-verification (CI gate)** | `audit-and-drift` workflow replays the SHA-256 chain end-to-end against the canonical serialization before any PR can merge. Implemented inline (independent of the runner) so a runner bug can't silently pass; applies `chain-forgery-detected` label and blocks merge on mismatch. Closes the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
 | Pre-execution interception (log before side effect) | `skill-audit-emit-event` is the first call inside each skill invocation; recorded before the skill emits its result | ✓ |
 | Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`; Ed25519 lands in Knight's Seal (Phase B+) | 🛠 |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
@@ -422,14 +423,16 @@ The Aegis Protocol's _Excessive Agency_ game maps directly to our **Pocket Watch
 
 **ASTRIDE** ([arXiv 2512.04785](https://arxiv.org/pdf/2512.04785)) — formal STRIDE extension that adds category **"A" for AI-Agent-Specific Attacks**: prompt manipulation, context/memory poisoning, inter-agent influence. Our threat model covers `A.prompt-injection` and `A.memory-poisoning` (Hatter Tag pins mesh_sha so a poisoned mesh state is detectable across runs); `A.inter-agent-influence` (an upstream agent's output steering a downstream agent toward a different goal) is partially addressed by the Caterpillar's Challenge cross-phase drift check.
 
+A fourth A-category surfaced on PR #105 and is now in scope: **`A.false-audit-fabrication`** — an agent that loses access to the audit-emission runner reasons that *"the audit is non-blocking anyway"* and writes the JSONL by hand with fabricated hash values to appear compliant. The prompt-level mitigation is a hard rule against direct JSONL writes (the agent must STOP and post a PR comment if the runner is unreachable). The structural mitigation is the new pre-merge **`verify-chain`** CI step that re-replays the SHA-256 chain against the canonical serialization — implemented independently of the runner so a runner bug can't silently pass. On verification failure the merge gate refuses with a `chain-forgery-detected` label. This converts what was previously a silent governance-bypass into a blocking failure that names its own cause.
+
 **What auditable evidence looks like under this overlay.** A reviewer (internal auditor, regulator, downstream consumer) can take just two files from any merged artifact — `okrs/<id>/<phase>/<artifact>.md` and `okrs/<id>/audit/events/<run>.jsonl` — and:
 
-1. Verify the Hatter Tag's declared `chain_root_hash` matches the SHA-256 of the JSONL's last event (replay verification — AEGIS Pre-Execution Firewall pattern)
+1. Verify the Hatter Tag's declared `chain_root_hash` matches the SHA-256 of the JSONL's last event (replay verification — AEGIS Pre-Execution Firewall pattern). This is the same check the pre-merge `verify-chain` CI step ran before the artifact was allowed to merge.
 2. Confirm every claim in the artifact traces back to a `skill_call` event in the audit (provenance — Forrester Data Security)
 3. Replay the agent's query plan from `payload.queries` on each search event (reproducibility — Forrester Explainable Outcomes)
 4. Detect tampering: any modification to a past audit event breaks every subsequent `prev_event_hash` (tamper-evidence)
 
-No live system access required. No proprietary tooling. Just two files and a SHA-256 implementation.
+No live system access required. No proprietary tooling. Just two files and a SHA-256 implementation. The auditor's offline replay matches the CI's pre-merge replay — same algorithm, same result.
 
 ### Honest gaps for a future phase
 

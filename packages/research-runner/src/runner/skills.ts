@@ -721,6 +721,72 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────
+// Audit verify-chain — CI defense against forged audit logs
+// ─────────────────────────────────────────────────────────────────────
+
+const AuditVerifyInput = z.object({
+  okrId: z.string().min(1),
+  runId: z.string().min(1),
+});
+
+/**
+ * `audit-verify-chain` — replay the hash chain over an existing audit
+ * JSONL, returning `{ok: true, chainHead, eventCount}` if the chain is
+ * intact or `{ok: false, reason}` on the first integrity failure.
+ *
+ * Why this skill exists: an agent that loses access to the runner could
+ * (and on PR #105 did) self-write the JSONL with fabricated hashes. The
+ * audit-and-drift workflow calls this skill after each run; verdict
+ * fails + `chain-forgery-detected` label is applied on `ok:false`. The
+ * verification rules are identical to `verifyChain()` in audit-emitter.ts:
+ *   - first event prev_event_hash === null
+ *   - each prev_event_hash === preceding event.event_hash
+ *   - each event_hash === sha256(canonicalStringify(event-with-empty-hash))
+ *   - event_id is monotonic from 1
+ */
+const handleAuditVerifyChain: SkillHandler = async (input) => {
+  const parsed = AuditVerifyInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const { okrId, runId } = parsed.data;
+  const filePath = path.join(meshPath(), 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+  if (!fs.existsSync(filePath)) {
+    return { ok: false, reason: `audit-jsonl-missing: ${filePath}` };
+  }
+  let lines: string[];
+  try {
+    lines = fs.readFileSync(filePath, 'utf8').split('\n').filter(l => l.trim().length > 0);
+  } catch (err) {
+    return { ok: false, reason: `read-failed: ${(err as Error).message}` };
+  }
+  let prev: string | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    let event: Record<string, unknown>;
+    try {
+      event = JSON.parse(lines[i]) as Record<string, unknown>;
+    } catch (err) {
+      return { ok: false, reason: `bad-jsonl-line-${i + 1}: ${(err as Error).message}` };
+    }
+    if (event.event_id !== i + 1) {
+      return { ok: false, reason: `event-id-mismatch-line-${i + 1}: expected ${i + 1} got ${event.event_id}` };
+    }
+    if (event.prev_event_hash !== prev) {
+      return { ok: false, reason: `prev-hash-mismatch-line-${i + 1}: expected ${prev ?? 'null'} got ${event.prev_event_hash ?? 'null'}` };
+    }
+    const recordedHash = event.event_hash;
+    if (typeof recordedHash !== 'string') {
+      return { ok: false, reason: `missing-event-hash-line-${i + 1}` };
+    }
+    const draft = { ...event, event_hash: '' };
+    const recomputed = sha256(canonicalStringify(draft));
+    if (recordedHash !== recomputed) {
+      return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
+    }
+    prev = recordedHash;
+  }
+  return { ok: true, chainHead: prev, eventCount: lines.length };
+};
+
+// ─────────────────────────────────────────────────────────────────────
 // Registry + dispatcher
 // ─────────────────────────────────────────────────────────────────────
 
@@ -738,6 +804,7 @@ export const SKILLS: Record<string, SkillHandler> = {
   'dedupe-and-rank': handleDedupeAndRank,
   'format-research-issue-update': handleFormatResearchIssueUpdate,
   'audit-emit-event': handleAuditEmitEvent,
+  'audit-verify-chain': handleAuditVerifyChain,
 };
 
 export function isSkillName(name: string): boolean {

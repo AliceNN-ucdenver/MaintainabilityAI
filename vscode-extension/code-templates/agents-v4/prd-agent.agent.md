@@ -110,33 +110,34 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
     ```markdown
     > **Reviewer:** open this OKR in Looking Glass and click "🔍 Run Audit" to trigger the audit + drift workflow.
     ```
-20. Emit a final `artifact_written` audit event referencing the PRD path + the final self-review state.
+20. **Invoke `audit-emit-event`** after every mesh-Skill call (steps 2–9: `knowledge-*`, `context-*`), after each `self_review` per persona per round (steps 13–14), and a final `artifact_written` event after the PR opens (step 19). The Skill is your ONLY legal path to the audit log — the `audit-emit-event` runner is what produces the hash chain. **Never write `okrs/<id>/audit/events/*.jsonl` directly** (see Hard rules below for what to do if the runner is unreachable).
 
-## Audit event schema (non-negotiable)
+## Audit payload schema (§11.1.6)
 
-Every time you invoke a Skill that touches mesh state (knowledge-*, context-*), emit ONE `skill_call` audit event PER CALL with this exact payload shape:
+When you invoke `audit-emit-event`, the stdin JSON has a fixed wrapper (`okrId`, `runId`, `eventKind`, `phase`, `intentThreadUuid`) plus an event-kind-specific `payload` you author. For `skill_call` events the payload MUST use exactly these field names — the audit-and-drift workflow counts events whose `payload.skill` matches each canonical name:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `skill` | string | yes | The skill name, **singular** (e.g. `"knowledge-okr"`, not a list). Do NOT bundle multiple skills into a single event with `payload.skills: [...]` — the audit-and-drift workflow counts events whose `payload.skill` matches each canonical name. A bundled event with `payload.skills: [...]` matches zero of the per-skill counters and the evidence-honesty gate fails the run. |
+| `skill` | string | yes | The skill name, **singular** (e.g. `"knowledge-okr"`). Do NOT bundle with `payload.skills: [...]` — bundled events match zero per-skill counters and the evidence-honesty gate fails the run. |
 | `ok` | boolean | yes | `true` if the skill returned successfully, `false` otherwise. The counter ignores `ok: false` events. |
-| `notes` | string | optional | Free-text — useful for recording skill-version mismatches or fallbacks (e.g. `"context-architecture unavailable in runner v0.1.23 — proceeded with reduced grounding"`). Notes do NOT replace per-call events; the runner version note still needs one event per skill you tried. |
+| `notes` | string | optional | Free-text — useful for recording skill-version mismatches (e.g. `"context-architecture unavailable in runner v0.1.23 — proceeded with reduced grounding"`). Notes do NOT replace per-call events; the runner version note still needs one event per skill you tried. |
 
-Example — calling three mesh-knowledge skills:
+Canonical invocation (this is the runner stdin — NOT a JSONL file format):
 
-```jsonl
-{"event_kind":"skill_call","payload":{"skill":"knowledge-okr","ok":true}}
-{"event_kind":"skill_call","payload":{"skill":"knowledge-research","ok":true}}
-{"event_kind":"skill_call","payload":{"skill":"knowledge-mesh-bar","ok":true}}
+```sh
+echo '{
+  "okrId": "OKR-2026Q2-IMDB-001-celeb-api",
+  "runId": "HOW-2026-05-21-abc123",
+  "eventKind": "skill_call",
+  "phase": "how",
+  "intentThreadUuid": "2e28b567-ab8a-4ad0-a29d-632673f412a9",
+  "payload": { "skill": "knowledge-okr", "ok": true }
+}' | npx @maintainabilityai/research-runner skill-audit-emit-event
 ```
 
-NOT this (bundled — observed on PR #101 → zero matches → audit failed):
+The runner returns `{"ok":true, "chainHead":"<sha256>", "eventId":<n>}`. Use the FIRST call's `chainHead` as your Hatter Tag's `chain_root_hash`.
 
-```jsonl
-{"event_kind":"skill_call","payload":{"skills":["knowledge-okr","knowledge-research","knowledge-mesh-bar"]}}
-```
-
-If a skill is unavailable in this runtime (e.g. `context-*` skills missing in research-runner v0.1.23), still emit one event per skill you tried with `ok: false` and `notes: "<the reason>"`. The audit-and-drift workflow distinguishes "agent tried and failed" from "agent never tried" — the former is honest, the latter looks like hallucination.
+If a skill is unavailable in this runtime, still invoke `audit-emit-event` once per skill you tried with `payload.ok: false` and `payload.notes: "<the reason>"`. The audit-and-drift workflow distinguishes "agent tried and failed" from "agent never tried" — the former is honest, the latter looks like hallucination.
 
 ## Required artifact format
 
@@ -151,6 +152,7 @@ The audit-and-drift workflow parses the prd.md file with these patterns — matc
 ## Hard rules
 
 - Never invoke a Skill not in `tools:`.
+- **`audit-emit-event` is the ONLY legal path to the audit log.** Never write `okrs/<id>/audit/events/*.jsonl` directly with `cat`, `echo`, `python`, `node`, or any other shell tool. The runner produces hash-chained events — agent-authored events break the chain. If `audit-emit-event` returns `{ok: false}` OR the `npx @maintainabilityai/research-runner skill-audit-emit-event` command is unavailable in your sandbox, **STOP and post a PR comment** naming the failure (e.g. `"audit-emit-event runner unreachable — cannot produce hash-chained audit log; refusing to ship a forged chain"`). Do NOT compute hashes yourself, do NOT write the JSONL file by hand, do NOT generate "plausible" hashes. The `verify-chain` CI step re-hashes every event and a fabricated chain will fail the merge gate with the `chain-forgery-detected` label — but the prompt-level rule is the primary defense. A forged chain destroys the governance contract this whole pipeline exists to enforce.
 - Never include OKR YAML / research-doc text inline — always go through Skills. Copy-paste creates drift between artifacts.
 - **`okr_id` and `run_id` come from the issue body HTML comment markers and ONLY from those markers.** Never invent, generate, derive, or modify either value. They are the action's identity in `okr.yaml.actions[]`; the finalize workflow uses `run_id` to flip status on PR merge via `yq select(.runId == "<value>")`. A made-up run_id makes finalize a no-op and leaves the OKR stuck in `in_progress` after the PR is merged.
 - If a `context-*` Skill returns `{ ok: false }`, stop. PRDs MUST be grounded.

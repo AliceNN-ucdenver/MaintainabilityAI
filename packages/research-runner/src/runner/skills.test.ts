@@ -481,3 +481,62 @@ test('audit-emit-event validates eventKind', async () => {
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
+
+// ─── audit-verify-chain ────────────────────────────────────────────────
+
+test('audit-verify-chain accepts a runner-authored chain', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-V', runId: 'WHY-V-1', phase: 'why' as const, intentThreadUuid: '44444444-4444-4444-4444-444444444444' };
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true, result_count: 5, queries: ['q1'] } });
+      const last = await runSkill('audit-emit-event', { ...base, eventKind: 'artifact_written', payload: { path: 'okrs/OKR-V/why/research-doc.md' } });
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-V', runId: 'WHY-V-1' });
+      assert.equal(verify.ok, true);
+      if (verify.ok === true && last.ok === true) {
+        assert.equal(verify.chainHead, last.chainHead);
+        assert.equal(verify.eventCount, 3);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('audit-verify-chain rejects a fabricated chain (PR #105 scenario)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      // Simulate the PR #105 failure: agent writes the JSONL directly
+      // with sha256 hashes computed from its own serialization (which
+      // doesn't match canonicalStringify). verify-chain MUST catch this.
+      const dir = path.join(mesh, 'okrs', 'OKR-F', 'audit', 'events');
+      fs.mkdirSync(dir, { recursive: true });
+      const forged = [
+        // Note: hashes computed with NON-canonical JSON.stringify (default
+        // key order), so they will NOT match what canonicalStringify
+        // produces during verification.
+        { event_id: 1, ts: '2026-05-21T00:00:00Z', okr_id: 'OKR-F', run_id: 'HOW-F-1', intent_thread_uuid: '5'.repeat(8) + '-5555-5555-5555-555555555555', phase: 'how', event_kind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true }, prev_event_hash: null, event_hash: 'a'.repeat(64) },
+        { event_id: 2, ts: '2026-05-21T00:00:01Z', okr_id: 'OKR-F', run_id: 'HOW-F-1', intent_thread_uuid: '5'.repeat(8) + '-5555-5555-5555-555555555555', phase: 'how', event_kind: 'skill_call', payload: { skill: 'context-architecture', ok: true }, prev_event_hash: 'a'.repeat(64), event_hash: 'b'.repeat(64) },
+      ];
+      const content = forged.map(e => JSON.stringify(e)).join('\n') + '\n';
+      fs.writeFileSync(path.join(dir, 'HOW-F-1.jsonl'), content, 'utf8');
+
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-F', runId: 'HOW-F-1' });
+      assert.equal(verify.ok, false);
+      if (verify.ok === false) {
+        assert.match(verify.reason, /forged-hash-line-1/);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('audit-verify-chain reports missing JSONL', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-M', runId: 'WHY-M-1' });
+      assert.equal(verify.ok, false);
+      if (verify.ok === false) { assert.match(verify.reason, /audit-jsonl-missing/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});

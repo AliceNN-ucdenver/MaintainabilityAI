@@ -138,10 +138,10 @@ describe('AgentDeploymentService.deployAgents', () => {
     fs.rmSync(tmpMesh, { recursive: true, force: true });
   });
 
-  it('writes all 4 .agent.md files on a clean deploy', () => {
+  it(`writes all ${MESH_AGENTS.length} .agent.md files on a clean deploy`, () => {
     const result = svc.deployAgents(tmpMesh);
-    expect(result.total).toBe(4);
-    expect(result.written).toBe(4);
+    expect(result.total).toBe(MESH_AGENTS.length);
+    expect(result.written).toBe(MESH_AGENTS.length);
     expect(result.unchanged).toBe(0);
     for (const agent of MESH_AGENTS) {
       const filePath = path.join(tmpMesh, agent.relativePath);
@@ -156,7 +156,7 @@ describe('AgentDeploymentService.deployAgents', () => {
     svc.deployAgents(tmpMesh);
     const second = svc.deployAgents(tmpMesh);
     expect(second.written).toBe(0);
-    expect(second.unchanged).toBe(4);
+    expect(second.unchanged).toBe(MESH_AGENTS.length);
   });
 
   it('refuses to deploy an agent whose tools reference a Skill not in MESH_SKILLS', () => {
@@ -187,8 +187,8 @@ describe('AgentDeploymentService.deployAgents', () => {
       const prdRow = result.perAgent.find(p => p.name === 'prd-agent')!;
       expect(prdRow.status).toBe('skill-missing');
       expect(prdRow.missingSkills).toContain('fictional-skill-does-not-exist');
-      // The other 3 agents still deploy
-      expect(result.written).toBe(3);
+      // Every other agent in MESH_AGENTS still deploys.
+      expect(result.written).toBe(MESH_AGENTS.length - 1);
       expect(fs.existsSync(path.join(tmpMesh, 'prd-agent.agent.md'))).toBe(false);
     } finally {
       fs.rmSync(fakeExtension, { recursive: true, force: true });

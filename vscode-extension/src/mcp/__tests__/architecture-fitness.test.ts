@@ -54,8 +54,19 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // Environment Settings section: new dispatcher cases on the panel side
   // (getCopilotEnvStatus / setCopilotEnvSecret / openCopilotFirewallSettings
   // / openCopilotEnvSecretsPage) and click handlers on the webview side.
-  'webview/app/lookingGlass.ts': 224,
-  'webview/LookingGlassPanel.ts': 116,
+  // Webview entry IIFE absorbed the OKR detail auto-poll + inline pull
+  // dispatcher branches added when we wired up auto-refresh after merge
+  // and the post-revise progress feedback.
+  'webview/app/lookingGlass.ts': 232,
+  // LookingGlassPanel.handleMessage ratchet bumped to 125 to accept the
+  // OKR phase-signal additions + auto-pull-after-merge dispatcher branch +
+  // the dispatcher cases for the Coding Agent Environment messages that
+  // were previously undeclared in the message-type union (now typed).
+  'webview/LookingGlassPanel.ts': 125,
+  // OKR detail view's renderPhaseSignals is the per-phase card renderer:
+  // it branches by phase × audit verdict × PR draft/ready × revise-pending
+  // × artifact-open × merged. Each branch is a discrete signal we surface.
+  'webview/app/views/okrDetail.ts': 97,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
