@@ -183,7 +183,13 @@ jobs:
           ok, reason, head, n, prev = True, '', '', 0, None
           signed_count = 0
           def canonical(v):
-              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=True)
+              # ensure_ascii=False matches Node's JSON.stringify behavior:
+              # the TS canonicalStringify keeps non-ASCII chars as literal
+              # UTF-8 (e.g. em-dash —, smart quotes); Python's default
+              # `ensure_ascii=True` would escape them to — etc, producing
+              # a different canonical string and a false-positive forged-hash
+              # error on any event whose payload contains non-ASCII.
+              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
           with open(jsonl, 'r', encoding='utf-8') as f:
               lines = [l.strip() for l in f if l.strip()]
           for i, line in enumerate(lines):
