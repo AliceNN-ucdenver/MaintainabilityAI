@@ -54,19 +54,30 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // Environment Settings section: new dispatcher cases on the panel side
   // (getCopilotEnvStatus / setCopilotEnvSecret / openCopilotFirewallSettings
   // / openCopilotEnvSecretsPage) and click handlers on the webview side.
-  // Webview entry IIFE absorbed the OKR detail auto-poll + inline pull
-  // dispatcher branches added when we wired up auto-refresh after merge
-  // and the post-revise progress feedback.
-  'webview/app/lookingGlass.ts': 232,
-  // LookingGlassPanel.handleMessage ratchet bumped to 125 to accept the
-  // OKR phase-signal additions + auto-pull-after-merge dispatcher branch +
-  // the dispatcher cases for the Coding Agent Environment messages that
-  // were previously undeclared in the message-type union (now typed).
-  'webview/LookingGlassPanel.ts': 125,
-  // OKR detail view's renderPhaseSignals is the per-phase card renderer:
-  // it branches by phase × audit verdict × PR draft/ready × revise-pending
-  // × artifact-open × merged. Each branch is a discrete signal we surface.
-  'webview/app/views/okrDetail.ts': 97,
+  // Webview entry IIFE — was 232 (a 988-line switch of 80+ extension->
+  // webview message cases) until the dispatch-table refactor split it
+  // into 84 individually-measured arrow handlers + a 2-complexity router.
+  // The remaining ceiling is renderOrgScanner (29), a pre-existing form
+  // renderer that's a separate split target.
+  'webview/app/lookingGlass.ts': 29,
+  // LookingGlassPanel.handleMessage was 125 (a 100+ case switch) until
+  // the dispatch-table refactor moved per-type handlers into a class
+  // field literal where each arrow is its own function. Each handler's
+  // complexity is measured independently; the router itself is now
+  // trivially simple. The remaining ceiling is fetchPhaseSignal (72) —
+  // a per-phase audit/PR/structure aggregator that's a future split
+  // target. Ratcheting at 72 to lock in the dispatch-table win and
+  // make any future growth visible.
+  'webview/LookingGlassPanel.ts': 72,
+  // OKR detail view's renderPhaseSignals was 97 (per-phase × audit verdict
+  // × PR state × revise-pending × artifact-open branches). Split into
+  // renderPreflightSignal + renderWhyMetrics + renderHowMetrics +
+  // renderPrCascade helpers; the orchestrator is now under 10. The
+  // remaining ceiling is renderPrCascade (45) — the PR-cascade is
+  // legitimately state-branchy (each PR state surfaces a different
+  // action), and splitting further would just shuffle complexity
+  // into a router with no readability win.
+  'webview/app/views/okrDetail.ts': 45,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,

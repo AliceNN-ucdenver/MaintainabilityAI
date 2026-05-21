@@ -818,31 +818,211 @@ function renderDriftLine(s: OkrPhaseSignal | undefined, phase: OkrPhase): string
   return `<div><strong>Drift:</strong> ${parts.join(' · ')}</div>`;
 }
 
-function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, signal: OkrPhaseSignal | undefined): string {
-  // Pre-flight (no action yet): describe what WILL run + the gating
-  // dependency so the human reader knows the contract before clicking.
-  if (!action) {
-    if (phase === 'why') {
-      return `<div class="okr-action-signals">
-        <div><strong>Agent:</strong> market-research-agent</div>
-        <div><strong>Will run:</strong> 4 search providers (Tavily · arXiv · USPTO · HackerNews) + JTBD analysis + gap-refinement loop</div>
-        <div><strong>Audit gate:</strong> evidence honesty (≥1 successful skill_call) · 10/4 H2/H3 structural check · Pocket Watch goal-drift</div>
-      </div>`;
-    }
-    if (phase === 'how') {
-      return `<div class="okr-action-signals">
-        <div><strong>Agent:</strong> prd-agent</div>
-        <div><strong>Will run:</strong> mesh-grounded synthesis (knowledge-okr · knowledge-research · mesh-bar · ADRs · threats · context-architecture/security/quality) + optional Ask-Experts refinement</div>
-        <div><strong>Audit gate:</strong> 10 H2 sections · FR-NN/SR-NN citation coverage · Pocket Watch · Caterpillar's Challenge (vs research-doc)</div>
-        <div><strong>Reviewers:</strong> architect-reviewer + security-reviewer (parallel, scored)</div>
-      </div>`;
-    }
+/**
+ * Pre-flight pre-action descriptor: tells the reader what WILL run and what
+ * the audit gate looks like before they click Start. Extracted from
+ * renderPhaseSignals so the main function stays a thin orchestrator.
+ */
+function renderPreflightSignal(phase: OkrPhase): string {
+  if (phase === 'why') {
     return `<div class="okr-action-signals">
-      <div><strong>Agent:</strong> code-design-agent <em class="okr-muted">(Phase 3 — coming)</em></div>
-      <div><strong>Will run:</strong> code-grounded design synthesis · per-repo indexing · heavy reviewer gate</div>
-      <div><strong>Gated on:</strong> How merged</div>
+      <div><strong>Agent:</strong> market-research-agent</div>
+      <div><strong>Will run:</strong> 4 search providers (Tavily · arXiv · USPTO · HackerNews) + JTBD analysis + gap-refinement loop</div>
+      <div><strong>Audit gate:</strong> evidence honesty (≥1 successful skill_call) · 10/4 H2/H3 structural check · Pocket Watch goal-drift</div>
     </div>`;
   }
+  if (phase === 'how') {
+    return `<div class="okr-action-signals">
+      <div><strong>Agent:</strong> prd-agent</div>
+      <div><strong>Will run:</strong> mesh-grounded synthesis (knowledge-okr · knowledge-research · mesh-bar · ADRs · threats · context-architecture/security/quality) + optional Ask-Experts refinement</div>
+      <div><strong>Audit gate:</strong> 10 H2 sections · FR-NN/SR-NN citation coverage · Pocket Watch · Caterpillar's Challenge (vs research-doc)</div>
+      <div><strong>Reviewers:</strong> architect-reviewer + security-reviewer (parallel, scored)</div>
+    </div>`;
+  }
+  return `<div class="okr-action-signals">
+    <div><strong>Agent:</strong> code-design-agent <em class="okr-muted">(Phase 3 — coming)</em></div>
+    <div><strong>Will run:</strong> code-grounded design synthesis · per-repo indexing · heavy reviewer gate</div>
+    <div><strong>Gated on:</strong> How merged</div>
+  </div>`;
+}
+
+/**
+ * Per-phase metric lines (Sources · Refine · Findings · Coverage · Drift).
+ * Names line up across phases for consistent visual scan; the metrics
+ * underneath differ (skill_call mix, refinement style, citation shapes).
+ */
+function renderWhyMetrics(s: OkrPhaseSignal | undefined, loading: boolean | undefined): string[] {
+  if (loading) {
+    return [`<div class="okr-muted">Loading sources · refine · findings · coverage · drift from GitHub…</div>`];
+  }
+  const lines: string[] = [];
+  if (s?.providers) {
+    const providerCount = (['tavily', 'arxiv', 'uspto', 'hn'] as const)
+      .filter(k => (s.providers as Record<string, number>)[k] > 0).length;
+    lines.push(`<div><strong>Sources:</strong> ${s.providers.total} successful skill_calls · ${providerCount}/4 providers (Tavily · arXiv · USPTO · HN)</div>`);
+  }
+  if (s?.gapLoops != null || s?.followUps != null) {
+    const gap = s.gapLoops ?? 0;
+    const fu = s.followUps ?? 0;
+    lines.push(`<div><strong>Refine:</strong> ${gap} gap-loop${gap === 1 ? '' : 's'} · ${fu} follow-up quer${fu === 1 ? 'y' : 'ies'}</div>`);
+  }
+  if (s?.findings != null) {
+    const concl = s.conclusions ?? 0;
+    lines.push(`<div><strong>Findings:</strong> ${concl} conclusions · S1–S${s.findings} cited</div>`);
+  }
+  lines.push(renderCoverageLine(s, 'why'));
+  lines.push(renderDriftLine(s, 'why'));
+  return lines;
+}
+
+function renderHowMetrics(s: OkrPhaseSignal | undefined, loading: boolean | undefined): string[] {
+  if (loading) {
+    return [`<div class="okr-muted">Loading sources · findings · coverage · drift · self-review from GitHub…</div>`];
+  }
+  const lines: string[] = [];
+  if (s?.meshSkillCalls != null) {
+    lines.push(`<div><strong>Sources:</strong> ${s.meshSkillCalls} mesh-skill calls (knowledge · context · ADRs · threats)</div>`);
+  }
+  // B24: self-review rounds (bounded persona-switch critique inside prd-agent).
+  if (s?.selfReviewRounds != null && s.selfReviewRounds > 0) {
+    const exh = s.selfReviewExhausted ? ' ⚠ exhausted' : '';
+    lines.push(`<div><strong>Refine:</strong> ${s.selfReviewRounds} self-review round${s.selfReviewRounds === 1 ? '' : 's'} (Architect + Security personas)${exh}</div>`);
+  }
+  if (s?.frCount != null || s?.nfrCount != null || s?.srCount != null) {
+    const fr = s.frCount ?? 0;
+    const nfr = s.nfrCount ?? 0;
+    const sr = s.srCount ?? 0;
+    lines.push(`<div><strong>Findings:</strong> ${fr} FR · ${nfr} NFR · ${sr} SR</div>`);
+  }
+  lines.push(renderCoverageLine(s, 'how'));
+  lines.push(renderDriftLine(s, 'how'));
+  // B24: per-persona scores from the audit JSONL (was external reviewer scores).
+  const arch = s?.selfReviewArchitect;
+  const sec = s?.selfReviewSecurity;
+  if (arch?.score != null || sec?.score != null) {
+    const archCell = arch?.score != null
+      ? `${arch.score.toFixed(2)} (${arch.severity ?? '?'})${arch.severity && ['PASS','MINOR'].includes(arch.severity) ? ' ✓' : ' ✗'}`
+      : '—';
+    const secCell = sec?.score != null
+      ? `${sec.score.toFixed(2)} (${sec.severity ?? '?'})${sec.severity && ['PASS','MINOR'].includes(sec.severity) ? ' ✓' : ' ✗'}`
+      : '—';
+    lines.push(`<div><strong>Self-review:</strong> Arch ${archCell} · Sec ${secCell}</div>`);
+  }
+  return lines;
+}
+
+/**
+ * PR + audit cascade — PR link, draft/ready states, Run Audit / Mark Ready
+ * / Merge / Revise / Re-run / View Artifact affordances. The most complex
+ * branch in the phase-signal renderer because each PR state surfaces a
+ * different action.
+ */
+function renderPrCascade(s: OkrPhaseSignal, phase: OkrPhase): string[] {
+  const lines: string[] = [];
+  const state = s.prState ?? 'open';
+  const draft = s.prDraft === true;
+  const stateLabel = state === 'merged'
+    ? '🟣 merged'
+    : state === 'closed'
+      ? '🔴 closed'
+      : draft
+        ? '📝 draft'
+        : '🟢 open';
+  const viewArtifactBtn = `<button class="okr-link-button okr-md-toggle-btn" data-action="toggle-artifact" data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}" title="View the produced markdown inline">📄 ${s?.artifactOpen ? 'Hide' : 'View'} artifact</button>`;
+  const canMerge = state === 'open' && !draft && s?.passLabelApplied === true;
+  const mergeBtn = canMerge
+    ? `<button class="okr-button-primary okr-button-small okr-md-merge-btn" data-action="merge-pr" data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}" data-pr-number="${s.prNumber}" title="Squash-merges the PR via GitHub API. Branch protection still applies.">✓ Merge PR</button>`
+    : '';
+  lines.push(`
+    <div class="okr-signal-pr-row">
+      <strong>PR:</strong>
+      <a class="okr-link-button" href="${escapeAttr(s.prUrl ?? '')}" target="_blank" rel="noopener">#${s.prNumber} ${stateLabel} ↗</a>
+      ${viewArtifactBtn}
+      ${mergeBtn}
+    </div>
+  `);
+
+  // Review-requested badge — agent flagged "done" without flipping draft.
+  if (s?.prReviewRequested === true && state === 'open') {
+    lines.push(`<div class="okr-signal-review-requested">📋 Review requested by the agent.</div>`);
+  }
+
+  const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
+  const agentName = phase === 'why' ? 'market-research-agent' : phase === 'how' ? 'prd-agent' : 'code-design-agent';
+
+  // Cascade — exactly one of these branches fires.
+  if (state === 'open' && !draft && s?.auditLabelApplied === false && s?.passLabelApplied !== true) {
+    lines.push(`
+      <div class="okr-signal-audit-action">
+        <button class="okr-button-primary okr-button-small" data-action="run-audit"
+          data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}"
+          data-pr-number="${s.prNumber}"
+          title="Applies the \`${labelName}\` label to the PR, which triggers the audit + drift workflow.">
+          🔍 Run Audit
+        </button>
+        <span class="okr-muted okr-signal-audit-hint">Applies <code>${labelName}</code> to trigger the audit + drift workflow.</span>
+      </div>
+    `);
+  } else if (state === 'open' && draft) {
+    const markReadyBtn = s?.prReviewRequested === true
+      ? `<button class="okr-button-primary okr-button-small okr-md-ready-btn" data-action="mark-pr-ready" data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}" data-pr-number="${s.prNumber}" title="Flip the PR out of draft so Run Audit can fire.">✅ Mark PR ready</button>`
+      : '';
+    const msg = s?.prReviewRequested === true
+      ? `📝 Draft — but the agent has requested a review, suggesting it thinks the work is done. Mark the PR ready to unlock Run Audit.`
+      : `📝 Draft — agent is still committing. Run Audit appears once the PR is marked ready-for-review.`;
+    lines.push(`<div class="okr-signal-pr-pending">${msg} ${markReadyBtn}</div>`);
+  } else if (s?.reviseDispatchedAt) {
+    const at = new Date(s.reviseDispatchedAt);
+    const hhmm = at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    lines.push(`<div class="okr-signal-revise-pending">🤖 Revision dispatched at ${hhmm} — waiting for the agent's new commits. The card will refresh automatically when they arrive (auto-polling every 5–60s).</div>`);
+  } else if (s?.auditLabelApplied && s?.auditFailed === true) {
+    const reasons = (s.auditFailureReasons ?? []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
+    lines.push(`
+      <div class="okr-signal-audit-failed">
+        <div class="okr-signal-audit-failed-header">✗ Audit failed — revise the artifact (with the agent or manually), then re-run.</div>
+        <ul class="okr-signal-audit-reasons">${reasons}</ul>
+        <div class="okr-signal-audit-actions">
+          <button class="okr-button-primary okr-button-small" data-action="revise-with-agent"
+            data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}"
+            data-pr-number="${s.prNumber}"
+            title="Posts a structured PR comment dispatching ${agentName} with the audit failure reasons attached.">
+            🤖 Revise with agent
+          </button>
+          <button class="okr-button-secondary okr-button-small" data-action="rerun-audit"
+            data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}"
+            data-pr-number="${s.prNumber}"
+            title="Removes + re-applies \`${labelName}\` to re-trigger the audit on the current PR state. Use this if you manually edited the artifact.">
+            🔁 Re-run Audit
+          </button>
+        </div>
+      </div>
+    `);
+  } else if (s?.auditLabelApplied && s?.passLabelApplied !== true) {
+    lines.push(`<div class="okr-signal-audit-status">⏳ Audit in flight — refresh after the workflow posts its summary comment.</div>`);
+  } else if (s?.passLabelApplied) {
+    const passLabel = phase === 'why' ? 'research-pass' : phase === 'how' ? 'prd-pass' : 'design-pass';
+    lines.push(`<div class="okr-signal-audit-status">✓ Audit passed — <code>${passLabel}</code> applied. Merge unlocked (subject to branch protection).</div>`);
+  }
+
+  // Collapsible artifact preview — toggled by 📄 View artifact.
+  if (s?.artifactOpen) {
+    const path = s.artifactPath ?? (phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md');
+    if (s.artifactLoading) {
+      lines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Loading from GitHub…</div></div>`);
+    } else if (s.artifactContent) {
+      const rendered = renderMarkdownSafe(s.artifactContent);
+      lines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></div><div class="okr-md-panel-body">${rendered}</div></div>`);
+    } else {
+      lines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div></div>`);
+    }
+  }
+
+  return lines;
+}
+
+function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, signal: OkrPhaseSignal | undefined): string {
+  // Pre-flight: describe the contract before the user clicks Start.
+  if (!action) { return renderPreflightSignal(phase); }
 
   // Post-flight: render the rich layout from the §10.2 mockup, populated
   // with whatever signal data the extension has fetched from GitHub API.
@@ -855,79 +1035,21 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, sign
     `<div><strong>Agent:</strong> ${escapeHtml(action.agent)}</div>`,
   ];
 
-  // Phase-specific signal lines — same labels across WHY/HOW so the
-  // visual scan is consistent. The METRICS underneath each label
-  // differ (skill_call mix, refinement style, citation shapes) but
-  // the names — Sources / Refine / Findings / Coverage / Drift —
-  // line up.
+  // Phase-specific signal lines — same labels (Sources · Refine ·
+  // Findings · Coverage · Drift) across WHY/HOW for consistent visual
+  // scan; metrics underneath differ per phase. Each phase's metrics
+  // live in its own renderer to keep this dispatcher trivial.
   if (phase === 'why') {
-    if (loading) {
-      baseLines.push(`<div class="okr-muted">Loading sources · refine · findings · coverage · drift from GitHub…</div>`);
-    } else {
-      if (s?.providers) {
-        const providerCount = (['tavily', 'arxiv', 'uspto', 'hn'] as const)
-          .filter(k => (s.providers as Record<string, number>)[k] > 0).length;
-        baseLines.push(`<div><strong>Sources:</strong> ${s.providers.total} successful skill_calls · ${providerCount}/4 providers (Tavily · arXiv · USPTO · HN)</div>`);
-      }
-      if (s?.gapLoops != null || s?.followUps != null) {
-        const gap = s.gapLoops ?? 0;
-        const fu = s.followUps ?? 0;
-        baseLines.push(`<div><strong>Refine:</strong> ${gap} gap-loop${gap === 1 ? '' : 's'} · ${fu} follow-up quer${fu === 1 ? 'y' : 'ies'}</div>`);
-      }
-      if (s?.findings != null) {
-        const sources = s.findings;
-        const concl = s.conclusions ?? 0;
-        baseLines.push(`<div><strong>Findings:</strong> ${concl} conclusions · S1–S${sources} cited</div>`);
-      }
-      baseLines.push(renderCoverageLine(s, 'why'));
-      baseLines.push(renderDriftLine(s, 'why'));
-    }
+    baseLines.push(...renderWhyMetrics(s, loading));
   } else if (phase === 'how') {
-    if (loading) {
-      baseLines.push(`<div class="okr-muted">Loading sources · findings · coverage · drift · self-review from GitHub…</div>`);
-    } else {
-      if (s?.meshSkillCalls != null) {
-        baseLines.push(`<div><strong>Sources:</strong> ${s.meshSkillCalls} mesh-skill calls (knowledge · context · ADRs · threats)</div>`);
-      }
-      // B24: self-review rounds replace the old "Refine" line —
-      // bounded persona-switch critique inside the prd-agent run.
-      if (s?.selfReviewRounds != null && s.selfReviewRounds > 0) {
-        const exh = s.selfReviewExhausted ? ' ⚠ exhausted' : '';
-        baseLines.push(`<div><strong>Refine:</strong> ${s.selfReviewRounds} self-review round${s.selfReviewRounds === 1 ? '' : 's'} (Architect + Security personas)${exh}</div>`);
-      }
-      if (s?.frCount != null || s?.nfrCount != null || s?.srCount != null) {
-        const fr = s.frCount ?? 0;
-        const nfr = s.nfrCount ?? 0;
-        const sr = s.srCount ?? 0;
-        baseLines.push(`<div><strong>Findings:</strong> ${fr} FR · ${nfr} NFR · ${sr} SR</div>`);
-      }
-      baseLines.push(renderCoverageLine(s, 'how'));
-      baseLines.push(renderDriftLine(s, 'how'));
-      // B24: final per-persona scores from the audit JSONL replace the
-      // external reviewer-agent scores. Same shape — Arch · Sec — but
-      // sourced from the prd-agent's own self-critique events, not from
-      // a separate workflow dispatch.
-      const arch = s?.selfReviewArchitect;
-      const sec = s?.selfReviewSecurity;
-      if (arch?.score != null || sec?.score != null) {
-        const archCell = arch?.score != null
-          ? `${arch.score.toFixed(2)} (${arch.severity ?? '?'})${arch.severity && ['PASS','MINOR'].includes(arch.severity) ? ' ✓' : ' ✗'}`
-          : '—';
-        const secCell = sec?.score != null
-          ? `${sec.score.toFixed(2)} (${sec.severity ?? '?'})${sec.severity && ['PASS','MINOR'].includes(sec.severity) ? ' ✓' : ' ✗'}`
-          : '—';
-        baseLines.push(`<div><strong>Self-review:</strong> Arch ${archCell} · Sec ${secCell}</div>`);
-      }
-    }
+    baseLines.push(...renderHowMetrics(s, loading));
   } else {
-    // What phase — Phase 3 territory; minimal for now.
     baseLines.push(`<div class="okr-muted">code-design-agent signals will appear here when Phase 3 ships.</div>`);
   }
 
-  // Trailer: WHY phase has no reviewers so "Rounds: 0" is meaningless
-  // (it would always be 0). Refinement iterations are surfaced in the
-  // gap-loop / follow-ups line above, which is the WHY equivalent. Only
-  // HOW + WHAT (which DO have reviewer round counters) show rounds.
+  // Trailer: WHY phase has no reviewers so "Rounds: 0" is meaningless;
+  // its refinement iterations appear in the gap-loop / follow-ups line.
+  // HOW + WHAT have real reviewer round counters worth showing.
   if (phase === 'why') {
     baseLines.push(`<div class="okr-signal-meta">Run <code>${escapeHtml(action.runId)}</code> · Tier: ${escapeHtml(action.governanceTier)}</div>`);
   } else {
@@ -966,137 +1088,7 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, sign
   }
 
   if (s?.prUrl && s?.prNumber != null) {
-    const state = s.prState ?? 'open';
-    const draft = s.prDraft === true;
-    // Visual state: draft takes precedence over "open" because the
-    // agent's still working. Once marked ready-for-review the badge
-    // flips to 🟢 open and the Run Audit affordance appears.
-    const stateLabel = state === 'merged'
-      ? '🟣 merged'
-      : state === 'closed'
-        ? '🔴 closed'
-        : draft
-          ? '📝 draft'
-          : '🟢 open';
-    // View Artifact + Merge affordances live inline next to the PR
-    // link so the user can read the produced artifact + ship without
-    // leaving Looking Glass. View Artifact is always available once a
-    // PR exists; Merge requires the pass label AND open-not-merged.
-    const viewArtifactBtn = `<button class="okr-link-button okr-md-toggle-btn" data-action="toggle-artifact" data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}" title="View the produced markdown inline">📄 ${s?.artifactOpen ? 'Hide' : 'View'} artifact</button>`;
-    const canMerge = state === 'open' && !draft && s?.passLabelApplied === true && state !== 'merged' as 'open' | 'closed' | 'merged';
-    const mergeBtn = canMerge
-      ? `<button class="okr-button-primary okr-button-small okr-md-merge-btn" data-action="merge-pr" data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}" data-pr-number="${s.prNumber}" title="Squash-merges the PR via GitHub API. Branch protection still applies.">✓ Merge PR</button>`
-      : '';
-    baseLines.push(`
-      <div class="okr-signal-pr-row">
-        <strong>PR:</strong>
-        <a class="okr-link-button" href="${escapeAttr(s.prUrl)}" target="_blank" rel="noopener">#${s.prNumber} ${stateLabel} ↗</a>
-        ${viewArtifactBtn}
-        ${mergeBtn}
-      </div>
-    `);
-
-    // Review-requested badge — agents sometimes signal "I'm done" by
-    // requesting a review even though they never flipped draft → ready.
-    // The badge tells the user "agent thinks it's converged"; the Mark
-    // Ready affordance below lets them complete the transition without
-    // leaving Looking Glass. Only meaningful while the PR is OPEN —
-    // after merge/close, `requested_reviewers` stays populated on the
-    // PR object but the signal is no longer actionable.
-    if (s?.prReviewRequested === true && state === 'open') {
-      baseLines.push(`<div class="okr-signal-review-requested">📋 Review requested by the agent.</div>`);
-    }
-
-    // Run Audit only when the PR is OPEN, NOT DRAFT, and the audit
-    // label hasn't been applied yet. Draft PRs mean the agent is still
-    // committing — auditing a half-written artifact would just fail
-    // structural checks loudly.
-    if (state === 'open' && !draft && s?.auditLabelApplied === false && s?.passLabelApplied !== true) {
-      const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
-      baseLines.push(`
-        <div class="okr-signal-audit-action">
-          <button class="okr-button-primary okr-button-small" data-action="run-audit"
-            data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}"
-            data-pr-number="${s.prNumber}"
-            title="Applies the \`${labelName}\` label to the PR, which triggers the audit + drift workflow.">
-            🔍 Run Audit
-          </button>
-          <span class="okr-muted okr-signal-audit-hint">Applies <code>${labelName}</code> to trigger the audit + drift workflow.</span>
-        </div>
-      `);
-    } else if (state === 'open' && draft) {
-      // If the agent has requested a review (likely-done signal) but
-      // didn't flip the draft flag, surface a Mark Ready button.
-      // Otherwise just the "still committing" message.
-      const markReadyBtn = s?.prReviewRequested === true
-        ? `<button class="okr-button-primary okr-button-small okr-md-ready-btn" data-action="mark-pr-ready" data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}" data-pr-number="${s.prNumber}" title="Flip the PR out of draft so Run Audit can fire.">✅ Mark PR ready</button>`
-        : '';
-      const msg = s?.prReviewRequested === true
-        ? `📝 Draft — but the agent has requested a review, suggesting it thinks the work is done. Mark the PR ready to unlock Run Audit.`
-        : `📝 Draft — agent is still committing. Run Audit appears once the PR is marked ready-for-review.`;
-      baseLines.push(`<div class="okr-signal-pr-pending">${msg} ${markReadyBtn}</div>`);
-    } else if (s?.reviseDispatchedAt) {
-      // Revise dispatched, no new commits yet — show a clear "agent is
-      // working" status so the user knows the click had an effect.
-      const at = new Date(s.reviseDispatchedAt);
-      const hhmm = at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      baseLines.push(`<div class="okr-signal-revise-pending">🤖 Revision dispatched at ${hhmm} — waiting for the agent's new commits. The card will refresh automatically when they arrive (auto-polling every 5–60s).</div>`);
-    } else if (s?.auditLabelApplied && s?.auditFailed === true) {
-      // Audit ran and failed — show the specific reasons + two
-      // affordances:
-      //   1. 🤖 Revise with agent — posts a structured PR comment that
-      //      tells the agent to revise the artifact addressing the
-      //      audit findings. This is the right path when the artifact
-      //      content itself caused the failure (drift, missing sections).
-      //   2. 🔁 Re-run Audit — for cases where you've manually edited
-      //      the artifact in the PR branch and want to re-trigger
-      //      without involving the agent.
-      const reasons = (s.auditFailureReasons ?? []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
-      const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
-      const agentName = phase === 'why' ? 'market-research-agent' : phase === 'how' ? 'prd-agent' : 'code-design-agent';
-      baseLines.push(`
-        <div class="okr-signal-audit-failed">
-          <div class="okr-signal-audit-failed-header">✗ Audit failed — revise the artifact (with the agent or manually), then re-run.</div>
-          <ul class="okr-signal-audit-reasons">${reasons}</ul>
-          <div class="okr-signal-audit-actions">
-            <button class="okr-button-primary okr-button-small" data-action="revise-with-agent"
-              data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}"
-              data-pr-number="${s.prNumber}"
-              title="Posts a structured PR comment dispatching ${agentName} with the audit failure reasons attached.">
-              🤖 Revise with agent
-            </button>
-            <button class="okr-button-secondary okr-button-small" data-action="rerun-audit"
-              data-okr-id="${escapeAttr(s.okrId ?? '')}" data-phase="${escapeAttr(phase)}"
-              data-pr-number="${s.prNumber}"
-              title="Removes + re-applies \`${labelName}\` to re-trigger the audit on the current PR state. Use this if you manually edited the artifact.">
-              🔁 Re-run Audit
-            </button>
-          </div>
-        </div>
-      `);
-    } else if (s?.auditLabelApplied && s?.passLabelApplied !== true) {
-      baseLines.push(`<div class="okr-signal-audit-status">⏳ Audit in flight — refresh after the workflow posts its summary comment.</div>`);
-    } else if (s?.passLabelApplied) {
-      const passLabel = phase === 'why' ? 'research-pass' : phase === 'how' ? 'prd-pass' : 'design-pass';
-      baseLines.push(`<div class="okr-signal-audit-status">✓ Audit passed — <code>${passLabel}</code> applied. Merge unlocked (subject to branch protection).</div>`);
-    }
-
-    // Collapsible artifact preview. Renders inline only when the user
-    // clicks 📄 View artifact. The extension fetches the markdown body
-    // via the GitHub Contents API and re-posts okrPhaseSignals with
-    // artifactContent populated. Rendered safely via renderMarkdownSafe
-    // (no raw HTML passthrough, no script execution).
-    if (s?.artifactOpen) {
-      const path = s.artifactPath ?? (phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md');
-      if (s.artifactLoading) {
-        baseLines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Loading from GitHub…</div></div>`);
-      } else if (s.artifactContent) {
-        const rendered = renderMarkdownSafe(s.artifactContent);
-        baseLines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></div><div class="okr-md-panel-body">${rendered}</div></div>`);
-      } else {
-        baseLines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div></div>`);
-      }
-    }
+    baseLines.push(...renderPrCascade(s, phase));
   }
 
   // Hatter chain root + View Tag / Verify Chain buttons.

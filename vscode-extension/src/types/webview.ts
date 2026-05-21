@@ -373,7 +373,6 @@ export type LookingGlassWebviewMessage =
   | { type: 'openOraculum'; barPath: string }
   | { type: 'summarizeTopFindings'; barPath: string }
   // Settings
-  | { type: 'openSettings' }
   | { type: 'checkWorkflowStatus' }
   | { type: 'provisionWorkflow' }
   | { type: 'savePreferredModel'; family: string }

@@ -78,6 +78,17 @@ function countCovered(docText: string, markerRe: RegExp, citationRe: RegExp): nu
   return count;
 }
 
+/**
+ * Discriminated-union dispatch table type. Given a union `U` keyed by
+ * `type`, `MessageHandlers<U>` is an object whose keys are every member's
+ * `type` and whose values are handlers narrowed to that exact member.
+ * Used by `LookingGlassPanel.messageHandlers` to replace a 100+ case
+ * `switch` while preserving per-variant payload narrowing.
+ */
+type MessageHandlers<U extends { type: string }> = {
+  [K in U['type']]: (msg: Extract<U, { type: K }>) => void | Promise<void>;
+};
+
 export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, LookingGlassExtensionMessage> {
   public static currentPanel: LookingGlassPanel | undefined;
   private static readonly viewType = 'maintainabilityai.lookingGlass';
@@ -203,494 +214,206 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
   }
 
-  protected async handleMessage(message: LookingGlassWebviewMessage) {
-    switch (message.type) {
-      case 'ready':
-        await this.onReady();
-        break;
+  /**
+   * Inbound message -> handler dispatch table. Replaces the prior 100+
+   * case switch in handleMessage (cyclomatic complexity 125). Each entry's
+   * RHS is its own function whose complexity is measured independently,
+   * so the router itself stays trivially simple (one lookup + one call).
+   *
+   * Convention: each entry forwards to a `this.onX(...)` method that
+   * owns the real work. Inline arrows are used only for the handful of
+   * single-line side-effects (vscode.commands.executeCommand, etc).
+   * The `noop` sentinel marks message types that exist in the protocol
+   * but are handled entirely client-side (back-navigation, filter
+   * toggles) - listing them explicitly catches future renames at
+   * compile time instead of silently dropping the message.
+   */
+  private readonly noop = (): void => { /* client-side handled in webview */ };
+  private readonly messageHandlers: MessageHandlers<LookingGlassWebviewMessage> = {
+    'ready':                       () => this.onReady(),
+    'refresh':                     () => this.loadPortfolio(),
+    'pickFolder':                  () => this.onPickFolder(),
+    'initMesh':                    (m) => this.onInitMesh(m.name, m.org, m.owner, m.folderPath, m.createRepo, m.repoName, m.repoVisibility, m.architectureDsl, m.capabilityModel),
+    'samplePlatform':              () => this.onSamplePlatform(),
+    'addPlatform':                 (m) => this.onAddPlatform(m.name, m.abbreviation, m.owner),
+    'scaffoldBar':                 (m) => this.onScaffoldBar(m.name, m.platformId, m.criticality, m.template),
+    'drillIntoBar':                (m) => this.onDrillIntoBar(m.barPath),
+    'openFile':                    (m) => this.onOpenFile(m.path),
+    'detectGitHubDefaults':        () => this.onDetectGitHubDefaults(),
+    'scanOrg':                     (m) => this.onScanOrg(m.org, m.modelFamily),
+    'scanOrgWithRepos':            (m) => this.onScanOrgWithRepos(m.org, m.repoNames, m.modelFamily),
+    'loadOrgRepos':                (m) => this.onLoadOrgRepos(m.org),
+    'addReposToBar':               (m) => this.onAddReposToBar(m.barPath, m.repoUrls),
+    'applyOrgScan':                (m) => this.onApplyOrgScan(m.platforms, m.template, m.updates),
+    'listModels':                  () => this.onListModels(),
+    'updateBarField':              (m) => this.onUpdateBarField(m.barPath, m.field, m.value),
+    'updateAppYaml':               (m) => this.onUpdateAppYaml(m.barPath, m.fields),
+    'listAdrs':                    (m) => this.onListAdrs(m.barPath),
+    'createAdr':                   (m) => this.onCreateAdr(m.barPath, m.adr),
+    'updateAdr':                   (m) => this.onUpdateAdr(m.barPath, m.adr),
+    'deleteAdr':                   (m) => this.onDeleteAdr(m.barPath, m.adrId),
+    'generateThreatModel':         (m) => this.onGenerateThreatModel(m.barPath),
+    'exportThreatModelCsv':        (m) => this.onExportThreatModelCsv(m.barPath, m.threats),
+    'syncBar':                     (m) => this.onSyncBar(m.barPath),
+    'commitMesh':                  () => this.onCommitMesh(),
+    'pushMesh':                    () => this.onPushMesh(),
+    'pullMesh':                    () => this.onPullMesh(),
+    'switchCapabilityModel':       (m) => this.onSwitchCapabilityModel(m.modelType),
+    'uploadCustomModel':           (m) => this.onUploadCustomModel(m.jsonContent),
+    'openRepoInContext':           (m) => this.onOpenRepoInContext(m.repoUrl, m.barPath),
+    'openScorecard':               (m) => { vscode.commands.executeCommand('maintainabilityai.openScorecard', m.folderPath); },
+    'scaffoldComponent':           (m) => this.onScaffoldComponent(m.repoUrl, m.barPath),
+    'deployGovernanceToRepo':      (m) => this.onDeployGovernanceToRepo(m.barPath, m.localPath),
+    'loadPolicies':                () => this.onLoadPolicies(),
+    'savePolicy':                  (m) => this.onSavePolicy(m.filename, m.content),
+    'lookupNistControl':           (m) => this.onLookupNistControl(m.controlId),
+    'createNistCatalog':           () => this.onCreateNistCatalog(),
+    'generatePolicyBaseline':      (m) => this.onGeneratePolicyBaseline(m.filename),
+    'calmMutation':                (m) => this.onCalmMutation(m.barPath, m.patch as CalmPatch[]),
+    'loadPlatformArchitecture':    (m) => this.onLoadPlatformArchitecture(m.platformId),
+    'platformCalmMutation':        (m) => this.onPlatformCalmMutation(m.platformId, m.patch as CalmPatch[]),
+    'applyArchetype':              (m) => this.onApplyArchetype(m.barPath, m.archetypeId, m.appName),
+    'saveLayout':                  (m) => this.onSaveLayout(m.barPath, m.diagramType, m.layout as object),
+    'exportPng':                   (m) => this.onExportPng(m.barPath, m.diagramType, m.pngDataUrl),
+    'openOraculum':                (m) => { vscode.commands.executeCommand('maintainabilityai.oraculum', m.barPath); },
+    'summarizeTopFindings':        (m) => { this.onSummarizeTopFindings(m.barPath).catch(() => {}); },
+    'checkWorkflowStatus':         () => this.onCheckWorkflowStatus(),
+    'provisionWorkflow':           () => this.onProvisionWorkflow(),
+    'provisionAgentic':            () => this.onProvisionAgentic(),
+    'provisionAll':                () => this.onProvisionAll(),
+    'checkAgenticStatus':          () => this.onCheckAgenticStatus(),
+    'getCopilotEnvStatus':         () => this.onGetCopilotEnvStatus(),
+    'setCopilotEnvSecret':         (m) => this.onSetCopilotEnvSecret(m.secretName),
+    'openCopilotFirewallSettings': () => this.onOpenCopilotFirewallSettings(),
+    'openCopilotEnvSecretsPage':   () => this.onOpenCopilotEnvSecretsPage(),
+    'savePreferredModel':          (m) => this.onSavePreferredModel(m.family),
+    'reinitializeMesh':            () => this.onReinitializeMesh(),
+    'loadDriftWeights':            () => this.onLoadDriftWeights(),
+    'saveDriftWeights':            (m) => this.onSaveDriftWeights(m.weights),
+    'configureMeshSecrets':        () => { vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'governance'); },
+    'refreshPromptPacks':          () => this.onRefreshPromptPacks(),
+    'loadResearchSettings':        () => this.onLoadResearchSettings(),
+    'saveResearchSecret':          (m) => this.onSaveResearchSecret(m.id, m.value),
+    'promptResearchSecret':        (m) => this.onPromptResearchSecret(m.id),
+    'createResearchSecret':        (m) => this.onCreateResearchSecret(m.id),
+    'testResearchSecret':          (m) => this.onTestResearchSecret(m.id),
+    'pushResearchSecret':          (m) => this.onPushResearchSecret(m.id),
+    'pushResearchSecretToAll':     (m) => this.onPushResearchSecretToAll(m.id),
+    'saveResearchPrefs':           (m) => this.onSaveResearchPrefs(m.prefs),
+    'loadOrchestrationPolicy':     () => this.onLoadOrchestrationPolicy(),
+    'saveOrchestrationPolicy':     (m) => this.onSaveOrchestrationPolicy(m.policy),
+    'loadAgentType':               () => this.onLoadAgentType(),
+    'saveAgentType':               (m) => this.onSaveAgentType(m.agentType),
+    'loadPlatformGovernance':      (m) => this.onLoadPlatformGovernance(m.platformId),
+    'savePlatformGovernance':      (m) => this.onSavePlatformGovernance(m.platformId, m.governance),
+    'absolemStart':                (m) => { this.onAbsolemStart(m.barPath, m.command).catch(() => {}); },
+    'absolemSend':                 (m) => { this.onAbsolemSend(m.barPath, m.message).catch(() => {}); },
+    'absolemAcceptPatches':        (m) => this.onAbsolemAcceptPatches(m.barPath, m.patches as CalmPatch[]),
+    'absolemRejectPatches':        (m) => this.onAbsolemRejectPatches(m.barPath),
+    'absolemClose':                (m) => this.onAbsolemClose(m.barPath),
+    'absolemImageStart':           (m) => { this.onAbsolemImageStart(m.barPath, m.imageBase64, m.mimeType).catch(() => {}); },
+    'absolemPreviewJson':          (m) => this.onAbsolemPreviewJson(m.json),
+    'getCalmComponents':           (m) => this.onGetCalmComponents(m.barPath),
+    'implementComponent':          (m) => this.onImplementComponent(m.barPath, m.componentId, m.repoName, m.componentName, m.componentType, m.componentDescription),
+    'saveWorkspace':               (m) => this.saveWorkspaceFile(m.name),
+    'openUrl':                     (m) => { vscode.env.openExternal(vscode.Uri.parse(m.url)); },
+    'newResearchFromPlatform':     (m) => {
+      // Archeologist dispatches on the `research-request` issue label.
+      vscode.commands.executeCommand('maintainabilityai.createResearchRequest', {
+        scopeLevel: 'platform',
+        scopeId: m.slug,
+        brief: `Research for platform ${m.name} (${m.slug}).`,
+      });
+    },
+    'newResearchFromBar':          (m) => {
+      vscode.commands.executeCommand('maintainabilityai.createResearchRequest', {
+        scopeLevel: 'bar',
+        scopeId: m.barId,
+        brief: `Research for BAR ${m.barName} (${m.barId}).`,
+      });
+    },
+    'getOkrList':                  () => this.onGetOkrList(),
+    'drillIntoOkr':                (m) => this.onDrillIntoOkr(m.okrId),
+    'loadOkrPhaseSignals':         (m) => this.onLoadOkrPhaseSignals(m.okrId),
+    'runOkrAudit':                 (m) => this.onRunOkrAudit(m.okrId, m.phase, m.prNumber),
+    'toggleOkrArtifact':           (m) => this.onToggleOkrArtifact(m.okrId, m.phase),
+    'mergeOkrPr':                  (m) => this.onMergeOkrPr(m.okrId, m.phase, m.prNumber),
+    'markOkrPrReady':              (m) => this.onMarkOkrPrReady(m.okrId, m.phase, m.prNumber),
+    'rerunOkrAudit':               (m) => this.onRerunOkrAudit(m.okrId, m.phase, m.prNumber),
+    'reviseWithAgent':             (m) => this.onReviseWithAgent(m.okrId, m.phase, m.prNumber),
+    'scaffoldOkrSample':           () => this.onScaffoldOkrSample(),
+    'createOkrDraft':              () => this.onCreateOkrDraft(),
+    'editOkr':                     (m) => this.onEditOkr(m.okrId),
+    'saveOkrEdits':                (m) => this.onSaveOkrEdits(m.okrId, m.patch),
+    'createOkrFromDraft':          (m) => this.onCreateOkrFromDraft(m.draft),
+    'startOkrWhy':                 (m) => this.onStartOkrPhase(m.okrId, 'why'),
+    'startOkrHow':                 (m) => this.onStartOkrPhase(m.okrId, 'how'),
+    'startOkrWhat':                (m) => this.onStartOkrPhase(m.okrId, 'what'),
+    'confirmStartOkrPhase':        (m) => this.onConfirmStartOkrPhase(m.okrId, m.phase, m.additionalContext ?? ''),
+    'loadHatterTag':               (m) => this.onLoadHatterTag(m.okrId, m.actionId),
+    'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
+    'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
+    'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
+    'cancelOkrAction':             (m) => this.onCancelOkrAction(m.okrId, m.actionId),
+    // Client-side-only navigation / filter messages - declared so a
+    // future rename surfaces at compile time instead of silently dropping.
+    'backToPortfolio':             this.noop,
+    'backToPlatform':              this.noop,
+    'backToOkrList':               this.noop,
+    'drillIntoPlatform':           this.noop,
+    'filterBars':                  this.noop,
+    'searchBars':                  this.noop,
+  };
 
-      case 'refresh':
-        await this.loadPortfolio();
-        break;
+  protected async handleMessage(message: LookingGlassWebviewMessage): Promise<void> {
+    const handler = this.messageHandlers[message.type] as
+      | ((msg: LookingGlassWebviewMessage) => void | Promise<void>)
+      | undefined;
+    if (handler) { await handler(message); }
+  }
 
-      case 'pickFolder': {
-        const picked = await vscode.window.showOpenDialog({
-          canSelectFiles: false,
-          canSelectFolders: true,
-          canSelectMany: false,
-          openLabel: 'Select folder for Initiative Mesh',
-          title: 'MaintainabilityAI \u2014 Initialize Mesh',
-        });
-        if (picked && picked.length > 0) {
-          this.postMessage({ type: 'folderPicked', path: picked[0].fsPath });
-        }
-        break;
+  /**
+   * `pickFolder` - open a folder picker for the Initialize Mesh flow.
+   * Extracted from the prior inline `case` body so the dispatch table
+   * stays uniform (each entry is one method call).
+   */
+  private async onPickFolder(): Promise<void> {
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: 'Select folder for Initiative Mesh',
+      title: 'MaintainabilityAI \u2014 Initialize Mesh',
+    });
+    if (picked && picked.length > 0) {
+      this.postMessage({ type: 'folderPicked', path: picked[0].fsPath });
+    }
+  }
+
+  /**
+   * `openFile` - open a path in the editor or reveal a directory in the
+   * explorer. Resolves mesh-relative paths against the configured mesh
+   * root (BAR-detail entries send absolute, OKR-detail "Open okr.yaml"
+   * sends mesh-relative - without resolution the relative form lands
+   * against the extension cwd and the file is never found).
+   */
+  private async onOpenFile(targetPath: string): Promise<void> {
+    const absPath = path.isAbsolute(targetPath)
+      ? targetPath
+      : (() => {
+          const meshPath = MeshService.getMeshPath();
+          return meshPath ? path.join(meshPath, targetPath) : targetPath;
+        })();
+    const uri = vscode.Uri.file(absPath);
+    try {
+      const stat = await vscode.workspace.fs.stat(uri);
+      if (stat.type === vscode.FileType.Directory) {
+        vscode.commands.executeCommand('revealInExplorer', uri);
+      } else {
+        vscode.window.showTextDocument(uri);
       }
-
-      case 'initMesh':
-        await this.onInitMesh(message.name, message.org, message.owner, message.folderPath, message.createRepo, message.repoName, message.repoVisibility, message.architectureDsl, message.capabilityModel);
-        break;
-
-      case 'samplePlatform':
-        await this.onSamplePlatform();
-        break;
-
-      case 'addPlatform':
-        await this.onAddPlatform(message.name, message.abbreviation, message.owner);
-        break;
-
-      case 'scaffoldBar':
-        await this.onScaffoldBar(
-          message.name,
-          message.platformId,
-          message.criticality,
-          message.template
-        );
-        break;
-
-      case 'drillIntoBar':
-        await this.onDrillIntoBar(message.barPath);
-        break;
-
-      case 'openFile': {
-        // Webviews send either an absolute path (BAR detail's repo tree
-        // entries) or a mesh-relative path (OKR detail's "Open okr.yaml").
-        // If the path isn't absolute, resolve it against the configured
-        // mesh root. Without this fallback the relative path resolves
-        // against the extension's cwd and the file is never found.
-        const absPath = path.isAbsolute(message.path)
-          ? message.path
-          : (() => {
-              const meshPath = MeshService.getMeshPath();
-              return meshPath ? path.join(meshPath, message.path) : message.path;
-            })();
-        const uri = vscode.Uri.file(absPath);
-        try {
-          const stat = await vscode.workspace.fs.stat(uri);
-          if (stat.type === vscode.FileType.Directory) {
-            vscode.commands.executeCommand('revealInExplorer', uri);
-          } else {
-            vscode.window.showTextDocument(uri);
-          }
-        } catch {
-          vscode.window.showErrorMessage(`File not found: ${absPath}`);
-        }
-        break;
-      }
-
-      case 'detectGitHubDefaults':
-        await this.onDetectGitHubDefaults();
-        break;
-
-      case 'scanOrg':
-        await this.onScanOrg(message.org, message.modelFamily);
-        break;
-
-      case 'scanOrgWithRepos':
-        await this.onScanOrgWithRepos(message.org, message.repoNames, message.modelFamily);
-        break;
-
-      case 'loadOrgRepos':
-        await this.onLoadOrgRepos(message.org);
-        break;
-
-      case 'addReposToBar':
-        await this.onAddReposToBar(message.barPath, message.repoUrls);
-        break;
-
-      case 'applyOrgScan':
-        await this.onApplyOrgScan(message.platforms, message.template, message.updates);
-        break;
-
-      case 'listModels':
-        await this.onListModels();
-        break;
-
-      case 'updateBarField':
-        await this.onUpdateBarField(message.barPath, message.field, message.value);
-        break;
-
-      case 'updateAppYaml':
-        await this.onUpdateAppYaml(message.barPath, message.fields);
-        break;
-
-      case 'listAdrs':
-        await this.onListAdrs(message.barPath);
-        break;
-
-      case 'createAdr':
-        await this.onCreateAdr(message.barPath, message.adr);
-        break;
-
-      case 'updateAdr':
-        await this.onUpdateAdr(message.barPath, message.adr);
-        break;
-
-      case 'deleteAdr':
-        await this.onDeleteAdr(message.barPath, message.adrId);
-        break;
-
-      case 'generateThreatModel':
-        await this.onGenerateThreatModel(message.barPath);
-        break;
-
-      case 'exportThreatModelCsv':
-        await this.onExportThreatModelCsv(message.barPath, message.threats);
-        break;
-
-      case 'syncBar':
-        await this.onSyncBar(message.barPath);
-        break;
-
-      case 'commitMesh':
-        await this.onCommitMesh();
-        break;
-
-      case 'pushMesh':
-        await this.onPushMesh();
-        break;
-
-      case 'pullMesh':
-        await this.onPullMesh();
-        break;
-
-      case 'switchCapabilityModel':
-        await this.onSwitchCapabilityModel(message.modelType);
-        break;
-
-      case 'uploadCustomModel':
-        await this.onUploadCustomModel(message.jsonContent);
-        break;
-
-      case 'openRepoInContext':
-        await this.onOpenRepoInContext(message.repoUrl, message.barPath);
-        break;
-
-      case 'openScorecard':
-        vscode.commands.executeCommand('maintainabilityai.openScorecard', message.folderPath);
-        break;
-
-      case 'scaffoldComponent':
-        await this.onScaffoldComponent(message.repoUrl, message.barPath);
-        break;
-
-      case 'deployGovernanceToRepo':
-        await this.onDeployGovernanceToRepo(message.barPath, message.localPath);
-        break;
-
-      case 'loadPolicies':
-        await this.onLoadPolicies();
-        break;
-
-      case 'savePolicy':
-        await this.onSavePolicy(message.filename, message.content);
-        break;
-
-      case 'lookupNistControl':
-        this.onLookupNistControl(message.controlId);
-        break;
-
-      case 'createNistCatalog':
-        await this.onCreateNistCatalog();
-        break;
-
-      case 'generatePolicyBaseline':
-        await this.onGeneratePolicyBaseline(message.filename);
-        break;
-
-      case 'calmMutation':
-        this.onCalmMutation(message.barPath, message.patch as CalmPatch[]);
-        break;
-
-      case 'loadPlatformArchitecture':
-        this.onLoadPlatformArchitecture(message.platformId);
-        break;
-
-      case 'platformCalmMutation':
-        this.onPlatformCalmMutation(message.platformId, message.patch as CalmPatch[]);
-        break;
-
-      case 'applyArchetype':
-        await this.onApplyArchetype(message.barPath, message.archetypeId, message.appName);
-        break;
-
-      case 'saveLayout':
-        this.onSaveLayout(message.barPath, message.diagramType, message.layout as object);
-        break;
-
-      case 'exportPng':
-        this.onExportPng(message.barPath, message.diagramType, message.pngDataUrl);
-        break;
-
-      case 'openOraculum':
-        vscode.commands.executeCommand('maintainabilityai.oraculum', message.barPath);
-        break;
-
-      case 'summarizeTopFindings':
-        this.onSummarizeTopFindings(message.barPath).catch(() => {});
-        break;
-
-      // Settings
-      case 'checkWorkflowStatus':
-        await this.onCheckWorkflowStatus();
-        break;
-
-      case 'provisionWorkflow':
-        await this.onProvisionWorkflow();
-        break;
-
-      case 'provisionAgentic':
-        await this.onProvisionAgentic();
-        break;
-
-      case 'provisionAll':
-        await this.onProvisionAll();
-        break;
-
-      case 'checkAgenticStatus':
-        this.onCheckAgenticStatus();
-        break;
-
-      case 'getCopilotEnvStatus':
-        await this.onGetCopilotEnvStatus();
-        break;
-
-      case 'setCopilotEnvSecret':
-        await this.onSetCopilotEnvSecret(message.secretName);
-        break;
-
-      case 'openCopilotFirewallSettings':
-        await this.onOpenCopilotFirewallSettings();
-        break;
-
-      case 'openCopilotEnvSecretsPage':
-        await this.onOpenCopilotEnvSecretsPage();
-        break;
-
-      case 'savePreferredModel':
-        await this.onSavePreferredModel(message.family);
-        break;
-
-      case 'reinitializeMesh':
-        await this.onReinitializeMesh();
-        break;
-
-      case 'loadDriftWeights':
-        this.onLoadDriftWeights();
-        break;
-
-      case 'saveDriftWeights':
-        this.onSaveDriftWeights(message.weights);
-        break;
-
-      case 'configureMeshSecrets':
-        vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'governance');
-        break;
-
-      case 'refreshPromptPacks':
-        await this.onRefreshPromptPacks();
-        break;
-
-      // Research Settings (Tavily + research-pipeline prefs)
-      case 'loadResearchSettings':
-        await this.onLoadResearchSettings();
-        break;
-
-      case 'saveResearchSecret':
-        await this.onSaveResearchSecret(message.id, message.value);
-        break;
-
-      case 'promptResearchSecret':
-        await this.onPromptResearchSecret(message.id);
-        break;
-
-      case 'createResearchSecret':
-        await this.onCreateResearchSecret(message.id);
-        break;
-
-      case 'testResearchSecret':
-        await this.onTestResearchSecret(message.id);
-        break;
-
-      case 'pushResearchSecret':
-        await this.onPushResearchSecret(message.id);
-        break;
-
-      case 'pushResearchSecretToAll':
-        await this.onPushResearchSecretToAll(message.id);
-        break;
-
-      case 'saveResearchPrefs':
-        await this.onSaveResearchPrefs(message.prefs);
-        break;
-
-      // Red Queen — orchestration + platform governance editors
-      case 'loadOrchestrationPolicy':
-        this.onLoadOrchestrationPolicy();
-        break;
-
-      case 'saveOrchestrationPolicy':
-        this.onSaveOrchestrationPolicy(message.policy);
-        break;
-
-      case 'loadAgentType':
-        this.onLoadAgentType();
-        break;
-
-      case 'saveAgentType':
-        this.onSaveAgentType(message.agentType);
-        break;
-
-      case 'loadPlatformGovernance':
-        this.onLoadPlatformGovernance(message.platformId);
-        break;
-
-      case 'savePlatformGovernance':
-        this.onSavePlatformGovernance(message.platformId, message.governance);
-        break;
-
-      // Absolem — multi-turn CALM refinement agent
-      case 'absolemStart':
-        this.onAbsolemStart(message.barPath, message.command).catch(() => {});
-        break;
-
-      case 'absolemSend':
-        this.onAbsolemSend(message.barPath, message.message).catch(() => {});
-        break;
-
-      case 'absolemAcceptPatches':
-        this.onAbsolemAcceptPatches(message.barPath, message.patches as CalmPatch[]);
-        break;
-
-      case 'absolemRejectPatches':
-        this.onAbsolemRejectPatches(message.barPath);
-        break;
-
-      case 'absolemClose':
-        this.onAbsolemClose(message.barPath);
-        break;
-
-      case 'absolemImageStart':
-        this.onAbsolemImageStart(message.barPath, message.imageBase64, message.mimeType).catch(() => {});
-        break;
-
-      case 'absolemPreviewJson':
-        this.onAbsolemPreviewJson(message.json);
-        break;
-
-      case 'getCalmComponents':
-        await this.onGetCalmComponents(message.barPath);
-        break;
-
-      case 'implementComponent':
-        await this.onImplementComponent(message.barPath, message.componentId, message.repoName, message.componentName, message.componentType, message.componentDescription);
-        break;
-
-      case 'saveWorkspace':
-        this.saveWorkspaceFile(message.name);
-        break;
-
-      case 'openUrl':
-        vscode.env.openExternal(vscode.Uri.parse(message.url));
-        break;
-
-      case 'newResearchFromPlatform':
-        // Open the research-request wizard pre-filled with platform scope.
-        // Archeologist dispatches on the `research-request` issue label.
-        vscode.commands.executeCommand('maintainabilityai.createResearchRequest', {
-          scopeLevel: 'platform',
-          scopeId: message.slug,
-          brief: `Research for platform ${message.name} (${message.slug}).`,
-        });
-        break;
-
-      case 'newResearchFromBar':
-        vscode.commands.executeCommand('maintainabilityai.createResearchRequest', {
-          scopeLevel: 'bar',
-          scopeId: message.barId,
-          brief: `Research for BAR ${message.barName} (${message.barId}).`,
-        });
-        break;
-
-      // OKR list + detail (Phase A — read-only; Start buttons disabled until Phase B)
-      case 'getOkrList':
-        await this.onGetOkrList();
-        break;
-      case 'drillIntoOkr':
-        await this.onDrillIntoOkr(message.okrId);
-        break;
-      case 'loadOkrPhaseSignals':
-        await this.onLoadOkrPhaseSignals(message.okrId);
-        break;
-      case 'runOkrAudit':
-        await this.onRunOkrAudit(message.okrId, message.phase, message.prNumber);
-        break;
-      case 'toggleOkrArtifact':
-        await this.onToggleOkrArtifact(message.okrId, message.phase);
-        break;
-      case 'mergeOkrPr':
-        await this.onMergeOkrPr(message.okrId, message.phase, message.prNumber);
-        break;
-      case 'markOkrPrReady':
-        await this.onMarkOkrPrReady(message.okrId, message.phase, message.prNumber);
-        break;
-      case 'rerunOkrAudit':
-        await this.onRerunOkrAudit(message.okrId, message.phase, message.prNumber);
-        break;
-      case 'reviseWithAgent':
-        await this.onReviseWithAgent(message.okrId, message.phase, message.prNumber);
-        break;
-      case 'scaffoldOkrSample':
-        await this.onScaffoldOkrSample();
-        break;
-      case 'createOkrDraft':
-        await this.onCreateOkrDraft();
-        break;
-      case 'editOkr':
-        await this.onEditOkr(message.okrId);
-        break;
-      case 'saveOkrEdits':
-        await this.onSaveOkrEdits(message.okrId, message.patch);
-        break;
-      case 'createOkrFromDraft':
-        await this.onCreateOkrFromDraft(message.draft);
-        break;
-      case 'startOkrWhy':
-        await this.onStartOkrPhase(message.okrId, 'why');
-        break;
-      case 'startOkrHow':
-        await this.onStartOkrPhase(message.okrId, 'how');
-        break;
-      case 'startOkrWhat':
-        await this.onStartOkrPhase(message.okrId, 'what');
-        break;
-      case 'confirmStartOkrPhase':
-        await this.onConfirmStartOkrPhase(message.okrId, message.phase, message.additionalContext ?? '');
-        break;
-      case 'loadHatterTag':
-        await this.onLoadHatterTag(message.okrId, message.actionId);
-        break;
-      case 'okrHumanGateApprove':
-        await this.onHumanGateApprove(message.okrId, message.actionId, message.tier);
-        break;
-      case 'okrHumanGateRerun':
-        await this.onHumanGateRerun(message.okrId, message.actionId);
-        break;
-      case 'okrHumanGateReject':
-        await this.onHumanGateReject(message.okrId, message.actionId);
-        break;
-      case 'cancelOkrAction':
-        await this.onCancelOkrAction(message.okrId, message.actionId);
-        break;
-
-      case 'backToPortfolio':
-      case 'backToPlatform':
-      case 'backToOkrList':
-      case 'drillIntoPlatform':
-      case 'filterBars':
-      case 'searchBars':
-        // These are handled client-side in the webview
-        break;
+    } catch {
+      vscode.window.showErrorMessage(`File not found: ${absPath}`);
     }
   }
 

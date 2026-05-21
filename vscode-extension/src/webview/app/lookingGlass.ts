@@ -3970,12 +3970,17 @@ function attachEventHandlers() {
 // Message Handling (from extension)
 // ============================================================================
 
-window.addEventListener('message', (event) => {
-  if (event.origin !== window.origin) { return; }
-  const message = event.data;
-
-  switch (message.type) {
-    case 'portfolioData': {
+// =====================================================================
+// Extension -> webview message dispatch table. Replaces the prior 80+
+// case switch inside the addEventListener callback (cyclomatic complexity
+// 232). Each entry is its own function so its complexity is measured
+// independently; the router itself is trivially simple (one lookup +
+// one call).
+// =====================================================================
+type WebviewInboundMessage = { type: string } & Record<string, unknown>;
+type InboundHandler = (message: WebviewInboundMessage) => void;
+const inboundHandlers: Record<string, InboundHandler> = {
+    'portfolioData': (message: WebviewInboundMessage) => {
       state.portfolio = message.data as PortfolioSummary;
       // Capture open workspace folder names for repo highlighting
       if (Array.isArray(message.workspaceFolders)) {
@@ -3993,10 +3998,8 @@ window.addEventListener('message', (event) => {
         state.view = 'portfolio';
       }
       render();
-      break;
-    }
-
-    case 'barDetail': {
+    },
+    'barDetail': (message: WebviewInboundMessage) => {
       const isSameBar = state.currentBar?.path === (message.bar as BarSummary).path;
       state.currentBar = message.bar as BarSummary;
       state.currentDecisions = message.decisions as GovernanceDecision[];
@@ -4047,19 +4050,15 @@ window.addEventListener('message', (event) => {
       state.errorMessage = '';
       state.view = 'bar-detail';
       render();
-      break;
-    }
-
-    case 'activeReview': {
+    },
+    'activeReview': (message: WebviewInboundMessage) => {
       const reviewBarPath = (message as Record<string, unknown>).barPath as string;
       const review = (message as Record<string, unknown>).review as ActiveReviewInfo | null;
       if (state.currentBar?.path === reviewBarPath) {
         state.activeReview = review;
       }
-      break;
-    }
-
-    case 'agentStatusUpdate': {
+    },
+    'agentStatusUpdate': (message: WebviewInboundMessage) => {
       const statusBarPath = (message as Record<string, unknown>).barPath as string;
       const status = (message as Record<string, unknown>).status as AgentStatusInfo | null;
       if (state.currentBar?.path === statusBarPath) {
@@ -4071,10 +4070,8 @@ window.addEventListener('message', (event) => {
           attachAgentStatusListeners((msg) => vscode.postMessage(msg));
         }
       }
-      break;
-    }
-
-    case 'topFindingsProgress': {
+    },
+    'topFindingsProgress': (message: WebviewInboundMessage) => {
       const tfBarPath = (message as Record<string, unknown>).barPath as string;
       if (state.currentBar?.path === tfBarPath) {
         state.topFindingsLoading = true;
@@ -4090,10 +4087,8 @@ window.addEventListener('message', (event) => {
           render();
         }
       }
-      break;
-    }
-
-    case 'topFindingsSummary': {
+    },
+    'topFindingsSummary': (message: WebviewInboundMessage) => {
       const tsBarPath = (message as Record<string, unknown>).barPath as string;
       if (state.currentBar?.path === tsBarPath) {
         state.topFindingsLoading = false;
@@ -4101,10 +4096,8 @@ window.addEventListener('message', (event) => {
         state.topFindingsExpanded = true;
         render();
       }
-      break;
-    }
-
-    case 'threatModelProgress': {
+    },
+    'threatModelProgress': (message: WebviewInboundMessage) => {
       const wasGenerating = state.threatModelGenerating;
       state.threatModelGenerating = true;
       state.threatModelProgress = message.step as string;
@@ -4122,10 +4115,8 @@ window.addEventListener('message', (event) => {
         // First tick or not yet rendered — need full render to show progress UI
         render();
       }
-      break;
-    }
-
-    case 'threatModelGenerated': {
+    },
+    'threatModelGenerated': (message: WebviewInboundMessage) => {
       state.threatModel = message.result as ThreatModelResult;
       state.threatModelGenerating = false;
       state.threatModelProgress = '';
@@ -4133,59 +4124,43 @@ window.addEventListener('message', (event) => {
       // Keep security pillar open to show results
       state.activePillar = 'security';
       render();
-      break;
-    }
-
-    case 'threatModelFailed': {
+    },
+    'threatModelFailed': (_message: WebviewInboundMessage) => {
       state.threatModelGenerating = false;
       state.threatModelProgress = '';
       state.threatModelProgressPct = 0;
       state.activePillar = 'security';
       render();
-      break;
-    }
-
-    case 'threatModelExported': {
+    },
+    'threatModelExported': (_message: WebviewInboundMessage) => {
       // File saved — no special UI update needed
-      break;
-    }
-
-    case 'adrList': {
+    },
+    'adrList': (message: WebviewInboundMessage) => {
       state.adrs = (message.adrs || []) as AdrRecord[];
       state.adrEditingId = null;
       state.adrForm = null;
       render();
-      break;
-    }
-
-    case 'adrSaved': {
+    },
+    'adrSaved': (_message: WebviewInboundMessage) => {
       // After save, refresh the ADR list — the extension sends a follow-up adrList
       state.adrEditingId = null;
       state.adrForm = null;
       // adrList message will follow from the extension
-      break;
-    }
-
-    case 'adrDeleted': {
+    },
+    'adrDeleted': (message: WebviewInboundMessage) => {
       state.adrs = state.adrs.filter(a => a.id !== (message.adrId as string));
       render();
-      break;
-    }
-
-    case 'appYamlUpdated': {
+    },
+    'appYamlUpdated': (_message: WebviewInboundMessage) => {
       state.appYamlEditing = false;
       state.appYamlForm = null;
       // barDetail reload will follow from the extension
-      break;
-    }
-
-    case 'gitStatusUpdated': {
+    },
+    'gitStatusUpdated': (message: WebviewInboundMessage) => {
       state.gitStatus = message.status as GitSyncStatus;
       render();
-      break;
-    }
-
-    case 'syncProgress': {
+    },
+    'syncProgress': (message: WebviewInboundMessage) => {
       state.syncing = true;
       state.syncProgress = message.step as string;
       // Incremental DOM update — avoid full re-render
@@ -4195,105 +4170,79 @@ window.addEventListener('message', (event) => {
       } else {
         render();
       }
-      break;
-    }
-
-    case 'syncComplete': {
+    },
+    'syncComplete': (_message: WebviewInboundMessage) => {
       state.syncing = false;
       state.syncProgress = '';
       // gitStatusUpdated will follow to clear badges
       render();
-      break;
-    }
-
-    case 'syncError': {
+    },
+    'syncError': (message: WebviewInboundMessage) => {
       state.syncing = false;
       state.syncProgress = '';
       state.errorMessage = message.message as string;
       render();
-      break;
-    }
-
-    case 'pushComplete': {
+    },
+    'pushComplete': (_message: WebviewInboundMessage) => {
       state.syncing = false;
       state.syncProgress = '';
       // gitStatusUpdated will follow to refresh banner
       render();
-      break;
-    }
-
-    case 'pushError': {
+    },
+    'pushError': (message: WebviewInboundMessage) => {
       state.syncing = false;
       state.syncProgress = '';
       state.errorMessage = message.message as string;
       render();
-      break;
-    }
-
-    case 'pullComplete': {
+    },
+    'pullComplete': (_message: WebviewInboundMessage) => {
       state.syncing = false;
       state.syncProgress = '';
       // portfolioData + barDetail + gitStatusUpdated will follow to refresh everything
       render();
-      break;
-    }
-
-    case 'pullError': {
+    },
+    'pullError': (message: WebviewInboundMessage) => {
       state.syncing = false;
       state.syncProgress = '';
       state.errorMessage = message.message as string;
       render();
-      break;
-    }
-
-    case 'policiesLoaded': {
+    },
+    'policiesLoaded': (message: WebviewInboundMessage) => {
       state.policies = (message.policies || []) as PolicyFile[];
       state.nistControls = (message.nistControls || []) as NistControl[];
       render();
-      break;
-    }
-
-    case 'policySaved': {
+    },
+    'policySaved': (_message: WebviewInboundMessage) => {
       // Policies will be reloaded via policiesLoaded message
-      break;
-    }
-
-    case 'policyBaselineProgress': {
+    },
+    'policyBaselineProgress': (message: WebviewInboundMessage) => {
       const pFilename = message.filename as string;
       if (state.policyGenerating === pFilename) {
         state.policyGenerateStep = message.step as string;
         state.policyGenerateProgress = message.progress as number;
         render();
       }
-      break;
-    }
-
-    case 'policyBaselineGenerated': {
+    },
+    'policyBaselineGenerated': (_message: WebviewInboundMessage) => {
       state.policyGenerating = null;
       state.policyGenerateStep = '';
       state.policyGenerateProgress = 0;
       render();
-      break;
-    }
-
-    case 'nistControlDetail': {
+    },
+    'nistControlDetail': (message: WebviewInboundMessage) => {
       const control = message.control as NistControl | null;
       if (control) {
         state.nistControlPopup = control;
         render();
       }
-      break;
-    }
-
-    case 'meshInitialized': {
+    },
+    'meshInitialized': (_message: WebviewInboundMessage) => {
       state.pickedFolderPath = '';
       state.isLoading = false;
       state.errorMessage = '';
       // Portfolio data will follow from loadPortfolio()
-      break;
-    }
-
-    case 'initProgress': {
+    },
+    'initProgress': (message: WebviewInboundMessage) => {
       const steps = (message.steps as { label: string; status: 'pending' | 'active' | 'done' | 'error' }[]) || [];
       state.initSteps = steps;
       const listEl = document.getElementById('init-step-list');
@@ -4331,35 +4280,27 @@ window.addEventListener('message', (event) => {
           });
         }
       }
-      break;
-    }
-
-    case 'platformAdded': {
+    },
+    'platformAdded': (_message: WebviewInboundMessage) => {
       state.isLoading = false;
       state.errorMessage = '';
       state.view = 'portfolio';
       // Portfolio data will be refreshed by the extension
-      break;
-    }
-
-    case 'barScaffolded': {
+    },
+    'barScaffolded': (_message: WebviewInboundMessage) => {
       state.isLoading = false;
       state.errorMessage = '';
       state.view = 'portfolio';
       // Portfolio data will be refreshed by the extension
-      break;
-    }
-
-    case 'folderPicked': {
+    },
+    'folderPicked': (message: WebviewInboundMessage) => {
       state.pickedFolderPath = message.path as string;
       const pickedPathEl = document.getElementById('picked-path');
       if (pickedPathEl) {
         pickedPathEl.textContent = state.pickedFolderPath;
       }
-      break;
-    }
-
-    case 'loading': {
+    },
+    'loading': (message: WebviewInboundMessage) => {
       state.isLoading = message.active as boolean;
       if (message.message) {
         state.loadingMessage = message.message as string;
@@ -4371,16 +4312,12 @@ window.addEventListener('message', (event) => {
       } else if (!state.portfolio && state.view !== 'init-mesh' && state.view !== 'no-mesh') {
         render();
       }
-      break;
-    }
-
-    case 'capabilityModelSwitched': {
+    },
+    'capabilityModelSwitched': (_message: WebviewInboundMessage) => {
       // Model was switched — portfolio data refresh will follow
       state.capabilityDrillPath = [];
-      break;
-    }
-
-    case 'error': {
+    },
+    'error': (message: WebviewInboundMessage) => {
       state.errorMessage = message.message as string;
       state.isLoading = false;
       // If repo picker modal is open and loading, show error there
@@ -4389,57 +4326,43 @@ window.addEventListener('message', (event) => {
         state.repoPickerModal.error = message.message as string;
       }
       render();
-      break;
-    }
-
-    case 'orgScanProgress': {
+    },
+    'orgScanProgress': (message: WebviewInboundMessage) => {
       state.orgScanProgress = message.progress as number;
       state.orgScanStep = message.step as string;
       if (state.view === 'org-scanner') {
         render();
       }
-      break;
-    }
-
-    case 'orgScanResults': {
+    },
+    'orgScanResults': (message: WebviewInboundMessage) => {
       state.orgScanRecommendation = message.recommendation as OrgScanRecommendation;
       state.orgScanProgress = 0;
       state.orgScanStep = '';
       state.errorMessage = '';
       render();
-      break;
-    }
-
-    case 'orgScanApplied': {
+    },
+    'orgScanApplied': (_message: WebviewInboundMessage) => {
       state.orgScanRecommendation = null;
       state.orgScanProgress = 0;
       state.view = 'portfolio';
       state.errorMessage = '';
       // Portfolio data will be refreshed by the extension
-      break;
-    }
-
-    case 'orgReposLoaded': {
+    },
+    'orgReposLoaded': (message: WebviewInboundMessage) => {
       if (state.repoPickerModal) {
         state.repoPickerModal.repos = message.repos as OrgRepo[];
         state.repoPickerModal.loading = false;
         state.repoPickerModal.error = '';
         render();
       }
-      break;
-    }
-
-    case 'reposAddedToBar': {
+    },
+    'reposAddedToBar': (_message: WebviewInboundMessage) => {
       // BAR detail refresh follows from onDrillIntoBar
-      break;
-    }
-
-    case 'samplePlatformCreated': {
+    },
+    'samplePlatformCreated': (_message: WebviewInboundMessage) => {
       // Portfolio data will be refreshed by the extension's loadPortfolio()
-      break;
-    }
-
-    case 'githubDefaults': {
+    },
+    'githubDefaults': (message: WebviewInboundMessage) => {
       const login = message.login as string;
       const orgs = message.orgs as string[];
       const defaultPath = message.defaultPath as string;
@@ -4468,18 +4391,14 @@ window.addEventListener('message', (event) => {
       if (state.view === 'init-mesh') {
         render();
       }
-      break;
-    }
-
-    case 'noMeshConfigured': {
+    },
+    'noMeshConfigured': (_message: WebviewInboundMessage) => {
       state.view = 'no-mesh';
       state.portfolio = null;
       state.isLoading = false;
       render();
-      break;
-    }
-
-    case 'availableModels': {
+    },
+    'availableModels': (message: WebviewInboundMessage) => {
       state.availableModels = (message.models as { id: string; family: string; name: string; vendor: string }[]) || [];
       state.selectedModelFamily = (message.defaultFamily as string) || '';
       if (!state.settingsPreferredModel) {
@@ -4501,9 +4420,8 @@ window.addEventListener('message', (event) => {
         }
       }
       if (state.view === 'settings') { render(); }
-      break;
-    }
-    case 'calmComponents': {
+    },
+    'calmComponents': (message: WebviewInboundMessage) => {
       const components = (message as Record<string, unknown>).components as { id: string; name: string; type: string; description: string; suggestedRepo: string }[];
       state.componentPicker = {
         barPath: state.currentBar?.path || '',
@@ -4512,9 +4430,8 @@ window.addEventListener('message', (event) => {
         repoName: components?.[0]?.suggestedRepo || '',
       };
       render();
-      break;
-    }
-    case 'calmDataUpdated': {
+    },
+    'calmDataUpdated': (message: WebviewInboundMessage) => {
       // External file change — replace in-memory CALM data and update the diagram
       const updatedCalm = (message as Record<string, unknown>).calmData;
       if (updatedCalm) {
@@ -4564,22 +4481,17 @@ window.addEventListener('message', (event) => {
           mountReactDiagramIfNeeded();
         }
       }
-      break;
-    }
-
-    case 'calmValidationErrors': {
+    },
+    'calmValidationErrors': (message: WebviewInboundMessage) => {
       // Validation errors from the extension host — log for now
       const errors = (message as Record<string, unknown>).errors;
       if (Array.isArray(errors) && errors.length > 0) {
         console.warn('CALM validation:', errors);
       }
-      break;
-    }
-
-    // Absolem — multi-turn CALM refinement agent
-    case 'absolemChunk': {
+    },
+    'absolemChunk': (message: WebviewInboundMessage) => {
       const acBarPath = (message as Record<string, unknown>).barPath as string;
-      if (state.currentBar?.path !== acBarPath) { break; }
+      if (state.currentBar?.path !== acBarPath) { return; }
 
       const chunk = (message as Record<string, unknown>).chunk as string;
       const done = (message as Record<string, unknown>).done as boolean;
@@ -4621,12 +4533,10 @@ window.addEventListener('message', (event) => {
           render();
         }
       }
-      break;
-    }
-
-    case 'absolemPatches': {
+    },
+    'absolemPatches': (message: WebviewInboundMessage) => {
       const apBarPath = (message as Record<string, unknown>).barPath as string;
-      if (state.currentBar?.path !== apBarPath) { break; }
+      if (state.currentBar?.path !== apBarPath) { return; }
 
       state.absolemPatches = {
         patches: (message as Record<string, unknown>).patches as { op: string; target: string; field?: string; value?: unknown }[],
@@ -4639,12 +4549,10 @@ window.addEventListener('message', (event) => {
         const patchesCard = document.getElementById('absolem-patches-card');
         if (patchesCard) { patchesCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       });
-      break;
-    }
-
-    case 'absolemPatchesApplied': {
+    },
+    'absolemPatchesApplied': (message: WebviewInboundMessage) => {
       const ppBarPath = (message as Record<string, unknown>).barPath as string;
-      if (state.currentBar?.path !== ppBarPath) { break; }
+      if (state.currentBar?.path !== ppBarPath) { return; }
 
       state.absolemPatches = null;
       state.absolemStatus = 'idle';
@@ -4656,12 +4564,10 @@ window.addEventListener('message', (event) => {
         : `Patches applied successfully.${warnCount > 0 ? ` ${warnCount} warning(s) to review.` : ' No validation issues.'} Would you like to continue refining?`;
       state.absolemMessages.push({ role: 'assistant', content: resultMsg });
       render();
-      break;
-    }
-
-    case 'absolemError': {
+    },
+    'absolemError': (message: WebviewInboundMessage) => {
       const aeBarPath = (message as Record<string, unknown>).barPath as string;
-      if (state.currentBar?.path !== aeBarPath) { break; }
+      if (state.currentBar?.path !== aeBarPath) { return; }
 
       state.absolemStatus = 'idle';
       state.absolemStreaming = '';
@@ -4670,33 +4576,29 @@ window.addEventListener('message', (event) => {
         content: `Error: ${(message as Record<string, unknown>).message as string}`,
       });
       render();
-      break;
-    }
+    },
+    'meshRepoDetected': (message: WebviewInboundMessage) => {
+        state.meshOwner = message.owner as string;
+        state.meshRepo = message.repo as string;
+        if (state.view === 'portfolio' || state.view === 'settings') { render(); }
+        return;
 
-    case 'meshRepoDetected':
-      state.meshOwner = message.owner as string;
-      state.meshRepo = message.repo as string;
-      if (state.view === 'portfolio' || state.view === 'settings') { render(); }
-      break;
-
-    // Settings messages
-    case 'workflowStatus':
+      // Settings messages
+    },
+    'workflowStatus': (message: WebviewInboundMessage) => {
       state.settingsWorkflowExists = message.exists as boolean;
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'workflowProvisioned':
+    },
+    'workflowProvisioned': (_message: WebviewInboundMessage) => {
       state.settingsWorkflowExists = true;
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'agenticStatus':
+    },
+    'agenticStatus': (message: WebviewInboundMessage) => {
       state.settingsAgenticSkills = (message.skills ?? []) as { name: string; family: string; deployed: boolean }[];
       state.settingsAgenticAgents = (message.agents ?? []) as { name: string; deployed: boolean }[];
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'copilotEnvStatus':
+    },
+    'copilotEnvStatus': (message: WebviewInboundMessage) => {
       if (message.error) {
         state.settingsCopilotEnv = null;
         state.settingsCopilotEnvError = message.error as string;
@@ -4705,55 +4607,47 @@ window.addEventListener('message', (event) => {
         state.settingsCopilotEnvError = null;
       }
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'agenticProvisioned':
+    },
+    'agenticProvisioned': (_message: WebviewInboundMessage) => {
       // The extension follows up with agenticStatus which refreshes counts.
       // This message is the success signal — render() so the badge transition
       // is smooth if the agenticStatus arrives in the same tick.
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'preferredModelSaved':
+    },
+    'preferredModelSaved': (message: WebviewInboundMessage) => {
       state.settingsPreferredModel = message.family as string;
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'driftWeightsLoaded':
+    },
+    'driftWeightsLoaded': (message: WebviewInboundMessage) => {
       state.settingsDriftWeights = message.weights as typeof state.settingsDriftWeights;
       if (state.view === 'settings') { render(); }
-      break;
+    },
+    'driftWeightsSaved': (_message: WebviewInboundMessage) => {
+        if (state.view === 'settings') { render(); }
+        return;
 
-    case 'driftWeightsSaved':
-      if (state.view === 'settings') { render(); }
-      break;
-
-    // Phase 5 — Orchestration + Platform Governance
-    case 'orchestrationPolicyLoaded':
+      // Phase 5 — Orchestration + Platform Governance
+    },
+    'orchestrationPolicyLoaded': (message: WebviewInboundMessage) => {
       state.orchPolicy = (message as { policy: typeof state.orchPolicy }).policy;
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'orchestrationPolicySaved':
+    },
+    'orchestrationPolicySaved': (_message: WebviewInboundMessage) => {
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'agentTypeLoaded':
+    },
+    'agentTypeLoaded': (message: WebviewInboundMessage) => {
       state.agentType = (message as { agentType: 'claude' | 'copilot' | 'both' }).agentType;
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'agentTypeSaved':
+    },
+    'agentTypeSaved': (_message: WebviewInboundMessage) => {
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'researchSettings':
+    },
+    'researchSettings': (message: WebviewInboundMessage) => {
       state.researchSettings = (message as { payload: typeof state.researchSettings }).payload;
       state.researchSecretStatus = {};
       if (state.view === 'settings') { render(); }
-      break;
-
-    case 'researchSecretSaved': {
+    },
+    'researchSecretSaved': (message: WebviewInboundMessage) => {
       const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; hasValue: boolean };
       if (state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
@@ -4765,10 +4659,8 @@ window.addEventListener('message', (event) => {
         delete state.researchSecretStatus[msg.id];
         if (state.view === 'settings') { render(); }
       }, 4000);
-      break;
-    }
-
-    case 'researchTestResult': {
+    },
+    'researchTestResult': (message: WebviewInboundMessage) => {
       const msg = message as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
       state.researchSecretStatus[msg.id] = { kind: msg.ok ? 'success' : 'error', message: msg.message };
       if (state.view === 'settings') { render(); }
@@ -4776,10 +4668,8 @@ window.addEventListener('message', (event) => {
         delete state.researchSecretStatus[msg.id];
         if (state.view === 'settings') { render(); }
       }, 6000);
-      break;
-    }
-
-    case 'researchSecretPushed': {
+    },
+    'researchSecretPushed': (message: WebviewInboundMessage) => {
       const msg = message as { id: ResearchSecretId; ok: boolean; message: string };
       if (msg.ok && state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
@@ -4791,10 +4681,8 @@ window.addEventListener('message', (event) => {
         delete state.researchSecretStatus[msg.id];
         if (state.view === 'settings') { render(); }
       }, 6000);
-      break;
-    }
-
-    case 'researchSecretPushedAll': {
+    },
+    'researchSecretPushedAll': (message: WebviewInboundMessage) => {
       const msg = message as { id: ResearchSecretId; results: Array<{ repo: string; ok: boolean; message: string }>; message: string };
       const allOk = msg.results.length > 0 && msg.results.every(r => r.ok);
       if (allOk && state.researchSettings) {
@@ -4813,69 +4701,55 @@ window.addEventListener('message', (event) => {
         delete state.researchSecretStatus[msg.id];
         if (state.view === 'settings') { render(); }
       }, 12_000);
-      break;
-    }
-
-    case 'researchPrefsSaved':
+    },
+    'researchPrefsSaved': (_message: WebviewInboundMessage) => {
       // Tiny UX nudge — re-fetch settings to confirm persisted shape
       vscode.postMessage({ type: 'loadResearchSettings' });
-      break;
-
-    case 'platformGovernanceLoaded': {
+    },
+    'platformGovernanceLoaded': (message: WebviewInboundMessage) => {
       const pgMsg = message as { platformId: string; governance: typeof state.platGov };
       if (state.platGovEditing === pgMsg.platformId) {
         state.platGov = pgMsg.governance;
         render();
       }
-      break;
-    }
-
-    case 'platformGovernanceSaved': {
+    },
+    'platformGovernanceSaved': (message: WebviewInboundMessage) => {
       const psMsg = message as { platformId: string };
       if (state.platGovEditing === psMsg.platformId) {
         state.platGovEditing = null;
         state.platGov = null;
       }
       render();
-      break;
-    }
-
-    // Phase 6 — Cross-BAR governance context
-    case 'barGovernanceContext': {
+    },
+    'barGovernanceContext': (message: WebviewInboundMessage) => {
       const bgMsg = message as { barPath: string; linkedBars: typeof state.barLinkedBars; siblingBars: typeof state.barSiblingBars; platformOverrides: string[] };
       state.barLinkedBars = bgMsg.linkedBars;
       state.barSiblingBars = bgMsg.siblingBars;
       state.barPlatformOverrides = bgMsg.platformOverrides;
       if (state.view === 'bar-detail') { render(); }
-      break;
-    }
+    },
+    'meshReinitialized': (_message: WebviewInboundMessage) => {
+        state.view = 'portfolio';
+        render();
+        return;
 
-    case 'meshReinitialized':
-      state.view = 'portfolio';
-      render();
-      break;
-
-    // Phase 4 — Platform architecture
-    case 'platformArchData': {
+      // Phase 4 — Platform architecture
+    },
+    'platformArchData': (message: WebviewInboundMessage) => {
       const platformId = message.platformId as string;
       if (state.currentPlatformId === platformId) {
         state.platformCalmData = message.calmData as CalmDataPayload;
         render();
       }
-      break;
-    }
-
-    // OKR list + detail (Phase A — inline edit on detail page; agent
-    // Start buttons remain disabled until Phase B)
-    case 'okrList': {
+    },
+    'okrList': (message: WebviewInboundMessage) => {
       state.okrs = (message.okrs ?? []) as OkrListItem[];
       state.okrsLoading = false;
       // Reaching the list view means we're done with any edit/create session.
       state.currentOkrMode = 'view';
       render();
-      break;
-    }
-    case 'okrDetail': {
+    },
+    'okrDetail': (message: WebviewInboundMessage) => {
       state.currentOkr = message.okr as OkrCard;
       state.currentOkrAffectedBars = (message.affectedBars ?? []) as OkrAffectedBar[];
       state.currentOkrMode = ((message as { mode?: OkrDetailMode }).mode ?? 'view') as OkrDetailMode;
@@ -4896,9 +4770,8 @@ window.addEventListener('message', (event) => {
         state.okrPhaseSignals = undefined;
       }
       render();
-      break;
-    }
-    case 'okrPhaseSignals': {
+    },
+    'okrPhaseSignals': (message: WebviewInboundMessage) => {
       // Payload shape: { okrId, signals: { why?, how?, what? } }. Each
       // phase signal is the populated OkrPhaseSignal shape from the
       // backend GitHub-API fetch.
@@ -4907,9 +4780,8 @@ window.addEventListener('message', (event) => {
         state.okrPhaseSignals = msg.signals;
         render();
       }
-      break;
-    }
-    case 'panelActivated': {
+    },
+    'panelActivated': (_message: WebviewInboundMessage) => {
       // Panel regained focus (e.g. user came back from working in
       // another tab while a workflow pushed a finalize commit). The
       // extension has already refreshed git status. If we're on the
@@ -4919,16 +4791,18 @@ window.addEventListener('message', (event) => {
       if (state.view === 'okr-detail' && state.currentOkr) {
         vscode.postMessage({ type: 'drillIntoOkr', okrId: state.currentOkr.meta.id });
       }
-      break;
-    }
-    case 'okrSaved':
-    case 'okrCreated': {
+    },
+    'okrSaved': (_message: WebviewInboundMessage) => {
       // No-op visually — the server follows up with okrDetail (view mode) which
       // triggers a re-render. We swallow these here so the discriminated-union
       // dispatch doesn't fall through to the default error case.
-      break;
-    }
-    case 'startPhasePreview': {
+    },
+    'okrCreated': (_message: WebviewInboundMessage) => {
+      // No-op visually — the server follows up with okrDetail (view mode) which
+      // triggers a re-render. We swallow these here so the discriminated-union
+      // dispatch doesn't fall through to the default error case.
+    },
+    'startPhasePreview': (message: WebviewInboundMessage) => {
       state.startPhaseModalOpen = true;
       state.startPhaseModalData = {
         okrId: message.okrId as string,
@@ -4938,9 +4812,8 @@ window.addEventListener('message', (event) => {
         body: message.body as string,
       };
       render();
-      break;
-    }
-    case 'hatterTagSheet': {
+    },
+    'hatterTagSheet': (message: WebviewInboundMessage) => {
       state.hatterTagSheetOpen = true;
       state.hatterTagSheetData = {
         okrId: message.okrId as string,
@@ -4949,16 +4822,20 @@ window.addEventListener('message', (event) => {
         reason: message.reason as string | undefined,
       };
       render();
-      break;
-    }
-    case 'okrSampleScaffolded': {
+    },
+    'okrSampleScaffolded': (_message: WebviewInboundMessage) => {
       // Server posts okrList right after; just route to OKR list view so user sees it
       state.view = 'portfolio';
       state.activeLens = 'okrs';
       render();
-      break;
-    }
-  }
+    },
+};
+
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.origin) { return; }
+  const message = event.data;
+  const handler = inboundHandlers[message?.type];
+  if (handler) { handler(message); }
 });
 
 // ============================================================================
