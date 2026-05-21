@@ -228,6 +228,142 @@ jobs:
           print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""}{seal_note} reason={reason}')
           PYEOF
 
+      # B28 Court Recorder Auto-Logging — the workflow emits artifact_written
+      # deterministically from `git diff` so the agent doesn't have to call
+      # audit-emit-event after writing the PRD. This closes T11 (agent
+      # forges artifact_written payload) — the path and sha256 come from
+      # the filesystem at PR head, not from the agent's claim.
+      - name: Auto-emit artifact_written from git diff (B28)
+        id: artifact-emit
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
+          PHASE: how
+          JSONL: ${{ steps.audit.outputs.path }}
+        run: |
+          ARTIFACT="okrs/$OKR_ID/how/prd.md"
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "::warning::artifact $ARTIFACT not found at PR head — skipping artifact_written emit"
+            exit 0
+          fi
+          # Idempotency: if a prior agent run or workflow already emitted
+          # artifact_written for this path, don't double-log.
+          EXISTING=$(jq -r --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path) | .event_id' "$JSONL" 2>/dev/null | head -1)
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::artifact_written already in chain at event $EXISTING — skip"
+            exit 0
+          fi
+          SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+          BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
+          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$SHA" --argjson bytes "$BYTES" \
+            '{path: $path, sha256: $sha, bytes: $bytes, emitted_by: "workflow"}')
+          jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg phase "$PHASE" --arg thread "$INTENT_THREAD_UUID" --argjson payload "$PAYLOAD" \
+            '{okrId: $okr, runId: $run, phase: $phase, intentThreadUuid: $thread, eventKind: "artifact_written", payload: $payload}' \
+            | npx -y @maintainabilityai/research-runner skill-audit-emit-event \
+            && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
+            || echo "::warning::artifact_written emit failed (best-effort)"
+
+      # B28 — parse the agent's structured self-review PR-body blocks
+      # and emit one self_review audit event per persona per round. The
+      # agent writes the content; the workflow emits the audit event.
+      # Closes T11 (agent forges self_review payloads) — the parser is
+      # deterministic and the events land in the same hash chain.
+      - name: Parse self-review blocks + emit per-persona-per-round events (B28)
+        id: review-emit
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
+          PHASE: how
+          JSONL: ${{ steps.audit.outputs.path }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body)
+          python3 <<'PYEOF'
+          import re, os, json, subprocess, sys
+          body = os.environ.get('BODY') or ''
+          jsonl_path = os.environ['JSONL']
+          # The agent writes structured blocks per design §11.6 spec:
+          #   ### Self-review — Architect (round 1)
+          #   SCORE: 0.8
+          #   SEVERITY: MINOR
+          #   COVERED: [ADR-0001, CALM:api-node]
+          #   MISSING: [NFR coverage for p99 latency]
+          #   CHANGES: [Add SR-04 covering rate limits on /search]
+          # The em-dash between "Self-review" and the persona is the
+          # canonical separator; the parser is tolerant of EITHER em-dash
+          # (—) OR a hyphen (-) for runtimes that strip the unicode.
+          pat = re.compile(
+              r'^###\s+Self-review\s+[—-]\s+(\w+)\s+\(round\s+(\d+)\)\s*\n+'
+              r'\s*SCORE:\s*([\d.]+)\s*\n+'
+              r'\s*SEVERITY:\s*(\w+)\s*\n+'
+              r'\s*COVERED:\s*\[([^\]]*)\]\s*\n+'
+              r'\s*MISSING:\s*\[([^\]]*)\]\s*\n+'
+              r'\s*CHANGES:\s*\[([^\]]*)\]',
+              re.M,
+          )
+          matches = list(pat.finditer(body))
+          if not matches:
+              print('::notice::no self-review blocks in PR body (Restricted tier or agent skipped self-critique)')
+              sys.exit(0)
+          # Idempotency: skip events already in the chain for the same
+          # (persona, round).
+          existing = set()
+          try:
+              with open(jsonl_path, 'r', encoding='utf-8') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line: continue
+                      e = json.loads(line)
+                      if e.get('event_kind') == 'self_review':
+                          p = e.get('payload', {})
+                          if p.get('persona') and p.get('round') is not None:
+                              existing.add((p['persona'].lower(), int(p['round'])))
+          except Exception:
+              pass
+          emitted = 0
+          for m in matches:
+              persona_raw, rnd, score, sev, covered, missing, changes = m.groups()
+              persona = persona_raw.lower()
+              if (persona, int(rnd)) in existing:
+                  print(f'::notice::self_review for {persona} round {rnd} already in chain — skip')
+                  continue
+              def parselist(s):
+                  return [x.strip() for x in s.split(',') if x.strip()]
+              evt = {
+                  'okrId': os.environ['OKR_ID'],
+                  'runId': os.environ['RUN_ID'],
+                  'phase': os.environ['PHASE'],
+                  'intentThreadUuid': os.environ['INTENT_THREAD_UUID'],
+                  'eventKind': 'self_review',
+                  'payload': {
+                      'round': int(rnd),
+                      'persona': persona,
+                      'score': float(score),
+                      'severity': sev.upper(),
+                      'covered': parselist(covered),
+                      'missing': parselist(missing),
+                      'changes': parselist(changes),
+                      'prompt_pack': f'prd/{persona}-review.md',
+                      'emitted_by': 'workflow',
+                  },
+              }
+              try:
+                  subprocess.run(
+                      ['npx', '-y', '@maintainabilityai/research-runner', 'skill-audit-emit-event'],
+                      input=json.dumps(evt), text=True, check=True, capture_output=True,
+                  )
+                  emitted += 1
+                  print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev}')
+              except Exception as ex:
+                  print(f'::warning::self_review emit failed for {persona} round {rnd}: {ex}')
+          print(f'::notice::self-review emit summary: {emitted} new events from {len(matches)} blocks ({len(matches) - emitted} were already in chain)')
+          PYEOF
+
       - name: Count mesh-skill calls
         id: counts
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'

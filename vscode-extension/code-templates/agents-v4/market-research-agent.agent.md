@@ -49,9 +49,19 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 
 1. Extract `okr_id` AND `run_id` from the dispatch issue body. Looking Glass emits both values in TWO places — use whichever your runtime can read:
    - **HTML comment markers** at the top: `<!-- okr_id: ... -->` and `<!-- run_id: ... -->`
-   - **`## Dispatch context` table** further down the body, with `okr_id` and `run_id` as labelled rows in a markdown table — fallback for runtimes (e.g. the Coding Agent's sanitized issue-body view) that strip HTML comments before the agent sees them
+   - **`## Dispatch context` table** further down the body, with `okr_id` and `run_id` as labelled rows in a markdown table — fallback for runtimes (e.g. the Coding Agent's sanitized issue-body view) that strip HTML comments before the agent sees them. The Dispatch context table ALSO carries `intent_thread_uuid` and `phase` for the same reason.
 
    The `run_id` is the action's identity in `okr.yaml.actions[]`. The finalize workflow uses this exact value to flip `actions[].status` on PR merge via `yq select(.runId == "<value>")`. **Never invent or generate your own `run_id`.** A made-up `run_id` makes finalize a no-op — `action.status` stays `in_progress` forever and the OKR is stuck. If both the HTML markers AND the Dispatch context table are absent, post a comment naming what's missing and stop. Do NOT parse the human-readable objective/summary prose for either id.
+
+1b. **Export the session context as env vars** before any `npx @maintainabilityai/research-runner skill-*` call:
+   ```sh
+   export OKR_ID="<okr_id from step 1>" \
+          RUN_ID="<run_id from step 1>" \
+          INTENT_THREAD_UUID="<intent_thread_uuid from Dispatch context table>" \
+          PHASE="why"
+   ```
+   The runner reads these on every `runSkill()` invocation to auto-emit the `skill_call` audit event (B28 Court Recorder Auto-Logging — design [agentic-sdlc.md](../docs/design/agentic-sdlc.md) §11.6). If your runtime resets the shell between `execute` calls, prepend the four `KEY=value` assignments inline to every npx invocation (`OKR_ID=... RUN_ID=... INTENT_THREAD_UUID=... PHASE=why npx ... skill-X`) to ensure the runner sees them. The vars are constant for the whole run.
+
 2. Call `knowledge-okr` with the extracted id. This is your canonical input.
 3. Call `knowledge-mesh-bar` ONCE per `objectiveAlignment.affectedBarIds[]` entry. These BARs' CALM + threats + ADRs ground your synthesis.
 4. Call `knowledge-mesh-threats` with the OKR's primary concern keyword and `knowledge-mesh-adrs` with the same. These bound your "what does the mesh already know" baseline.

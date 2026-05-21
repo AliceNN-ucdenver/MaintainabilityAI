@@ -218,6 +218,39 @@ jobs:
           print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""}{seal_note} reason={reason}')
           PYEOF
 
+      # B28 Court Recorder Auto-Logging — the workflow emits artifact_written
+      # deterministically from the filesystem so the agent doesn't have
+      # to call audit-emit-event after writing research-doc.md. Closes T11.
+      - name: Auto-emit artifact_written from git diff (B28)
+        id: artifact-emit
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
+          PHASE: why
+          JSONL: ${{ steps.audit.outputs.path }}
+        run: |
+          ARTIFACT="okrs/$OKR_ID/why/research-doc.md"
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "::warning::artifact $ARTIFACT not found at PR head — skipping artifact_written emit"
+            exit 0
+          fi
+          EXISTING=$(jq -r --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path) | .event_id' "$JSONL" 2>/dev/null | head -1)
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::artifact_written already in chain at event $EXISTING — skip"
+            exit 0
+          fi
+          SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+          BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
+          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$SHA" --argjson bytes "$BYTES" \
+            '{path: $path, sha256: $sha, bytes: $bytes, emitted_by: "workflow"}')
+          jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg phase "$PHASE" --arg thread "$INTENT_THREAD_UUID" --argjson payload "$PAYLOAD" \
+            '{okrId: $okr, runId: $run, phase: $phase, intentThreadUuid: $thread, eventKind: "artifact_written", payload: $payload}' \
+            | npx -y @maintainabilityai/research-runner skill-audit-emit-event \
+            && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
+            || echo "::warning::artifact_written emit failed (best-effort)"
+
       - name: Count successful skill_calls + distinct queries
         id: counts
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'

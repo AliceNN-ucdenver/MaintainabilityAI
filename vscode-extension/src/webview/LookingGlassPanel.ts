@@ -5753,6 +5753,22 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
   lines.push('');
   lines.push('Use these EXACT values for the Hatter Tag + audit JSONL filename. Do NOT generate your own `run_id` — the finalize workflow uses this value to flip `actions[].status` to `complete` on PR merge.');
   lines.push('');
+  // B28 Court Recorder Auto-Logging — export the session context as env
+  // vars at session start so the runner can auto-emit skill_call events
+  // without the agent having to call audit-emit-event explicitly.
+  lines.push('### Session context env vars (B28)');
+  lines.push('');
+  lines.push('**At session start, before any `npx @maintainabilityai/research-runner skill-*` call, export these env vars** so the runner can auto-emit `skill_call` audit events on your behalf:');
+  lines.push('');
+  lines.push('```sh');
+  lines.push(`export OKR_ID="${card.meta.id}" \\`);
+  lines.push(`       RUN_ID="${runId}" \\`);
+  lines.push(`       INTENT_THREAD_UUID="${card.meta.intentThreadUuid}" \\`);
+  lines.push(`       PHASE="${phase}"`);
+  lines.push('```');
+  lines.push('');
+  lines.push('If your runtime resets the shell between `execute` calls, prepend the four `KEY=value` assignments inline to every npx invocation.');
+  lines.push('');
   lines.push(`**Anchor OKR:** \`${card.meta.id}\``);
   lines.push(`**Platform:** \`${card.objectiveAlignment.platformId}\``);
   lines.push(`**Affected BARs:** ${card.objectiveAlignment.affectedBarIds.map(id => `\`${id}\``).join(', ')}`);
