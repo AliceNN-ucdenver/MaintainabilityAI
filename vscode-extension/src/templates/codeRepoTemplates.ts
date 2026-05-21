@@ -371,46 +371,18 @@ export function generateOraculumWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'oraculum-review.yml');
 }
 
-export function generateOraculumResearchWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'oraculum-research.yml');
-}
-
 // ============================================================================
 // Mesh Workflows — Research + PRD Agent Pipeline (Caterpillar / Looking Glass)
 // ============================================================================
-
-export function generateArcheologistWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'archeologist.yml');
-}
-
-export function generatePrdWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'prd.yml');
-}
-
-export function generateLabelOnMergeWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'label-on-merge.yml');
-}
-
-export function generateNotifyCodeReposWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'notify-code-repos.yml');
-}
-
-/**
- * Phase B-PR1f — DEPRECATED. `pr-auto-label.yml` was the server-side
- * fallback for the author-agent's forgotten labeling step. Superseded
- * by B20's user-triggered label flow (Looking Glass applies the label
- * via user PAT on click of "Run audit"). Removed from MESH_WORKFLOWS
- * registry; `pruneDeprecatedWorkflows` deletes any stale copy from
- * mesh repos on next redeploy.
- *
- * Kept as an exported function for backwards-compat with downstream
- * tests that still reference it; returns empty string so a deployer
- * calling this directly produces no file. Will be removed entirely
- * once B-PR1l (HOW + WHAT consolidation) lands.
- */
-export function generatePrAutoLabelWorkflow(_extensionPath: string): string {
-  return '';
-}
+//
+// Per-workflow `generate<Name>Workflow` helpers (oraculum-research,
+// archeologist, prd, label-on-merge, notify-code-repos, pr-auto-label)
+// were removed once MESH_WORKFLOWS centralized the registry and the
+// consolidated per-agent workflows (B20: market-research-agent.yml,
+// prd-agent.yml) replaced the older single-purpose YAMLs. Deployment
+// reads from MESH_WORKFLOWS via readScaffoldFile directly — no per-file
+// generator stub is needed. `pruneDeprecatedWorkflows` handles cleanup
+// of any stale copies left in mesh repos.
 
 /**
  * Phase B20 — `market-research-agent.yml` is the agent-keyed
