@@ -488,18 +488,21 @@ jobs:
           # heading form → FR=0/0 → audit incorrectly read as "no
           # functional requirements." The merged regex matches either.
           FR_COUNT=$(grep -cE '(\*\*FR-[0-9]+\*\*|^###[[:space:]]+FR-[0-9]+(:|[[:space:]]|$))' "$DOC" || true)
-          # An FR line cites if it carries either R-N (research) or E-N
-          # (expert) on the same line OR the next 4 lines (heading form
-          # often has the description as a separate paragraph + a
-          # citation row in the Coverage Analysis table a couple lines
-          # later). The window is 4 lines (was 2) because heading-form
-          # FRs use more vertical space.
-          FR_WITH_CITES=$(awk '/(\*\*FR-[0-9]+\*\*|^### +FR-[0-9]+)/ {flag=1; ctx=$0; lines=0; next} flag && lines<4 {ctx=ctx" "$0; lines++} flag && lines>=4 {if (ctx ~ /(R|E)-[0-9]+/) c++; flag=0} END {print c+0}' "$DOC")
+          # An FR line cites if it carries S-N (research source),
+          # C-N (formal conclusion), R-N (research finding), or E-N
+          # (expert input) WITH OR WITHOUT the dash — on the same
+          # line OR the next 4 lines. PR #118 surfaced the mismatch:
+          # WHY research-doc tags only S-N + C-N (no R-N at all), so
+          # PRD agents invent R-IDs and write them as 'R2' (no dash)
+          # or 'R-2' inconsistently. The validator-tolerance approach
+          # beats fighting the model over punctuation. The window is 4
+          # lines because heading-form FRs use more vertical space.
+          FR_WITH_CITES=$(awk '/(\*\*FR-[0-9]+\*\*|^### +FR-[0-9]+)/ {flag=1; ctx=$0; lines=0; next} flag && lines<4 {ctx=ctx" "$0; lines++} flag && lines>=4 {if (ctx ~ /(C|R|S|E)-?[0-9]+/) c++; flag=0} END {print c+0}' "$DOC")
 
           # Same tolerance for SR-NN.
           SR_COUNT=$(grep -cE '(\*\*SR-[0-9]+\*\*|^###[[:space:]]+SR-[0-9]+(:|[[:space:]]|$))' "$DOC" || true)
-          # SRs cite STRIDE THR-NNN OR OWASP A0X (A01–A10).
-          SR_WITH_ANCHORS=$(awk '/(\*\*SR-[0-9]+\*\*|^### +SR-[0-9]+)/ {flag=1; ctx=$0; lines=0; next} flag && lines<4 {ctx=ctx" "$0; lines++} flag && lines>=4 {if (ctx ~ /THR-[0-9]+|A0[1-9]|A10/) c++; flag=0} END {print c+0}' "$DOC")
+          # SRs cite STRIDE THR-NNN (or THRNNN) OR OWASP A0X (A01–A10).
+          SR_WITH_ANCHORS=$(awk '/(\*\*SR-[0-9]+\*\*|^### +SR-[0-9]+)/ {flag=1; ctx=$0; lines=0; next} flag && lines<4 {ctx=ctx" "$0; lines++} flag && lines>=4 {if (ctx ~ /THR-?[0-9]+|A0[1-9]|A10/) c++; flag=0} END {print c+0}' "$DOC")
 
           {
             echo "h2_present=$H2_PRESENT"

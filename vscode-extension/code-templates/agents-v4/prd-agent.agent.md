@@ -171,8 +171,8 @@ The audit-and-drift workflow parses the prd.md file with these patterns — matc
 - **H2 sections** must use canonical headings: `## Input Premises`, `## Problem Statement`, `## Goals`, `## Functional Requirements`, `## Non-Functional Requirements`, `## Security Requirements`, `## Coverage Analysis`, `## Risk Matrix`, `## Success Metrics`, `## References`. The parser is heading-prefix tolerant (`## Goals/Non-Goals` matches `## Goals`), but case + spelling must be exact.
 - **Functional requirements** must be marked with `**FR-NN**` (bold) OR `### FR-NN` / `### FR-NN:` (H3 heading). The parser matches both forms.
 - **Security requirements** must be marked with `**SR-NN**` (bold) OR `### SR-NN` / `### SR-NN:` (H3 heading). Same parser rule.
-- **FR citations** — within 400 characters of each FR marker, there MUST be at least one `R-N` (research finding) or `E-N` (expert input) tag. The parser doesn't care if the citations are in a "Source:" line, a parenthetical, or inline — just that the tags exist within range.
-- **SR anchors** — within 400 characters of each SR marker, there MUST be at least one STRIDE threat id (`THR-NNN`) or OWASP category (`A01`–`A10`). Same range rule.
+- **FR citations** — within 400 characters of each FR marker, there MUST be at least one tag of the form `S-N`, `C-N`, `R-N`, or `E-N` (S = source premise from research-doc, C = formal conclusion from research-doc, R = research finding, E = expert input). Dash is **optional** — both `S-1` and `S1` are accepted. The parser doesn't care if the citations are in a "Source:" line, a "Traces to:" line, a parenthetical, or inline — just that the tags exist within range. The research-doc tags sources as `S1–S25` and conclusions as `C1–C6`; cite those directly when you can rather than inventing new R-numbers.
+- **SR anchors** — within 400 characters of each SR marker, there MUST be at least one STRIDE threat id (`THR-NNN` or `THRNNN`) or OWASP category (`A01`–`A10`). Same range rule.
 
 ## Hard rules
 
@@ -181,7 +181,7 @@ The audit-and-drift workflow parses the prd.md file with these patterns — matc
 - Never include OKR YAML / research-doc text inline — always go through Skills. Copy-paste creates drift between artifacts.
 - **`okr_id` and `run_id` come from the issue body HTML comment markers and ONLY from those markers.** Never invent, generate, derive, or modify either value. They are the action's identity in `okr.yaml.actions[]`; the finalize workflow uses `run_id` to flip status on PR merge via `yq select(.runId == "<value>")`. A made-up run_id makes finalize a no-op and leaves the OKR stuck in `in_progress` after the PR is merged.
 - If a `context-*` Skill returns `{ ok: false }`, stop. PRDs MUST be grounded.
-- Every FR MUST cite at least one R-N (research finding) or E-N (expert input) source. The Coverage Analysis table is the contract — if a Cross-Source Analysis finding (R-N) maps to no FR, you owe an Evidence Gap entry explaining why.
+- Every FR MUST cite at least one `S-N` (source premise), `C-N` (formal conclusion), `R-N` (research finding), or `E-N` (expert input) tag within 400 chars of the FR marker. Dash optional. The Coverage Analysis table is the contract — if a Cross-Source Analysis finding maps to no FR, you owe an Evidence Gap entry explaining why. Prefer citing the actual tags that exist in research-doc.md (S1–Sn, C1–Cn) over inventing new R-numbers.
 - Every SR MUST cite at least one STRIDE THR-NNN or OWASP A0X. Same coverage rule.
 - The self-critique loop is bounded by `MAX_AUTO_ROUNDS` resolved from the tier. NEVER exceed.
 - Write ONE `### Self-review — <persona> (round <N>)` block per persona per round in the PR body (so an Autonomous-tier max-3-round PRD that needed all three rounds writes 6 blocks). The audit-and-drift workflow parses these into 6 `self_review` events deterministically. The contract is the block format — you write blocks, the workflow emits events.

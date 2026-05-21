@@ -789,8 +789,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         // each segment — close enough to the workflow's awk and
         // matches both heading-line and inline-bold FRs without
         // requiring a per-segment line walker.
-        result.frWithCites = countCovered(docText, FR_RE, /\b[RE]-\d+\b/);
-        result.srAnchored = countCovered(docText, SR_RE, /\b(?:THR-\d+|A0[1-9]|A10)\b/);
+        // Accept any of S-N (research source premise), C-N (formal
+        // conclusion), R-N (research finding), or E-N (expert input) —
+        // with or without the dash. PR #118 surfaced the mismatch:
+        // WHY research-doc tags only S-N + C-N, so PRD agents invent
+        // R-IDs and write them as 'R2' or 'R-2' inconsistently. Validator
+        // tolerance > prompt-discipline fights over punctuation.
+        result.frWithCites = countCovered(docText, FR_RE, /\b[CRSE]-?\d+\b/);
+        result.srAnchored = countCovered(docText, SR_RE, /\b(?:THR-?\d+|A0[1-9]|A10)\b/);
       }
     }
 
