@@ -1449,7 +1449,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const ymd = stamp.toISOString().slice(0, 10);
     const short = Math.random().toString(36).slice(2, 8);
     const previewRunId = `${phase.toUpperCase()}-${ymd}-${short}`;
-    const body = renderOkrPhaseIssueBody(card, phase, agent, previewRunId);
+    const body = renderOkrPhaseIssueBody(card, phase, agent, previewRunId, tier);
 
     this.postMessage({
       type: 'startPhasePreview',
@@ -1508,7 +1508,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       : undefined;
     const parentIntentThread = priorAction?.intentThreadUuid ?? null;
 
-    const baseBody = renderOkrPhaseIssueBody(card, phase, agent, runId);
+    const baseBody = renderOkrPhaseIssueBody(card, phase, agent, runId, tier);
     const trimmed = additionalContext.trim();
     const finalBody = trimmed
       ? `${baseBody}\n\n## Additional context (added by OKR owner at dispatch)\n\n${trimmed}\n`
@@ -5717,7 +5717,7 @@ function buildBlankOkrScaffold(defaultPlatformId: string, defaultOwner: string):
  * `knowledge-okr` not via the issue body. The visible markdown is for the
  * human watching the issue.
  */
-function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', agent: string, runId: string): string {
+function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', agent: string, runId: string, tier: 'autonomous' | 'supervised' | 'restricted'): string {
   const phaseLabel = phase === 'why' ? 'Why · Market Research' : phase === 'how' ? 'How · PRD' : 'What · Code Design';
   const lines: string[] = [];
   // HTML-comment markers — primary machine-readable source. Stays
@@ -5743,6 +5743,12 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
   // information loss.
   lines.push('## Dispatch context');
   lines.push('');
+  // Tier derivation: resolved by Looking Glass via the Restricted-wins
+  // rule across affected BARs (design §6.2). Frozen here at dispatch
+  // time. Agent MUST read this value — NOT infer from card content
+  // (PR #112 prd-agent hallucinated tier=restricted from the OKR
+  // description and skipped self-critique).
+  const maxAutoRounds = tier === 'autonomous' ? 3 : tier === 'supervised' ? 2 : 0;
   lines.push('| Field | Value |');
   lines.push('|---|---|');
   lines.push(`| \`okr_id\` | \`${card.meta.id}\` |`);
@@ -5750,8 +5756,9 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
   lines.push(`| \`phase\` | \`${phase}\` |`);
   lines.push(`| \`intent_thread_uuid\` | \`${card.meta.intentThreadUuid}\` |`);
   lines.push(`| \`agent\` | \`${agent}\` |`);
+  lines.push(`| \`tier\` | \`${tier}\` (governanceTier — frozen at dispatch; MAX_AUTO_ROUNDS=${maxAutoRounds}) |`);
   lines.push('');
-  lines.push('Use these EXACT values for the Hatter Tag + audit JSONL filename. Do NOT generate your own `run_id` — the finalize workflow uses this value to flip `actions[].status` to `complete` on PR merge.');
+  lines.push('Use these EXACT values for the Hatter Tag + audit JSONL filename. Do NOT generate your own `run_id` — the finalize workflow uses this value to flip `actions[].status` to `complete` on PR merge. The `tier` value is the authoritative input for self-critique gating (HOW phase) — read it from `self-review-architect` / `self-review-security` skill responses rather than re-deriving from the OKR card.');
   lines.push('');
   // B28 Court Recorder Auto-Logging — export the session context as env
   // vars at session start so the runner can auto-emit skill_call events
@@ -5764,10 +5771,11 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
   lines.push(`export OKR_ID="${card.meta.id}" \\`);
   lines.push(`       RUN_ID="${runId}" \\`);
   lines.push(`       INTENT_THREAD_UUID="${card.meta.intentThreadUuid}" \\`);
-  lines.push(`       PHASE="${phase}"`);
+  lines.push(`       PHASE="${phase}" \\`);
+  lines.push(`       PHASE_TIER="${tier}"`);
   lines.push('```');
   lines.push('');
-  lines.push('If your runtime resets the shell between `execute` calls, prepend the four `KEY=value` assignments inline to every npx invocation.');
+  lines.push('If your runtime resets the shell between `execute` calls, prepend the five `KEY=value` assignments inline to every npx invocation. `PHASE_TIER` is informational; the authoritative tier comes from the `self-review-*` skill responses for HOW-phase persona-switch gating.');
   lines.push('');
   lines.push(`**Anchor OKR:** \`${card.meta.id}\``);
   lines.push(`**Platform:** \`${card.objectiveAlignment.platformId}\``);
