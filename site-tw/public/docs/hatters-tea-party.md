@@ -13,7 +13,7 @@
     </div>
   </div>
   <figure class="docs-hero-figure">
-    <img src="/images/mad-hatter.png" alt="The Mad Hatter — host of the tea party of governed intent" class="docs-hero-art" />
+    <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of governed intent" class="docs-hero-art" />
     <figcaption class="docs-visual-caption">The Hatter hosts the tea party of governed intent. Six teacups. One audit trail. No riddles.</figcaption>
   </figure>
 </div>

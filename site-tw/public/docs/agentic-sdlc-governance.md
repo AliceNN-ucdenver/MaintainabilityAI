@@ -147,7 +147,7 @@ The Hatter governs what should be built and how it should be designed. The Red Q
 ## Meet the two modalities
 
 <div class="docs-flex-block">
-  <img src="/images/mad-hatter.png" alt="The Mad Hatter — host of the planning modality" class="docs-inline-image" />
+  <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of the planning modality" class="docs-inline-image" />
   <div>
     <div class="docs-card-kicker" style="color:#a5b4fc">🎩 Plan · upstream of code</div>
     <div class="docs-heading">The Hatter's Tea Party</div>
