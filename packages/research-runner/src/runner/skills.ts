@@ -36,6 +36,7 @@ import { runUsptoSearch } from './nodes/uspto-search';
 import { dedupeAndRank } from './nodes/dedupe-and-rank';
 import type { ProviderResult } from '../search/provider-result';
 import type { RankedSource } from '../schemas';
+import { readSessionContext } from './session-context';
 
 /**
  * Shape every skill returns. Tagged union so the agent can branch on `ok`.
@@ -1050,10 +1051,51 @@ export function isSkillName(name: string): boolean {
   return Object.prototype.hasOwnProperty.call(SKILLS, name);
 }
 
+/**
+ * Skills whose name STARTS with one of these prefixes never trigger
+ * audit-event auto-emission — they're the audit-event surface itself
+ * (writer + reader). Letting them auto-emit would create either infinite
+ * recursion (audit-emit-event audit-emitting itself) or a meaningless
+ * `skill_call` event for a read-only verify operation.
+ */
+const NO_AUTO_EMIT_SKILLS = new Set(['audit-emit-event', 'audit-verify-chain']);
+
 export async function runSkill(name: string, input: unknown): Promise<SkillResult> {
   const handler = SKILLS[name];
   if (!handler) { return { ok: false, reason: `unknown-skill: ${name}` }; }
-  return handler(input);
+
+  const t0 = Date.now();
+  const result = await handler(input);
+  const duration_ms = Date.now() - t0;
+
+  // B28 — Court Recorder Auto-Logging. When the workflow has set the
+  // session-context env vars (OKR_ID / RUN_ID / INTENT_THREAD_UUID / PHASE),
+  // the runner deterministically emits a `skill_call` event for every
+  // handler invocation. The agent CANNOT skip this — there's nothing to
+  // skip; the emission happens inside the runner before the result is
+  // returned to the caller. Falls back to legacy mode (no auto-emit) when
+  // context env vars are absent so pre-B28 chains keep working unchanged.
+  if (!NO_AUTO_EMIT_SKILLS.has(name)) {
+    const ctx = readSessionContext();
+    if (ctx) {
+      const payload: Record<string, unknown> = { skill: name, ok: result.ok, duration_ms };
+      if (!result.ok) { payload.reason = result.reason; }
+      // Best-effort: an audit-write failure must not shadow the real skill
+      // result. The chain-verify CI gate is the catch-net for missed events.
+      try {
+        await handleAuditEmitEvent({
+          okrId: ctx.okrId,
+          runId: ctx.runId,
+          phase: ctx.phase,
+          intentThreadUuid: ctx.intentThreadUuid,
+          eventKind: 'skill_call',
+          payload,
+        });
+      } catch { /* swallow — chain-verify catches gaps */ }
+    }
+  }
+
+  return result;
 }
 
 /**

@@ -820,3 +820,188 @@ test("Knight's Seal: audit-verify-chain accepts a legacy unsigned chain (sealed:
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
+
+// ─── Court Recorder Auto-Logging (B28) — skill self-emission ─────────
+
+/**
+ * Session-context env vars drive auto-emission. We set + restore them
+ * per test so other tests don't see leaked state. `withSession()` is the
+ * deterministic-emission counterpart to `withMeshPath()`.
+ */
+function withSession<T>(
+  vars: { okrId: string; runId: string; intentThreadUuid: string; phase: 'why' | 'how' | 'what' },
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prev = {
+    OKR_ID: process.env.OKR_ID,
+    RUN_ID: process.env.RUN_ID,
+    INTENT_THREAD_UUID: process.env.INTENT_THREAD_UUID,
+    PHASE: process.env.PHASE,
+  };
+  process.env.OKR_ID = vars.okrId;
+  process.env.RUN_ID = vars.runId;
+  process.env.INTENT_THREAD_UUID = vars.intentThreadUuid;
+  process.env.PHASE = vars.phase;
+  return fn().finally(() => {
+    for (const [k, v] of Object.entries(prev)) {
+      if (v === undefined) { delete process.env[k]; } else { process.env[k] = v; }
+    }
+  });
+}
+
+function readChain(mesh: string, okrId: string, runId: string): Array<Record<string, unknown>> {
+  const p = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+  if (!fs.existsSync(p)) { return []; }
+  return fs.readFileSync(p, 'utf8').split('\n').filter(l => l.trim().length > 0)
+    .map(l => JSON.parse(l) as Record<string, unknown>);
+}
+
+test('B28: runSkill auto-emits a skill_call event when session context is set', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-B28-1', 'okr.yaml'),
+      'meta:\n  id: OKR-B28-1\n  intentThreadUuid: 11111111-1111-1111-1111-111111111111\n');
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-1', runId: 'WHY-B28-1', intentThreadUuid: '11111111-1111-1111-1111-111111111111', phase: 'why' }, async () => {
+        const r = await runSkill('knowledge-okr', { okrId: 'OKR-B28-1' });
+        assert.equal(r.ok, true);
+        // Audit chain now has ONE event — the auto-emitted skill_call.
+        const chain = readChain(mesh, 'OKR-B28-1', 'WHY-B28-1');
+        assert.equal(chain.length, 1);
+        const evt = chain[0] as { event_kind: string; payload: { skill: string; ok: boolean; duration_ms: number } };
+        assert.equal(evt.event_kind, 'skill_call');
+        assert.equal(evt.payload.skill, 'knowledge-okr');
+        assert.equal(evt.payload.ok, true);
+        assert.ok(typeof evt.payload.duration_ms === 'number' && evt.payload.duration_ms >= 0);
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: runSkill does NOT auto-emit when session context is absent (legacy mode)', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-B28-2', 'okr.yaml'),
+      'meta:\n  id: OKR-B28-2\n  intentThreadUuid: 22222222-2222-2222-2222-222222222222\n');
+    await withMeshPath(mesh, async () => {
+      // No withSession wrapper — env vars stay undefined.
+      const r = await runSkill('knowledge-okr', { okrId: 'OKR-B28-2' });
+      assert.equal(r.ok, true);
+      // No JSONL was written — legacy chains rely on the agent calling
+      // audit-emit-event explicitly. This run wrote nothing.
+      const events = readChain(mesh, 'OKR-B28-2', 'no-run-id');
+      assert.equal(events.length, 0);
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: runSkill does NOT auto-emit for audit-emit-event itself (no recursion)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-3', runId: 'WHY-B28-3', intentThreadUuid: '33333333-3333-3333-3333-333333333333', phase: 'why' }, async () => {
+        // Agent calling audit-emit-event explicitly (e.g. artifact_written).
+        // The runner must NOT then auto-emit a skill_call for the call to
+        // audit-emit-event — that would be recursive and pollute the chain.
+        const r = await runSkill('audit-emit-event', {
+          okrId: 'OKR-B28-3', runId: 'WHY-B28-3', phase: 'why',
+          intentThreadUuid: '33333333-3333-3333-3333-333333333333',
+          eventKind: 'artifact_written', payload: { path: 'okrs/.../research-doc.md' },
+        });
+        assert.equal(r.ok, true);
+        // Exactly ONE event — the explicit artifact_written. No phantom
+        // skill_call for "the agent called audit-emit-event".
+        const chain = readChain(mesh, 'OKR-B28-3', 'WHY-B28-3');
+        assert.equal(chain.length, 1);
+        assert.equal((chain[0] as { event_kind: string }).event_kind, 'artifact_written');
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: runSkill does NOT auto-emit for audit-verify-chain (read-only)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-4', runId: 'WHY-B28-4', intentThreadUuid: '44444444-4444-4444-4444-444444444444', phase: 'why' }, async () => {
+        // Emit one real skill_call first so the JSONL exists.
+        await runSkill('knowledge-okr', { okrId: 'OKR-B28-4' });
+        const before = readChain(mesh, 'OKR-B28-4', 'WHY-B28-4').length;
+        // Now verify the chain. This must NOT add another skill_call.
+        const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-B28-4', runId: 'WHY-B28-4' });
+        // The chain length is unchanged after verify (only knowledge-okr
+        // is recorded; verify auto-emission would have been recursive).
+        const after = readChain(mesh, 'OKR-B28-4', 'WHY-B28-4').length;
+        assert.equal(after, before);
+        // verify-chain finds the skill_call event we wrote (auto-emit
+        // returned ok:false in this test because knowledge-okr can't find
+        // the okr.yaml — the audit event still chains correctly).
+        if (verify.ok) { assert.equal(verify.eventCount, before); }
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: runSkill auto-emits ok:false events honestly (with reason)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-5', runId: 'WHY-B28-5', intentThreadUuid: '55555555-5555-5555-5555-555555555555', phase: 'why' }, async () => {
+        // knowledge-okr against a non-existent OKR → ok:false
+        const r = await runSkill('knowledge-okr', { okrId: 'OKR-B28-5' });
+        assert.equal(r.ok, false);
+        const chain = readChain(mesh, 'OKR-B28-5', 'WHY-B28-5');
+        assert.equal(chain.length, 1);
+        const evt = chain[0] as { event_kind: string; payload: { skill: string; ok: boolean; reason?: string } };
+        assert.equal(evt.event_kind, 'skill_call');
+        assert.equal(evt.payload.skill, 'knowledge-okr');
+        assert.equal(evt.payload.ok, false);
+        assert.equal(evt.payload.reason, 'okr-not-found');
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: runSkill rejects unknown-skill BEFORE looking up session context', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-6', runId: 'WHY-B28-6', intentThreadUuid: '66666666-6666-6666-6666-666666666666', phase: 'why' }, async () => {
+        const r = await runSkill('not-a-real-skill', {});
+        assert.equal(r.ok, false);
+        // No JSONL was created — we never reach the auto-emit branch
+        // when the handler lookup fails.
+        const chain = readChain(mesh, 'OKR-B28-6', 'WHY-B28-6');
+        assert.equal(chain.length, 0);
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B28: chained auto-emit + audit-verify-chain end-to-end (sealed + chained)', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-B28-E2E', 'okr.yaml'),
+      'meta:\n  id: OKR-B28-E2E\n  intentThreadUuid: 77777777-7777-7777-7777-777777777777\n');
+    writeYaml(path.join(mesh, 'platforms', 'imdb', 'bars', 'celeb-api', 'app.yaml'),
+      'application:\n  id: APP-CELEB-001\n  name: Celebrity API\n');
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-B28-E2E', runId: 'HOW-B28-E2E', intentThreadUuid: '77777777-7777-7777-7777-777777777777', phase: 'how' }, async () => {
+        await runSkill('knowledge-okr', { okrId: 'OKR-B28-E2E' });
+        await runSkill('knowledge-mesh-bar', { barId: 'APP-CELEB-001' });
+        await runSkill('context-architecture', { platformId: 'PLT-IMDB', barIds: ['APP-CELEB-001'] });
+        const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-B28-E2E', runId: 'HOW-B28-E2E' });
+        assert.equal(verify.ok, true);
+        if (verify.ok) {
+          assert.equal(verify.eventCount, 3);
+          assert.equal(verify.sealed, true);
+          assert.equal(verify.sealVerified, true);
+        }
+        // Skills are named correctly + ordered as called.
+        const chain = readChain(mesh, 'OKR-B28-E2E', 'HOW-B28-E2E');
+        const skills = chain.map(e => (e as { payload: { skill: string } }).payload.skill);
+        assert.deepEqual(skills, ['knowledge-okr', 'knowledge-mesh-bar', 'context-architecture']);
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});

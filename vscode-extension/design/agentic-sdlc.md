@@ -34,7 +34,7 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 - **First sample OKR seeds on Celebs (Restricted tier)** — workshop's central learning moment. Why runs normally; How fails security review (missing threat model on `APP-IMDB-002`); learner must escalate Celebs governance OR dual-signature override before unlocking What. Demonstrates "governance unlocks autonomy" loop end-to-end.
 - **Full OKR screen UI design** (§10.2) with ASCII mockup: header (objective + intent cascade + tier badge) → KR table → Affected BARs (with tier) → Target repos (declared/connected) → three Action cards (Why/How/What) with phase status, scores, Hatter Tag access, recycle counter, gates → action bar (Export Audit Report, Verify Chain).
 - **Hatter Tag UI surfacing** (§10.4) — compact badge on each Action card + full-schema sheet on demand + embedded verbatim in audit report.
-- **Audit Report Export** (§11.7) — one-click bundle from OKR detail: zip with `okr-card.pdf`, `traceability.html` (KR → Research Finding → FR/SR → Design → Code matrix), per-phase artifacts + Hatter Tags + audit-events JSONL + chain-verification, `chain-ladder.yaml`, `checksums.txt`. This is the single artifact the auditor needs to answer the master question.
+- **Audit Report Export** (§11.8) — one-click bundle from OKR detail: zip with `okr-card.pdf`, `traceability.html` (KR → Research Finding → FR/SR → Design → Code matrix), per-phase artifacts + Hatter Tags + audit-events JSONL + chain-verification, `chain-ladder.yaml`, `checksums.txt`. This is the single artifact the auditor needs to answer the master question.
 - **Skills inventory grounded in real prompt files** (§7). Every Skill cites its exact prompt-pack path and its in-file good/bad-example anchors. No invented prompt content.
 - **Phase tracking inline** (§13). Each phase has checkboxes for the items shipped vs planned vs blocked. This document becomes the single source of truth for "what's done."
 
@@ -433,7 +433,7 @@ When the coding agent in the target repo (out of scope here, but governed by Red
 - `parent_intent_thread` = the code-design action's `intentThreadUuid` (= what the landing issue's marker said).
 - `chain_root_hash` = the code repo's OWN audit chain root for this PR (NOT the mesh's — each repo has its own audit pipeline).
 
-`verify-chain` walks `parent_intent_thread` links across repos to reconstruct the full thread: OKR root → WHY action → HOW action → WHAT action → per-repo implementation PRs. The §11.7 `chain-ladder.yaml` (written by each phase's finalize) anchors the mesh-side traversal; cross-repo traversal works by GitHub-App-token-reading each linked repo's PR Hatter Tag.
+`verify-chain` walks `parent_intent_thread` links across repos to reconstruct the full thread: OKR root → WHY action → HOW action → WHAT action → per-repo implementation PRs. The §11.8 `chain-ladder.yaml` (written by each phase's finalize) anchors the mesh-side traversal; cross-repo traversal works by GitHub-App-token-reading each linked repo's PR Hatter Tag.
 
 **Partial-failure handling (§9.3 expanded).**
 
@@ -1247,7 +1247,7 @@ This is the **canonical happy-and-blocked path** demonstrated in the workshop. E
 | **16. Reviewer agents fire (reviewer-bus.yml — runs in mesh, reads PR contents via GitHub API)** | Each per-repo design gets scored. | Per-repo Hatter Tags. Parent intent thread links back to OKR. |
 | **17. Designs merge → OKR status → `building`** | What card flips to ✓. Code coding agents (out of scope of this design) implement against the merged designs. | Per-repo design merged. |
 | **18. After production delivery, learner returns to OKR** | "Mark complete" → fills `keyResultRetrospective` (actual KR values) + `valueLearning` (insights). Status → `shipped`. | OKR card closed; ready for audit. |
-| **19. Click `📦 Export Audit Report`** | Zip downloaded. Contains everything from §11.7 (Audit Report Export). | Audit report bundle generated. |
+| **19. Click `📦 Export Audit Report`** | Zip downloaded. Contains everything from §11.8 (Audit Report Export). | Audit report bundle generated. |
 
 **What the learner has just done.** They've experienced the full Why→How→What pipeline AND the Restricted-tier gate AND the governance-escalation loop AND audit export — in a single sitting. Every step is real (real PRs, real reviewers, real Hatter Tags, real chain). The IMDB-Lite + Celebs asymmetric seed is what makes that possible.
 
@@ -1541,7 +1541,7 @@ Hatter:    chain_root sha256:a8c2…f019    [View Tag ↗] [Verify Chain ↗]
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**(c) In the Audit Report Export** (§11.7) — verbatim YAML, one per phase, in the bundle.
+**(c) In the Audit Report Export** (§11.8) — verbatim YAML, one per phase, in the bundle.
 
 The `[Verify Chain]` button runs the `verify-chain` CLI (already exists in `research-runner`) against the JSONL — returns a green ✓ chip with event count + root match, or red ✗ with the first mismatch.
 
@@ -1618,7 +1618,7 @@ Skills shipped in Phase B: as in §7.1–7.5.
   - `updateStatus(meshPath, okrId, newStatus)` → with audit event
   - `targetCodeReposFor(meshPath, okrId)` → reads `affected_bar_ids[].app.yaml.repos[]`
   - `tierFor(meshPath, okrId)` → minimum tier across affected BARs (Restricted wins)
-  - `exportAuditReport(meshPath, okrId)` → see §11.7
+  - `exportAuditReport(meshPath, okrId)` → see §11.8
 - **`AgentDeploymentService`** in `vscode-extension/src/services/AgentDeploymentService.ts`:
   - `deployAgents(meshPath, extensionPath)` → write `.github/agents/*.agent.md`
   - `deploySkills(meshPath, extensionPath)` → write `.github/skills/<name>/`
@@ -2024,12 +2024,90 @@ A purist signing scheme would have the verifier fetch the public key from a long
 - **Audit Report Export bundle.** The Phase E export includes `seal_pub`, signature, and a CLI snippet so an auditor can re-verify offline. Spec lands with E1.
 - **Pre-Knight's-Seal artifacts.** Existing PR #103 + PR #105 don't have seals (they predate B27). `audit-verify-seal` returns `{ok: true, reason: "pre-v1-no-seal"}` for those — does NOT retroactively flag them as broken. The badge shows `—` (n/a) for pre-v1 phase cards.
 
-### 11.6 What's NOT in the chain
+### 11.6 Court Recorder Auto-Logging (B28)
+
+B25 (chain-verify) catches **forged hashes**. B27 (Knight's Seal) catches **forged signatures**. Neither catches the third failure mode: **missed events** — an agent that called a skill but never invoked `audit-emit-event` for it. Pre-B28, the agent's hard rule "after every Skill call, invoke `audit-emit-event`" was a prompt-level instruction; the LLM could fail to follow it (forgetfully or strategically) and the chain-verify would happily report `ok: true` on a chain that omits the call. B28 closes that gap by moving emission **out of the agent and into the runner**.
+
+**The contract:**
+
+| Audit event kind | Pre-B28 emitter | Post-B28 emitter | Why moved |
+|---|---|---|---|
+| `skill_call` | Agent calls `audit-emit-event` after each skill | **Runtime** auto-emits inside `runSkill()` | The agent can't skip what the runtime does |
+| `artifact_written` | Agent calls `audit-emit-event` after writing prd.md / research-doc.md | **Workflow** detects via `git diff` on PR head | git diff is deterministic; the agent's intent is irrelevant |
+| `self_review` | Agent calls `audit-emit-event` per persona per round | Agent writes a structured `### Self-review` block in the PR body; **workflow** parses + emits | Agent owns the *content* (score, severity, COVERED, MISSING); workflow owns the *emission* |
+| `state_transition` | Workflow (unchanged) | Workflow (unchanged) | Already deterministic |
+| `human_gate` | Workflow (unchanged) | Workflow (unchanged) | Already deterministic |
+
+**Mechanism — session context env vars.** Each workflow exports four env vars at job start: `OKR_ID`, `RUN_ID`, `INTENT_THREAD_UUID`, `PHASE`. These are computed once from the `extract-okr-context` composite action's outputs and stay constant across every `npx @maintainabilityai/research-runner skill-*` call in the job. The runner's `session-context.ts` reads them; `runSkill()` then knows where in the mesh to write the audit event without the agent having to supply that context per-call.
+
+**Mechanism — runSkill() wrapper.** Pseudocode:
+
+```typescript
+export async function runSkill(name, input) {
+  const handler = SKILLS[name];
+  if (!handler) return { ok: false, reason: `unknown-skill: ${name}` };
+
+  const t0 = Date.now();
+  const result = await handler(input);
+  const duration_ms = Date.now() - t0;
+
+  if (!NO_AUTO_EMIT_SKILLS.has(name)) {
+    const ctx = readSessionContext();
+    if (ctx) {
+      try {
+        await handleAuditEmitEvent({
+          okrId: ctx.okrId, runId: ctx.runId, phase: ctx.phase,
+          intentThreadUuid: ctx.intentThreadUuid,
+          eventKind: 'skill_call',
+          payload: { skill: name, ok: result.ok, duration_ms, ...(result.ok ? {} : { reason: result.reason }) },
+        });
+      } catch { /* best-effort; chain-verify catches gaps */ }
+    }
+  }
+  return result;
+}
+```
+
+`NO_AUTO_EMIT_SKILLS = {audit-emit-event, audit-verify-chain}` — these are the audit-event surface itself; letting them recurse would create either infinite loops (emit-emit-emit) or meaningless chain-pollution (a `skill_call` event recording "the verifier checked the chain").
+
+**Backward compatibility.** If the session context env vars are absent, `readSessionContext()` returns `null` and `runSkill()` skips auto-emission. Legacy chains where the agent calls `audit-emit-event` explicitly keep working unchanged. New runs in B28-enabled workflows get auto-emission for free.
+
+**Threat-model impact:**
+
+| Threat | Pre-B28 state | Post-B28 state |
+|---|---|---|
+| T9 — agent identity in audit log forged | Closed by B27 Knight's Seal | Strengthened — the only emitter is the runtime, identified by the per-run keypair |
+| **T10** — agent skips `audit-emit-event` to hide a failure | OPEN — agent's hard rule was prompt-level only | **CLOSED** — the runtime emits before the result returns; there's nothing to skip |
+| **T11** — agent forges `artifact_written` or `self_review` payloads | OPEN — agent's calls were trusted | **CLOSED** — workflow re-derives both from git diff (artifact) + PR body parsing (self_review); agent's claims are irrelevant |
+
+**What the agent still owns after B28:**
+- The *decision* to call a skill (intent)
+- The *inputs* to the skill (which BAR, which concern, which query)
+- The *synthesis* of skill outputs into prose
+- The *artifact* (prd.md / research-doc.md content)
+- The *self-review content* (score, severity, COVERED, MISSING, CHANGES) — but written as a structured PR-body block, not via audit-emit-event
+
+**What the runtime + workflows own after B28:**
+- `skill_call` audit emission (runtime, inside runSkill)
+- Event hashing + chain integrity (runtime, unchanged from B25)
+- Ed25519 signing + verify (runtime, unchanged from B27)
+- `artifact_written` emission (workflow, via git diff)
+- `self_review` emission (workflow, via PR body parsing)
+- `state_transition` + `human_gate` (workflow, unchanged)
+
+**Sub-deliverables.**
+- **B28a** — runtime self-emission (this section, Tier 1) — shipped in research-runner 0.1.27
+- **B28b** — agent contract refresh (.agent.md + SKILL.md) — Tier 2
+- **B28c** — workflow audit-shift (artifact_written + self_review off agent) — Tier 3
+- **B28d** — doc + marketing refresh — Tier 4
+- **B28e** — E2E validation guide — Tier 5
+
+### 11.7 What's NOT in the chain
 
 - Reviewer agent prose comments on the PR (those are on GitHub's side; we capture the SCORE in audit but not the comment body).
 - LLM model server logs (Anthropic / GH Models). We capture token counts + costs in audit, not the prompts/responses themselves.
 
-### 11.7 Audit Report Export — the single artifact that answers the auditor's question
+### 11.8 Audit Report Export — the single artifact that answers the auditor's question
 
 The `📦 Export Audit Report` button on the OKR detail page produces a **single zip bundle** that an auditor (internal, regulatory, or your own future self at 3 AM during an incident) can open standalone and reconstruct exactly how this OKR went from intent to code.
 
@@ -2215,7 +2293,7 @@ This section is the live truth-source for "what's done." Update inline as work l
 ### Where we are right now (snapshot for the next end-to-end test)
 
 - **Phase A** — **100% shipped** as of 2026-05-21. A12 Connect Repo flow landed (target-repos UI on OKR detail with per-repo status + Connect / Mark connected toggles + `OKRService.targetCodeRepoStatus` persistence). All 12 A-items + 5 beyond-plan extras complete.
-- **Phase B** — agent path runnable end-to-end on Supervised + Restricted tiers. WHY merged cleanly (PR #103). **Tier 1 + Tier 2 hardening landed 2026-05-21** in this branch (research-runner 0.1.26 + extension build):
+- **Phase B** — agent path runnable end-to-end on Supervised + Restricted tiers. WHY merged cleanly (PR #103). **Tier 1 + Tier 2 hardening landed 2026-05-21** in this branch (research-runner 0.1.26 + extension build). **B28a (Court Recorder Auto-Logging Tier 1) landed 2026-05-21** in research-runner 0.1.27 — `runSkill()` now auto-emits `skill_call` events when session-context env vars are set. Backward-compat preserved; 7 new tests; 211 runner tests pass. B28b-e tracked separately.
   - **B5 shipped** — `context-architecture` / `context-security` / `context-quality` runtime backends in `skills.ts`. Per-BAR aggregators reusing existing mesh-read helpers. 5 tests. The agent's "PRDs MUST be grounded" hard rule is now honored at runtime.
   - **B27 shipped** — Knight's Seal v1. Every audit event signed with a per-run ephemeral Ed25519 keypair. Private key in `os.tmpdir()` (never the mesh), public key in `audit/keys/<runId>.pub.pem`. CI Python chain check + PR audit comment carry the new `sealed` flag. Looking Glass shows a `🛡 Sealed` badge next to `chain_root` on each phase card. 5 new sealing tests.
   - **DRIFT-1 + DRIFT-2 fixed** — `okrDetail.ts` pre-flight signal now reads "Self-critique: persona-switch pass (architect · security · quality lenses, single agent)". `lookingGlass.ts` Settings "What ships" list no longer claims architect-reviewer/security-reviewer workflows are deployed.
@@ -2223,7 +2301,7 @@ This section is the live truth-source for "what's done." Update inline as work l
   - **B9 shipped (v1)** — Settings → Mesh Provisioning split into named subsections (Workflows / Agents / Skills) + new "Recently deprecated" subsection with reasons (B24 reviewer retirement, B20 sweep, B-PR1f label flow, legacy pipeline). Full tab-bar UI deferred to v1.1 (visual subsection layout covers the same readability goal).
   - **B14** (Court Recorder CloudEvents v1.0 adoption) deferred to future ([`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §8). On-disk JSONL stays flat; helper is dormant until a real SIEM-export use case emerges.
 - **Phase C** — orchestration workflows in place; reviewer-dispatch path retired per B24 (HOW is currently human-gated via the Looking Glass "Run Audit" button; auto-merge of un-reviewed PRDs is intentionally not enabled).
-- **Phase D / E** — not yet started. Phase D full design spec lives in [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) (`code-design-agent`, the three new code-grounded prompt packs, the `knowledge-code` Skill, the hand-off canonical spec). Phase E (`verify-chain` CLI surface in Looking Glass, audit-report export) detailed at §11.7 + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §3-§4.
+- **Phase D / E** — not yet started. Phase D full design spec lives in [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) (`code-design-agent`, the three new code-grounded prompt packs, the `knowledge-code` Skill, the hand-off canonical spec). Phase E (`verify-chain` CLI surface in Looking Glass, audit-report export) detailed at §11.8 + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §3-§4.
 
 **Latest end-to-end test (2026-05-21, pre-Tier-1):**
 - WHY (PR #103) — clean. 9 hash-chained audit events, Pocket Watch 0.74, FR/SR coverage perfect.
@@ -2426,7 +2504,7 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 
   **(c) Runner side: `audit-verify-chain` Skill.** A new `audit-verify-chain` skill is registered in `packages/research-runner/src/runner/skills.ts` and shipped at `vscode-extension/code-templates/skills/audit-verify-chain/SKILL.md`. Reads `{okrId, runId}` from stdin, replays the chain with the same `canonicalStringify` + SHA-256 used by `audit-emit-event`, returns `{ok, chainHead, eventCount}` on success or `{ok: false, reason: "forged-hash-line-N: recorded=… recomputed=…"}` on first failure. Three tests cover the happy path, a PR #105-style fabricated chain (asserts `forged-hash-line-1` in the failure reason), and missing-JSONL. CLI: `npx @maintainabilityai/research-runner skill-audit-verify-chain`. Useful for local debugging, future agent invocation, and any third-party auditor who wants offline replay.
 
-  **(d) Cross-phase audit ladder writer.** `okrs/<id>/audit/chain-ladder.yaml` was scaffolded empty (`chain: []`) by `OKRService.scaffoldOkrCard` with a comment saying *"Written by okr-bus.yml as each phase merges"* — but `okr-bus.yml` was never built. The cross-phase audit ladder (§11.7 audit export bundle) has been silently empty since Phase A scaffolded. Both `prd-agent.yml` and `market-research-agent.yml` finalize steps now append a row `{phase, run_id, intent_thread_uuid, chain_root_hash, parent_intent_thread, merge_commit_sha, merged_at, pr_number}` to `chain-ladder.yaml` on PR merge. Right-sized for the immediate gap vs building `okr-bus.yml` as a separate workflow. WHY's `parent_intent_thread` is the OKR root thread; HOW's is the most-recent prior WHY action's thread.
+  **(d) Cross-phase audit ladder writer.** `okrs/<id>/audit/chain-ladder.yaml` was scaffolded empty (`chain: []`) by `OKRService.scaffoldOkrCard` with a comment saying *"Written by okr-bus.yml as each phase merges"* — but `okr-bus.yml` was never built. The cross-phase audit ladder (§11.8 audit export bundle) has been silently empty since Phase A scaffolded. Both `prd-agent.yml` and `market-research-agent.yml` finalize steps now append a row `{phase, run_id, intent_thread_uuid, chain_root_hash, parent_intent_thread, merge_commit_sha, merged_at, pr_number}` to `chain-ladder.yaml` on PR merge. Right-sized for the immediate gap vs building `okr-bus.yml` as a separate workflow. WHY's `parent_intent_thread` is the OKR root thread; HOW's is the most-recent prior WHY action's thread.
 
   **(e) UI parser sync — false `FR cited 0/8 ✗` display.** The audit workflow's awk parser at `prd-agent.yml:286` correctly emits `FR=8/8 cited` on prd.md files using either `**FR-NN**` bold or `### FR-NN` heading form. But `LookingGlassPanel.fetchPhaseSignal` was still using a bold-only regex (`\*\*FR-\d+\*\*`) with a 400-char citation-proximity window, causing the UI to show `FR cited 0/8 ✗` on PRs where the workflow correctly reported `FR=8/8 cited` (observed on PR #105). The UI parser now uses the same tolerance as the workflow + a shared `countCovered` helper that mirrors the awk pattern.
 
@@ -2457,6 +2535,18 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
   - `okrDetail.ts` `renderPrCascade` (45) — debatable. State-branchy by design; splitting may not help readability.
 
 - [x] **B27.** Knight's Seal v1 — per-run ephemeral Ed25519 signing of every audit event (supersedes B16, full spec in §11.5). Shipped in research-runner 0.1.26 + extension build 2026-05-21. **Runner side:** `loadOrCreateRunKeypair()` generates a fresh Ed25519 keypair on first `audit-emit-event` call per `<okrId,runId>`; private key persisted to `os.tmpdir()/.research-runner-keys/<okrId>--<runId>.priv.pem` (mode 0600, NEVER in mesh tree); public key persisted to `<mesh>/okrs/<id>/audit/keys/<runId>.pub.pem` and embedded on event 1. Every event signed: `signature = Ed25519(privKey, sha256(canonical(event)))`. **Verify side:** `audit-verify-chain` reads the public key, recomputes each event_hash with `event_hash` AND `signature` zeroed, then verifies the signature. Returns `{ok, chainHead, eventCount, sealed, sealVerified}`. All-or-nothing enforcement: partial signatures = `{ok: false, reason: 'partial-signatures: N/M events signed (chain tampered)'}`. **CI side:** Python chain check in `prd-agent.yml` + `market-research-agent.yml` updated to handle the `signature` field; outputs `steps.chain.outputs.sealed`; PR audit-comment shows a new `Knight's Seal (Ed25519)` row (✓ Sealed / — legacy / — n/a). **UI side:** `OkrPhaseSignal.sealed` + `sealTampered` populated by `LookingGlassPanel.fetchPhaseSignal`; inline `🛡 Sealed` / `⛔ Tampered` badge rendered next to chain_root on the OKR detail card. **Tests:** 5 new sealing tests in `skills.test.ts` covering happy path (sealed=true), tampered signature, partial-signature tampering, legacy-unsigned-chain pass-through, and private-key-never-in-mesh assertion. 204 tests pass. **Deferred for B27.v1.1:** independent Ed25519 verification in the CI workflow (currently the chain check passes for sealed runs but doesn't re-verify Ed25519 — the runner's verify-chain is the canonical signature check; a Python `cryptography` step on the CI side is a defense-in-depth follow-up). Future cosign / sigstore evolution (Knight's Seal v2 — persistent identity in a transparency log) is documented at [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §6.
+
+- [~] **B28.** Court Recorder Auto-Logging — the skill runtime emits `skill_call` audit events on every `runSkill()` invocation; the agent never calls `audit-emit-event` for skill_calls. **Why this matters:** B25 caught forged hashes and B27 caught forged signatures, but neither catches *missed* events ("agent forgot to log skill X"). B28 closes that gap by making emission deterministic — the audit log is built by the runner code, not by the LLM remembering its hard rules. The trust story upgrades from "verify the chain after the fact" to "the LLM cannot write to the audit log at all; only deterministic code can." Sub-deliverables tracked individually.
+
+  - [x] **B28a — Tier 1: Runtime self-emission.** Shipped in research-runner 0.1.27. New `session-context.ts` reads `OKR_ID` / `RUN_ID` / `INTENT_THREAD_UUID` / `PHASE` env vars (workflow sets them at job start). `runSkill()` wraps every handler invocation: captures `duration_ms`, then auto-emits a `skill_call` event with payload `{skill, ok, duration_ms, reason?}` when session context is present. Backward-compat preserved — when env vars are absent, no auto-emission fires so legacy chains where the agent calls `audit-emit-event` explicitly keep working. `audit-emit-event` and `audit-verify-chain` are in `NO_AUTO_EMIT_SKILLS` (no recursion). Best-effort emission — an audit-write failure never shadows the real skill result; the chain-verify CI gate is the catch-net. **Tests:** 7 new tests covering happy path, legacy fallback, no-recursion guards (audit-emit-event + audit-verify-chain), `ok:false` honest logging with reason, unknown-skill rejection before context lookup, end-to-end chained verification with seal. 211 tests pass.
+
+  - [ ] **B28b — Tier 2: Agent contract refresh.** Rewrite `market-research-agent.agent.md` + `prd-agent.agent.md` hard rules. Drop the "call audit-emit-event after every skill" requirement. Replace with: "the runner auto-logs every `skill_call`; you do NOT call audit-emit-event for skill_calls. You DO write a structured `### Self-review` block in the PR body for HOW phase — the workflow parses it into self_review events." Add Audit section to every SKILL.md noting auto-emission. Update Hatter Tag schema docs.
+
+  - [ ] **B28c — Tier 3: Workflow audit-shift.** Both workflows export `OKR_ID` / `RUN_ID` / `INTENT_THREAD_UUID` / `PHASE` env vars from the Hatter-tag-extract step. New "Auto-emit artifact_written from git diff" step that detects the artifact path in the PR diff, sha256s the content, emits via `skill-audit-emit-event`. New `prd-agent.yml`-only step that parses the agent's `### Self-review — <persona> (round N)` PR body blocks and emits one self_review event per match. Threat model yaml updates: T9 strengthened, T10 (agent skips emission to hide failures) closed, T11 (agent forges artifact_written or self_review payloads) closed.
+
+  - [ ] **B28d — Tier 4: Doc + marketing refresh.** §7.5 Audit auto-emission contract. §11.4 Court Recorder Auto-Logging subsection. `agentic-sdlc-prd.md` + `agentic-sdlc-marketresearcher.md` "what the agent owns vs the runtime owns" sections. `site-tw/public/docs/agentic-sdlc-governance.md` AEGIS Pre-Execution Firewall + Auditable Evidence + ASTRIDE + CIO/CIRO/CISO bottom-line updates.
+
+  - [ ] **B28e — Tier 5: End-to-end validation.** Structured E2E test guide for the user to run after the deploy completes: pre-test checklist, WHY phase test (golden + edge cases), HOW phase test (golden + edge cases), cross-phase validation, ready-for-Phase-D handshake.
 
 ### Phase C — Orchestration + bounded recycle (target: 2 weeks)
 
@@ -2491,7 +2581,7 @@ Phase D status flips here as the deliverables ship — the codedesigner doc is t
 
 The auditor's master question is answerable in one click.
 
-- [ ] **E1.** `OKRService.exportAuditReport()` — generates the bundle described in §11.7
+- [ ] **E1.** `OKRService.exportAuditReport()` — generates the bundle described in §11.8
 - [ ] **E2.** `verify-chain` CLI surface in Looking Glass — runs against any phase or full OKR; result chip on Hatter Tag UI
 - [ ] **E3.** `traceability.html` interactive matrix renderer (KR → Finding → FR/SR → Design → Code)
 - [ ] **E4.** End-to-end smoke test against the IMDB-Lite sample OKR — Autonomous path on Lite, Restricted-blocked path on Celebs (proves both directions work)
@@ -2506,7 +2596,7 @@ The auditor's master question is answerable in one click.
 - [x] **v4.4** Hatter Tag UI surfacing (§10.4)
 - [x] **v4.5** Oraculum repositioning (§10.5)
 - [x] **v4.6** Settings page → Mesh Provisioning (§10.6)
-- [x] **v4.7** Audit Report Export (§11.7)
+- [x] **v4.7** Audit Report Export (§11.8)
 - [x] **v4.8** Phase tracking inline (this section)
 - [x] **v4.9** Deliverables map with status column (§15)
 - [x] **v4.10** `A.false-audit-fabrication` threat closed end-to-end (B25 — prompt rewrite + CI verify-chain + chain-ladder writer + AEGIS/ASTRIDE docs in `site-tw/public/docs/agentic-sdlc-governance.md`)
@@ -2727,7 +2817,7 @@ Capabilities the design **reserves for** — seams + extension points exist, thr
 - §1 Archaeology research mode — code-grounded WHY phase (reuses Phase D's `knowledge-code` Skill)
 - §2 Knight's Seal v2 — cosign / sigstore persistent signing (replaces v1's per-run ephemeral key with a transparency-log-anchored identity)
 - §3 `verify-chain` CLI surface in Looking Glass (one-click chip + full-page replay log)
-- §4 Audit Report Export bundle (Phase E generator work — spec already in §11.7)
+- §4 Audit Report Export bundle (Phase E generator work — spec already in §11.8)
 - §5 Hatter chain ladder visualization (UI completion of the §11.6 chain-ladder writer's data; cross-ref Phase D D11)
 - §6 Origin-story design folded forward (historical `docs/design/research-and-prd-agents.md` retirement record)
 - §7 Foundry / self-hosted inference — **explicit non-goal**
