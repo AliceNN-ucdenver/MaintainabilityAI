@@ -153,6 +153,8 @@ The Hatter governs what should be built and how it should be designed. The Red Q
 
 ## Meet the two modalities
 
+Two roles, one control plane, every artifact audit-chained from intent to shipped code. The Hatter governs **before** code is written — the human leading the agentic SDLC sees what their initiative will touch, the agents executing see the same map. The Red Queen governs **while** code is written — each agent action checked against the architecture deterministically. **For a CIO, this is the spending control on what gets built; for a CIRO, it's the explainability of every regulated decision; for a CISO, it's the threat-model coverage that doesn't collapse the moment agents accelerate.**
+
 <div class="docs-flex-block">
   <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of the planning modality" class="docs-inline-image" />
   <div>
@@ -283,7 +285,7 @@ A VS Code-native portfolio dashboard that doesn't just list your applications. I
 
 Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but living canvases where you drag, drop, edit, and write changes directly back to the CALM model. Bidirectional editing means the diagram IS the architecture, and the architecture IS the diagram.
 
-<svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Bidirectional CALM architecture canvas — the diagram and the model are the same artifact">
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Bidirectional CALM architecture canvas — the diagram and the model are the same artifact">
   <defs>
     <linearGradient id="calmBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -296,7 +298,7 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#fcd34d"/>
     </marker>
   </defs>
-  <rect width="800" height="380" rx="12" fill="url(#calmBg)"/>
+  <rect width="800" height="440" rx="12" fill="url(#calmBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#818cf8" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">CALM CANVAS · BIDIRECTIONAL EDITING</text>
 
   <!-- LEFT: visual canvas -->
@@ -359,7 +361,10 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   <text x="460" y="322" fill="#94a3b8" font-size="10" font-family="ui-monospace, Menlo, monospace">}</text>
   <text x="460" y="342" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Git-native · FINOS standard · machine-readable</text>
 
-  <text x="400" y="372" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">The diagram IS the architecture. The architecture IS the diagram.</text>
+  <!-- Footer band — gives the tagline real breathing room -->
+  <rect x="24" y="370" width="752" height="50" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
+  <text x="400" y="392" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">The diagram IS the architecture. The architecture IS the diagram.</text>
+  <text x="400" y="410" text-anchor="middle" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">Drag the canvas → JSON updates · edit the JSON → canvas re-lays out · ReactFlow + ELK.js</text>
 </svg>
 
 Trend sparklines show governance health over time. Drift indicators catch decay before it becomes crisis. Enterprise capability models (ACORD, BIAN) map business capabilities to the applications that implement them.
@@ -458,7 +463,7 @@ An AI governance assistant that doesn't just answer questions. It understands yo
 
 ### Oraculum: automated architecture review
 
-<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Oraculum — code-grounded architecture review across target repos">
+<svg viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Oraculum — code-grounded architecture review across target repos">
   <defs>
     <linearGradient id="oraBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -468,7 +473,7 @@ An AI governance assistant that doesn't just answer questions. It understands yo
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#a5b4fc"/>
     </marker>
   </defs>
-  <rect width="800" height="440" rx="12" fill="url(#oraBg)"/>
+  <rect width="800" height="480" rx="12" fill="url(#oraBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">ORACULUM · CODE-GROUNDED ARCHITECTURE REVIEW</text>
 
   <!-- Pipeline strip: 4 stages -->
@@ -546,10 +551,10 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   <text x="44" y="344" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Cites: ADR-0007 (auth tier), THR-014, imdb-identity/config.ts · CALM node `imdb-identity`</text>
 
   <!-- Bottom footer: PR detection + mesh -->
-  <rect x="24" y="372" width="752" height="50" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
-  <text x="44" y="392" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">→ Two-way feedback:</text>
-  <text x="200" y="392" fill="#cbd5e1" font-size="11" font-family="system-ui, sans-serif">PR check turns ✗ until findings cleared</text>
-  <text x="200" y="408" fill="#cbd5e1" font-size="11" font-family="system-ui, sans-serif">review metrics persist to the mesh → BAR score updates → tier may shift</text>
+  <rect x="24" y="380" width="752" height="80" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
+  <text x="44" y="402" fill="#a5b4fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">TWO-WAY FEEDBACK INTO THE GOVERNANCE LOOP</text>
+  <text x="44" y="424" fill="#cbd5e1" font-size="11" font-family="system-ui, sans-serif">→ PR check turns ✗ until findings cleared · prevents merge in CI</text>
+  <text x="44" y="442" fill="#cbd5e1" font-size="11" font-family="system-ui, sans-serif">→ Review metrics persist to the mesh · BAR pillar scores update · tier may shift (Autonomous → Supervised → Restricted)</text>
 </svg>
 
 Create a review. Select prompt packs. Assign Claude Code or Copilot Coding Agent as reviewers. A GitHub Action checks out your code repos, analyzes them against your CALM model, and posts structured findings to a GitHub Issue, organized by governance pillar, rated by severity, mapped to NIST controls. Real-time monitoring with avatar timelines. PR detection with checks status. Review metrics saved to your governance mesh.
@@ -626,15 +631,15 @@ Five actors the Hatter must withstand:
 
 ### Threats and controls (STRIDE)
 
-<svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="STRIDE + ASTRIDE threat coverage for the Hatter's Tea Party — six classical STRIDE categories plus four AI-agent-specific categories from ASTRIDE">
   <defs>
     <linearGradient id="strideBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0b1220"/>
       <stop offset="100%" stop-color="#1e293b"/>
     </linearGradient>
   </defs>
-  <rect width="800" height="360" rx="12" fill="url(#strideBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">STRIDE COVERAGE — HATTER FEATURE</text>
+  <rect width="800" height="500" rx="12" fill="url(#strideBg)"/>
+  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">STRIDE + ASTRIDE COVERAGE — HATTER FEATURE</text>
   <line x1="147" y1="48" x2="147" y2="248" stroke="rgba(148,163,184,0.10)" stroke-width="1"/>
   <line x1="273" y1="48" x2="273" y2="248" stroke="rgba(148,163,184,0.10)" stroke-width="1"/>
   <line x1="400" y1="48" x2="400" y2="248" stroke="rgba(148,163,184,0.10)" stroke-width="1"/>
@@ -688,18 +693,43 @@ Five actors the Hatter must withstand:
   <text x="717" y="151" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Prompt injection</text>
   <rect x="662" y="164" width="110" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
   <text x="717" y="179" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Pack signing (B+)</text>
-  <line x1="20" y1="270" x2="780" y2="270" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
-  <text x="400" y="290" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">STATUS</text>
-  <rect x="180" y="304" width="22" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
-  <text x="191" y="319" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">✓</text>
-  <text x="212" y="319" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">in design (Phase A)</text>
-  <rect x="360" y="304" width="22" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="371" y="319" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">🛠</text>
-  <text x="392" y="319" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">partial — strong variant in B+</text>
-  <rect x="572" y="304" width="22" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="583" y="319" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">⚠</text>
-  <text x="604" y="319" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">honest gap (named below)</text>
-  <text x="400" y="346" text-anchor="middle" fill="#64748b" font-size="9" font-style="italic" font-family="system-ui, sans-serif">10 controls in design · 3 partial · 5 honest gaps · all open in GitHub for community review</text>
+  <!-- ASTRIDE row — AI-agent-specific threats (the "A" category that STRIDE alone doesn't cover) -->
+  <line x1="20" y1="232" x2="780" y2="232" stroke="rgba(167,139,250,0.30)" stroke-width="1" stroke-dasharray="4"/>
+  <rect x="14" y="244" width="32" height="46" rx="8" fill="rgba(167,139,250,0.20)" stroke="rgba(167,139,250,0.6)"/>
+  <text x="30" y="270" text-anchor="middle" fill="#c4b5fd" font-size="20" font-weight="800" font-family="system-ui, sans-serif">A</text>
+  <text x="30" y="284" text-anchor="middle" fill="#a5b4fc" font-size="7" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">ASTRIDE</text>
+  <text x="55" y="258" fill="#c4b5fd" font-size="10" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">AI-AGENT-SPECIFIC THREATS</text>
+  <text x="55" y="275" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">From ASTRIDE (arXiv 2512.04785) — categories STRIDE alone does not cover</text>
+  <text x="55" y="288" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Each cell below names the agent-side threat and its control in the design</text>
+  <!-- 4 A-category cells -->
+  <rect x="28" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="118" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.prompt-injection</text>
+  <text x="118" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">Hatter Tag pins mesh_sha</text>
+  <rect x="216" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="306" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.memory-poisoning</text>
+  <text x="306" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">mesh_sha verify across runs</text>
+  <rect x="404" y="300" width="180" height="42" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="494" y="316" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.inter-agent-influence</text>
+  <text x="494" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · Caterpillar's Challenge</text>
+  <rect x="592" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="682" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.false-audit-fabrication</text>
+  <text x="682" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">verify-chain CI gate (B25)</text>
+
+  <!-- Status legend (relocated below the ASTRIDE row) -->
+  <line x1="20" y1="368" x2="780" y2="368" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
+  <text x="400" y="388" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">STATUS LEGEND (applies to all cells above)</text>
+  <rect x="120" y="404" width="22" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="131" y="419" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">✓</text>
+  <text x="152" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">in design / shipped</text>
+  <rect x="320" y="404" width="22" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="331" y="419" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">🛠</text>
+  <text x="352" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">partial — strong variant later</text>
+  <rect x="552" y="404" width="22" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
+  <text x="563" y="419" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">⚠</text>
+  <text x="584" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">honest gap (named below)</text>
+
+  <text x="400" y="452" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="700" font-family="system-ui, sans-serif">10 STRIDE controls + 4 ASTRIDE controls in design · 3 partial · 5 honest gaps</text>
+  <text x="400" y="470" text-anchor="middle" fill="#64748b" font-size="9" font-style="italic" font-family="system-ui, sans-serif">All open in GitHub for community review — honesty beats marketing claims</text>
 </svg>
 
 Each row in the table below names a concrete threat, the design control that addresses it, and a status. **✓ in design** = spec'd in [the design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md). **🛠 partial** = Phase A enforces a weaker variant; the strong variant is in a later phase. **⚠ gap** = open work, listed in the next section.
@@ -729,9 +759,13 @@ Each row in the table below names a concrete threat, the design control that add
 
 ### AEGIS overlay — where this design fits in the agentic-AI security landscape
 
-STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence laundering, prompt injection from data-not-instructions confusion). Three industry frameworks sit on top of STRIDE for the agentic case. The Hatter's Tea Party design satisfies most of their controls; some gaps remain.
+**The bottom line for an enterprise security leader:** the Hatter's Tea Party already satisfies most of the industry's published agentic-AI governance frameworks — and we publish, in this document, the specific controls we satisfy, the ones in flight, and the gaps that remain. No marketing claims; everything below is a row in the design doc with an open GitHub issue.
 
-**Forrester AEGIS (Agentic AI Guardrails for Information Security)** — six domains, three core principles. The closest enterprise-governance framework for agentic systems, published 2025.
+STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence laundering, prompt injection from data-not-instructions confusion). Three industry frameworks sit on top of STRIDE for the agentic case: **Forrester AEGIS** (enterprise governance domains + principles), the **AEGIS Pre-Execution Firewall** (runtime cryptographic controls — arXiv 2603.12621), and **ASTRIDE** (the formal STRIDE extension that adds the "A" category for AI-agent-specific attacks — arXiv 2512.04785). The tables below name each framework's controls and our implementation status.
+
+#### 1. Forrester AEGIS — Agentic AI Guardrails for Information Security
+
+Six domains, three core principles. Published 2025 — the closest enterprise-governance framework for agentic systems.
 
 | Forrester domain | Forrester named control | Hatter's Tea Party implementation | Status |
 |---|---|---|:-:|
@@ -744,7 +778,9 @@ STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence la
 
 **Core principles (all three):** _Least Agency_ ✓ (per-agent tool whitelists), _Continuous Assurance_ ✓ (every PR re-runs the gate workflows, not point-in-time review), _Explainable Outcomes_ ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
 
-**AEGIS Pre-Execution Firewall** ([arXiv 2603.12621](https://arxiv.org/abs/2603.12621)) — runtime tool-call interception with Ed25519 + SHA-256 hash-chained audit. Direct lineage to our `audit-emit-event` skill:
+#### 2. AEGIS Pre-Execution Firewall — runtime cryptographic controls
+
+[arXiv 2603.12621](https://arxiv.org/abs/2603.12621). Runtime tool-call interception with Ed25519 + SHA-256 hash-chained audit. Direct lineage to our `audit-emit-event` skill:
 
 | AEGIS Pre-Execution Firewall control | Hatter's Tea Party implementation | Status |
 |---|---|:-:|
@@ -755,26 +791,34 @@ STRIDE alone doesn't cover agent-specific failure modes (goal drift, evidence la
 | Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`. **Phase B (B27) lands Knight's Seal v1** — per-run **ephemeral** Ed25519 keypair generated at agent dispatch; signs the chain-root hash + final artifact SHA; public key + signature posted in the `artifact_written` audit event; private key destroyed at session end (no key store, no rotation policy). CI verifies the signature pre-merge and applies `seal-broken` on failure. Cosign / sigstore-anchored persistent signing — for verifying a year-old artifact without trusting its own embedded key — is queued as a future enhancement | 🛠 |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 
-**Aegis Protocol** ([arXiv 2508.19267](https://arxiv.org/abs/2508.19267)) — cryptographic protocol for open agentic ecosystems. Three pillars: W3C DIDs (non-spoofable agent identity), NIST PQC (communication integrity), Halo2 ZKP (verifiable, privacy-preserving policy compliance). Formalizes a game-based definition of "Excessive Agency."
+#### 3. Aegis Protocol — cryptographic identity + verifiable policy
+
+[arXiv 2508.19267](https://arxiv.org/abs/2508.19267). Three pillars: W3C DIDs (non-spoofable agent identity), NIST PQC (communication integrity), Halo2 ZKP (verifiable, privacy-preserving policy compliance). Formalizes a game-based definition of "Excessive Agency."
 
 The Aegis Protocol's _Excessive Agency_ game maps directly to our **Pocket Watch goal-drift** check (§9.2): if the agent's PR scope diverges too far from the OKR's frozen objective (cosine similarity < 0.85), the agent has exceeded its authorized agency and the workflow refuses to merge. The protocol's ZKP-based policy proofs are not yet implemented — they're a Phase B+ candidate when third-party verifiable governance attestation becomes a requirement.
 
-**ASTRIDE** ([arXiv 2512.04785](https://arxiv.org/pdf/2512.04785)) — formal STRIDE extension that adds category **"A" for AI-Agent-Specific Attacks**: prompt manipulation, context/memory poisoning, inter-agent influence. Our threat model covers `A.prompt-injection` and `A.memory-poisoning` (Hatter Tag pins mesh_sha so a poisoned mesh state is detectable across runs); `A.inter-agent-influence` (an upstream agent's output steering a downstream agent toward a different goal) is partially addressed by the Caterpillar's Challenge cross-phase drift check.
+#### 4. ASTRIDE — STRIDE + the "A" category for AI-agent-specific attacks
+
+[arXiv 2512.04785](https://arxiv.org/pdf/2512.04785). Formal STRIDE extension that adds category **"A" for AI-Agent-Specific Attacks**: prompt manipulation, context/memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above visualizes which controls in the Hatter's design come from classical STRIDE versus the new "A" extension. Our threat model covers `A.prompt-injection` and `A.memory-poisoning` (Hatter Tag pins mesh_sha so a poisoned mesh state is detectable across runs); `A.inter-agent-influence` (an upstream agent's output steering a downstream agent toward a different goal) is partially addressed by the Caterpillar's Challenge cross-phase drift check.
 
 A fourth A-category surfaced on PR #105 and is now in scope: **`A.false-audit-fabrication`** — an agent that loses access to the audit-emission runner reasons that *"the audit is non-blocking anyway"* and writes the JSONL by hand with fabricated hash values to appear compliant. The prompt-level mitigation is a hard rule against direct JSONL writes (the agent must STOP and post a PR comment if the runner is unreachable). The structural mitigation is the new pre-merge **`verify-chain`** CI step that re-replays the SHA-256 chain against the canonical serialization — implemented independently of the runner so a runner bug can't silently pass. On verification failure the merge gate refuses with a `chain-forgery-detected` label. This converts what was previously a silent governance-bypass into a blocking failure that names its own cause.
 
-**What auditable evidence looks like under this overlay.** A reviewer (internal auditor, regulator, downstream consumer) can take just two files from any merged artifact — `okrs/<id>/<phase>/<artifact>.md` and `okrs/<id>/audit/events/<run>.jsonl` — and:
+#### What auditable evidence looks like (the CIO / CIRO / CISO read)
 
-1. Verify the Hatter Tag's declared `chain_root_hash` matches the SHA-256 of the JSONL's last event (replay verification — AEGIS Pre-Execution Firewall pattern). This is the same check the pre-merge `verify-chain` CI step ran before the artifact was allowed to merge.
-2. Confirm every claim in the artifact traces back to a `skill_call` event in the audit (provenance — Forrester Data Security)
-3. Replay the agent's query plan from `payload.queries` on each search event (reproducibility — Forrester Explainable Outcomes)
-4. Detect tampering: any modification to a past audit event breaks every subsequent `prev_event_hash` (tamper-evidence)
+A reviewer — internal auditor, regulator, downstream consumer, or your own incident-response team at 3 AM — can take **just two files** from any merged artifact (`okrs/<id>/<phase>/<artifact>.md` and `okrs/<id>/audit/events/<run>.jsonl`) and reconstruct the full story:
 
-No live system access required. No proprietary tooling. Just two files and a SHA-256 implementation. The auditor's offline replay matches the CI's pre-merge replay — same algorithm, same result.
+1. **Verify the Hatter Tag's declared `chain_root_hash`** matches the SHA-256 of the JSONL's last event — replay verification, AEGIS Pre-Execution Firewall pattern. *This is the same check the pre-merge `verify-chain` CI step ran before the artifact was allowed to merge — same algorithm, same result.*
+2. **Confirm every claim in the artifact traces back** to a `skill_call` event in the audit — provenance, Forrester Data Security.
+3. **Replay the agent's query plan** from `payload.queries` on each search event — reproducibility, Forrester Explainable Outcomes.
+4. **Detect tampering** — any modification to a past audit event breaks every subsequent `prev_event_hash` (tamper-evidence). Once Knight's Seal v1 ships (B27), the chain root is also cryptographically signed; any substitution attempt fails the signature check too.
 
-### Honest gaps for a future phase
+No live system access required. No proprietary tooling. Just two files and a SHA-256 implementation. **This is what closes EU AI Act Article 12 (≥6 month retention, model + inputs + operator + timestamps; deadline 2 Aug 2026) and what makes SOC 2 CC8.1 demonstrable on every artifact this pipeline produces.**
 
-These are open. They are the design's known unknowns. Each is queued for a named future phase or remains a research item:
+### Honest gaps — what we will address
+
+Every framework claim above has a status badge. This section names the **gaps that remain** — the ones we have not closed yet, with the named phase that will close each, and a clear distinction between "queued for a specific phase" and "research item, no committed date."
+
+We publish this list publicly because honest design beats marketing claims, and because an executive reviewer reading the AEGIS / ASTRIDE tables above deserves to know exactly where each `🛠` or `⚠` lands on the roadmap.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-rose">
