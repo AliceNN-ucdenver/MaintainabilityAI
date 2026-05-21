@@ -715,7 +715,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // H2 section count — same canonical sets the audit-and-drift
       // workflows check, surfaced here so the Coverage line shows it.
       const requiredH2 = phase === 'why'
-        ? ['Source Premises', 'Executive Summary', 'Cross-Source Analysis', 'Evidence Gaps', 'Jobs-to-be-Done Analysis', 'Patent Landscape', 'Whitespace Analysis', 'Formal Conclusions', 'Recommendations', 'References']
+        ? ['Source Premises', 'Executive Summary', 'Cross-Source Analysis', 'Evidence Gaps', 'JTBD Analysis', 'Patent Landscape', 'Whitespace Analysis', 'Formal Conclusions', 'Recommendations', 'References']
         : phase === 'how'
         ? ['Input Premises', 'Problem Statement', 'Goals', 'Functional Requirements', 'Non-Functional Requirements', 'Security Requirements', 'Coverage Analysis', 'Risk Matrix', 'Success Metrics', 'References']
         : [];
