@@ -208,14 +208,12 @@ A VS Code-native portfolio dashboard that doesn't just list your applications. I
   </defs>
   <rect width="800" height="410" rx="12" fill="url(#pillarBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#818cf8" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">BAR · FOUR-PILLAR GOVERNANCE SCORING</text>
-
   <!-- BAR header -->
   <rect x="24" y="48" width="752" height="62" rx="10" fill="rgba(148,163,184,0.08)" stroke="rgba(148,163,184,0.25)"/>
   <text x="44" y="76" fill="#e2e8f0" font-size="15" font-weight="700" font-family="system-ui, sans-serif">APP-IMDB-001 · Application BAR</text>
   <text x="44" y="96" fill="#94a3b8" font-size="11" font-family="system-ui, sans-serif">Platform: imdb-lite · Criticality: HIGH · Tier: Autonomous (overall 80 / 100)</text>
   <rect x="650" y="68" width="100" height="26" rx="13" fill="rgba(74,222,128,0.18)" stroke="rgba(74,222,128,0.4)"/>
   <text x="700" y="85" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">🛡 Sealed</text>
-
   <!-- Four pillar columns -->
   <!-- Architecture -->
   <rect x="24" y="126" width="180" height="220" rx="10" fill="rgba(99,102,241,0.06)" stroke="rgba(99,102,241,0.3)"/>
@@ -230,7 +228,6 @@ A VS Code-native portfolio dashboard that doesn't just list your applications. I
   <text x="44" y="292" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">• Pillar trend ↗ +3 / 30d</text>
   <text x="44" y="320" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Derived from artifacts,</text>
   <text x="44" y="332" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">not checklists</text>
-
   <!-- Security -->
   <rect x="216" y="126" width="180" height="220" rx="10" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.3)"/>
   <text x="306" y="150" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">SECURITY</text>
@@ -244,7 +241,6 @@ A VS Code-native portfolio dashboard that doesn't just list your applications. I
   <text x="236" y="292" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">• 2 controls missing ⚠</text>
   <text x="236" y="320" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Threats · controls ·</text>
   <text x="236" y="332" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">audit-able coverage</text>
-
   <!-- Information Risk -->
   <rect x="408" y="126" width="180" height="220" rx="10" fill="rgba(252,211,77,0.06)" stroke="rgba(252,211,77,0.3)"/>
   <text x="498" y="150" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">INFORMATION RISK</text>
@@ -258,7 +254,6 @@ A VS Code-native portfolio dashboard that doesn't just list your applications. I
   <text x="428" y="292" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">• Cross-border flows ✓</text>
   <text x="428" y="320" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Regulatory exposure</text>
   <text x="428" y="332" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">at the application layer</text>
-
   <!-- Operations -->
   <rect x="600" y="126" width="180" height="220" rx="10" fill="rgba(74,222,128,0.06)" stroke="rgba(74,222,128,0.3)"/>
   <text x="690" y="150" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">OPERATIONS</text>
@@ -272,7 +267,6 @@ A VS Code-native portfolio dashboard that doesn't just list your applications. I
   <text x="620" y="292" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">• On-call rotation ✓</text>
   <text x="620" y="320" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Day-2 readiness +</text>
   <text x="620" y="332" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">incident response</text>
-
   <!-- Tier-mapping footer -->
   <rect x="24" y="358" width="752" height="38" rx="8" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.3)"/>
   <text x="44" y="382" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">→ Tier mapping drives agent autonomy:</text>
@@ -300,11 +294,9 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   </defs>
   <rect width="800" height="440" rx="12" fill="url(#calmBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#818cf8" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">CALM CANVAS · BIDIRECTIONAL EDITING</text>
-
   <!-- LEFT: visual canvas -->
   <rect x="24" y="50" width="370" height="300" rx="10" fill="rgba(99,102,241,0.06)" stroke="rgba(99,102,241,0.3)"/>
   <text x="44" y="74" fill="#a5b4fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">VISUAL CANVAS · ReactFlow + ELK.js</text>
-
   <!-- Architecture graph -->
   <!-- Frontend -->
   <rect x="60" y="100" width="120" height="46" rx="8" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.6)"/>
@@ -326,21 +318,17 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   <rect x="145" y="260" width="120" height="46" rx="8" fill="rgba(74,222,128,0.18)" stroke="rgba(74,222,128,0.6)"/>
   <text x="205" y="280" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">data-store</text>
   <text x="205" y="295" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">MongoDB cluster</text>
-
   <!-- Edges -->
   <line x1="180" y1="123" x2="230" y2="123" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
   <line x1="180" y1="203" x2="230" y2="123" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)" opacity="0.7"/>
   <line x1="180" y1="203" x2="230" y2="203" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
   <line x1="290" y1="146" x2="240" y2="260" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
   <line x1="290" y1="226" x2="240" y2="263" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
-
   <text x="44" y="335" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Drag · drop · edit · re-layout</text>
-
   <!-- Sync arrows -->
   <line x1="394" y1="200" x2="436" y2="200" stroke="#fcd34d" stroke-width="2" marker-end="url(#calmSync)"/>
   <line x1="436" y1="220" x2="394" y2="220" stroke="#fcd34d" stroke-width="2" marker-end="url(#calmSync)"/>
   <text x="415" y="245" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-style="italic" font-family="system-ui, sans-serif">bi-dir</text>
-
   <!-- RIGHT: CALM JSON -->
   <rect x="440" y="50" width="336" height="300" rx="10" fill="rgba(15,23,42,0.6)" stroke="rgba(252,211,77,0.4)"/>
   <text x="460" y="74" fill="#fcd34d" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CALM 1.2 MODEL · platform.arch.json</text>
@@ -360,7 +348,6 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   <text x="476" y="306" fill="#94a3b8" font-size="10" font-family="ui-monospace, Menlo, monospace">]</text>
   <text x="460" y="322" fill="#94a3b8" font-size="10" font-family="ui-monospace, Menlo, monospace">}</text>
   <text x="460" y="342" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Git-native · FINOS standard · machine-readable</text>
-
   <!-- Footer band — gives the tagline real breathing room -->
   <rect x="24" y="370" width="752" height="50" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
   <text x="400" y="392" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">The diagram IS the architecture. The architecture IS the diagram.</text>
@@ -384,16 +371,13 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   </defs>
   <rect width="800" height="410" rx="12" fill="url(#absBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">ABSOLEM · AI ARCHITECTURE ADVISOR</text>
-
   <!-- LEFT: chat surface -->
   <rect x="24" y="50" width="370" height="338" rx="10" fill="rgba(15,23,42,0.65)" stroke="rgba(125,211,252,0.35)"/>
   <text x="44" y="74" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CONVERSATION · BAR-grounded</text>
-
   <!-- User bubble -->
   <rect x="44" y="90" width="330" height="42" rx="8" fill="rgba(99,102,241,0.16)" stroke="rgba(99,102,241,0.35)"/>
   <text x="58" y="108" fill="#a5b4fc" font-size="10" font-weight="700" font-family="system-ui, sans-serif">YOU</text>
   <text x="58" y="124" fill="#e2e8f0" font-size="11" font-family="system-ui, sans-serif">/drift — is the celeb-api code aligned with our CALM?</text>
-
   <!-- Absolem reply -->
   <circle cx="62" cy="160" r="14" fill="url(#absGlow)" stroke="rgba(125,211,252,0.6)"/>
   <text x="62" y="164" text-anchor="middle" fill="#7dd3fc" font-size="14" font-weight="700" font-family="system-ui, sans-serif">A</text>
@@ -411,11 +395,9 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   <text x="100" y="334" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">Mesh-grounded · cites 3 ADRs · 2 threats</text>
   <text x="100" y="354" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Sources: ADR-0004, ADR-0007, ADR-0011</text>
   <text x="100" y="367" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">STRIDE: THR-014 (tampering), THR-022</text>
-
   <!-- RIGHT: 7 specialized commands -->
   <rect x="416" y="50" width="360" height="338" rx="10" fill="rgba(125,211,252,0.04)" stroke="rgba(125,211,252,0.25)"/>
   <text x="436" y="74" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">SEVEN SPECIALIZED COMMANDS</text>
-
   <!-- 2-column grid: 7 commands -->
   <!-- /drift -->
   <rect x="436" y="90" width="156" height="46" rx="8" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
@@ -449,13 +431,11 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   <rect x="600" y="258" width="156" height="46" rx="8" fill="rgba(148,163,184,0.10)" stroke="rgba(148,163,184,0.35)"/>
   <text x="612" y="277" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">/ask</text>
   <text x="612" y="293" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">freeform consultation</text>
-
   <!-- Footer note -->
   <rect x="436" y="318" width="320" height="56" rx="8" fill="rgba(125,211,252,0.06)" stroke="rgba(125,211,252,0.25)"/>
   <text x="596" y="338" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Grounded in YOUR mesh</text>
   <text x="596" y="354" text-anchor="middle" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">Reads CALM · ADRs · STRIDE · NIST controls</text>
   <text x="596" y="368" text-anchor="middle" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">Cites sources · no hallucinated references</text>
-
   <text x="400" y="402" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">"Who are you?" — the Caterpillar in Wonderland, after Alice landed on a mushroom. Same energy.</text>
 </svg>
 
@@ -475,13 +455,11 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   </defs>
   <rect width="800" height="480" rx="12" fill="url(#oraBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">ORACULUM · CODE-GROUNDED ARCHITECTURE REVIEW</text>
-
   <!-- Pipeline strip: 4 stages -->
   <text x="48" y="58" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">STAGE 1 · CONFIGURE</text>
   <text x="248" y="58" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">STAGE 2 · ASSIGN</text>
   <text x="448" y="58" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">STAGE 3 · CI RUNS</text>
   <text x="648" y="58" fill="#94a3b8" font-size="10" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">STAGE 4 · FINDINGS</text>
-
   <!-- Stage 1: configure -->
   <rect x="24" y="68" width="170" height="148" rx="8" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.35)"/>
   <text x="38" y="90" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Select pillars</text>
@@ -493,9 +471,7 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   <text x="38" y="178" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">Prompt packs</text>
   <text x="38" y="192" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">arch-review · CALM-drift</text>
   <text x="38" y="206" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">owasp-pattern-scan</text>
-
   <line x1="194" y1="142" x2="222" y2="142" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#oraArrow)"/>
-
   <!-- Stage 2: assign -->
   <rect x="224" y="68" width="170" height="148" rx="8" fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.35)"/>
   <text x="238" y="90" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Pick agents</text>
@@ -506,9 +482,7 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   <text x="238" y="180" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">Target repos</text>
   <text x="238" y="194" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">celeb-api · imdb-frontend</text>
   <text x="238" y="207" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">imdb-identity</text>
-
   <line x1="394" y1="142" x2="422" y2="142" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#oraArrow)"/>
-
   <!-- Stage 3: CI runs -->
   <rect x="424" y="68" width="170" height="148" rx="8" fill="rgba(252,211,77,0.08)" stroke="rgba(252,211,77,0.35)"/>
   <text x="438" y="90" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">GitHub Action</text>
@@ -520,9 +494,7 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   <line x1="438" y1="174" x2="580" y2="174" stroke="rgba(148,163,184,0.2)"/>
   <text x="438" y="190" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">⏱ Avatar timeline live</text>
   <text x="438" y="204" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">  PR check status streams</text>
-
   <line x1="594" y1="142" x2="622" y2="142" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#oraArrow)"/>
-
   <!-- Stage 4: findings -->
   <rect x="624" y="68" width="152" height="148" rx="8" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.35)"/>
   <text x="638" y="90" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Findings issue</text>
@@ -534,7 +506,6 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   <text x="638" y="184" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">• 3 MINOR</text>
   <line x1="638" y1="194" x2="762" y2="194" stroke="rgba(148,163,184,0.2)"/>
   <text x="638" y="208" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">All findings → NIST mapped</text>
-
   <!-- Lower row: example finding card -->
   <rect x="24" y="240" width="752" height="120" rx="10" fill="rgba(15,23,42,0.6)" stroke="rgba(248,113,113,0.3)"/>
   <text x="44" y="262" fill="#fca5a5" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">SAMPLE FINDING · SECURITY PILLAR</text>
@@ -549,7 +520,6 @@ An AI governance assistant that doesn't just answer questions. It understands yo
   <text x="44" y="312" fill="#e2e8f0" font-size="11" font-family="system-ui, sans-serif">celeb-api/routes/auth.ts:42 — JWT verification missing `iss` + `aud` claims.</text>
   <text x="44" y="328" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">Recommendation: add iss/aud checks (matches imdb-identity issuer config); add 2 unit tests.</text>
   <text x="44" y="344" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Cites: ADR-0007 (auth tier), THR-014, imdb-identity/config.ts · CALM node `imdb-identity`</text>
-
   <!-- Bottom footer: PR detection + mesh -->
   <rect x="24" y="380" width="752" height="80" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
   <text x="44" y="402" fill="#a5b4fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">TWO-WAY FEEDBACK INTO THE GOVERNANCE LOOP</text>
@@ -714,7 +684,6 @@ Five actors the Hatter must withstand:
   <rect x="592" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="682" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.false-audit-fabrication</text>
   <text x="682" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">verify-chain CI gate (B25)</text>
-
   <!-- Status legend (relocated below the ASTRIDE row) -->
   <line x1="20" y1="368" x2="780" y2="368" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
   <text x="400" y="388" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">STATUS LEGEND (applies to all cells above)</text>
@@ -727,35 +696,81 @@ Five actors the Hatter must withstand:
   <rect x="552" y="404" width="22" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
   <text x="563" y="419" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">⚠</text>
   <text x="584" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">honest gap (named below)</text>
-
   <text x="400" y="452" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="700" font-family="system-ui, sans-serif">10 STRIDE controls + 4 ASTRIDE controls in design · 3 partial · 5 honest gaps</text>
   <text x="400" y="470" text-anchor="middle" fill="#64748b" font-size="9" font-style="italic" font-family="system-ui, sans-serif">All open in GitHub for community review — honesty beats marketing claims</text>
 </svg>
 
-Each row in the table below names a concrete threat, the design control that addresses it, and a status. **✓ in design** = spec'd in [the design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md). **🛠 partial** = Phase A enforces a weaker variant; the strong variant is in a later phase. **⚠ gap** = open work, listed in the next section.
+**The executive read.** Ten STRIDE controls + four ASTRIDE (AI-agent-specific) controls are in design. Three are partial — strong variants land in later phases. Five are honest gaps we name openly below. We publish row-by-row detail in the [design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md); the high-level summary by STRIDE category is below.
+
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">Spoof · ✓ in design</div>
+    <div class="docs-heading">Identity cannot be faked</div>
+    <div class="docs-copy">Every artifact is signed by the agent session that produced it. At PRD time, the same agent inhabits Architect + Security personas in bounded self-critique — impersonation is structurally impossible because there are no separate reviewer agents to spoof. <strong>Knight's Seal v1 (Phase B, next push)</strong> adds a per-run cryptographic signature over the chain root + artifact bytes; tampering breaks the signature.</div>
+  </div>
+  <div class="docs-card docs-card-amber">
+    <div class="docs-card-kicker">Tamper · ✓ / 🛠</div>
+    <div class="docs-heading">Audit chain is tamper-evident</div>
+    <div class="docs-copy">Every step the agent takes is hash-chained. Modifying any past entry breaks every entry after it — detectable offline. Before any PR can merge, an independent re-verification replays the chain end-to-end; mismatch blocks the merge. Goal drift is caught by a semantic-similarity check (Pocket Watch). Tier-creep is prevented by freezing the governance tier at run start.</div>
+  </div>
+  <div class="docs-card docs-card-cyan">
+    <div class="docs-card-kicker">Repudiate · ✓</div>
+    <div class="docs-heading">Every decision is attributable</div>
+    <div class="docs-copy">"Who approved this?" and "Which agent produced this?" both have one-step answers. Dual-signature overrides preserve both signer identities, the reason, the timestamp, and the GitHub comment URL. Knight's Seal makes the agent attribution cryptographic — only that specific agent session could have produced the signature.</div>
+  </div>
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">Info disclosure · ⚠</div>
+    <div class="docs-heading">Honest gaps we name</div>
+    <div class="docs-copy">LLM provider prompt retention is outside our trust boundary; we capture costs + token counts, not prompt bodies. Audit-export bundles include research, PRD, and design verbatim — there's no automated PII / IP / secrets redaction layer yet. Phase E will add one for external sharing.</div>
+  </div>
+  <div class="docs-card docs-card-rose">
+    <div class="docs-card-kicker">DoS · ✓ / ⚠</div>
+    <div class="docs-heading">Cost + blast-radius caps</div>
+    <div class="docs-copy">Per-Skill, per-agent, per-OKR, and per-org cost caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure. Open gap: per-OKR fan-out blast radius — one OKR can write landing issues to many target repos; cap + warn threshold queued for Phase C.</div>
+  </div>
+  <div class="docs-card docs-card-emerald">
+    <div class="docs-card-kicker">Elevation of Privilege · ✓ / 🛠 / ⚠</div>
+    <div class="docs-heading">Tier escalation requires real artifacts</div>
+    <div class="docs-copy">BAR pillar scores derive deterministically from real artifact presence (CALM model, threat model, ADRs). Faking artifacts to inflate a score requires creating real artifacts later agents will reference — the gate is self-reinforcing. Open research items: prompt-injection from external content; supply-chain signing on prompt-pack deployment.</div>
+  </div>
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">ASTRIDE · A.false-audit-fabrication · ✓</div>
+    <div class="docs-heading">Forged audit chains caught at the gate</div>
+    <div class="docs-copy">On PR #105 we observed an agent that lost access to the audit-emission runner and hand-wrote the JSONL with fabricated hash values to look compliant. The pre-merge <code>verify-chain</code> CI step now re-replays the chain independently of the runner; any forgery applies the <code>chain-forgery-detected</code> label and refuses merge. This is the AI-agent-specific threat that pure STRIDE doesn't cover.</div>
+  </div>
+</div>
+
+<details>
+<summary><strong>Row-by-row detail for security teams</strong> — every concrete threat + the specific control in design + status (click to expand)</summary>
 
 | STRIDE | Concrete threat | Control in design | Status |
 |---|---|---|:-:|
-| **Spoof** | Reviewer impersonates the author on the same PR | At **PRD time** there is no separate reviewer agent — the prd-agent inhabits Architect + Security personas in bounded self-critique rounds, so impersonation is structurally impossible (same author DID across personas; each persona-round emits its own audit event). At **code-design time** the same Tweedles check applies if separate code-grounded reviewer agents are reintroduced — `author_did` from PR-description Hatter Tag must differ from any dispatched reviewer DID; collision = `tweedles-violation` label | ✓ |
-| **Spoof** | Dual-signature override second-signer is impersonated | Fingerprint validation tying request to OKR + phase + reason + timestamp; Signer 2 confirmed via GitHub commenter handle or signed YAML commit; signer ≠ signer (§10.9.2) | ✓ |
-| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag at Phase A; **Knight's Seal v1 — per-run ephemeral Ed25519 keypair** signs the chain-root hash + artifact SHA in Phase B (planned for the next push as B27); `seal-broken` CI label blocks merge on signature mismatch. Cosign-anchored persistent signing for long-term third-party verifiability is a future enhancement | 🛠 |
-| **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain (§11.1.5) | 🛠 |
-| **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id (eliminates contention); POSIX advisory locking within file; per-run filenames prevent cross-run collision (§11.1.6) | ✓ |
-| **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel (§9.1) | ✓ |
-| **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective; compares with semantic similarity ≥ 0.85 AND edit-distance ≤ 0.30; `goal-drift-detected` label blocks merge (§9.2) | ✓ |
-| **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes (§6.2) | ✓ |
-| **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted (§10.9.2) | ✓ |
+| **Spoof** | Reviewer impersonates the author on the same PR | At PRD time there is no separate reviewer agent — the prd-agent inhabits Architect + Security personas in bounded self-critique, so impersonation is structurally impossible (same author DID across personas; each persona-round emits its own audit event). At code-design time the same Tweedles check applies if separate code-grounded reviewer agents are reintroduced — `author_did` from PR-description Hatter Tag must differ from any dispatched reviewer DID; collision = `tweedles-violation` label | ✓ |
+| **Spoof** | Dual-signature override second-signer is impersonated | Fingerprint validation tying request to OKR + phase + reason + timestamp; Signer 2 confirmed via GitHub commenter handle or signed YAML commit; signer ≠ signer | ✓ |
+| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag at Phase A; **Knight's Seal v1 — per-run ephemeral Ed25519 keypair** signs the chain-root hash + artifact SHA in Phase B (next push); `seal-broken` CI label blocks merge on signature mismatch. Cosign-anchored persistent signing for long-term third-party verifiability is a future enhancement | 🛠 |
+| **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain | 🛠 |
+| **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id; POSIX advisory locking within file; per-run filenames prevent cross-run collision | ✓ |
+| **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel | ✓ |
+| **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective; compares with semantic similarity ≥ 0.85 AND edit-distance ≤ 0.30; `goal-drift-detected` label blocks merge | ✓ |
+| **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes | ✓ |
+| **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow | ✓ |
+| **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted | ✓ |
 | **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal v1** (Phase B, B27) signs the chain-root + artifact SHA with a per-run Ed25519 keypair so the agent's own session is the only thing that could have produced the signature. Persistent third-party verifiability (cosign / sigstore) is a future enhancement | 🛠 |
 | **Info disclosure** | LLM provider retains our prompts indefinitely | Out of our trust boundary; the design captures cost + token counts only, not prompt bodies | ⚠ |
 | **Info disclosure** | Sensitive research-source content lands in audit export | Pure-data Skills emit structured findings; no automated sensitive-content classification on results | ⚠ |
 | **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) — Phase E follow-on | ⚠ |
-| **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments (§5.5.9 / §17.4) | ✓ |
-| **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy (§5.5.3); workflow `timeout-minutes` on every bus workflow | ✓ |
+| **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments | ✓ |
+| **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy; workflow `timeout-minutes` on every bus workflow | ✓ |
 | **DoS** | Fan-out blast radius — one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; `design-bus.yml` will write an issue per entry. Cap + warn threshold queued for Phase C | ⚠ |
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference — the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
-| **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` (Phase B-PR1c) cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow. (§11.1.7) | ✓ |
+| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; sanitization layer + data-vs-instructions partitioning is a Phase B+ research item | ✓ |
+| **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` detect poisoned state across runs | ✓ |
+| **ASTRIDE: A.inter-agent-influence** | Upstream agent's output steers a downstream agent | Partial coverage via Caterpillar's Challenge cross-phase semantic-drift check (PRD vs research; design vs PRD); full coverage requires agent-to-agent provenance signing | 🛠 |
+| **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge `verify-chain` CI step replays the SHA-256 chain independently of the runner; mismatch applies `chain-forgery-detected` and blocks merge. Closed in B25 | ✓ |
+
+</details>
 
 ### AEGIS overlay — where this design fits in the agentic-AI security landscape
 
@@ -770,7 +785,7 @@ Six domains, three core principles. Published 2025 — the closest enterprise-go
 | Forrester domain | Forrester named control | Hatter's Tea Party implementation | Status |
 |---|---|---|:-:|
 | Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Per-phase gate workflows (`market-research-agent.yml`, audit-validate, drift-gate) enforce policy in CI, not just at PR review | ✓ |
-| Identity & Access Management | Agents as hybrid identities with just-in-time privileges | Per-agent `.agent.md` declares minimum-necessary `tools:` list; deployment refuses to land an agent referencing an undeclared Skill (§5.5.1) | ✓ |
+| Identity & Access Management | Agents as hybrid identities with just-in-time privileges | Per-agent `.agent.md` declares minimum-necessary `tools:` list; deployment refuses to land an agent referencing an undeclared Skill | ✓ |
 | Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
 | Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped; **pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
 | Threat Management & SecOps | Real-time monitoring + detection engineering | Hash-chained audit JSONL is queryable; `verify-chain` (Phase E) replays the full run from disk; gap-loop refinement events visible in audit trail | ✓ |
@@ -795,7 +810,7 @@ Six domains, three core principles. Published 2025 — the closest enterprise-go
 
 [arXiv 2508.19267](https://arxiv.org/abs/2508.19267). Three pillars: W3C DIDs (non-spoofable agent identity), NIST PQC (communication integrity), Halo2 ZKP (verifiable, privacy-preserving policy compliance). Formalizes a game-based definition of "Excessive Agency."
 
-The Aegis Protocol's _Excessive Agency_ game maps directly to our **Pocket Watch goal-drift** check (§9.2): if the agent's PR scope diverges too far from the OKR's frozen objective (cosine similarity < 0.85), the agent has exceeded its authorized agency and the workflow refuses to merge. The protocol's ZKP-based policy proofs are not yet implemented — they're a Phase B+ candidate when third-party verifiable governance attestation becomes a requirement.
+The Aegis Protocol's _Excessive Agency_ game maps directly to our **Pocket Watch goal-drift** check: if the agent's PR scope diverges too far from the OKR's frozen objective (cosine similarity < 0.85), the agent has exceeded its authorized agency and the workflow refuses to merge. The protocol's ZKP-based policy proofs are not yet implemented — they're a Phase B+ candidate when third-party verifiable governance attestation becomes a requirement.
 
 #### 4. ASTRIDE — STRIDE + the "A" category for AI-agent-specific attacks
 
