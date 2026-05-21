@@ -116,6 +116,11 @@ export const MESH_SKILLS: MeshSkillSpec[] = [
   skillSpec('context-architecture', 'context'),
   skillSpec('context-security', 'context'),
   skillSpec('context-quality', 'context'),
+  // B29 — self-review provenance (pure-data; reads OKR action tier +
+  // prompt pack, auto-emits skill_call so the chain proves the agent
+  // entered each persona-switch round).
+  skillSpec('self-review-architect', 'context'),
+  skillSpec('self-review-security', 'context'),
   // B6 — audit
   skillSpec('audit-emit-event', 'audit'),
   // B7 — formatter

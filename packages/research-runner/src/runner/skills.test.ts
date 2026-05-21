@@ -664,6 +664,116 @@ test('audit-verify-chain reports missing JSONL', async () => {
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+// ─── B29 — Self-review provenance skills (PR #112 forensic) ─────────
+
+test('B29: self-review-architect returns authoritative tier + max_auto_rounds from OKR action', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-SR-1', 'okr.yaml'),
+      'meta:\n  id: OKR-SR-1\n  intentThreadUuid: cccccccc-cccc-cccc-cccc-cccccccccccc\nactions:\n  - id: ACT-1\n    runId: HOW-SR-1\n    phase: how\n    governanceTier: supervised\n    status: in_progress\n');
+    // Also drop a stub prompt pack so the skill can read it.
+    const promptDir = path.join(mesh, '.caterpillar', 'prompts', 'prd');
+    fs.mkdirSync(promptDir, { recursive: true });
+    fs.writeFileSync(path.join(promptDir, 'architecture-review.md'),
+      '# Architect persona review criteria\n\nScore the PRD against...\n', 'utf8');
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('self-review-architect', { okrId: 'OKR-SR-1', runId: 'HOW-SR-1', round: 1 });
+      assert.equal(r.ok, true);
+      if (r.ok) {
+        assert.equal(r.persona, 'architect');
+        assert.equal(r.tier, 'supervised');
+        assert.equal(r.maxAutoRounds, 2);
+        assert.equal(r.round, 1);
+        assert.equal(r.shouldProceed, true);
+        assert.equal(r.promptPackFound, true);
+        assert.match(r.promptPack as string, /Architect persona review criteria/);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B29: self-review-security tier resolution + should_proceed:false for restricted', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-SR-2', 'okr.yaml'),
+      'meta:\n  id: OKR-SR-2\n  intentThreadUuid: dddddddd-dddd-dddd-dddd-dddddddddddd\nactions:\n  - id: ACT-1\n    runId: HOW-SR-2\n    phase: how\n    governanceTier: restricted\n    status: in_progress\n');
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('self-review-security', { okrId: 'OKR-SR-2', runId: 'HOW-SR-2', round: 1 });
+      assert.equal(r.ok, true);
+      if (r.ok) {
+        assert.equal(r.persona, 'security');
+        assert.equal(r.tier, 'restricted');
+        assert.equal(r.maxAutoRounds, 0);
+        assert.equal(r.shouldProceed, false, 'restricted tier must NOT proceed regardless of round');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B29: self-review-architect should_proceed:false when round exceeds max_auto_rounds', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-SR-3', 'okr.yaml'),
+      'meta:\n  id: OKR-SR-3\n  intentThreadUuid: eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee\nactions:\n  - id: ACT-1\n    runId: HOW-SR-3\n    phase: how\n    governanceTier: supervised\n    status: in_progress\n');
+    await withMeshPath(mesh, async () => {
+      const r3 = await runSkill('self-review-architect', { okrId: 'OKR-SR-3', runId: 'HOW-SR-3', round: 3 });
+      assert.equal(r3.ok, true);
+      if (r3.ok) {
+        assert.equal(r3.maxAutoRounds, 2);
+        assert.equal(r3.shouldProceed, false, 'supervised MAX_AUTO_ROUNDS=2; round 3 must NOT proceed');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B29: self-review fails fast when runId does not match any action (no fabrication path)', async () => {
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-SR-4', 'okr.yaml'),
+      'meta:\n  id: OKR-SR-4\n  intentThreadUuid: ffffffff-ffff-ffff-ffff-ffffffffffff\nactions: []\n');
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('self-review-architect', { okrId: 'OKR-SR-4', runId: 'HOW-FAKE', round: 1 });
+      assert.equal(r.ok, false);
+      if (r.ok === false) { assert.match(r.reason, /action-not-found.*HOW-FAKE/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('B29: self-review auto-emits skill_call with authoritative tier (PR #112 forensic)', async () => {
+  // The whole reason B29 exists: chain provenance for the attempt.
+  // Even if the agent claims "I skipped because restricted", the
+  // skill_call event in the chain shows what the tier ACTUALLY was.
+  const mesh = tmpMesh();
+  try {
+    writeYaml(path.join(mesh, 'okrs', 'OKR-SR-5', 'okr.yaml'),
+      'meta:\n  id: OKR-SR-5\n  intentThreadUuid: 11111111-2222-3333-4444-555555555555\nactions:\n  - id: ACT-1\n    runId: HOW-SR-5\n    phase: how\n    governanceTier: supervised\n    status: in_progress\n');
+    await withMeshPath(mesh, async () => {
+      await withSession({ okrId: 'OKR-SR-5', runId: 'HOW-SR-5', intentThreadUuid: '11111111-2222-3333-4444-555555555555', phase: 'how' }, async () => {
+        await runSkill('self-review-architect', { okrId: 'OKR-SR-5', runId: 'HOW-SR-5', round: 1 });
+        await runSkill('self-review-security', { okrId: 'OKR-SR-5', runId: 'HOW-SR-5', round: 1 });
+        const chain = readChain(mesh, 'OKR-SR-5', 'HOW-SR-5');
+        // Two events — one per persona — both auto-emitted with the
+        // critical fields the audit-and-drift workflow needs to detect
+        // a skipped self-critique.
+        assert.equal(chain.length, 2);
+        const arch = chain[0] as { payload: { skill: string; persona: string; tier: string; max_auto_rounds: number; should_proceed: boolean } };
+        const sec  = chain[1] as { payload: { skill: string; persona: string; tier: string; max_auto_rounds: number; should_proceed: boolean } };
+        assert.equal(arch.payload.skill, 'self-review-architect');
+        assert.equal(arch.payload.persona, 'architect');
+        assert.equal(arch.payload.tier, 'supervised');
+        assert.equal(arch.payload.max_auto_rounds, 2);
+        assert.equal(arch.payload.should_proceed, true);
+        assert.equal(sec.payload.skill, 'self-review-security');
+        assert.equal(sec.payload.tier, 'supervised');
+        // Critical assertion: a future PR #112-style audit comment can
+        // diff "self-review-architect skill_call count" vs "self_review
+        // event count" — both should equal max_auto_rounds × persona.
+        // If they differ, the agent claimed something it didn't do.
+      });
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 // ─── Knight's Seal v1 (B27) — Ed25519 signing on every audit event ──
 
 test("Knight's Seal: audit-emit-event signs events + persists public key beside JSONL", async () => {

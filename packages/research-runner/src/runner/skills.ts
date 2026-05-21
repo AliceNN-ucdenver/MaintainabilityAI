@@ -528,6 +528,117 @@ const handleContextQuality: SkillHandler = async (input) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────
+// Self-review provenance skills (B29) — pure-data attempt-tracking for
+// prd-agent's persona-switch self-critique loop.
+//
+// Why these exist (PR #112 forensic):
+// The persona-switch self-critique is a prompt-level reasoning step;
+// pre-B29 it emitted ZERO skill_call events. So the audit chain had
+// no proof that the agent entered round N of Architect or Security
+// review. On PR #112 the prd-agent hallucinated `tier=restricted` and
+// skipped the loop entirely, claiming `SKIPPED_RESTRICTED_TIER` in
+// the PRD frontmatter — when the OKR action's actual governanceTier
+// was `supervised`. The chain showed nothing wrong because nothing
+// in the chain referenced self-critique at all.
+//
+// These skills don't "do" the review (the LLM still does that). They
+// hand the agent the AUTHORITATIVE inputs: the OKR action's frozen
+// tier, the resulting max_auto_rounds, a should_proceed gate, and
+// the contents of `.caterpillar/prompts/prd/<persona>-review.md`.
+// Because every runSkill() auto-emits, the chain proves: "agent
+// entered persona X, round N, was told tier=Y, max_rounds=Z,
+// should_proceed=W." If a subsequent `### Self-review — <persona>
+// (round N)` block doesn't appear in the PR body, that's a clear
+// contract violation visible in the audit comment.
+// ─────────────────────────────────────────────────────────────────────
+
+const SelfReviewInput = z.object({
+  okrId: z.string().min(1),
+  runId: z.string().min(1),
+  round: z.number().int().positive(),
+});
+
+/**
+ * Tier → MAX_AUTO_ROUNDS mapping per design §6.2. Restricted=0 means the
+ * loop is skipped entirely (mandatory human gate). The agent SHOULD NOT
+ * be inferring tier from any other source; this is the single source of
+ * truth for the OKR run that's been frozen at dispatch time.
+ */
+function tierMaxRounds(tier: string): number {
+  const t = tier.toLowerCase();
+  if (t === 'autonomous') { return 3; }
+  if (t === 'supervised') { return 2; }
+  return 0; // restricted / unknown
+}
+
+interface OkrYamlActionShape {
+  runId?: string;
+  governanceTier?: string;
+}
+interface OkrYamlShape {
+  actions?: OkrYamlActionShape[];
+}
+
+/**
+ * Factory: builds a self-review skill handler for one persona. Pure
+ * data — reads OKR yaml + prompt pack file, computes tier-driven gating,
+ * returns the bundle. No LLM, no synthesis.
+ */
+function makeSelfReviewHandler(persona: 'architect' | 'security'): SkillHandler {
+  return async (input) => {
+    const parsed = SelfReviewInput.safeParse(input);
+    if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+    const mesh = meshPath();
+    const okrPath = path.join(mesh, 'okrs', parsed.data.okrId, 'okr.yaml');
+    if (!fs.existsSync(okrPath)) { return { ok: false, reason: 'okr-not-found' }; }
+    const card = readYaml<OkrYamlShape>(okrPath);
+    const action = card?.actions?.find(a => a.runId === parsed.data.runId);
+    if (!action) {
+      return { ok: false, reason: `action-not-found: no actions[] entry with runId=${parsed.data.runId}` };
+    }
+    const tier = (action.governanceTier ?? '').toLowerCase();
+    const maxAutoRounds = tierMaxRounds(tier);
+    const shouldProceed = tier !== 'restricted' && parsed.data.round <= maxAutoRounds;
+    // Prompt-pack filename note: the persona is "architect" but the
+    // pack file is "architecture-review.md" (full word). Map explicitly
+    // so we don't accidentally look for "architect-review.md".
+    const promptFilename = persona === 'architect' ? 'architecture-review.md' : 'security-review.md';
+    const promptPath = path.join(mesh, '.caterpillar', 'prompts', 'prd', promptFilename);
+    let promptPack = '';
+    let promptPackFound = false;
+    if (fs.existsSync(promptPath)) {
+      try { promptPack = fs.readFileSync(promptPath, 'utf8'); promptPackFound = true; } catch { /* leave empty */ }
+    }
+    // The chain only needs the small fields, not the whole prompt-pack
+    // body — auditMetadata controls what lands in the skill_call event.
+    const auditMetadata = {
+      persona,
+      tier,
+      max_auto_rounds: maxAutoRounds,
+      round: parsed.data.round,
+      should_proceed: shouldProceed,
+      prompt_pack_path: promptPath,
+      prompt_pack_found: promptPackFound,
+    };
+    return {
+      ok: true,
+      persona,
+      tier,
+      maxAutoRounds,
+      round: parsed.data.round,
+      shouldProceed,
+      promptPack,
+      promptPackPath: promptPath,
+      promptPackFound,
+      auditMetadata,
+    } as SkillResult;
+  };
+}
+
+const handleSelfReviewArchitect = makeSelfReviewHandler('architect');
+const handleSelfReviewSecurity = makeSelfReviewHandler('security');
+
+// ─────────────────────────────────────────────────────────────────────
 // Search skills — thin wrappers over the existing search nodes
 // ─────────────────────────────────────────────────────────────────────
 
@@ -1066,6 +1177,8 @@ export const SKILLS: Record<string, SkillHandler> = {
   'context-architecture': handleContextArchitecture,
   'context-security': handleContextSecurity,
   'context-quality': handleContextQuality,
+  'self-review-architect': handleSelfReviewArchitect,
+  'self-review-security': handleSelfReviewSecurity,
   'tavily-search': handleTavilySearch,
   'arxiv-search': handleArxivSearch,
   'uspto-search': handleUsptoSearch,

@@ -1932,7 +1932,7 @@ function settingsRepoHint(): string {
 function renderSettingsMeshProvisioning(): string {
   const skills = state.settingsAgenticSkills;
   const agents = state.settingsAgenticAgents;
-  const skillCount = skills ? skills.length : 18;
+  const skillCount = skills ? skills.length : 20;
   const skillDeployed = skills ? skills.filter(s => s.deployed).length : null;
   const agentCount = agents ? agents.length : 4;
   const agentDeployed = agents ? agents.filter(a => a.deployed).length : null;

@@ -27,6 +27,8 @@ tools:
   - context-architecture
   - context-security
   - context-quality
+  - self-review-architect
+  - self-review-security
   - audit-emit-event
 model: claude-sonnet-4-6
 max_tokens_per_run: 250000
@@ -74,16 +76,24 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
 
 ### Self-critique (bounded rounds)
 
-12. Set `round = 1`. Resolve `MAX_AUTO_ROUNDS` from the OKR's primary affected BAR tier: Autonomous=3, Supervised=2, Restricted=0. If MAX_AUTO_ROUNDS is 0, skip the self-critique loop and proceed to step 17 (the artifact will land for human review without self-revision).
+12. Set `round = 1`. **Do NOT infer the tier from the OKR card yourself** — call `self-review-architect` with `{okrId, runId, round}` and read the authoritative values from its response:
+    - `tier`: the action's frozen `governanceTier`
+    - `max_auto_rounds`: 3 / 2 / 0 derived from tier
+    - `should_proceed`: `true` if `tier != restricted && round <= max_auto_rounds`, else `false`
+    - `prompt_pack`: full text of `.caterpillar/prompts/prd/architecture-review.md`
 
-13. **Architect persona self-review.** Switch to the Architect persona. Apply the criteria from `.caterpillar/prompts/prd/architecture-review.md` against the PRD you just wrote. Produce a structured critique with these exact anchor names (the workflow parser depends on them):
+    If `should_proceed: false`, write a single block `### Self-review — Skipped (round <N>)` to the PR body with body `reason: <tier or round-exhausted>`, then proceed to step 17 (ship). Do NOT fabricate severity or pretend you ran the review.
+
+    Calling this skill is **non-optional** — the chain depends on its `skill_call` event to prove you entered the persona-switch loop. The runner auto-emits, so you cannot skip it accidentally; but you also cannot replace it with a guess about what the tier "probably is."
+
+13. **Architect persona self-review.** Switch to the Architect persona. Apply the criteria from the `prompt_pack` field the skill just returned (mirrors `.caterpillar/prompts/prd/architecture-review.md`). Produce a structured critique with these exact anchor names (the workflow parser depends on them):
     - `SCORE` (float, 0.0–1.0)
     - `SEVERITY` (one of: `PASS`, `MINOR`, `MAJOR`, `BLOCKING`)
     - `COVERED` (array of strings — what the PRD addresses well, anchored to CALM nodes / ADRs)
     - `MISSING` (array of strings — gaps, anchored to specific mesh artifacts the PRD should reference)
     - `CHANGES` (array of specific revision requests — actionable, not vague)
 
-    **Write this critique as a structured block at the bottom of the PR body** (NOT as an audit-emit-event call — the workflow parses your PR body and emits the audit event deterministically). Format exactly:
+    **Write this critique as a structured block at the bottom of the PR body** — NOT in the artifact frontmatter, NOT as an audit-emit-event call, NOT as YAML. The workflow parses markdown blocks out of the PR body. Format exactly (with em-dash `—`):
 
     ```markdown
     ### Self-review — Architect (round <N>)
@@ -94,7 +104,9 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
     CHANGES: [<comma-separated strings>]
     ```
 
-14. **Security persona self-review.** Switch to the Security persona. Apply the criteria from `.caterpillar/prompts/prd/security-review.md`. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block to the PR body with header `### Self-review — Security (round <N>)`.
+14. **Security persona self-review.** Call `self-review-security` with `{okrId, runId, round}` to get the authoritative tier echo + `.caterpillar/prompts/prd/security-review.md` prompt pack. Apply the criteria. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block to the PR body with header `### Self-review — Security (round <N>)`.
+
+    The chain MUST contain ONE `self-review-architect` skill_call AND ONE `self-review-security` skill_call per round. The audit-and-drift workflow compares those counts against the count of `### Self-review` blocks in your PR body — a mismatch surfaces as an audit-comment row showing where the agent claimed something it didn't do.
 
 15. **Convergence check.**
     - If BOTH personas returned `SEVERITY` in `{PASS, MINOR}` AND `MISSING` is empty for both → break out of the loop; PRD is converged.

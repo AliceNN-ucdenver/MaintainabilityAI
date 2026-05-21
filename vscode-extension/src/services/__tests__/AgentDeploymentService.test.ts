@@ -29,10 +29,10 @@ describe('AgentDeploymentService.deploySkills', () => {
     fs.rmSync(tmpMesh, { recursive: true, force: true });
   });
 
-  it('writes all 18 SKILL.md files on a clean deploy', () => {
+  it('writes all 20 SKILL.md files on a clean deploy', () => {
     const result = svc.deploySkills(tmpMesh);
-    expect(result.total).toBe(18);
-    expect(result.written).toBe(18);
+    expect(result.total).toBe(20);
+    expect(result.written).toBe(20);
     expect(result.unchanged).toBe(0);
     for (const skill of MESH_SKILLS) {
       const filePath = path.join(tmpMesh, skill.relativePath);
@@ -47,7 +47,7 @@ describe('AgentDeploymentService.deploySkills', () => {
     svc.deploySkills(tmpMesh);
     const second = svc.deploySkills(tmpMesh);
     expect(second.written).toBe(0);
-    expect(second.unchanged).toBe(18);
+    expect(second.unchanged).toBe(20);
   });
 
   it('re-writes a single skill when its on-disk content has drifted', () => {
@@ -56,7 +56,7 @@ describe('AgentDeploymentService.deploySkills', () => {
     fs.writeFileSync(target, '# hand-edited drift\n', 'utf8');
     const result = svc.deploySkills(tmpMesh);
     expect(result.written).toBe(1);
-    expect(result.unchanged).toBe(17);
+    expect(result.unchanged).toBe(19);
     expect(result.perSkill.find(p => p.name === MESH_SKILLS[0].name)?.status).toBe('written');
   });
 
@@ -68,8 +68,11 @@ describe('AgentDeploymentService.deploySkills', () => {
       acc[p.family] = (acc[p.family] ?? 0) + 1;
       return acc;
     }, {});
+    // B29 added self-review-architect + self-review-security under the
+    // 'context' family (they hand back tier-aware context + prompt-pack
+    // contents to the agent's persona-switch loop).
     expect(counts).toEqual({
-      search: 4, rank: 1, knowledge: 8, context: 3, audit: 1, format: 1,
+      search: 4, rank: 1, knowledge: 8, context: 5, audit: 1, format: 1,
     });
   });
 
@@ -103,7 +106,7 @@ describe('AgentDeploymentService.listDeployedSkills', () => {
 
   it('reports all skills as not-deployed on a fresh mesh', () => {
     const list = svc.listDeployedSkills(tmpMesh);
-    expect(list).toHaveLength(18);
+    expect(list).toHaveLength(20);
     expect(list.every(s => s.deployed === false)).toBe(true);
   });
 
@@ -121,7 +124,7 @@ describe('AgentDeploymentService.listDeployedSkills', () => {
     const list = svc.listDeployedSkills(tmpMesh);
     const removedRow = list.find(s => s.name === removed.name)!;
     expect(removedRow.deployed).toBe(false);
-    expect(list.filter(s => s.deployed).length).toBe(17);
+    expect(list.filter(s => s.deployed).length).toBe(19);
   });
 });
 
