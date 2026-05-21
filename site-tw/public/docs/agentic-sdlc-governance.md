@@ -560,6 +560,8 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 
 **MaintainabilityAI is the only tool that starts from the architecture model and makes governance real in the developer's workflow *and* the agent's tool call.**
 
+**Deterministic audit emission (Court Recorder Auto-Logging, B28).** Other "AI governance" products log what the agent *claims* it did — a self-report the LLM could fabricate, omit, or paraphrase. Hatter's Tea Party logs what the agent *demonstrably* did: the skill runtime emits the `skill_call` audit event before the result returns to the agent; the workflow re-derives `artifact_written` from the filesystem and `self_review` from structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. There is no skill API the LLM can call to "skip the audit," and nothing it writes can override what the runtime saw. This is the trust upgrade you can't buy — it's an architectural property, not a vendor feature.
+
 <div class="docs-center-block">
 <div class="docs-heading">Free. Open Source. Forever.</div>
 <div class="docs-copy">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
@@ -789,9 +791,9 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <div class="docs-copy"><strong>Agentic AI Guardrails for Information Security.</strong> Six enterprise governance domains, three core principles (Least Agency, Continuous Assurance, Explainable Outcomes). Forrester, 2025. We satisfy 5 of 6 domains today. The sixth (prompt-pack signature verification under Application Security &amp; DevSecOps) pairs with the cosign-era Knight's Seal evolution.</div>
   </div>
   <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Framework 2 · ✓ 5 of 6 controls</div>
+    <div class="docs-card-kicker">Framework 2 · ✓ 6 of 6 controls</div>
     <div class="docs-heading">AEGIS Pre-Execution Firewall</div>
-    <div class="docs-copy">Runtime cryptographic controls for agentic tool calls: Ed25519 signing + SHA-256 hash-chained audit. Direct lineage to our <code>audit-emit-event</code> skill. The pre-merge chain re-verification gate (added in B25) was the major recent landing. Ed25519 signing arrives in Phase B as Knight's Seal v1 (B27). <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
+    <div class="docs-copy">Runtime cryptographic controls for agentic tool calls: Ed25519 signing + SHA-256 hash-chained audit. Direct lineage to our <code>audit-emit-event</code> skill. Three recent landings: B25 (pre-merge chain re-verification CI gate), B27 (Knight's Seal v1 — per-run ephemeral Ed25519 signing of every event), and <strong>B28 (Court Recorder Auto-Logging) — the LLM cannot write to the audit log; only deterministic runtime + workflow code can</strong>. The trust story is no longer "verify the chain after the fact" but "the emitter is provably not the agent." <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Framework 3 · 🛠 partial</div>
@@ -799,9 +801,9 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <div class="docs-copy">Cryptographic protocol for open agentic ecosystems: W3C DIDs for identity, NIST PQC for communication, Halo2 ZKP for verifiable policy. Formalizes "Excessive Agency" as a game. We map it directly to <strong>Pocket Watch goal-drift</strong>: when an agent's PR scope diverges too far from the OKR objective (cosine &lt; 0.85), agency has been exceeded and merge is refused. ZKP policy proofs are a Phase B+ candidate when third-party verifiable attestation becomes a requirement. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></span></div>
   </div>
   <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">Framework 4 · ✓ 3 of 4 A-categories</div>
+    <div class="docs-card-kicker">Framework 4 · ✓ 4 of 4 A-categories</div>
     <div class="docs-heading">ASTRIDE</div>
-    <div class="docs-copy">Formal STRIDE extension that adds an "A" category for AI-agent-specific attacks: prompt manipulation, memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above shows the agent-side controls. The fourth A-category we name openly — <code>A.false-audit-fabrication</code> — surfaced on PR #105 and was closed by B25's pre-merge <code>verify-chain</code> CI gate. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></span></div>
+    <div class="docs-copy">Formal STRIDE extension that adds an "A" category for AI-agent-specific attacks: prompt manipulation, memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above shows the agent-side controls. <code>A.false-audit-fabrication</code> surfaced on PR #105 and is closed by three layered defenses: B25's pre-merge <code>verify-chain</code> CI gate (forged-hash detection), B27 Knight's Seal v1 (Ed25519 sealing of every event), and <strong>B28 Court Recorder Auto-Logging (deterministic emission — the agent has nothing to forge because it doesn't write the log)</strong>. Companion threats <strong>A.audit-skip</strong> (agent omits events to hide failures) and <strong>A.audit-forge-payload</strong> (agent fabricates artifact_written / self_review content) are closed by the same B28 design. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></span></div>
   </div>
 </div>
 
@@ -829,8 +831,9 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash`; `verify-chain` catches it offline | ✓ |
 | **Pre-merge chain re-verification (CI gate)** | `audit-and-drift` workflow replays the SHA-256 chain end-to-end against the canonical serialization before any PR can merge. Implemented inline (independent of the runner) so a runner bug can't silently pass. Applies `chain-forgery-detected` label and blocks merge on mismatch. Closed the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
-| Pre-execution interception (log before side effect) | `skill-audit-emit-event` is the first call inside each skill invocation; recorded before the skill emits its result | ✓ |
-| Ed25519 per-agent signing key | Phase A uses GitHub App installation ID + `system_prompt_sha`. **Phase B (B27) lands Knight's Seal v1**: per-run **ephemeral** Ed25519 keypair generated at agent dispatch, signs the chain-root hash + final artifact SHA, public key + signature posted in the `artifact_written` audit event, private key destroyed at session end (no key store, no rotation policy). CI verifies the signature pre-merge and applies `seal-broken` on failure. Cosign / sigstore-anchored persistent signing for year-old verifiability is a future enhancement | 🛠 |
+| **Deterministic emission (Court Recorder Auto-Logging, B28)** | The skill runtime emits `skill_call` events inside `runSkill()` itself — the agent has no API to call and no way to skip. Workflow re-derives `artifact_written` from `git diff` and `self_review` from parsing the agent's structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload | ✓ |
+| Pre-execution interception (log before side effect) | `runSkill()` wraps every handler: emit the audit event before the result returns to the caller. The window between "skill ran" and "audit recorded" doesn't exist — they're the same function | ✓ |
+| **Ed25519 per-run signing key (Knight's Seal v1)** | B27 lands per-run ephemeral Ed25519 keypair generated on first `audit-emit-event` call. Private key in `os.tmpdir()` (never the mesh repo), public key in `audit/keys/<runId>.pub.pem`, every event signed. CI re-verifies and surfaces a "🛡 Sealed" row in the PR audit comment + a green Sealed badge on the Looking Glass phase card. Cosign / sigstore-anchored persistent signing for year-old verifiability is a future enhancement (v2) | ✓ |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 
 </details>
@@ -863,11 +866,16 @@ No live system access. No proprietary tooling. Just SHA-256. Four checks land th
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Check 4 · Tamper detection</div>
     <div class="docs-heading">Modifications break the chain</div>
-    <div class="docs-copy">Any edit to a past audit event breaks every subsequent <code>prev_event_hash</code>. Once Knight's Seal v1 ships, the chain root is also cryptographically signed by the agent's per-run keypair, so substitution attempts fail the signature check too.</div>
+    <div class="docs-copy">Any edit to a past audit event breaks every subsequent <code>prev_event_hash</code>. Knight's Seal v1 (B27, shipped) also signs every event with the run's per-run Ed25519 keypair, so substitution attempts fail the signature check too. The runner refuses to verify a chain where signatures are present on some events and missing on others (partial-signature tampering).</div>
+  </div>
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">Check 5 · Deterministic emitter</div>
+    <div class="docs-heading">The LLM did not write the log</div>
+    <div class="docs-copy">Court Recorder Auto-Logging (B28, shipped) moves audit emission out of the agent's prompt and into the runner runtime + workflow. <code>skill_call</code> events are emitted inside <code>runSkill()</code> before the result returns to the agent. <code>artifact_written</code> events are emitted by the workflow from <code>git diff</code>. <code>self_review</code> events are parsed from structured PR-body blocks. The agent <strong>has no API to call</strong> and <strong>has nothing to skip</strong>. Trust shifts from "verify the chain after the fact" to "the emitter is provably not the LLM."</div>
   </div>
 </div>
 
-> 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record.
+> 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record — produced by deterministic code, not by the LLM.
 
 ### Honest gaps — what we will address
 
