@@ -5,6 +5,34 @@ import { promptPackService } from './PromptPackService';
 import { toErrorMessage } from '../utils/errors';
 import { parseGitHubUrl, getRemoteOriginUrl, getCurrentBranch } from '../utils/git';
 
+/**
+ * Octokit's default request layer prints a `[@octokit/request] "GET ..." is
+ * deprecated` warning to console.warn on EVERY contents-API call where the
+ * path contains URL-encoded slashes (`%2F`). GitHub sunsets that encoded form
+ * in March 2028; until then every call spams 1 warning. We log the first
+ * occurrence per unique endpoint so the signal isn't lost, then suppress the
+ * duplicates. Drop the wrapper once @octokit/request fixes the path encoding
+ * upstream OR we migrate off the path-style contents endpoint.
+ */
+const seenDeprecations = new Set<string>();
+function makeQuieterLogger() {
+  return {
+    debug: () => { /* noop — too verbose */ },
+    info:  () => { /* noop */ },
+    warn:  (...args: unknown[]) => {
+      const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+      const isDeprecation = /\[@octokit\/request\].+is deprecated/.test(msg);
+      if (isDeprecation) {
+        const sig = msg.match(/"GET ([^"]+)"/)?.[1] ?? msg;
+        if (seenDeprecations.has(sig)) { return; }
+        seenDeprecations.add(sig);
+      }
+      console.warn(...args);
+    },
+    error: console.error,
+  };
+}
+
 export class GitHubService {
   /**
    * Parse a GitHub URL into { owner, repo } or return null.
@@ -26,7 +54,7 @@ export class GitHubService {
   async getClient(): Promise<Octokit> {
     if (!this.octokit) {
       const token = await this.getToken();
-      this.octokit = new Octokit({ auth: token });
+      this.octokit = new Octokit({ auth: token, log: makeQuieterLogger() });
     }
     return this.octokit;
   }
@@ -1006,7 +1034,7 @@ export class GitHubService {
     }) ?? await vscode.authentication.getSession('github', ['repo', 'read:org'], {
       createIfNone: true,
     });
-    const orgClient = new Octokit({ auth: session.accessToken });
+    const orgClient = new Octokit({ auth: session.accessToken, log: makeQuieterLogger() });
 
     const { data: user } = await orgClient.rest.users.getAuthenticated();
     const login = user.login;

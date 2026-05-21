@@ -41,6 +41,7 @@ import { AgentDeploymentService } from '../services/AgentDeploymentService';
 import { codingAgentSettingsUrl, copilotEnvSecretsUrl, COPILOT_ENVIRONMENT_NAME } from '../templates/codingAgentRequirements';
 import { HatterTagService } from '../services/HatterTagService';
 import { MESH_LABELS } from '../templates/meshLabels';
+import { MESH_WORKFLOWS } from '../templates/codeRepoTemplates';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
 import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
 import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
@@ -5168,16 +5169,17 @@ Policy file: ${filename}
       return;
     }
     try {
-      const MESH_WORKFLOW_PATHS = [
-        '.github/workflows/oraculum-review.yml',
-        '.github/workflows/oraculum-research.yml',
-        '.github/workflows/archeologist.yml',
-        '.github/workflows/prd.yml',
-        '.github/workflows/label-on-merge.yml',
-        '.github/workflows/notify-code-repos.yml',
-      ];
+      // Check against the CANONICAL workflow list (MESH_WORKFLOWS) — not a
+      // hardcoded pre-B20 list. The old list checked for files that have
+      // since been retired (prd.yml, archeologist.yml, oraculum-research.yml,
+      // label-on-merge.yml, notify-code-repos.yml — all in
+      // DEPRECATED_MESH_FILES). Hitting GitHub for each of them per
+      // Settings load wasted 5-6 API calls and printed 404 noise in
+      // debug logs. Source-of-truth check stays in sync with what
+      // AgentDeploymentService actually writes.
+      const paths = MESH_WORKFLOWS.map(w => w.relativePath);
       const results = await Promise.all(
-        MESH_WORKFLOW_PATHS.map(p =>
+        paths.map(p =>
           this.githubService.checkWorkflowExists(this.meshRepoInfo!.owner, this.meshRepoInfo!.repo, p)
         )
       );
