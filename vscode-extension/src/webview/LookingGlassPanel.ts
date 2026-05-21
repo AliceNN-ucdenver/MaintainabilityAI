@@ -777,26 +777,50 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         // (prd-agent.yml lines 279/286). Prior bold-only regex missed
         // heading-form FRs entirely (observed on PR #105: UI showed FR=0/8
         // while workflow correctly reported FR=8/8 cited).
-        const FR_RE = /(?:\*\*FR-\d+\*\*|^###\s+FR-\d+(?::|\s|$))/gm;
-        const NFR_RE = /(?:\*\*NFR-\d+\*\*|^###\s+NFR-\d+(?::|\s|$))/gm;
-        const SR_RE = /(?:\*\*SR-\d+\*\*|^###\s+SR-\d+(?::|\s|$))/gm;
-        result.frCount = (docText.match(FR_RE) ?? []).length;
-        result.nfrCount = (docText.match(NFR_RE) ?? []).length;
-        result.srCount = (docText.match(SR_RE) ?? []).length;
-        // Coverage: for each FR marker, check whether R-N / E-N appears
-        // within ~4 lines after (matches the workflow awk pattern).
-        // We split on the marker and look at the first 400 chars of
-        // each segment — close enough to the workflow's awk and
-        // matches both heading-line and inline-bold FRs without
-        // requiring a per-segment line walker.
-        // Accept any of S-N (research source premise), C-N (formal
-        // conclusion), R-N (research finding), or E-N (expert input) —
-        // with or without the dash. PR #118 surfaced the mismatch:
-        // WHY research-doc tags only S-N + C-N, so PRD agents invent
-        // R-IDs and write them as 'R2' or 'R-2' inconsistently. Validator
-        // tolerance > prompt-discipline fights over punctuation.
-        result.frWithCites = countCovered(docText, FR_RE, /\b[CRSE]-?\d+\b/);
-        result.srAnchored = countCovered(docText, SR_RE, /\b(?:THR-?\d+|A0[1-9]|A10)\b/);
+        // PR #118 forensic: the PRD wrote `### FR-01` AND `**FR-01**` for
+        // every FR (heading + bold restatement). The old raw-marker
+        // counter saw 20 markers for 10 logical FRs, and the 4-line
+        // window from the heading-marker didn't reach the citation in
+        // the 'Traces to:' line that lives ~5 lines later. Result: 10/20
+        // even though every FR had a valid citation. Switched to
+        // unique-id dedup + 12-line window (matches the workflow's
+        // Python rewrite for parity).
+        const FR_MARKER_RE = /^(\*\*FR-\d+\*\*|### +FR-\d+)/m;
+        const NFR_MARKER_RE = /^(\*\*NFR-\d+\*\*|### +NFR-\d+)/m;
+        const SR_MARKER_RE = /^(\*\*SR-\d+\*\*|### +SR-\d+)/m;
+        const FR_CITE_RE = /\b[CRSE]-?\d+\b/;
+        const SR_ANCHOR_RE = /\b(?:THR-?\d+|A0[1-9]|A10)\b/;
+
+        function countUniqueIds(
+          docLines: string[],
+          markerRe: RegExp,
+          idRe: RegExp,
+          citationRe: RegExp,
+          windowLines = 12,
+        ): { total: number; covered: number } {
+          const seen = new Map<string, number>();
+          for (let i = 0; i < docLines.length; i++) {
+            if (!markerRe.test(docLines[i])) { continue; }
+            const m = docLines[i].match(idRe);
+            if (m && !seen.has(m[0])) { seen.set(m[0], i); }
+          }
+          let covered = 0;
+          for (const [, start] of seen) {
+            const win = docLines.slice(start, start + windowLines).join('\n');
+            if (citationRe.test(win)) { covered++; }
+          }
+          return { total: seen.size, covered };
+        }
+
+        const docLines = docText.split('\n');
+        const frResult = countUniqueIds(docLines, FR_MARKER_RE, /\bFR-\d+\b/, FR_CITE_RE);
+        const nfrResult = countUniqueIds(docLines, NFR_MARKER_RE, /\bNFR-\d+\b/, /./);
+        const srResult = countUniqueIds(docLines, SR_MARKER_RE, /\bSR-\d+\b/, SR_ANCHOR_RE);
+        result.frCount = frResult.total;
+        result.nfrCount = nfrResult.total;
+        result.srCount = srResult.total;
+        result.frWithCites = frResult.covered;
+        result.srAnchored = srResult.covered;
       }
     }
 

@@ -487,22 +487,50 @@ jobs:
           # bold-only pattern missed PR #101's PRD where the agent used
           # heading form → FR=0/0 → audit incorrectly read as "no
           # functional requirements." The merged regex matches either.
-          FR_COUNT=$(grep -cE '(\*\*FR-[0-9]+\*\*|^###[[:space:]]+FR-[0-9]+(:|[[:space:]]|$))' "$DOC" || true)
-          # An FR line cites if it carries S-N (research source),
-          # C-N (formal conclusion), R-N (research finding), or E-N
-          # (expert input) WITH OR WITHOUT the dash — on the same
-          # line OR the next 4 lines. PR #118 surfaced the mismatch:
-          # WHY research-doc tags only S-N + C-N (no R-N at all), so
-          # PRD agents invent R-IDs and write them as 'R2' (no dash)
-          # or 'R-2' inconsistently. The validator-tolerance approach
-          # beats fighting the model over punctuation. The window is 4
-          # lines because heading-form FRs use more vertical space.
-          FR_WITH_CITES=$(awk '/(\*\*FR-[0-9]+\*\*|^### +FR-[0-9]+)/ {flag=1; ctx=$0; lines=0; next} flag && lines<4 {ctx=ctx" "$0; lines++} flag && lines>=4 {if (ctx ~ /(C|R|S|E)-?[0-9]+/) c++; flag=0} END {print c+0}' "$DOC")
-
-          # Same tolerance for SR-NN.
-          SR_COUNT=$(grep -cE '(\*\*SR-[0-9]+\*\*|^###[[:space:]]+SR-[0-9]+(:|[[:space:]]|$))' "$DOC" || true)
-          # SRs cite STRIDE THR-NNN (or THRNNN) OR OWASP A0X (A01–A10).
-          SR_WITH_ANCHORS=$(awk '/(\*\*SR-[0-9]+\*\*|^### +SR-[0-9]+)/ {flag=1; ctx=$0; lines=0; next} flag && lines<4 {ctx=ctx" "$0; lines++} flag && lines>=4 {if (ctx ~ /THR-?[0-9]+|A0[1-9]|A10/) c++; flag=0} END {print c+0}' "$DOC")
+          # FR + SR counts and citation/anchor coverage. PR #118 forensic:
+          # the prior awk approach counted '### FR-01' heading AND
+          # '**FR-01**' bold as TWO separate markers (FR_COUNT=20 for
+          # 10 logical FRs). The heading-marker's short window often
+          # missed the citation that sits 5–6 lines later in the
+          # 'Traces to:' line, while the bold-marker's window did catch
+          # it — producing the misleading 10/20. Switch to Python with
+          # unique-id dedup + 12-line window. Same regex tolerance from
+          # B31 ([CRSE]-?[0-9]+ for FR citations; THR-?[0-9]+|A0[1-9]|A10
+          # for SR anchors).
+          read FR_COUNT FR_WITH_CITES SR_COUNT SR_WITH_ANCHORS <<<"$(python3 <<PYEOF
+          import re, os
+          body = open(os.environ['DOC'], 'r', encoding='utf-8').read()
+          lines = body.split('\n')
+          def count_and_cite(marker_re_str, marker_id_re_str, cite_re):
+              marker_re = re.compile(marker_re_str)
+              marker_id_re = re.compile(marker_id_re_str)
+              # ordered unique map: id → first line index
+              seen = {}
+              for i, line in enumerate(lines):
+                  if marker_re.search(line):
+                      m = marker_id_re.search(line)
+                      if m and m.group(1) not in seen:
+                          seen[m.group(1)] = i
+              total = len(seen)
+              covered = 0
+              for _id, start in seen.items():
+                  window = '\n'.join(lines[start:start+12])
+                  if cite_re.search(window):
+                      covered += 1
+              return total, covered
+          fr_total, fr_cited = count_and_cite(
+              r'\*\*FR-\d+\*\*|^### +FR-\d+',
+              r'FR-(\d+)',
+              re.compile(r'\b[CRSE]-?\d+\b'),
+          )
+          sr_total, sr_anchored = count_and_cite(
+              r'\*\*SR-\d+\*\*|^### +SR-\d+',
+              r'SR-(\d+)',
+              re.compile(r'\bTHR-?\d+\b|\bA0[1-9]\b|\bA10\b'),
+          )
+          print(fr_total, fr_cited, sr_total, sr_anchored)
+          PYEOF
+          )"
 
           {
             echo "h2_present=$H2_PRESENT"
