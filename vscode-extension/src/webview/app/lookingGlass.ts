@@ -1336,11 +1336,33 @@ function getStyles(): string {
 // Rendering — Main Dispatcher
 // ============================================================================
 
+// OKR detail auto-poll — re-fetches phase signals every 60s while the
+// user is sitting on an OKR detail view. Cleared when the view changes.
+// User feedback: "had to manually refresh the OKR screen to get it to
+// show Mark PR ready" — periodic poll catches PR draft → ready and
+// audit verdict label changes without requiring a manual click.
+let okrDetailPollHandle: ReturnType<typeof setInterval> | null = null;
+function syncOkrDetailPoll(): void {
+  const onDetail = state.view === 'okr-detail' && state.currentOkr;
+  if (onDetail && !okrDetailPollHandle) {
+    okrDetailPollHandle = setInterval(() => {
+      const okrId = state.currentOkr?.meta.id;
+      if (okrId) {
+        vscode.postMessage({ type: 'loadOkrPhaseSignals', okrId });
+      }
+    }, 60_000);
+  } else if (!onDetail && okrDetailPollHandle) {
+    clearInterval(okrDetailPollHandle);
+    okrDetailPollHandle = null;
+  }
+}
+
 function render() {
   // Unmount React before innerHTML replacement (destroys DOM)
   unmountDiagramCanvas();
   rootEl.innerHTML = getStyles() + renderView() + renderNistPopup(state.nistControlPopup) + renderRepoPickerModal();
   attachEventHandlers();
+  syncOkrDetailPoll();
   // Render diagrams after DOM update
   setTimeout(() => {
     renderMermaidDiagrams();

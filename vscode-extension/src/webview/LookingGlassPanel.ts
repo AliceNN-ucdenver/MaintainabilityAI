@@ -88,6 +88,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   /** Active poll timers — one per OKR. Cleared when a terminal state
    *  is reached or when a new audit action overrides. */
   private auditPollTimers: Map<string, ReturnType<typeof setTimeout>[]> = new Map();
+  /** When the user clicked Revise with Agent on a given OKR. Drives a
+   *  "🤖 Revision dispatched at HH:MM" status line on the phase card
+   *  so the user gets feedback while waiting for the agent's new commits.
+   *  Cleared when the next signal refresh shows commit activity newer
+   *  than the dispatch time. */
+  private reviseDispatchedAt: Map<string, number> = new Map();
 
   public static createOrShow(context: vscode.ExtensionContext, barPath?: string, activeReview?: import('../types').ActiveReviewInfo) {
     const column = vscode.window.activeTextEditor
@@ -985,6 +991,27 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         result.prNumber = pr.number;
         result.prUrl = pr.url;
         result.prState = pr.merged ? 'merged' : pr.state === 'closed' ? 'closed' : 'open';
+        // Revise-in-flight surfacing: if the user dispatched a
+        // revision in the last 10 minutes AND there hasn't been a new
+        // commit on the PR head since then, the agent is still working.
+        // We can't tell exactly when the agent will push, but we can
+        // tell the user "we asked, waiting for output." Cleared by
+        // checking PR head commit timestamp via a separate API call.
+        const dispatchedAt = this.reviseDispatchedAt.get(okrId);
+        if (dispatchedAt && Date.now() - dispatchedAt < 10 * 60 * 1000) {
+          try {
+            const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+            const { data: commit } = await client.rest.repos.getCommit({ owner, repo, ref: pr.headSha });
+            const commitTs = new Date(commit.commit?.author?.date ?? 0).getTime();
+            if (commitTs < dispatchedAt) {
+              // No new commit since revise — agent still working.
+              result.reviseDispatchedAt = new Date(dispatchedAt).toISOString();
+            } else {
+              // Agent's revision arrived; clear our local marker.
+              this.reviseDispatchedAt.delete(okrId);
+            }
+          } catch { /* if commit lookup fails, leave marker set conservatively */ }
+        }
         // GitHub uses `draft: true` on PRs the author hasn't marked
         // ready-for-review yet. The agent opens its PR in draft while
         // still working — Run Audit should NOT appear until it's
@@ -1220,12 +1247,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const auditCommentMarker = phase === 'why' ? '<!-- market-research-agent-audit -->' : '<!-- prd-agent-audit -->';
     const auditComment = await this.fetchPrCommentByMarker(meshRepo.owner, meshRepo.repo, prNumber, auditCommentMarker);
 
-    const confirm = await vscode.window.showWarningMessage(
-      `Dispatch ${agentName} to revise PR #${prNumber}?`,
-      { modal: true, detail: 'This posts a PR comment with @copilot dispatching the agent. The agent reads the audit failure reasons + the existing artifact, then pushes a revision commit on the PR branch.' },
-      'Dispatch agent',
-    );
-    if (confirm !== 'Dispatch agent') { return; }
+    // No modal confirmation — the button click itself is the consent.
+    // Earlier we used a modal warning here; user feedback said the
+    // popup was disruptive (clicking the button already signals
+    // intent). The action is reversible (the agent's revision opens
+    // as a new commit on the PR branch — close the PR or `git revert`
+    // if undesired).
 
     // Compose the revision instruction — short, structured, specific
     // about WHAT to fix. The agent's persona prompt already covers
@@ -1256,14 +1283,21 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         issue_number: prNumber,
         body,
       });
+      // Record the dispatch timestamp so the OKR card can render a
+      // "🤖 Revision dispatched at HH:MM — waiting for new commits..."
+      // status line until the agent's revision arrives. Without this
+      // there's no visible feedback that the revise is in flight —
+      // user feedback: "i dont really see anything other than the top
+      // comment is being edited."
+      this.reviseDispatchedAt.set(okrId, Date.now());
       void vscode.window.showInformationMessage(
-        `Posted revision dispatch to PR #${prNumber}. The agent should commit a revision in the next few minutes. Click 🔁 Re-run Audit once you see new commits.`,
+        `Posted revision dispatch to PR #${prNumber}. The card will show "🤖 Revision dispatched" until the agent pushes new commits.`,
       );
-      // Even though revision takes longer than the audit (the agent
-      // has to re-think + push), schedule polling so the UI reflects
-      // any state changes (new commit → workflow re-fires → labels
-      // shift). 5/15/30/60s burst won't catch the full revision
-      // window but catches the dispatch-fire portion.
+      // Refresh signals immediately so the new status line surfaces
+      // without waiting for the poll.
+      await this.onLoadOkrPhaseSignals(okrId);
+      // Schedule polling — captures the moment the agent's revision
+      // commit lands + the workflow re-fires.
       this.startAuditPoll(okrId);
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to post revision dispatch: ${toErrorMessage(err)}` });
@@ -1387,7 +1421,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const result = await this.githubService.mergePullRequest(meshRepo.owner, meshRepo.repo, prNumber, 'squash');
       if (result.ok) {
         void vscode.window.showInformationMessage(
-          `Merged PR #${prNumber}. Finalize workflow fires on the merge event — Looking Glass will poll for the post-merge state. When the Pull banner appears, pull to sync local mesh.`,
+          `Merged PR #${prNumber}. Auto-pulling mesh now; a second pull will run in ~25s to catch the finalize commit.`,
         );
         // Re-fetch so the PR state flips to merged + action ticks toward complete.
         // Plus schedule polling — the finalize workflow lands its commit
@@ -1395,6 +1429,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         // status flip to surface without the user needing to switch tabs.
         await this.onLoadOkrPhaseSignals(okrId);
         this.startAuditPoll(okrId);
+        // Auto-pull (user feedback: "after we click merge and it completes
+        // can we autotrigger a pull"). Two passes: immediate brings the
+        // squash-merge artifact down; the 25s delayed pass catches the
+        // finalize workflow's status-flip commit so the user doesn't have
+        // to think about pulling at all.
+        void this.onPullMesh();
+        setTimeout(() => { void this.onPullMesh(); }, 25_000);
       } else {
         this.postMessage({
           type: 'error',

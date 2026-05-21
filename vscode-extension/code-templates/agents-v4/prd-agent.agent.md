@@ -112,6 +112,42 @@ You will be invoked on a GitHub issue carrying the `oraculum-prd` label.
     ```
 20. Emit a final `artifact_written` audit event referencing the PRD path + the final self-review state.
 
+## Audit event schema (non-negotiable)
+
+Every time you invoke a Skill that touches mesh state (knowledge-*, context-*), emit ONE `skill_call` audit event PER CALL with this exact payload shape:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `skill` | string | yes | The skill name, **singular** (e.g. `"knowledge-okr"`, not a list). Do NOT bundle multiple skills into a single event with `payload.skills: [...]` — the audit-and-drift workflow counts events whose `payload.skill` matches each canonical name. A bundled event with `payload.skills: [...]` matches zero of the per-skill counters and the evidence-honesty gate fails the run. |
+| `ok` | boolean | yes | `true` if the skill returned successfully, `false` otherwise. The counter ignores `ok: false` events. |
+| `notes` | string | optional | Free-text — useful for recording skill-version mismatches or fallbacks (e.g. `"context-architecture unavailable in runner v0.1.23 — proceeded with reduced grounding"`). Notes do NOT replace per-call events; the runner version note still needs one event per skill you tried. |
+
+Example — calling three mesh-knowledge skills:
+
+```jsonl
+{"event_kind":"skill_call","payload":{"skill":"knowledge-okr","ok":true}}
+{"event_kind":"skill_call","payload":{"skill":"knowledge-research","ok":true}}
+{"event_kind":"skill_call","payload":{"skill":"knowledge-mesh-bar","ok":true}}
+```
+
+NOT this (bundled — observed on PR #101 → zero matches → audit failed):
+
+```jsonl
+{"event_kind":"skill_call","payload":{"skills":["knowledge-okr","knowledge-research","knowledge-mesh-bar"]}}
+```
+
+If a skill is unavailable in this runtime (e.g. `context-*` skills missing in research-runner v0.1.23), still emit one event per skill you tried with `ok: false` and `notes: "<the reason>"`. The audit-and-drift workflow distinguishes "agent tried and failed" from "agent never tried" — the former is honest, the latter looks like hallucination.
+
+## Required artifact format
+
+The audit-and-drift workflow parses the prd.md file with these patterns — match them exactly:
+
+- **H2 sections** must use canonical headings: `## Input Premises`, `## Problem Statement`, `## Goals`, `## Functional Requirements`, `## Non-Functional Requirements`, `## Security Requirements`, `## Coverage Analysis`, `## Risk Matrix`, `## Success Metrics`, `## References`. The parser is heading-prefix tolerant (`## Goals/Non-Goals` matches `## Goals`), but case + spelling must be exact.
+- **Functional requirements** must be marked with `**FR-NN**` (bold) OR `### FR-NN` / `### FR-NN:` (H3 heading). The parser matches both forms.
+- **Security requirements** must be marked with `**SR-NN**` (bold) OR `### SR-NN` / `### SR-NN:` (H3 heading). Same parser rule.
+- **FR citations** — within 400 characters of each FR marker, there MUST be at least one `R-N` (research finding) or `E-N` (expert input) tag. The parser doesn't care if the citations are in a "Source:" line, a parenthetical, or inline — just that the tags exist within range.
+- **SR anchors** — within 400 characters of each SR marker, there MUST be at least one STRIDE threat id (`THR-NNN`) or OWASP category (`A01`–`A10`). Same range rule.
+
 ## Hard rules
 
 - Never invoke a Skill not in `tools:`.
