@@ -28,6 +28,7 @@ import {
 import {
   renderOkrDetailView, getOkrDetailStyles, attachOkrDetailEvents,
 } from './views/okrDetail';
+import type { OkrPhaseSignals } from './views/okrDetail';
 import type {
   OkrListItem, OkrAffectedBar, OkrCard,
   OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode,
@@ -119,6 +120,10 @@ const state = {
   currentOkrMode: 'view' as OkrDetailMode,
   currentOkrAvailablePlatforms: [] as OkrAvailablePlatform[],
   currentOkrAvailableBars: [] as OkrAvailableBar[],
+  // Per-phase signal data fetched live from GitHub API on OKR detail mount.
+  // Populates the rich Why/How/What cards (audit skill_call counts, FR/SR
+  // citation coverage, PR state, chain root). Undefined while loading.
+  okrPhaseSignals: undefined as OkrPhaseSignals | undefined,
   // Phase B-PR4 — Hatter Tag slide-out sheet
   hatterTagSheetOpen: false,
   hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
@@ -1488,6 +1493,8 @@ function renderView(): string {
       mode: state.currentOkrMode,
       availablePlatforms: state.currentOkrAvailablePlatforms,
       availableBars: state.currentOkrAvailableBars,
+      gitStatus: state.gitStatus,
+      phaseSignals: state.okrPhaseSignals,
     })
       + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
       + (state.startPhaseModalOpen ? renderStartPhaseModal() : ''); break;
@@ -1848,8 +1855,7 @@ function renderSettings(): string {
         <h2>Settings</h2>
       </div>
 
-      ${renderSettingsWorkflow()}
-      ${renderSettingsAgentic()}
+      ${renderSettingsMeshProvisioning()}
       ${renderSettingsCodingAgentEnv()}
       ${renderSettingsPromptPacks()}
       ${renderSettingsLlmModel()}
@@ -1866,6 +1872,88 @@ function renderSettings(): string {
 function settingsRepoHint(): string {
   if (!state.meshOwner || !state.meshRepo) { return ''; }
   return `<span class="text-muted" style="font-size: 11px; margin-left: 8px;">${escapeHtml(state.meshOwner)}/${escapeHtml(state.meshRepo)}</span>`;
+}
+
+/**
+ * Single combined deploy section — workflows + composite actions + agents
+ * + skills together. Replaces the prior two-section / two-button layout
+ * (separate workflow + agentic-infra buttons) that confused users into
+ * clicking the wrong one. One "Deploy All" button fires both backends
+ * sequentially via the `provisionAll` message.
+ */
+function renderSettingsMeshProvisioning(): string {
+  const skills = state.settingsAgenticSkills;
+  const agents = state.settingsAgenticAgents;
+  const skillCount = skills ? skills.length : 18;
+  const skillDeployed = skills ? skills.filter(s => s.deployed).length : null;
+  const agentCount = agents ? agents.length : 4;
+  const agentDeployed = agents ? agents.filter(a => a.deployed).length : null;
+
+  const workflowStatus = deployStatusBadge(state.settingsWorkflowExists);
+  const skillBadge = skillDeployed === null
+    ? '<span class="badge-muted">Not checked</span>'
+    : skillDeployed === skillCount
+      ? `<span class="badge-success">✓ ${skillDeployed}/${skillCount} deployed</span>`
+      : `<span class="badge-warn">${skillDeployed}/${skillCount} deployed</span>`;
+  const agentBadge = agentDeployed === null
+    ? '<span class="badge-muted">Not checked</span>'
+    : agentDeployed === agentCount
+      ? `<span class="badge-success">✓ ${agentDeployed}/${agentCount} deployed</span>`
+      : `<span class="badge-warn">${agentDeployed}/${agentCount} deployed</span>`;
+
+  const allDeployed = state.settingsWorkflowExists && skillDeployed === skillCount && agentDeployed === agentCount;
+  const buttonLabel = allDeployed ? 'Redeploy All (workflows + actions + agents + skills)' : 'Deploy All (workflows + actions + agents + skills)';
+
+  return `
+    <div class="settings-section">
+      <h3>Mesh Provisioning ${settingsRepoHint()}</h3>
+      <p class="text-muted">
+        One button deploys all four artifact families into this mesh repo:
+        <strong>workflows</strong> + <strong>composite actions</strong> +
+        <strong>agents</strong> + <strong>skills</strong>. Idempotent — only
+        files whose content changed are committed. Deprecated workflows are
+        pruned automatically.
+      </p>
+
+      <div class="settings-row">
+        <div class="settings-label">Workflows + actions</div>
+        <div>${workflowStatus}</div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Agents (v4 personas)</div>
+        <div>${agentBadge}</div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Skills (PURE-data)</div>
+        <div>${skillBadge}</div>
+      </div>
+
+      <p class="text-muted" style="margin: 12px 0 4px;"><strong>What ships</strong> (canonical: <code>MESH_WORKFLOWS</code> + <code>AGENT_MANIFEST</code> in <code>src/templates/</code>):</p>
+      <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc; font-size: 12px;">
+        <li><strong>Per-agent workflows</strong> (B20 — own dispatch + audit + finalize for one agent each):
+          <ul style="margin: 4px 0 0 16px; padding: 0;">
+            <li><code>market-research-agent.yml</code> ✓ — WHY phase (Phase 1)</li>
+            <li><code>prd-agent.yml</code> ✓ — HOW phase (Phase 2)</li>
+            <li><code>architect-reviewer.yml</code> ✓ — reviewer dispatch + round counter (Phase 2)</li>
+            <li><code>security-reviewer.yml</code> ✓ — reviewer dispatch (Phase 2)</li>
+            <li><em>code-design-agent.yml</em> (Phase 3, coming) — WHAT phase + per-repo fanout</li>
+          </ul>
+        </li>
+        <li><strong>BAR-page workflow:</strong> <code>oraculum-review.yml</code> (separate domain)</li>
+        <li><strong>Composite actions:</strong> <code>extract-okr-context</code>, <code>count-skill-calls</code>, <code>check-tier-bound</code></li>
+        <li><strong>No transitional workflows.</strong> The old bus / state-machine / drift-gate / audit-validate files were swept on the B20 Phase 2 cleanup — Redeploy prunes any stale copies from the mesh. WHAT-phase will get its own per-agent workflow when code-design-agent ships.</li>
+      </ul>
+      <p class="text-muted" style="margin: 4px 0 12px; font-size: 12px;">
+        <strong>GitHub API access is NOT in this list by design.</strong> Per-agent workflows
+        route GitHub MCP through <code>api.githubcopilot.com</code> (allow-listed by default)
+        instead of <code>gh</code> shell-outs. No firewall rule needed for github.com.
+      </p>
+
+      <div class="settings-row">
+        <button id="btn-settings-deploy-all" class="btn-primary">${buttonLabel}</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderSettingsWorkflow(): string {
@@ -2957,12 +3045,18 @@ function attachEventHandlers() {
     render();
   });
 
-  // Settings: provision workflow
+  // Settings: deploy all (workflows + actions + agents + skills) — single
+  // button replaces the prior two-button layout.
+  document.getElementById('btn-settings-deploy-all')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'provisionAll' });
+  });
+
+  // Legacy single-target buttons (kept for backwards compat if anything
+  // outside Mesh Provisioning still mounts them; the new section uses
+  // btn-settings-deploy-all).
   document.getElementById('btn-settings-provision')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'provisionWorkflow' });
   });
-
-  // Settings: provision agentic infra (Phase B-PR2)
   document.getElementById('btn-settings-provision-agentic')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'provisionAgentic' });
   });
@@ -4889,7 +4983,43 @@ window.addEventListener('message', (event) => {
       state.currentOkrAvailablePlatforms = ((message as { availablePlatforms?: OkrAvailablePlatform[] }).availablePlatforms ?? []) as OkrAvailablePlatform[];
       state.currentOkrAvailableBars = ((message as { availableBars?: OkrAvailableBar[] }).availableBars ?? []) as OkrAvailableBar[];
       state.view = 'okr-detail';
+      // Reset phase signals + kick off a live GitHub-API fetch for the
+      // rich Why/How/What cards. Loading placeholders show until response
+      // arrives. View-mode only — edit/create don't display the cards.
+      if (state.currentOkrMode === 'view' && state.currentOkr) {
+        state.okrPhaseSignals = {
+          why: { loading: true },
+          how: { loading: true },
+          what: { loading: true },
+        };
+        vscode.postMessage({ type: 'loadOkrPhaseSignals', okrId: state.currentOkr.meta.id });
+      } else {
+        state.okrPhaseSignals = undefined;
+      }
       render();
+      break;
+    }
+    case 'okrPhaseSignals': {
+      // Payload shape: { okrId, signals: { why?, how?, what? } }. Each
+      // phase signal is the populated OkrPhaseSignal shape from the
+      // backend GitHub-API fetch.
+      const msg = message as { okrId: string; signals: OkrPhaseSignals };
+      if (state.currentOkr && state.currentOkr.meta.id === msg.okrId) {
+        state.okrPhaseSignals = msg.signals;
+        render();
+      }
+      break;
+    }
+    case 'panelActivated': {
+      // Panel regained focus (e.g. user came back from working in
+      // another tab while a workflow pushed a finalize commit). The
+      // extension has already refreshed git status. If we're on the
+      // OKR detail page, also re-fetch the OKR + phase signals so the
+      // status badge, Cancel-Run visibility, and phase cards reflect
+      // whatever landed on remote since we last looked.
+      if (state.view === 'okr-detail' && state.currentOkr) {
+        vscode.postMessage({ type: 'drillIntoOkr', okrId: state.currentOkr.meta.id });
+      }
       break;
     }
     case 'okrSaved':

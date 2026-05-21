@@ -71,31 +71,41 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   # JOB 1 — Dispatch the agent on Looking Glass "Start Why"
   # ════════════════════════════════════════════════════════════════════
-  dispatch-agent:
-    name: "Dispatch market-research-agent on oraculum-research issue"
+  verify-agent-deployed:
+    name: "Verify market-research-agent file is deployed"
+    # Pre-flight sanity check that runs once when Looking Glass attaches
+    # the `oraculum-research` label. The actual agent dispatch is handled
+    # by Looking Glass via the Copilot Coding Agent assignment API
+    # (`assignCustomCopilotAgent` → body-extension on the issue), NOT by
+    # an `@copilot use agent ...` comment posted from here. Comment-based
+    # dispatch on issues was confirmed to be a no-op (it adds noise but
+    # never activates the agent), so we no longer post one.
+    #
+    # This job exists only to make the agent-file-missing failure mode
+    # visible: if .github/agents/market-research-agent.agent.md is absent
+    # from main when the label is applied, leave a clear PR comment so
+    # the operator knows to Redeploy from Looking Glass.
+    #
+    # Gated on the `labeled` action + specific label name so issues
+    # opened-with-label dispatch exactly once (not once for `opened`
+    # AND once for `labeled` — see commit history for the double-fire
+    # bug this guards against).
     if: >-
       github.event_name == 'issues' &&
-      contains(github.event.issue.labels.*.name, 'oraculum-research')
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oraculum-research'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Verify agent file is deployed
+      - name: Check agent file present on default branch
         run: |
-          # Defense-in-depth: refuse to mention the agent if its .agent.md
-          # isn't in the mesh repo. Otherwise @copilot would respond with
-          # a confusing "no agent by that name" error in the issue thread.
           if ! gh api "repos/${{ github.repository }}/contents/.github/agents/market-research-agent.agent.md" >/dev/null 2>&1; then
             gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
-              --body "⚠️ **market-research-agent.agent.md is not deployed.** Open Looking Glass → Settings → Mesh Provisioning → \"Deploy Agents + Skills\" before dispatching."
+              --body "⚠️ **market-research-agent.agent.md is not deployed.** Open Looking Glass → Settings → Mesh Provisioning → \"Deploy All\" so the agent file lands on \`main\`. (Looking Glass handles the actual dispatch — this workflow only sanity-checks the file.)"
             exit 1
           fi
-
-      - name: Post @copilot mention to activate the persona
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
-            --body "@copilot use agent market-research-agent"
-          echo "::notice::market-research-agent dispatched on issue #${{ github.event.issue.number }}"
+          echo "::notice::market-research-agent.agent.md verified present — Looking Glass owns the dispatch."
 
   # ════════════════════════════════════════════════════════════════════
   # JOB 2 — Audit + drift on user-applied research-synthesis label
@@ -405,33 +415,52 @@ jobs:
           POCKET="${{ steps.pocket.outputs.passed }}"
 
           VERDICT="ok"; REASON=""
+          # Discrete failure-kind flags — used by the label-apply step to
+          # pick the SPECIFIC failure label (degraded-evidence is for
+          # evidence-honesty failures ONLY; drift gates get their own
+          # labels). The prior pattern of always applying degraded-evidence
+          # on any degraded verdict was misleading: a drift-only failure
+          # was tagged "Hatter Tag declared live but 0 skill_calls" even
+          # when skill_calls were healthy.
+          EVIDENCE_FAIL="false"
+          STRUCTURE_FAIL="false"
+          DRIFT_FAIL="false"
 
           # Evidence honesty
           if [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence: block — declare evidence_mode (§11.1.7)"
+            EVIDENCE_FAIL="true"
           elif [ "$FOUND" != "true" ] && [ "$EVIDENCE_MODE" = "live" ]; then
             VERDICT="degraded"; REASON="evidence_mode=live but audit JSONL not found"
+            EVIDENCE_FAIL="true"
           elif [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
             VERDICT="degraded"; REASON="evidence_mode=live but 0 successful provider skill_calls in audit"
+            EVIDENCE_FAIL="true"
           fi
 
           # Structure
           if [ "$VERDICT" = "ok" ]; then
             if [ "$DOC_FOUND" != "true" ]; then
               VERDICT="degraded"; REASON="research-doc.md not committed"
+              STRUCTURE_FAIL="true"
             elif [ "$H2" -lt 10 ] || [ "$H3" -lt 4 ]; then
               VERDICT="degraded"; REASON="research-doc.md missing required sections — H2 $H2/10, H3 $H3/4"
+              STRUCTURE_FAIL="true"
             fi
           fi
 
           # Drift
           if [ "$VERDICT" = "ok" ] && [ "$POCKET" = "false" ]; then
             VERDICT="degraded"; REASON="Pocket Watch goal-drift exceeded threshold (cosine=${{ steps.pocket.outputs.cosine }} < ${{ steps.pocket.outputs.threshold }})"
+            DRIFT_FAIL="true"
           fi
 
           echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
           echo "reason=$REASON"   >> "$GITHUB_OUTPUT"
-          echo "::notice::verdict=$VERDICT reason=$REASON"
+          echo "evidence_fail=$EVIDENCE_FAIL"   >> "$GITHUB_OUTPUT"
+          echo "structure_fail=$STRUCTURE_FAIL" >> "$GITHUB_OUTPUT"
+          echo "drift_fail=$DRIFT_FAIL"         >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict=$VERDICT reason=$REASON (evidence_fail=$EVIDENCE_FAIL structure_fail=$STRUCTURE_FAIL drift_fail=$DRIFT_FAIL)"
 
       - name: Upsert correctness summary comment
         if: steps.gate.outputs.skip != 'true'
@@ -506,14 +535,25 @@ jobs:
             --description "WHY-phase research doc passed the audit gate. Merge unlocked (subject to branch protection)." 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label research-pass
 
-      - name: Apply degraded-evidence + goal-drift-detected on fail
+      - name: Apply specific failure labels based on failure kind
         if: steps.gate.outputs.skip != 'true' && steps.verdict.outputs.verdict == 'degraded'
         run: |
-          # Self-heal label creation (see Apply research-pass step for rationale).
-          gh label create degraded-evidence --repo ${{ github.repository }} --color D32F2F --description "Hatter Tag evidence_mode contradicts the audit log. Blocks governance-pass." 2>/dev/null || true
-          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label degraded-evidence || true
-          if [ "${{ steps.pocket.outputs.passed }}" = "false" ]; then
-            gh label create goal-drift-detected --repo ${{ github.repository }} --color D32F2F --description "Pocket Watch / Caterpillar drift gate failed. Merge blocked." 2>/dev/null || true
+          # Apply ONLY the label(s) matching the specific failure kind.
+          # Prior behavior — applying degraded-evidence on ANY degraded
+          # verdict — was misleading: a drift-only failure ended up
+          # labeled "Hatter Tag declared live but 0 skill_calls" even
+          # when skill_calls were healthy. Now each label maps to its
+          # actual cause.
+          if [ "${{ steps.verdict.outputs.evidence_fail }}" = "true" ]; then
+            gh label create degraded-evidence --repo ${{ github.repository }} --color D32F2F --description "Hatter Tag evidence_mode contradicts the audit log. Blocks the pass label." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label degraded-evidence || true
+          fi
+          if [ "${{ steps.verdict.outputs.structure_fail }}" = "true" ]; then
+            gh label create structure-invalid --repo ${{ github.repository }} --color D32F2F --description "Artifact missing required sections / citations. Blocks the pass label." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label structure-invalid || true
+          fi
+          if [ "${{ steps.verdict.outputs.drift_fail }}" = "true" ]; then
+            gh label create goal-drift-detected --repo ${{ github.repository }} --color D32F2F --description "Pocket Watch — objective drift (cosine below threshold). Merge blocked." 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label goal-drift-detected || true
           fi
 
@@ -523,6 +563,7 @@ jobs:
           steps.verdict.outputs.verdict == 'ok'
         run: |
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label degraded-evidence 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label structure-invalid 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label goal-drift-detected 2>/dev/null || true
 
   # ════════════════════════════════════════════════════════════════════
@@ -552,7 +593,7 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Flip OKR action.status to complete
+      - name: Flip OKR action.status to complete + meta.status to prd-pending
         if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
         run: |
           OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
@@ -560,13 +601,42 @@ jobs:
             echo "::warning::okr.yaml missing — skipping status flip"
             exit 0
           fi
-          yq -i "(.actions[] | select(.runId == \"${{ steps.ctx.outputs.run_id }}\") | .status) = \"complete\"" "$OKR_FILE"
+          # 1. Flip THIS action's status to complete (audit trail of which
+          #    run finished). FAIL LOUDLY if the runId doesn't match any
+          #    action in okr.yaml — silent no-op was the bug behind PR
+          #    #97 where finalize ran "successfully" but never flipped
+          #    ACT-10 because the dispatch-time commit hadn't been
+          #    pushed to remote. The run looked green but the OKR was
+          #    stuck in_progress forever. Better to surface the
+          #    mismatch as an error so the user knows to push + re-run.
+          RUN_ID="${{ steps.ctx.outputs.run_id }}"
+          MATCHED=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .runId" "$OKR_FILE" | wc -l | tr -d ' ')
+          if [ "$MATCHED" -eq 0 ]; then
+            echo "::error title=Action runId not found::yq select(.runId == \"$RUN_ID\") matched 0 actions in $OKR_FILE. The dispatch-time commit may not have been pushed to remote before this merge. Push the missing commit (or add the action manually) and re-run this workflow. Listing current action runIds for triage:"
+            yq -r '.actions[] | "  - " + .id + " runId=" + .runId + " status=" + .status' "$OKR_FILE"
+            exit 1
+          fi
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"complete\"" "$OKR_FILE"
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .completedAt) = \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"" "$OKR_FILE"
+          # 2. Roll OKR.meta.status forward: researching -> prd-pending so
+          #    Looking Glass's status badge auto-updates and "Start How"
+          #    becomes the natural next call to action.
+          #
+          # Done in bash (not yq's `if/then/else/end` — that's jq syntax;
+          # the runner uses Go yq / mikefarah which doesn't support it
+          # and exits with `lexer: invalid input text "if .meta.status..."`).
+          # Guard preserves a more advanced status (e.g. if WHY runs
+          # again after HOW already shipped, leave the status alone).
+          CURRENT_STATUS=$(yq -r '.meta.status' "$OKR_FILE")
+          if [ "$CURRENT_STATUS" = "researching" ]; then
+            yq -i '.meta.status = "prd-pending"' "$OKR_FILE"
+          fi
           NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$OKR_FILE"
-          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} action ${{ steps.ctx.outputs.run_id }} -> complete (PR #${{ github.event.pull_request.number }} merged, market-research-agent.yml, agentic-sdlc §13 B20)" || echo "Nothing to commit"
+          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} WHY complete (action ${{ steps.ctx.outputs.run_id }} -> complete; meta.status researching -> prd-pending; PR #${{ github.event.pull_request.number }})" || echo "Nothing to commit"
           # Rebase-retry to survive racing pushes.
           for i in 1 2 3; do
             if git push; then break; fi

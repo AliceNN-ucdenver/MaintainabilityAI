@@ -414,6 +414,9 @@ export type LookingGlassWebviewMessage =
   // `.github/skills/` and `.github/agents/` directories. Idempotent.
   | { type: 'provisionAgentic' }
   | { type: 'checkAgenticStatus' }
+  // One-button Deploy All — runs provisionWorkflow + provisionAgentic sequentially
+  // (the new consolidated Settings → Mesh Provisioning button).
+  | { type: 'provisionAll' }
   // Research dispatch from platform / BAR views — opens NewResearchPanel pre-filled with scope
   | { type: 'newResearchFromPlatform'; slug: string; name: string }
   | { type: 'newResearchFromBar'; barId: string; barName: string }
@@ -422,6 +425,37 @@ export type LookingGlassWebviewMessage =
   | { type: 'getOkrList' }
   | { type: 'drillIntoOkr'; okrId: string }
   | { type: 'backToOkrList' }
+  // Fetch live per-phase signal data from GitHub API (audit JSONL counts +
+  // artifact markdown structure + PR state) to populate the rich Why/How/
+  // What cards on the OKR detail page. Always-live by design (per user
+  // preference) — local mesh is not consulted.
+  | { type: 'loadOkrPhaseSignals'; okrId: string }
+  // One-click "Run Audit" from the OKR detail page — applies the phase's
+  // audit-trigger label to the open artifact PR. Saves the user from
+  // navigating to GitHub to apply research-synthesis / prd-draft /
+  // design-draft manually.
+  | { type: 'runOkrAudit'; okrId: string; phase: string; prNumber: number }
+  // 📄 View artifact toggle — fetches the produced markdown file via the
+  // GitHub Contents API and renders it inline in the OKR detail card.
+  // Stateful: clicking again hides the panel.
+  | { type: 'toggleOkrArtifact'; okrId: string; phase: string }
+  // ✓ Merge PR — merges the artifact PR via the GitHub pulls.merge API
+  // (squash). Extension prompts for confirmation natively before calling.
+  // After success, finalize workflow flips action.status to complete on
+  // the next push.
+  | { type: 'mergeOkrPr'; okrId: string; phase: string; prNumber: number }
+  // ✅ Mark PR ready — flips a stuck-in-draft PR to ready-for-review.
+  // Surfaced when the agent requested a review but never marked the
+  // PR ready (observed on PR #91).
+  | { type: 'markOkrPrReady'; okrId: string; phase: string; prNumber: number }
+  // 🔁 Re-run audit — removes + re-applies the trigger label after a
+  // degraded verdict so the workflow fires again on the latest commit.
+  | { type: 'rerunOkrAudit'; okrId: string; phase: string; prNumber: number }
+  // 🤖 Revise with agent — posts a structured PR comment dispatching
+  // the phase's author agent (market-research-agent / prd-agent) with
+  // the audit failure reasons attached. Lets the user say "fix this"
+  // without leaving Looking Glass.
+  | { type: 'reviseWithAgent'; okrId: string; phase: string; prNumber: number }
   | { type: 'scaffoldOkrSample' }
   /** Open the OKR detail in 'create' mode with a blank scaffold. */
   | { type: 'createOkrDraft' }
@@ -588,6 +622,24 @@ export type LookingGlassExtensionMessage =
   | { type: 'okrSampleScaffolded'; okrId: string }
   | { type: 'okrSaved'; okrId: string }
   | { type: 'okrCreated'; okrId: string }
+  // Live-from-GitHub per-phase signal payload — fetched on OKR detail
+  // mount to populate the rich Why/How/What cards. Per-phase entries
+  // omitted when there's no data (e.g. phase not run yet); the webview
+  // falls back to the pre-flight "Will run" placeholder.
+  | {
+      type: 'okrPhaseSignals';
+      okrId: string;
+      signals: {
+        why?: Record<string, unknown>;
+        how?: Record<string, unknown>;
+        what?: Record<string, unknown>;
+      };
+    }
+  // Emitted when the Looking Glass panel becomes active after losing
+  // focus. The webview reacts by re-fetching whatever view is on screen
+  // (OKR detail signals, portfolio, etc.) — keeps the UI honest when a
+  // workflow pushed commits while the user was elsewhere.
+  | { type: 'panelActivated' }
   | { type: 'agenticStatus'; skills: { name: string; family: string; deployed: boolean }[]; agents: { name: string; deployed: boolean }[] }
   | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] }
   | { type: 'okrPhaseStarted'; okrId: string; phase: 'why' | 'how' | 'what'; actionId: string; issueUrl: string }

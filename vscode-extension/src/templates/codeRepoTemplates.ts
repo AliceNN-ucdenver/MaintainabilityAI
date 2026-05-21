@@ -396,76 +396,6 @@ export function generateNotifyCodeReposWorkflow(extensionPath: string): string {
 }
 
 /**
- * Phase C-PR1 — `okr-bus.yml` dispatches the right agent on phase-label
- * adds to the OKR anchor issue. Reads `<!-- okr_id: ... -->` body marker,
- * resolves agent by label, posts `@copilot use agent <name>` comment,
- * bumps OKR `status` field on the YAML.
- */
-export function generateOkrBusWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'okr-bus.yml');
-}
-
-/**
- * Phase C-PR1 — `reviewer-bus.yml` runs architect-reviewer +
- * security-reviewer in parallel on artifact PRs with `*-draft` labels.
- * Enforces Tweedles via author_did extraction from the PR body's
- * Hatter's Tag. Pocket Watch + Caterpillar drift steps are Phase C-PR5.
- *
- * Updated in C-PR2 to also fire on `synchronize` (agent revision push)
- * with round-counter bump via labels (round-1 → round-2 → …).
- */
-export function generateReviewerBusWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'reviewer-bus.yml');
-}
-
-/**
- * Phase C-PR2 — `okr-state-machine.yml` promotes the master
- * `governance-pass` label when both reviewers approve, and escalates
- * to `needs-human-review` (HumanGate) when `revision-required` is
- * applied at or past tier-bounded MAX_AUTO_ROUNDS (§6.2).
- */
-export function generateOkrStateMachineWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'okr-state-machine.yml');
-}
-
-/**
- * Phase C-PR4 — `design-bus.yml` fans out per-repo landing issues on
- * code-design PR merge. Reads `targetCodeRepos[]` from the OKR;
- * opens one `oraculum-design-landing` issue per entry with the OKR
- * + design-PR context inlined. From there each target repo's coding
- * agent picks up the slice. Cross-repo writes require either
- * `secrets.GH_TOKEN_FANOUT` (a fine-grained PAT) or workflow-token
- * org permissions.
- */
-export function generateDesignBusWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'design-bus.yml');
-}
-
-/**
- * Phase C-PR5 — `drift-gate.yml` runs White Rabbit's Pocket Watch
- * (OKR.objective ↔ PR scope similarity) + Caterpillar's Challenge
- * (current phase ↔ prior phase semantic drift) via GitHub Models
- * embeddings. Authed by the workflow's GITHUB_TOKEN — no extra
- * secret. Fails the workflow on drift so branch protection can
- * block merge.
- */
-export function generateDriftGateWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'drift-gate.yml');
-}
-
-/**
- * Phase B-PR1c — `audit-validate.yml` cross-checks the Hatter Tag's
- * `evidence:` block against the audit JSONL. Applies `degraded-evidence`
- * when the author agent declared `evidence_mode: live` but the audit log
- * contains zero successful `skill_call` events for the four search
- * providers (tavily/arxiv/uspto/hackernews). okr-state-machine.yml
- * refuses to promote `governance-pass` while this label is present.
- */
-export function generateAuditValidateWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'audit-validate.yml');
-}
-
-/**
  * Phase B-PR1f — DEPRECATED. `pr-auto-label.yml` was the server-side
  * fallback for the author-agent's forgotten labeling step. Superseded
  * by B20's user-triggered label flow (Looking Glass applies the label
@@ -500,6 +430,29 @@ export function generatePrAutoLabelWorkflow(_extensionPath: string): string {
 export function generateMarketResearchAgentWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'market-research-agent.yml');
 }
+
+/**
+ * Per-agent workflow for the prd-agent (HOW phase) — Phase 2 of B20.
+ * Owns dispatch on `oraculum-prd` issues + audit-and-drift on
+ * `prd-draft` PRs + finalize on PR merge.
+ *
+ * Audit checks: evidence honesty (mesh skill_call counts), structural
+ * correctness (10 H2 sections + FR-NN/SR-NN citation coverage), Pocket
+ * Watch (OKR objective vs prd.md Problem Statement), Caterpillar's
+ * Challenge (PRD Problem Statement vs research-doc Executive Summary
+ * — first cross-phase drift gate in the pipeline).
+ *
+ * Replaces (for the HOW scope) okr-bus / audit-validate / drift-gate.
+ */
+export function generatePrdAgentWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'prd-agent.yml');
+}
+
+// architect-reviewer.yml + security-reviewer.yml removed in B24 —
+// self-critique inside prd-agent.agent.md (Architect + Security
+// personas, bounded rounds) replaced the separate reviewer dispatches.
+// The deleted workflow paths land in DEPRECATED_MESH_FILES below so
+// pruneDeprecatedWorkflows sweeps them on next Redeploy.
 
 /**
  * Composite action: extract okr_id/run_id/phase/intent_thread_uuid/
@@ -546,38 +499,26 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/oraculum-review.yml',   generate: generateOraculumWorkflow },
 
   // ── Phase B20 per-agent workflows ────────────────────────────────────
-  // market-research-agent owns the complete WHY phase (issue dispatch +
-  // audit-and-drift + finalize). Replaces the WHY branches of okr-bus,
-  // audit-validate, drift-gate, and pr-auto-label.
+  // market-research-agent owns the complete WHY phase (Phase 1 — shipped).
+  // prd-agent owns the complete HOW phase, including self-critique
+  // rounds — separate architect/security reviewer agents were removed
+  // in B24 because at PRD time they re-graded the same mesh state the
+  // author already used (no independent evidence surface). Code-design-
+  // agent lands in Phase 3 for WHAT.
   { relativePath: '.github/workflows/market-research-agent.yml', generate: generateMarketResearchAgentWorkflow },
-  // prd-agent.yml + code-design-agent.yml + architect-reviewer.yml +
-  // security-reviewer.yml land in B-PR1l (HOW + WHAT + reviewer consolidation).
+  { relativePath: '.github/workflows/prd-agent.yml',             generate: generatePrdAgentWorkflow },
 
   // ── Composite actions (referenced by per-agent workflows) ────────────
   { relativePath: '.github/actions/extract-okr-context/action.yml', generate: generateExtractOkrContextAction },
   { relativePath: '.github/actions/count-skill-calls/action.yml',   generate: generateCountSkillCallsAction },
   { relativePath: '.github/actions/check-tier-bound/action.yml',    generate: generateCheckTierBoundAction },
 
-  // ── TRANSITIONAL: still handling HOW + WHAT until B-PR1l ─────────────
-  // okr-bus.yml's WHY branch is dead code (market-research-agent.yml
-  // intercepts oraculum-research-labeled issues first) but it still
-  // routes oraculum-prd + oraculum-design. Will be deleted in B-PR1l.
-  { relativePath: '.github/workflows/okr-bus.yml',           generate: generateOkrBusWorkflow },
-  // reviewer-bus.yml dispatches architect + security reviewers; replaced
-  // by architect-reviewer.yml + security-reviewer.yml in B-PR1l.
-  { relativePath: '.github/workflows/reviewer-bus.yml',      generate: generateReviewerBusWorkflow },
-  // okr-state-machine.yml handles governance-pass promotion; folded into
-  // prd-agent.yml + code-design-agent.yml in B-PR1l.
-  { relativePath: '.github/workflows/okr-state-machine.yml', generate: generateOkrStateMachineWorkflow },
-  // design-bus.yml fans out per-repo issues on code-design merge; folded
-  // into code-design-agent.yml's fanout job in B-PR1l.
-  { relativePath: '.github/workflows/design-bus.yml',        generate: generateDesignBusWorkflow },
-  // drift-gate.yml + audit-validate.yml — narrowed via if-condition to
-  // skip research-synthesis label (market-research-agent.yml owns WHY)
-  // but still run for prd-draft + design-draft. Folded into prd-agent
-  // + code-design-agent in B-PR1l.
-  { relativePath: '.github/workflows/drift-gate.yml',        generate: generateDriftGateWorkflow },
-  { relativePath: '.github/workflows/audit-validate.yml',    generate: generateAuditValidateWorkflow },
+  // No transitional workflows remain. WHY + HOW are owned end-to-end
+  // by per-agent workflows above. WHAT will land in Phase 3 with its
+  // own per-agent file (code-design-agent.yml) — the prior bus / state-
+  // machine / drift-gate / audit-validate workflows have been removed
+  // (added to DEPRECATED_MESH_FILES below so pruneDeprecatedWorkflows
+  // sweeps them from any mesh repo on next Redeploy).
 ];
 
 /**
@@ -599,5 +540,27 @@ export const DEPRECATED_MESH_FILES: string[] = [
   '.github/workflows/notify-code-repos.yml',
   // ── B-PR1f: replaced by user-triggered label flow (B20) ──────────────
   '.github/workflows/pr-auto-label.yml',
+  // ── B20 Phase 2 sweep: per-agent workflows + Looking Glass dispatch
+  // make these obsolete. WHY + HOW are end-to-end on per-agent files;
+  // WHAT lands in Phase 3 with its own per-agent file (code-design-
+  // agent.yml). Until then, the WHAT pipeline simply doesn't run —
+  // which is fine, since "Start What" is gated in Looking Glass.
+  '.github/workflows/okr-bus.yml',
+  '.github/workflows/reviewer-bus.yml',
+  '.github/workflows/okr-state-machine.yml',
+  '.github/workflows/design-bus.yml',
+  '.github/workflows/drift-gate.yml',
+  '.github/workflows/audit-validate.yml',
+  // ── B24: self-critique in prd-agent.agent.md replaces separate
+  // reviewer agents at PRD time. The reviewer workflows ship a no-op
+  // dispatch loop now — useful only as dead weight + a bot-PR gate
+  // trap. Pruned from any mesh repo on next Redeploy. Same for the
+  // two reviewer .agent.md files — they're no longer in MESH_AGENTS
+  // so the prune sweeps them out of any mesh that previously deployed
+  // them.
+  '.github/workflows/architect-reviewer.yml',
+  '.github/workflows/security-reviewer.yml',
+  '.github/agents/architect-reviewer.agent.md',
+  '.github/agents/security-reviewer.agent.md',
 ];
 

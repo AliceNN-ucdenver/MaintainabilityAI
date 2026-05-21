@@ -2047,6 +2047,66 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
   - WHAT: OKR objective vs code-design.md's `## Approach` or equivalent section
   These per-phase primitives land alongside the workflow files in B-PR1l.
 
+- [x] **B24.** Self-critique replaces separate reviewer agents at PRD time (B-PR1o). Architecture pivot surfaced during the first HOW end-to-end test (PR #91):
+
+  **The problem with separate reviewers at PRD.** The Phase 2 design dispatched `architect-reviewer` + `security-reviewer` on `prd-draft`-labeled PRs to score the artifact. In practice, those reviewers read the same `context-architecture` / `context-security` / `knowledge-mesh-adrs` / `knowledge-mesh-threats` mesh state the author already grounded on. There was no independent evidence surface — just a re-grade of the same inputs by a different agent name. The "Tweedles" segregation (author DID ≠ reviewer DID) was theatre: enforcing role separation at the agent-name level didn't catch any failure mode that the structural / drift / coverage checks in `prd-agent.yml`'s audit-and-drift job wasn't already catching.
+
+  In return for that nothing-burger, we paid:
+  - **Two extra agent dispatches per HOW run** (3× the MCP failure surface — PR #91 confirmed `github/update_issue` is unreliable in the runtime, so the agent couldn't even apply `prd-draft` to its own PR, blocking the reviewer dispatch chain at step zero).
+  - **Two more `pull_request_target` workflows** to maintain, each with its own dispatch + Tweedles + round-counter logic.
+  - **The bot-PR approval gate twice** (architect-reviewer + security-reviewer each tripped GitHub's "Require approval for outside collaborators" on bot-attributed PR events, leaving runs stuck as `action_required` — observed on PR #91 runs 26188095968 / 26188095868 / 26188560469 / 26188560472).
+  - **A complex okr-state-machine** that had to merge two reviewer pass-labels into a master `governance-pass` before the merge gate flipped.
+
+  **The fix — self-critique inside the author agent.** `prd-agent.agent.md` is rewritten to switch personas after first-pass synthesis: it scores the PRD as the Architect (using the criteria from `.caterpillar/prompts/prd/architecture-review.md`) and the Security reviewer (from `.../prd/security-review.md`), emits a `self_review` audit event per persona per round, and iterates until both personas return `SEVERITY ∈ {PASS, MINOR}` with empty `MISSING`. Rounds are tier-bounded — Autonomous=3, Supervised=2, Restricted=0. If the agent hits MAX without convergence, it emits a `self_review_exhausted` event and ships the PR with a clear "needs human review" signal; the audit-and-drift workflow flips the verdict to `degraded` so branch protection blocks merge.
+
+  **Audit chain enrichment.** One event per persona per round means an Autonomous-tier run that needs all 3 rounds emits 6 `self_review` events plus the existing skill_call + artifact_written events. The full critique trail — what the Architect said in round 1, what changed in round 2, what the Security reviewer surfaced in round 3 — is preserved hash-chained alongside the synthesis evidence. `prd-agent.yml`'s audit-and-drift job parses these events into the upserted PR comment (table rows: "Self-review (B24) | N round(s)", "↳ Architect persona | 0.82 severity=MINOR", "↳ Security persona | 0.79 severity=PASS") and Looking Glass's HOW card renders a `Self-review: Arch X · Sec Y` line populated from the same events.
+
+  **What got deleted.**
+  - `code-templates/workflows/architect-reviewer.yml` — workflow file removed
+  - `code-templates/workflows/security-reviewer.yml` — same
+  - `MESH_AGENTS` no longer lists `architect-reviewer` / `security-reviewer` (the `.agent.md` files stay on disk under `code-templates/agents-v4/` in case Phase 3's WHAT phase wants code-grounded reviewers, but they're not deployed to mesh repos)
+  - Generators `generateArchitectReviewerWorkflow` / `generateSecurityReviewerWorkflow` removed from `codeRepoTemplates.ts`
+  - `DEPRECATED_MESH_FILES` extended with the two workflow paths + the two `.agent.md` paths so `pruneDeprecatedWorkflows` sweeps them from any mesh repo on next Redeploy
+  - `meshLabels.ts` flags `governance-pass-architecture`, `governance-pass-security`, and the `round-N` family as DEPRECATED — kept in the catalog so older PRs aren't broken, but no workflow writes to them anymore
+
+  **What stayed.** The structural correctness + Pocket Watch + Caterpillar drift gates in `prd-agent.yml`'s audit-and-drift job — those check structural properties the author can't trivially self-grade (10 H2 sections present, every FR cites R-N/E-N, cosine similarity to OKR objective + prior phase). The `prd-pass` label remains the canonical merge gate, set when audit-and-drift's verdict is `ok` AND `self_review_exhausted` is absent.
+
+  **Implications for WHAT phase (deferred to Phase 3).** Where reviewers ground against actual code (read repos, run pattern scans, check ADR alignment against committed implementations), the independent-evidence axis IS real — the author hasn't read the code, the reviewer has. Phase 3 may bring back separate `architect-reviewer` + `security-reviewer` agents for `design-draft` PRs. The two `.agent.md` files were kept to make that revival cheap.
+
+- [x] **B23.** Phase 2 of B20 — `prd-agent.yml` + `architect-reviewer.yml` + `security-reviewer.yml` shipped (B-PR1l).
+
+  Phase 2 of B20 ships HOW-phase + reviewer dispatch on the per-agent workflow pattern proven by `market-research-agent.yml` in Phase 1. Three new workflow files, applying every lesson from Phase 1:
+
+  **prd-agent.yml** — full HOW lifecycle (dispatch + audit-and-drift + finalize) mirroring market-research-agent.yml. Audit checks:
+  - Evidence honesty: mesh-skill_call counts (knowledge-okr / knowledge-research / knowledge-mesh-bar / knowledge-mesh-adrs / knowledge-mesh-threats / context-architecture / context-security / context-quality). Distinct from WHY's external-provider count because prd-agent grounds on mesh artifacts, not search providers.
+  - Structural correctness: 10 H2 sections + FR-NN/SR-NN citation coverage (every FR cites R-N/E-N; every SR cites STRIDE THR-NNN or OWASP A0X).
+  - **Pocket Watch** (objective drift): OKR objective vs `prd.md ## Problem Statement` (cosine ≥ 0.65, same threshold as Phase 1 by the same calibration logic — see B22).
+  - **Caterpillar's Challenge** (cross-phase drift, FIRST phase to use it): `prd.md ## Problem Statement` vs `research-doc.md ## Executive Summary` from the BASE ref. Cosine ≥ 0.70 — tighter than Pocket Watch because cross-phase should preserve more of the upstream framing, not just hit the same topic. Reads the prior phase from the merged base branch (cloned into `/tmp/base`), NOT the PR head — the canonical upstream is what's already on main.
+  - Trigger model: `pull_request_target: labeled` only (same gate-bypass as Phase 1).
+  - Dispatch precondition: refuses to mention `@copilot use agent prd-agent` until `okrs/<id>/why/research-doc.md` exists on main. Surfaces a clear "WHY phase not merged yet" message in the issue thread instead of letting the agent fail noisily inside its own run.
+
+  **architect-reviewer.yml + security-reviewer.yml** — per-reviewer dispatch on `prd-draft` / `design-draft` labels. Each workflow does its own Tweedles guard (author_did ≠ reviewer agent name) and agent-file-deployed check, then posts `@copilot use agent <name>`. The round counter (`round-N` label) is OWNED by `architect-reviewer.yml` only — `security-reviewer.yml` reads but does not write. This avoids races on `synchronize` events where both reviewers would otherwise try to bump simultaneously.
+
+  Transitional workflows fully removed in this commit (decided not to carry six dormant files for the WHAT-phase window). Per-agent workflows own WHY + HOW end-to-end; WAT phase doesn't run anywhere until code-design-agent.yml ships in Phase 3. All six files moved to `DEPRECATED_MESH_FILES` so `pruneDeprecatedWorkflows` sweeps any stale copy from the mesh on the next Redeploy:
+  - `okr-bus.yml` (label routing — superseded by per-agent if-clauses on the labeled event)
+  - `reviewer-bus.yml` (reviewer dispatch — owned by architect/security-reviewer per-agent workflows)
+  - `okr-state-machine.yml` (governance-pass merge gate — folds into per-agent audit jobs in Phase 3)
+  - `design-bus.yml` (per-repo fanout — owned by code-design-agent.yml in Phase 3)
+  - `drift-gate.yml` (Pocket Watch + Caterpillar — already inline in per-agent audit jobs)
+  - `audit-validate.yml` (evidence honesty + structural — already inline in per-agent audit jobs)
+
+  Two related findings the user surfaced during the first HOW dispatch:
+
+  **Double-fire on issue-with-label-on-create.** Looking Glass calls `createIssueRaw(..., labels)` in a single API call. GitHub fires both `issues.opened` (labels populated) AND `issues.labeled` for the label add. The prior dispatch-job if-clause `contains(github.event.issue.labels.*.name, 'oraculum-research')` matched BOTH events → two `@copilot use agent ...` comments on the same issue. Fixed: gate on `github.event.action == 'labeled' && github.event.label.name == '<phase-label>'` so exactly one event matches (the `opened` event is skipped because action is not `labeled`; the `labeled` event for `okr-anchor` is skipped because the label name doesn't match). Reviewer workflows already de-dup via their round-counter logic — no fix needed there.
+
+  **The `@copilot use agent ...` issue comment is a no-op.** Confirmed empirically: posting that text as an issue comment does NOT activate the Copilot Coding Agent. Looking Glass's existing `assignCustomCopilotAgent` body-extension call IS the actual dispatch mechanism. The workflow's comment-post step was pure noise — leaving an instruction in the issue thread the human couldn't act on. Removed from market-research-agent.yml + prd-agent.yml.
+
+  **PR-comment `@copilot` (without `use agent <name>`) on a custom-agent-authored PR CONTINUES the same agent.** Per GitHub's Copilot Coding Agent docs: "If the pull request was created by a custom agent, mentioning @copilot continues using that same agent." Same context, same tools, same persona — faster and more reliable than starting a new session. This is the canonical revision path for an artifact PR that needs to address audit findings: Looking Glass's "🤖 Revise with agent" button posts a `@copilot` PR comment (plain — no `use agent`) with the structured failure reasons, and Copilot routes it to the same agent that authored the PR. The earlier `@copilot use agent <reviewer>` pattern (which started a NEW session) is what put the reviewer in sub-agent mode; plain `@copilot` continuation does not.
+
+  Settings UI consolidated: replaced separate "Deploy Workflows" + "Deploy Agents + Skills" buttons with a single "Deploy All (workflows + actions + agents + skills)" button. The two underlying handlers stay distinct (separate git commits, separate idempotent paths); the UI just calls both sequentially via a new `provisionAll` message. The two-button layout had been confusing — clicking the wrong one redeployed only half the surface.
+
+  OKR detail page enriched: push/pull banner reused from the portfolio (same `renderGitSyncBanner` from `barDetail.ts`), and per-phase signal cards refactored to the §10.2 mockup layout — sources/providers/refine/findings/coverage for WHY, FR/SR coverage + reviewer scores for HOW. Data is fetched LIVE from GitHub via a new `getRepoFileText` method on `GitHubService` + a `loadOkrPhaseSignals` panel handler that reads the audit JSONL + artifact markdown directly (no local mesh dependency — per user preference, "always live from GitHub API"). Loading placeholders show until response arrives.
+
 - [x] **B21.** GitHub API access via out-of-the-box `github/*` MCP tools (B-PR1m). Pivots agents from `gh` CLI shell-out to the Copilot Coding Agent's built-in GitHub MCP server. Two coupled benefits:
 
   **(a) Firewall path.** MCP routes through `api.githubcopilot.com` (always allow-listed by Copilot) instead of direct `api.github.com` calls (blocked by default). PR #80's run got all the way to `format-research-issue-update`-rendered markdown and then couldn't POST it because `gh issue comment` shells out via `api.github.com/repos/.../issues/<n>/comments` which isn't in the default allow-list. With MCP, no firewall changes required on the mesh repo.

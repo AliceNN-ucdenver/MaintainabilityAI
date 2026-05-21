@@ -78,6 +78,16 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   public pendingBarPath: string | undefined;
   private pendingActiveReview: import('../types').ActiveReviewInfo | undefined;
   private meshRepoInfo: { owner: string; repo: string } | null = null;
+  /** Throttle for panel-activation refresh — avoids hammering the git
+   *  status check on rapid tab flips. 5 second window. */
+  private lastActivationRefreshAt: number = 0;
+  /** Per-OKR set of phases whose artifact viewer is currently expanded.
+   *  Keyed by okrId. Survives across phase-signal re-fetches so the
+   *  panel stays open during panel-focus auto-refresh. */
+  private artifactOpenPhases: Map<string, Set<'why' | 'how' | 'what'>> = new Map();
+  /** Active poll timers — one per OKR. Cleared when a terminal state
+   *  is reached or when a new audit action overrides. */
+  private auditPollTimers: Map<string, ReturnType<typeof setTimeout>[]> = new Map();
 
   public static createOrShow(context: vscode.ExtensionContext, barPath?: string, activeReview?: import('../types').ActiveReviewInfo) {
     const column = vscode.window.activeTextEditor
@@ -134,6 +144,38 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     this.calmFileWatcher.start((filePath) => {
       this.onExternalCalmFileChanged(filePath);
     });
+
+    // Refresh on panel activation — previously the user had to close +
+    // reopen Looking Glass to trigger pull detection after a workflow
+    // pushed a finalize commit. Now: when the panel becomes active
+    // (focus regained after working in another tab/window), re-run
+    // loadPortfolio (which refreshes git ahead/behind state) AND notify
+    // the webview so the OKR detail page can re-fetch fresh signals if
+    // that's what's on screen.
+    this.panel.onDidChangeViewState(
+      (e) => {
+        if (e.webviewPanel.active) {
+          void this.handlePanelActivated();
+        }
+      },
+      null,
+      this.disposables,
+    );
+  }
+
+  private async handlePanelActivated(): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastActivationRefreshAt < 5000) {
+      return;
+    }
+    this.lastActivationRefreshAt = now;
+    try {
+      await this.loadPortfolio();
+      this.postMessage({ type: 'panelActivated' });
+    } catch {
+      // Best-effort refresh — swallow errors so a transient git issue
+      // doesn't spam the user every time they focus the panel.
+    }
   }
 
   protected async handleMessage(message: LookingGlassWebviewMessage) {
@@ -186,7 +228,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         break;
 
       case 'openFile': {
-        const uri = vscode.Uri.file(message.path);
+        // Webviews send either an absolute path (BAR detail's repo tree
+        // entries) or a mesh-relative path (OKR detail's "Open okr.yaml").
+        // If the path isn't absolute, resolve it against the configured
+        // mesh root. Without this fallback the relative path resolves
+        // against the extension's cwd and the file is never found.
+        const absPath = path.isAbsolute(message.path)
+          ? message.path
+          : (() => {
+              const meshPath = MeshService.getMeshPath();
+              return meshPath ? path.join(meshPath, message.path) : message.path;
+            })();
+        const uri = vscode.Uri.file(absPath);
         try {
           const stat = await vscode.workspace.fs.stat(uri);
           if (stat.type === vscode.FileType.Directory) {
@@ -195,7 +248,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             vscode.window.showTextDocument(uri);
           }
         } catch {
-          vscode.window.showErrorMessage(`File not found: ${message.path}`);
+          vscode.window.showErrorMessage(`File not found: ${absPath}`);
         }
         break;
       }
@@ -363,6 +416,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
       case 'provisionAgentic':
         await this.onProvisionAgentic();
+        break;
+
+      case 'provisionAll':
+        await this.onProvisionAll();
         break;
 
       case 'checkAgenticStatus':
@@ -537,6 +594,27 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       case 'drillIntoOkr':
         await this.onDrillIntoOkr(message.okrId);
         break;
+      case 'loadOkrPhaseSignals':
+        await this.onLoadOkrPhaseSignals(message.okrId);
+        break;
+      case 'runOkrAudit':
+        await this.onRunOkrAudit(message.okrId, message.phase, message.prNumber);
+        break;
+      case 'toggleOkrArtifact':
+        await this.onToggleOkrArtifact(message.okrId, message.phase);
+        break;
+      case 'mergeOkrPr':
+        await this.onMergeOkrPr(message.okrId, message.phase, message.prNumber);
+        break;
+      case 'markOkrPrReady':
+        await this.onMarkOkrPrReady(message.okrId, message.phase, message.prNumber);
+        break;
+      case 'rerunOkrAudit':
+        await this.onRerunOkrAudit(message.okrId, message.phase, message.prNumber);
+        break;
+      case 'reviseWithAgent':
+        await this.onReviseWithAgent(message.okrId, message.phase, message.prNumber);
+        break;
       case 'scaffoldOkrSample':
         await this.onScaffoldOkrSample();
         break;
@@ -653,6 +731,703 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
   private async onEditOkr(okrId: string) {
     await this.onDrillIntoOkr(okrId, 'edit');
+  }
+
+  /**
+   * Live-from-GitHub per-phase signal loader. Drives the rich Why/How/What
+   * cards on the OKR detail page (matches the §10.2 mockup: sources +
+   * providers + refine + findings + coverage for WHY; FR/SR coverage +
+   * reviewer scores for HOW). Reads audit JSONL + artifact markdown via
+   * GitHub Contents API — no local mesh dependency.
+   *
+   * Per user preference (asked at session start): always-live from GitHub.
+   * If a file isn't found, that phase's signal entry is omitted from the
+   * payload, and the webview falls back to the "Will run" placeholder.
+   */
+  private async onLoadOkrPhaseSignals(okrId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) { return; }
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) { return; }
+
+    const okrService = this.meshService.getOkrService();
+    const okr = okrService.read(meshPath, okrId);
+    if (!okr) { return; }
+
+    const signals: { why?: Record<string, unknown>; how?: Record<string, unknown>; what?: Record<string, unknown> } = {};
+
+    // For each phase that has an action (started or completed), fetch its
+    // audit JSONL + artifact markdown live from GitHub. Skip phases with
+    // no action — pre-flight rendering shows the "Will run" placeholder.
+    const phases: Array<'why' | 'how' | 'what'> = ['why', 'how', 'what'];
+    for (const phase of phases) {
+      const action = [...okr.actions].reverse().find(a => a.phase === phase);
+      if (!action) { continue; }
+
+      try {
+        const sig = await this.fetchPhaseSignal(meshRepo.owner, meshRepo.repo, okrId, phase, action);
+        signals[phase] = sig as unknown as Record<string, unknown>;
+      } catch (err) {
+        signals[phase] = { error: toErrorMessage(err) };
+      }
+    }
+
+    this.postMessage({ type: 'okrPhaseSignals', okrId, signals });
+  }
+
+  /**
+   * Schedule a burst of phase-signal re-fetches after a user-initiated
+   * audit action. The audit-and-drift workflow takes 10-30 seconds to
+   * land its verdict labels — without polling, the user has to either
+   * switch tabs (panel-focus auto-refresh) or click the manual 🔄
+   * Refresh button to see the result.
+   *
+   * Schedule: 5s, 15s, 30s, 60s. Cleared early if a terminal state
+   * is detected during one of the re-fetches.
+   */
+  private startAuditPoll(okrId: string): void {
+    // Cancel any prior poll for this OKR — new action supersedes.
+    const existing = this.auditPollTimers.get(okrId);
+    if (existing) { existing.forEach(t => clearTimeout(t)); }
+
+    const intervals = [5_000, 15_000, 30_000, 60_000];
+    const timers = intervals.map(ms =>
+      setTimeout(async () => {
+        try {
+          // Refresh phase signals (PR state, drift cosines, labels)
+          // AND git status (so the Pull banner surfaces when the
+          // finalize workflow's commit lands on remote main).
+          await this.onLoadOkrPhaseSignals(okrId);
+          await this.loadPortfolio();
+        } catch {
+          // Best-effort polling — swallow errors, keep firing the rest.
+        }
+      }, ms),
+    );
+    this.auditPollTimers.set(okrId, timers);
+  }
+
+  /**
+   * Per-phase fetch + parse — keeps onLoadOkrPhaseSignals readable. Returns
+   * the OkrPhaseSignal-shaped object the webview's renderPhaseSignals expects.
+   */
+  private async fetchPhaseSignal(
+    owner: string,
+    repo: string,
+    okrId: string,
+    phase: 'why' | 'how' | 'what',
+    action: { runId: string; agent: string; status?: string; createdAt?: string; hatterChainRoot?: string | null },
+  ): Promise<Record<string, unknown>> {
+    const result: Record<string, unknown> = {};
+    if (action.hatterChainRoot) { result.chainRoot = action.hatterChainRoot; }
+
+    // Find the PR first so we know which ref to fetch the artifact +
+    // audit JSONL from. Critical: for an OPEN PR (artifact not merged
+    // yet), the files live on the PR's head branch, NOT main. Fetching
+    // from main returns 404 + makes the View Artifact panel + the
+    // structural counts (FR/SR/H2) look at the wrong tree.
+    //
+    // PR matching: we filter PRs by created_at >= action.createdAt so
+    // a fresh dispatch doesn't show the prior run's merged PR AND a
+    // post-merge-pending-pull state still shows THIS run's merged PR
+    // (local mesh hasn't pulled the finalize commit, so action.status
+    // says in_progress — but the PR is real and this run's).
+    result.okrId = okrId;
+    const artifactPathForPr = `okrs/${okrId}/${phase}/${phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md'}`;
+    const auditLabel = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
+    const passLabel = phase === 'why' ? 'research-pass' : phase === 'how' ? 'prd-pass' : 'design-pass';
+    let pr: Awaited<ReturnType<typeof this.findArtifactPr>> = null;
+    try {
+      pr = await this.findArtifactPr(owner, repo, artifactPathForPr, action.createdAt ?? null);
+    } catch { /* best-effort */ }
+    // Choose ref: PR head when PR is open (and not yet merged); default
+    // branch otherwise (post-merge / no PR).
+    const fetchRef = pr && pr.state === 'open' && !pr.merged ? pr.headRef : undefined;
+
+    // 1. Audit JSONL — count skill_calls per name + parse self_review events.
+    const auditPath = `okrs/${okrId}/audit/events/${action.runId}.jsonl`;
+    const auditText = await this.githubService.getRepoFileText(owner, repo, auditPath, fetchRef);
+    if (auditText) {
+      const lines = auditText.split('\n').filter(l => l.trim().length > 0);
+      const counts = new Map<string, number>();
+      let gapLoops = 0;
+      let followUps = 0;
+      // B24: track self-review events per persona, keeping the
+      // highest-round entry for each persona (final critique).
+      const finalReview: Record<string, { round: number; score?: number; severity?: string }> = {};
+      let maxRound = 0;
+      let exhausted = false;
+      for (const line of lines) {
+        try {
+          const event = JSON.parse(line) as {
+            event_kind?: string;
+            payload?: {
+              skill?: string; ok?: boolean; queries?: string[]; reason?: string;
+              round?: number; persona?: string; score?: number; severity?: string;
+            };
+          };
+          if (event.event_kind === 'skill_call' && event.payload?.skill && event.payload?.ok !== false) {
+            counts.set(event.payload.skill, (counts.get(event.payload.skill) ?? 0) + 1);
+          }
+          if (event.event_kind === 'skill_call' && event.payload?.skill === 'gap-loop') {
+            gapLoops++;
+            followUps += event.payload?.queries?.length ?? 0;
+          }
+          if (event.event_kind === 'self_review' && event.payload?.persona && event.payload?.round != null) {
+            const r = event.payload.round;
+            if (r > maxRound) { maxRound = r; }
+            const persona = event.payload.persona;
+            if (!finalReview[persona] || r > finalReview[persona].round) {
+              finalReview[persona] = { round: r, score: event.payload.score, severity: event.payload.severity };
+            }
+          }
+          if (event.event_kind === 'self_review_exhausted') {
+            exhausted = true;
+          }
+        } catch { /* malformed line — skip */ }
+      }
+
+      if (phase === 'why') {
+        const tavily = counts.get('tavily-search') ?? 0;
+        const arxiv = counts.get('arxiv-search') ?? 0;
+        const uspto = counts.get('uspto-search') ?? 0;
+        const hn = counts.get('hackernews-search') ?? 0;
+        result.providers = { tavily, arxiv, uspto, hn, total: tavily + arxiv + uspto + hn };
+        result.gapLoops = gapLoops;
+        result.followUps = followUps;
+      } else if (phase === 'how') {
+        let mesh = 0;
+        for (const [name, n] of counts) {
+          if (name.startsWith('knowledge-') || name.startsWith('context-')) { mesh += n; }
+        }
+        result.meshSkillCalls = mesh;
+        // B24 — surface self-review trail on the HOW card.
+        if (maxRound > 0) {
+          result.selfReviewRounds = maxRound;
+        }
+        if (finalReview.architect) {
+          result.selfReviewArchitect = { score: finalReview.architect.score, severity: finalReview.architect.severity };
+        }
+        if (finalReview.security) {
+          result.selfReviewSecurity = { score: finalReview.security.score, severity: finalReview.security.severity };
+        }
+        if (exhausted) {
+          result.selfReviewExhausted = true;
+        }
+      }
+    }
+
+    // 2. Artifact markdown — citation + section counts. Also doubles as
+    // the body for the inline View Artifact panel when the user has
+    // toggled it open for this phase. We always pull the file (we need
+    // structural counts regardless) — when the toggle is on we just
+    // also forward the body to the webview. Read from the PR head ref
+    // when the PR is open (file lives on the feature branch).
+    const artifactPath = artifactPathForPr;
+    const docText = await this.githubService.getRepoFileText(owner, repo, artifactPath, fetchRef);
+    const openPhases = this.artifactOpenPhases.get(okrId);
+    const isArtifactOpen = openPhases?.has(phase) === true;
+    if (isArtifactOpen) {
+      result.artifactOpen = true;
+      result.artifactPath = artifactPath;
+      result.artifactContent = docText ?? '';
+    }
+    if (docText) {
+      // H2 section count — same canonical sets the audit-and-drift
+      // workflows check, surfaced here so the Coverage line shows it.
+      const requiredH2 = phase === 'why'
+        ? ['Source Premises', 'Executive Summary', 'Cross-Source Analysis', 'Evidence Gaps', 'Jobs-to-be-Done Analysis', 'Patent Landscape', 'Whitespace Analysis', 'Formal Conclusions', 'Recommendations', 'References']
+        : phase === 'how'
+        ? ['Input Premises', 'Problem Statement', 'Goals', 'Functional Requirements', 'Non-Functional Requirements', 'Security Requirements', 'Coverage Analysis', 'Risk Matrix', 'Success Metrics', 'References']
+        : [];
+      if (requiredH2.length > 0) {
+        const present = requiredH2.filter(name => new RegExp(`^##\\s+${name}`, 'm').test(docText)).length;
+        result.h2Present = present;
+        result.h2Total = requiredH2.length;
+      }
+
+      if (phase === 'why') {
+        // S1..Sn source references — match `[S\d+]` or `**S\d+**` patterns.
+        const sourceMatches = docText.match(/\bS(\d+)\b/g) ?? [];
+        const maxS = sourceMatches.reduce((m, t) => {
+          const n = parseInt(t.replace(/^S/, ''), 10);
+          return isNaN(n) ? m : Math.max(m, n);
+        }, 0);
+        result.findings = maxS;
+        const conclusionMatches = docText.match(/\*\*C\d+\*\*/g) ?? [];
+        result.conclusions = conclusionMatches.length;
+        // Brief topics — heuristic: count required H3 sub-sections that
+        // appear under "Cross-Source Analysis" in the canonical layout.
+        const requiredTopics = ['Standards and Best Practices', 'Security and Compliance', 'Implementation Patterns', 'Market Landscape'];
+        const present = requiredTopics.filter(t => new RegExp(`^###\\s+${t}\\s*$`, 'm').test(docText)).length;
+        result.briefTopicsTotal = requiredTopics.length;
+        result.briefTopicsCovered = present;
+      } else if (phase === 'how') {
+        const frMatches = docText.match(/\*\*FR-\d+\*\*/g) ?? [];
+        const nfrMatches = docText.match(/\*\*NFR-\d+\*\*/g) ?? [];
+        const srMatches = docText.match(/\*\*SR-\d+\*\*/g) ?? [];
+        result.frCount = frMatches.length;
+        result.nfrCount = nfrMatches.length;
+        result.srCount = srMatches.length;
+        // Citation coverage — approximate by counting FR lines that have R-N or E-N nearby.
+        const frCitedMatches = docText.match(/\*\*FR-\d+\*\*[\s\S]{0,400}?\b[RE]-\d+\b/g) ?? [];
+        result.frWithCites = frCitedMatches.length;
+        const srAnchoredMatches = docText.match(/\*\*SR-\d+\*\*[\s\S]{0,400}?(THR-\d+|A0[1-9]|A10)/g) ?? [];
+        result.srAnchored = srAnchoredMatches.length;
+      }
+    }
+
+    // 3. PR state — populate from the `pr` we already fetched at the
+    //    top of this method (we needed it earlier to pick the right
+    //    ref for the artifact + audit reads).
+    try {
+      if (pr) {
+        result.prNumber = pr.number;
+        result.prUrl = pr.url;
+        result.prState = pr.merged ? 'merged' : pr.state === 'closed' ? 'closed' : 'open';
+        // GitHub uses `draft: true` on PRs the author hasn't marked
+        // ready-for-review yet. The agent opens its PR in draft while
+        // still working — Run Audit should NOT appear until it's
+        // marked ready. We surface `draft` as a separate signal so the
+        // webview can render `📝 draft` + skip the Run Audit affordance.
+        result.prDraft = pr.draft;
+        // Review-request signal — observed on PR #91: agent kept the
+        // PR in draft but asked for a review. That's a "I think I'm
+        // done" signal even though the draft flag says otherwise.
+        // Webview shows a "📋 Review requested" badge + a "Mark ready"
+        // affordance so the user can flip draft→open without opening
+        // GitHub.
+        result.prReviewRequested = pr.reviewRequested;
+        result.auditLabelApplied = pr.labels.includes(auditLabel);
+        result.passLabelApplied = pr.labels.includes(passLabel);
+        // Audit-failed signal — workflow applied at least one failure
+        // label. Surfaces in the UI as a distinct state from
+        // "audit in flight" so the user can act on a degraded verdict
+        // (revise + re-run) instead of waiting forever for ⏳.
+        const failureLabels: Record<string, string> = {
+          'degraded-evidence': 'Evidence honesty (Hatter Tag declared `live` but audit shows no successful skill_calls)',
+          'structure-invalid': 'Structural correctness (missing required sections / FR-NN / SR-NN citations)',
+          'goal-drift-detected': 'Pocket Watch — objective drift (cosine below threshold)',
+          'caterpillar-drift-detected': "Caterpillar's Challenge — cross-phase drift from prior phase artifact",
+          'self-review-exhausted': 'Self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items',
+        };
+        const reasons = Object.entries(failureLabels)
+          .filter(([label]) => pr.labels.includes(label))
+          .map(([_label, reason]) => reason);
+        if (reasons.length > 0) {
+          result.auditFailed = true;
+          result.auditFailureReasons = reasons;
+        }
+
+        // 4. Drift cosines — parsed from the audit-and-drift workflow's
+        //    upserted comment on the PR. The workflow writes a stable
+        //    `<!-- {agent}-audit -->` marker so we can find it without
+        //    polling the workflow's run logs. Gives the Why/How card a
+        //    visible "Pocket Watch ✓ 0.74" / "Caterpillar ✓ 0.81" line
+        //    rather than just "Drift checks passed" abstract.
+        const commentMarker = phase === 'why'
+          ? '<!-- market-research-agent-audit -->'
+          : phase === 'how'
+          ? '<!-- prd-agent-audit -->'
+          : null;
+        if (commentMarker) {
+          const auditComment = await this.fetchPrCommentByMarker(owner, repo, pr.number, commentMarker);
+          if (auditComment) {
+            const pw = parseDriftRow(auditComment, 'Pocket Watch');
+            if (pw) { result.pocketWatch = pw; }
+            const cat = parseDriftRow(auditComment, "Caterpillar");
+            if (cat) { result.caterpillar = cat; }
+          }
+        }
+      }
+    } catch { /* PR resolution is best-effort — don't block the rest of the signal */ }
+
+    return result;
+  }
+
+  /**
+   * Fetch the first PR comment whose body starts with `marker`. Used to
+   * find the audit-and-drift workflow's upserted summary comment so we
+   * can parse the drift cosines into the OKR phase card.
+   */
+  private async fetchPrCommentByMarker(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    marker: string,
+  ): Promise<string | null> {
+    try {
+      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      const { data } = await client.rest.issues.listComments({ owner, repo, issue_number: prNumber, per_page: 100 });
+      const comments = data as Array<{ body?: string }>;
+      const hit = comments.find(c => typeof c.body === 'string' && c.body.startsWith(marker));
+      return hit?.body ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Find the artifact PR for a given path. Strategy: list recent PRs and
+   * pick the first one whose changed-files include `artifactPath`. Uses
+   * the issues search API (faster than listing all PRs) — searches for
+   * "is:pr <path>" which matches PRs touching the file.
+   */
+  private async findArtifactPr(
+    owner: string,
+    repo: string,
+    artifactPath: string,
+    /** ISO timestamp of when the OKR action was created. PRs created
+     *  before this are from prior runs and we ignore them — fixes the
+     *  case where a fresh dispatch shows the previous run's merged PR
+     *  while the new agent is still building. Pass null to disable
+     *  the filter (returns whatever PR touched the path most recently). */
+    actionCreatedAt: string | null = null,
+  ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean; draft: boolean; reviewRequested: boolean; headRef: string; headSha: string; labels: string[] } | null> {
+    try {
+      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      // GitHub's issues search matches against PR title + body text,
+      // NOT changed-file paths. Agents typically don't paste the full
+      // artifact path into the PR body — they mention the OKR id and
+      // a human-readable summary. Searching for the path-string
+      // returned zero matches and we showed "PR pending" even when a
+      // valid PR existed (the bug PR #97 surfaced).
+      //
+      // Robust approach: extract the OKR id from the artifact path
+      // (`okrs/<OKR-ID>/...`), search PRs whose body mentions it, then
+      // confirm-match by listing the changed files of each candidate
+      // and checking for the exact artifact path. Costs one extra
+      // `pulls.listFiles` per candidate but always finds the right PR.
+      const okrIdMatch = artifactPath.match(/^okrs\/([^/]+)\//);
+      const searchTerm = okrIdMatch ? okrIdMatch[1] : artifactPath;
+      const search = await client.rest.search.issuesAndPullRequests({
+        q: `repo:${owner}/${repo} is:pr "${searchTerm}" sort:created-desc`,
+        per_page: 15,
+      });
+      const allItems = (search.data.items ?? []) as Array<{ number: number; html_url: string; state: string; created_at: string; pull_request?: { merged_at: string | null }; labels: Array<{ name: string }> }>;
+      if (allItems.length === 0) { return null; }
+      // Filter to PRs created at-or-after the action's createdAt (when
+      // we have it). PRs from prior runs are excluded.
+      const eligible = actionCreatedAt
+        ? allItems.filter(i => i.created_at >= actionCreatedAt)
+        : allItems;
+      if (eligible.length === 0) { return null; }
+      // Confirm-match: list files for each candidate (cap at 5 to keep
+      // the API budget tight), return the first whose files include
+      // the artifact path. Iterate open-first then most-recent-first.
+      const sorted = [
+        ...eligible.filter(i => i.state === 'open'),
+        ...eligible.filter(i => i.state !== 'open'),
+      ];
+      const items: typeof allItems = [];
+      for (const candidate of sorted.slice(0, 5)) {
+        try {
+          const files = await client.rest.pulls.listFiles({ owner, repo, pull_number: candidate.number, per_page: 50 });
+          if ((files.data as Array<{ filename: string }>).some(f => f.filename === artifactPath)) {
+            items.push(candidate);
+            break;
+          }
+        } catch { /* skip on listFiles failure */ }
+      }
+      if (items.length === 0) { return null; }
+      const chosen = items[0];
+      // For accurate merged + draft + review-request state we need a
+      // follow-up PR.get (the search response doesn't include them
+      // reliably). Cheap.
+      const prFull = await client.rest.pulls.get({ owner, repo, pull_number: chosen.number });
+      // `requested_reviewers` is the array of users still awaiting
+      // review; `requested_teams` mirrors for team requests. Either
+      // being non-empty means the agent has flagged "ready for human"
+      // even if the PR's still in draft (we saw this on PR #91).
+      const reviewRequested =
+        (Array.isArray(prFull.data.requested_reviewers) && prFull.data.requested_reviewers.length > 0) ||
+        (Array.isArray(prFull.data.requested_teams) && prFull.data.requested_teams.length > 0);
+      return {
+        number: chosen.number,
+        url: chosen.html_url,
+        state: chosen.state as 'open' | 'closed',
+        merged: prFull.data.merged === true,
+        draft: prFull.data.draft === true,
+        reviewRequested,
+        // Head ref + sha — needed so downstream fetches read from the
+        // PR's branch (where the agent committed its artifact) rather
+        // than from main (where the artifact doesn't exist until merge).
+        headRef: prFull.data.head.ref,
+        headSha: prFull.data.head.sha,
+        labels: (chosen.labels ?? []).map(l => l.name),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Run Audit — applies the phase's audit-trigger label (research-synthesis
+   * / prd-draft / design-draft) to the artifact PR, which fires the
+   * audit-and-drift workflow. After applying, re-loads the phase signals
+   * so the UI flips to "audit in flight" state.
+   */
+  private async onRunOkrAudit(okrId: string, phase: string, prNumber: number): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo for Run Audit.' });
+      return;
+    }
+    const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
+    try {
+      await this.githubService.addIssueLabels(meshRepo.owner, meshRepo.repo, prNumber, [labelName]);
+      void vscode.window.showInformationMessage(
+        `Applied "${labelName}" to PR #${prNumber}. Audit + drift workflow firing — verdict will surface in 10-30 seconds.`,
+      );
+      // Re-fetch signals so the Run Audit button hides + the "audit in
+      // flight" status line shows. Plus schedule polling so the
+      // workflow's verdict labels land in the UI without the user
+      // needing to switch tabs.
+      await this.onLoadOkrPhaseSignals(okrId);
+      this.startAuditPoll(okrId);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to apply audit label: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * 🤖 Revise with agent — posts a structured PR comment dispatching
+   * the phase's author agent with the audit failure reasons attached.
+   * The agent reads the comment, revises the artifact addressing the
+   * findings, and pushes a new commit on the PR's branch.
+   *
+   * Dispatch model: per the GitHub Copilot docs, mentioning `@copilot`
+   * on a PR that was originally opened by a custom agent CONTINUES the
+   * same agent — same context, same tools, same persona. We don't need
+   * `@copilot use agent <name>` here; that's the dispatch syntax for
+   * starting a NEW session. Continuation is faster + more reliable
+   * because Copilot reuses the prior session's loaded context.
+   */
+  private async onReviseWithAgent(okrId: string, phaseStr: string, prNumber: number): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo for Revise with agent.' });
+      return;
+    }
+    const phase = phaseStr as 'why' | 'how' | 'what';
+    const agentName = phase === 'why' ? 'market-research-agent' : phase === 'how' ? 'prd-agent' : 'code-design-agent';
+    const artifactName = phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md';
+
+    // Fetch current audit failure reasons + cosine from the audit
+    // comment so the dispatch carries the SPECIFIC findings (not a
+    // generic "please revise"). The reasons land in the agent's
+    // context so it knows what to fix.
+    const auditCommentMarker = phase === 'why' ? '<!-- market-research-agent-audit -->' : '<!-- prd-agent-audit -->';
+    const auditComment = await this.fetchPrCommentByMarker(meshRepo.owner, meshRepo.repo, prNumber, auditCommentMarker);
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Dispatch ${agentName} to revise PR #${prNumber}?`,
+      { modal: true, detail: 'This posts a PR comment with @copilot dispatching the agent. The agent reads the audit failure reasons + the existing artifact, then pushes a revision commit on the PR branch.' },
+      'Dispatch agent',
+    );
+    if (confirm !== 'Dispatch agent') { return; }
+
+    // Compose the revision instruction — short, structured, specific
+    // about WHAT to fix. The agent's persona prompt already covers
+    // the HOW (synthesis discipline, citation rules).
+    const reasonsBlock = auditComment
+      ? `\n\nAudit summary (from the latest \`audit-and-drift\` run):\n${this.extractAuditSummaryRows(auditComment).slice(0, 1200)}`
+      : '';
+    // Plain `@copilot` (not `@copilot use agent ...`) — when the PR
+    // was opened by a custom agent, mentioning @copilot CONTINUES the
+    // same agent session with full context + tools preserved. Adding
+    // `use agent` starts a NEW session and loses the prior context.
+    const body = [
+      `@copilot`,
+      ``,
+      `**Revision request for OKR \`${okrId}\` — ${phase.toUpperCase()} phase.**`,
+      ``,
+      `The audit-and-drift workflow rejected this PR. Revise \`okrs/${okrId}/${phase}/${artifactName}\` on this branch to address the findings below, then push the commit.`,
+      reasonsBlock,
+      ``,
+      `Do not open a new PR. Commit directly to the existing branch (\`${(await this.getPrHeadRef(meshRepo.owner, meshRepo.repo, prNumber)) ?? 'this PR'}\`). After the push, the human reviewer will click "Re-run Audit" in Looking Glass to re-trigger the gate.`,
+    ].join('\n');
+
+    try {
+      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      await client.rest.issues.createComment({
+        owner: meshRepo.owner,
+        repo: meshRepo.repo,
+        issue_number: prNumber,
+        body,
+      });
+      void vscode.window.showInformationMessage(
+        `Posted revision dispatch to PR #${prNumber}. The agent should commit a revision in the next few minutes. Click 🔁 Re-run Audit once you see new commits.`,
+      );
+      // Even though revision takes longer than the audit (the agent
+      // has to re-think + push), schedule polling so the UI reflects
+      // any state changes (new commit → workflow re-fires → labels
+      // shift). 5/15/30/60s burst won't catch the full revision
+      // window but catches the dispatch-fire portion.
+      this.startAuditPoll(okrId);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to post revision dispatch: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * Extract the markdown summary rows from an audit-and-drift comment
+   * body (everything between the structural-correctness header and the
+   * trailing run-id line). Truncated by caller — we just clip the
+   * markup region.
+   */
+  private extractAuditSummaryRows(commentBody: string): string {
+    const start = commentBody.search(/\*\*Structural correctness\*\*/);
+    const end = commentBody.search(/\n_[a-z-]+\.yml/);
+    if (start < 0) { return commentBody.slice(0, 1200); }
+    return commentBody.slice(start, end > 0 ? end : commentBody.length);
+  }
+
+  /**
+   * Lookup helper for the PR's head ref — used by the Revise dispatch
+   * to include the branch name in the agent instructions.
+   */
+  private async getPrHeadRef(owner: string, repo: string, prNumber: number): Promise<string | null> {
+    try {
+      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      const { data } = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
+      return data.head.ref ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 🔁 Re-run audit — removes the trigger label, also clears stale
+   * failure labels (degraded-evidence / goal-drift-detected /
+   * caterpillar-drift-detected), then re-applies the trigger label to
+   * fire the workflow's `labeled` event again. The agent's latest
+   * commits get audited fresh — no need to push a no-op change just
+   * to re-trigger.
+   */
+  private async onRerunOkrAudit(okrId: string, phaseStr: string, prNumber: number): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo for Re-run Audit.' });
+      return;
+    }
+    const phase = phaseStr as 'why' | 'how' | 'what';
+    const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
+    const staleFailureLabels = ['degraded-evidence', 'goal-drift-detected', 'caterpillar-drift-detected'];
+    try {
+      // Remove trigger label first.
+      await this.githubService.removeIssueLabel(meshRepo.owner, meshRepo.repo, prNumber, labelName).catch(() => {/* best-effort */});
+      // Remove any prior failure labels so they don't linger if the
+      // re-run passes.
+      for (const l of staleFailureLabels) {
+        await this.githubService.removeIssueLabel(meshRepo.owner, meshRepo.repo, prNumber, l).catch(() => {/* best-effort */});
+      }
+      // Re-apply trigger label → fires `pull_request_target: labeled`.
+      await this.githubService.addIssueLabels(meshRepo.owner, meshRepo.repo, prNumber, [labelName]);
+      void vscode.window.showInformationMessage(
+        `Re-applied "${labelName}" to PR #${prNumber}. Audit workflow firing — verdict will surface in 10-30 seconds.`,
+      );
+      await this.onLoadOkrPhaseSignals(okrId);
+      this.startAuditPoll(okrId);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to re-run audit: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * 📄 View artifact — toggle the inline collapsible panel for one phase.
+   * State is held in artifactOpenPhases so it survives the panel-focus
+   * auto-refresh cycle (otherwise the panel would close every 5 seconds
+   * when the user switched tabs and back).
+   */
+  private async onToggleOkrArtifact(okrId: string, phaseStr: string): Promise<void> {
+    const phase = phaseStr as 'why' | 'how' | 'what';
+    if (phase !== 'why' && phase !== 'how' && phase !== 'what') { return; }
+    let set = this.artifactOpenPhases.get(okrId);
+    if (!set) { set = new Set(); this.artifactOpenPhases.set(okrId, set); }
+    if (set.has(phase)) {
+      set.delete(phase);
+    } else {
+      set.add(phase);
+    }
+    // Re-fetch signals so artifactOpen + artifactContent populate (or
+    // empty back out, on close).
+    await this.onLoadOkrPhaseSignals(okrId);
+  }
+
+  /**
+   * ✓ Merge PR — confirm natively, then squash-merge via GitHub API.
+   * After success, finalize workflow fires on the merge event and flips
+   * action.status / meta.status; the next panel-focus refresh picks
+   * those up.
+   *
+   * Branch protection on the mesh repo still applies — if the pass
+   * label isn't a required check, the merge will succeed even if it
+   * shouldn't have. That's a repo-config concern; this handler just
+   * forwards the user's intent to the GitHub API.
+   */
+  private async onMergeOkrPr(okrId: string, phaseStr: string, prNumber: number): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo for Merge.' });
+      return;
+    }
+    // Native confirmation — webview window.confirm is unreliable in
+    // VS Code per the B-PR3 fix history. Modal blocks the user from
+    // accidentally clicking again while we're in flight.
+    const confirm = await vscode.window.showWarningMessage(
+      `Merge PR #${prNumber}?`,
+      { modal: true, detail: `This will squash-merge the ${phaseStr.toUpperCase()} phase artifact into main. Branch protection still applies — if a required check is missing, GitHub will refuse the merge.` },
+      'Merge (squash)',
+    );
+    if (confirm !== 'Merge (squash)') { return; }
+
+    this.postMessage({ type: 'loading', active: true, message: `Merging PR #${prNumber}…` });
+    try {
+      const result = await this.githubService.mergePullRequest(meshRepo.owner, meshRepo.repo, prNumber, 'squash');
+      if (result.ok) {
+        void vscode.window.showInformationMessage(
+          `Merged PR #${prNumber}. Finalize workflow fires on the merge event — Looking Glass will poll for the post-merge state. When the Pull banner appears, pull to sync local mesh.`,
+        );
+        // Re-fetch so the PR state flips to merged + action ticks toward complete.
+        // Plus schedule polling — the finalize workflow lands its commit
+        // 10-20s after merge, and we want the Pull banner + the action
+        // status flip to surface without the user needing to switch tabs.
+        await this.onLoadOkrPhaseSignals(okrId);
+        this.startAuditPoll(okrId);
+      } else {
+        this.postMessage({
+          type: 'error',
+          message: `Could not merge PR #${prNumber}: ${result.reason}. Check branch protection / required checks.`,
+        });
+      }
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Merge failed: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /**
+   * ✅ Mark PR ready-for-review — flips a draft PR to open via the
+   * GraphQL `markPullRequestReadyForReview` mutation. Surfaced from the
+   * OKR card when the agent has requested a review but didn't drop the
+   * draft flag itself. After success, re-fetch signals so Run Audit
+   * appears.
+   */
+  private async onMarkOkrPrReady(okrId: string, _phase: string, prNumber: number): Promise<void> {
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo for Mark Ready.' });
+      return;
+    }
+    const ok = await this.githubService.markPullRequestReadyForReview(meshRepo.owner, meshRepo.repo, prNumber);
+    if (ok) {
+      void vscode.window.showInformationMessage(`PR #${prNumber} marked ready-for-review.`);
+      await this.onLoadOkrPhaseSignals(okrId);
+    } else {
+      this.postMessage({ type: 'error', message: `Failed to mark PR #${prNumber} ready-for-review.` });
+    }
   }
 
   /**
@@ -989,15 +1764,76 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         status: 'in_progress',
         createdAt: new Date().toISOString(),
       });
+
+      // Commit + push the action immediately so the finalize workflow
+      // (which fires on PR merge ~15-60 minutes later) finds the action
+      // on remote when it runs `yq select(.runId == "...")`. Without
+      // this, if the user forgets to click Commit All before merge,
+      // finalize silently no-ops on the action update and the OKR
+      // gets stuck in `in_progress` after merge (PR #97 case earlier
+      // today). Failure here is non-fatal — the action is in the
+      // local file, the issue was created, the user can still recover
+      // via Commit All later.
+      const dispatchCommitResult = await this.commitAndPushOkrYaml(
+        meshPath, okrId, actionId, runId, phase, issueUrl,
+      );
+
       this.postMessage({ type: 'okrPhaseStarted', okrId, phase, actionId, issueUrl });
       void vscode.window.showInformationMessage(
-        `Started ${phase.toUpperCase()} for ${okrId}. Issue: ${issueUrl}. ${dispatchNote}.`,
+        `Started ${phase.toUpperCase()} for ${okrId}. Issue: ${issueUrl}. ${dispatchNote}. ${dispatchCommitResult}`,
       );
       await this.onDrillIntoOkr(okrId, 'view');
     } catch (err) {
       this.postMessage({ type: 'error', message: `Issue created (${issueUrl}) but failed to update OKR card: ${toErrorMessage(err)}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /**
+   * Commit + push the okr.yaml change made by `appendAction` at dispatch
+   * time. Best-effort — failure here doesn't abort the dispatch (the
+   * issue is already on GitHub and the local file is correct), but it
+   * does mean the user has to commit manually before the agent's PR
+   * merges or finalize will silently no-op the action.runId selector.
+   *
+   * Returns a human-readable status fragment for the toast.
+   */
+  private async commitAndPushOkrYaml(
+    meshPath: string,
+    okrId: string,
+    actionId: string,
+    runId: string,
+    phase: 'why' | 'how' | 'what',
+    issueUrl: string,
+  ): Promise<string> {
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (!gitRoot) { return ''; }
+    const okrFilePath = path.join('okrs', okrId, 'okr.yaml');
+    try {
+      await execFileAsync('git', ['add', okrFilePath], { cwd: gitRoot });
+      // Defensive: skip if nothing actually staged (appendAction was a
+      // no-op for some reason, or git considered it unchanged).
+      const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+      if (!staged.trim()) { return ''; }
+      const commitMsg = `chore(okr): ${okrId} ${actionId} ${phase} dispatched (runId=${runId}, issue=${issueUrl})\n\nAuto-committed by Looking Glass at dispatch time so the finalize\nworkflow's runId selector matches when the agent's PR merges.`;
+      await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
+      // Push if upstream exists.
+      try {
+        const { stdout: upstreamCheck } = await execFileAsync(
+          'git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+          { cwd: gitRoot },
+        );
+        if (upstreamCheck.trim()) {
+          await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          return 'Action committed + pushed.';
+        }
+        return 'Action committed locally (no upstream branch — push manually).';
+      } catch (pushErr) {
+        return `Action committed locally — push failed (${toErrorMessage(pushErr)}). Click Pull then push manually.`;
+      }
+    } catch (err) {
+      return `Action saved to file but git commit failed (${toErrorMessage(err)}). Use Commit All before the agent's PR merges.`;
     }
   }
 
@@ -2603,7 +3439,33 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       }
 
       await execFileAsync('git', ['commit', '-m', 'chore: update governance mesh\n\nGenerated by MaintainabilityAI VS Code Extension'], { cwd: gitRoot });
-      this.postMessage({ type: 'syncComplete', barPath: '', message: 'Changes committed.' });
+
+      // Auto-push when there's an upstream branch. This eliminates the
+      // "committed but forgot to push" trap that caused today's
+      // divergence (PR #97): user committed locally, didn't push, then
+      // the finalize workflow pushed remotely → diverged. Most users
+      // mentally model "Commit All" as "send my changes to remote";
+      // splitting it into separate Commit + Push steps was confusing.
+      // If push fails (e.g. divergence), the commit still landed
+      // locally — user can retry via the Push or Pull banners.
+      let toastMessage = 'Changes committed.';
+      try {
+        const { stdout: upstreamCheck } = await execFileAsync(
+          'git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+          { cwd: gitRoot },
+        );
+        if (upstreamCheck.trim()) {
+          await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          toastMessage = 'Changes committed and pushed.';
+        } else {
+          toastMessage = 'Changes committed. No upstream branch configured — push manually.';
+        }
+      } catch (pushErr) {
+        // Commit succeeded but push failed (most likely divergence).
+        // Surface what happened so the user knows to pull first.
+        toastMessage = `Changes committed locally — push failed (likely diverged from remote): ${toErrorMessage(pushErr)}. Click Pull, then push again.`;
+      }
+      this.postMessage({ type: 'syncComplete', barPath: '', message: toastMessage });
 
       // Refresh git status so banner updates
       const summary = this.meshService.buildPortfolioSummary(meshPath);
@@ -2676,6 +3538,14 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
         if (this.lastDrilledBarPath) {
           await this.onDrillIntoBar(this.lastDrilledBarPath);
         }
+
+        // If the webview is on the OKR detail page, re-fetch the OKR
+        // card + phase signals — pull may have brought down a finalize
+        // commit that flipped action.status to complete + meta.status
+        // forward. Without this, the OKR detail page kept showing
+        // pre-finalize state (Cancel Run visible, "PR pending" line).
+        // Webview reacts by re-emitting drillIntoOkr.
+        this.postMessage({ type: 'panelActivated' });
       } else {
         this.postMessage({ type: 'pullError', message: result.message });
       }
@@ -4544,6 +5414,18 @@ Policy file: ${filename}
   }
 
   /**
+   * Single-button "Deploy All" — provisions workflows + composite actions,
+   * AND agents + skills, in one click. Calls the existing two handlers
+   * sequentially (workflows first, then agents) so the underlying git
+   * commits stay distinct and reviewable. Avoids the prior two-button
+   * confusion where users clicked the wrong one.
+   */
+  private async onProvisionAll() {
+    await this.onProvisionWorkflow();
+    await this.onProvisionAgentic();
+  }
+
+  /**
    * Phase B Mesh Provisioning — deploys the 18 PURE-data Skills + 4 Agents
    * into the mesh's `.github/skills/` + `.github/agents/` dirs, then commits
    * + pushes (mirroring `onProvisionWorkflow`'s git surface so the user sees
@@ -4897,6 +5779,12 @@ Policy file: ${filename}
   protected onDispose(): void {
     this.stopActiveReviewPolling();
     this.calmFileWatcher.stop();
+    // Clear any pending audit-poll timers so they don't fire after the
+    // panel is gone (would post to a disposed webview).
+    for (const timers of this.auditPollTimers.values()) {
+      timers.forEach(t => clearTimeout(t));
+    }
+    this.auditPollTimers.clear();
   }
 
   protected clearCurrentPanel(): void {
@@ -4975,6 +5863,8 @@ function buildBlankOkrScaffold(defaultPlatformId: string, defaultOwner: string):
 function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', agent: string, runId: string): string {
   const phaseLabel = phase === 'why' ? 'Why · Market Research' : phase === 'how' ? 'How · PRD' : 'What · Code Design';
   const lines: string[] = [];
+  // HTML-comment markers — primary machine-readable source. Stays
+  // for backwards-compat + workflows that grep the raw body.
   lines.push(`<!-- okr_id: ${card.meta.id} -->`);
   lines.push(`<!-- phase: ${phase} -->`);
   lines.push(`<!-- intent_thread_uuid: ${card.meta.intentThreadUuid} -->`);
@@ -4988,6 +5878,24 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
     lines.push(card.objective.description);
   }
   lines.push('');
+  // VISIBLE dispatch context — the Coding Agent runtime sanitizes HTML
+  // comments before the agent sees the issue body (PR #93 case), so
+  // the HTML markers alone aren't reliable as the agent's source of
+  // truth for run_id. We also emit a `Dispatch context` table in
+  // visible markdown — the agent extracts from EITHER source, no
+  // information loss.
+  lines.push('## Dispatch context');
+  lines.push('');
+  lines.push('| Field | Value |');
+  lines.push('|---|---|');
+  lines.push(`| \`okr_id\` | \`${card.meta.id}\` |`);
+  lines.push(`| \`run_id\` | \`${runId}\` |`);
+  lines.push(`| \`phase\` | \`${phase}\` |`);
+  lines.push(`| \`intent_thread_uuid\` | \`${card.meta.intentThreadUuid}\` |`);
+  lines.push(`| \`agent\` | \`${agent}\` |`);
+  lines.push('');
+  lines.push('Use these EXACT values for the Hatter Tag + audit JSONL filename. Do NOT generate your own `run_id` — the finalize workflow uses this value to flip `actions[].status` to `complete` on PR merge.');
+  lines.push('');
   lines.push(`**Anchor OKR:** \`${card.meta.id}\``);
   lines.push(`**Platform:** \`${card.objectiveAlignment.platformId}\``);
   lines.push(`**Affected BARs:** ${card.objectiveAlignment.affectedBarIds.map(id => `\`${id}\``).join(', ')}`);
@@ -4996,6 +5904,41 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
   lines.push('');
   lines.push('_Auto-generated by MaintainabilityAI Looking Glass — Phase B Start ' + phase.toUpperCase() + '._');
   return lines.join('\n');
+}
+
+/**
+ * Parse a drift-check row out of an audit-and-drift workflow's PR
+ * summary comment. Workflow renders rows like:
+ *
+ *   | Pocket Watch goal-drift | ✓ pass (cosine=0.7357 ≥ 0.65) |
+ *   | Caterpillar's Challenge (PRD vs research-doc) | ✗ fail (cosine=0.4296 < 0.65) |
+ *   | Pocket Watch goal-drift | — skipped (`reason`) ... |
+ *
+ * Returns the parsed result or null if no matching row found. The
+ * `labelPrefix` is the leading text in the leftmost column (e.g.
+ * "Pocket Watch", "Caterpillar") so the same parser handles both.
+ */
+function parseDriftRow(
+  commentBody: string,
+  labelPrefix: string,
+): { passed: 'true' | 'false' | 'skipped'; cosine?: number; threshold?: number; reason?: string } | null {
+  const escaped = labelPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rowRe = new RegExp(`\\|[^|\\n]*${escaped}[^|\\n]*\\|([^|\\n]*)\\|`, 'i');
+  const m = commentBody.match(rowRe);
+  if (!m) { return null; }
+  const cell = m[1].trim();
+  if (/^—\s*skipped/i.test(cell) || /skipped/i.test(cell)) {
+    const reasonM = cell.match(/skipped\s*\(`?([^`)]+)`?\)/i);
+    return { passed: 'skipped', reason: reasonM ? reasonM[1] : undefined };
+  }
+  const cosineM = cell.match(/cosine\s*=\s*([0-9.]+)/i);
+  const thresholdM = cell.match(/[≥<]\s*([0-9.]+)/);
+  const passed: 'true' | 'false' = /^✓|pass/i.test(cell) ? 'true' : 'false';
+  return {
+    passed,
+    cosine: cosineM ? parseFloat(cosineM[1]) : undefined,
+    threshold: thresholdM ? parseFloat(thresholdM[1]) : undefined,
+  };
 }
 
 /**

@@ -392,10 +392,24 @@ export class BarService {
     criticality: Criticality,
     repos?: string[],
   ): string {
+    // Celeb BAR deliberately omits the four security-pillar artifacts
+    // (threat-model, security-controls, vulnerability-tracking,
+    // compliance-checklist) so the GovernanceScorer rates the security
+    // pillar at 0 and the composite drops below the 50 Restricted-tier
+    // threshold. This matches the sample OKR's narrative ("primary BAR
+    // is APP-IMDB-002 — currently Restricted") and lets learners hit
+    // the governance wall in their first hour: Start What is gated on
+    // Restricted, they have to either author the missing artifacts or
+    // escalate via the BAR governance flow.
     return this.writeSampleBar(parentDir, name, appId, portfolioId, platformId, criticality, {
       arch: generateSampleImdbCelebsArch(),
       decorator: generateImdbCelebsDecorator(),
-    }, [], repos);
+    }, [], repos, [
+      'security/threat-model.yaml',
+      'security/security-controls.yaml',
+      'security/vulnerability-tracking.yaml',
+      'security/compliance-checklist.yaml',
+    ]);
   }
 
   private writeSampleBar(
@@ -408,6 +422,10 @@ export class BarService {
     calm: { arch: string; decorator: string },
     extraFiles: { rel: string; content: string }[] = [],
     repos?: string[],
+    /** Relative paths to OMIT from the standard artifact set. Used by
+     *  scaffoldImdbCelebsSampleBar to drop the security pillar so the
+     *  celeb BAR scores Restricted instead of Autonomous. */
+    omitArtifacts: string[] = [],
   ): string {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const barPath = path.join(parentDir, slug);
@@ -439,7 +457,12 @@ export class BarService {
       ...extraFiles,
     ];
 
-    for (const file of files) {
+    // Apply caller's omit list (deliberate gaps in artifact coverage so
+    // a sample BAR can be scaffolded in a known-Restricted state).
+    const omitSet = new Set(omitArtifacts);
+    const finalFiles = files.filter(f => !omitSet.has(f.rel));
+
+    for (const file of finalFiles) {
       const fullPath = path.join(barPath, file.rel);
       const dir = path.dirname(fullPath);
       if (!fs.existsSync(dir)) {

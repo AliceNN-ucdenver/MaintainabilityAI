@@ -181,20 +181,90 @@ export class GitSyncService {
    * falls back to rebase to replay local commits on top of remote.
    */
   async pullFromRemote(gitRoot: string): Promise<{ success: boolean; message: string }> {
+    // Defense-in-depth around the three brittleness modes we've hit:
+    //   1. "cannot pull with rebase: You have unstaged changes" when the
+    //      working tree has unstaged edits — auto-stash + restore.
+    //   2. Fast-forward fails because local has commits remote doesn't
+    //      (typical when Looking Glass user committed locally but never
+    //      pushed) — try merge before rebase, since merge tolerates a
+    //      richer set of divergence cases.
+    //   3. Rebase fails on conflicts — abort cleanly so the working
+    //      tree isn't left mid-rebase.
+    let stashed = false;
     try {
-      await execFileAsync('git', ['pull', '--ff-only'], { cwd: gitRoot, timeout: 30_000 });
-      return { success: true, message: 'Pulled latest changes from remote.' };
-    } catch {
-      // Fast-forward failed — branches likely diverged. Try rebase.
+      // 1. Auto-stash anything dirty so pull --ff/--rebase doesn't refuse.
+      const { stdout: dirty } = await execFileAsync('git', ['status', '--porcelain'], { cwd: gitRoot });
+      if (dirty.trim().length > 0) {
+        await execFileAsync('git', ['stash', 'push', '-u', '-m', 'looking-glass-auto-stash'], { cwd: gitRoot });
+        stashed = true;
+      }
+
+      // 2. Try fast-forward first — cleanest case (local strictly behind remote).
+      try {
+        await execFileAsync('git', ['pull', '--ff-only'], { cwd: gitRoot, timeout: 30_000 });
+        if (stashed) {
+          await this.popStashSafely(gitRoot);
+        }
+        return { success: true, message: stashed ? 'Pulled (fast-forward); restored local changes.' : 'Pulled latest changes from remote.' };
+      } catch { /* try next strategy */ }
+
+      // 3. Try merge — handles divergence by recording a merge commit.
+      //    Preferred over rebase when local commits exist that have
+      //    nothing to rebase against (typical Looking Glass case where
+      //    the local commit is a duplicate of the remote finalize one).
+      try {
+        await execFileAsync('git', ['pull', '--no-rebase', '--no-edit'], { cwd: gitRoot, timeout: 30_000 });
+        if (stashed) {
+          await this.popStashSafely(gitRoot);
+        }
+        return { success: true, message: stashed ? 'Pulled (merge); restored local changes.' : 'Pulled and merged divergent branches.' };
+      } catch { /* try next strategy */ }
+
+      // 4. Try rebase — last resort.
       try {
         await execFileAsync('git', ['pull', '--rebase'], { cwd: gitRoot, timeout: 30_000 });
-        return { success: true, message: 'Pulled and rebased local commits on top of remote.' };
+        if (stashed) {
+          await this.popStashSafely(gitRoot);
+        }
+        return { success: true, message: stashed ? 'Pulled (rebase); restored local changes.' : 'Pulled and rebased local commits on top of remote.' };
       } catch (err) {
-        // Rebase also failed — abort it to leave the repo clean
+        // Rebase failed — abort so the tree isn't left mid-rebase.
         try { await execFileAsync('git', ['rebase', '--abort'], { cwd: gitRoot }); } catch { /* already clean */ }
+        // Restore stash so the user's local edits aren't lost in the
+        // failure path. They can resolve the divergence manually.
+        if (stashed) {
+          await this.popStashSafely(gitRoot);
+        }
         const msg = toErrorMessage(err);
-        return { success: false, message: `Pull failed (branches diverged and rebase had conflicts): ${msg}` };
+        return {
+          success: false,
+          message: `Pull failed — branches diverged and all auto-resolution attempts (ff-only / merge / rebase) failed. Resolve manually:\n  git fetch origin\n  git log --oneline HEAD..origin/main   # what's on remote you don't have\n  git log --oneline origin/main..HEAD   # what's local you'd lose on reset\n  git reset --hard origin/main          # if local is a duplicate, this is safe\nOriginal error: ${msg}`,
+        };
       }
+    } catch (err) {
+      // Something unexpected (e.g. stash failed) — try to restore stash
+      // and surface the error.
+      if (stashed) {
+        await this.popStashSafely(gitRoot);
+      }
+      return { success: false, message: `Pull failed unexpectedly: ${toErrorMessage(err)}` };
+    }
+  }
+
+  /**
+   * Pop the most-recent stash. If popping fails (e.g. it'd cause a
+   * conflict with the just-pulled content), leave the stash in place
+   * and warn — the user can `git stash pop` manually after resolving.
+   */
+  private async popStashSafely(gitRoot: string): Promise<void> {
+    try {
+      await execFileAsync('git', ['stash', 'pop'], { cwd: gitRoot });
+    } catch {
+      // Stash conflict — leave it in the stash list. User can:
+      //   git stash list
+      //   git stash pop / git stash drop
+      // We don't surface this as a pull failure because the pull DID
+      // succeed; the local changes are preserved (just not restored).
     }
   }
 

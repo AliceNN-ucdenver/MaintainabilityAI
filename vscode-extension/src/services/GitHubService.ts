@@ -728,6 +728,84 @@ export class GitHubService {
     }
   }
 
+  /**
+   * Flip a draft PR to ready-for-review. GitHub's REST API doesn't
+   * expose this directly — you have to use the GraphQL `markPullRequestReadyForReview`
+   * mutation. Returns true on success, false on any failure (logged for
+   * triage). Used by the Looking Glass "Mark PR ready" affordance when
+   * the agent requested a review but didn't transition out of draft.
+   */
+  async markPullRequestReadyForReview(owner: string, repo: string, prNumber: number): Promise<boolean> {
+    const client = await this.getClient();
+    try {
+      // Need the PR's node_id for the GraphQL mutation.
+      const { data: pr } = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
+      const nodeId = (pr as { node_id?: string }).node_id;
+      if (!nodeId) { return false; }
+      await client.graphql(
+        `mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { pullRequest { isDraft } } }`,
+        { id: nodeId },
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Merge a pull request via the REST API. Returns merge SHA on success
+   * or null on failure (e.g. branch protection blocked it, mergeability
+   * conflict, missing required check). Caller logs the error.
+   *
+   * Method defaults to 'squash' — single commit per artifact PR matches
+   * the agentic pipeline's audit shape (one PR = one phase = one
+   * traceable commit on main). Use 'merge' if you want full history.
+   */
+  async mergePullRequest(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    method: 'merge' | 'squash' | 'rebase' = 'squash',
+    commitTitle?: string,
+  ): Promise<{ ok: true; sha: string } | { ok: false; reason: string }> {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.rest.pulls.merge({
+        owner,
+        repo,
+        pull_number: prNumber,
+        merge_method: method,
+        commit_title: commitTitle,
+      });
+      if (data.merged && data.sha) {
+        return { ok: true, sha: data.sha };
+      }
+      return { ok: false, reason: data.message ?? 'merge returned merged=false without a reason' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { ok: false, reason: message };
+    }
+  }
+
+  /**
+   * Fetch a file's contents from the repo as a UTF-8 string. Returns null
+   * if the file doesn't exist or any other GET error. Used by the OKR
+   * detail page's phase-signal loader to read audit JSONL + artifact MD
+   * live from GitHub without requiring a local mesh pull.
+   */
+  async getRepoFileText(owner: string, repo: string, path: string, ref?: string): Promise<string | null> {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.rest.repos.getContent({ owner, repo, path, ref });
+      if (Array.isArray(data) || data.type !== 'file' || typeof data.content !== 'string') {
+        return null;
+      }
+      return Buffer.from(data.content, data.encoding === 'base64' ? 'base64' : 'utf8').toString('utf8');
+    } catch {
+      return null;
+    }
+  }
+
   async createRepo(name: string, description: string, isPrivate: boolean): Promise<RepoInfo> {
     const client = await this.getClient();
 

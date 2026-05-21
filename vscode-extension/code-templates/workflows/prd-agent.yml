@@ -1,0 +1,759 @@
+name: "PRD Agent — HOW-phase lifecycle"
+
+# Single workflow for the prd-agent's complete lifecycle in the
+# agentic-SDLC pipeline. Phase 2 of B20. Replaces these legacy
+# concern-keyed workflows for the HOW-phase scope:
+#   - okr-bus.yml (oraculum-prd branch)
+#   - audit-validate.yml (prd-draft branch)
+#   - drift-gate.yml (prd-draft branch)
+#
+# Three triggers, three jobs (mirrors market-research-agent.yml):
+#   1. `dispatch-agent` — on issue labeled `oraculum-prd` (Looking
+#       Glass "Start How"). Posts the @copilot mention that activates
+#       the prd-agent persona.
+#   2. `audit-and-drift` — on PR labeled `prd-draft` (user-triggered
+#       via Looking Glass "Run audit" button). Runs evidence-honesty
+#       check + structural correctness + Pocket Watch (OKR objective
+#       vs PRD Problem Statement) + Caterpillar's Challenge (PRD
+#       Problem Statement vs research-doc Executive Summary). Applies
+#       `prd-pass` on clean OR `degraded-evidence` / `goal-drift-detected`
+#       / `caterpillar-drift-detected` on fail. Posts upserted summary.
+#   3. `finalize` — on PR closed-and-merged with prd-draft label.
+#       Emits the `run_complete` audit event + flips the OKR
+#       action.status to `complete`.
+#
+# Caterpillar's Challenge (cross-phase drift) DOES run on HOW — there
+# is a prior phase (WHY) to compare against. Pocket Watch (objective
+# drift) also runs.
+#
+# Trigger model: pull_request_target on labeled events ONLY (same as
+# market-research-agent.yml — see that file's header for the gate
+# bypass rationale).
+#
+# Phase tracking: §13 B20 phase 2.
+
+on:
+  issues:
+    types: [opened, labeled, reopened]
+  pull_request_target:
+    types: [labeled, unlabeled, closed]
+
+concurrency:
+  group: prd-agent-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+  checks: write
+  # B21: models:read REQUIRED for the Pocket Watch + Caterpillar
+  # goal-drift checks (GitHub Models embeddings endpoint). Without
+  # this scope cosine silently returns 0.0 and falsely flags drift.
+  models: read
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 1 — Dispatch the agent on Looking Glass "Start How"
+  # ════════════════════════════════════════════════════════════════════
+  verify-agent-deployed:
+    name: "Verify prd-agent file is deployed + WHY gate cleared"
+    # Pre-flight sanity check. The actual agent dispatch is handled by
+    # Looking Glass's body-extension assignment API. We do NOT post an
+    # `@copilot use agent ...` comment — it's a no-op on issues (only
+    # serves to add noise). See market-research-agent.yml for the same
+    # rationale. This job only catches deployment + gating footguns.
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oraculum-prd'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check agent file present on default branch
+        run: |
+          if ! gh api "repos/${{ github.repository }}/contents/.github/agents/prd-agent.agent.md" >/dev/null 2>&1; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **prd-agent.agent.md is not deployed.** Open Looking Glass → Settings → Mesh Provisioning → \"Deploy All\" so the agent file lands on \`main\`. (Looking Glass handles the actual dispatch — this workflow only sanity-checks the file.)"
+            exit 1
+          fi
+
+      - name: Verify gating dependency — WHY phase merged
+        run: |
+          # PRD requires the research-doc to be merged on main. Looking
+          # Glass should refuse Start How until WHY is complete, but as
+          # defense-in-depth we double-check here and leave a clear
+          # message if someone bypasses Looking Glass and applies the
+          # label manually.
+          BODY=$(gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json body --jq .body)
+          OKR_ID=$(printf '%s' "$BODY" | grep -oE '<!-- okr_id:[[:space:]]*[^[:space:]]+' | head -1 | sed -E 's/<!-- okr_id:[[:space:]]*//')
+          if [ -z "$OKR_ID" ]; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **No \`okr_id\` marker in issue body.** Looking Glass should emit \`<!-- okr_id: ... -->\`."
+            exit 1
+          fi
+          if ! gh api "repos/${{ github.repository }}/contents/okrs/$OKR_ID/why/research-doc.md" >/dev/null 2>&1; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **WHY phase not merged yet.** \`okrs/$OKR_ID/why/research-doc.md\` not found on main. Complete the WHY phase (research-pass + merge) before starting HOW."
+            exit 1
+          fi
+          echo "::notice::WHY gate cleared for $OKR_ID — Looking Glass owns the prd-agent dispatch."
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 2 — Audit + drift on user-applied prd-draft label
+  # ════════════════════════════════════════════════════════════════════
+  audit-and-drift:
+    name: "Audit + drift check on prd-draft PR"
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'prd-draft' &&
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Checkout base ref to /tmp/base for cross-phase reads
+        # We need the MERGED research-doc.md (from base / main) for
+        # Caterpillar's Challenge. The PR head may not include it if
+        # the prd-agent didn't restage research-doc.md (it shouldn't).
+        run: |
+          mkdir -p /tmp/base
+          git -C /tmp/base init -q
+          git -C /tmp/base remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git -C /tmp/base fetch --depth=1 origin "${{ github.event.pull_request.base.ref }}" -q
+          git -C /tmp/base checkout -q FETCH_HEAD
+
+      - name: Extract OKR context
+        id: ctx
+        uses: ./.github/actions/extract-okr-context
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if Hatter Tag missing
+        id: gate
+        if: steps.ctx.outputs.okr_id == '' || steps.ctx.outputs.run_id == ''
+        run: |
+          echo "::warning::PR has no okr_id/run_id Hatter Tag — skipping audit"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Locate audit JSONL
+        id: audit
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          JSONL="okrs/${{ steps.ctx.outputs.okr_id }}/audit/events/${{ steps.ctx.outputs.run_id }}.jsonl"
+          if [ ! -f "$JSONL" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "path=$JSONL" >> "$GITHUB_OUTPUT"
+            echo "::warning::Audit JSONL missing at $JSONL"
+            exit 0
+          fi
+          echo "found=true"   >> "$GITHUB_OUTPUT"
+          echo "path=$JSONL"  >> "$GITHUB_OUTPUT"
+
+      - name: Count mesh-skill calls
+        id: counts
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+        run: |
+          # PRD agent uses mesh-knowledge + context skills, NOT external
+          # search providers. Count by skill name. count-skill-calls
+          # action is tuned for the WHY phase's 4 providers — not reused.
+          count_skill() {
+            (jq -r --arg skill "$1" 'select(.event_kind == "skill_call" and .payload.skill == $skill and (.payload.ok != false))' "$JSONL" 2>/dev/null | jq -s 'length' 2>/dev/null) || echo 0
+          }
+          K_OKR=$(count_skill 'knowledge-okr')
+          K_RESEARCH=$(count_skill 'knowledge-research')
+          K_BAR=$(count_skill 'knowledge-mesh-bar')
+          K_ADRS=$(count_skill 'knowledge-mesh-adrs')
+          K_THREATS=$(count_skill 'knowledge-mesh-threats')
+          C_ARCH=$(count_skill 'context-architecture')
+          C_SEC=$(count_skill 'context-security')
+          C_QUAL=$(count_skill 'context-quality')
+          TOTAL=$((K_OKR + K_RESEARCH + K_BAR + K_ADRS + K_THREATS + C_ARCH + C_SEC + C_QUAL))
+          {
+            echo "k_okr=$K_OKR"
+            echo "k_research=$K_RESEARCH"
+            echo "k_bar=$K_BAR"
+            echo "k_adrs=$K_ADRS"
+            echo "k_threats=$K_THREATS"
+            echo "c_arch=$C_ARCH"
+            echo "c_sec=$C_SEC"
+            echo "c_qual=$C_QUAL"
+            echo "total=$TOTAL"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::mesh-skill_calls k-okr=$K_OKR k-research=$K_RESEARCH k-bar=$K_BAR k-adrs=$K_ADRS k-threats=$K_THREATS c-arch=$C_ARCH c-sec=$C_SEC c-qual=$C_QUAL (total=$TOTAL)"
+
+      - name: Count self-review events (B24)
+        id: review
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+        # B24: prd-agent now self-critiques as Architect + Security personas
+        # in bounded rounds and emits one `self_review` audit event per
+        # persona per round. Pull the final per-persona score (max round
+        # reached for each persona) so the audit-summary comment can show
+        # the convergence trail. Also surface the round count so Looking
+        # Glass can render "Self-review: N rounds" on the HOW card.
+        run: |
+          # Last self_review event per persona (highest round wins). If
+          # the agent skipped self-critique (tier=Restricted → MAX_AUTO=0),
+          # both counts come back zero and the audit-summary line says
+          # "skipped — Restricted tier" rather than blocking.
+          ROUNDS=$(jq -r 'select(.event_kind == "self_review") | .payload.round' "$JSONL" 2>/dev/null | sort -n | tail -1 || echo 0)
+          ROUNDS="${ROUNDS:-0}"
+
+          last_score() {
+            jq -r --arg p "$1" 'select(.event_kind == "self_review" and .payload.persona == $p) | "\(.payload.round) \(.payload.score) \(.payload.severity)"' "$JSONL" 2>/dev/null \
+              | sort -n -k1 | tail -1
+          }
+          ARCH=$(last_score architect)
+          SEC=$(last_score security)
+          ARCH_SCORE=$(printf '%s' "$ARCH" | awk '{print $2}')
+          ARCH_SEVERITY=$(printf '%s' "$ARCH" | awk '{print $3}')
+          SEC_SCORE=$(printf '%s' "$SEC" | awk '{print $2}')
+          SEC_SEVERITY=$(printf '%s' "$SEC" | awk '{print $3}')
+
+          # Exhaustion event = agent hit MAX_AUTO_ROUNDS without convergence
+          EXHAUSTED=$(jq -r 'select(.event_kind == "self_review_exhausted") | "true"' "$JSONL" 2>/dev/null | head -1 || echo "false")
+          EXHAUSTED="${EXHAUSTED:-false}"
+
+          {
+            echo "rounds=$ROUNDS"
+            echo "arch_score=${ARCH_SCORE:-}"
+            echo "arch_severity=${ARCH_SEVERITY:-}"
+            echo "sec_score=${SEC_SCORE:-}"
+            echo "sec_severity=${SEC_SEVERITY:-}"
+            echo "exhausted=$EXHAUSTED"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::self-review rounds=$ROUNDS arch=$ARCH_SCORE ($ARCH_SEVERITY) sec=$SEC_SCORE ($SEC_SEVERITY) exhausted=$EXHAUSTED"
+
+      - name: Parse prd.md structure
+        id: structure
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          DOC="okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md"
+          if [ ! -f "$DOC" ]; then
+            echo "doc_found=false"    >> "$GITHUB_OUTPUT"
+            echo "h2_present=0"       >> "$GITHUB_OUTPUT"
+            echo "fr_count=0"         >> "$GITHUB_OUTPUT"
+            echo "fr_with_cites=0"    >> "$GITHUB_OUTPUT"
+            echo "sr_count=0"         >> "$GITHUB_OUTPUT"
+            echo "sr_with_anchors=0"  >> "$GITHUB_OUTPUT"
+            echo "doc_path=$DOC"      >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "doc_found=true"   >> "$GITHUB_OUTPUT"
+          echo "doc_path=$DOC"    >> "$GITHUB_OUTPUT"
+
+          # 10 required H2 sections per prd-agent.agent.md §11.
+          REQUIRED_H2=(
+            "Input Premises" "Problem Statement" "Goals" "Functional Requirements"
+            "Non-Functional Requirements" "Security Requirements" "Coverage Analysis"
+            "Risk Matrix" "Success Metrics" "References"
+          )
+          H2_PRESENT=0; MISSING_H2=""
+          for name in "${REQUIRED_H2[@]}"; do
+            if grep -qE "^##[[:space:]]+${name}" "$DOC"; then
+              H2_PRESENT=$((H2_PRESENT + 1))
+            else
+              MISSING_H2="${MISSING_H2}${name}; "
+            fi
+          done
+
+          # FR-NN markers + per-FR source citations (R-N or E-N).
+          FR_COUNT=$(grep -cE '\*\*FR-[0-9]+\*\*' "$DOC" || true)
+          # An FR line cites if it carries either R-N (research) or E-N
+          # (expert) on the same line OR the next 2 lines (coverage table
+          # rows often live a couple lines below the FR marker).
+          FR_WITH_CITES=$(awk '/\*\*FR-[0-9]+\*\*/ {flag=1; ctx=$0; lines=0; next} flag && lines<2 {ctx=ctx" "$0; lines++} flag && lines>=2 {if (ctx ~ /\<(R|E)-[0-9]+\>/) c++; flag=0} END {print c+0}' "$DOC")
+
+          SR_COUNT=$(grep -cE '\*\*SR-[0-9]+\*\*' "$DOC" || true)
+          # SRs cite STRIDE THR-NNN OR OWASP A0X.
+          SR_WITH_ANCHORS=$(awk '/\*\*SR-[0-9]+\*\*/ {flag=1; ctx=$0; lines=0; next} flag && lines<2 {ctx=ctx" "$0; lines++} flag && lines>=2 {if (ctx ~ /THR-[0-9]+|A0[1-9]|A10/) c++; flag=0} END {print c+0}' "$DOC")
+
+          {
+            echo "h2_present=$H2_PRESENT"
+            echo "missing_h2=${MISSING_H2%; }"
+            echo "fr_count=$FR_COUNT"
+            echo "fr_with_cites=$FR_WITH_CITES"
+            echo "sr_count=$SR_COUNT"
+            echo "sr_with_anchors=$SR_WITH_ANCHORS"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::structure h2=$H2_PRESENT/10 FR=$FR_WITH_CITES/$FR_COUNT cited SR=$SR_WITH_ANCHORS/$SR_COUNT anchored"
+
+      - name: Pocket Watch goal-drift (OKR objective vs PRD Problem Statement)
+        id: pocket
+        if: steps.gate.outputs.skip != 'true'
+        # Pattern identical to market-research-agent.yml. The primitive
+        # is "OKR objective vs PRD's ## Problem Statement section"
+        # because that section is the PRD's substantive recap of why
+        # the work matters — directly addressing the OKR objective.
+        run: |
+          set +e
+          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
+          if [ ! -f "$OKR_FILE" ]; then
+            echo "::warning::OKR file missing — skipping Pocket Watch"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE" 2>/dev/null || echo "")
+
+          DOC="okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md"
+          PRD_SCOPE=""
+          if [ -f "$DOC" ]; then
+            PRD_SCOPE=$(awk '/^## Problem Statement[[:space:]]*$/{flag=1; next} /^## /{if (flag) exit} flag' "$DOC" | head -c 3000)
+          fi
+          if [ -z "$PRD_SCOPE" ]; then
+            PR_TITLE='${{ github.event.pull_request.title }}'
+            PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body 2>/dev/null | head -c 2000 || true)
+            PRD_SCOPE="$PR_TITLE — $PR_BODY"
+            SCOPE_SOURCE="pr-title+body (fallback)"
+          else
+            SCOPE_SOURCE="prd.md#Problem-Statement"
+          fi
+          if [ -z "$OBJECTIVE" ] || [ -z "$PRD_SCOPE" ]; then
+            echo "::warning::Empty objective or scope — skipping Pocket Watch"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=empty-objective-or-scope" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::notice::Pocket Watch scope source: $SCOPE_SOURCE"
+
+          a_status=$(curl -s -w "%{http_code}" -o /tmp/a_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$OBJECTIVE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
+          b_status=$(curl -s -w "%{http_code}" -o /tmp/b_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$PRD_SCOPE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
+
+          if [ "$a_status" != "200" ] || [ "$b_status" != "200" ]; then
+            echo "::warning::GH Models a=$a_status b=$b_status — Pocket Watch skipped"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=models-endpoint-status:$a_status/$b_status" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/a_emb.json >/dev/null 2>&1 \
+             || ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/b_emb.json >/dev/null 2>&1; then
+            echo "::warning::Response shape unexpected — Pocket Watch skipped"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=response-shape-unexpected" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PY_ERR=/tmp/pocket-watch-py.err
+          : > "$PY_ERR"
+          COSINE=$(python3 - 2>"$PY_ERR" <<'PYEOF'
+          import json, sys, math
+          try:
+              with open('/tmp/a_emb.json') as f: a_resp = json.load(f)
+              with open('/tmp/b_emb.json') as f: b_resp = json.load(f)
+              a = a_resp['data'][0]['embedding']
+              b = b_resp['data'][0]['embedding']
+              dot = sum(x*y for x, y in zip(a, b))
+              na = math.sqrt(sum(x*x for x in a))
+              nb = math.sqrt(sum(x*x for x in b))
+              if na * nb == 0: sys.exit(1)
+              print(f'{dot / (na * nb):.4f}')
+          except Exception as e:
+              print(f'python-exception: {type(e).__name__}: {e}', file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+          )
+          if [ -z "$COSINE" ]; then
+            ERR_DETAILS=$(head -c 300 "$PY_ERR" 2>/dev/null || echo "(empty)")
+            echo "::error title=Pocket Watch failed::$ERR_DETAILS"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=cosine-failed: ${ERR_DETAILS:0:120}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 0.65 threshold — same calibration as market-research-agent.yml.
+          POCKET_THRESHOLD="0.65"
+          if python3 -c "import sys; sys.exit(0 if float('$COSINE') >= $POCKET_THRESHOLD else 1)"; then
+            echo "::notice::Pocket Watch passed — cosine=$COSINE >= $POCKET_THRESHOLD"
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Pocket Watch FAILED — cosine=$COSINE < $POCKET_THRESHOLD"
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "cosine=$COSINE" >> "$GITHUB_OUTPUT"
+          echo "threshold=$POCKET_THRESHOLD" >> "$GITHUB_OUTPUT"
+
+      - name: Caterpillar's Challenge — cross-phase drift (PRD vs research-doc)
+        id: caterpillar
+        if: steps.gate.outputs.skip != 'true'
+        # Per §11.5: compare current-phase synthesis against PRIOR-phase
+        # synthesis to catch the agent drifting away from inherited
+        # findings. Primitive for HOW: prd.md ## Problem Statement vs
+        # research-doc.md ## Executive Summary (read from BASE ref, not
+        # PR head — the merged research is the canonical upstream).
+        # Threshold 0.70 (slightly tighter than Pocket Watch's 0.65
+        # because cross-phase should preserve more of the upstream
+        # framing, not just hit the same topic).
+        run: |
+          set +e
+          PRIOR="/tmp/base/okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md"
+          CURRENT="okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md"
+          if [ ! -f "$PRIOR" ] || [ ! -f "$CURRENT" ]; then
+            echo "::warning::Missing prior ($PRIOR) or current ($CURRENT) doc — skipping Caterpillar"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=missing-doc" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PRIOR_TEXT=$(awk '/^## Executive Summary[[:space:]]*$/{flag=1; next} /^## /{if (flag) exit} flag' "$PRIOR" | head -c 3000)
+          CURRENT_TEXT=$(awk '/^## Problem Statement[[:space:]]*$/{flag=1; next} /^## /{if (flag) exit} flag' "$CURRENT" | head -c 3000)
+          if [ -z "$PRIOR_TEXT" ] || [ -z "$CURRENT_TEXT" ]; then
+            echo "::warning::Missing Executive Summary or Problem Statement — skipping Caterpillar"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=missing-section" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          a_status=$(curl -s -w "%{http_code}" -o /tmp/cat_a.json -X POST https://models.inference.ai.azure.com/embeddings \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$PRIOR_TEXT" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
+          b_status=$(curl -s -w "%{http_code}" -o /tmp/cat_b.json -X POST https://models.inference.ai.azure.com/embeddings \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$CURRENT_TEXT" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
+          if [ "$a_status" != "200" ] || [ "$b_status" != "200" ]; then
+            echo "::warning::GH Models a=$a_status b=$b_status — Caterpillar skipped"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=models-endpoint-status:$a_status/$b_status" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/cat_a.json >/dev/null 2>&1 \
+             || ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/cat_b.json >/dev/null 2>&1; then
+            echo "::warning::Response shape unexpected — Caterpillar skipped"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=response-shape-unexpected" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PY_ERR=/tmp/cat-py.err
+          : > "$PY_ERR"
+          COSINE=$(python3 - 2>"$PY_ERR" <<'PYEOF'
+          import json, sys, math
+          try:
+              with open('/tmp/cat_a.json') as f: a = json.load(f)['data'][0]['embedding']
+              with open('/tmp/cat_b.json') as f: b = json.load(f)['data'][0]['embedding']
+              dot = sum(x*y for x, y in zip(a, b))
+              na = math.sqrt(sum(x*x for x in a))
+              nb = math.sqrt(sum(x*x for x in b))
+              if na * nb == 0: sys.exit(1)
+              print(f'{dot / (na * nb):.4f}')
+          except Exception as e:
+              print(f'python-exception: {type(e).__name__}: {e}', file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+          )
+          if [ -z "$COSINE" ]; then
+            ERR=$(head -c 200 "$PY_ERR" 2>/dev/null || echo "(empty)")
+            echo "::error title=Caterpillar failed::$ERR"
+            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
+            echo "reason=cosine-failed: ${ERR:0:120}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CATERPILLAR_THRESHOLD="0.70"
+          if python3 -c "import sys; sys.exit(0 if float('$COSINE') >= $CATERPILLAR_THRESHOLD else 1)"; then
+            echo "::notice::Caterpillar passed — cosine=$COSINE >= $CATERPILLAR_THRESHOLD"
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Caterpillar FAILED — cosine=$COSINE < $CATERPILLAR_THRESHOLD (cross-phase drift from research-doc)"
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "cosine=$COSINE" >> "$GITHUB_OUTPUT"
+          echo "threshold=$CATERPILLAR_THRESHOLD" >> "$GITHUB_OUTPUT"
+
+      - name: Decide verdict
+        id: verdict
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          EVIDENCE_MODE="${{ steps.ctx.outputs.evidence_mode }}"
+          FOUND="${{ steps.audit.outputs.found }}"
+          TOTAL="${{ steps.counts.outputs.total }}"; TOTAL="${TOTAL:-0}"
+          DOC_FOUND="${{ steps.structure.outputs.doc_found }}"
+          H2="${{ steps.structure.outputs.h2_present }}"
+          FR_COUNT="${{ steps.structure.outputs.fr_count }}"; FR_COUNT="${FR_COUNT:-0}"
+          FR_CITED="${{ steps.structure.outputs.fr_with_cites }}"; FR_CITED="${FR_CITED:-0}"
+          SR_COUNT="${{ steps.structure.outputs.sr_count }}"; SR_COUNT="${SR_COUNT:-0}"
+          SR_ANCHORED="${{ steps.structure.outputs.sr_with_anchors }}"; SR_ANCHORED="${SR_ANCHORED:-0}"
+          POCKET="${{ steps.pocket.outputs.passed }}"
+          CAT="${{ steps.caterpillar.outputs.passed }}"
+          # B24: self-critique outcome — if the agent exhausted its
+          # auto-revision budget without converging, the audit flags it
+          # so reviewers know to look at the MISSING items the agent
+          # couldn't resolve.
+          REVIEW_EXHAUSTED="${{ steps.review.outputs.exhausted }}"
+          REVIEW_ARCH_SEVERITY="${{ steps.review.outputs.arch_severity }}"
+          REVIEW_SEC_SEVERITY="${{ steps.review.outputs.sec_severity }}"
+
+          VERDICT="ok"; REASON=""
+          # Discrete failure-kind flags so the label-apply step picks
+          # the SPECIFIC label matching the actual cause. See
+          # market-research-agent.yml for the same pattern + rationale.
+          EVIDENCE_FAIL="false"
+          STRUCTURE_FAIL="false"
+          DRIFT_FAIL="false"
+          CATERPILLAR_FAIL="false"
+          REVIEW_FAIL="false"
+
+          if [ -z "$EVIDENCE_MODE" ]; then
+            VERDICT="degraded"; REASON="Hatter Tag missing evidence_mode (§11.1.7)"
+            EVIDENCE_FAIL="true"
+          elif [ "$FOUND" != "true" ]; then
+            VERDICT="degraded"; REASON="Audit JSONL not found"
+            EVIDENCE_FAIL="true"
+          elif [ "$TOTAL" -eq 0 ]; then
+            VERDICT="degraded"; REASON="0 mesh-skill_calls in audit"
+            EVIDENCE_FAIL="true"
+          fi
+
+          if [ "$VERDICT" = "ok" ]; then
+            if [ "$DOC_FOUND" != "true" ]; then
+              VERDICT="degraded"; REASON="prd.md not committed"
+              STRUCTURE_FAIL="true"
+            elif [ "$H2" -lt 10 ]; then
+              VERDICT="degraded"; REASON="prd.md missing required sections — H2 $H2/10"
+              STRUCTURE_FAIL="true"
+            elif [ "$FR_COUNT" -eq 0 ]; then
+              VERDICT="degraded"; REASON="No FR-NN markers in prd.md"
+              STRUCTURE_FAIL="true"
+            elif [ "$FR_COUNT" -gt 0 ] && [ "$FR_CITED" -lt "$FR_COUNT" ]; then
+              VERDICT="degraded"; REASON="FR citation gap — $FR_CITED/$FR_COUNT cite R-N or E-N source"
+              STRUCTURE_FAIL="true"
+            elif [ "$SR_COUNT" -gt 0 ] && [ "$SR_ANCHORED" -lt "$SR_COUNT" ]; then
+              VERDICT="degraded"; REASON="SR anchor gap — $SR_ANCHORED/$SR_COUNT cite STRIDE THR-NNN or OWASP A0X"
+              STRUCTURE_FAIL="true"
+            fi
+          fi
+
+          if [ "$VERDICT" = "ok" ] && [ "$POCKET" = "false" ]; then
+            VERDICT="degraded"; REASON="Pocket Watch goal-drift (cosine=${{ steps.pocket.outputs.cosine }} < ${{ steps.pocket.outputs.threshold }})"
+            DRIFT_FAIL="true"
+          fi
+          if [ "$VERDICT" = "ok" ] && [ "$CAT" = "false" ]; then
+            VERDICT="degraded"; REASON="Caterpillar cross-phase drift (cosine=${{ steps.caterpillar.outputs.cosine }} < ${{ steps.caterpillar.outputs.threshold }})"
+            CATERPILLAR_FAIL="true"
+          fi
+          # B24: self-critique exhaustion is a degraded signal — agent
+          # tried the max rounds and still had MISSING items it couldn't
+          # close. Reviewer should look at the unresolved gaps in the PR
+          # body before merging.
+          if [ "$VERDICT" = "ok" ] && [ "$REVIEW_EXHAUSTED" = "true" ]; then
+            VERDICT="degraded"; REASON="Self-review exhausted — agent hit MAX_AUTO_ROUNDS with unresolved MISSING items (arch=$REVIEW_ARCH_SEVERITY sec=$REVIEW_SEC_SEVERITY)"
+            REVIEW_FAIL="true"
+          fi
+
+          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON"   >> "$GITHUB_OUTPUT"
+          echo "evidence_fail=$EVIDENCE_FAIL"       >> "$GITHUB_OUTPUT"
+          echo "structure_fail=$STRUCTURE_FAIL"     >> "$GITHUB_OUTPUT"
+          echo "drift_fail=$DRIFT_FAIL"             >> "$GITHUB_OUTPUT"
+          echo "caterpillar_fail=$CATERPILLAR_FAIL" >> "$GITHUB_OUTPUT"
+          echo "review_fail=$REVIEW_FAIL"           >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict=$VERDICT reason=$REASON (evidence=$EVIDENCE_FAIL structure=$STRUCTURE_FAIL drift=$DRIFT_FAIL caterpillar=$CATERPILLAR_FAIL review=$REVIEW_FAIL)"
+
+      - name: Upsert correctness summary comment
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          VERDICT='${{ steps.verdict.outputs.verdict }}'
+          REASON='${{ steps.verdict.outputs.reason }}'
+          BODY=/tmp/audit-body.md
+          : > "$BODY"
+          printf '%s\n' '<!-- prd-agent-audit -->' >> "$BODY"
+          if [ "$VERDICT" = "ok" ]; then
+            printf '%s\n\n' '✓ **PRD Audit — pass**' >> "$BODY"
+          else
+            printf '%s\n\n' '⚠️ **PRD Audit — degraded**' >> "$BODY"
+            printf '**Reason:** %s\n\n' "$REASON" >> "$BODY"
+          fi
+          if [ '${{ steps.audit.outputs.found }}' = 'true' ]; then
+            printf '**Mesh skill_calls** (`%s`):\n\n' '${{ steps.audit.outputs.path }}' >> "$BODY"
+            printf '| Skill | Successful calls |\n|---|---:|\n' >> "$BODY"
+            printf '| knowledge-okr | %s |\n'           '${{ steps.counts.outputs.k_okr }}'      >> "$BODY"
+            printf '| knowledge-research | %s |\n'      '${{ steps.counts.outputs.k_research }}' >> "$BODY"
+            printf '| knowledge-mesh-bar | %s |\n'      '${{ steps.counts.outputs.k_bar }}'      >> "$BODY"
+            printf '| knowledge-mesh-adrs | %s |\n'     '${{ steps.counts.outputs.k_adrs }}'     >> "$BODY"
+            printf '| knowledge-mesh-threats | %s |\n'  '${{ steps.counts.outputs.k_threats }}'  >> "$BODY"
+            printf '| context-architecture | %s |\n'    '${{ steps.counts.outputs.c_arch }}'     >> "$BODY"
+            printf '| context-security | %s |\n'        '${{ steps.counts.outputs.c_sec }}'      >> "$BODY"
+            printf '| context-quality | %s |\n'         '${{ steps.counts.outputs.c_qual }}'     >> "$BODY"
+            printf '| **Total** | **%s** |\n\n'         '${{ steps.counts.outputs.total }}'      >> "$BODY"
+          fi
+          printf '**Structural correctness** (`%s`):\n\n' '${{ steps.structure.outputs.doc_path }}' >> "$BODY"
+          printf '| Check | Result |\n|---|---|\n' >> "$BODY"
+          printf '| `prd.md` written | %s |\n' "$( [ '${{ steps.structure.outputs.doc_found }}' = 'true' ] && echo '✓' || echo '✗' )" >> "$BODY"
+          printf '| 10 H2 sections | %s/10 |\n' '${{ steps.structure.outputs.h2_present }}' >> "$BODY"
+          printf '| FR-NN cited (R-N / E-N) | %s/%s |\n' '${{ steps.structure.outputs.fr_with_cites }}' '${{ steps.structure.outputs.fr_count }}' >> "$BODY"
+          printf '| SR-NN anchored (STRIDE / OWASP) | %s/%s |\n' '${{ steps.structure.outputs.sr_with_anchors }}' '${{ steps.structure.outputs.sr_count }}' >> "$BODY"
+          # B24: self-critique convergence
+          REVIEW_ROUNDS='${{ steps.review.outputs.rounds }}'; REVIEW_ROUNDS="${REVIEW_ROUNDS:-0}"
+          REVIEW_ARCH_SCORE='${{ steps.review.outputs.arch_score }}'
+          REVIEW_ARCH_SEV='${{ steps.review.outputs.arch_severity }}'
+          REVIEW_SEC_SCORE='${{ steps.review.outputs.sec_score }}'
+          REVIEW_SEC_SEV='${{ steps.review.outputs.sec_severity }}'
+          REVIEW_EXH='${{ steps.review.outputs.exhausted }}'; REVIEW_EXH="${REVIEW_EXH:-false}"
+          if [ "$REVIEW_ROUNDS" -gt 0 ]; then
+            EXH_MARK=$( [ "$REVIEW_EXH" = "true" ] && echo " — ⚠ exhausted before convergence" || echo "" )
+            printf '| Self-review (B24) | %s round(s)%s |\n' "$REVIEW_ROUNDS" "$EXH_MARK" >> "$BODY"
+            printf '| ↳ Architect persona | %s severity=%s |\n' "${REVIEW_ARCH_SCORE:-—}" "${REVIEW_ARCH_SEV:-—}" >> "$BODY"
+            printf '| ↳ Security persona | %s severity=%s |\n' "${REVIEW_SEC_SCORE:-—}" "${REVIEW_SEC_SEV:-—}" >> "$BODY"
+          else
+            printf '| Self-review (B24) | — skipped (Restricted tier or no events) |\n' >> "$BODY"
+          fi
+          POCKET_STATE='${{ steps.pocket.outputs.passed }}'
+          POCKET_COS='${{ steps.pocket.outputs.cosine }}'
+          POCKET_REASON='${{ steps.pocket.outputs.reason }}'
+          POCKET_THRESH='${{ steps.pocket.outputs.threshold }}'; POCKET_THRESH="${POCKET_THRESH:-0.65}"
+          case "$POCKET_STATE" in
+            true)    printf '| Pocket Watch goal-drift | ✓ pass (cosine=%s ≥ %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
+            false)   printf '| Pocket Watch goal-drift | ✗ fail (cosine=%s < %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
+            skipped) printf '| Pocket Watch goal-drift | — skipped (`%s`) |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
+          esac
+          CAT_STATE='${{ steps.caterpillar.outputs.passed }}'
+          CAT_COS='${{ steps.caterpillar.outputs.cosine }}'
+          CAT_REASON='${{ steps.caterpillar.outputs.reason }}'
+          CAT_THRESH='${{ steps.caterpillar.outputs.threshold }}'; CAT_THRESH="${CAT_THRESH:-0.70}"
+          case "$CAT_STATE" in
+            true)    printf "| Caterpillar's Challenge (PRD vs research-doc) | ✓ pass (cosine=%s ≥ %s) |\n" "$CAT_COS" "$CAT_THRESH" >> "$BODY" ;;
+            false)   printf "| Caterpillar's Challenge (PRD vs research-doc) | ✗ fail (cosine=%s < %s) |\n" "$CAT_COS" "$CAT_THRESH" >> "$BODY" ;;
+            skipped) printf "| Caterpillar's Challenge (PRD vs research-doc) | — skipped (\`%s\`) |\n" "${CAT_REASON:-no reason}" >> "$BODY" ;;
+          esac
+          printf '| Hatter Tag `evidence_mode` | `%s` |\n\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
+          printf '_prd-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"
+
+          BODY_CONTENT=$(cat "$BODY")
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --jq '.[] | select(.body | startswith("<!-- prd-agent-audit -->")) | .id' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY_CONTENT" >/dev/null
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$BODY_CONTENT"
+          fi
+
+      - name: Apply prd-pass on clean verdict
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          steps.verdict.outputs.verdict == 'ok' &&
+          !contains(github.event.pull_request.labels.*.name, 'prd-pass')
+        run: |
+          gh label create prd-pass --repo ${{ github.repository }} --color 43A047 \
+            --description "HOW-phase PRD passed the audit gate. Reviewers can now score." 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label prd-pass
+
+      - name: Apply specific failure labels based on failure kind
+        if: steps.gate.outputs.skip != 'true' && steps.verdict.outputs.verdict == 'degraded'
+        # Apply ONLY the label(s) matching the actual failure. Drift-only
+        # failures should NOT get degraded-evidence; evidence-only
+        # failures should NOT get goal-drift-detected. See market-research-
+        # agent.yml for the same pattern + the bug it fixes.
+        run: |
+          if [ "${{ steps.verdict.outputs.evidence_fail }}" = "true" ]; then
+            gh label create degraded-evidence --repo ${{ github.repository }} --color D32F2F --description "Hatter Tag evidence_mode contradicts the audit log. Blocks the pass label." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label degraded-evidence || true
+          fi
+          if [ "${{ steps.verdict.outputs.structure_fail }}" = "true" ]; then
+            gh label create structure-invalid --repo ${{ github.repository }} --color D32F2F --description "Artifact missing required sections / citations. Blocks the pass label." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label structure-invalid || true
+          fi
+          if [ "${{ steps.verdict.outputs.drift_fail }}" = "true" ]; then
+            gh label create goal-drift-detected --repo ${{ github.repository }} --color D32F2F --description "Pocket Watch — objective drift (cosine below threshold). Merge blocked." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label goal-drift-detected || true
+          fi
+          if [ "${{ steps.verdict.outputs.caterpillar_fail }}" = "true" ]; then
+            gh label create caterpillar-drift-detected --repo ${{ github.repository }} --color D32F2F --description "Caterpillar's Challenge: cross-phase drift from prior phase artifact. Merge blocked." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label caterpillar-drift-detected || true
+          fi
+          if [ "${{ steps.verdict.outputs.review_fail }}" = "true" ]; then
+            gh label create self-review-exhausted --repo ${{ github.repository }} --color D32F2F --description "Self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items. Human review required." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label self-review-exhausted || true
+          fi
+
+      - name: Remove stale labels when verdict flips to ok
+        if: steps.gate.outputs.skip != 'true' && steps.verdict.outputs.verdict == 'ok'
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label degraded-evidence 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label structure-invalid 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label goal-drift-detected 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label caterpillar-drift-detected 2>/dev/null || true
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label self-review-exhausted 2>/dev/null || true
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 3 — Finalize on PR merge: flip action.status to complete
+  # ════════════════════════════════════════════════════════════════════
+  finalize:
+    name: "Finalize HOW action on PR merge"
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'prd-draft') &&
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Extract OKR context
+        id: ctx
+        uses: ./.github/actions/extract-okr-context
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Flip OKR action.status to complete + meta.status to design-pending
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        run: |
+          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
+          if [ ! -f "$OKR_FILE" ]; then
+            echo "::warning::okr.yaml missing — skipping status flip"
+            exit 0
+          fi
+          # 1. Flip THIS action's status to complete. FAIL LOUDLY if the
+          #    runId doesn't match any action — silent no-op was the bug
+          #    that left ACT-10 stuck in_progress on PR #97 (dispatch-
+          #    time commit never pushed → finalize ran against remote
+          #    that lacked the action → yq selector matched 0 → no flip
+          #    → run marked success despite half-doing-the-job). See
+          #    market-research-agent.yml for the same hardening.
+          RUN_ID="${{ steps.ctx.outputs.run_id }}"
+          MATCHED=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .runId" "$OKR_FILE" | wc -l | tr -d ' ')
+          if [ "$MATCHED" -eq 0 ]; then
+            echo "::error title=Action runId not found::yq select(.runId == \"$RUN_ID\") matched 0 actions in $OKR_FILE. The dispatch-time commit may not have been pushed to remote before this merge. Push the missing commit (or add the action manually) and re-run this workflow. Listing current action runIds for triage:"
+            yq -r '.actions[] | "  - " + .id + " runId=" + .runId + " status=" + .status' "$OKR_FILE"
+            exit 1
+          fi
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"complete\"" "$OKR_FILE"
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .completedAt) = \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"" "$OKR_FILE"
+          # 2. Roll OKR.meta.status forward: prd-pending -> design-pending.
+          # Done in bash (not yq's `if/then/else/end` — that's jq syntax;
+          # Go yq / mikefarah uses different conditional syntax and
+          # exits with a lexer error if you pass jq-style). Guarded so
+          # a re-run of HOW after WHAT already shipped doesn't downgrade.
+          CURRENT_STATUS=$(yq -r '.meta.status' "$OKR_FILE")
+          if [ "$CURRENT_STATUS" = "prd-pending" ]; then
+            yq -i '.meta.status = "design-pending"' "$OKR_FILE"
+          fi
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$OKR_FILE"
+          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} HOW complete (action ${{ steps.ctx.outputs.run_id }} -> complete; meta.status prd-pending -> design-pending; PR #${{ github.event.pull_request.number }})" || echo "Nothing to commit"
+          for i in 1 2 3; do
+            if git push; then break; fi
+            git fetch origin main && git rebase origin/main
+            sleep 2
+          done
