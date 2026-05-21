@@ -79,6 +79,32 @@ function countCovered(docText: string, markerRe: RegExp, citationRe: RegExp): nu
 }
 
 /**
+ * Knight's Seal v1 (B27) — scan an audit-events JSONL for per-event
+ * Ed25519 signatures and report a UI-shaped seal verdict.
+ *
+ * - All events signed → `{sealed: true}`. CI workflow re-verifies.
+ * - Some events signed → `{sealed: false, sealTampered: true}`. Surfaces
+ *   the red Tampered badge; CI workflow blocks merge with
+ *   `partial-signatures` chain-check failure.
+ * - No events signed → `{}`. Legacy unsigned chain; chainRoot still
+ *   verifiable but no seal badge rendered.
+ */
+function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampered?: boolean } {
+  let signed = 0;
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line) as { signature?: string };
+      if (typeof event.signature === 'string' && event.signature.length > 0) {
+        signed++;
+      }
+    } catch { /* malformed line — skip */ }
+  }
+  if (lines.length > 0 && signed === lines.length) { return { sealed: true }; }
+  if (signed > 0) { return { sealed: false, sealTampered: true }; }
+  return {};
+}
+
+/**
  * Discriminated-union dispatch table type. Given a union `U` keyed by
  * `type`, `MessageHandlers<U>` is an object whose keys are every member's
  * `type` and whose values are handlers narrowed to that exact member.
@@ -355,6 +381,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
     'cancelOkrAction':             (m) => this.onCancelOkrAction(m.okrId, m.actionId),
+    'toggleOkrRepoConnected':      (m) => this.onToggleOkrRepoConnected(m.okrId, m.repoUrl, m.status),
     // Client-side-only navigation / filter messages - declared so a
     // future rename surfaces at compile time instead of silently dropping.
     'backToPortfolio':             this.noop,
@@ -609,6 +636,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         try {
           const event = JSON.parse(line) as {
             event_kind?: string;
+            signature?: string;
             payload?: {
               skill?: string; ok?: boolean; queries?: string[]; reason?: string;
               round?: number; persona?: string; score?: number; severity?: string;
@@ -634,6 +662,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           }
         } catch { /* malformed line — skip */ }
       }
+      // Knight's Seal v1 (B27) — detect signatures on the events. Lifted
+      // into a helper so this loop stays under the complexity budget.
+      Object.assign(result, detectKnightSeal(lines));
 
       if (phase === 'why') {
         const tavily = counts.get('tavily-search') ?? 0;
@@ -1318,6 +1349,41 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       await this.onDrillIntoOkr(okrId, 'view');
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to save OKR: ${toErrorMessage(err)}` });
+    }
+  }
+
+  /**
+   * A12 — flip the per-repo connection status on an OKR's targetCodeRepos.
+   * Called when the user clicks "Mark connected" / "Mark disconnected"
+   * on the OKR detail view after verifying GitHub Actions + app install.
+   * The Phase D code-design fan-out reads `targetCodeRepoStatus` to gate
+   * fanning out into still-Declared repos.
+   */
+  private async onToggleOkrRepoConnected(okrId: string, repoUrl: string, status: 'declared' | 'connected' | 'unreachable'): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    try {
+      const okrService = this.meshService.getOkrService();
+      const card = okrService.read(meshPath, okrId);
+      if (!card) {
+        this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+        return;
+      }
+      const next = { ...(card.objectiveAlignment.targetCodeRepoStatus ?? {}) };
+      next[repoUrl] = status;
+      const updated = okrService.update(meshPath, okrId, {
+        objectiveAlignment: { targetCodeRepoStatus: next },
+      });
+      if (!updated) {
+        this.postMessage({ type: 'error', message: `OKR not found on update: ${okrId}` });
+        return;
+      }
+      await this.onDrillIntoOkr(okrId, 'view');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to update repo status: ${toErrorMessage(err)}` });
     }
   }
 
@@ -5634,6 +5700,7 @@ function buildBlankOkrScaffold(defaultPlatformId: string, defaultOwner: string):
       platformId: defaultPlatformId,
       affectedBarIds: [],
       targetCodeRepos: [],
+      targetCodeRepoStatus: {},
       intentCascade: { org: '', role: '', developer: '', user: '' },
     },
     valueLearning: { name: 'Value & Learning', description: '', learnings: [] },

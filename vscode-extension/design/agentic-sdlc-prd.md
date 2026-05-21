@@ -10,21 +10,26 @@ For cross-cutting concerns (audit chain, OKR card, orchestration), read [`agenti
 
 ---
 
-## Current state — runnable end-to-end with three known gaps
+## Current state — Tier-1 hardening complete, validation gate pending
 
-The prd-agent runs end-to-end through the HOW phase with full audit-chain verification, Pocket Watch + Caterpillar drift gates, FR-citation + SR-anchor structural correctness, and persona-switch self-critique. Last E2E run: PR #105 (post-B25 audit-fabrication fix). **Not yet "complete" by the audit's own contract — three gaps below.**
+The prd-agent runs end-to-end through the HOW phase with full audit-chain verification, Pocket Watch + Caterpillar drift gates, FR-citation + SR-anchor structural correctness, persona-switch self-critique, **Knight's Seal v1 cryptographic sealing**, and **grounded `context-*` aggregators**. Last E2E run: PR #105 (post-B25 audit-fabrication fix, pre-Tier-1). **Phase B Tier-1 hardening shipped in research-runner 0.1.26 + extension build 2026-05-21.**
 
-**Trust state today** (post-B25, pre-B27):
+**Trust state today** (post-Tier-1, validation-pending):
 - ✅ Audit chain hash-verified pre-merge (B25 — `chain-forgery-detected` label blocks merge on mismatch)
 - ✅ Persona-switch self-critique replaces separate reviewer agents (B24)
 - ✅ Pocket Watch goal-drift: cosine of OKR objective vs `## Problem Statement` (threshold 0.65)
 - ✅ Caterpillar's Challenge cross-phase drift: cosine of PRD `## Problem Statement` vs research-doc `## Executive Summary` (threshold 0.70 — tighter than Pocket Watch because cross-phase should preserve more of the upstream framing)
 - ✅ Chain-ladder written on PR merge with `parent_intent_thread = WHY action's intentThreadUuid`
 - ✅ FR + SR coverage parser accepts both `**FR-NN**` bold and `### FR-NN:` heading formats (B25 parser fix)
-- 🛠 Knight's Seal v1 (B27 — planned next): per-run ephemeral Ed25519 signs chain root + artifact SHA
-- ❌ **B5 — `context-*` Skill runtime backends NOT shipped.** The prd-agent's `tools:` list declares `context-architecture` + `context-security` + `context-quality`, and the agent's own hard rule (prd-agent.agent.md line 158) says *"if a `context-*` Skill returns {ok: false}, stop. PRDs MUST be grounded."* But `runner/skills.ts` has no handler — runtime returns `{ok:false, reason:"unknown-skill: context-<x>"}`. The PR #105 run only succeeded because the agent ignored its own hard rule. Either ship stub handlers (~2h, reuse knowledge-mesh-* reads) or relax the rule (~5min). Recommendation: stub-handler ship so the contract is honored. See [`agentic-sdlc.md`](agentic-sdlc.md) §13 B5.
-- ❌ **B14 — CloudEvents v1.0 envelope shipped but unadopted.** §11.2 + §15 of the index doc claim adoption; reality is `handleAuditEmitEvent` writes flat JSONL and never calls `buildCloudEventsEnvelope`. Either wire it up (~1h) or strikethrough the §11.2 claim (~5min). See [`agentic-sdlc.md`](agentic-sdlc.md) §13 B14.
-- ⚠ **UI DRIFT** in `okrDetail.ts:839` — the HOW phase pre-flight signal still advertises "architect-reviewer + security-reviewer (parallel, scored)" but B24 retired both. 5-min text fix.
+- ✅ **Knight's Seal v1 (B27 — landed).** Every audit event signed Ed25519 with a per-run ephemeral keypair. Private key in `os.tmpdir()` (NEVER in mesh). Public key persisted to `<mesh>/okrs/<id>/audit/keys/<runId>.pub.pem`. `audit-verify-chain` returns `{sealed, sealVerified}`. CI Python chain check + PR audit comment surface a `Knight's Seal (Ed25519)` row. Looking Glass shows a `🛡 Sealed` badge next to `chain_root`. Tampering modes (signature flip, partial signatures, key missing) all block the merge gate.
+- ✅ **B5 `context-*` runtime backends (landed).** `context-architecture` / `context-security` / `context-quality` aggregators in `runner/skills.ts` read per-BAR slices: CALM model + ADRs + fitness functions (architecture), threats + controls (security), quality attributes + fitness functions (quality). All accept `{platformId, barIds}` and fail fast on unresolvable BARs — the agent's hard rule "PRDs MUST be grounded" is now honored at runtime. Audit-honesty gate counts real `c_arch` / `c_sec` / `c_qual` skill_calls in `prd-agent.yml`.
+- ✅ **UI DRIFT-1 fixed.** HOW pre-flight signal in `okrDetail.ts` now reads "Self-critique: persona-switch pass (architect · security · quality lenses, single agent)".
+
+**Remaining before "Phase B complete":**
+- ⚠ **Validation gate** — fresh end-to-end run of WHY + HOW on the IMDB-Celebs sample against the post-Tier-1 build to confirm the `c_arch`/`c_sec`/`c_qual` columns count nonzero, both phase cards show `🛡 Sealed`, chain-ladder shows WHY→HOW lineage, and no UI lies remain. ~30 min wall-clock.
+- ⚠ **Tier-2 polish** (Phase A 100% + Settings refactor) — A12 Connect Repo flow + B9 3-tab Settings refactor. Not blocking Phase D design work but completes the Phase A+B claim.
+
+**Previously listed as a gap, now deferred:** B14 (Court Recorder CloudEvents v1.0 envelope adoption). The helper code stays in the repo as a dormant SIEM-export utility; on-disk JSONL stays flat. See [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §8 for the future-trigger conditions.
 
 ---
 

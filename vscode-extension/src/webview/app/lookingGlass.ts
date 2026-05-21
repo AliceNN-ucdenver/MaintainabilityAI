@@ -534,6 +534,32 @@ function getStyles(): string {
         font-weight: 600;
         margin-bottom: 8px;
       }
+      .settings-subsection-heading {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 16px 0 6px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--border-light, rgba(148, 163, 184, 0.2));
+        color: var(--vscode-descriptionForeground, #94a3b8);
+      }
+      .settings-subsection-heading:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+        margin-top: 4px;
+      }
+      .settings-subsection-list {
+        margin: 4px 0 8px 24px;
+        padding: 0;
+        list-style: disc;
+        font-size: 12px;
+      }
+      .settings-subsection-note {
+        font-size: 11px;
+        opacity: 0.85;
+        margin: 4px 0 8px;
+      }
       .settings-row {
         display: flex;
         align-items: center;
@@ -1937,39 +1963,67 @@ function renderSettingsMeshProvisioning(): string {
         pruned automatically.
       </p>
 
+      <h4 class="settings-subsection-heading">Workflows + actions</h4>
       <div class="settings-row">
-        <div class="settings-label">Workflows + actions</div>
+        <div class="settings-label">Status</div>
         <div>${workflowStatus}</div>
       </div>
-      <div class="settings-row">
-        <div class="settings-label">Agents (v4 personas)</div>
-        <div>${agentBadge}</div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">Skills (PURE-data)</div>
-        <div>${skillBadge}</div>
-      </div>
-
-      <p class="text-muted" style="margin: 12px 0 4px;"><strong>What ships</strong> (canonical: <code>MESH_WORKFLOWS</code> + <code>AGENT_MANIFEST</code> in <code>src/templates/</code>):</p>
-      <ul class="text-muted" style="margin: 4px 0 12px 24px; padding: 0; list-style: disc; font-size: 12px;">
+      <ul class="text-muted settings-subsection-list">
         <li><strong>Per-agent workflows</strong> (B20 — own dispatch + audit + finalize for one agent each):
           <ul style="margin: 4px 0 0 16px; padding: 0;">
             <li><code>market-research-agent.yml</code> ✓ — WHY phase (Phase 1)</li>
-            <li><code>prd-agent.yml</code> ✓ — HOW phase (Phase 2)</li>
-            <li><code>architect-reviewer.yml</code> ✓ — reviewer dispatch + round counter (Phase 2)</li>
-            <li><code>security-reviewer.yml</code> ✓ — reviewer dispatch (Phase 2)</li>
+            <li><code>prd-agent.yml</code> ✓ — HOW phase (Phase 2, includes persona-switch self-critique)</li>
             <li><em>code-design-agent.yml</em> (Phase 3, coming) — WHAT phase + per-repo fanout</li>
           </ul>
         </li>
         <li><strong>BAR-page workflow:</strong> <code>oraculum-review.yml</code> (separate domain)</li>
         <li><strong>Composite actions:</strong> <code>extract-okr-context</code>, <code>count-skill-calls</code>, <code>check-tier-bound</code></li>
-        <li><strong>No transitional workflows.</strong> The old bus / state-machine / drift-gate / audit-validate files were swept on the B20 Phase 2 cleanup — Redeploy prunes any stale copies from the mesh. WHAT-phase will get its own per-agent workflow when code-design-agent ships.</li>
       </ul>
-      <p class="text-muted" style="margin: 4px 0 12px; font-size: 12px;">
+      <p class="text-muted settings-subsection-note">
         <strong>GitHub API access is NOT in this list by design.</strong> Per-agent workflows
         route GitHub MCP through <code>api.githubcopilot.com</code> (allow-listed by default)
         instead of <code>gh</code> shell-outs. No firewall rule needed for github.com.
       </p>
+
+      <h4 class="settings-subsection-heading">Agents (v4 personas)</h4>
+      <div class="settings-row">
+        <div class="settings-label">Status</div>
+        <div>${agentBadge}</div>
+      </div>
+      <ul class="text-muted settings-subsection-list">
+        <li><code>market-research-agent.agent.md</code> — WHY-phase synthesizer (Tavily · arXiv · USPTO · HN + gap-loop refinement)</li>
+        <li><code>prd-agent.agent.md</code> — HOW-phase author with persona-switch self-critique (B24)</li>
+        <li><em>code-design-agent.agent.md</em> — WHAT-phase (Phase 3, in design)</li>
+      </ul>
+
+      <h4 class="settings-subsection-heading">Skills (PURE-data)</h4>
+      <div class="settings-row">
+        <div class="settings-label">Status</div>
+        <div>${skillBadge}</div>
+      </div>
+      <ul class="text-muted settings-subsection-list">
+        <li><strong>Search:</strong> <code>tavily-search</code>, <code>arxiv-search</code>, <code>uspto-search</code>, <code>hackernews-search</code>, <code>dedupe-and-rank</code></li>
+        <li><strong>Knowledge:</strong> <code>knowledge-okr</code>, <code>knowledge-mesh-bar</code>, <code>knowledge-mesh-platform</code>, <code>knowledge-mesh-threats</code>, <code>knowledge-mesh-adrs</code>, <code>knowledge-research</code></li>
+        <li><strong>Context (HOW-phase BAR slices):</strong> <code>context-architecture</code>, <code>context-security</code>, <code>context-quality</code> — shipped in research-runner 0.1.26 (B5)</li>
+        <li><strong>Audit:</strong> <code>audit-emit-event</code> (hash-chained + Ed25519-sealed per B27), <code>audit-verify-chain</code></li>
+        <li><strong>Formatter:</strong> <code>format-research-issue-update</code></li>
+      </ul>
+
+      <h4 class="settings-subsection-heading">Recently deprecated (auto-pruned on next Redeploy)</h4>
+      <p class="text-muted settings-subsection-note">
+        These files are listed in <code>DEPRECATED_MESH_FILES</code> in
+        <code>src/templates/codeRepoTemplates.ts</code>. The "Redeploy"
+        sweep deletes any that still exist in the mesh repo and commits the
+        cleanup so the <code>.github/workflows/</code> tree stays accurate
+        to what's actually running. The list is idempotent and additive —
+        entries never get removed.
+      </p>
+      <ul class="text-muted settings-subsection-list">
+        <li><strong>B24 — reviewer-agent retirement</strong> (self-critique inside prd-agent now): <code>architect-reviewer.yml</code>, <code>security-reviewer.yml</code>, <code>architect-reviewer.agent.md</code>, <code>security-reviewer.agent.md</code></li>
+        <li><strong>B20 Phase-2 sweep — per-agent workflow consolidation</strong>: <code>okr-bus.yml</code>, <code>reviewer-bus.yml</code>, <code>okr-state-machine.yml</code>, <code>design-bus.yml</code>, <code>drift-gate.yml</code>, <code>audit-validate.yml</code></li>
+        <li><strong>B-PR1f — user-triggered label flow</strong> replaces auto-label workflow: <code>pr-auto-label.yml</code></li>
+        <li><strong>Legacy pre-agentic-SDLC pipeline</strong>: <code>oraculum-research.yml</code>, <code>archeologist.yml</code>, <code>prd.yml</code>, <code>label-on-merge.yml</code>, <code>notify-code-repos.yml</code></li>
+      </ul>
 
       <div class="settings-row">
         <button id="btn-settings-deploy-all" class="btn-primary">${buttonLabel}</button>

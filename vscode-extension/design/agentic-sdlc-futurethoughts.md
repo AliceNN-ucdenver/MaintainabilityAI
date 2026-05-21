@@ -104,4 +104,39 @@ If a real customer with a third-party-only-cloud-policy emerges, the agent desig
 
 ---
 
+## 8. CloudEvents v1.0 envelope adoption — future SIEM-export work
+
+The original v0.1 design specified CloudEvents v1.0 as the on-disk audit format (intended to land in B14). The helper landed; the adoption did not. The on-disk format stays flat hash-chained JSON ([`agentic-sdlc.md`](agentic-sdlc.md) §11.2 for the current shape); the CloudEvents wrapper is reserved for a future SIEM-export use case.
+
+**What's already in the repo (dormant).** `packages/research-runner/src/runner/court-recorder.ts` exports two pure helpers with passing tests:
+- `buildCloudEventsEnvelope(event)` — wraps a flat audit event in a CloudEvents v1.0 envelope (`specversion: "1.0"`, `type: io.maintainabilityai.audit.<event_kind>`, `source: agent:<name>@did:gh:installation:<id>`, `subject: okr:<id>/intent:<uuid>`, `id: <event-uuid>`, `time: <iso>`, `datacontenttype: application/json`, `data: <original payload>`).
+- `serializeCloudEventsEnvelope(envelope)` — canonical-JSON serializer that produces a SIEM-ready line.
+
+The helpers are NOT invoked by the runner's `handleAuditEmitEvent`. They're staged for the future-use case.
+
+**Why we deferred.** The flat format is simpler to verify (B25's pre-merge `verify-chain` does a tight SHA-256 replay without parsing envelope fields), and the audit chain's integrity story doesn't depend on the envelope. CloudEvents is an export concern, not a storage concern. We didn't have a real SIEM-export customer use case to justify the runner-level change, and a future ship is straightforward in either direction.
+
+**What triggers v1 of CloudEvents adoption.** Any one of:
+- A customer integration with Splunk HEC, Microsoft Sentinel, Datadog, or Microsoft AGT that wants live forwarding.
+- A regulatory requirement that mandates a CloudEvents-shaped audit feed for a third-party SIEM.
+- A maintainability case where unifying the on-disk + export format reduces complexity (currently the two formats are simple enough that this isn't a forcing function).
+
+**Two ship paths when the trigger lands.**
+
+| Path | How | When to prefer |
+|---|---|---|
+| **(a) Adopt at emission** | `handleAuditEmitEvent` composes `buildCloudEventsEnvelope` around the existing draft before hashing. On-disk format becomes CloudEvents 1.0. `audit-verify-chain` Skill updated to parse the envelope shape. Migration: existing flat JSONL stays valid (verify-chain reads either format) | When the SIEM forwarder reads directly from the mesh repo — no separate export pipeline |
+| **(b) Adopt as a one-shot export** | New runner subcommand `audit-export --okr-id X --run-id Y --format cloudevents` that reads the flat JSONL and writes a CloudEvents JSONL into a sibling file or stdout. Keeps on-disk flat | When the SIEM forwarder runs out-of-band (cron, S3 sync, manual pull) and doesn't need the live emission shape |
+
+Recommendation: pick (b) unless the SIEM customer specifically needs the envelope at emission time. (b) keeps the chain-verification logic untouched and avoids the migration cost.
+
+**What carries forward.** When CloudEvents adoption lands:
+- The flat-format hash-chain semantics stay identical (`prev_event_hash` → `event_hash` linkage preserved inside the envelope's wrapping fields).
+- Knight's Seal v1 signing input stays the same (signs the canonical event hash, not the envelope).
+- B25 verify-chain CI step gets an envelope-tolerant parser; both formats round-trip cleanly.
+
+This is a designed-for, not built capability. No B-PR number assigned. When a use case emerges, the work becomes a single B-something entry (or its own E-something Phase E export deliverable, depending on the trigger).
+
+---
+
 **Companion docs:** [agentic-sdlc.md](agentic-sdlc.md) (index) · [marketresearcher](agentic-sdlc-marketresearcher.md) · [prd](agentic-sdlc-prd.md) · [codedesigner](agentic-sdlc-codedesigner.md)

@@ -86,6 +86,13 @@ export const ObjectiveAlignmentSchema = z.object({
   platformId: z.string(),
   affectedBarIds: z.array(z.string()).min(1),
   targetCodeRepos: z.array(z.string()).default([]),
+  /**
+   * Per-repo connection state for the declared `targetCodeRepos`. Keyed by
+   * repo URL → status. Absent entries default to 'declared'. The user
+   * toggles this from the OKR detail "Connect Repo" flow (A12) after
+   * verifying Actions / app install on GitHub.
+   */
+  targetCodeRepoStatus: z.record(z.string(), TargetRepoStatusSchema).default({}),
   intentCascade: IntentCascadeSchema.default({ org: '', role: '', developer: '', user: '' }),
 });
 export type ObjectiveAlignment = z.infer<typeof ObjectiveAlignmentSchema>;
@@ -285,6 +292,9 @@ export const OkrUpdatePatchSchema = z.object({
     platformId: z.string().optional(),
     affectedBarIds: z.array(z.string()).min(1).optional(),
     targetCodeRepos: z.array(z.string()).optional(),
+    /** Patch shape for the Connect Repo toggle. Full replacement (caller
+     *  computes the new map). Absent → status field is left untouched. */
+    targetCodeRepoStatus: z.record(z.string(), TargetRepoStatusSchema).optional(),
     intentCascade: IntentCascadeSchema.partial().optional(),
   }).optional(),
 });

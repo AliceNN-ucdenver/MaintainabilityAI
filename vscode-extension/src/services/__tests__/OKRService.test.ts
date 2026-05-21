@@ -131,6 +131,7 @@ describe('computePhaseProgress', () => {
         platformId: 'PLT-IMDB',
         affectedBarIds: ['APP-IMDB-002'],
         targetCodeRepos: [],
+        targetCodeRepoStatus: {},
         intentCascade: { org: '', role: '', developer: '', user: '' },
       },
       valueLearning: { name: 'Value & Learning', description: '', learnings: [] },

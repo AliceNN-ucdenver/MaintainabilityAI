@@ -118,6 +118,15 @@ export interface OkrPhaseSignal {
   selfReviewExhausted?: boolean;
   /** Audit chain root prefix (12 chars). */
   chainRoot?: string;
+  /** Knight's Seal v1 (B27): runner produced Ed25519 signatures on every
+   *  event. The CI workflow re-verifies and stamps the PR audit comment
+   *  with the canonical Sealed ✓ — this flag drives the inline UI badge
+   *  for fast scanning before clicking through to the PR. */
+  sealed?: boolean;
+  /** Partial-signature tampering observed: some events signed, some not.
+   *  Block-worthy (the CI workflow fails the chain check with
+   *  partial-signatures). Surfaces a red "Tampered" badge. */
+  sealTampered?: boolean;
   /** Optional error to surface in the card. */
   error?: string;
   /** Set to true while the extension is fetching. */
@@ -559,16 +568,35 @@ function renderTargetRepos(state: OkrDetailRenderState, mode: OkrDetailMode): st
         <p class="okr-muted">None declared.</p>
       `;
     }
-    const items = repos.map(r => `
-      <li>
-        <code>${escapeHtml(r)}</code>
-        <span class="okr-repo-status okr-repo-declared">Declared — Not Connected</span>
-      </li>
-    `).join('');
+    // A12: per-repo Connect Repo flow. Status defaults to 'declared'.
+    // Connect button opens GitHub Settings → Actions in the browser; the
+    // Mark Connected / Disconnect toggle persists state back to the OKR
+    // card via OKRService.update (handled by the panel-side message).
+    const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
+    const items = repos.map(r => {
+      const status = statusMap[r] ?? 'declared';
+      const settingsUrl = `${r.replace(/\/$/, '')}/settings/actions`;
+      const badge = status === 'connected'
+        ? '<span class="okr-repo-status okr-repo-connected">✓ Connected</span>'
+        : status === 'unreachable'
+        ? '<span class="okr-repo-status okr-repo-unreachable">⚠ Unreachable</span>'
+        : '<span class="okr-repo-status okr-repo-declared">Declared — Not Connected</span>';
+      const connectBtn = `<button class="okr-link-button" data-action="open-repo-actions-settings" data-url="${escapeAttr(settingsUrl)}" title="Open the repo's GitHub Settings → Actions page so you can enable workflows + approve the app installation.">Connect Repo ↗</button>`;
+      const toggleBtn = status === 'connected'
+        ? `<button class="okr-link-button" data-action="toggle-repo-connected" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-url="${escapeAttr(r)}" data-next-status="declared" title="Mark this repo as not yet connected.">Mark disconnected</button>`
+        : `<button class="okr-link-button" data-action="toggle-repo-connected" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-url="${escapeAttr(r)}" data-next-status="connected" title="Mark this repo as connected after you've enabled Actions + approved the app install on GitHub.">Mark connected</button>`;
+      return `
+        <li class="okr-repo-row">
+          <code>${escapeHtml(r)}</code>
+          ${badge}
+          <span class="okr-repo-actions">${connectBtn} ${toggleBtn}</span>
+        </li>
+      `;
+    }).join('');
     return `
       <h2 class="okr-section-heading">Target Code Repos</h2>
       <ul class="okr-repo-list">${items}</ul>
-      <p class="okr-muted okr-section-note">Connection happens in Phase A-PR4 (Connect Repo flow on BAR detail).</p>
+      <p class="okr-muted okr-section-note">Click <strong>Connect Repo</strong> to open the repo's Actions settings. After enabling workflows + approving the app install, click <strong>Mark connected</strong>. The Phase D code-design fan-out won't fire against repos still marked Declared.</p>
     `;
   }
 
@@ -836,7 +864,7 @@ function renderPreflightSignal(phase: OkrPhase): string {
       <div><strong>Agent:</strong> prd-agent</div>
       <div><strong>Will run:</strong> mesh-grounded synthesis (knowledge-okr · knowledge-research · mesh-bar · ADRs · threats · context-architecture/security/quality) + optional Ask-Experts refinement</div>
       <div><strong>Audit gate:</strong> 10 H2 sections · FR-NN/SR-NN citation coverage · Pocket Watch · Caterpillar's Challenge (vs research-doc)</div>
-      <div><strong>Reviewers:</strong> architect-reviewer + security-reviewer (parallel, scored)</div>
+      <div><strong>Self-critique:</strong> persona-switch pass (architect · security · quality lenses, single agent)</div>
     </div>`;
   }
   return `<div class="okr-action-signals">
@@ -1094,9 +1122,17 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, sign
   // Hatter chain root + View Tag / Verify Chain buttons.
   const chainRoot = s?.chainRoot ?? action.hatterChainRoot;
   if (chainRoot) {
+    // Knight's Seal (B27) — inline badge next to chain_root so the
+    // sealed/tampered state is visible at the same glance as the hash.
+    let sealBadge = '';
+    if (s?.sealTampered) {
+      sealBadge = ` <span class="okr-seal-badge okr-seal-tampered" title="Partial signatures — chain tampered. PR audit comment has details.">⛔ Tampered</span>`;
+    } else if (s?.sealed === true) {
+      sealBadge = ` <span class="okr-seal-badge okr-seal-ok" title="Every audit event signed with the run's ephemeral Ed25519 key. CI workflow verifies on PR audit.">🛡 Sealed</span>`;
+    }
     baseLines.push(`
       <div class="okr-signal-chain">
-        <strong>Hatter:</strong> chain_root <code>${escapeHtml(chainRoot.slice(0, 12))}…</code>
+        <strong>Hatter:</strong> chain_root <code>${escapeHtml(chainRoot.slice(0, 12))}…</code>${sealBadge}
         <button class="okr-link-button okr-signal-chain-btn" data-action="view-hatter-tag"
           data-action-id="${escapeAttr(action.id)}" data-run-id="${escapeAttr(action.runId)}">View Tag ↗</button>
         <button class="okr-link-button okr-signal-chain-btn" data-action="verify-chain"
@@ -1200,6 +1236,10 @@ export function getOkrDetailStyles(): string {
     .okr-repo-list li { padding: 0.5rem 0.75rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     .okr-repo-status { font-size: 0.75rem; padding: 0.125rem 0.5rem; border-radius: 0.375rem; }
     .okr-repo-declared { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+    .okr-repo-connected { background: rgba(74, 222, 128, 0.14); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+    .okr-repo-unreachable { background: rgba(248, 113, 113, 0.14); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
+    .okr-repo-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .okr-repo-actions { display: flex; gap: 0.375rem; margin-left: auto; }
     .okr-section-note { font-size: 0.75rem; opacity: 0.7; }
     .okr-action-card { padding: 1rem 1.25rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.5rem; margin-bottom: 0.75rem; background: var(--vscode-editor-background); }
     .okr-action-card-idle { border-color: rgba(148, 163, 184, 0.3); }
@@ -1217,6 +1257,9 @@ export function getOkrDetailStyles(): string {
     .okr-signal-meta { font-size: 0.75rem; opacity: 0.75; padding-top: 0.25rem; border-top: 1px dashed rgba(148, 163, 184, 0.2); margin-top: 0.25rem; }
     .okr-signal-chain { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.25rem; }
     .okr-signal-chain-btn { font-size: 0.75rem; padding: 0.125rem 0.5rem; }
+    .okr-seal-badge { font-size: 0.7rem; padding: 0.0625rem 0.4375rem; border-radius: 0.625rem; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
+    .okr-seal-ok { background: rgba(74, 222, 128, 0.14); border: 1px solid rgba(74, 222, 128, 0.35); color: #4ade80; }
+    .okr-seal-tampered { background: rgba(248, 113, 113, 0.14); border: 1px solid rgba(248, 113, 113, 0.4); color: #f87171; }
     .okr-signal-audit-action { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.5rem; margin-top: 0.25rem; border-top: 1px dashed rgba(148, 163, 184, 0.2); }
     .okr-signal-audit-hint { font-size: 0.75rem; }
     .okr-signal-audit-status { font-size: 0.8125rem; padding: 0.375rem 0.5rem; background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.25); border-radius: 0.25rem; margin-top: 0.25rem; color: var(--vscode-foreground); }
@@ -1351,6 +1394,29 @@ export function attachOkrDetailEvents(
       const barPath = (el as HTMLElement).dataset.barPath;
       if (barPath) {
         vscode.postMessage({ type: 'drillIntoBar', barPath });
+      }
+    });
+  });
+  // A12: Connect Repo flow. Opens the repo's GitHub Settings → Actions
+  // page in the browser (user enables workflows + approves app install
+  // there). The Mark connected toggle persists state back to the OKR
+  // card via the panel-side toggleOkrRepoConnected message.
+  document.querySelectorAll('[data-action="open-repo-actions-settings"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const url = (el as HTMLElement).dataset.url;
+      if (url) {
+        vscode.postMessage({ type: 'openUrl', url });
+      }
+    });
+  });
+  document.querySelectorAll('[data-action="toggle-repo-connected"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const e = el as HTMLElement;
+      const okrId = e.dataset.okrId;
+      const repoUrl = e.dataset.repoUrl;
+      const nextStatus = e.dataset.nextStatus;
+      if (okrId && repoUrl && (nextStatus === 'connected' || nextStatus === 'declared' || nextStatus === 'unreachable')) {
+        vscode.postMessage({ type: 'toggleOkrRepoConnected', okrId, repoUrl, status: nextStatus });
       }
     });
   });

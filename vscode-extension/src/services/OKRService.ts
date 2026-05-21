@@ -202,6 +202,7 @@ export class OKRService {
         platformId: validated.objectiveAlignment.platformId,
         affectedBarIds: validated.objectiveAlignment.affectedBarIds,
         targetCodeRepos: validated.objectiveAlignment.targetCodeRepos,
+        targetCodeRepoStatus: {},
         intentCascade: {
           org: validated.objectiveAlignment.intentCascade.org ?? '',
           role: validated.objectiveAlignment.intentCascade.role ?? '',
@@ -353,6 +354,7 @@ export class OKRService {
       if (a.platformId !== undefined) { card.objectiveAlignment.platformId = a.platformId; }
       if (a.affectedBarIds) { card.objectiveAlignment.affectedBarIds = a.affectedBarIds; }
       if (a.targetCodeRepos) { card.objectiveAlignment.targetCodeRepos = a.targetCodeRepos; }
+      if (a.targetCodeRepoStatus) { card.objectiveAlignment.targetCodeRepoStatus = a.targetCodeRepoStatus; }
       if (a.intentCascade) {
         card.objectiveAlignment.intentCascade = {
           ...card.objectiveAlignment.intentCascade,

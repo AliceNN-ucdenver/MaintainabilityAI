@@ -172,6 +172,7 @@ jobs:
           import json, hashlib, os
           jsonl = os.environ['JSONL']
           ok, reason, head, n, prev = True, '', '', 0, None
+          signed_count = 0
           def canonical(v):
               return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=True)
           with open(jsonl, 'r', encoding='utf-8') as f:
@@ -189,11 +190,21 @@ jobs:
               recorded = event.get('event_hash')
               if not isinstance(recorded, str):
                   ok = False; reason = f'missing-event-hash-line-{i+1}'; break
+              # Knight's Seal v1 (B27): when the runner signs events, BOTH
+              # event_hash and signature are filled in AFTER the hash is
+              # computed. Zero both before recompute. Legacy chains have
+              # no signature field; treat them unchanged.
               draft = dict(event); draft['event_hash'] = ''
+              if 'signature' in event:
+                  draft['signature'] = ''
+                  signed_count += 1
               recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
               if recorded != recomputed:
                   ok = False; reason = f'forged-hash-line-{i+1}: recorded={recorded[:16]} recomputed={recomputed[:16]}'; break
               prev = recorded
+          sealed = signed_count > 0
+          if ok and sealed and signed_count != n:
+              ok = False; reason = f'partial-signatures: {signed_count}/{n} events signed (chain tampered)'
           head = prev or ''
           out = os.environ['GITHUB_OUTPUT']
           with open(out, 'a', encoding='utf-8') as f:
@@ -201,8 +212,10 @@ jobs:
               f.write(f'reason={reason}\n')
               f.write(f'head={head}\n')
               f.write(f'count={n}\n')
+              f.write(f'sealed={"true" if sealed else "false"}\n')
           status = 'PASS' if ok else 'FAIL'
-          print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""} reason={reason}')
+          seal_note = f' sealed={sealed}' if n > 0 else ''
+          print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""}{seal_note} reason={reason}')
           PYEOF
 
       - name: Count successful skill_calls + distinct queries
@@ -561,7 +574,14 @@ jobs:
             skipped) printf '| Pocket Watch goal-drift | — skipped (`%s`) — does NOT block research-pass |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
             *)       printf '| Pocket Watch goal-drift | `%s` (cosine=%s) |\n' "$POCKET_STATE" "$POCKET_COS" >> "$BODY" ;;
           esac
-          printf '| Hatter Tag `evidence_mode` | `%s` |\n\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
+          printf '| Hatter Tag `evidence_mode` | `%s` |\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
+          # Knight's Seal v1 (B27): per-run Ed25519 sealing.
+          SEALED='${{ steps.chain.outputs.sealed }}'
+          case "$SEALED" in
+            true)  printf "| Knight's Seal (Ed25519) | ✓ Sealed |\n\n" >> "$BODY" ;;
+            false) printf "| Knight's Seal (Ed25519) | — legacy chain (unsigned) |\n\n" >> "$BODY" ;;
+            *)    printf "| Knight's Seal (Ed25519) | — n/a (no chain) |\n\n" >> "$BODY" ;;
+          esac
           printf '_market-research-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"
 
           BODY_CONTENT=$(cat "$BODY")
