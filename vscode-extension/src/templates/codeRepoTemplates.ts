@@ -420,6 +420,27 @@ export function generatePrdAgentWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'prd-agent.yml');
 }
 
+/**
+ * Per-agent workflow for the code-design-agent (WHAT phase) — D-PR1 MVP.
+ * Owns dispatch on `oraculum-design` issues + audit-and-drift on
+ * `design-draft` PRs + finalize on PR merge.
+ *
+ * Audit checks: chain integrity (B25), Knight's Seal (B27), per-repo
+ * mode honesty (A12.v1.1 — knowledge-code chain mode matches code-
+ * design.md per-repo frontmatter mode), self-review block/chain
+ * reconciliation (B28c.v1.1 pattern with B29 fallback for code-* personas).
+ *
+ * Dispatch precondition: A12.v1.1 — every targetCodeRepos[] entry's
+ * status MUST be 'connected' or 'create' before the agent runs. Any
+ * 'not-connected' / 'unreachable' entry blocks dispatch with a comment.
+ *
+ * Pocket Watch + Caterpillar drift gates are report-only in D-PR1 MVP;
+ * thresholds calibrate in D-PR1.v1.1 after the first end-to-end run.
+ */
+export function generateCodeDesignAgentWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'code-design-agent.yml');
+}
+
 // architect-reviewer.yml + security-reviewer.yml removed in B24 —
 // self-critique inside prd-agent.agent.md (Architect + Security
 // personas, bounded rounds) replaced the separate reviewer dispatches.
@@ -479,18 +500,25 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   // agent lands in Phase 3 for WHAT.
   { relativePath: '.github/workflows/market-research-agent.yml', generate: generateMarketResearchAgentWorkflow },
   { relativePath: '.github/workflows/prd-agent.yml',             generate: generatePrdAgentWorkflow },
+  // D-PR1 — code-design-agent for the WHAT phase. Brownfield/greenfield
+  // branching per A12.v1.1 targetCodeRepoStatus.
+  { relativePath: '.github/workflows/code-design-agent.yml',     generate: generateCodeDesignAgentWorkflow },
 
   // ── Composite actions (referenced by per-agent workflows) ────────────
   { relativePath: '.github/actions/extract-okr-context/action.yml', generate: generateExtractOkrContextAction },
   { relativePath: '.github/actions/count-skill-calls/action.yml',   generate: generateCountSkillCallsAction },
   { relativePath: '.github/actions/check-tier-bound/action.yml',    generate: generateCheckTierBoundAction },
 
-  // No transitional workflows remain. WHY + HOW are owned end-to-end
-  // by per-agent workflows above. WHAT will land in Phase 3 with its
-  // own per-agent file (code-design-agent.yml) — the prior bus / state-
-  // machine / drift-gate / audit-validate workflows have been removed
-  // (added to DEPRECATED_MESH_FILES below so pruneDeprecatedWorkflows
-  // sweeps them from any mesh repo on next Redeploy).
+  // No transitional workflows remain. WHY + HOW + WHAT are owned end-
+  // to-end by per-agent workflows above. The prior bus / state-machine
+  // / drift-gate / audit-validate workflows have been removed (added
+  // to DEPRECATED_MESH_FILES below so pruneDeprecatedWorkflows sweeps
+  // them from any mesh repo on next Redeploy).
+  //
+  // design-bus.yml (D-PR4) — per-repo fan-out from the merged WHAT
+  // PR to each target code repo (brownfield: open landing issue;
+  // greenfield: create repo + seed commit + open landing issue) —
+  // is queued for D-PR4 and not yet in this list.
 ];
 
 /**

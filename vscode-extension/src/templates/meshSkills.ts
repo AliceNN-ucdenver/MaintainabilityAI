@@ -82,11 +82,15 @@ export const MESH_AGENTS: MeshAgentSpec[] = [
   // B24: self-critique in prd-agent.agent.md replaces separate
   // architect-reviewer + security-reviewer agents at PRD time. The
   // two reviewer .agent.md templates stay on disk under
-  // code-templates/agents-v4/ in case Phase 3 (WHAT phase, code-
-  // grounded review) wants to bring them back — but they're not
-  // deployed to mesh repos right now.
+  // code-templates/agents-v4/ for reference but aren't deployed.
   agentSpec('market-research-agent'),
   agentSpec('prd-agent'),
+  // D-PR1 — code-design-agent (Phase D / WHAT). Third and last Looking-
+  // Glass-side agent. Persona-switch self-critique (B24 pattern carried
+  // forward) via self-review-code-architect / self-review-code-security
+  // Skills above. Per-repo grounding via knowledge-code Skill (3-mode
+  // brownfield / greenfield / refuse per A12.v1.1 targetCodeRepoStatus).
+  agentSpec('code-design-agent'),
 ];
 
 /**
@@ -121,6 +125,12 @@ export const MESH_SKILLS: MeshSkillSpec[] = [
   // entered each persona-switch round).
   skillSpec('self-review-architect', 'context'),
   skillSpec('self-review-security', 'context'),
+  // D-PR1 — code-phase persona-switch packs. Same B29 contract, reads
+  // .caterpillar/prompts/code-design/* packs instead of prd/* packs.
+  // The code-design-agent (Phase D / WHAT) uses these for its self-
+  // critique loop the same way prd-agent uses the PRD-phase pair.
+  skillSpec('self-review-code-architect', 'context'),
+  skillSpec('self-review-code-security', 'context'),
   // B6 — audit
   skillSpec('audit-emit-event', 'audit'),
   // B7 — formatter

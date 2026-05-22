@@ -1,0 +1,535 @@
+name: "Code Design Agent — WHAT-phase lifecycle"
+
+# D-PR1 MVP — single workflow for the code-design-agent's complete
+# lifecycle. Mirrors prd-agent.yml's three-job shape:
+#   1. `verify-agent-deployed` — on issue labeled `oraculum-design`
+#       (Looking Glass "Start What"). Sanity-checks (a) the agent file
+#       is on main, (b) HOW PRD is merged, (c) A12.v1.1 repo-status
+#       precondition: every targetCodeRepos[] entry is 'connected'
+#       or 'create' (no 'not-connected' / 'unreachable').
+#   2. `audit-and-drift` — on PR labeled `design-draft` (user-triggered
+#       via Looking Glass "Run audit" button). Verifies audit chain
+#       (B25), Knight's Seal (B27), evidence-honesty (knowledge-code
+#       per repo), per-repo mode honesty (frontmatter mode matches
+#       chain), structural correctness, Pocket Watch + Caterpillar
+#       drift, self-review block / chain counts (B28c.v1.1 pattern).
+#       Applies `design-pass` on clean OR `design-degraded` /
+#       `design-drift-detected` on fail.
+#   3. `finalize` — on PR closed-and-merged with `design-draft` label.
+#       Appends chain-ladder.yaml WHAT entry + flips action.status to
+#       complete + triggers design-bus.yml (separate workflow).
+
+on:
+  issues:
+    types: [opened, labeled, reopened]
+  pull_request_target:
+    types: [labeled, unlabeled, closed]
+
+concurrency:
+  group: code-design-agent-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+  checks: write
+  # GitHub Models embeddings for Pocket Watch + Caterpillar drift gates.
+  models: read
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 1 — Dispatch precondition checks on Looking Glass "Start What"
+  # ════════════════════════════════════════════════════════════════════
+  verify-agent-deployed:
+    name: "Verify code-design-agent file + HOW gate + A12.v1.1 repo-status precondition"
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oraculum-design'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check agent file present on default branch
+        run: |
+          if ! gh api "repos/${{ github.repository }}/contents/.github/agents/code-design-agent.agent.md" >/dev/null 2>&1; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **code-design-agent.agent.md is not deployed.** Open Looking Glass → Settings → Mesh Provisioning → \"Deploy All\" so the agent file lands on \`main\`."
+            exit 1
+          fi
+
+      - name: Verify gating dependency — HOW PRD merged
+        run: |
+          BODY=$(gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json body --jq .body)
+          OKR_ID=$(printf '%s' "$BODY" | grep -oE '<!-- okr_id:[[:space:]]*[^[:space:]]+' | head -1 | sed -E 's/<!-- okr_id:[[:space:]]*//')
+          if [ -z "$OKR_ID" ]; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **No \`okr_id\` marker in issue body.** Looking Glass should emit \`<!-- okr_id: ... -->\`."
+            exit 1
+          fi
+          if ! gh api "repos/${{ github.repository }}/contents/okrs/$OKR_ID/how/prd.md" >/dev/null 2>&1; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **HOW phase not merged yet.** \`okrs/$OKR_ID/how/prd.md\` not found on main. Complete the HOW phase (prd-pass + merge) before starting WHAT."
+            exit 1
+          fi
+          echo "OKR_ID=$OKR_ID" >> "$GITHUB_ENV"
+          echo "::notice::HOW gate cleared for $OKR_ID"
+
+      # A12.v1.1 precondition: every targetCodeRepos[] entry must have a
+      # status of 'connected' (brownfield → clone + ground) or 'create'
+      # (greenfield → design from PRD + mesh, fan-out scaffolds). Any
+      # 'not-connected' or 'unreachable' entry blocks dispatch with a
+      # comment naming the offending repos. The agent never runs against
+      # ambiguous repo intent.
+      - name: Verify A12.v1.1 repo-status precondition
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Check targetCodeRepoStatus
+        run: |
+          OKR_YAML="okrs/${OKR_ID}/okr.yaml"
+          if [ ! -f "$OKR_YAML" ]; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} \
+              --body "⚠️ **OKR card missing.** \`$OKR_YAML\` not found on main."
+            exit 1
+          fi
+          # Parse targetCodeRepoStatus map via python yaml; reject if
+          # any entry is not 'connected' or 'create'. Absent entries
+          # default to 'not-connected' (per A12.v1.1 schema default).
+          OKR_YAML="$OKR_YAML" python3 <<'PYEOF'
+          import yaml, os, sys, json
+          card = yaml.safe_load(open(os.environ['OKR_YAML']))
+          oa = card.get('objectiveAlignment') or {}
+          repos = oa.get('targetCodeRepos') or []
+          status_map = oa.get('targetCodeRepoStatus') or {}
+          violations = []
+          for r in repos:
+              s = status_map.get(r, 'not-connected')
+              if s not in ('connected', 'create'):
+                  violations.append(f"  - `{r}` → `{s}`")
+          if violations:
+              msg = ("⚠️ **A12.v1.1 repo-status precondition failed.** "
+                     "code-design-agent requires every `targetCodeRepos[]` entry to be "
+                     "either `connected` (brownfield — clone + ground) or `create` "
+                     "(greenfield — design from PRD + mesh, fan-out scaffolds). "
+                     "Offending entries:\n\n" + "\n".join(violations) +
+                     "\n\nOpen Looking Glass → OKR detail → Target Code Repos and pick a status per repo.")
+              with open('/tmp/precondition-msg.txt', 'w') as f:
+                  f.write(msg)
+              sys.exit(2)
+          print(f"A12.v1.1 precondition cleared: {len(repos)} repos, all 'connected' or 'create'")
+          PYEOF
+          rc=$?
+          if [ $rc -eq 2 ]; then
+            gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body-file /tmp/precondition-msg.txt
+            exit 1
+          fi
+          [ $rc -eq 0 ] || exit $rc
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 2 — Audit + drift on user-applied design-draft label
+  # ════════════════════════════════════════════════════════════════════
+  audit-and-drift:
+    name: "Audit + drift check on design-draft PR"
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'design-draft' &&
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Checkout base ref to /tmp/base for cross-phase reads
+        # Need merged PRD (from base / main) for Caterpillar's Challenge.
+        run: |
+          mkdir -p /tmp/base
+          git -C /tmp/base init -q
+          git -C /tmp/base remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git -C /tmp/base fetch --depth=1 origin "${{ github.event.pull_request.base.ref }}" -q
+          git -C /tmp/base checkout -q FETCH_HEAD
+
+      - name: Extract OKR context
+        id: ctx
+        uses: ./.github/actions/extract-okr-context
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if Hatter Tag missing
+        id: gate
+        if: steps.ctx.outputs.okr_id == '' || steps.ctx.outputs.run_id == ''
+        run: |
+          echo "::warning::PR has no okr_id/run_id Hatter Tag — skipping audit"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Locate audit JSONL
+        id: audit
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          JSONL="okrs/${{ steps.ctx.outputs.okr_id }}/audit/events/${{ steps.ctx.outputs.run_id }}.jsonl"
+          if [ ! -f "$JSONL" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "path=$JSONL" >> "$GITHUB_OUTPUT"
+            echo "::warning::Audit JSONL missing at $JSONL"
+            exit 0
+          fi
+          echo "found=true"   >> "$GITHUB_OUTPUT"
+          echo "path=$JSONL"  >> "$GITHUB_OUTPUT"
+
+      # Same chain-integrity check prd-agent.yml uses (B25 / B27). Inline
+      # Python; same canonical JSON serialization the runner uses.
+      - name: Verify audit chain integrity
+        id: chain
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+        run: |
+          python3 <<'PYEOF'
+          import json, hashlib, os
+          jsonl = os.environ['JSONL']
+          ok, reason, head, n, prev = True, '', '', 0, None
+          signed_count = 0
+          def canonical(v):
+              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+          with open(jsonl, 'r', encoding='utf-8') as f:
+              lines = [l.strip() for l in f if l.strip()]
+          for i, line in enumerate(lines):
+              try:
+                  event = json.loads(line)
+              except Exception as e:
+                  ok = False; reason = f'bad-jsonl-line-{i+1}: {e}'; break
+              n += 1
+              if event.get('event_id') != i + 1:
+                  ok = False; reason = f"event-id-mismatch-line-{i+1}"; break
+              if event.get('prev_event_hash') != prev:
+                  ok = False; reason = f"prev-hash-mismatch-line-{i+1}"; break
+              recorded = event.get('event_hash')
+              if not isinstance(recorded, str):
+                  ok = False; reason = f'missing-event-hash-line-{i+1}'; break
+              draft = dict(event); draft['event_hash'] = ''
+              if 'signature' in event:
+                  draft['signature'] = ''
+                  signed_count += 1
+              recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
+              if recorded != recomputed:
+                  ok = False; reason = f'forged-hash-line-{i+1}'; break
+              prev = recorded
+          sealed = signed_count > 0
+          if ok and sealed and signed_count != n:
+              ok = False; reason = f'partial-signatures: {signed_count}/{n}'
+          head = prev or ''
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'ok={"true" if ok else "false"}\n')
+              f.write(f'reason={reason}\n')
+              f.write(f'head={head}\n')
+              f.write(f'count={n}\n')
+              f.write(f'sealed={"true" if sealed else "false"}\n')
+          print(f'::notice::audit chain {"PASS" if ok else "FAIL"} count={n} sealed={sealed}')
+          PYEOF
+
+      # Evidence honesty + per-repo mode honesty. The chain MUST have
+      # one knowledge-code skill_call per targetCodeRepos[] entry, AND
+      # the per-repo `mode:` frontmatter in code-design.md MUST match
+      # the chain's mode field for that repo. Mismatch = mode fabrication.
+      - name: Verify per-repo mode honesty
+        id: mode_honesty
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+        run: |
+          DESIGN_DOC="okrs/${OKR_ID}/what/code-design.md"
+          OKR_YAML="okrs/${OKR_ID}/okr.yaml"
+          if [ ! -f "$DESIGN_DOC" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=code-design-doc-missing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          JSONL="$JSONL" OKR_YAML="$OKR_YAML" DESIGN_DOC="$DESIGN_DOC" python3 <<'PYEOF'
+          import json, os, yaml, re
+          jsonl = os.environ['JSONL']
+          okr_yaml = os.environ['OKR_YAML']
+          design_doc = os.environ['DESIGN_DOC']
+
+          # 1. Read targetCodeRepoStatus from OKR.
+          card = yaml.safe_load(open(okr_yaml))
+          oa = (card or {}).get('objectiveAlignment') or {}
+          repos = oa.get('targetCodeRepos') or []
+          status_map = oa.get('targetCodeRepoStatus') or {}
+          # Migrate legacy 'declared' → 'not-connected' (mirrors the
+          # z.preprocess on TargetRepoStatusSchema).
+          for k, v in list(status_map.items()):
+              if v == 'declared':
+                  status_map[k] = 'not-connected'
+
+          # 2. Read knowledge-code skill_call events from chain.
+          chain_modes = {}  # repo (owner/name) → mode
+          with open(jsonl, 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line: continue
+                  e = json.loads(line)
+                  if e.get('event_kind') != 'skill_call': continue
+                  payload = e.get('payload') or {}
+                  if payload.get('skill') != 'knowledge-code': continue
+                  meta = payload.get('audit_metadata') or {}
+                  r = meta.get('repo')
+                  m = meta.get('mode')
+                  if r and m:
+                      chain_modes[r] = m
+
+          # 3. Read per-repo subsection frontmatter from code-design.md.
+          # Subsections inside §4 + §5 carry YAML frontmatter blocks
+          # delimited by --- ... --- with repo: + mode: keys. We scan
+          # all such blocks; duplicates across §4 and §5 are normal
+          # (same repo appears in Repo Inventory AND Change List).
+          doc_text = open(design_doc, 'r', encoding='utf-8').read()
+          frontmatters = re.findall(r'---\s*\n(.+?)\n---', doc_text, re.DOTALL)
+          doc_modes = {}  # repo → mode (last wins)
+          for fm in frontmatters:
+              try:
+                  parsed = yaml.safe_load(fm)
+              except Exception:
+                  continue
+              if not isinstance(parsed, dict): continue
+              r = parsed.get('repo')
+              m = parsed.get('mode')
+              if r and m:
+                  # repo in frontmatter may be 'owner/name' or full URL;
+                  # normalize to owner/name for matching.
+                  if r.startswith('http'):
+                      mm = re.match(r'^https?://github\.com/([^/]+)/([^/]+)$', r.rstrip('/'))
+                      if mm: r = f"{mm.group(1)}/{mm.group(2)}"
+                  doc_modes[r] = m
+
+          # 4. Compare: every target repo with status connected/create
+          # must have a knowledge-code call AND a matching mode in the doc.
+          findings = []
+          for url in repos:
+              status = status_map.get(url, 'not-connected')
+              if status not in ('connected', 'create'):
+                  findings.append(f"repo `{url}` has status `{status}` — should have been blocked at dispatch")
+                  continue
+              # Extract owner/name slug for chain + doc lookup.
+              mm = re.match(r'^https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$', url)
+              slug = f"{mm.group(1)}/{mm.group(2)}" if mm else url
+              expected_mode = 'brownfield' if status == 'connected' else 'greenfield'
+              chain_mode = chain_modes.get(slug)
+              doc_mode = doc_modes.get(slug)
+              if chain_mode is None:
+                  findings.append(f"repo `{slug}` has no knowledge-code skill_call in chain (status `{status}` requires one)")
+              elif chain_mode != expected_mode:
+                  findings.append(f"repo `{slug}` chain mode `{chain_mode}` ≠ status-implied `{expected_mode}`")
+              if doc_mode is None:
+                  findings.append(f"repo `{slug}` has no per-repo subsection frontmatter in code-design.md")
+              elif doc_mode != expected_mode:
+                  findings.append(f"repo `{slug}` doc mode `{doc_mode}` ≠ expected `{expected_mode}` (mode fabrication)")
+
+          out = os.environ['GITHUB_OUTPUT']
+          ok = len(findings) == 0
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'ok={"true" if ok else "false"}\n')
+              f.write(f'repo_count={len(repos)}\n')
+              f.write(f'finding_count={len(findings)}\n')
+              # Each finding on its own line via GH multiline output.
+              f.write('findings<<EOF\n')
+              for fnd in findings:
+                  f.write(fnd + '\n')
+              f.write('EOF\n')
+          print(f'::notice::mode-honesty {"PASS" if ok else "FAIL"} repos={len(repos)} findings={len(findings)}')
+          PYEOF
+
+      # Pocket Watch — cosine(OKR.objective, code-design.md ## Problem Restatement)
+      # Caterpillar — cosine(code-design.md ## Approach, prd.md ## Problem Statement)
+      # Thresholds calibrate in D-PR1's first run (per design doc D7 spec).
+      # Reuse the same embedding fetch + cosine pattern prd-agent.yml uses;
+      # MVP version reports the cosines without failing the merge (gates
+      # tighten in D-PR1.v1.1 after the first calibration run).
+      - name: Drift gates (Pocket Watch + Caterpillar) — MVP report-only
+        id: drift
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+        run: |
+          # Read OKR objective from main; design doc Problem Restatement
+          # + Approach from PR head; PRD Problem Statement from main.
+          # Output cosines into step outputs; do NOT exit non-zero in MVP.
+          DESIGN_DOC="okrs/${OKR_ID}/what/code-design.md"
+          PRD_DOC_BASE="/tmp/base/okrs/${OKR_ID}/how/prd.md"
+          OKR_YAML_BASE="/tmp/base/okrs/${OKR_ID}/okr.yaml"
+          if [ ! -f "$DESIGN_DOC" ] || [ ! -f "$PRD_DOC_BASE" ] || [ ! -f "$OKR_YAML_BASE" ]; then
+            echo "pocket_watch=skipped" >> "$GITHUB_OUTPUT"
+            echo "caterpillar=skipped" >> "$GITHUB_OUTPUT"
+            echo "reason=docs-missing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Calibration-pending in D-PR1 MVP — surface cosines but pass.
+          # Real gates land in D-PR1.v1.1.
+          echo "pocket_watch=calibration-pending" >> "$GITHUB_OUTPUT"
+          echo "caterpillar=calibration-pending" >> "$GITHUB_OUTPUT"
+          echo "::notice::drift gates report-only in D-PR1 MVP (calibrate in v1.1)"
+
+      # Self-review chain + block reconciliation — same B28c.v1.1 pattern
+      # the prd-agent.yml uses, but for code-* personas. Two evidence
+      # sources: structured `### Self-review — Code-<Persona> (round N)`
+      # blocks in PR body, AND self-review-code-* skill_calls in chain.
+      - name: Count self-review evidence
+        id: review
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Count skill_call events for self-review-code-* (B29 carryforward).
+          B29_ROUNDS=$(jq -r 'select(.event_kind == "skill_call" and (.payload.skill == "self-review-code-architect" or .payload.skill == "self-review-code-security")) | .payload.round // 0' "$JSONL" 2>/dev/null | sort -n | tail -1 || echo 0)
+          B29_ROUNDS="${B29_ROUNDS:-0}"
+          # Count structured blocks in PR body. Same regex shape as prd-agent.yml.
+          BLOCK_ROUNDS=$(printf '%s' "$PR_BODY" | grep -cE '^### Self-review — Code-(Architect|Security) \(round [0-9]+\)' || echo 0)
+          if [ "$BLOCK_ROUNDS" -eq 0 ] && [ "$B29_ROUNDS" -gt 0 ]; then
+            ROUNDS="$B29_ROUNDS"
+            REVIEW_SOURCE="b29-chain"
+          else
+            ROUNDS=$(( BLOCK_ROUNDS / 2 ))  # 2 blocks per round (architect + security)
+            REVIEW_SOURCE="parser"
+          fi
+          {
+            echo "rounds=$ROUNDS"
+            echo "source=$REVIEW_SOURCE"
+            echo "b29_rounds=$B29_ROUNDS"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::self-review rounds=$ROUNDS source=$REVIEW_SOURCE"
+
+      # Apply the design-pass label on clean OR design-degraded on
+      # evidence/mode-honesty fail OR design-drift-detected on drift fail.
+      - name: Apply verdict label
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          CHAIN_OK='${{ steps.chain.outputs.ok }}'
+          MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
+          # MVP: drift gates report-only, so verdict gates only chain + mode.
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ]; then
+            gh pr edit $PR --add-label design-pass --remove-label design-degraded,design-drift-detected 2>/dev/null || true
+            echo "::notice::Applied design-pass label"
+          elif [ "$MODE_OK" = "false" ]; then
+            gh pr edit $PR --add-label design-degraded 2>/dev/null || true
+            echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"
+          else
+            gh pr edit $PR --add-label design-degraded 2>/dev/null || true
+            echo "::warning::Applied design-degraded — chain reason: ${{ steps.chain.outputs.reason }}"
+          fi
+
+      - name: Post / upsert audit comment
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          BODY=$(printf '## Code Design Audit\n\n')
+          BODY+=$(printf '| Check | Result |\n|---|---|\n')
+          BODY+=$(printf '| Audit chain integrity (B25) | %s (count=%s, sealed=%s) |\n' \
+            "${{ steps.chain.outputs.ok == 'true' && '✓' || '✗' }}" \
+            "${{ steps.chain.outputs.count }}" \
+            "${{ steps.chain.outputs.sealed }}")
+          BODY+=$(printf '| Per-repo mode honesty (A12.v1.1) | %s (repos=%s, findings=%s) |\n' \
+            "${{ steps.mode_honesty.outputs.ok == 'true' && '✓' || '✗' }}" \
+            "${{ steps.mode_honesty.outputs.repo_count }}" \
+            "${{ steps.mode_honesty.outputs.finding_count }}")
+          BODY+=$(printf '| Drift gates (Pocket Watch + Caterpillar) | calibration-pending (D-PR1.v1.1) |\n')
+          BODY+=$(printf '| Self-review (B24 / B29) | %s round(s) · source=%s |\n' \
+            "${{ steps.review.outputs.rounds }}" \
+            "${{ steps.review.outputs.source }}")
+          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$BODY"
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 3 — Finalize on PR merge (append chain-ladder + flip action)
+  # ════════════════════════════════════════════════════════════════════
+  finalize:
+    name: "Finalize on design-draft PR merge"
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'design-draft')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract OKR context
+        id: ctx
+        uses: ./.github/actions/extract-okr-context
+        with:
+          pr-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Append chain-ladder WHAT entry + flip action.status
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
+          PARENT_INTENT_THREAD: ${{ steps.ctx.outputs.parent_intent_thread }}
+          CHAIN_ROOT_HASH: ${{ steps.ctx.outputs.chain_root_hash }}
+        run: |
+          python3 <<'PYEOF'
+          import os, yaml
+          from datetime import datetime, timezone
+          okr_id = os.environ['OKR_ID']
+          run_id = os.environ['RUN_ID']
+          pr_url = os.environ['PR_URL']
+          itu = os.environ.get('INTENT_THREAD_UUID', '')
+          pit = os.environ.get('PARENT_INTENT_THREAD', '')
+          crh = os.environ.get('CHAIN_ROOT_HASH', '')
+
+          # 1. Append chain-ladder entry.
+          ladder_path = f'okrs/{okr_id}/audit/chain-ladder.yaml'
+          ladder = {'entries': []}
+          if os.path.exists(ladder_path):
+              with open(ladder_path) as f:
+                  ladder = yaml.safe_load(f) or {'entries': []}
+          ladder.setdefault('entries', []).append({
+              'phase': 'what',
+              'run_id': run_id,
+              'intent_thread_uuid': itu,
+              'parent_intent_thread': pit,
+              'chain_root_hash': crh,
+              'pr_url': pr_url,
+              'merged_at': datetime.now(timezone.utc).isoformat(),
+          })
+          with open(ladder_path, 'w') as f:
+              yaml.safe_dump(ladder, f, sort_keys=False)
+
+          # 2. Flip action.status to complete + record chainRootHash.
+          okr_yaml = f'okrs/{okr_id}/okr.yaml'
+          card = yaml.safe_load(open(okr_yaml))
+          for a in (card or {}).get('actions', []):
+              if a.get('runId') == run_id:
+                  a['status'] = 'complete'
+                  if crh: a['hatterChainRoot'] = crh
+                  break
+          with open(okr_yaml, 'w') as f:
+              yaml.safe_dump(card, f, sort_keys=False)
+          print(f'finalized WHAT phase for {okr_id} run={run_id}')
+          PYEOF
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "okrs/${OKR_ID}/audit/chain-ladder.yaml" "okrs/${OKR_ID}/okr.yaml"
+          git commit -m "chore(code-design): finalize WHAT phase for ${OKR_ID} run=${RUN_ID}" || echo "nothing to commit"
+          git push origin main
+          echo "::notice::Finalized WHAT phase for $OKR_ID — design-bus.yml fan-out triggers next"

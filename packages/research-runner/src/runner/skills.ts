@@ -638,6 +638,353 @@ function makeSelfReviewHandler(persona: 'architect' | 'security'): SkillHandler 
 const handleSelfReviewArchitect = makeSelfReviewHandler('architect');
 const handleSelfReviewSecurity = makeSelfReviewHandler('security');
 
+/**
+ * D-PR1 — code-phase persona-switch self-review. Same B29 pattern as the
+ * PRD-phase architect/security handlers above, but reads the WHAT-phase
+ * prompt packs at `.caterpillar/prompts/code-design/*` instead of the
+ * PRD packs. Returns the authoritative tier + MAX_AUTO_ROUNDS so the
+ * code-design-agent can't hallucinate its persona-switch budget.
+ *
+ * The agent's flow (per the code-design-agent.agent.md contract):
+ *   1. First-pass synthesis (no persona — author voice).
+ *   2. Inhabit code-architect persona → call this Skill with round=1.
+ *      Read the returned promptPack as the critique criteria. Produce a
+ *      structured SCORE/SEVERITY/COVERED/MISSING/CHANGES block in the PR body.
+ *   3. Same for code-security persona, round=1.
+ *   4. If either round-1 severity > PASS AND round < maxAutoRounds: revise
+ *      the code-design, call this Skill with round=2, produce round-2 blocks.
+ *   5. Restricted tier (maxAutoRounds=0) skips persona-switch entirely;
+ *      shouldProceed returns false → the agent reports the un-critiqued
+ *      design and the audit-and-drift workflow gates on HumanGate.
+ */
+function makeCodeReviewHandler(persona: 'code-architect' | 'code-security'): SkillHandler {
+  return async (input) => {
+    const parsed = SelfReviewInput.safeParse(input);
+    if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+    const mesh = meshPath();
+    const okrPath = path.join(mesh, 'okrs', parsed.data.okrId, 'okr.yaml');
+    if (!fs.existsSync(okrPath)) { return { ok: false, reason: 'okr-not-found' }; }
+    const card = readYaml<OkrYamlShape>(okrPath);
+    const action = card?.actions?.find(a => a.runId === parsed.data.runId);
+    if (!action) {
+      return { ok: false, reason: `action-not-found: no actions[] entry with runId=${parsed.data.runId}` };
+    }
+    const tier = (action.governanceTier ?? '').toLowerCase();
+    const maxAutoRounds = tierMaxRounds(tier);
+    const shouldProceed = tier !== 'restricted' && parsed.data.round <= maxAutoRounds;
+    // code-design prompt packs live alongside the prd packs but in a
+    // separate subdir so the agent can't confuse "PRD architecture review"
+    // (mesh-grounded) with "code-design architecture review" (code-grounded).
+    const promptFilename = persona === 'code-architect' ? 'architecture-review.md' : 'security-review.md';
+    const promptPath = path.join(mesh, '.caterpillar', 'prompts', 'code-design', promptFilename);
+    let promptPack = '';
+    let promptPackFound = false;
+    if (fs.existsSync(promptPath)) {
+      try { promptPack = fs.readFileSync(promptPath, 'utf8'); promptPackFound = true; } catch { /* leave empty */ }
+    }
+    const auditMetadata = {
+      persona,
+      phase: 'what',
+      tier,
+      max_auto_rounds: maxAutoRounds,
+      round: parsed.data.round,
+      should_proceed: shouldProceed,
+      prompt_pack_path: promptPath,
+      prompt_pack_found: promptPackFound,
+    };
+    return {
+      ok: true,
+      persona,
+      phase: 'what',
+      tier,
+      maxAutoRounds,
+      round: parsed.data.round,
+      shouldProceed,
+      promptPack,
+      promptPackPath: promptPath,
+      promptPackFound,
+      auditMetadata,
+    } as SkillResult;
+  };
+}
+
+const handleSelfReviewCodeArchitect = makeCodeReviewHandler('code-architect');
+const handleSelfReviewCodeSecurity = makeCodeReviewHandler('code-security');
+
+// ─────────────────────────────────────────────────────────────────────
+// knowledge-code — Phase D D6 backend. Per A12.v1.1, branches on per-repo
+// `targetCodeRepoStatus`: 'connected' clones + classifies (brownfield);
+// 'create' returns scaffolding hints (greenfield, no clone); 'not-connected'
+// / 'unreachable' refuses with a remediation hint so the agent stops cleanly.
+//
+// MVP extraction is shallow (top-dirs + language map + manifest detection +
+// entrypoint heuristics). Tree-sitter polyglot cross-module-call extraction
+// is a follow-up (D-PR1.v1.1) — it requires per-language parsers as deps
+// that bloat the runner package. The shallow shape is enough to prove the
+// brownfield/greenfield contract end-to-end on the IMDB-celebs sample.
+// ─────────────────────────────────────────────────────────────────────
+
+const KnowledgeCodeInput = z.object({
+  okrId: z.string().min(1),
+  repoUrl: z.string().min(1),
+  repoStatus: z.enum(['connected', 'not-connected', 'create', 'unreachable']),
+  ref: z.string().optional(),
+  maxFiles: z.number().int().positive().optional(),
+});
+
+/**
+ * Map common file extensions to a primary-language label. Used for the
+ * `languages` histogram in the brownfield response. Order matters when a
+ * repo has multiple — the most-common wins.
+ */
+const LANG_EXTS: Record<string, string> = {
+  '.ts': 'typescript', '.tsx': 'typescript',
+  '.js': 'javascript', '.jsx': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript',
+  '.py': 'python',
+  '.go': 'go',
+  '.rs': 'rust',
+  '.java': 'java',
+  '.kt': 'kotlin',
+  '.rb': 'ruby',
+  '.php': 'php',
+  '.cs': 'csharp',
+  '.swift': 'swift',
+  '.c': 'c', '.h': 'c',
+  '.cpp': 'cpp', '.cc': 'cpp', '.hpp': 'cpp', '.hxx': 'cpp',
+};
+
+/**
+ * Manifest filenames the brownfield walk surfaces so the agent can ground
+ * design decisions on the repo's actual dependency posture. Keep this list
+ * conservative — over-eager manifest detection is noise.
+ */
+const MANIFEST_FILES = new Set([
+  'package.json', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
+  'requirements.txt', 'pyproject.toml', 'Pipfile', 'Pipfile.lock', 'poetry.lock',
+  'go.mod', 'go.sum',
+  'Cargo.toml', 'Cargo.lock',
+  'pom.xml', 'build.gradle', 'build.gradle.kts',
+  'Gemfile', 'Gemfile.lock',
+  'composer.json',
+]);
+
+/**
+ * Walk a directory tree, capped at `maxFiles`. Returns relative paths.
+ * Skips `.git/`, `node_modules/`, `__pycache__/`, and `vendor/` — the
+ * convention dirs that bloat counts without informing design.
+ */
+function walkRepo(rootDir: string, maxFiles: number): string[] {
+  const SKIP = new Set(['.git', 'node_modules', '__pycache__', 'vendor', 'dist', 'build', '.next', '.nuxt']);
+  const out: string[] = [];
+  function recurse(absDir: string, relBase: string): void {
+    if (out.length >= maxFiles) { return; }
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(absDir, { withFileTypes: true }); }
+    catch { return; }
+    for (const ent of entries) {
+      if (out.length >= maxFiles) { return; }
+      if (SKIP.has(ent.name)) { continue; }
+      const abs = path.join(absDir, ent.name);
+      const rel = relBase ? `${relBase}/${ent.name}` : ent.name;
+      if (ent.isDirectory()) { recurse(abs, rel); }
+      else if (ent.isFile()) { out.push(rel); }
+    }
+  }
+  recurse(rootDir, '');
+  return out;
+}
+
+/**
+ * Guess the primary BAR-level language + framework from the manifest +
+ * file mix. For greenfield scaffolding the agent can override these from
+ * BAR-app.yaml calm-node hints; this is just the brownfield read.
+ */
+function classifyRepo(files: string[]): {
+  topDirs: string[];
+  languages: Record<string, number>;
+  packageManifests: string[];
+} {
+  const topDirs = new Set<string>();
+  const languages: Record<string, number> = {};
+  const packageManifests: string[] = [];
+  for (const f of files) {
+    const slashIdx = f.indexOf('/');
+    if (slashIdx > 0) { topDirs.add(f.slice(0, slashIdx)); }
+    const ext = path.extname(f).toLowerCase();
+    const lang = LANG_EXTS[ext];
+    if (lang) { languages[lang] = (languages[lang] ?? 0) + 1; }
+    const base = path.basename(f);
+    if (MANIFEST_FILES.has(base)) { packageManifests.push(f); }
+  }
+  return {
+    topDirs: Array.from(topDirs).sort(),
+    languages,
+    packageManifests: packageManifests.sort(),
+  };
+}
+
+/**
+ * Parse `https://github.com/<owner>/<name>` (with or without `.git` suffix,
+ * with or without trailing slash). Returns null for non-GitHub URLs.
+ */
+function parseGithubUrl(url: string): { owner: string; name: string } | null {
+  const m = url.match(/^https?:\/\/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/);
+  if (!m) { return null; }
+  return { owner: m[1], name: m[2] };
+}
+
+const handleKnowledgeCode: SkillHandler = async (input) => {
+  const parsed = KnowledgeCodeInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const { okrId, repoUrl, repoStatus, ref, maxFiles } = parsed.data;
+  const gh = parseGithubUrl(repoUrl);
+  const repoSlug = gh ? `${gh.owner}/${gh.name}` : repoUrl;
+
+  // ─── Refuse branch (not-connected / unreachable) ───────────────────
+  // The agent never grounds against ambiguous repo intent. The remediation
+  // hint points the human back to the Looking Glass repo-status picker
+  // — the same UI that A12.v1.1 ships.
+  if (repoStatus === 'not-connected' || repoStatus === 'unreachable') {
+    const auditMetadata = { phase: 'what', repo: repoSlug, mode: 'refuse', repo_status: repoStatus, okr_id: okrId };
+    return {
+      ok: false,
+      reason: repoStatus === 'unreachable' ? 'repo-unreachable' : 'repo-not-connected',
+      repo: repoSlug,
+      remediation: "Open Looking Glass → OKR detail → Target Code Repos and pick a status: 'Connected' (if the repo exists and is wired) or 'Create' (if greenfield). The code-design-agent refuses to ground until every target repo's intent is explicit.",
+      auditMetadata,
+    } as SkillResult;
+  }
+
+  // ─── Greenfield branch (create) ────────────────────────────────────
+  // No clone. Return scaffolding hints derived from the BAR's calm-node
+  // language preference (if readable) so the agent's per-repo subsection
+  // can lock in seed files / framework choice consistently with the rest
+  // of the mesh. Optional referenceRepos (D5) plug in here when ready —
+  // for D-PR1 they're an empty array placeholder.
+  if (repoStatus === 'create') {
+    // Conservative scaffolding hints — the agent can override these in
+    // the design when it has stronger signal from BAR ADRs or the PRD.
+    // We avoid over-prescribing: the goal is to seed the choice, not own it.
+    const scaffoldingHints = {
+      suggestedLanguage: 'typescript',
+      suggestedFramework: 'express',
+      seedFiles: [
+        'README.md',
+        'LICENSE',
+        'package.json',
+        'tsconfig.json',
+        'src/index.ts',
+        '.github/CODEOWNERS',
+        '.github/workflows/red-queen-bootstrap.yml',
+      ],
+    };
+    const auditMetadata = { phase: 'what', repo: repoSlug, mode: 'greenfield', repo_status: 'create', okr_id: okrId };
+    return {
+      ok: true,
+      mode: 'greenfield',
+      repo: repoSlug,
+      reason: 'repo-status-create',
+      referenceRepos: [], // D5 reference-repos integration is a follow-up
+      scaffoldingHints,
+      auditMetadata,
+    } as SkillResult;
+  }
+
+  // ─── Brownfield branch (connected) ─────────────────────────────────
+  // Shallow git clone (`--depth=1`) into a tmp dir, walk + classify.
+  // Cleanup on exit (process-scoped tmpdir). On clone failure we degrade
+  // to a soft-refuse rather than crash — the agent can still attempt
+  // partial grounding from the SKILL response shape.
+  if (!gh) {
+    return { ok: false, reason: 'repo-url-not-github', repo: repoUrl } as SkillResult;
+  }
+  const { execFileSync } = await import('node:child_process');
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), `knowledge-code-${gh.name}-`));
+  const cloneTarget = path.join(tmpRoot, gh.name);
+  const cloneRef = ref ?? 'HEAD';
+  const cloneArgs = ['clone', '--depth=1', '--filter=blob:limit=10m'];
+  if (ref && ref !== 'HEAD') { cloneArgs.push('--branch', ref); }
+  cloneArgs.push(repoUrl, cloneTarget);
+  let cloneOk = true;
+  let cloneError = '';
+  try {
+    execFileSync('git', cloneArgs, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000 });
+  } catch (err) {
+    cloneOk = false;
+    cloneError = err instanceof Error ? err.message : String(err);
+  }
+  if (!cloneOk) {
+    // Clean up the empty tmpdir before bailing.
+    try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+    const auditMetadata = { phase: 'what', repo: repoSlug, mode: 'brownfield-clone-failed', repo_status: 'connected', okr_id: okrId };
+    return {
+      ok: false,
+      reason: 'clone-failed',
+      repo: repoSlug,
+      remediation: `git clone failed for ${repoUrl}. Verify the GitHub App install is approved on this repo and the ref (${cloneRef}) exists. Underlying error: ${cloneError}`,
+      auditMetadata,
+    } as SkillResult;
+  }
+  // Resolve the actual SHA so the response is reproducible.
+  let sha = '';
+  try {
+    sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: cloneTarget, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  } catch { /* sha stays empty */ }
+
+  const cap = maxFiles ?? 200;
+  const files = walkRepo(cloneTarget, cap);
+  const structure = classifyRepo(files);
+
+  // Best-effort entrypoint detection from the most-common manifest +
+  // top-level layout. Conservative: only mark something as an entrypoint
+  // when we have positive signal (manifest field OR conventional path).
+  const entryPoints: Array<{ path: string; kind: string; framework: string }> = [];
+  for (const manifestPath of structure.packageManifests) {
+    if (path.basename(manifestPath) === 'package.json') {
+      try {
+        const pkgRaw = fs.readFileSync(path.join(cloneTarget, manifestPath), 'utf8');
+        const pkg = JSON.parse(pkgRaw) as { main?: string; bin?: string | Record<string, string>; dependencies?: Record<string, string>; scripts?: Record<string, string> };
+        const deps = pkg.dependencies ?? {};
+        let framework = 'unknown';
+        if (deps['express']) { framework = 'express'; }
+        else if (deps['fastify']) { framework = 'fastify'; }
+        else if (deps['hono']) { framework = 'hono'; }
+        else if (deps['@nestjs/core']) { framework = 'nestjs'; }
+        else if (deps['next']) { framework = 'next'; }
+        else if (deps['react']) { framework = 'react'; }
+        if (pkg.main) { entryPoints.push({ path: pkg.main, kind: framework === 'react' || framework === 'next' ? 'ui' : 'api', framework }); }
+        if (pkg.bin) { entryPoints.push({ path: typeof pkg.bin === 'string' ? pkg.bin : Object.values(pkg.bin)[0] ?? '', kind: 'cli', framework }); }
+      } catch { /* manifest unreadable / non-JSON; skip */ }
+    }
+  }
+
+  // Clean up the cloned tree — the SKILL is a one-shot read, no need to
+  // keep ~10MB of git data per invocation.
+  try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+
+  const primaryLanguage = Object.entries(structure.languages).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'unknown';
+  const auditMetadata = {
+    phase: 'what',
+    repo: repoSlug,
+    mode: 'brownfield',
+    repo_status: 'connected',
+    okr_id: okrId,
+    sha: sha.slice(0, 12),
+    file_count: files.length,
+    primary_language: primaryLanguage,
+    manifests: structure.packageManifests.length,
+  };
+  return {
+    ok: true,
+    mode: 'brownfield',
+    repo: { owner: gh.owner, name: gh.name, ref: cloneRef, sha },
+    structure,
+    entryPoints,
+    auditMetadata,
+  } as SkillResult;
+};
+
+
 // ─────────────────────────────────────────────────────────────────────
 // Search skills — thin wrappers over the existing search nodes
 // ─────────────────────────────────────────────────────────────────────
@@ -1179,6 +1526,14 @@ export const SKILLS: Record<string, SkillHandler> = {
   'context-quality': handleContextQuality,
   'self-review-architect': handleSelfReviewArchitect,
   'self-review-security': handleSelfReviewSecurity,
+  // D-PR1 — code-phase persona-switch packs. Same B29 pattern as the
+  // PRD-phase pair above; reads .caterpillar/prompts/code-design/* packs.
+  'self-review-code-architect': handleSelfReviewCodeArchitect,
+  'self-review-code-security': handleSelfReviewCodeSecurity,
+  // D-PR1 — knowledge-code (Phase D D6). 3-mode response per A12.v1.1
+  // targetCodeRepoStatus: brownfield (clone + classify), greenfield
+  // (scaffolding hints, no clone), refuse (not-connected / unreachable).
+  'knowledge-code': handleKnowledgeCode,
   'tavily-search': handleTavilySearch,
   'arxiv-search': handleArxivSearch,
   'uspto-search': handleUsptoSearch,
