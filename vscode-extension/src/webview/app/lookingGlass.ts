@@ -1905,7 +1905,6 @@ function renderSettings(): string {
 
       ${renderSettingsMeshProvisioning()}
       ${renderSettingsCodingAgentEnv()}
-      ${renderSettingsPromptPacks()}
       ${renderSettingsLlmModel()}
       ${renderSettingsMeshSecrets()}
       ${renderSettingsResearch()}
@@ -1923,11 +1922,16 @@ function settingsRepoHint(): string {
 }
 
 /**
- * Single combined deploy section — workflows + composite actions + agents
- * + skills together. Replaces the prior two-section / two-button layout
- * (separate workflow + agentic-infra buttons) that confused users into
- * clicking the wrong one. One "Deploy All" button fires both backends
- * sequentially via the `provisionAll` message.
+ * Single combined Mesh Provisioning section — agents + workflows + skills
+ * + prompt packs together. The "Deploy All" button writes all four
+ * artifact families through the `provisionAll` message; the "Refresh
+ * Prompts" button re-seeds the bundled prompt packs without touching
+ * user-added packs.
+ *
+ * Internal debt (the `DEPRECATED_MESH_FILES` prune list) is NOT surfaced
+ * here — pruning still runs on every Deploy, but the user doesn't need
+ * to see retired-workflow naming to use the product. If a future debt
+ * surface is needed it lives in a dev-only "Diagnostics" view, not here.
  */
 function renderSettingsMeshProvisioning(): string {
   const skills = state.settingsAgenticSkills;
@@ -1956,77 +1960,71 @@ function renderSettingsMeshProvisioning(): string {
     <div class="settings-section">
       <h3>Mesh Provisioning ${settingsRepoHint()}</h3>
       <p class="text-muted">
-        One button deploys all four artifact families into this mesh repo:
-        <strong>workflows</strong> + <strong>composite actions</strong> +
-        <strong>agents</strong> + <strong>skills</strong>. Idempotent — only
-        files whose content changed are committed. Deprecated workflows are
+        Deploys the agents, skills, workflows, and prompt packs the governed
+        SDLC pipeline runs on. Everything is idempotent — only files whose
+        content has changed are committed, and files no longer in use are
         pruned automatically.
       </p>
 
-      <h4 class="settings-subsection-heading">Workflows + actions</h4>
-      <div class="settings-row">
-        <div class="settings-label">Status</div>
-        <div>${workflowStatus}</div>
-      </div>
-      <ul class="text-muted settings-subsection-list">
-        <li><strong>Per-agent workflows</strong> (B20 — own dispatch + audit + finalize for one agent each):
-          <ul style="margin: 4px 0 0 16px; padding: 0;">
-            <li><code>market-research-agent.yml</code> ✓ — WHY phase (Phase 1)</li>
-            <li><code>prd-agent.yml</code> ✓ — HOW phase (Phase 2, includes persona-switch self-critique)</li>
-            <li><em>code-design-agent.yml</em> (Phase 3, coming) — WHAT phase + per-repo fanout</li>
-          </ul>
-        </li>
-        <li><strong>BAR-page workflow:</strong> <code>oraculum-review.yml</code> (separate domain)</li>
-        <li><strong>Composite actions:</strong> <code>extract-okr-context</code>, <code>count-skill-calls</code>, <code>check-tier-bound</code></li>
-      </ul>
-      <p class="text-muted settings-subsection-note">
-        <strong>GitHub API access is NOT in this list by design.</strong> Per-agent workflows
-        route GitHub MCP through <code>api.githubcopilot.com</code> (allow-listed by default)
-        instead of <code>gh</code> shell-outs. No firewall rule needed for github.com.
-      </p>
-
-      <h4 class="settings-subsection-heading">Agents (v4 personas)</h4>
+      <h4 class="settings-subsection-heading">Agents</h4>
       <div class="settings-row">
         <div class="settings-label">Status</div>
         <div>${agentBadge}</div>
       </div>
       <ul class="text-muted settings-subsection-list">
-        <li><code>market-research-agent.agent.md</code> — WHY-phase synthesizer (Tavily · arXiv · USPTO · HN + gap-loop refinement)</li>
-        <li><code>prd-agent.agent.md</code> — HOW-phase author with persona-switch self-critique (B24)</li>
-        <li><em>code-design-agent.agent.md</em> — WHAT-phase (Phase 3, in design)</li>
+        <li><strong>Market Research Agent</strong> — runs the <strong>WHY phase</strong>. Surveys the web (Tavily · arXiv · USPTO · Hacker News), iterates on coverage gaps, and synthesizes a research doc grounded in cited sources.</li>
+        <li><strong>PRD Agent</strong> — runs the <strong>HOW phase</strong>. Synthesizes a mesh-grounded PRD from the research doc + the BAR's architecture / threat model / quality attributes, then self-critiques as an Architect and a Security persona in bounded rounds.</li>
+        <li><strong>Code Design Agent</strong> — runs the <strong>WHAT phase</strong>. Grounds a cross-repo code design on the actual code (for existing repos) or on a scaffolding spec (for new repos to create), and applies the same persona-switch self-critique loop as the PRD agent.</li>
       </ul>
 
-      <h4 class="settings-subsection-heading">Skills (PURE-data)</h4>
+      <h4 class="settings-subsection-heading">Workflows</h4>
+      <div class="settings-row">
+        <div class="settings-label">Status</div>
+        <div>${workflowStatus}</div>
+      </div>
+      <ul class="text-muted settings-subsection-list">
+        <li><strong>One workflow per agent</strong> — each owns its phase's dispatch, audit + drift checks, and finalize step. Workflows verify the audit chain, the Knight's Seal signatures, and the drift gates (Pocket Watch + Caterpillar's Challenge) before a phase's PR can merge.</li>
+        <li><strong>BAR Review</strong> — runs the standalone Oraculum review on individual Business Architecture Roots, separate from the SDLC pipeline.</li>
+        <li><strong>Composite actions</strong> — small reusable pieces (OKR-context extraction, skill-call counting, tier resolution) shared across all per-agent workflows.</li>
+      </ul>
+
+      <h4 class="settings-subsection-heading">Skills</h4>
       <div class="settings-row">
         <div class="settings-label">Status</div>
         <div>${skillBadge}</div>
       </div>
-      <ul class="text-muted settings-subsection-list">
-        <li><strong>Search:</strong> <code>tavily-search</code>, <code>arxiv-search</code>, <code>uspto-search</code>, <code>hackernews-search</code>, <code>dedupe-and-rank</code></li>
-        <li><strong>Knowledge:</strong> <code>knowledge-okr</code>, <code>knowledge-mesh-bar</code>, <code>knowledge-mesh-platform</code>, <code>knowledge-mesh-threats</code>, <code>knowledge-mesh-adrs</code>, <code>knowledge-research</code></li>
-        <li><strong>Context (HOW-phase BAR slices):</strong> <code>context-architecture</code>, <code>context-security</code>, <code>context-quality</code> — shipped in research-runner 0.1.26 (B5)</li>
-        <li><strong>Audit:</strong> <code>audit-emit-event</code> (hash-chained + Ed25519-sealed per B27), <code>audit-verify-chain</code></li>
-        <li><strong>Formatter:</strong> <code>format-research-issue-update</code></li>
-      </ul>
-
-      <h4 class="settings-subsection-heading">Recently deprecated (auto-pruned on next Redeploy)</h4>
       <p class="text-muted settings-subsection-note">
-        These files are listed in <code>DEPRECATED_MESH_FILES</code> in
-        <code>src/templates/codeRepoTemplates.ts</code>. The "Redeploy"
-        sweep deletes any that still exist in the mesh repo and commits the
-        cleanup so the <code>.github/workflows/</code> tree stays accurate
-        to what's actually running. The list is idempotent and additive —
-        entries never get removed.
+        Skills are pure-data primitives the agents call. They never run an LLM
+        themselves — they fetch, read, or compute and return JSON the agent
+        reasons over. Every skill call lands as a signed event in the audit
+        chain.
       </p>
       <ul class="text-muted settings-subsection-list">
-        <li><strong>B24 — reviewer-agent retirement</strong> (self-critique inside prd-agent now): <code>architect-reviewer.yml</code>, <code>security-reviewer.yml</code>, <code>architect-reviewer.agent.md</code>, <code>security-reviewer.agent.md</code></li>
-        <li><strong>B20 Phase-2 sweep — per-agent workflow consolidation</strong>: <code>okr-bus.yml</code>, <code>reviewer-bus.yml</code>, <code>okr-state-machine.yml</code>, <code>design-bus.yml</code>, <code>drift-gate.yml</code>, <code>audit-validate.yml</code></li>
-        <li><strong>B-PR1f — user-triggered label flow</strong> replaces auto-label workflow: <code>pr-auto-label.yml</code></li>
-        <li><strong>Legacy pre-agentic-SDLC pipeline</strong>: <code>oraculum-research.yml</code>, <code>archeologist.yml</code>, <code>prd.yml</code>, <code>label-on-merge.yml</code>, <code>notify-code-repos.yml</code></li>
+        <li><strong>Search</strong> — Tavily, arXiv, USPTO, Hacker News, plus a dedupe + rank pass.</li>
+        <li><strong>Knowledge</strong> — read-only views over the mesh (OKR card, BAR app, platform, threat model, ADRs, research doc, PRD) and over the actual code in target repos.</li>
+        <li><strong>Context</strong> — per-BAR architecture / security / quality slices for the PRD's grounding sections.</li>
+        <li><strong>Self-Review</strong> — authoritative tier echo + prompt-pack handoff for the agent's Architect and Security persona-switch rounds (both PRD-phase and code-design-phase variants).</li>
+        <li><strong>Audit</strong> — hash-chained, Ed25519-sealed event emission. Every agent action goes through this surface; tampering breaks the chain.</li>
       </ul>
 
-      <div class="settings-row">
+      <h4 class="settings-subsection-heading">Prompt Packs</h4>
+      <p class="text-muted settings-subsection-note">
+        Bundled in <code>.caterpillar/prompts/</code>. Each agent's synthesis
+        + review packs are kept here as plain markdown so they can be diffed
+        and reviewed alongside any other code. Refresh updates the bundled
+        packs with the latest shipped versions — packs you added yourself
+        are left untouched.
+      </p>
+      <ul class="text-muted settings-subsection-list">
+        <li><strong>Research</strong> — query plan, synthesis, refinement guidance for the WHY phase.</li>
+        <li><strong>PRD</strong> — synthesis, architecture review, security review, expert-question prompts for the HOW phase.</li>
+        <li><strong>Code Design</strong> — synthesis, architecture review, security review for the WHAT phase (brownfield + greenfield branching).</li>
+        <li><strong>BAR Review</strong> — Oraculum review packs (default, architecture, application-security, information-risk, operations) for the standalone BAR-review workflow.</li>
+      </ul>
+
+      <div class="settings-row" style="gap: 0.5rem;">
         <button id="btn-settings-deploy-all" class="btn-primary">${buttonLabel}</button>
+        <button id="btn-refresh-prompt-packs" class="btn-secondary">Refresh Prompts</button>
       </div>
     </div>
   `;
@@ -2198,26 +2196,6 @@ function renderSettingsCodingAgentEnv(): string {
       <div class="settings-row" style="margin-top: 16px;">
         <button id="btn-copilot-env-refresh" class="btn-secondary">Refresh status</button>
         <button id="btn-copilot-env-open-page" class="btn-secondary">Open env secrets page ↗</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderSettingsPromptPacks(): string {
-  return `
-    <div class="settings-section">
-      <h3>Prompt Packs</h3>
-      <p class="text-muted">
-        Refresh bundled prompt packs in <code>.caterpillar/prompts/</code>. Includes
-        Oraculum review packs, plus the research / PRD agent packs
-        (<code>research/query-plan.md</code>, <code>research/synthesis.md</code>,
-        <code>prd/synthesis.md</code>, etc.) used by <code>archeologist.yml</code>
-        and <code>prd.yml</code>.
-        Overwrites bundled packs with the latest shipped version.
-        Custom packs you added manually are not affected.
-      </p>
-      <div class="settings-row" style="justify-content: flex-start;">
-        <button id="btn-refresh-prompt-packs" class="btn-primary">Refresh Prompts</button>
       </div>
     </div>
   `;
