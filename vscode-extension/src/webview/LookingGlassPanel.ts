@@ -234,6 +234,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   private readonly absolemService: AbsolemService;
   private lastDrilledBarPath: string | undefined;
   private lastDrilledBarName: string | undefined;
+  // D-PR1.v1.3 — track the last-drilled OKR id so onPullMesh can directly
+  // re-drill (read okr.yaml + post fresh okrDetail) after a pull, instead
+  // of relying on the brittle panelActivated → webview → drillIntoOkr
+  // round-trip. The round-trip path worked when the webview's view was
+  // 'okr-detail' AND state.currentOkr matched the OKR being refreshed,
+  // but PR #122 hit a case where pull succeeded + disk was correct
+  // (status: complete) but the in-memory state stayed at the pre-pull
+  // OKR card. Directly re-drilling is more reliable.
+  private lastDrilledOkrId: string | undefined;
   private activeReviewPollTimer: ReturnType<typeof setInterval> | undefined;
   private lastActiveReviewState: boolean = false;
   public pendingBarPath: string | undefined;
@@ -603,6 +612,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       if (!okr) {
         this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
         return;
+      }
+      // Track the last-drilled OKR id so onPullMesh can directly re-drill
+      // (D-PR1.v1.3). View mode only — edit/create exit on save, so they
+      // shouldn't anchor the post-pull refresh.
+      if (mode === 'view') {
+        this.lastDrilledOkrId = okrId;
       }
       this.postOkrDetail(meshPath, okr, mode);
     } catch (err) {
@@ -3673,10 +3688,35 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       return;
     }
 
+    // D-PR1.v1.3 — capture branch + HEAD BEFORE pull so the pullComplete
+    // toast carries diagnostic context. PR #122 hit a case where pull
+    // succeeded + disk was correct but the OKR detail page kept rendering
+    // pre-pull state; without before/after diagnostics the user had no
+    // way to tell whether pull worked or got silently no-op'd.
+    let branchBefore = 'unknown';
+    let headBefore = 'unknown';
+    try {
+      const { stdout: br } = await execFileAsync('git', ['branch', '--show-current'], { cwd: gitRoot });
+      branchBefore = br.trim() || 'detached-HEAD';
+      const { stdout: head } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd: gitRoot });
+      headBefore = head.trim();
+    } catch { /* diagnostic only */ }
+
     try {
       const result = await this.gitSyncService.pullFromRemote(gitRoot);
       if (result.success) {
-        this.postMessage({ type: 'pullComplete', message: result.message });
+        // Capture post-pull HEAD so the toast can show "pulled X..Y" or
+        // "already up to date" — the user sees concretely whether pull
+        // brought down new commits.
+        let headAfter = headBefore;
+        try {
+          const { stdout: head } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd: gitRoot });
+          headAfter = head.trim();
+        } catch { /* diagnostic only */ }
+        const diagnostic = headBefore === headAfter
+          ? ` (branch=${branchBefore}, HEAD=${headAfter} — no new commits)`
+          : ` (branch=${branchBefore}, HEAD ${headBefore} → ${headAfter})`;
+        this.postMessage({ type: 'pullComplete', message: result.message + diagnostic });
 
         // Refresh portfolio data + git status after pull (files may have changed)
         const summary = this.meshService.buildPortfolioSummary(meshPath);
@@ -3691,12 +3731,23 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
           await this.onDrillIntoBar(this.lastDrilledBarPath);
         }
 
-        // If the webview is on the OKR detail page, re-fetch the OKR
-        // card + phase signals — pull may have brought down a finalize
-        // commit that flipped action.status to complete + meta.status
-        // forward. Without this, the OKR detail page kept showing
-        // pre-finalize state (Cancel Run visible, "PR pending" line).
-        // Webview reacts by re-emitting drillIntoOkr.
+        // D-PR1.v1.3 — directly re-drill the last-drilled OKR (if any).
+        // Previously this relied on a panelActivated → webview-handler →
+        // drillIntoOkr round-trip which PR #122 surfaced as unreliable
+        // (pull succeeded + disk correct, but in-memory state stayed
+        // pre-pull). Now we read okr.yaml fresh + post okrDetail +
+        // re-fetch phase signals from the panel side, skipping the
+        // round-trip. Also keep posting panelActivated so any other
+        // page state that depends on it stays current.
+        if (this.lastDrilledOkrId) {
+          try {
+            await this.onDrillIntoOkr(this.lastDrilledOkrId);
+            await this.onLoadOkrPhaseSignals(this.lastDrilledOkrId);
+          } catch (err) {
+            logger.warn(`Post-pull OKR refresh failed for ${this.lastDrilledOkrId}: ${toErrorMessage(err)}`);
+          }
+        }
+
         this.postMessage({ type: 'panelActivated' });
       } else {
         this.postMessage({ type: 'pullError', message: result.message });
