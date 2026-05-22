@@ -724,7 +724,23 @@ jobs:
             SR_ICON="✗"; [ "$SR_ADDRESSED" = "$SR_TOTAL" ] && SR_ICON="✓"
             printf '| SR addressed by per-repo §5 | %s/%s %s |\n' "$SR_ADDRESSED" "$SR_TOTAL" "$SR_ICON" >> "$BODY"
           fi
-          printf '| Per-repo mode honesty (A12.v1.1) | ${{ steps.mode_honesty.outputs.ok == ''true'' && ''✓'' || ''✗'' }} (repos=${{ steps.mode_honesty.outputs.repo_count }}, findings=${{ steps.mode_honesty.outputs.finding_count }}) |\n' >> "$BODY"
+          # Workflow-validity fix (post-cert-3): GitHub Actions tightened
+          # its expression parser — the `${{ x == ''true'' && ''✓'' ||
+          # ''✗'' }}` inline ternary inside a `run: |` literal-block
+          # scalar fails to validate ("Unexpected symbol: 'true'''")
+          # because the YAML literal block does NOT process the `''`
+          # single-quote escape. Mirror the HOW workflow's bash-case
+          # pattern instead.
+          MODE_HONESTY_OK='${{ steps.mode_honesty.outputs.ok }}'
+          case "$MODE_HONESTY_OK" in
+            true)  MODE_ICON="✓" ;;
+            *)     MODE_ICON="✗" ;;
+          esac
+          printf '| Per-repo mode honesty (A12.v1.1) | %s (repos=%s, findings=%s) |\n' \
+            "$MODE_ICON" \
+            '${{ steps.mode_honesty.outputs.repo_count }}' \
+            '${{ steps.mode_honesty.outputs.finding_count }}' \
+            >> "$BODY"
           printf '| Pocket Watch (objective vs Problem Restatement) | calibration-pending (D-PR1.v1.x) |\n' >> "$BODY"
           printf "| Caterpillar's Challenge (code-design vs PRD) | calibration-pending (D-PR1.v1.x) |\n" >> "$BODY"
 

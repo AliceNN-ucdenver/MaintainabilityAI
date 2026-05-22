@@ -251,6 +251,38 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
           expect(composite).toMatch(new RegExp(`prior-phase:\\s*${spec.priorPhase}\\b`));
         }
       });
+
+      it('workflow YAML does not use the broken `${{ ... && \'\'icon\'\' || \'\'icon\'\' }}` inline-ternary pattern', () => {
+        // Cert-run-3 forensic: GitHub Actions tightened its expression
+        // parser. Inside a `run: |` literal-block scalar, the doubled
+        // single-quote escape `''` does NOT survive YAML processing —
+        // the expression engine sees `''true''` literally and reports
+        // "Unexpected symbol: 'true'''" at validate time, refusing to
+        // run the workflow. The WHAT workflow had this pattern at line
+        // 727 (the per-repo-mode-honesty audit-comment row); fixed by
+        // computing the icon via bash `case "$VAR" in` before the printf.
+        //
+        // This regression catches the bug across all workflow files +
+        // any new ones added later. Comments containing the pattern are
+        // ignored (we want the literal documentation to survive).
+        const lines = content.split('\n');
+        const violations: Array<{ lineNum: number; line: string }> = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          // Strip leading whitespace then check for comment marker.
+          const trimmed = line.replace(/^\s+/, '');
+          if (trimmed.startsWith('#')) { continue; }
+          // The broken pattern: `${{ ... && '...' || '...' }}` with
+          // doubled-up single quotes inside (`''...''`).
+          if (/\$\{\{[^}]*&&\s*''[^']*''[^}]*\|\|[^}]*''[^']*''[^}]*\}\}/.test(line)) {
+            violations.push({ lineNum: i + 1, line: line.trim() });
+          }
+        }
+        expect(
+          violations,
+          `Workflow ${phase} contains inline-ternary GHA expression(s) that GitHub Actions can no longer parse inside \`run: |\` blocks. Use a bash \`case "$VAR" in ...\` ladder before the printf instead. Offending lines:\n${violations.map(v => `  L${v.lineNum}: ${v.line}`).join('\n')}`,
+        ).toEqual([]);
+      });
     });
   }
 });
