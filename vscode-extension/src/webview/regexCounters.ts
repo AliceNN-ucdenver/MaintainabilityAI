@@ -190,18 +190,52 @@ export function extractWhatArtifactSignals(docText: string): WhatArtifactSignals
   // Walk per-repo §5 frontmatter blocks; collect the union of every
   // id listed in any `addresses: [...]` array. A FR/SR is "covered"
   // iff at least one repo has committed to addressing it.
+  //
+  // Cert-run-5 fix (Task #65): agent has been observed putting the
+  // repo slug as a preceding `### heading` and omitting `repo:` from
+  // the frontmatter. Accept BOTH shapes — `repo:` in frontmatter OR
+  // a preceding heading that matches a repo-slug pattern.
+  const headingRe = /^###\s+`?([^\s`]+)`?\s*$/;
+  const slugRe = /^(?:https?:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/;
   const addressed = new Set<string>();
   let perRepoSubsections = 0;
-  for (const m of docText.matchAll(/---\s*\n([\s\S]+?)\n---/g)) {
-    const block = m[1];
-    if (!/^\s*repo:\s+/m.test(block)) { continue; }
-    const addrMatch = block.match(/^\s*addresses:\s*\[([^\]]*)\]/m);
-    if (!addrMatch) { continue; }
-    perRepoSubsections++;
-    for (const raw of addrMatch[1].split(',')) {
-      const id = raw.trim().replace(/^["']|["']$/g, '');
-      if (id) { addressed.add(id); }
+  let lastHeadingSlug: string | null = null;
+  const lines = docText.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const hm = line.match(headingRe);
+    if (hm) {
+      const sm = hm[1].match(slugRe);
+      lastHeadingSlug = sm ? sm[0] : null;
+      i++;
+      continue;
     }
+    if (line.trim() === '---' && i + 1 < lines.length) {
+      const bodyLines: string[] = [];
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() !== '---') {
+        bodyLines.push(lines[j]);
+        j++;
+      }
+      if (j < lines.length) {
+        const block = bodyLines.join('\n');
+        const hasRepoKey = /^\s*repo:\s+/m.test(block);
+        const addrMatch = block.match(/^\s*addresses:\s*\[([^\]]*)\]/m);
+        // Accept if either `repo:` in frontmatter OR preceding heading
+        // looked like a repo slug.
+        if ((hasRepoKey || lastHeadingSlug) && addrMatch) {
+          perRepoSubsections++;
+          for (const raw of addrMatch[1].split(',')) {
+            const id = raw.trim().replace(/^["']|["']$/g, '');
+            if (id) { addressed.add(id); }
+          }
+        }
+        i = j + 1;
+        continue;
+      }
+    }
+    i++;
   }
 
   // Honest coverage: intersect declared ids with addressed ids.

@@ -284,19 +284,51 @@ jobs:
           # extractWhatArtifactSignals on the UI side (Task #58 honest-
           # metric rewrite). A FR is "addressed" iff at least one repo
           # frontmatter's `addresses:` list includes it.
+          #
+          # Bug-H fix (Task #65): the previous gate required `repo:` IN
+          # the frontmatter. Cert-run-5 showed the agent puts the repo
+          # slug as a preceding `### heading` and omits `repo:` from
+          # the frontmatter — both forms now count. The gate is now
+          # "either `repo:` in frontmatter OR preceding `### heading`
+          # that looks like a repo slug".
           DOC="$DOC" python3 <<'PYEOF'
           import os, re
           doc = open(os.environ['DOC'], 'r', encoding='utf-8').read()
           fr_ids = set(re.findall(r'\bFR-\d+\b', doc))
           sr_ids = set(re.findall(r'\bSR-\d+\b', doc))
+          doc_lines = doc.split('\n')
+          HEADING_RE = re.compile(r'^###\s+`?([^\s`]+)`?\s*$')
+          SLUG_RE = re.compile(r'^(?:https?://github\.com/)?([\w.-]+)/([\w.-]+?)(?:\.git)?/?$')
           addressed = set()
-          for fm in re.findall(r'---\s*\n(.+?)\n---', doc, re.DOTALL):
-              if not re.search(r'^\s*repo:\s+', fm, re.MULTILINE): continue
-              m = re.search(r'^\s*addresses:\s*\[([^\]]*)\]', fm, re.MULTILINE)
-              if not m: continue
-              for raw in m.group(1).split(','):
-                  ident = raw.strip().strip('"').strip("'")
-                  if ident: addressed.add(ident)
+          last_heading_slug = None
+          i = 0
+          while i < len(doc_lines):
+              line = doc_lines[i]
+              hm = HEADING_RE.match(line)
+              if hm:
+                  sm = SLUG_RE.match(hm.group(1))
+                  last_heading_slug = sm.group(0) if sm else None
+                  i += 1
+                  continue
+              if line.strip() == '---' and i + 1 < len(doc_lines):
+                  body_lines = []
+                  j = i + 1
+                  while j < len(doc_lines) and doc_lines[j].strip() != '---':
+                      body_lines.append(doc_lines[j])
+                      j += 1
+                  if j < len(doc_lines):
+                      fm_text = '\n'.join(body_lines)
+                      has_repo_key = re.search(r'^\s*repo:\s+', fm_text, re.MULTILINE) is not None
+                      addresses_m = re.search(r'^\s*addresses:\s*\[([^\]]*)\]', fm_text, re.MULTILINE)
+                      # Accept if EITHER repo: in frontmatter OR preceding
+                      # heading looked like a repo slug.
+                      if (has_repo_key or last_heading_slug) and addresses_m:
+                          for raw in addresses_m.group(1).split(','):
+                              ident = raw.strip().strip('"').strip("'")
+                              if ident: addressed.add(ident)
+                      i = j + 1
+                      continue
+              i += 1
           fr_addressed = len(fr_ids & addressed)
           sr_addressed = len(sr_ids & addressed)
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
@@ -455,27 +487,73 @@ jobs:
 
           # 3. Read per-repo subsection frontmatter from code-design.md.
           # Subsections inside §4 + §5 carry YAML frontmatter blocks
-          # delimited by --- ... --- with repo: + mode: keys. We scan
-          # all such blocks; duplicates across §4 and §5 are normal
-          # (same repo appears in Repo Inventory AND Change List).
+          # delimited by --- ... ---. The CANONICAL shape includes a
+          # `repo:` key inside the frontmatter:
+          #
+          #   ### My Repo Subsection
+          #   ---
+          #   repo: owner/name
+          #   mode: brownfield
+          #   ---
+          #
+          # Cert-run-5 forensic (Task #65): the agent has been observed
+          # writing the repo slug as a `### heading` and omitting the
+          # `repo:` key from the frontmatter. The parser now tolerates
+          # this: if `repo:` is absent in the frontmatter, fall back to
+          # the immediately-preceding `### heading` text — extracting
+          # an owner/name slug if it matches the GitHub URL/slug shape.
           doc_text = open(design_doc, 'r', encoding='utf-8').read()
-          frontmatters = re.findall(r'---\s*\n(.+?)\n---', doc_text, re.DOTALL)
-          doc_modes = {}  # repo → mode (last wins)
-          for fm in frontmatters:
-              try:
-                  parsed = yaml.safe_load(fm)
-              except Exception:
+          doc_lines = doc_text.split('\n')
+
+          # Walk the doc line-by-line. Track the most-recent `### heading`
+          # text (stripped of leading "### " and optional backticks).
+          # When we encounter a `---` block, parse the YAML; if no
+          # `repo:` key, infer from the recent heading.
+          doc_modes = {}  # owner/name → mode (last wins)
+          last_heading = None
+          HEADING_RE = re.compile(r'^###\s+`?([^\s`]+)`?\s*$')
+          SLUG_RE = re.compile(r'^(?:https?://github\.com/)?([\w.-]+)/([\w.-]+?)(?:\.git)?/?$')
+
+          def normalize_repo(raw):
+              """Take an owner/name OR full GitHub URL and return owner/name."""
+              if not raw: return None
+              sm = SLUG_RE.match(raw.strip())
+              if not sm: return None
+              return f"{sm.group(1)}/{sm.group(2)}"
+
+          i = 0
+          while i < len(doc_lines):
+              line = doc_lines[i]
+              hm = HEADING_RE.match(line)
+              if hm:
+                  last_heading = hm.group(1)
+                  i += 1
                   continue
-              if not isinstance(parsed, dict): continue
-              r = parsed.get('repo')
-              m = parsed.get('mode')
-              if r and m:
-                  # repo in frontmatter may be 'owner/name' or full URL;
-                  # normalize to owner/name for matching.
-                  if r.startswith('http'):
-                      mm = re.match(r'^https?://github\.com/([^/]+)/([^/]+)$', r.rstrip('/'))
-                      if mm: r = f"{mm.group(1)}/{mm.group(2)}"
-                  doc_modes[r] = m
+              if line.strip() == '---' and i + 1 < len(doc_lines):
+                  # Collect lines until the closing ---.
+                  body_lines = []
+                  j = i + 1
+                  while j < len(doc_lines) and doc_lines[j].strip() != '---':
+                      body_lines.append(doc_lines[j])
+                      j += 1
+                  if j < len(doc_lines):
+                      fm_text = '\n'.join(body_lines)
+                      try:
+                          parsed = yaml.safe_load(fm_text)
+                      except Exception:
+                          parsed = None
+                      if isinstance(parsed, dict):
+                          m_val = parsed.get('mode')
+                          r_val = parsed.get('repo')
+                          # Bug-H fallback: infer repo from preceding heading.
+                          if not r_val and last_heading:
+                              r_val = last_heading
+                          r_slug = normalize_repo(r_val) if r_val else None
+                          if r_slug and m_val:
+                              doc_modes[r_slug] = m_val
+                      i = j + 1
+                      continue
+              i += 1
 
           # 4. Compare: every target repo with status connected/create
           # must have a knowledge-code call AND a matching mode in the doc.

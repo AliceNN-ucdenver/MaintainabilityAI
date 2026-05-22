@@ -300,6 +300,74 @@ addresses: [FR-01]
     expect(sig.frWithCites).toBe(1);
   });
 
+  it('counts addresses[] when repo slug is in preceding ### heading (Task #65 cert-run-5)', () => {
+    // Cert-run-5 forensic: agent wrote `### owner/name` heading and
+    // omitted `repo:` from the frontmatter. Old parser required `repo:`
+    // IN the frontmatter; new parser falls back to the preceding
+    // heading if it matches a repo-slug pattern.
+    const doc = `## 5. Per-Repo Change List
+
+### AliceNN-ucdenver/celeb-api
+---
+mode: greenfield
+addresses: [FR-01, FR-02, FR-04, SR-01, SR-02, SR-03, SR-04]
+---
+
+- bullet
+
+### AliceNN-ucdenver/imdb-react-frontend
+---
+mode: brownfield
+addresses: [FR-03, FR-02, SR-02]
+---
+
+Mentions FR-01 FR-02 FR-03 FR-04 SR-01 SR-02 SR-03 SR-04.
+`;
+    const sig = extractWhatArtifactSignals(doc);
+    expect(sig.frCount).toBe(4);
+    expect(sig.srCount).toBe(4);
+    // OLD parser would have returned frWithCites=0 srAnchored=0.
+    expect(sig.frWithCites).toBe(4);
+    expect(sig.srAnchored).toBe(4);
+    expect(sig.perRepoChangeCount).toBe(2);
+  });
+
+  it('still accepts canonical `repo:`-in-frontmatter form (no regression)', () => {
+    // The fix tolerates both shapes — canonical with `repo:` MUST keep working.
+    const doc = `## 5. Per-Repo Change List
+
+### \`acme/celeb-api\`
+---
+repo: acme/celeb-api
+mode: greenfield
+addresses: [FR-01, SR-01]
+---
+
+Mentions FR-01 SR-01.
+`;
+    const sig = extractWhatArtifactSignals(doc);
+    expect(sig.frWithCites).toBe(1);
+    expect(sig.srAnchored).toBe(1);
+  });
+
+  it('ignores frontmatter blocks whose preceding heading is NOT a repo slug', () => {
+    // A bare `### Section title` should not be confused for a repo slug.
+    // The heading "Some other section" doesn't match the owner/name shape.
+    const doc = `## 5. Per-Repo Change List
+
+### Some other section
+---
+mode: greenfield
+addresses: [FR-01]
+---
+
+Mentions FR-01.
+`;
+    const sig = extractWhatArtifactSignals(doc);
+    // No repo: AND no slug-shaped heading → block ignored, no coverage.
+    expect(sig.frWithCites).toBe(0);
+  });
+
   it('aggregates addresses[] across multiple per-repo §5 subsections', () => {
     // FR-02 is addressed by repo-b, not repo-a. Verify the union is
     // computed across all blocks, not just the first.

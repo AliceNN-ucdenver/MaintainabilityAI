@@ -155,6 +155,33 @@ function extractWhatChainSignals(lines: string[]): WhatChainSignals {
 // extractWhatArtifactSignals lives in regexCounters.ts — see import above.
 
 /**
+ * Task #66 — map PR labels to human-readable failure reasons for the
+ * given phase. Pulls per-phase failure labels from phaseSpec so each
+ * phase's degraded/drift labels are recognized (the WHAT workflow's
+ * `design-degraded` was being missed by the old hardcoded map → UI
+ * stuck at "audit in flight"). Returns an empty array when no failure
+ * labels match.
+ */
+function collectAuditFailureReasons(phase: 'why' | 'how' | 'what', labels: string[]): string[] {
+  const spec = phaseSpec(phase);
+  const labelToReason: Record<string, string> = {
+    [spec.degradedLabel]: phase === 'what'
+      ? 'Design-degraded (per-repo mode honesty / FR-SR addresses[] coverage / chain failure)'
+      : 'Evidence honesty (Hatter Tag declared `live` but audit shows no successful skill_calls)',
+    [spec.driftLabel]: phase === 'what'
+      ? 'Design drift detected (calibration-pending in D-PR1.MVP)'
+      : phase === 'how'
+      ? "Caterpillar's Challenge — cross-phase drift from prior phase artifact"
+      : 'Pocket Watch — objective drift (cosine below threshold)',
+    'structure-invalid': 'Structural correctness (missing required sections / FR-NN / SR-NN citations)',
+    'self-review-exhausted': 'Self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items',
+  };
+  return Object.entries(labelToReason)
+    .filter(([label]) => labels.includes(label))
+    .map(([, reason]) => reason);
+}
+
+/**
  * Task #64 — apply artifact-side self-review fallback onto a partially-
  * populated signal result. Chain wins when it has real (non-null) scores.
  * Artifact is the fallback (3 sub-sources via extractSelfReviewFromArtifact).
@@ -1017,22 +1044,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         result.auditLabelApplied = pr.labels.includes(auditLabel);
         result.passLabelApplied = pr.labels.includes(passLabel);
         // Audit-failed signal — workflow applied at least one failure
-        // label. Surfaces in the UI as a distinct state from
-        // "audit in flight" so the user can act on a degraded verdict
-        // (revise + re-run) instead of waiting forever for ⏳.
-        const failureLabels: Record<string, string> = {
-          'degraded-evidence': 'Evidence honesty (Hatter Tag declared `live` but audit shows no successful skill_calls)',
-          'structure-invalid': 'Structural correctness (missing required sections / FR-NN / SR-NN citations)',
-          'goal-drift-detected': 'Pocket Watch — objective drift (cosine below threshold)',
-          'caterpillar-drift-detected': "Caterpillar's Challenge — cross-phase drift from prior phase artifact",
-          'self-review-exhausted': 'Self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items',
-        };
-        const reasons = Object.entries(failureLabels)
-          .filter(([label]) => pr.labels.includes(label))
-          .map(([_label, reason]) => reason);
-        if (reasons.length > 0) {
+        // label. Task #66 (cert-run-5 forensic): pull per-phase labels
+        // from phaseSpec so each phase's degraded/drift labels are
+        // recognized. Extracted to a helper to keep fetchPhaseSignal
+        // under its complexity ratchet.
+        const failureReasons = collectAuditFailureReasons(phase, pr.labels);
+        if (failureReasons.length > 0) {
           result.auditFailed = true;
-          result.auditFailureReasons = reasons;
+          result.auditFailureReasons = failureReasons;
         }
 
         // 4. Drift cosines — parsed from the audit-and-drift workflow's
@@ -1338,8 +1357,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
     const phase = phaseStr as 'why' | 'how' | 'what';
-    const labelName = phaseSpec(phase).draftLabel;
-    const staleFailureLabels = ['degraded-evidence', 'goal-drift-detected', 'caterpillar-drift-detected'];
+    const spec = phaseSpec(phase);
+    const labelName = spec.draftLabel;
+    // Task #66 — pull the per-phase failure labels from phaseSpec so
+    // WHAT's `design-degraded` / `design-drift-detected` get stripped on
+    // re-audit too. Previously hardcoded to the WHY/HOW set, leaving
+    // WHAT's labels stuck on the PR after a re-run.
+    const staleFailureLabels = [spec.degradedLabel, spec.driftLabel];
     try {
       // Remove trigger label first.
       await this.githubService.removeIssueLabel(meshRepo.owner, meshRepo.repo, prNumber, labelName).catch(() => {/* best-effort */});

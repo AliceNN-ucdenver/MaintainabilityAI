@@ -123,9 +123,27 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
     9. Rollback Plan
     10. Risk Matrix
 
-    Every per-repo subsection in §4 + §5 MUST carry frontmatter with `mode: brownfield | greenfield` matching the `knowledge-code` response for that repo. The audit-and-drift workflow checks per-repo mode honesty — a mismatch (claiming brownfield grounding on a greenfield repo or vice versa) is a `BLOCKING` finding.
+    Every per-repo subsection in §4 + §5 MUST carry frontmatter that includes BOTH a `repo:` key AND a `mode:` key (and `addresses:` for §5). Cert-run-5 forensic (Task #65): the agent wrote the repo slug as a `### heading` and omitted `repo:` from the frontmatter — the workflow's mode-honesty parser found zero matches and reported "repo `X` has no per-repo subsection frontmatter" for every target repo, even though the data was clearly there. **The parser is now tolerant of `repo:`-from-heading inference, but the canonical format includes `repo:` IN the frontmatter.** Don't make the parser do extra work.
 
-    Every per-repo change in §5 MUST list its addressed FR/SR ids via `addresses: [FR-X, SR-Y]`. The union of all per-repo `addresses:` MUST cover every PRD FR/SR. Missing coverage surfaces in the audit comment.
+    Canonical per-repo §4 + §5 subsection format:
+
+    ```markdown
+    ### `owner/name`
+    ---
+    repo: owner/name
+    mode: brownfield | greenfield
+    status: connected | create
+    addresses: [FR-01, FR-02, SR-01]   # §5 only — §4 may omit addresses
+    ---
+
+    - bullet 1: ground each bullet in real `knowledge-code` outputs
+    - bullet 2: cite specific file paths for brownfield (e.g. `src/auth/middleware.ts`)
+    - bullet 3: cite specific modules for greenfield (e.g. `src/domain/identity/`)
+    ```
+
+    The audit-and-drift workflow checks per-repo mode honesty — a mismatch (claiming brownfield grounding on a greenfield repo or vice versa) is a `BLOCKING` finding. Every per-repo change in §5 MUST list its addressed FR/SR ids via `addresses: [FR-X, SR-Y]`. The union of all per-repo `addresses:` MUST cover every PRD FR/SR. Missing coverage surfaces in the audit comment.
+
+    **Brownfield grounding depth (cert-run-5 observation):** the `knowledge-code` brownfield response carries `structure.topDirs[]` and `entryPoints[]`. Use them. A line like "extend frontend behavior inside `src`" is shallower than the data the skill returned; cite specific file paths inside the listed top-dirs when you propose changes ("modify `src/state/profileStore.ts` to add ambiguousMatchState" beats "extend `src`"). The mesh deserves the depth the skill collected.
 
 ### Self-critique (bounded rounds)
 
