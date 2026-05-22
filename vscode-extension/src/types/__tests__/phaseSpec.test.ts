@@ -304,35 +304,46 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         ).toEqual([]);
       });
 
-      it('workflow YAML does not use the broken `${{ ... && \'\'icon\'\' || \'\'icon\'\' }}` inline-ternary pattern', () => {
-        // Cert-run-3 forensic: GitHub Actions tightened its expression
-        // parser. Inside a `run: |` literal-block scalar, the doubled
-        // single-quote escape `''` does NOT survive YAML processing —
-        // the expression engine sees `''true''` literally and reports
-        // "Unexpected symbol: 'true'''" at validate time, refusing to
-        // run the workflow. The WHAT workflow had this pattern at line
-        // 727 (the per-repo-mode-honesty audit-comment row); fixed by
-        // computing the icon via bash `case "$VAR" in` before the printf.
+      it('workflow YAML does not contain the broken inline-ternary pattern ANYWHERE (including bash comments)', () => {
+        // Cert-run-3 forensic (Task #61): GitHub Actions tightened its
+        // expression parser. Inside a `run: |` literal-block scalar,
+        // the doubled-single-quote escape does NOT survive YAML
+        // processing — the expression engine sees the doubled-quote
+        // form literally and reports "Unexpected symbol: 'true'''"
+        // at validate time, refusing to run the workflow.
         //
-        // This regression catches the bug across all workflow files +
-        // any new ones added later. Comments containing the pattern are
-        // ignored (we want the literal documentation to survive).
+        // Cert-run-3 v2 (Task #63): the v1 test only scanned non-
+        // comment lines, on the assumption that "# pattern" wouldn't
+        // be parsed. WRONG. GHA's expression scanner runs against
+        // EVERY line of a `run: |` block (including bash `#` comments)
+        // — a comment containing the broken pattern itself fails the
+        // workflow. The fix-comment we added documenting the bug
+        // therefore IS the bug. Lesson: never reproduce the broken
+        // pattern verbatim, even in documentation; describe it.
+        //
+        // Test now scans ALL lines + the broken pattern (doubled
+        // single-quote escape inside a `${{ ... }}` expression). One
+        // narrow allowance: this very test file mentions the pattern
+        // as a regex string literal — but we're only scanning workflow
+        // YAML files, so this file is never an input.
         const lines = content.split('\n');
         const violations: Array<{ lineNum: number; line: string }> = [];
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
-          // Strip leading whitespace then check for comment marker.
-          const trimmed = line.replace(/^\s+/, '');
-          if (trimmed.startsWith('#')) { continue; }
-          // The broken pattern: `${{ ... && '...' || '...' }}` with
-          // doubled-up single quotes inside (`''...''`).
-          if (/\$\{\{[^}]*&&\s*''[^']*''[^}]*\|\|[^}]*''[^']*''[^}]*\}\}/.test(line)) {
+          // Detect the broken inline-ternary anywhere. Two shapes:
+          //   - Single-line `${{ ... && ''X'' || ''Y'' }}`
+          //   - Multi-line where `${{` opens on line i and `}}` closes
+          //     on line i+1 (the comment that bit us was multi-line).
+          // For the multi-line case, JOIN this line with the next so
+          // the regex can match across the boundary.
+          const joined = i + 1 < lines.length ? line + ' ' + lines[i + 1] : line;
+          if (/\$\{\{[^}]*''[^']*''[^}]*\}\}/.test(joined)) {
             violations.push({ lineNum: i + 1, line: line.trim() });
           }
         }
         expect(
           violations,
-          `Workflow ${phase} contains inline-ternary GHA expression(s) that GitHub Actions can no longer parse inside \`run: |\` blocks. Use a bash \`case "$VAR" in ...\` ladder before the printf instead. Offending lines:\n${violations.map(v => `  L${v.lineNum}: ${v.line}`).join('\n')}`,
+          `Workflow ${phase} contains the broken GHA inline-ternary pattern (doubled-single-quote escape inside \`\${{ ... }}\` expression). GitHub Actions cannot parse this inside \`run: |\` blocks — INCLUDING in bash comments. Use a bash \`case "$VAR" in ...\` ladder + describe the pattern in prose (don't reproduce it verbatim). Offending lines:\n${violations.map(v => `  L${v.lineNum}: ${v.line}`).join('\n')}`,
         ).toEqual([]);
       });
     });

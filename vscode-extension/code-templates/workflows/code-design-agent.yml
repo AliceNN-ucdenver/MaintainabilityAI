@@ -818,12 +818,18 @@ jobs:
             printf '| SR addressed by per-repo §5 | %s/%s %s |\n' "$SR_ADDRESSED" "$SR_TOTAL" "$SR_ICON" >> "$BODY"
           fi
           # Workflow-validity fix (post-cert-3): GitHub Actions tightened
-          # its expression parser — the `${{ x == ''true'' && ''✓'' ||
-          # ''✗'' }}` inline ternary inside a `run: |` literal-block
-          # scalar fails to validate ("Unexpected symbol: 'true'''")
-          # because the YAML literal block does NOT process the `''`
-          # single-quote escape. Mirror the HOW workflow's bash-case
-          # pattern instead.
+          # its expression parser. The previous inline-ternary pattern (a
+          # GHA expression with doubled single quotes around true/icon
+          # values inside a `run: |` literal-block scalar) fails to
+          # validate because the YAML literal block does NOT process the
+          # doubled-quote escape. See Task #61 forensic. Mirror the HOW
+          # workflow's bash-case pattern instead.
+          #
+          # NOTE: the broken pattern is NOT reproduced verbatim in this
+          # comment because GHA's parser scans for double-brace expression
+          # syntax in EVERY line of `run: |` blocks (including bash
+          # comments) — a comment containing the broken expression
+          # would itself fail the workflow (post-cert-3-v2 forensic).
           MODE_HONESTY_OK='${{ steps.mode_honesty.outputs.ok }}'
           case "$MODE_HONESTY_OK" in
             true)  MODE_ICON="✓" ;;
