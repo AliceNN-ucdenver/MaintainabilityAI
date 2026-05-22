@@ -1491,6 +1491,40 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'Cannot start What: How phase has not merged yet.' });
       return;
     }
+    // A12.v1.1 — WHAT phase requires every targetCodeRepos[] entry to have
+    // an explicit intent: 'connected' (brownfield — code-design-agent will
+    // clone + ground on real code) or 'create' (greenfield — agent will
+    // design from PRD + mesh, fan-out scaffolds the repo). 'not-connected'
+    // / 'unreachable' / absent entries (which default to 'not-connected')
+    // block dispatch. The workflow's dispatch precondition catches this
+    // too, but surfacing it here means the user never creates an issue
+    // that gets immediately rejected — they see the error in Looking
+    // Glass and fix the repo statuses inline.
+    if (phase === 'what') {
+      const repos = card.objectiveAlignment.targetCodeRepos ?? [];
+      const statusMap = card.objectiveAlignment.targetCodeRepoStatus ?? {};
+      const offending: string[] = [];
+      for (const url of repos) {
+        const s = statusMap[url] ?? 'not-connected';
+        if (s !== 'connected' && s !== 'create') {
+          offending.push(`${url} (${s})`);
+        }
+      }
+      if (offending.length > 0) {
+        this.postMessage({
+          type: 'error',
+          message: `Cannot start What: every Target Code Repo must be set to Connected or Create before dispatch. Set status on:\n\n${offending.join('\n')}\n\nUse the dropdown next to each repo in the OKR detail Target Code Repos section.`,
+        });
+        return;
+      }
+      if (repos.length === 0) {
+        this.postMessage({
+          type: 'error',
+          message: 'Cannot start What: no target code repos declared. Add at least one repo in the OKR detail Target Code Repos section.',
+        });
+        return;
+      }
+    }
     if (card.actions.some(a => a.phase === phase && (a.status === 'in_progress' || a.status === 'under_review'))) {
       this.postMessage({ type: 'error', message: `${phase.toUpperCase()} phase already running for ${okrId}.` });
       return;

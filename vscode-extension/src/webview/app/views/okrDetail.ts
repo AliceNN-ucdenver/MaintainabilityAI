@@ -1201,6 +1201,27 @@ function renderStartButton(
   if (phase === 'what' && primaryTier === 'restricted') {
     return `<button class="okr-button-primary okr-button-disabled" disabled title="Restricted tier — escalate the BAR governance score before starting What (§6.2)" data-phase="what">${escapeHtml(label)} <span class="okr-button-locked-icon">⛔</span></button>`;
   }
+  // A12.v1.1 — WHAT phase requires every target_code_repos[] entry to have
+  // an explicit intent (Connected / Create). Disable + tooltip if any
+  // entry is still in the default 'not-connected' state or has been
+  // probed as 'unreachable'. Matches the panel-side precondition in
+  // LookingGlassPanel.onStartOkrPhase so the foot-gun is closed both
+  // at click time and at dispatch time.
+  if (phase === 'what') {
+    const repos = okr.objectiveAlignment.targetCodeRepos ?? [];
+    const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
+    if (repos.length === 0) {
+      return `<button class="okr-button-primary okr-button-disabled" disabled title="No target code repos declared — add one to the OKR before starting What" data-phase="what">${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>`;
+    }
+    const offending = repos.filter(r => {
+      const s = statusMap[r] ?? 'not-connected';
+      return s !== 'connected' && s !== 'create';
+    });
+    if (offending.length > 0) {
+      const titleMsg = `Every target repo must be set to Connected or Create. ${offending.length} repo${offending.length === 1 ? '' : 's'} still need${offending.length === 1 ? 's' : ''} a status — see the Target Code Repos section below.`;
+      return `<button class="okr-button-primary okr-button-disabled" disabled title="${escapeAttr(titleMsg)}" data-phase="what">${escapeHtml(label)} <span class="okr-button-locked-icon">🔒</span></button>`;
+    }
+  }
 
   const action = phase === 'why' ? 'start-okr-why' : phase === 'how' ? 'start-okr-how' : 'start-okr-what';
   return `

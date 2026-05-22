@@ -214,7 +214,7 @@ describe('renderOkrDetailView', () => {
     expect(html).toMatch(/disabled[^>]*title="Restricted tier/);
   });
 
-  it('Start What becomes a clickable button when How is complete and tier is not Restricted', () => {
+  it('Start What becomes a clickable button when How is complete, tier is not Restricted, and target repo statuses are set', () => {
     const okr = sampleCard({
       actions: [{
         id: 'ACT-1',
@@ -232,11 +232,52 @@ describe('renderOkrDetailView', () => {
         completedAt: '2026-05-19T15:00:00Z',
       }],
     });
+    // A12.v1.1 — set every target repo's intent to 'create' so the
+    // precondition gate passes. Without this, sample OKR target repos
+    // default to 'not-connected' which now blocks Start What at the UI.
+    for (const url of okr.objectiveAlignment.targetCodeRepos) {
+      okr.objectiveAlignment.targetCodeRepoStatus[url] = 'create';
+    }
     const html = renderOkrDetailView({
       okr,
       affectedBars: [{ id: 'APP-IMDB-001', name: 'IMDB Lite App', path: '/m', compositeScore: 64, tier: 'supervised' }],
     });
     expect(html).toContain('data-action="start-okr-what"');
+  });
+
+  // A12.v1.1 — Start What disabled when any target repo lacks an explicit
+  // intent. Matches the panel-side precondition: every targetCodeRepos[]
+  // entry must be 'connected' or 'create' before dispatch.
+  it('Start What is disabled when target repos still default to not-connected', () => {
+    const okr = sampleCard({
+      actions: [{
+        id: 'ACT-1',
+        phase: 'how',
+        description: 'PRD',
+        agent: 'prd-agent',
+        runId: 'PRD-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 85, security: 80 },
+        rounds: 1,
+        governanceTier: 'supervised',
+        status: 'complete',
+        createdAt: '2026-05-19T14:00:00Z',
+        completedAt: '2026-05-19T15:00:00Z',
+      }],
+    });
+    // Leave targetCodeRepoStatus empty — sample OKR has a target repo,
+    // so the default ('not-connected') blocks the button.
+    const html = renderOkrDetailView({
+      okr,
+      affectedBars: [{ id: 'APP-IMDB-001', name: 'IMDB Lite App', path: '/m', compositeScore: 64, tier: 'supervised' }],
+    });
+    expect(html).not.toContain('data-action="start-okr-what"');
+    // Disabled-button form still renders (with the 🔒 icon) — verify
+    // that's present so we know we're testing the disabled path, not
+    // a render-failure path.
+    expect(html).toContain('data-phase="what"');
+    expect(html).toContain('Every target repo must be set to Connected or Create');
   });
 
   it('renders affected BARs with tier badges and Open BAR ↗ links', () => {
