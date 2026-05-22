@@ -596,4 +596,106 @@ describe('OKRService', () => {
       if (!r.ok) { expect(r.reason).toMatch(/not-implemented/); }
     });
   });
+
+  // D-PR1.v1.1 — resetPhase: destructive but bounded escape hatch.
+  // Hard guards: seal-immutability (action.hatterChainRoot OR chain-
+  // ladder.yaml entry) + cascading (later-phase actions block reset of
+  // earlier phase). All-or-nothing: refuses-and-no-op or succeeds and
+  // cleans up files + audit events + actions[].
+  describe('resetPhase', () => {
+    function buildCardWithPhase(phase: 'why' | 'how' | 'what', runId: string, hatterChainRoot?: string): string {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      // Seed a phase directory with a fake artifact + audit event file.
+      const phaseDir = path.join(tmpRoot, 'okrs', card.meta.id, phase);
+      fs.mkdirSync(phaseDir, { recursive: true });
+      fs.writeFileSync(path.join(phaseDir, 'fake-artifact.md'), `# ${phase} artifact\n`, 'utf8');
+      const eventsDir = path.join(tmpRoot, 'okrs', card.meta.id, 'audit', 'events');
+      fs.mkdirSync(eventsDir, { recursive: true });
+      fs.writeFileSync(path.join(eventsDir, `${runId}.jsonl`), '{"event_id":1}\n', 'utf8');
+      svc.appendAction(tmpRoot, card.meta.id, freshAction({
+        id: 'ACT-1',
+        phase,
+        runId,
+        status: 'complete',
+        ...(hatterChainRoot ? { hatterChainRoot } : {}),
+      }, card.meta.intentThreadUuid));
+      return card.meta.id;
+    }
+
+    it('refuses when phase is sealed (action carries hatterChainRoot)', () => {
+      const okrId = buildCardWithPhase('why', 'WHY-test-001', 'abc123def456');
+      const r = svc.resetPhase(tmpRoot, okrId, 'why');
+      expect(r.ok).toBe(false);
+      if (!r.ok) { expect(r.reason).toMatch(/phase-sealed/); }
+      // No files removed since we refused early.
+      expect(fs.existsSync(path.join(tmpRoot, 'okrs', okrId, 'why', 'fake-artifact.md'))).toBe(true);
+    });
+
+    it('refuses when chain-ladder.yaml has an entry for the phase', () => {
+      const okrId = buildCardWithPhase('how', 'HOW-test-001');
+      // Drop a ladder entry without populating hatterChainRoot on the
+      // action — the workflow's finalize runs in pieces; either source
+      // of truth should block reset.
+      const ladderPath = path.join(tmpRoot, 'okrs', okrId, 'audit', 'chain-ladder.yaml');
+      fs.mkdirSync(path.dirname(ladderPath), { recursive: true });
+      fs.writeFileSync(ladderPath, 'entries:\n  - phase: how\n    run_id: HOW-test-001\n', 'utf8');
+      const r = svc.resetPhase(tmpRoot, okrId, 'how');
+      expect(r.ok).toBe(false);
+      if (!r.ok) { expect(r.reason).toMatch(/phase-sealed.*chain-ladder/); }
+    });
+
+    it('refuses when a later phase has actions (cascading)', () => {
+      const okrId = buildCardWithPhase('why', 'WHY-test-001');
+      // Add a HOW action — should block WHY reset until HOW is reset.
+      svc.appendAction(tmpRoot, okrId, freshAction({
+        id: 'ACT-2',
+        phase: 'how',
+        runId: 'HOW-test-001',
+        status: 'in_progress',
+      }, svc.read(tmpRoot, okrId)!.meta.intentThreadUuid));
+      const r = svc.resetPhase(tmpRoot, okrId, 'why');
+      expect(r.ok).toBe(false);
+      if (!r.ok) { expect(r.reason).toMatch(/cascading-block.*how/); }
+    });
+
+    it('successfully resets an unsealed phase (deletes dir + events + actions)', () => {
+      const okrId = buildCardWithPhase('what', 'WHAT-test-001');
+      const phaseDir = path.join(tmpRoot, 'okrs', okrId, 'what');
+      const eventFile = path.join(tmpRoot, 'okrs', okrId, 'audit', 'events', 'WHAT-test-001.jsonl');
+      expect(fs.existsSync(path.join(phaseDir, 'fake-artifact.md'))).toBe(true);
+      expect(fs.existsSync(eventFile)).toBe(true);
+      const r = svc.resetPhase(tmpRoot, okrId, 'what');
+      expect(r.ok).toBe(true);
+      if (r.ok) {
+        expect(r.deletedPhaseDir).toBe(true);
+        expect(r.deletedEventFiles).toEqual(['WHAT-test-001.jsonl']);
+        expect(r.removedActionIds).toEqual(['ACT-1']);
+      }
+      // Phase dir is empty (re-created with .gitkeep), event file gone,
+      // actions[] has no WHAT entry.
+      expect(fs.existsSync(path.join(phaseDir, 'fake-artifact.md'))).toBe(false);
+      expect(fs.existsSync(path.join(phaseDir, '.gitkeep'))).toBe(true);
+      expect(fs.existsSync(eventFile)).toBe(false);
+      const reread = svc.read(tmpRoot, okrId)!;
+      expect(reread.actions.filter(a => a.phase === 'what')).toHaveLength(0);
+    });
+
+    it('refuses on okr-not-found', () => {
+      const r = svc.resetPhase(tmpRoot, 'OKR-DOES-NOT-EXIST', 'why');
+      expect(r.ok).toBe(false);
+      if (!r.ok) { expect(r.reason).toBe('okr-not-found'); }
+    });
+
+    it('is idempotent on a phase with no actions (no-op success)', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      // No actions, no phase dir — should succeed with all-empty result.
+      const r = svc.resetPhase(tmpRoot, card.meta.id, 'why');
+      expect(r.ok).toBe(true);
+      if (r.ok) {
+        expect(r.deletedPhaseDir).toBe(false);
+        expect(r.deletedEventFiles).toEqual([]);
+        expect(r.removedActionIds).toEqual([]);
+      }
+    });
+  });
 });

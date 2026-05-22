@@ -115,6 +115,101 @@ function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampered?: b
 }
 
 /**
+ * WHAT-phase chain signal extraction (D-PR1.v1.1).
+ *
+ * Walks audit JSONL lines and surfaces the four counters the UI's
+ * renderWhatMetrics needs: total mesh-skill calls, knowledge-code call
+ * count (per A12.v1.1 brownfield + greenfield split), and the max
+ * persona-switch round across both code-* personas. Returns a sparse
+ * object with only the fields it could populate; `Object.assign(result,
+ * ...)` in the caller merges them onto the signal record.
+ *
+ * Kept out of fetchPhaseSignal to keep that function under its
+ * cyclomatic-complexity ratchet (the WHY/HOW/WHAT branches together
+ * push past budget when inlined).
+ */
+interface WhatChainSignals {
+  meshSkillCalls?: number;
+  knowledgeCodeCalls?: number;
+  brownfieldRepoCount?: number;
+  greenfieldRepoCount?: number;
+  selfReviewRounds?: number;
+}
+function extractWhatChainSignals(lines: string[]): WhatChainSignals {
+  let mesh = 0;
+  let knowledgeCode = 0;
+  let brownfieldRepos = 0;
+  let greenfieldRepos = 0;
+  let codeReviewMaxRound = 0;
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line) as {
+        event_kind?: string;
+        payload?: { skill?: string; ok?: boolean; mode?: string; round?: number };
+      };
+      if (event.event_kind !== 'skill_call' || event.payload?.ok === false) { continue; }
+      const skill = event.payload?.skill;
+      if (!skill) { continue; }
+      if (skill.startsWith('knowledge-') || skill.startsWith('context-')) { mesh++; }
+      if (skill === 'knowledge-code') {
+        knowledgeCode++;
+        if (event.payload?.mode === 'brownfield') { brownfieldRepos++; }
+        else if (event.payload?.mode === 'greenfield') { greenfieldRepos++; }
+      }
+      if ((skill === 'self-review-code-architect' || skill === 'self-review-code-security')
+        && typeof event.payload?.round === 'number'
+        && event.payload.round > codeReviewMaxRound) {
+        codeReviewMaxRound = event.payload.round;
+      }
+    } catch { /* malformed line — skip */ }
+  }
+  const out: WhatChainSignals = {
+    meshSkillCalls: mesh,
+    knowledgeCodeCalls: knowledgeCode,
+    brownfieldRepoCount: brownfieldRepos,
+    greenfieldRepoCount: greenfieldRepos,
+  };
+  if (codeReviewMaxRound > 0) { out.selfReviewRounds = codeReviewMaxRound; }
+  return out;
+}
+
+/**
+ * WHAT-phase artifact signal extraction (D-PR1.v1.1).
+ *
+ * Parses code-design.md for FR/SR unique-id counts (every reference
+ * counts as "covered" — workflow audit-and-drift does the deeper
+ * per-repo addresses[] check) and counts per-repo §5 subsections by
+ * scanning for frontmatter blocks with both `repo:` and `addresses:`.
+ */
+interface WhatArtifactSignals {
+  frCount?: number;
+  srCount?: number;
+  frWithCites?: number;
+  srAnchored?: number;
+  perRepoChangeCount?: number;
+}
+function extractWhatArtifactSignals(docText: string): WhatArtifactSignals {
+  const frIds = new Set<string>();
+  const srIds = new Set<string>();
+  for (const m of docText.matchAll(/\bFR-\d+\b/g)) { frIds.add(m[0]); }
+  for (const m of docText.matchAll(/\bSR-\d+\b/g)) { srIds.add(m[0]); }
+  let perRepoSubsections = 0;
+  for (const m of docText.matchAll(/---\s*\n([^]+?)\n---/g)) {
+    const block = m[1];
+    if (/^\s*repo:\s+/m.test(block) && /^\s*addresses:\s*\[/m.test(block)) {
+      perRepoSubsections++;
+    }
+  }
+  return {
+    frCount: frIds.size,
+    srCount: srIds.size,
+    frWithCites: frIds.size,
+    srAnchored: srIds.size,
+    perRepoChangeCount: perRepoSubsections,
+  };
+}
+
+/**
  * Discriminated-union dispatch table type. Given a union `U` keyed by
  * `type`, `MessageHandlers<U>` is an object whose keys are every member's
  * `type` and whose values are handlers narrowed to that exact member.
@@ -391,6 +486,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
     'setOkrRepoStatus':            (m) => this.onSetOkrRepoStatus(m.okrId, m.repoUrl, m.status),
+    'resetOkrPhase':               (m) => this.onResetOkrPhase(m.okrId, m.phase),
     'cancelOkrAction':             (m) => this.onCancelOkrAction(m.okrId, m.actionId),
     // Client-side-only navigation / filter messages - declared so a
     // future rename surfaces at compile time instead of silently dropping.
@@ -703,6 +799,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         if (exhausted) {
           result.selfReviewExhausted = true;
         }
+      } else if (phase === 'what') {
+        Object.assign(result, extractWhatChainSignals(lines));
       }
     }
 
@@ -755,10 +853,31 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           ['Success Metrics'],
           ['References'],
         ]
+        // D-PR1.v1.1 — WHAT-phase canonical 10 H2s per code-design/synthesis.md.
+        // The synthesis prompt-pack writes them with numbered prefixes
+        // ("## 1. Input Premises") — the heading-match regex below tolerates
+        // optional numeric prefix.
+        : phase === 'what'
+        ? [
+          ['Input Premises'],
+          ['Problem Restatement'],
+          ['Approach'],
+          ['Repo Inventory'],
+          ['Per-Repo Change List'],
+          ['Interface Contracts'],
+          ['Data Ownership'],
+          ['Migration Plan'],
+          ['Rollback Plan'],
+          ['Risk Matrix'],
+        ]
         : [];
       if (requiredH2.length > 0) {
         const present = requiredH2.filter(alts =>
-          alts.some(name => new RegExp(`^##\\s+${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'm').test(docText)),
+          // Tolerant heading match — accepts both bare form (`## Input Premises`)
+          // and numbered form (`## 1. Input Premises`) — WHAT synthesis pack
+          // emits numeric prefixes; WHY/HOW packs don't. Pattern matches
+          // optional `\d+\.\s*` between `## ` and the heading text.
+          alts.some(name => new RegExp(`^##\\s+(?:\\d+\\.\\s+)?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'm').test(docText)),
         ).length;
         result.h2Present = present;
         result.h2Total = requiredH2.length;
@@ -809,6 +928,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         result.srCount = srResult.total;
         result.frWithCites = frResult.covered;
         result.srAnchored = srResult.covered;
+      } else if (phase === 'what') {
+        Object.assign(result, extractWhatArtifactSignals(docText));
       }
     }
 
@@ -1444,6 +1565,88 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to update repo status: ${toErrorMessage(err)}` });
     }
+  }
+
+  /**
+   * D-PR1.v1.1 — Reset an unsealed phase to its pre-run state.
+   *
+   * Destructive but bounded. Confirms with a native VS Code modal before
+   * delegating to OKRService.resetPhase (which enforces the seal-
+   * immutability + cascading guards). After the local mesh delete
+   * succeeds, best-effort closes any associated GitHub issues + draft
+   * PRs that referenced this phase's runId so the next dispatch doesn't
+   * collide. Refreshes the OKR detail view at the end so the action card
+   * goes back to "Not started."
+   */
+  private async onResetOkrPhase(okrId: string, phase: 'why' | 'how' | 'what'): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+      return;
+    }
+    const actionsForPhase = card.actions.filter(a => a.phase === phase);
+    const runIds = actionsForPhase.map(a => a.runId);
+    // Compute what would be deleted so the confirmation modal is concrete
+    // (the user sees exactly what's about to go away — never blind delete).
+    const phaseLabel = phase.toUpperCase();
+    const summary = [
+      `okrs/${okrId}/${phase}/  — phase artifact directory`,
+      `okrs/${okrId}/audit/events/${phaseLabel}-*.jsonl  — ${runIds.length} audit event file${runIds.length === 1 ? '' : 's'}`,
+      `${actionsForPhase.length} entr${actionsForPhase.length === 1 ? 'y' : 'ies'} in okr.yaml actions[] for phase=${phase}`,
+    ].join('\n  • ');
+    const confirmed = await vscode.window.showWarningMessage(
+      `Reset ${phaseLabel} phase for ${okrId}?\n\nThis will permanently delete:\n  • ${summary}\n\nOnly available because nothing for this phase is sealed yet. Cannot be undone.`,
+      { modal: true },
+      'Reset',
+    );
+    if (confirmed !== 'Reset') { return; }
+
+    const result = okrService.resetPhase(meshPath, okrId, phase);
+    if (!result.ok) {
+      this.postMessage({
+        type: 'error',
+        message: `Cannot reset ${phaseLabel}: ${result.reason}`,
+      });
+      return;
+    }
+
+    // Best-effort: close associated GitHub issues + draft PRs for the
+    // phase's runIds so the next Start <phase> dispatch doesn't collide
+    // with a stale open issue / branch. Soft-fail — local mesh state is
+    // already the source of truth at this point.
+    const meshRepo = this.meshRepoInfo;
+    if (meshRepo && runIds.length > 0) {
+      for (const runId of runIds) {
+        try {
+          // Find any open issues whose body carries this runId marker.
+          const client = await (this.githubService as unknown as { getClient: () => Promise<{ rest: { search: { issuesAndPullRequests: (q: { q: string }) => Promise<{ data: { items: Array<{ number: number; pull_request?: object }> } }> } } }> }).getClient();
+          const q = `repo:${meshRepo.owner}/${meshRepo.repo} "${runId}" is:open`;
+          const { data } = await client.rest.search.issuesAndPullRequests({ q });
+          for (const item of data.items) {
+            try {
+              if (item.pull_request) {
+                await this.githubService.closePullRequest(meshRepo.owner, meshRepo.repo, item.number);
+              } else {
+                await this.githubService.closeIssue(meshRepo.owner, meshRepo.repo, item.number);
+              }
+            } catch { /* best-effort */ }
+          }
+        } catch { /* search failed; skip */ }
+      }
+    }
+
+    this.postMessage({
+      type: 'info',
+      message: `${phaseLabel} reset complete: removed ${result.removedActionIds.length} action(s), ${result.deletedEventFiles.length} audit file(s)${result.deletedPhaseDir ? ', phase directory cleared' : ''}.`,
+    });
+    await this.onDrillIntoOkr(okrId, 'view');
+    await this.onLoadOkrPhaseSignals(okrId);
   }
 
   /**

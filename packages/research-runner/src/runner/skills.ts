@@ -638,6 +638,125 @@ function makeSelfReviewHandler(persona: 'architect' | 'security'): SkillHandler 
 const handleSelfReviewArchitect = makeSelfReviewHandler('architect');
 const handleSelfReviewSecurity = makeSelfReviewHandler('security');
 
+// ─────────────────────────────────────────────────────────────────────
+// knowledge-prd — D-PR1.v1.1 fix. Was deployed as a Skill template but
+// the runner had no handler, so the code-design-agent's first attempt at
+// invoking it on PR #120 returned `{"ok":false,"reason":"unknown-skill"}`.
+// Agent fell back to direct file read + grep, which worked, but the chain
+// has no `knowledge-prd` event proving the PRD was structurally read.
+//
+// Parses `okrs/<id>/how/prd.md` for FR-NN + SR-NN entries with tolerant
+// regex (mirrors B31's tolerance — accepts `FR-NN` / `FR NN` / `**FR-NN**`
+// heading or bold markers). Best-effort extraction of cited sources +
+// STRIDE / OWASP anchors per requirement.
+// ─────────────────────────────────────────────────────────────────────
+
+const KnowledgePrdInput = z.object({ okrId: z.string().min(1) });
+
+/**
+ * Extract FR-NN / SR-NN requirement entries from a PRD body. Tolerant
+ * to several markdown forms the prd-agent has emitted over time:
+ *   - `### FR-01: <title>` (H3 heading)
+ *   - `**FR-01**: <title>` (bold-anchor inline)
+ *   - `- **FR-01**: <title>` (bullet w/ bold anchor)
+ *
+ * Returns one record per logical id. Same id seen twice (heading + bullet
+ * form) is deduped — first occurrence wins (heading usually).
+ */
+function parsePrdRequirements(body: string, prefix: 'FR' | 'SR'): Array<{
+  id: string;
+  text: string;
+  sources?: string[];
+  stride?: string[];
+  owasp?: string[];
+}> {
+  const seen = new Set<string>();
+  const out: Array<{ id: string; text: string; sources?: string[]; stride?: string[]; owasp?: string[] }> = [];
+  // Match the requirement id and the rest of the line. The id form
+  // accepts `FR-NN` / `FR NN` (no dash) for forgiveness — same shape as
+  // B31's `[CRSE]-?\d+`. Captures the text content that follows.
+  const idRegex = new RegExp(`(?:^|\\s|\\*\\*)${prefix}[-\\s]?(\\d+)(?:\\*\\*)?\\s*[:.]?\\s*(.*?)(?:\\*\\*|$)`, 'gmi');
+  const lines = body.split('\n');
+  // Walk line-by-line and accumulate a window of context (this line +
+  // next ~6 lines) so source/anchor citations on a "Traces to:" line
+  // immediately following the heading get associated with the right id.
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m = line.match(new RegExp(`(?:^|\\s|\\*\\*)${prefix}[-\\s]?(\\d+)(?:\\*\\*)?\\s*[:.]\\s*(.*?)\\s*$`, 'i'));
+    if (!m) { continue; }
+    const num = m[1];
+    const id = `${prefix}-${num.padStart(2, '0')}`;
+    if (seen.has(id)) { continue; }
+    seen.add(id);
+    let text = (m[2] || '').replace(/\*\*/g, '').trim();
+    // Collect 6 lines forward for source / anchor scanning.
+    const window = lines.slice(i, Math.min(i + 7, lines.length)).join('\n');
+    const sources = [...window.matchAll(/[CRSE]-?\d+/g)].map(x => x[0].replace(/(?<=[CRSE])\B/, '-').replace('--', '-'));
+    const dedupSrc = Array.from(new Set(sources));
+    const record: { id: string; text: string; sources?: string[]; stride?: string[]; owasp?: string[] } = { id, text };
+    if (prefix === 'FR' && dedupSrc.length > 0) {
+      record.sources = dedupSrc;
+    }
+    if (prefix === 'SR') {
+      const stride = [...window.matchAll(/THR-\d{3}/gi)].map(x => x[0].toUpperCase());
+      const owasp = [...window.matchAll(/A0[1-9]|A10/gi)].map(x => x[0].toUpperCase());
+      if (stride.length > 0) { record.stride = Array.from(new Set(stride)); }
+      if (owasp.length > 0) { record.owasp = Array.from(new Set(owasp)); }
+    }
+    out.push(record);
+  }
+  void idRegex;
+  return out;
+}
+
+/**
+ * Extract a Coverage Analysis table from the PRD body. Format expected:
+ *   | FR/SR | Source | Status |
+ *   |---|---|---|
+ *   | FR-01 | R-2,E-1 | YES |
+ *   ...
+ * Returns a map id → bool (YES → true, PARTIAL/NO → false).
+ */
+function parsePrdCoverage(body: string): Record<string, boolean> {
+  const coverage: Record<string, boolean> = {};
+  const lines = body.split('\n');
+  for (const line of lines) {
+    const m = line.match(/^\s*\|\s*((?:FR|SR)[-\s]?\d+)\s*\|.*\|\s*(YES|PARTIAL|NO)\s*\|/i);
+    if (!m) { continue; }
+    const rawId = m[1].toUpperCase();
+    const numMatch = rawId.match(/(\d+)/);
+    if (!numMatch) { continue; }
+    const id = `${rawId.startsWith('FR') ? 'FR' : 'SR'}-${numMatch[1].padStart(2, '0')}`;
+    coverage[id] = m[2].toUpperCase() === 'YES';
+  }
+  return coverage;
+}
+
+const handleKnowledgePrd: SkillHandler = async (input) => {
+  const parsed = KnowledgePrdInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const docPath = path.join(meshPath(), 'okrs', parsed.data.okrId, 'how', 'prd.md');
+  if (!fs.existsSync(docPath)) { return { ok: false, reason: 'prd-not-merged-yet' }; }
+  const body = fs.readFileSync(docPath, 'utf8');
+  const functionalRequirements = parsePrdRequirements(body, 'FR');
+  const securityRequirements = parsePrdRequirements(body, 'SR');
+  const coverage = parsePrdCoverage(body);
+  const auditMetadata = {
+    okr_id: parsed.data.okrId,
+    fr_count: functionalRequirements.length,
+    sr_count: securityRequirements.length,
+    coverage_rows: Object.keys(coverage).length,
+  };
+  return {
+    ok: true,
+    functionalRequirements,
+    securityRequirements,
+    coverage,
+    docPath,
+    auditMetadata,
+  } as SkillResult;
+};
+
 /**
  * D-PR1 — code-phase persona-switch self-review. Same B29 pattern as the
  * PRD-phase architect/security handlers above, but reads the WHAT-phase
@@ -1521,6 +1640,10 @@ export const SKILLS: Record<string, SkillHandler> = {
   'knowledge-mesh-threats': handleKnowledgeMeshThreats,
   'knowledge-mesh-adrs': handleKnowledgeMeshAdrs,
   'knowledge-research': handleKnowledgeResearch,
+  // D-PR1.v1.1 — knowledge-prd handler (SKILL.md was deployed but no
+  // runner backend existed, causing the code-design-agent to fall back
+  // to direct file read with no chain evidence on PR #120).
+  'knowledge-prd': handleKnowledgePrd,
   'context-architecture': handleContextArchitecture,
   'context-security': handleContextSecurity,
   'context-quality': handleContextQuality,

@@ -43,10 +43,15 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   verify-agent-deployed:
     name: "Verify code-design-agent file + HOW gate + A12.v1.1 repo-status precondition"
+    # Bug fix (D-PR1.v1.1) — Looking Glass dispatches issues with labels
+    # already attached via the body-extension assignment API, so the
+    # 'labeled' event doesn't fire separately. Match both 'opened' and
+    # 'labeled', and gate on the label name inside the job (steps use
+    # contains() so 'opened' with the label present also runs).
     if: >-
       github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'oraculum-design'
+      (github.event.action == 'opened' || github.event.action == 'labeled') &&
+      contains(github.event.issue.labels.*.name, 'oraculum-design')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -273,6 +278,13 @@ jobs:
                   status_map[k] = 'not-connected'
 
           # 2. Read knowledge-code skill_call events from chain.
+          #
+          # Bug fix (D-PR1.v1.1): the runner auto-emits auditMetadata fields
+          # MERGED FLAT into payload — NOT nested under payload.audit_metadata.
+          # The original code looked for payload.audit_metadata.{repo,mode}
+          # which always returned None, so chain_modes={} for every WHAT run
+          # and every repo got a false-positive "no knowledge-code skill_call"
+          # finding. Read payload.repo + payload.mode directly.
           chain_modes = {}  # repo (owner/name) → mode
           with open(jsonl, 'r', encoding='utf-8') as f:
               for line in f:
@@ -282,9 +294,8 @@ jobs:
                   if e.get('event_kind') != 'skill_call': continue
                   payload = e.get('payload') or {}
                   if payload.get('skill') != 'knowledge-code': continue
-                  meta = payload.get('audit_metadata') or {}
-                  r = meta.get('repo')
-                  m = meta.get('mode')
+                  r = payload.get('repo')
+                  m = payload.get('mode')
                   if r and m:
                       chain_modes[r] = m
 
@@ -390,11 +401,20 @@ jobs:
           JSONL: ${{ steps.audit.outputs.path }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # Count skill_call events for self-review-code-* (B29 carryforward).
-          B29_ROUNDS=$(jq -r 'select(.event_kind == "skill_call" and (.payload.skill == "self-review-code-architect" or .payload.skill == "self-review-code-security")) | .payload.round // 0' "$JSONL" 2>/dev/null | sort -n | tail -1 || echo 0)
+          # Bug fix (D-PR1.v1.1): `grep -c ... || echo 0` double-prints "0"
+          # when there are no matches because grep both PRINTS its count of
+          # 0 AND exits status 1. The `|| echo 0` then fires, prepending
+          # ANOTHER "0", so BLOCK_ROUNDS becomes "0\n0", subsequent integer
+          # comparisons fail with "integer expression expected", arithmetic
+          # silently aborts under `set -e`, and both ROUNDS + REVIEW_SOURCE
+          # end up empty. Solution: `|| true` (not `|| echo 0`) — grep -c
+          # already prints 0 on no match, the `|| true` just neutralizes
+          # the non-zero exit code. Also do the same for the B29_ROUNDS
+          # jq pipeline.
+          B29_ROUNDS=$(jq -r 'select(.event_kind == "skill_call" and (.payload.skill == "self-review-code-architect" or .payload.skill == "self-review-code-security")) | .payload.round // 0' "$JSONL" 2>/dev/null | sort -n | tail -1)
           B29_ROUNDS="${B29_ROUNDS:-0}"
-          # Count structured blocks in PR body. Same regex shape as prd-agent.yml.
-          BLOCK_ROUNDS=$(printf '%s' "$PR_BODY" | grep -cE '^### Self-review — Code-(Architect|Security) \(round [0-9]+\)' || echo 0)
+          BLOCK_ROUNDS=$(printf '%s' "$PR_BODY" | grep -cE '^### Self-review — Code-(Architect|Security) \(round [0-9]+\)' || true)
+          BLOCK_ROUNDS="${BLOCK_ROUNDS:-0}"
           if [ "$BLOCK_ROUNDS" -eq 0 ] && [ "$B29_ROUNDS" -gt 0 ]; then
             ROUNDS="$B29_ROUNDS"
             REVIEW_SOURCE="b29-chain"
@@ -431,22 +451,44 @@ jobs:
 
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
+        env:
+          CHAIN_MARK: ${{ steps.chain.outputs.ok == 'true' && '✓' || '✗' }}
+          CHAIN_COUNT: ${{ steps.chain.outputs.count }}
+          CHAIN_SEALED: ${{ steps.chain.outputs.sealed }}
+          MODE_MARK: ${{ steps.mode_honesty.outputs.ok == 'true' && '✓' || '✗' }}
+          MODE_REPOS: ${{ steps.mode_honesty.outputs.repo_count }}
+          MODE_FINDINGS: ${{ steps.mode_honesty.outputs.finding_count }}
+          MODE_FINDINGS_TEXT: ${{ steps.mode_honesty.outputs.findings }}
+          REVIEW_ROUNDS: ${{ steps.review.outputs.rounds }}
+          REVIEW_SOURCE: ${{ steps.review.outputs.source }}
         run: |
-          BODY=$(printf '## Code Design Audit\n\n')
-          BODY+=$(printf '| Check | Result |\n|---|---|\n')
-          BODY+=$(printf '| Audit chain integrity (B25) | %s (count=%s, sealed=%s) |\n' \
-            "${{ steps.chain.outputs.ok == 'true' && '✓' || '✗' }}" \
-            "${{ steps.chain.outputs.count }}" \
-            "${{ steps.chain.outputs.sealed }}")
-          BODY+=$(printf '| Per-repo mode honesty (A12.v1.1) | %s (repos=%s, findings=%s) |\n' \
-            "${{ steps.mode_honesty.outputs.ok == 'true' && '✓' || '✗' }}" \
-            "${{ steps.mode_honesty.outputs.repo_count }}" \
-            "${{ steps.mode_honesty.outputs.finding_count }}")
-          BODY+=$(printf '| Drift gates (Pocket Watch + Caterpillar) | calibration-pending (D-PR1.v1.1) |\n')
-          BODY+=$(printf '| Self-review (B24 / B29) | %s round(s) · source=%s |\n' \
-            "${{ steps.review.outputs.rounds }}" \
-            "${{ steps.review.outputs.source }}")
-          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$BODY"
+          # Bug fix (D-PR1.v1.1): `BODY+=$(printf '...\n')` strips trailing
+          # newlines via command substitution, so the markdown table
+          # collapsed to a single line in PR #120's audit comment. Use a
+          # heredoc — preserves newlines verbatim and lets us inline the
+          # finding details when mode-honesty failed.
+          BODY_FILE=$(mktemp)
+          cat > "$BODY_FILE" <<EOF
+          ## Code Design Audit
+
+          | Check | Result |
+          |---|---|
+          | Audit chain integrity (B25) | $CHAIN_MARK (count=$CHAIN_COUNT, sealed=$CHAIN_SEALED) |
+          | Per-repo mode honesty (A12.v1.1) | $MODE_MARK (repos=$MODE_REPOS, findings=$MODE_FINDINGS) |
+          | Drift gates (Pocket Watch + Caterpillar) | calibration-pending (D-PR1.v1.1) |
+          | Self-review (B24 / B29) | ${REVIEW_ROUNDS:-0} round(s) · source=${REVIEW_SOURCE:-none} |
+          EOF
+          # Inline mode-honesty finding details when there are any —
+          # auditors shouldn't have to dig into the workflow log.
+          if [ "${MODE_FINDINGS:-0}" != "0" ] && [ -n "${MODE_FINDINGS_TEXT:-}" ]; then
+            {
+              echo ""
+              echo "**Mode-honesty findings:**"
+              echo ""
+              echo "$MODE_FINDINGS_TEXT" | sed 's/^/- /'
+            } >> "$BODY_FILE"
+          fi
+          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file "$BODY_FILE"
 
   # ════════════════════════════════════════════════════════════════════
   # JOB 3 — Finalize on PR merge (append chain-ladder + flip action)

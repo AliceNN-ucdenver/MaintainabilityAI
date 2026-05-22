@@ -724,6 +724,26 @@ export class GitHubService {
     });
   }
 
+  /**
+   * Close a pull request without merging (D-PR1.v1.1).
+   * Used by the phase-reset flow to clean up stale draft PRs associated
+   * with a phase being rolled back. Best-effort — soft-fails if the PR
+   * doesn't exist or is already closed.
+   */
+  async closePullRequest(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+  ): Promise<void> {
+    const client = await this.getClient();
+    await client.rest.pulls.update({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      state: 'closed',
+    });
+  }
+
   async getIssueBody(
     owner: string,
     repo: string,

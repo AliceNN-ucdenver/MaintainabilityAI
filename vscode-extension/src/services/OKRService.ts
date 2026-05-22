@@ -467,6 +467,146 @@ export class OKRService {
     return { ok: false, reason: 'not-implemented-yet (Phase E)' };
   }
 
+  /**
+   * Reset a phase back to its pre-run state — destructive but bounded.
+   *
+   * Designed as the escape hatch for iterative development: when a WHY /
+   * HOW / WHAT phase has been kicked off but the resulting artifact PR
+   * hasn't merged (and the chain isn't sealed into the OKR's persistent
+   * audit trail yet), this method nukes the phase directory + audit
+   * events + actions[] entries so the user can start fresh.
+   *
+   * Four hard guards before any file delete:
+   *
+   *   1. **Seal-immutability**: refuse if any action for this phase has
+   *      `hatterChainRoot` populated (means finalize ran post-merge AND
+   *      wrote the sealed chain root) OR if `chain-ladder.yaml` has an
+   *      entry for this phase. Sealed = immutable; the audit chain is the
+   *      product, you can't roll it back.
+   *
+   *   2. **Cascading**: refuse if a later phase has any actions (sealed
+   *      or not). Forces "reset the latest phase first" — prevents
+   *      orphaning downstream artifacts that reference this phase's
+   *      intent_thread.
+   *
+   *   3. **OKR exists**: refuse if the OKR card isn't readable. Don't
+   *      try to delete files from a malformed mesh.
+   *
+   *   4. **Phase exists**: no-op if the phase directory + events list
+   *      are both empty AND no actions exist for this phase. Idempotent.
+   *
+   * Returns a structured result so the caller (UI button) can render a
+   * "reset what" confirmation listing exactly what was removed.
+   */
+  resetPhase(
+    meshPath: string,
+    okrId: string,
+    phase: 'why' | 'how' | 'what',
+  ):
+    | { ok: true; deletedPhaseDir: boolean; deletedEventFiles: string[]; removedActionIds: string[] }
+    | { ok: false; reason: string }
+  {
+    const card = this.read(meshPath, okrId);
+    if (!card) {
+      return { ok: false, reason: 'okr-not-found' };
+    }
+
+    // Guard 1 — seal-immutability.
+    const sealedAction = card.actions.find(a => a.phase === phase && a.hatterChainRoot);
+    if (sealedAction) {
+      return {
+        ok: false,
+        reason: `phase-sealed: action ${sealedAction.runId} carries hatterChainRoot — the audit chain is immutable. Reset is only available for unsealed phases.`,
+      };
+    }
+    const ladderPath = path.join(meshPath, 'okrs', okrId, 'audit', 'chain-ladder.yaml');
+    if (fs.existsSync(ladderPath)) {
+      try {
+        const raw = fs.readFileSync(ladderPath, 'utf8');
+        const ladder = yaml.parse(raw) as { entries?: Array<{ phase?: string }> } | null;
+        const hasEntry = (ladder?.entries ?? []).some(e => e.phase === phase);
+        if (hasEntry) {
+          return {
+            ok: false,
+            reason: `phase-sealed: chain-ladder.yaml has a ${phase} entry — finalize completed and the chain is sealed.`,
+          };
+        }
+      } catch { /* malformed ladder; treat as unsealed and proceed */ }
+    }
+
+    // Guard 2 — cascading. A later phase having any actions blocks the
+    // reset (sealed or unsealed — either way it's downstream work that
+    // would be orphaned). Must reset the latest phase first.
+    const phaseOrder: Array<'why' | 'how' | 'what'> = ['why', 'how', 'what'];
+    const phaseIdx = phaseOrder.indexOf(phase);
+    const laterPhases = phaseOrder.slice(phaseIdx + 1);
+    const blockingPhase = laterPhases.find(p => card.actions.some(a => a.phase === p));
+    if (blockingPhase) {
+      return {
+        ok: false,
+        reason: `cascading-block: ${blockingPhase} phase has actions — reset ${blockingPhase} first.`,
+      };
+    }
+
+    // All guards passed — execute the reset.
+    const okrDir = path.join(meshPath, 'okrs', okrId);
+    const phaseDir = path.join(okrDir, phase);
+    const eventsDir = path.join(okrDir, 'audit', 'events');
+
+    // Delete phase subdirectory if it has real content (beyond the
+    // `.gitkeep` placeholder that create() seeds). Returns `false` for
+    // idempotent no-ops so the UI message ("phase directory cleared")
+    // only fires when something was actually deleted. After clearing,
+    // re-establish the empty dir with `.gitkeep` so the OKR's tree
+    // structure stays consistent (other code paths assume the four
+    // canonical subdirs always exist).
+    let deletedPhaseDir = false;
+    if (fs.existsSync(phaseDir)) {
+      try {
+        const entries = fs.readdirSync(phaseDir);
+        const hasRealContent = entries.some(e => e !== '.gitkeep');
+        if (hasRealContent) {
+          fs.rmSync(phaseDir, { recursive: true, force: true });
+          fs.mkdirSync(phaseDir, { recursive: true });
+          fs.writeFileSync(path.join(phaseDir, '.gitkeep'), '', 'utf8');
+          deletedPhaseDir = true;
+        }
+      } catch (err) {
+        return { ok: false, reason: `failed-to-delete-phase-dir: ${(err as Error).message}` };
+      }
+    }
+
+    // Delete event JSONL files for this phase. Filename pattern is
+    // `<PHASE>-<date>-<slug>.jsonl` per the runId convention. Wildcard
+    // match on the phase prefix.
+    const prefix = phase.toUpperCase() + '-';
+    const deletedEventFiles: string[] = [];
+    if (fs.existsSync(eventsDir)) {
+      try {
+        for (const entry of fs.readdirSync(eventsDir)) {
+          if (entry.startsWith(prefix) && entry.endsWith('.jsonl')) {
+            fs.rmSync(path.join(eventsDir, entry), { force: true });
+            deletedEventFiles.push(entry);
+          }
+        }
+      } catch (err) {
+        return { ok: false, reason: `failed-to-delete-event-files: ${(err as Error).message}` };
+      }
+    }
+
+    // Strip actions[] entries for this phase from the OKR card.
+    const removedActionIds: string[] = card.actions
+      .filter(a => a.phase === phase)
+      .map(a => a.id);
+    if (removedActionIds.length > 0) {
+      card.actions = card.actions.filter(a => a.phase !== phase);
+      card.meta.updatedAt = new Date().toISOString();
+      this.writeCard(meshPath, card);
+    }
+
+    return { ok: true, deletedPhaseDir, deletedEventFiles, removedActionIds };
+  }
+
   // ── Internals ───────────────────────────────────────────────────────
 
   private okrYamlPath(meshPath: string, okrId: string): string {

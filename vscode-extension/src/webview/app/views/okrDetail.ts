@@ -49,6 +49,12 @@ export interface OkrPhaseSignal {
   srCount?: number;
   frWithCites?: number;
   srAnchored?: number;
+  /** WHAT-phase counts (D-PR1.v1.1). */
+  knowledgeCodeCalls?: number;       // total knowledge-code skill_calls in chain
+  brownfieldRepoCount?: number;       // count of mode=brownfield knowledge-code responses
+  greenfieldRepoCount?: number;       // count of mode=greenfield knowledge-code responses
+  targetRepoCount?: number;           // total target_code_repos[] entries
+  perRepoChangeCount?: number;        // total per-repo subsections in code-design.md §5
   /** PR-derived. */
   prNumber?: number;
   prUrl?: string;
@@ -761,6 +767,12 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
     ? renderCancelRun(okr, latest)
     : '';
 
+  // D-PR1.v1.1 — Reset phase affordance. Visible when this phase has at
+  // least one action AND none of those actions carry hatterChainRoot
+  // (i.e. the phase is unsealed). Sealed phases are immutable; reset is
+  // explicitly NOT offered for them — the audit chain is the product.
+  const resetPhaseBtn = renderResetPhaseButton(okr, phase);
+
   return `
     <div class="okr-action-card okr-action-card-${substate.tone}">
       <div class="okr-action-card-header">
@@ -774,8 +786,40 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
       <div class="okr-action-footer">
         ${startButton}
         ${cancelRun}
+        ${resetPhaseBtn}
       </div>
     </div>
+  `;
+}
+
+/**
+ * Reset-phase button — visible only when the phase has at least one
+ * action AND none of those actions carry a sealed chain_root_hash. The
+ * panel-side handler shows a native VS Code modal confirming what
+ * gets deleted before any file removal. The OKRService method that
+ * runs the actual delete enforces the seal-immutability + cascading
+ * guards a second time (defense-in-depth).
+ */
+function renderResetPhaseButton(okr: OkrCard, phase: OkrPhase): string {
+  const actionsForPhase = okr.actions.filter(a => a.phase === phase);
+  if (actionsForPhase.length === 0) { return ''; }
+  // Sealed = at least one action has hatterChainRoot set. We bail
+  // silently in that case so the user isn't shown a button they can't
+  // use — the rationale is on the action card itself ("✓ Complete —
+  // sealed at <chain root prefix>").
+  const sealed = actionsForPhase.some(a => a.hatterChainRoot);
+  if (sealed) { return ''; }
+  const phaseLabel = phase.toUpperCase();
+  return `
+    <button
+      class="okr-button-secondary okr-button-small okr-button-destructive"
+      data-action="reset-okr-phase"
+      data-okr-id="${escapeAttr(okr.meta.id)}"
+      data-phase="${escapeAttr(phase)}"
+      title="Delete the ${phaseLabel} phase artifact directory + audit events + actions[] entries. Only available because nothing for this phase is sealed. Cannot be undone."
+    >
+      ⟲ Reset ${escapeHtml(phaseLabel)}
+    </button>
   `;
 }
 
@@ -830,6 +874,18 @@ function renderCoverageLine(s: OkrPhaseSignal | undefined, phase: OkrPhase): str
     if (s.srAnchored != null && s.srCount != null && s.srCount > 0) {
       const ok = s.srAnchored === s.srCount;
       parts.push(`SR anchored ${s.srAnchored}/${s.srCount} ${ok ? '✓' : '✗'}`);
+    }
+  } else if (phase === 'what') {
+    // WHAT-phase coverage: FR + SR id count in the code-design.md. Every
+    // unique id in the doc counts as covered — the per-repo addresses[]
+    // frontmatter is what binds them to repos, but for the signal line
+    // we just show presence. Workflow audit-and-drift does the deeper
+    // per-repo coverage check.
+    if (s.frCount != null && s.frCount > 0) {
+      parts.push(`${s.frCount} FR referenced ✓`);
+    }
+    if (s.srCount != null && s.srCount > 0) {
+      parts.push(`${s.srCount} SR referenced ✓`);
     }
   }
   if (s.h2Present != null && s.h2Total != null) {
@@ -926,6 +982,56 @@ function renderWhyMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
   }
   lines.push(renderCoverageLine(s, 'why'));
   lines.push(renderDriftLine(s, 'why'));
+  return lines;
+}
+
+/**
+ * WHAT-phase signals (D-PR1.v1.1).
+ *
+ * Same five-line shape as HOW (Sources · Refine · Findings · Coverage ·
+ * Drift) for visual consistency across phases. Metrics differ:
+ *   - Sources: mesh-skill calls + per-mode knowledge-code count
+ *     (brownfield + greenfield breakdown — proves the agent actually
+ *     ran knowledge-code against the real repos and got the right modes).
+ *   - Refine: persona-switch round count from chain skill_calls
+ *     (B29-style; per-persona scores aren't yet extracted into signals
+ *     because the agent emits them inside the artifact md rather than
+ *     as audit events — D-PR2 will add proper score extraction).
+ *   - Findings: per-repo subsection count from §5 Per-Repo Change List.
+ *   - Coverage: FR / SR unique-id count from the artifact (every FR/SR
+ *     mentioned anywhere = covered; workflow audit-and-drift does the
+ *     deeper per-repo addresses check).
+ *   - Drift: Pocket Watch + Caterpillar cosines (report-only in D-PR1
+ *     MVP; calibrated in D-PR1.v2).
+ */
+function renderWhatMetrics(s: OkrPhaseSignal | undefined, loading: boolean | undefined): string[] {
+  if (loading) {
+    return [`<div class="okr-muted">Loading sources · findings · coverage · drift · self-review from GitHub…</div>`];
+  }
+  const lines: string[] = [];
+  // Sources line: mesh-skill calls + per-mode knowledge-code breakdown.
+  if (s?.meshSkillCalls != null || s?.knowledgeCodeCalls != null) {
+    const parts: string[] = [];
+    if (s?.meshSkillCalls != null) {
+      parts.push(`${s.meshSkillCalls} mesh-skill calls`);
+    }
+    if (s?.knowledgeCodeCalls != null && s.knowledgeCodeCalls > 0) {
+      const bf = s.brownfieldRepoCount ?? 0;
+      const gf = s.greenfieldRepoCount ?? 0;
+      parts.push(`${s.knowledgeCodeCalls} <code>knowledge-code</code> calls (${bf} brownfield · ${gf} greenfield)`);
+    }
+    lines.push(`<div><strong>Sources:</strong> ${parts.join(' · ')}</div>`);
+  }
+  // Refine: persona-switch round count (code-architect + code-security).
+  if (s?.selfReviewRounds != null && s.selfReviewRounds > 0) {
+    lines.push(`<div><strong>Refine:</strong> ${s.selfReviewRounds} self-review round${s.selfReviewRounds === 1 ? '' : 's'} (Code-Architect + Code-Security personas)</div>`);
+  }
+  // Findings: per-repo change list count.
+  if (s?.perRepoChangeCount != null && s.perRepoChangeCount > 0) {
+    lines.push(`<div><strong>Findings:</strong> ${s.perRepoChangeCount} per-repo change-list section${s.perRepoChangeCount === 1 ? '' : 's'}</div>`);
+  }
+  lines.push(renderCoverageLine(s, 'what'));
+  lines.push(renderDriftLine(s, 'what'));
   return lines;
 }
 
@@ -1098,7 +1204,7 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, sign
   } else if (phase === 'how') {
     baseLines.push(...renderHowMetrics(s, loading));
   } else {
-    baseLines.push(`<div class="okr-muted">code-design-agent signals will appear here when Phase 3 ships.</div>`);
+    baseLines.push(...renderWhatMetrics(s, loading));
   }
 
   // Trailer: WHY phase has no reviewers so "Rounds: 0" is meaningless;
@@ -1347,7 +1453,9 @@ export function getOkrDetailStyles(): string {
     .okr-md-panel-body .okr-md-table th { background: rgba(148, 163, 184, 0.08); font-weight: 600; }
     .okr-md-panel-body .okr-md-hr { border: 0; border-top: 1px solid var(--vscode-panel-border); margin: 0.75rem 0; }
     .okr-md-panel-body a { color: var(--vscode-textLink-foreground); }
-    .okr-action-footer { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .okr-action-footer { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .okr-button-destructive { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
+    .okr-button-destructive:hover { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.7); }
     .okr-button-disabled { opacity: 0.5; cursor: not-allowed; }
     .okr-button-locked-icon { font-size: 0.75rem; opacity: 0.7; margin-left: 0.25rem; }
     .okr-button-tooltip-hint { font-size: 0.7rem; color: var(--vscode-descriptionForeground); font-style: italic; }
@@ -1627,6 +1735,18 @@ export function attachOkrDetailEvents(
         okrId: e.dataset.okrId,
         actionId: e.dataset.actionId,
       });
+    });
+  });
+  // D-PR1.v1.1 — Reset phase. The panel-side handler runs the
+  // confirmation modal, so the webview just posts the intent.
+  document.querySelectorAll('[data-action="reset-okr-phase"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const e = el as HTMLElement;
+      const okrId = e.dataset.okrId;
+      const phase = e.dataset.phase;
+      if (okrId && (phase === 'why' || phase === 'how' || phase === 'what')) {
+        vscode.postMessage({ type: 'resetOkrPhase', okrId, phase });
+      }
     });
   });
   document.querySelectorAll('[data-action="edit-okr"]').forEach(el => {

@@ -450,6 +450,14 @@ export type LookingGlassWebviewMessage =
   // repos, (b) greenfield design for 'create' repos, (c) skip + prompt
   // for 'not-connected'. 'unreachable' is system-set after a probe.
   | { type: 'setOkrRepoStatus'; okrId: string; repoUrl: string; status: 'not-connected' | 'connected' | 'create' | 'unreachable' }
+  // D-PR1.v1.1 — Reset an unsealed phase to its pre-run state.
+  // Destructive: nukes the phase directory, audit-event JSONLs for the
+  // phase, and the OKR card's actions[] entries for the phase. Refused
+  // by OKRService.resetPhase if any action carries hatterChainRoot OR
+  // chain-ladder.yaml has an entry for the phase. The webview confirms
+  // with a native VS Code modal before posting this; the handler then
+  // posts back an `okrPhaseReset` result message with what got deleted.
+  | { type: 'resetOkrPhase'; okrId: string; phase: 'why' | 'how' | 'what' }
   // ✓ Merge PR — merges the artifact PR via the GitHub pulls.merge API
   // (squash). Extension prompts for confirmation natively before calling.
   // After success, finalize workflow flips action.status to complete on
