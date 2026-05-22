@@ -28,16 +28,20 @@ Under Court Recorder Auto-Logging (design [agentic-sdlc.md](agentic-sdlc.md) §1
 
 The agent literally **cannot** write to the audit log (except the declarative gap-loop marker, which is semantic and the runner can't infer). It produces content (the research doc, the query plan); deterministic code produces events. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written payloads).
 
-## Current state — shipped, runnable end-to-end
+## Current state — validated end-to-end 2026-05-21 (PR #116)
 
-The market-research-agent is the **most mature agent in the pipeline**. Last clean E2E run: PR #103 on `AliceNN-ucdenver/alicenn-ucdenver-governance-mesh`. The agent dispatches via the OKR-driven `Start Why` button, runs four search providers in parallel, deduplicates + ranks, runs a bounded gap-analysis follow-up pass when coverage is weak, synthesizes a research-doc.md with full traceability, and emits a hash-chained audit JSONL signed by the audit-emit-event Skill.
+The market-research-agent is **validated end-to-end on real Claude Sonnet 4.6 runs**. Last clean E2E: PR #116 (WHY for OKR-2026Q2-IMDB-001-celeb-api). 19 hash-chained audit events; ✓ Audit pass; `research-pass` label applied; merged cleanly; chain-ladder WHY entry auto-written with `chain_root_hash: 152d1aca7d36339c000a3bad0bcb106b3e03acdc0cf80190846d197bbd40e5a2`.
 
-**Trust state today** (post-B25, pre-B27):
-- ✅ Audit chain hash-verified pre-merge (B25 — `chain-forgery-detected` label blocks merge on mismatch)
-- ✅ Chain-ladder written on PR merge (B25 — `okrs/<id>/audit/chain-ladder.yaml`)
-- ✅ Pocket Watch goal-drift: cosine of OKR objective vs `## Executive Summary` (threshold 0.65, calibrated in B22)
-- ✅ Evidence-honesty gate: `evidence_mode: live` requires ≥1 successful provider skill_call
-- 🛠 Knight's Seal v1 (B27 — planned next): per-run ephemeral Ed25519 signs chain root + artifact SHA
+**Trust state today (every claim below has chain evidence on PR #116):**
+- ✅ **Audit chain hash-verified pre-merge** (B25) — `chain-forgery-detected` label blocks merge on mismatch. Independent runner verify-chain: `{ok:true, sealed:true, sealVerified:true, eventCount:19}`.
+- ✅ **Chain-ladder auto-written on merge** (B25 + B27.v1.2) — `okrs/<id>/audit/chain-ladder.yaml` entry includes `chain_root_hash` auto-populated by the finalize step (no more manual backfill — PR #110 needed one; PR #116 didn't).
+- ✅ **Pocket Watch goal-drift** — cosine 0.7289 ≥ 0.65 threshold (PR #116) · 0.8034 (earlier PR #110).
+- ✅ **Evidence-honesty gate with `mixed` mode** — PR #116 carried `evidence_mode: mixed` + `degraded_reason: "arxiv-rate-limited-429-both-passes, uspto-404-no-matching-patents, hackernews-zero-results-both-passes"`. The gate accepted `mixed` as a canonical value (was strict `live` only previously) — the agent honestly logged each provider failure as an `ok:false` skill_call event rather than fabricating results. tavily-search succeeded (50 raw results); arxiv + uspto + hackernews-first-pass returned failures; gap-loop triggered; second-pass hackernews succeeded; final dedupe-and-rank + format ran cleanly. **3 successful provider events across 2 of 4 providers — and the chain says exactly that.**
+- ✅ **Knight's Seal v1** (B27 — landed) — every event signed Ed25519 with per-run ephemeral keypair. Looking Glass WHY card displays 🛡 Sealed badge inline with `chain_root: 152d1aca7d36…`. View Tag + Verify Chain buttons live.
+- ✅ **B28 Court Recorder Auto-Logging** — every skill_call event carries `payload.duration_ms` (runtime auto-emit signature). Agent invokes runner CLI for every skill via the explicit `echo '{...}' | npx -y @maintainabilityai/research-runner skill-<name>` contract (B30). The single explicit `audit-emit-event` the agent still calls is the gap-loop semantic marker (the runner can't infer agent intent there).
+- ✅ **B28a.v1.1 parallel-emission lock budget** — all 4 search skills fired in parallel on PR #110 dropped 3 of 4 events to silent lock contention. Bumped retry budget to 20 × exponential capped at 500ms (≈9.6s tolerance). PR #116 (4 parallel providers + arxiv took 30s) shows all 4 events in chain.
+- ✅ **B28a.v1.2 unicode canonicalization parity** — TS canonicalStringify and Python defense-in-depth chain check now agree on `ensure_ascii=False` for non-ASCII characters in payload (e.g. em-dash in USPTO 404 reason). PR #116 had non-ASCII in failure reasons; chain check passed clean.
+- ✅ **JTBD heading alternation** (B30) — validator accepts both `## JTBD Analysis` (short) and `## Jobs-to-be-Done Analysis` (long). PR #116 wrote the long form; H2 sections 10/10 ✓.
 
 ---
 

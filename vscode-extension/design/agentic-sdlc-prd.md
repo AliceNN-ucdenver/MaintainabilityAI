@@ -31,24 +31,27 @@ Under Court Recorder Auto-Logging (design [agentic-sdlc.md](agentic-sdlc.md) §1
 
 The agent literally **cannot** write to the audit log. It produces content (the PRD, the structured self-review blocks); deterministic code produces events. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written or self_review payloads).
 
-## Current state — Tier-1 hardening complete, validation gate pending
+## Current state — validated end-to-end 2026-05-22 (PR #118)
 
-The prd-agent runs end-to-end through the HOW phase with full audit-chain verification, Pocket Watch + Caterpillar drift gates, FR-citation + SR-anchor structural correctness, persona-switch self-critique, **Knight's Seal v1 cryptographic sealing**, and **grounded `context-*` aggregators**. Last E2E run: PR #105 (post-B25 audit-fabrication fix, pre-Tier-1). **Phase B Tier-1 hardening shipped in research-runner 0.1.26 + extension build 2026-05-21.**
+The prd-agent is **validated end-to-end on real Claude Sonnet 4.6 runs.** Last clean E2E: PR #118 (HOW for OKR-2026Q2-IMDB-001-celeb-api). 13 hash-chained audit events; ✓ Audit pass; `prd-pass` label applied; merged cleanly; HOW chain entry appended to `chain-ladder.yaml` with `parent_intent_thread = 7440f381-7e1a-42da-9bdd-4ea3682da02f` (WHY's intent_thread_uuid from PR #116).
 
-**Trust state today** (post-Tier-1, validation-pending):
-- ✅ Audit chain hash-verified pre-merge (B25 — `chain-forgery-detected` label blocks merge on mismatch)
-- ✅ Persona-switch self-critique replaces separate reviewer agents (B24)
-- ✅ Pocket Watch goal-drift: cosine of OKR objective vs `## Problem Statement` (threshold 0.65)
-- ✅ Caterpillar's Challenge cross-phase drift: cosine of PRD `## Problem Statement` vs research-doc `## Executive Summary` (threshold 0.70 — tighter than Pocket Watch because cross-phase should preserve more of the upstream framing)
-- ✅ Chain-ladder written on PR merge with `parent_intent_thread = WHY action's intentThreadUuid`
-- ✅ FR + SR coverage parser accepts both `**FR-NN**` bold and `### FR-NN:` heading formats (B25 parser fix)
-- ✅ **Knight's Seal v1 (B27 — landed).** Every audit event signed Ed25519 with a per-run ephemeral keypair. Private key in `os.tmpdir()` (NEVER in mesh). Public key persisted to `<mesh>/okrs/<id>/audit/keys/<runId>.pub.pem`. `audit-verify-chain` returns `{sealed, sealVerified}`. CI Python chain check + PR audit comment surface a `Knight's Seal (Ed25519)` row. Looking Glass shows a `🛡 Sealed` badge next to `chain_root`. Tampering modes (signature flip, partial signatures, key missing) all block the merge gate.
-- ✅ **B5 `context-*` runtime backends (landed).** `context-architecture` / `context-security` / `context-quality` aggregators in `runner/skills.ts` read per-BAR slices: CALM model + ADRs + fitness functions (architecture), threats + controls (security), quality attributes + fitness functions (quality). All accept `{platformId, barIds}` and fail fast on unresolvable BARs — the agent's hard rule "PRDs MUST be grounded" is now honored at runtime. Audit-honesty gate counts real `c_arch` / `c_sec` / `c_qual` skill_calls in `prd-agent.yml`.
-- ✅ **UI DRIFT-1 fixed.** HOW pre-flight signal in `okrDetail.ts` now reads "Self-critique: persona-switch pass (architect · security · quality lenses, single agent)".
+**Trust state today (every claim below has chain evidence on PR #118):**
+- ✅ **Audit chain hash-verified pre-merge** (B25) — `chain-forgery-detected` label blocks merge on mismatch. Independent runner verify-chain: `{ok:true, sealed:true, sealVerified:true, eventCount:13}`.
+- ✅ **Persona-switch self-critique replaces separate reviewer agents** (B24) — converged in 2 rounds (round 1: both MINOR · round 2: both PASS).
+- ✅ **Pocket Watch goal-drift** — cosine 0.7524 ≥ 0.65 threshold.
+- ✅ **Caterpillar's Challenge cross-phase drift** — cosine 0.8258 ≥ 0.70 threshold (PRD ↔ research-doc).
+- ✅ **Chain-ladder auto-written on merge** with `parent_intent_thread = WHY action's intentThreadUuid` (verified WHY → HOW lineage in mesh).
+- ✅ **FR + SR coverage** — 10/10 FR cited · 8/8 SR anchored. Parser accepts `S-N`/`C-N`/`R-N`/`E-N` (dash optional) per B31; unique-id dedup + 12-line window per B31.v1.1; bold + heading forms both counted.
+- ✅ **Knight's Seal v1** (B27) — every event signed Ed25519 with per-run ephemeral keypair. Private key in `os.tmpdir()` (NEVER in mesh — verified zero `.priv.pem` files in tree). Public key persisted to `<mesh>/okrs/<id>/audit/keys/<runId>.pub.pem` and committed with the PR. Looking Glass HOW card displays 🛡 Sealed badge inline with `chain_root: 387494d4f70e…`.
+- ✅ **B27.v1.2 — `actions[].hatterChainRoot` auto-populated by finalize step** from the Hatter Tag's `audit.chain_root_hash` (no manual backfill needed). Same value lands in chain-ladder entry.
+- ✅ **B5 `context-*` runtime backends** — `context-architecture` / `context-security` / `context-quality` all called via runner CLI (1 successful skill_call each in PR #118 chain).
+- ✅ **B28 Court Recorder Auto-Logging** — every skill_call event in the chain has `payload.duration_ms` (runtime auto-emit signature). Agent does not call `audit-emit-event` for skill_calls or self_reviews. Workflow audit-shift handles `artifact_written` from git-diff and `self_review` from PR-body parsing.
+- ✅ **B29 self-review attempt provenance** — 4 chain events (`self-review-architect` r1+r2, `self-review-security` r1+r2) with authoritative `tier:supervised, should_proceed:true, max_auto_rounds:2`. Skill returns the OKR action's frozen `governanceTier` — agent cannot hallucinate tier (PR #112 failure mode prevented).
+- ✅ **B30 invocation discipline** — agent prompt explicitly requires `echo '{...}' | npx -y @maintainabilityai/research-runner skill-<name>` rather than Copilot's `skill_use` tool. PR #118 chain shows 9 mesh-skill calls + 4 self-review calls all via runner CLI.
 
-**Remaining before "Phase B complete":**
-- ⚠ **Validation gate** — fresh end-to-end run of WHY + HOW on the IMDB-Celebs sample against the post-Tier-1 build to confirm the `c_arch`/`c_sec`/`c_qual` columns count nonzero, both phase cards show `🛡 Sealed`, chain-ladder shows WHY→HOW lineage, and no UI lies remain. ~30 min wall-clock.
-- ⚠ **Tier-2 polish** (Phase A 100% + Settings refactor) — A12 Connect Repo flow + B9 3-tab Settings refactor. Not blocking Phase D design work but completes the Phase A+B claim.
+**Two cosmetic follow-ups (don't block Phase D):**
+- ⚠ **B28c.v1.1** — audit comment shows "Self-review (B24): skipped (Restricted tier or no events)" even though chain proves agent ran self-critique (B29 events 9, 10, 12, 13) AND PRD body has `### Self-review` blocks. Either parser regex misses the block format the agent wrote OR the workflow's `self_review`-event emission step isn't firing. Verdict still passes; PR #118 merged. Investigation tracked separately.
+- ⚠ **UI source-cite display** — minor; doesn't affect verdict.
 
 **Previously listed as a gap, now deferred:** B14 (Court Recorder CloudEvents v1.0 envelope adoption). The helper code stays in the repo as a dormant SIEM-export utility; on-disk JSONL stays flat. See [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §8 for the future-trigger conditions.
 

@@ -877,6 +877,8 @@ No live system access. No proprietary tooling. Just SHA-256. Four checks land th
 
 > 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record — produced by deterministic code, not by the LLM.
 
+> 🎯 **Validated end-to-end (2026-05-22).** Phase A + Phase B both green on the IMDB-Celebs sample OKR — first two agents (`market-research-agent` and `prd-agent`) ran on Claude Sonnet 4.6 with every defense above firing on real merged PRs. Audit JSONLs in the open mesh repo show 19 events for WHY (PR&nbsp;#116, evidence_mode `mixed` honestly logging arXiv 429 + USPTO 404 + zero-result Hacker News searches), 13 events for HOW (PR&nbsp;#118, including the new B29 self-review provenance skills with `tier:supervised, should_proceed:true` — no tier hallucination). Both phases display the green 🛡 Sealed badge in Looking Glass; the chain-ladder file links the two phases via `parent_intent_thread`. The architecture's "the LLM cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion.
+
 ### Honest gaps — what we will address
 
 Every framework claim above has a status badge. This section names the **gaps that remain** — the ones we have not closed yet, with the named phase that will close each, and a clear distinction between "queued for a specific phase" and "research item, no committed date."
