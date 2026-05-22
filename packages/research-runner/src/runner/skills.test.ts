@@ -1422,6 +1422,61 @@ test('audit-emit-event: workflow context (pub key on disk, no priv) emits UNSIGN
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+test('Bug N (revise-agent): runSkill auto-emit detects post-agent context + tags emitted_by:revise-agent', async () => {
+  // Cert-run-5 question: "if we rerun an agent to address a spec so we
+  // can append events and keep those chains clean". Bug K refuses
+  // silent re-sign; Bug N completes the picture by tagging the revise-
+  // agent's auto-emit with attribution so it lands as legitimate-
+  // unsigned. The chain stays linked + verifiable + accurately marks
+  // which events came from the original agent run vs the revise pass.
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-BUG-N';
+      const runId = 'WHY-BUG-N-1';
+
+      // 1. Original agent run — emit event 1 (creates the keypair).
+      await withSession({ okrId, runId, phase: 'why', intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }, async () => {
+        // Calling a real skill via runSkill triggers auto-emit.
+        const r = await runSkill('knowledge-okr', { okrId });
+        // knowledge-okr fails (no real OKR) but the auto-emit still fires.
+        assert.ok(r.ok === false || r.ok === true); // either is fine for this test
+      });
+
+      // 2. Simulate revise context: delete the priv key from tmp.
+      const os = await import('os');
+      const path = await import('path');
+      const fs = await import('fs');
+      const privPath = path.join(os.tmpdir(), '.research-runner-keys', `${okrId}--${runId}.priv.pem`);
+      assert.ok(fs.existsSync(privPath));
+      fs.unlinkSync(privPath);
+      const pubPath = path.join(mesh, 'okrs', okrId, 'audit', 'keys', `${runId}.pub.pem`);
+      assert.ok(fs.existsSync(pubPath), 'pub key persisted from event 1');
+
+      // 3. Revise-agent re-invokes the same skill. Auto-emit should
+      //    detect filesystem state (pub on disk + priv gone), tag the
+      //    auto-emit with emitted_by:'revise-agent', and the emit
+      //    should LAND in the chain (unsigned, legitimate).
+      await withSession({ okrId, runId, phase: 'why', intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }, async () => {
+        await runSkill('knowledge-okr', { okrId });
+      });
+
+      // 4. Verify chain: event 1 (agent) signed; event 2 (revise) unsigned
+      //    with emitted_by:'revise-agent'. Original pub key INTACT.
+      const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+      const events = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+      assert.equal(events.length, 2, 'two events in chain: original agent + revise');
+      assert.match(events[0].signature, /^[0-9a-f]{128}$/, 'event 1 signed by original agent');
+      assert.equal(events[1].signature, '', 'event 2 unsigned (revise context)');
+      assert.equal(events[1].payload.emitted_by, 'revise-agent', 'event 2 attributed to revise-agent');
+
+      // 5. Chain verify still PASSES (mixed signed/unsigned legitimate).
+      const verify = await runSkill('audit-verify-chain', { okrId, runId });
+      assert.equal(verify.ok, true, `verify ok: ${verify.ok ? '' : verify.reason}`);
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 /**
  * Companion contract test — canonical fields (skill / ok / duration_ms /
  * reason) WIN on collision with handler-declared auditMetadata. A

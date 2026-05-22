@@ -223,7 +223,8 @@ jobs:
                   ok = False; reason = f'missing-event-hash-line-{i+1}'; break
               draft = dict(event); draft['event_hash'] = ''
               # Bug K: workflow-emitted events legitimate-unsigned by-design.
-              is_workflow_emitted = (event.get('payload') or {}).get('emitted_by') == 'workflow'
+              emitted_by = (event.get('payload') or {}).get('emitted_by')
+              is_workflow_emitted = emitted_by in ('workflow', 'revise-agent')  # Bug N: revise-agent joins workflow as legitimate-unsigned
               if 'signature' in event:
                   sig_val = event.get('signature') or ''
                   draft['signature'] = ''

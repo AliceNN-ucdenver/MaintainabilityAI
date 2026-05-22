@@ -1501,6 +1501,24 @@ function loadOrCreateRunKeypair(okrId: string, runId: string): { privKey: KeyObj
   return { privKey: privateKey, pubKey: publicKey };
 }
 
+/**
+ * Bug N (cert-run-5, Task #71) — detect revise-agent context.
+ *
+ * Returns true iff the run's public key exists on disk (an agent has
+ * already emitted at least event 1, persisting the pub key) AND the
+ * private key is gone from tmpdir (we're in a different process /
+ * runner machine than the original agent session).
+ *
+ * Used by the runSkill auto-emit wrapper to tag events with
+ * `emitted_by: 'revise-agent'` so they land as legitimate-unsigned
+ * in the chain instead of silently failing best-effort.
+ */
+function isReviseAgentContext(okrId: string, runId: string): boolean {
+  const privPath = knightSealPrivKeyPath(okrId, runId);
+  const pubPath = knightSealPubKeyPath(okrId, runId);
+  return fs.existsSync(pubPath) && !fs.existsSync(privPath);
+}
+
 /** Returns null if no public key has been persisted for this run yet. */
 function tryLoadRunPublicKey(okrId: string, runId: string): KeyObject | null {
   const pubPath = knightSealPubKeyPath(okrId, runId);
@@ -1570,10 +1588,19 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
         }
       }
       // Bug K (cert-run-5) — keypair load may throw EphemeralKeyGoneError
-      // in post-agent workflow context. Tolerate iff the caller declared
-      // `emitted_by: 'workflow'` in the payload — that's the workflow
-      // explicitly identifying itself as a post-agent emitter, NOT an
-      // agent trying to forge events without a signature.
+      // in post-agent context (workflow runner OR revise-agent session on
+      // a different machine). Tolerate iff the caller declared a known
+      // unsigned-attribution marker. NEVER silently regenerate a keypair
+      // (that would overwrite the committed pub and corrupt every prior
+      // signature).
+      //
+      // Accepted emitted_by values for unsigned legitimacy:
+      //   - 'workflow'      — audit-and-drift workflow Python emit
+      //   - 'revise-agent'  — agent session re-invoked via @copilot to
+      //                        address audit findings (Bug N — Task #71).
+      //                        The runSkill wrapper auto-tags with this
+      //                        when it detects post-agent filesystem state.
+      const ACCEPTED_UNSIGNED_ATTRIBUTIONS = new Set(['workflow', 'revise-agent']);
       let privKey: KeyObject | null = null;
       let publicKeyPem: string | null = null;
       try {
@@ -1583,10 +1610,10 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
       } catch (err) {
         if (err instanceof EphemeralKeyGoneError) {
           const emittedBy = (payload as Record<string, unknown> | undefined)?.emitted_by;
-          if (emittedBy !== 'workflow') {
-            return { ok: false, reason: `${err.message} — only emitted_by:'workflow' may proceed unsigned` };
+          if (typeof emittedBy !== 'string' || !ACCEPTED_UNSIGNED_ATTRIBUTIONS.has(emittedBy)) {
+            return { ok: false, reason: `${err.message} — caller must declare emitted_by in ${Array.from(ACCEPTED_UNSIGNED_ATTRIBUTIONS).map(s => `'${s}'`).join(' | ')} to proceed unsigned` };
           }
-          // Workflow-attributed unsigned emit: fall through with null keys.
+          // Attribution declared: fall through with null keys.
         } else {
           throw err;
         }
@@ -1697,16 +1724,18 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
-    // Bug K (cert-run-5): workflow-emitted events (payload.emitted_by ===
-    // 'workflow') carry signature: '' by design — the post-agent workflow
-    // context can't sign because the ephemeral private key is gone. Count
-    // them separately so they don't trip partial-tampering detection or
-    // signature verification.
+    // Bug K + N (cert-run-5): post-agent events (payload.emitted_by in
+    // {'workflow', 'revise-agent'}) carry signature: '' by design — the
+    // post-agent context can't sign because the ephemeral private key is
+    // gone. Count them separately so they don't trip partial-tampering
+    // detection or signature verification. Both attributions are
+    // legitimate-unsigned.
     const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
-    const isWorkflowEmitted = eventPayload?.emitted_by === 'workflow';
+    const emittedBy = eventPayload?.emitted_by;
+    const isUnsignedByDesign = emittedBy === 'workflow' || emittedBy === 'revise-agent';
     if (recordedSignature !== null && recordedSignature !== '') {
       signedCount++;
-    } else if (isWorkflowEmitted) {
+    } else if (isUnsignedByDesign) {
       workflowUnsignedCount++;
     }
     prev = recordedHash;
@@ -1727,8 +1756,11 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     }
     for (let i = 0; i < lines.length; i++) {
       const event = JSON.parse(lines[i]) as { event_hash: string; signature: string; payload?: { emitted_by?: string } };
-      // Skip verification for workflow-unsigned events (signature='').
-      if (event.payload?.emitted_by === 'workflow' && (!event.signature || event.signature === '')) {
+      // Skip verification for post-agent unsigned events (signature='').
+      // Bug N: revise-agent attribution joins workflow as legitimate-unsigned.
+      const emittedBy = event.payload?.emitted_by;
+      const isUnsignedByDesign = emittedBy === 'workflow' || emittedBy === 'revise-agent';
+      if (isUnsignedByDesign && (!event.signature || event.signature === '')) {
         continue;
       }
       if (!verifyEventSignature(pubKey, event.event_hash, event.signature)) {
@@ -1815,6 +1847,21 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
       const extras = (result as { auditMetadata?: Record<string, unknown> }).auditMetadata ?? {};
       const payload: Record<string, unknown> = { ...extras, skill: name, ok: result.ok, duration_ms };
       if (!result.ok) { payload.reason = result.reason; }
+      // Bug N (cert-run-5, Task #71) — revise-context detection. If the
+      // pub key is committed to disk (agent ran at some point) but the
+      // private key is gone from tmpdir (this is a different process /
+      // machine than the original agent run), we're in revise-agent
+      // context. Tag the auto-emit with emitted_by:'revise-agent' so
+      // handleAuditEmitEvent accepts it as legitimate-unsigned instead
+      // of silently failing best-effort. Chain stays linked + verifiable
+      // + accurately attributed to the revise pass.
+      //
+      // Detect by filesystem state ONLY (no env var needed) — the runner
+      // can figure out it's in revise context from the absence of the
+      // ephemeral private key it would otherwise have generated.
+      if (isReviseAgentContext(ctx.okrId, ctx.runId)) {
+        payload.emitted_by = 'revise-agent';
+      }
       // Best-effort: an audit-write failure must not shadow the real
       // skill result. But we MUST surface the failure to stderr — pre-
       // B28a.v1.1 these were silently swallowed and PR #108 dropped 3

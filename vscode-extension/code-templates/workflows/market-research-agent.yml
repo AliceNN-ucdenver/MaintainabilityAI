@@ -209,7 +209,8 @@ jobs:
               # unsigned by-design — chain-verify must not flag them as
               # partial-tampering.
               draft = dict(event); draft['event_hash'] = ''
-              is_workflow_emitted = (event.get('payload') or {}).get('emitted_by') == 'workflow'
+              emitted_by = (event.get('payload') or {}).get('emitted_by')
+              is_workflow_emitted = emitted_by in ('workflow', 'revise-agent')  # Bug N: revise-agent joins workflow as legitimate-unsigned
               if 'signature' in event:
                   sig_val = event.get('signature') or ''
                   draft['signature'] = ''

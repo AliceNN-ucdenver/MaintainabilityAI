@@ -79,17 +79,18 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
  *   verifiable but no seal badge rendered.
  */
 function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampered?: boolean } {
-  // Bug K (cert-run-5): workflow-emitted events (payload.emitted_by ===
-  // 'workflow') are legitimate-unsigned by-design — they're emitted in
-  // post-agent workflow context where the ephemeral private key is gone.
-  // Exclude them from the seal-tamper denominator.
+  // Bug K + N (cert-run-5): post-agent events (payload.emitted_by in
+  // {'workflow', 'revise-agent'}) are legitimate-unsigned by-design —
+  // they're emitted in contexts where the ephemeral private key is
+  // gone. Exclude them from the seal-tamper denominator.
   let signed = 0;
   let agentEvents = 0;
   for (const line of lines) {
     try {
       const event = JSON.parse(line) as { signature?: string; payload?: { emitted_by?: string } };
-      const isWorkflowEmitted = event.payload?.emitted_by === 'workflow';
-      if (!isWorkflowEmitted) { agentEvents++; }
+      const emittedBy = event.payload?.emitted_by;
+      const isUnsignedByDesign = emittedBy === 'workflow' || emittedBy === 'revise-agent';
+      if (!isUnsignedByDesign) { agentEvents++; }
       if (typeof event.signature === 'string' && event.signature.length > 0) {
         signed++;
       }
