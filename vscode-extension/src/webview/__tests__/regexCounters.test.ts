@@ -21,7 +21,7 @@
  */
 import { describe, expect, it } from 'vitest';
 // Counters live in a standalone module so tests skip the vscode runtime.
-import { countUniqueIds, countUniqueSourceIds } from '../regexCounters';
+import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals } from '../regexCounters';
 
 /**
  * Synthetic doc modeled on cert-run-2's research-doc.md:
@@ -160,5 +160,162 @@ describe('cert-run-2 source-id counter regression (Task #57)', () => {
     const sourceIds = countUniqueSourceIds(docWithNoise);
     expect(sourceIds.size).toBe(3);
     expect(sourceIds.has('S99')).toBe(true);
+  });
+});
+
+/**
+ * Task #58 — extractWhatArtifactSignals honest coverage check.
+ *
+ * Old behavior: frWithCites = frIds.size (tautology, always 100% ✓).
+ * If a FR-N was declared in §4 but NO per-repo §5 frontmatter's
+ * `addresses: [...]` listed it, the metric STILL reported 8/8 ✓.
+ * That was a lying metric; user explicitly called this out: "I can't
+ * have lying metrics."
+ *
+ * New behavior: a FR-N counts as covered IFF at least one per-repo
+ * §5 subsection's `addresses:` list includes it. Gaps surface as a
+ * ✗ on the card line ("FR addressed 6/8 ✗") + downgrade the workflow
+ * verdict to `design-degraded`.
+ */
+describe('WHAT artifact signal honest coverage (Task #58)', () => {
+  const FULL_COVERAGE_DOC = `# Code Design
+
+## 1. Input Premises
+Inherits FR-01, FR-02, SR-01 from the PRD.
+
+## 5. Per-Repo Change List
+
+### \`acme/celeb-api\`
+---
+repo: acme/celeb-api
+mode: greenfield
+addresses: [FR-01, FR-02, SR-01]
+---
+Implementation notes...
+
+### \`acme/imdb-react-frontend\`
+---
+repo: acme/imdb-react-frontend
+mode: brownfield
+addresses: [FR-02]
+---
+Frontend wiring...
+`;
+
+  const GAP_DOC = `# Code Design
+
+## 1. Input Premises
+Inherits FR-01, FR-02, FR-03, SR-01 from the PRD.
+
+## 5. Per-Repo Change List
+
+### \`acme/celeb-api\`
+---
+repo: acme/celeb-api
+mode: greenfield
+addresses: [FR-01, SR-01]
+---
+FR-02 and FR-03 are deliberately UNCOVERED — the agent forgot them.
+`;
+
+  it('reports honest full coverage when every FR/SR is in some addresses[] list', () => {
+    const sig = extractWhatArtifactSignals(FULL_COVERAGE_DOC);
+    expect(sig.frCount).toBe(2);       // FR-01, FR-02
+    expect(sig.srCount).toBe(1);       // SR-01
+    expect(sig.frWithCites).toBe(2);
+    expect(sig.srAnchored).toBe(1);
+    expect(sig.perRepoChangeCount).toBe(2);
+  });
+
+  it('reports HONEST gap when a FR is declared but no repo addresses[] covers it', () => {
+    const sig = extractWhatArtifactSignals(GAP_DOC);
+    expect(sig.frCount).toBe(3);       // FR-01, FR-02, FR-03 all declared
+    expect(sig.frWithCites).toBe(1);   // only FR-01 in addresses[]
+    expect(sig.srCount).toBe(1);
+    expect(sig.srAnchored).toBe(1);    // SR-01 IS in addresses[]
+    // The gap signal: 1/3 < 3/3. Old buggy code would have reported 3/3.
+    expect(sig.frWithCites).toBeLessThan(sig.frCount);
+  });
+
+  it('frWithCites is NEVER a tautology copy of frCount (Task #58 regression pin)', () => {
+    // The old bug was literally `frWithCites: frIds.size`. Verify the
+    // new code path produces a DIFFERENT value when a coverage gap
+    // exists. If a future refactor accidentally re-introduces the
+    // tautology, this test breaks immediately.
+    const sig = extractWhatArtifactSignals(GAP_DOC);
+    expect(sig.frWithCites).not.toBe(sig.frCount);
+  });
+
+  it('handles empty addresses[] list correctly (no false-positives)', () => {
+    const docEmptyAddresses = `## 5. Per-Repo Change List
+---
+repo: acme/celeb-api
+mode: greenfield
+addresses: []
+---
+Doc mentions FR-01.
+`;
+    const sig = extractWhatArtifactSignals(docEmptyAddresses);
+    expect(sig.frCount).toBe(1);
+    expect(sig.frWithCites).toBe(0); // empty list → nothing addressed
+  });
+
+  it('handles quoted addresses[] entries (single + double quotes)', () => {
+    const doc = `## 5. Per-Repo Change List
+---
+repo: acme/celeb-api
+mode: greenfield
+addresses: ["FR-01", 'FR-02']
+---
+Refs FR-01, FR-02.
+`;
+    const sig = extractWhatArtifactSignals(doc);
+    expect(sig.frWithCites).toBe(2);
+  });
+
+  it('ignores frontmatter blocks without `repo:` key (e.g. Hatter Tag at doc head)', () => {
+    const doc = `---
+okr_id: OKR-test
+run_id: WHAT-test-001
+phase: what
+intent_thread_uuid: abc-123
+---
+
+## 5. Per-Repo Change List
+
+---
+repo: acme/celeb-api
+mode: greenfield
+addresses: [FR-01]
+---
+`;
+    const sig = extractWhatArtifactSignals(doc);
+    expect(sig.perRepoChangeCount).toBe(1); // ONLY the repo block, not the Hatter Tag
+    expect(sig.frCount).toBe(1);
+    expect(sig.frWithCites).toBe(1);
+  });
+
+  it('aggregates addresses[] across multiple per-repo §5 subsections', () => {
+    // FR-02 is addressed by repo-b, not repo-a. Verify the union is
+    // computed across all blocks, not just the first.
+    const doc = `## 5. Per-Repo Change List
+
+---
+repo: acme/repo-a
+mode: greenfield
+addresses: [FR-01]
+---
+
+Mentions FR-01 and FR-02.
+
+---
+repo: acme/repo-b
+mode: brownfield
+addresses: [FR-02]
+---
+`;
+    const sig = extractWhatArtifactSignals(doc);
+    expect(sig.frCount).toBe(2);
+    expect(sig.frWithCites).toBe(2); // union of both repos' addresses
   });
 });

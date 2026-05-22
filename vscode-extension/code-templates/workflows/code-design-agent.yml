@@ -242,6 +242,78 @@ jobs:
           print(f'::notice::audit chain {"PASS" if ok else "FAIL"} count={n} sealed={sealed}')
           PYEOF
 
+      # Task #59 — H2 structural check (parity with WHY + HOW workflows).
+      # The 10 canonical WHAT H2 sections must all be present. Numeric
+      # prefix tolerance ("## 1. Input Premises" or "## Input Premises")
+      # mirrors the agent's NCMS-style synthesis pack output.
+      - name: Structure check (10 H2 + per-repo addresses[] coverage)
+        id: structure
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+        run: |
+          DOC="okrs/${OKR_ID}/what/code-design.md"
+          if [ ! -f "$DOC" ]; then
+            echo "doc_found=false"     >> "$GITHUB_OUTPUT"
+            echo "h2_present=0"        >> "$GITHUB_OUTPUT"
+            echo "h2_total=10"         >> "$GITHUB_OUTPUT"
+            echo "fr_count=0"          >> "$GITHUB_OUTPUT"
+            echo "fr_addressed=0"      >> "$GITHUB_OUTPUT"
+            echo "sr_count=0"          >> "$GITHUB_OUTPUT"
+            echo "sr_addressed=0"      >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "doc_found=true" >> "$GITHUB_OUTPUT"
+
+          REQUIRED_H2=(
+            "Input Premises" "Problem Restatement" "Approach"
+            "Repo Inventory" "Per-Repo Change List" "Interface Contracts"
+            "Data Ownership" "Migration Plan" "Rollback Plan" "Risk Matrix"
+          )
+          H2_PRESENT=0; MISSING_H2=""
+          for name in "${REQUIRED_H2[@]}"; do
+            # Tolerate optional numeric prefix ("## 1. Input Premises").
+            if grep -qE "^##[[:space:]]+(\\d+\\.[[:space:]]+)?${name}[[:space:]]*$" "$DOC"; then
+              H2_PRESENT=$((H2_PRESENT + 1))
+            else
+              MISSING_H2="${MISSING_H2}${name}; "
+            fi
+          done
+
+          # FR/SR coverage via per-repo §5 addresses[]. Same logic as
+          # extractWhatArtifactSignals on the UI side (Task #58 honest-
+          # metric rewrite). A FR is "addressed" iff at least one repo
+          # frontmatter's `addresses:` list includes it.
+          DOC="$DOC" python3 <<'PYEOF'
+          import os, re
+          doc = open(os.environ['DOC'], 'r', encoding='utf-8').read()
+          fr_ids = set(re.findall(r'\bFR-\d+\b', doc))
+          sr_ids = set(re.findall(r'\bSR-\d+\b', doc))
+          addressed = set()
+          for fm in re.findall(r'---\s*\n(.+?)\n---', doc, re.DOTALL):
+              if not re.search(r'^\s*repo:\s+', fm, re.MULTILINE): continue
+              m = re.search(r'^\s*addresses:\s*\[([^\]]*)\]', fm, re.MULTILINE)
+              if not m: continue
+              for raw in m.group(1).split(','):
+                  ident = raw.strip().strip('"').strip("'")
+                  if ident: addressed.add(ident)
+          fr_addressed = len(fr_ids & addressed)
+          sr_addressed = len(sr_ids & addressed)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write(f'fr_count={len(fr_ids)}\n')
+              f.write(f'fr_addressed={fr_addressed}\n')
+              f.write(f'sr_count={len(sr_ids)}\n')
+              f.write(f'sr_addressed={sr_addressed}\n')
+          print(f'::notice::structure fr={fr_addressed}/{len(fr_ids)} sr={sr_addressed}/{len(sr_ids)}')
+          PYEOF
+
+          {
+            echo "h2_present=$H2_PRESENT"
+            echo "h2_total=10"
+            echo "missing_h2=${MISSING_H2%; }"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::structure h2=$H2_PRESENT/10"
+
       # Evidence honesty + per-repo mode honesty. The chain MUST have
       # one knowledge-code skill_call per targetCodeRepos[] entry, AND
       # the per-repo `mode:` frontmatter in code-design.md MUST match
@@ -565,15 +637,40 @@ jobs:
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
         run: |
-          # Compute verdict from chain + mode honesty (drift report-only in MVP).
+          # Compute verdict from chain + mode honesty + structure (Task #59:
+          # H2 coverage + per-repo addresses[] coverage now contribute to
+          # the verdict; drift gates stay report-only per MVP plan).
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
-          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ]; then
+          H2_PRESENT='${{ steps.structure.outputs.h2_present }}'
+          H2_TOTAL='${{ steps.structure.outputs.h2_total }}'
+          FR_COUNT='${{ steps.structure.outputs.fr_count }}'
+          FR_ADDRESSED='${{ steps.structure.outputs.fr_addressed }}'
+          SR_COUNT='${{ steps.structure.outputs.sr_count }}'
+          SR_ADDRESSED='${{ steps.structure.outputs.sr_addressed }}'
+          STRUCT_OK="true"
+          STRUCT_REASON=""
+          if [ "${H2_PRESENT:-0}" != "${H2_TOTAL:-10}" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${H2_PRESENT}/${H2_TOTAL} H2 sections (missing: ${{ steps.structure.outputs.missing_h2 }})"
+          fi
+          if [ "${FR_COUNT:-0}" -gt 0 ] && [ "${FR_ADDRESSED:-0}" != "${FR_COUNT:-0}" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }FR addressed-by-per-repo §5 ${FR_ADDRESSED}/${FR_COUNT}"
+          fi
+          if [ "${SR_COUNT:-0}" -gt 0 ] && [ "${SR_ADDRESSED:-0}" != "${SR_COUNT:-0}" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }SR addressed-by-per-repo §5 ${SR_ADDRESSED}/${SR_COUNT}"
+          fi
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ]; then
             VERDICT="ok"
             REASON=""
           elif [ "$MODE_OK" = "false" ]; then
             VERDICT="degraded"
             REASON="Per-repo mode honesty failed (${{ steps.mode_honesty.outputs.finding_count }} finding(s))"
+          elif [ "$STRUCT_OK" = "false" ]; then
+            VERDICT="degraded"
+            REASON="Structural correctness: $STRUCT_REASON"
           else
             VERDICT="degraded"
             REASON="Audit chain verification failed: ${{ steps.chain.outputs.reason }}"
@@ -606,10 +703,27 @@ jobs:
           fi
 
           # Structural correctness — per-repo mode honesty is the primary
-          # WHAT structural check. FR/SR coverage shows up in §5 frontmatter.
+          # WHAT structural check. Task #59 added H2 structural parity +
+          # honest per-repo addresses[] coverage check for FR/SR (Task #58).
           printf '**Structural correctness** (`okrs/${{ steps.ctx.outputs.okr_id }}/what/code-design.md`):\n\n' >> "$BODY"
           printf '| Check | Result |\n|---|---|\n' >> "$BODY"
           printf '| `code-design.md` written | ✓ |\n' >> "$BODY"
+          printf '| 10 H2 sections | %s/%s |\n' '${{ steps.structure.outputs.h2_present }}' '${{ steps.structure.outputs.h2_total }}' >> "$BODY"
+          # FR/SR addressed-by-some-repo coverage. Honest count: a
+          # declared FR is "addressed" only when at least one per-repo
+          # §5 subsection's `addresses:` list picks it up.
+          FR_TOTAL='${{ steps.structure.outputs.fr_count }}'
+          FR_ADDRESSED='${{ steps.structure.outputs.fr_addressed }}'
+          SR_TOTAL='${{ steps.structure.outputs.sr_count }}'
+          SR_ADDRESSED='${{ steps.structure.outputs.sr_addressed }}'
+          if [ "${FR_TOTAL:-0}" -gt 0 ]; then
+            FR_ICON="✗"; [ "$FR_ADDRESSED" = "$FR_TOTAL" ] && FR_ICON="✓"
+            printf '| FR addressed by per-repo §5 | %s/%s %s |\n' "$FR_ADDRESSED" "$FR_TOTAL" "$FR_ICON" >> "$BODY"
+          fi
+          if [ "${SR_TOTAL:-0}" -gt 0 ]; then
+            SR_ICON="✗"; [ "$SR_ADDRESSED" = "$SR_TOTAL" ] && SR_ICON="✓"
+            printf '| SR addressed by per-repo §5 | %s/%s %s |\n' "$SR_ADDRESSED" "$SR_TOTAL" "$SR_ICON" >> "$BODY"
+          fi
           printf '| Per-repo mode honesty (A12.v1.1) | ${{ steps.mode_honesty.outputs.ok == ''true'' && ''✓'' || ''✗'' }} (repos=${{ steps.mode_honesty.outputs.repo_count }}, findings=${{ steps.mode_honesty.outputs.finding_count }}) |\n' >> "$BODY"
           printf '| Pocket Watch (objective vs Problem Restatement) | calibration-pending (D-PR1.v1.x) |\n' >> "$BODY"
           printf "| Caterpillar's Challenge (code-design vs PRD) | calibration-pending (D-PR1.v1.x) |\n" >> "$BODY"

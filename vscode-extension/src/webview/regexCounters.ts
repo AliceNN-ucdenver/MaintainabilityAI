@@ -63,3 +63,69 @@ export function countUniqueSourceIds(docText: string): Set<string> {
   }
   return ids;
 }
+
+/**
+ * WHAT-phase artifact signal extraction (Task #58 honest-metric rewrite).
+ *
+ * Parses code-design.md for honest FR/SR coverage signals:
+ *
+ *   - frCount/srCount: every UNIQUE FR-N/SR-N referenced anywhere in
+ *     the doc (declared in §1 / mentioned in §4 / mentioned in §5).
+ *   - frWithCites/srAnchored: of those declared FR-N/SR-N, how many
+ *     are picked up by at least one per-repo §5 subsection's
+ *     `addresses: [...]` frontmatter. This is the REAL coverage
+ *     metric — "every FR has a repo committed to implementing it."
+ *   - perRepoChangeCount: how many per-repo §5 subsections exist
+ *     (each has its own `repo:` + `addresses:` frontmatter block).
+ *
+ * Prior bug: frWithCites was set equal to frCount as a tautology
+ * — "every FR is trivially cited" — which lied about coverage. If a
+ * FR appeared in §4 but no repo's addresses[] listed it, the metric
+ * would still report 8/8 ✓. Now reports honest coverage including
+ * the gap (e.g. 6/8 with two missing).
+ */
+export interface WhatArtifactSignals {
+  frCount: number;
+  srCount: number;
+  frWithCites: number;
+  srAnchored: number;
+  perRepoChangeCount: number;
+}
+
+export function extractWhatArtifactSignals(docText: string): WhatArtifactSignals {
+  const frIds = new Set<string>();
+  const srIds = new Set<string>();
+  for (const m of docText.matchAll(/\bFR-\d+\b/g)) { frIds.add(m[0]); }
+  for (const m of docText.matchAll(/\bSR-\d+\b/g)) { srIds.add(m[0]); }
+
+  // Walk per-repo §5 frontmatter blocks; collect the union of every
+  // id listed in any `addresses: [...]` array. A FR/SR is "covered"
+  // iff at least one repo has committed to addressing it.
+  const addressed = new Set<string>();
+  let perRepoSubsections = 0;
+  for (const m of docText.matchAll(/---\s*\n([\s\S]+?)\n---/g)) {
+    const block = m[1];
+    if (!/^\s*repo:\s+/m.test(block)) { continue; }
+    const addrMatch = block.match(/^\s*addresses:\s*\[([^\]]*)\]/m);
+    if (!addrMatch) { continue; }
+    perRepoSubsections++;
+    for (const raw of addrMatch[1].split(',')) {
+      const id = raw.trim().replace(/^["']|["']$/g, '');
+      if (id) { addressed.add(id); }
+    }
+  }
+
+  // Honest coverage: intersect declared ids with addressed ids.
+  let frWithCites = 0;
+  for (const id of frIds) { if (addressed.has(id)) { frWithCites++; } }
+  let srAnchored = 0;
+  for (const id of srIds) { if (addressed.has(id)) { srAnchored++; } }
+
+  return {
+    frCount: frIds.size,
+    srCount: srIds.size,
+    frWithCites,
+    srAnchored,
+    perRepoChangeCount: perRepoSubsections,
+  };
+}

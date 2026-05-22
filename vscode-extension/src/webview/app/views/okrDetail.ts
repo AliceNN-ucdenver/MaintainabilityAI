@@ -900,16 +900,26 @@ function renderCoverageLine(s: OkrPhaseSignal | undefined, phase: OkrPhase): str
       parts.push(`SR anchored ${s.srAnchored}/${s.srCount} ${ok ? '✓' : '✗'}`);
     }
   } else if (phase === 'what') {
-    // WHAT-phase coverage: FR + SR id count in the code-design.md. Every
-    // unique id in the doc counts as covered — the per-repo addresses[]
-    // frontmatter is what binds them to repos, but for the signal line
-    // we just show presence. Workflow audit-and-drift does the deeper
-    // per-repo coverage check.
+    // WHAT-phase coverage (Task #58 honest-metric rewrite):
+    //   frCount = unique FR-N ids referenced anywhere in code-design.md
+    //   frWithCites = FRs picked up by at least one per-repo §5
+    //                 subsection's `addresses: [FR-N]` frontmatter.
+    //
+    // The OLD comment claimed "workflow audit-and-drift does the deeper
+    // per-repo coverage check" — that was false (code-design-agent.yml
+    // only checks mode-honesty + chain integrity). The check moved
+    // INTO the UI signal extractor (extractWhatArtifactSignals) so the
+    // card line tells the truth without depending on a workflow step
+    // that doesn't exist.
     if (s.frCount != null && s.frCount > 0) {
-      parts.push(`${s.frCount} FR referenced ✓`);
+      const cited = s.frWithCites ?? 0;
+      const ok = cited === s.frCount;
+      parts.push(`FR addressed ${cited}/${s.frCount} ${ok ? '✓' : '✗'}`);
     }
     if (s.srCount != null && s.srCount > 0) {
-      parts.push(`${s.srCount} SR referenced ✓`);
+      const anchored = s.srAnchored ?? 0;
+      const ok = anchored === s.srCount;
+      parts.push(`SR addressed ${anchored}/${s.srCount} ${ok ? '✓' : '✗'}`);
     }
   }
   if (s.h2Present != null && s.h2Total != null) {

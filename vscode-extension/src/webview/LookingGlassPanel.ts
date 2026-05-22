@@ -62,10 +62,10 @@ import { computeTier, scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/con
 import { computeDecayedScore } from '../mcp/utils/score-decay';
 import type { GovernanceTimestamps } from '../types/redqueen';
 
-// Structural-id counters live in their own module so unit tests can
-// exercise them without dragging in the VS Code runtime. See
-// `regexCounters.ts` for the full rationale.
-import { countUniqueIds, countUniqueSourceIds } from './regexCounters';
+// Structural-id counters + WHAT artifact signal extractor live in
+// their own module so unit tests can exercise them without dragging
+// in the VS Code runtime. See `regexCounters.ts` for the full rationale.
+import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals } from './regexCounters';
 
 /**
  * Knight's Seal v1 (B27) — scan an audit-events JSONL for per-event
@@ -152,41 +152,7 @@ function extractWhatChainSignals(lines: string[]): WhatChainSignals {
   return out;
 }
 
-/**
- * WHAT-phase artifact signal extraction (D-PR1.v1.1).
- *
- * Parses code-design.md for FR/SR unique-id counts (every reference
- * counts as "covered" — workflow audit-and-drift does the deeper
- * per-repo addresses[] check) and counts per-repo §5 subsections by
- * scanning for frontmatter blocks with both `repo:` and `addresses:`.
- */
-interface WhatArtifactSignals {
-  frCount?: number;
-  srCount?: number;
-  frWithCites?: number;
-  srAnchored?: number;
-  perRepoChangeCount?: number;
-}
-function extractWhatArtifactSignals(docText: string): WhatArtifactSignals {
-  const frIds = new Set<string>();
-  const srIds = new Set<string>();
-  for (const m of docText.matchAll(/\bFR-\d+\b/g)) { frIds.add(m[0]); }
-  for (const m of docText.matchAll(/\bSR-\d+\b/g)) { srIds.add(m[0]); }
-  let perRepoSubsections = 0;
-  for (const m of docText.matchAll(/---\s*\n([^]+?)\n---/g)) {
-    const block = m[1];
-    if (/^\s*repo:\s+/m.test(block) && /^\s*addresses:\s*\[/m.test(block)) {
-      perRepoSubsections++;
-    }
-  }
-  return {
-    frCount: frIds.size,
-    srCount: srIds.size,
-    frWithCites: frIds.size,
-    srAnchored: srIds.size,
-    perRepoChangeCount: perRepoSubsections,
-  };
-}
+// extractWhatArtifactSignals lives in regexCounters.ts — see import above.
 
 /**
  * Discriminated-union dispatch table type. Given a union `U` keyed by
