@@ -106,7 +106,9 @@ This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Re
     - `MISSING` (array of strings — gaps, anchored to specific mesh artifacts the PRD should reference)
     - `CHANGES` (array of specific revision requests — actionable, not vague)
 
-    **Write this critique as a structured block at the bottom of the PR body** — NOT in the artifact frontmatter, NOT as an audit-emit-event call, NOT as YAML. The workflow parses markdown blocks out of the PR body. Format exactly (with em-dash `—`):
+    **MANDATORY format — write this critique as a structured block at the bottom of the PR body.** NOT in the artifact frontmatter. NOT as an audit-emit-event call. NOT as YAML. NOT as a markdown summary table (PR #118 surfaced this exact anti-pattern: the agent wrote a `| Round | Architect | Security |` table instead of the per-block format, the workflow's parser found zero blocks, and the audit comment misleadingly said "self-review skipped" despite the B29 chain proving the loop ran). The workflow parses markdown blocks out of the PR body using a strict regex; alternative formats produce zero events.
+
+    Format exactly (with em-dash `—`):
 
     ```markdown
     ### Self-review — Architect (round <N>)
@@ -116,6 +118,8 @@ This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Re
     MISSING: [<comma-separated strings>]
     CHANGES: [<comma-separated strings>]
     ```
+
+    You MAY ALSO write a human-readable summary table for reviewer convenience (e.g. `| Round | Architect severity | Security severity |`) — but the structured block above is the contract. The workflow's parser only emits `self_review` audit events from the structured-block format; a table alone leaves the audit comment showing degraded "B29-chain-only" evidence rather than the rich per-persona SCORE / SEVERITY breakdown.
 
 14. **Security persona self-review.** Call `self-review-security` with `{okrId, runId, round}` to get the authoritative tier echo + `.caterpillar/prompts/prd/security-review.md` prompt pack. Apply the criteria. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block to the PR body with header `### Self-review — Security (round <N>)`.
 

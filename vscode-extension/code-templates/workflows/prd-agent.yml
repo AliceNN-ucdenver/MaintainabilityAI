@@ -416,12 +416,30 @@ jobs:
         # the convergence trail. Also surface the round count so Looking
         # Glass can render "Self-review: N rounds" on the HOW card.
         run: |
-          # Last self_review event per persona (highest round wins). If
-          # the agent skipped self-critique (tier=Restricted → MAX_AUTO=0),
-          # both counts come back zero and the audit-summary line says
-          # "skipped — Restricted tier" rather than blocking.
+          # Two evidence sources for self-critique attempts:
+          #   1. self_review events emitted by review-emit step from PR-body
+          #      blocks (rich: SCORE / SEVERITY / COVERED / MISSING / CHANGES)
+          #   2. self-review-* skill_call events emitted by the runtime when
+          #      the agent invokes the B29 provenance skills (proves attempt
+          #      + persona + round + authoritative tier, but no SCORE/SEVERITY)
+          # PR #118 surfaced the gap: agent wrote self-critique as a markdown
+          # summary table instead of the structured-block format. The parser
+          # found 0 blocks → 0 self_review events. But the B29 skill_call
+          # events (4 of them — architect r1+r2, security r1+r2) prove the
+          # agent DID run the persona-switch loop. We use both sources so the
+          # audit comment says "skipped" only when BOTH are absent.
           ROUNDS=$(jq -r 'select(.event_kind == "self_review") | .payload.round' "$JSONL" 2>/dev/null | sort -n | tail -1 || echo 0)
           ROUNDS="${ROUNDS:-0}"
+
+          # B29 fallback: max round across self-review-* skill_call events.
+          B29_ROUNDS=$(jq -r 'select(.event_kind == "skill_call" and (.payload.skill == "self-review-architect" or .payload.skill == "self-review-security")) | .payload.round // 0' "$JSONL" 2>/dev/null | sort -n | tail -1 || echo 0)
+          B29_ROUNDS="${B29_ROUNDS:-0}"
+          if [ "$ROUNDS" -eq 0 ] && [ "$B29_ROUNDS" -gt 0 ]; then
+            ROUNDS="$B29_ROUNDS"
+            REVIEW_SOURCE="b29-chain"  # skill_call evidence only — no SCORE/SEVERITY
+          else
+            REVIEW_SOURCE="parser"     # rich event from PR-body parser
+          fi
 
           last_score() {
             jq -r --arg p "$1" 'select(.event_kind == "self_review" and .payload.persona == $p) | "\(.payload.round) \(.payload.score) \(.payload.severity)"' "$JSONL" 2>/dev/null \
@@ -440,13 +458,14 @@ jobs:
 
           {
             echo "rounds=$ROUNDS"
+            echo "source=$REVIEW_SOURCE"
             echo "arch_score=${ARCH_SCORE:-}"
             echo "arch_severity=${ARCH_SEVERITY:-}"
             echo "sec_score=${SEC_SCORE:-}"
             echo "sec_severity=${SEC_SEVERITY:-}"
             echo "exhausted=$EXHAUSTED"
           } >> "$GITHUB_OUTPUT"
-          echo "::notice::self-review rounds=$ROUNDS arch=$ARCH_SCORE ($ARCH_SEVERITY) sec=$SEC_SCORE ($SEC_SEVERITY) exhausted=$EXHAUSTED"
+          echo "::notice::self-review rounds=$ROUNDS source=$REVIEW_SOURCE arch=$ARCH_SCORE ($ARCH_SEVERITY) sec=$SEC_SCORE ($SEC_SEVERITY) exhausted=$EXHAUSTED"
 
       - name: Parse prd.md structure
         id: structure
@@ -867,6 +886,7 @@ jobs:
           printf '| SR-NN anchored (STRIDE / OWASP) | %s/%s |\n' '${{ steps.structure.outputs.sr_with_anchors }}' '${{ steps.structure.outputs.sr_count }}' >> "$BODY"
           # B24: self-critique convergence
           REVIEW_ROUNDS='${{ steps.review.outputs.rounds }}'; REVIEW_ROUNDS="${REVIEW_ROUNDS:-0}"
+          REVIEW_SOURCE='${{ steps.review.outputs.source }}'; REVIEW_SOURCE="${REVIEW_SOURCE:-parser}"
           REVIEW_ARCH_SCORE='${{ steps.review.outputs.arch_score }}'
           REVIEW_ARCH_SEV='${{ steps.review.outputs.arch_severity }}'
           REVIEW_SEC_SCORE='${{ steps.review.outputs.sec_score }}'
@@ -874,9 +894,19 @@ jobs:
           REVIEW_EXH='${{ steps.review.outputs.exhausted }}'; REVIEW_EXH="${REVIEW_EXH:-false}"
           if [ "$REVIEW_ROUNDS" -gt 0 ]; then
             EXH_MARK=$( [ "$REVIEW_EXH" = "true" ] && echo " — ⚠ exhausted before convergence" || echo "" )
-            printf '| Self-review (B24) | %s round(s)%s |\n' "$REVIEW_ROUNDS" "$EXH_MARK" >> "$BODY"
-            printf '| ↳ Architect persona | %s severity=%s |\n' "${REVIEW_ARCH_SCORE:-—}" "${REVIEW_ARCH_SEV:-—}" >> "$BODY"
-            printf '| ↳ Security persona | %s severity=%s |\n' "${REVIEW_SEC_SCORE:-—}" "${REVIEW_SEC_SEV:-—}" >> "$BODY"
+            if [ "$REVIEW_SOURCE" = "b29-chain" ]; then
+              # B29 chain evidence only — agent ran the persona-switch
+              # loop (self-review-architect + self-review-security skill
+              # calls in chain) but didn't write the structured PR-body
+              # block format, so we have round counts but no per-persona
+              # SCORE / SEVERITY. Surface the source explicitly so
+              # readers know to look at the agent's narrative.
+              printf "| Self-review (B24) | %s round(s)%s · evidence from B29 chain (no structured \`### Self-review\` block in PR body — see agent narrative) |\n" "$REVIEW_ROUNDS" "$EXH_MARK" >> "$BODY"
+            else
+              printf '| Self-review (B24) | %s round(s)%s |\n' "$REVIEW_ROUNDS" "$EXH_MARK" >> "$BODY"
+              printf '| ↳ Architect persona | %s severity=%s |\n' "${REVIEW_ARCH_SCORE:-—}" "${REVIEW_ARCH_SEV:-—}" >> "$BODY"
+              printf '| ↳ Security persona | %s severity=%s |\n' "${REVIEW_SEC_SCORE:-—}" "${REVIEW_SEC_SEV:-—}" >> "$BODY"
+            fi
           else
             printf '| Self-review (B24) | — skipped (Restricted tier or no events) |\n' >> "$BODY"
           fi
