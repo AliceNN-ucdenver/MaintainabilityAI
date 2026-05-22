@@ -15,7 +15,7 @@ Call after invoking all four search Skills (tavily / arxiv / uspto / hackernews)
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `results` | `ProviderResult[][]` | yes | — | Outer array: one entry per provider. |
+| `results` | `ProviderResult[][]` **or** `ProviderResult[]` | yes | — | EITHER an outer array with one entry per provider (canonical, lets the ranker reward cross-provider agreement) OR a single flat array of `ProviderResult`. Cert-run-2 (Task #56) made the schema lenient — both shapes work, the handler flattens internally. |
 | `topN` | `integer` | no | 50 | Cap on final ranked list. |
 
 ## Outputs (stdout JSON)
@@ -28,14 +28,19 @@ Call after invoking all four search Skills (tavily / arxiv / uspto / hackernews)
 ## Invocation
 
 ```sh
+# Canonical — grouped by provider (preferred; rank weights cross-provider agreement).
 echo '{"results":[[...tavily...],[...arxiv...],[...uspto...],[...hn...]]}' \
+  | npx @maintainabilityai/research-runner skill-dedupe-and-rank
+
+# Also accepted — flat list (handler flattens internally for the grouped case).
+echo '{"results":[...all results concatenated...]}' \
   | npx @maintainabilityai/research-runner skill-dedupe-and-rank
 ```
 
 ## Implementation
 
-Pure JS reducer over the four arrays. URL canonicalization, fuzzy-match dedupe, weighted ranking. The CLI subcommand backend lands in B-PR1a.
+Pure JS reducer over the result array(s). URL canonicalization, fuzzy-match dedupe, weighted ranking. Lenient input shape: discriminates flat vs grouped by inspecting the first element (`Array.isArray(results[0])` → grouped → flatten before ranking).
 
 ## Error contract
 
-Never fails on empty inputs (returns `{rankedSources: [], providerCounts: {}}`). Only fails on invalid JSON.
+Never fails on empty inputs (returns `{rankedSources: [], providerCounts: {}}`). Only fails on invalid JSON or wrong-shape `ProviderResult` entries inside the array.

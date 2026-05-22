@@ -1236,19 +1236,36 @@ const ProviderResultSchema = z.object({
   authors: z.array(z.string()).optional(),
 });
 
+// Cert-run-2 bug D fix (Task #56) — schema now accepts BOTH the
+// canonical grouped shape (`ProviderResult[][]`, one inner array per
+// provider) AND the agent's intuitive flat shape (`ProviderResult[]`).
+// Cert run #2 chain showed the agent attempting flat-input dedupe-and-
+// rank TWICE in a row (events 10+11) before figuring out grouped on
+// attempt 3 — burning Zod-error feedback to converge. Lenient schema
+// removes the trial-and-error: either shape works, handler normalizes
+// internally before calling the pure dedupeAndRank function.
 const DedupeAndRankInput = z.object({
-  results: z.array(z.array(ProviderResultSchema)),
+  results: z.union([
+    z.array(z.array(ProviderResultSchema)),  // canonical: grouped by provider
+    z.array(ProviderResultSchema),            // lenient: flat list across providers
+  ]),
   topN: z.number().int().positive().optional(),
 });
 
 const handleDedupeAndRank: SkillHandler = async (input) => {
   const parsed = DedupeAndRankInput.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
-  const flat: ProviderResult[] = parsed.data.results.flat() as ProviderResult[];
+  // Discriminate via first element: if it's an array → grouped (flatten);
+  // else flat → use directly. Empty array → treat as empty flat (no-op).
+  const r = parsed.data.results as unknown[];
+  const grouped = r.length > 0 && Array.isArray(r[0]);
+  const flat: ProviderResult[] = grouped
+    ? (parsed.data.results as ProviderResult[][]).flat()
+    : (parsed.data.results as ProviderResult[]);
   const ranked = dedupeAndRank({ results: flat, topN: parsed.data.topN ?? 50 });
   const providerCounts: Record<string, number> = {};
-  for (const r of ranked) {
-    providerCounts[r.provider] = (providerCounts[r.provider] ?? 0) + 1;
+  for (const result of ranked) {
+    providerCounts[result.provider] = (providerCounts[result.provider] ?? 0) + 1;
   }
   return { ok: true, rankedSources: ranked, providerCounts };
 };

@@ -62,33 +62,10 @@ import { computeTier, scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/con
 import { computeDecayedScore } from '../mcp/utils/score-decay';
 import type { GovernanceTimestamps } from '../types/redqueen';
 
-/**
- * FR/SR structural counter — dedupes by id (PR #118 PRDs wrote both
- * `### FR-01` heading AND `**FR-01**` bold for every FR, doubling the
- * raw count and skewing the cited ratio). Matches the workflow's Python
- * rewrite in prd-agent.yml for parity. Default 12-line window covers a
- * typical FR section incl. the `Traces to:` / acceptance-criteria block.
- */
-function countUniqueIds(
-  docLines: string[],
-  markerRe: RegExp,
-  idRe: RegExp,
-  citationRe: RegExp,
-  windowLines = 12,
-): { total: number; covered: number } {
-  const seen = new Map<string, number>();
-  for (let i = 0; i < docLines.length; i++) {
-    if (!markerRe.test(docLines[i])) { continue; }
-    const m = docLines[i].match(idRe);
-    if (m && !seen.has(m[0])) { seen.set(m[0], i); }
-  }
-  let covered = 0;
-  for (const [, start] of seen) {
-    const win = docLines.slice(start, start + windowLines).join('\n');
-    if (citationRe.test(win)) { covered++; }
-  }
-  return { total: seen.size, covered };
-}
+// Structural-id counters live in their own module so unit tests can
+// exercise them without dragging in the VS Code runtime. See
+// `regexCounters.ts` for the full rationale.
+import { countUniqueIds, countUniqueSourceIds } from './regexCounters';
 
 /**
  * Knight's Seal v1 (B27) — scan an audit-events JSONL for per-event
@@ -901,15 +878,33 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
 
       if (phase === 'why') {
-        // S1..Sn source references — match `[S\d+]` or `**S\d+**` patterns.
-        const sourceMatches = docText.match(/\bS(\d+)\b/g) ?? [];
-        const maxS = sourceMatches.reduce((m, t) => {
-          const n = parseInt(t.replace(/^S/, ''), 10);
-          return isNaN(n) ? m : Math.max(m, n);
-        }, 0);
-        result.findings = maxS;
-        const conclusionMatches = docText.match(/\*\*C\d+\*\*/g) ?? [];
-        result.conclusions = conclusionMatches.length;
+        // Cert-run-2 bug C/E fix (Task #55/#57) — same unique-id dedup
+        // pattern B31.v1.1 introduced for HOW phase FR/SR, now propagated
+        // to WHY conclusions + source citations.
+        //
+        // Old bug class: `docText.match(/\*\*C\d+\*\*/g).length` counted
+        // RAW occurrences. Agents legitimately restate conclusion ids in
+        // §9 Recommendations ("based on **C1** and **C3** ...") so a
+        // doc with 4 distinct conclusions returned 9. The S-N counter
+        // had a parallel max(N) brittleness — picking the highest N
+        // would silently inflate if the artifact contained an
+        // accidental "S99" (e.g. inside a source title or quote).
+        //
+        // Both now use unique-id dedup. For conclusions, also do the
+        // 4-line citation-window check so we can surface "4/4 conclusions
+        // cite ≥1 source" as a coverage signal (workflow's audit
+        // comment does this too, post-fix).
+        const docLines = docText.split('\n');
+        result.findings = countUniqueSourceIds(docText).size;
+        const conclResult = countUniqueIds(
+          docLines,
+          /\*\*C\d+\*\*/,
+          /\bC\d+\b/,
+          /\bS\d+\b/,
+          4,  // tighter window than HOW phase — conclusions are typically single-line list items
+        );
+        result.conclusions = conclResult.total;
+        result.conclusionsWithCites = conclResult.covered;
         // Brief topics — heuristic: count required H3 sub-sections that
         // appear under "Cross-Source Analysis" in the canonical layout.
         const requiredTopics = ['Standards and Best Practices', 'Security and Compliance', 'Implementation Patterns', 'Market Landscape'];

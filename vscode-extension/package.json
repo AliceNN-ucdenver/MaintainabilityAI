@@ -2,7 +2,7 @@
   "name": "maintainabilityai",
   "displayName": "MaintainabilityAI",
   "description": "Security-first RCTRO issue creation for AI-assisted feature development",
-  "version": "0.1.98",
+  "version": "0.1.99",
   "publisher": "chiefarcheologist",
   "license": "MIT",
   "preview": true,

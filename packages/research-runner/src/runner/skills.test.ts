@@ -510,6 +510,62 @@ test('dedupe-and-rank merges per-provider arrays into a ranked list', async () =
   }
 });
 
+// Cert-run-2 bug D (Task #56) — schema lenient on input shape.
+// Audit chain on PR #126 (run WHY-2026-05-22-85h5yh) showed events 10
+// and 11 both fail with bad-input because the agent passed a flat list
+// of ProviderResult before figuring out the grouped shape on attempt 3.
+// The lenient schema accepts both — these tests pin both paths.
+test('dedupe-and-rank accepts FLAT input shape (lenient — Task #56)', async () => {
+  const r = await runSkill('dedupe-and-rank', {
+    results: [
+      { provider: 'tavily', fromQuery: 'q1', title: 'A', url: 'https://a.com', content: 'aa', score: 0.9 },
+      { provider: 'tavily', fromQuery: 'q2', title: 'B', url: 'https://b.com', content: 'bb', score: 0.8 },
+      { provider: 'arxiv', fromQuery: 'q3', title: 'C', url: 'https://c.com', content: 'cc', score: 0.7 },
+    ],
+    topN: 50,
+  });
+  assert.equal(r.ok, true, `flat-shape input should not Zod-fail. reason=${r.ok ? '' : r.reason}`);
+  if (r.ok) {
+    const ranked = r.rankedSources as Array<{ id: string }>;
+    assert.equal(ranked.length, 3, 'all three flat entries should rank');
+    const counts = r.providerCounts as Record<string, number>;
+    assert.equal(counts.tavily, 2);
+    assert.equal(counts.arxiv, 1);
+  }
+});
+
+test('dedupe-and-rank flat + grouped produce equivalent rankings on identical data (Task #56)', async () => {
+  const items = [
+    { provider: 'tavily', fromQuery: 'q1', title: 'A', url: 'https://a.com', content: 'aa', score: 0.9 },
+    { provider: 'arxiv', fromQuery: 'q2', title: 'B', url: 'https://b.com', content: 'bb', score: 0.7 },
+  ];
+  const flat = await runSkill('dedupe-and-rank', { results: items, topN: 50 });
+  const grouped = await runSkill('dedupe-and-rank', { results: [[items[0]], [items[1]]], topN: 50 });
+  assert.equal(flat.ok, true);
+  assert.equal(grouped.ok, true);
+  if (flat.ok && grouped.ok) {
+    const flatRanked = flat.rankedSources as Array<{ url: string }>;
+    const groupedRanked = grouped.rankedSources as Array<{ url: string }>;
+    assert.equal(flatRanked.length, groupedRanked.length, 'same length');
+    assert.deepEqual(
+      flatRanked.map(r => r.url).sort(),
+      groupedRanked.map(r => r.url).sort(),
+      'same URLs ranked across both shapes',
+    );
+  }
+});
+
+test('dedupe-and-rank rejects wrong-element shapes regardless of outer wrapper (Task #56)', async () => {
+  // Lenient on flat-vs-grouped, but ProviderResult shape itself must
+  // still validate — a top-level object (neither array nor array-of-array)
+  // is rejected.
+  const r = await runSkill('dedupe-and-rank', { results: { not: 'an array' }, topN: 50 });
+  assert.equal(r.ok, false, 'object-shaped results must still bad-input');
+  if (!r.ok) {
+    assert.match(r.reason ?? '', /bad-input/);
+  }
+});
+
 // ─── format-research-issue-update ────────────────────────────────────
 
 test('format-research-issue-update emits markdown + byte count', async () => {

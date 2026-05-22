@@ -577,11 +577,17 @@ describe('renderOkrDetailView', () => {
         followUps: 3,
         findings: 14,
         conclusions: 4,
+        conclusionsWithCites: 4,
       });
       expect(html).toContain('okr-poll-dot-pulse');
       expect(html).toContain('5 successful skill_calls');
       expect(html).toContain('1 gap-loop');
-      expect(html).toContain('S1–S14 cited');
+      // Task #55/#57: display uses honest unique counts ("14 sources cited",
+      // "4 conclusions (4/4 cite ≥1 source)") instead of the old
+      // misleading "S1–S14 cited" range string.
+      expect(html).toContain('14 sources cited');
+      expect(html).toContain('4 conclusions');
+      expect(html).toContain('4/4 cite ≥1 source');
       // Critical: the cold-start placeholder must NOT appear when we
       // have last-known data to display. This is the flicker fix.
       expect(html).not.toContain('Loading sources · refine · findings · coverage · drift');

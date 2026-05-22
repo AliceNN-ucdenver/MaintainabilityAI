@@ -317,8 +317,26 @@ jobs:
             fi
           done
 
-          CONCLUSIONS=$(grep -cE '\*\*C[0-9]+\*\*' "$DOC" || true)
-          CONCLUSIONS_WITH_CITES=$(grep -E '\*\*C[0-9]+\*\*' "$DOC" | grep -cE 'S[0-9]+' || true)
+          # Cert-run-2 bug C fix (Task #55) — count UNIQUE conclusion ids,
+          # not raw markers. Old behavior counted every restatement of a
+          # C-N marker (§9 Recommendations re-references each conclusion
+          # by id), inflating both numerator + denominator. Cert-run-2's
+          # artifact had 4 distinct conclusions and the old counter
+          # returned 9 raw + 8 lines-with-S-cite. Now counts unique
+          # ids + checks a per-id 4-line window for the S-N citation.
+          UNIQUE_C_IDS=$(grep -oE '\*\*C[0-9]+\*\*' "$DOC" | sort -u)
+          CONCLUSIONS=$(echo "$UNIQUE_C_IDS" | grep -cE '\*\*C[0-9]+\*\*' || true)
+          CONCLUSIONS_WITH_CITES=0
+          for CID_MARKER in $UNIQUE_C_IDS; do
+            # First line where this marker appears.
+            START=$(grep -nF "$CID_MARKER" "$DOC" | head -1 | cut -d: -f1)
+            if [ -n "$START" ]; then
+              END=$((START + 3))  # 4-line window (start + 3 trailing)
+              if sed -n "${START},${END}p" "$DOC" | grep -qE '\bS[0-9]+\b'; then
+                CONCLUSIONS_WITH_CITES=$((CONCLUSIONS_WITH_CITES + 1))
+              fi
+            fi
+          done
 
           {
             echo "h2_present=$H2_PRESENT"

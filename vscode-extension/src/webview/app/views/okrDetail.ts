@@ -40,8 +40,9 @@ export interface OkrPhaseSignal {
   gapLoops?: number;
   followUps?: number;
   /** Citation / structural counts from the artifact markdown. */
-  findings?: number;       // WHY: count of Sources S1-Sn
-  conclusions?: number;    // WHY: count of Conclusions C1-Cn
+  findings?: number;       // WHY: count of UNIQUE Sources S1-Sn (Task #57 — was max(N), now unique-id count)
+  conclusions?: number;    // WHY: count of UNIQUE Conclusions C1-Cn (Task #55 — was raw match count)
+  conclusionsWithCites?: number; // WHY: how many unique conclusions have an S-N citation within 4 lines
   briefTopicsCovered?: number;
   briefTopicsTotal?: number;
   /** HOW-phase counts. */
@@ -1016,7 +1017,7 @@ function renderWhyMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
   // data yet. Background refreshes (s.refreshing=true) keep displaying
   // the last-known metrics + rely on the header poll dot to signal
   // in-flight. This kills the strange-flicker the user reported.
-  if (loading && !s?.providers && !s?.findings && s?.gapLoops == null) {
+  if (loading && !s?.providers && !s?.findings && s?.gapLoops == null && s?.conclusions == null) {
     return [`<div class="okr-muted">Loading sources · refine · findings · coverage · drift from GitHub…</div>`];
   }
   const lines: string[] = [];
@@ -1032,7 +1033,18 @@ function renderWhyMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
   }
   if (s?.findings != null) {
     const concl = s.conclusions ?? 0;
-    lines.push(`<div><strong>Findings:</strong> ${concl} conclusions · S1–S${s.findings} cited</div>`);
+    // Task #55/#57 honest-display: both numbers are now UNIQUE counts.
+    // "9 conclusions" was a regex-occurrence count over an artifact that
+    // truly had 4; "S1–S14 cited" was max(N) regardless of whether
+    // every S-id in the range existed. Now reads as plain unique counts.
+    const conclLabel = concl === 1 ? 'conclusion' : 'conclusions';
+    const srcLabel = s.findings === 1 ? 'source' : 'sources';
+    let line = `<div><strong>Findings:</strong> ${concl} ${conclLabel}`;
+    if (s.conclusionsWithCites != null && concl > 0) {
+      line += ` (${s.conclusionsWithCites}/${concl} cite ≥1 source)`;
+    }
+    line += ` · ${s.findings} ${srcLabel} cited</div>`;
+    lines.push(line);
   }
   lines.push(renderCoverageLine(s, 'why'));
   lines.push(renderDriftLine(s, 'why'));
