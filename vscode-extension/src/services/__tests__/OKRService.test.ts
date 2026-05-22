@@ -305,6 +305,39 @@ describe('OKRService', () => {
       if (!r.ok) { expect(r.error).toContain('Schema validation failed'); }
     });
 
+    // D-PR1.v1.4 — Python's yaml.safe_load → modify → yaml.safe_dump
+    // round-trip in the code-design-agent.yml finalize step re-serializes
+    // datetime values as Python's native format `2026-05-22 15:35:51.445000+00:00`
+    // (space separator, microseconds, offset) instead of ISO 8601
+    // `2026-05-22T15:35:51.445Z`. The old schema's `z.string().datetime()`
+    // rejected the Python form silently, OKRService.read returned null,
+    // and the OKR disappeared from the list view. Schema loosened to
+    // z.string() so both forms read cleanly. This test pins the
+    // backward-compatibility contract.
+    it('reads OKRs with Python-formatted timestamps (space separator + microseconds)', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      const yamlPath = path.join(tmpRoot, 'okrs', card.meta.id, 'okr.yaml');
+      let yaml = fs.readFileSync(yamlPath, 'utf8');
+      // Inject the Python-format timestamp the finalize bug produced.
+      // ISO form `2026-05-22T15:35:51.445Z` → Python form
+      // `2026-05-22 15:35:51.445000+00:00`. The replacement targets BOTH
+      // the meta.createdAt + meta.updatedAt that svc.create produced.
+      yaml = yaml.replace(
+        /createdAt: ['"]?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^'"\n]*['"]?/g,
+        'createdAt: 2026-05-22 15:35:51.445000+00:00',
+      );
+      yaml = yaml.replace(
+        /updatedAt: ['"]?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^'"\n]*['"]?/g,
+        'updatedAt: 2026-05-22 15:35:51.445000+00:00',
+      );
+      fs.writeFileSync(yamlPath, yaml, 'utf8');
+      const reread = svc.read(tmpRoot, card.meta.id);
+      expect(reread).not.toBeNull();
+      // Don't assert exact string form (yaml.parse may stringify Python
+      // dates differently across runs) — just confirm the OKR loaded
+      // without the schema rejecting it as it did before D-PR1.v1.4.
+    });
+
     // A12.v1.1 — legacy `'declared'` values auto-migrate to `'not-connected'`
     // via z.preprocess on the TargetRepoStatusSchema. Build a valid OKR via
     // svc.create() (so all required fields are present), then patch the

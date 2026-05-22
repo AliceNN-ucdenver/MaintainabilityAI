@@ -152,8 +152,19 @@ export const OkrActionSchema = z.object({
   rounds: z.number().int().min(0).default(0),
   governanceTier: GovernanceTierSchema,
   status: OkrActionStatusSchema,
-  createdAt: z.string().datetime(),
-  completedAt: z.string().datetime().optional(),
+  // D-PR1.v1.4 — loosened from .datetime() to plain .string() because
+  // finalize workflows that round-trip the okr.yaml through Python
+  // (yaml.safe_load → modify → yaml.safe_dump) re-serialize datetime
+  // values in Python's native format `2026-05-22 15:35:51.445000+00:00`
+  // (space separator + microseconds + offset) instead of ISO 8601
+  // `2026-05-22T15:35:51.445Z`. Strict .datetime() validation rejected
+  // the new form, OKRService.read returned null silently, and the OKR
+  // disappeared from the list view. Loosening to z.string() keeps the
+  // field human-readable while tolerating either format. The finalize
+  // workflow ALSO got a custom yaml representer for datetime objects
+  // (defense in depth — new finalize runs write proper ISO 8601).
+  createdAt: z.string(),
+  completedAt: z.string().optional(),
 });
 export type OkrAction = z.infer<typeof OkrActionSchema>;
 
@@ -214,8 +225,13 @@ export const OkrMetaSchema = z.object({
   owner: z.string().min(1),
   status: OkrStatusSchema,
   paused: z.boolean().optional(),  // true while user-paused (§10.8)
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  // D-PR1.v1.4 — same loosening as OkrActionSchema above. The OKR card's
+  // meta block also gets round-tripped through Python during finalize
+  // when the workflow's `card.meta.updatedAt = ...` write reaches the
+  // disk via yaml.safe_dump; strict .datetime() rejected the resulting
+  // Python format. Plain .string() tolerates both ISO and Python forms.
+  createdAt: z.string(),
+  updatedAt: z.string(),
   intentThreadUuid: z.string().uuid(),  // generated at create-time (§4.4)
 });
 export type OkrMeta = z.infer<typeof OkrMetaSchema>;

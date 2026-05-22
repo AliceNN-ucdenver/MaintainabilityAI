@@ -553,7 +553,31 @@ jobs:
         run: |
           python3 <<'PYEOF'
           import os, yaml
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, date
+
+          # D-PR1.v1.4 — register a custom representer for datetime/date so
+          # yaml.safe_dump serializes them as ISO 8601 STRINGS (with the
+          # canonical `T` separator) instead of Python's native format
+          # (`2026-05-22 15:35:51.445000+00:00` — space separator, micro-
+          # seconds, offset). Without this, yaml.safe_load auto-parsed
+          # the existing ISO strings into datetime objects, and re-dump
+          # serialized them in the Python format which the extension's
+          # Zod schema (`z.string().datetime()`) silently rejected,
+          # making the entire OKR card unreadable + invisible in the
+          # UI's list view.
+          def _datetime_to_iso(dumper, data):
+              # Emit as a YAML string scalar; quoted form so YAML's own
+              # timestamp re-parse on next safe_load keeps it a STRING
+              # not a datetime object.
+              s = data.isoformat()
+              # Normalize "+00:00" → "Z" for shorter, cleaner ISO 8601
+              # (matches what JS new Date().toISOString() produces).
+              if s.endswith('+00:00'):
+                  s = s[:-6] + 'Z'
+              return dumper.represent_scalar('tag:yaml.org,2002:str', s, style="'")
+          yaml.SafeDumper.add_representer(datetime, _datetime_to_iso)
+          yaml.SafeDumper.add_representer(date, _datetime_to_iso)
+
           okr_id = os.environ['OKR_ID']
           run_id = os.environ['RUN_ID']
           pr_url = os.environ['PR_URL']
@@ -582,6 +606,32 @@ jobs:
           # 2. Flip action.status to complete + record chainRootHash.
           okr_yaml = f'okrs/{okr_id}/okr.yaml'
           card = yaml.safe_load(open(okr_yaml))
+          # Defense in depth: walk the card and convert any datetime
+          # objects parsed by safe_load back to ISO strings BEFORE we
+          # modify + dump. The representer above handles the dump side
+          # but this ensures the in-memory representation is also
+          # string-shaped (e.g. if any downstream code reads from the
+          # card before dump).
+          def _stringify_datetimes(node):
+              if isinstance(node, dict):
+                  for k, v in list(node.items()):
+                      if isinstance(v, (datetime, date)):
+                          s = v.isoformat()
+                          if s.endswith('+00:00'):
+                              s = s[:-6] + 'Z'
+                          node[k] = s
+                      else:
+                          _stringify_datetimes(v)
+              elif isinstance(node, list):
+                  for i, v in enumerate(node):
+                      if isinstance(v, (datetime, date)):
+                          s = v.isoformat()
+                          if s.endswith('+00:00'):
+                              s = s[:-6] + 'Z'
+                          node[i] = s
+                      else:
+                          _stringify_datetimes(v)
+          _stringify_datetimes(card)
           for a in (card or {}).get('actions', []):
               if a.get('runId') == run_id:
                   a['status'] = 'complete'
