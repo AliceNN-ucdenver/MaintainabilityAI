@@ -10,15 +10,22 @@ For cross-cutting concerns (audit chain, OKR card, orchestration), read [`agenti
 
 ## Current state
 
-**Phase D — MVP shipped + v1.1 polish landed 2026-05-22, validated end-to-end on PR #120.** `code-design-agent` runs the full WHY → HOW → WHAT pipeline with the same B24 persona-switch the prd-agent uses, against the same end-to-end signed audit chain.
+**Phase D — done-done pending next E2E cert run.** D-PR1 MVP + v1.1-v1.6 polish + Refactor 3a/3b/3c shipped 2026-05-22. `code-design-agent` runs the full WHY → HOW → WHAT pipeline with the same B24 persona-switch the prd-agent uses, against the same end-to-end signed audit chain. Two validated WHAT runs (PR #120 + PR #122) plus a comprehensive consistency pass mean the next run is the certification gate; once it passes cleanly, Phase D closes.
 
-Validation evidence from PR #120 (the open `governance-mesh` repo, IMDB-Celebs sample OKR):
+Validation evidence from PR #120 + #122 (the open `governance-mesh` repo, IMDB-Celebs sample OKR):
 
-- **Chain**: 14 events, all 14 signed (`{sealed: true, sealVerified: true}`). Head `ba2071ffa65137ed…`.
-- **Brownfield clone**: `knowledge-code` ran against `imdb-react-frontend`, returned `mode: brownfield` with real SHA `4c554fbe6392`, walked 77 files (53 TypeScript + 3 JavaScript), detected 2 manifests + real top-dirs `[.github, automation, src]`. Brownfield section in `code-design.md` cites paths under the real `src/` top-dir.
-- **Greenfield design**: `knowledge-code` ran against the (nonexistent) `celeb-api` repo with `repoStatus: create`, returned `mode: greenfield` with scaffolding hints (TypeScript / Express / seed file list). Greenfield section in `code-design.md` is a scaffolding spec, not file-level changes.
-- **Persona-switch self-critique**: 4 `self-review-code-*` skill_calls (architect r1+r2 + security r1+r2). Scores `Code-Architect 0.91 MINOR → 0.97 PASS`, `Code-Security 0.90 MINOR → 0.96 PASS` — same convergence shape as PR #118 PRD-phase.
-- **Per-repo mode honesty**: every per-repo subsection in §4 + §5 of `code-design.md` carries `mode:` frontmatter matching the chain's knowledge-code response mode (verified by D-PR1.v1.1's fixed audit-and-drift workflow).
+- **Chain**: 14 events on PR #120, 17 events on PR #122, all signed (`{sealed: true, sealVerified: true}`). PR #122 head `ba2071ffa65137ed…`.
+- **Brownfield clone**: `knowledge-code` ran against `imdb-react-frontend`, returned `mode: brownfield` with real SHA `4c554fbe6392`, walked 77 files (53 TypeScript + 3 JavaScript). Brownfield section in `code-design.md` cites real paths under `src/`.
+- **Greenfield design**: `knowledge-code` ran against the (nonexistent) `celeb-api` repo with `repoStatus: create`, returned `mode: greenfield` with scaffolding hints. Greenfield section is a scaffolding spec, not file-level changes.
+- **Persona-switch self-critique**: 4 `self-review-code-*` skill_calls per run. Scores `Code-Architect MINOR → PASS`, `Code-Security MINOR → PASS` (0.91→0.97, 0.90→0.96 on PR #120). Same convergence shape as PR #118 PRD-phase.
+- **Per-repo mode honesty**: every per-repo subsection in §4 + §5 of `code-design.md` carries `mode:` frontmatter matching the chain's knowledge-code response mode (verified by the v1.1-fixed audit-and-drift workflow).
+- **Post-merge finalize**: chain-ladder.yaml WHAT entry written, action.hatterChainRoot populated, meta.status rolled design-pending → building.
+
+**Consistency pass complete (Refactor 3a / 3b / 3c — see [`agentic-sdlc.md`](agentic-sdlc.md) §13 snapshot for full list):**
+
+- Audit-event payload contract pinned with a regression test (eliminates the D-PR1.v1.1 #27 mode-honesty bug class).
+- Phase-spec single source of truth (`src/types/phaseSpec.ts`) — cross-layer consistency tests assert every label / agent / workflow this map references is also in the deploy registries. The D-PR1.v1.2 missing-`design-pass` bug is now mechanically impossible.
+- Composite `finalize-okr-action` shared across WHY + HOW + WHAT — eliminates the "5 ways to finalize" smell that caused the D-PR1.v1.4 timestamp corruption.
 
 **Remaining Phase D work** (not blocking current end-to-end runs):
 

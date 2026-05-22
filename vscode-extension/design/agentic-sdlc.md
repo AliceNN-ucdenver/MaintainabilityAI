@@ -2290,9 +2290,9 @@ That sequence is the workshop's narrative arc, end to end, with full agentic SDL
 
 This section is the live truth-source for "what's done." Update inline as work lands. Last reviewed 2026-05-21.
 
-### Where we are right now (snapshot — Phase A + B validated end-to-end 2026-05-22)
+### Where we are right now (snapshot — Phase A-D done-done pending next E2E cert run, 2026-05-22)
 
-**Phase A + B are honestly complete.** Both phases validated end-to-end on the IMDB-Celebs sample OKR with no manual intervention. Every architectural defense fired on real agent runs:
+**Phase A + B + C + D are honestly complete in code; one more end-to-end run gates the done-done seal.** All three Looking-Glass-side agents (market-research / prd / code-design) have been validated end-to-end on the IMDB-Celebs sample OKR with no manual intervention. Every architectural defense fired on real agent runs. The post-validation polish + three architectural refactors landed 2026-05-22 close the operational gaps surfaced in production; the next WHY → HOW → WHAT run is the certification gate.
 
 - **Phase A** — **100% shipped**. A12 Connect Repo flow (target-repos UI + per-repo status + persistence). All 12 A-items + 5 beyond-plan extras complete.
 - **Phase B** — **validated end-to-end via WHY (PR #116) + HOW (PR #118) on the celeb-api sample.** Both merged cleanly with every audit gate passing:
@@ -2303,8 +2303,8 @@ This section is the live truth-source for "what's done." Update inline as work l
 B5 (context-* runtime) · B25 (chain forgery detection) · B27 (Knight's Seal v1) · B27.v1.2 (chain_root_hash auto-population through extract-okr-context → finalize) · B28 (Court Recorder Auto-Logging — runner auto-emit) · B28a.v1.1 (parallel-emission lock budget) · B28a.v1.2 (TS↔Python canonicalization parity) · B28c (workflow audit-shift for artifact_written) · B29 (self-review attempt provenance skills) · B30 (runner-CLI invocation discipline + JTBD heading alternation) · B31 (FR-citation regex tolerance: `[CRSE]-?\d+`) · B31.v1.1 (unique-id dedup + 12-line window for FR/SR counters) · A12 (Connect Repo) · B9 (Mesh Provisioning subsections) · DRIFT-1 / DRIFT-2 (UI honesty).
 
 **Versions at validation (refreshed 2026-05-22):**
-- `@maintainabilityai/research-runner`: 0.1.35 (knowledge-code + knowledge-prd + self-review-code-* handlers shipped in D-PR1 / D-PR1.v1.1)
-- `chiefarcheologist.maintainabilityai` VSIX: 0.1.89 (A12.v1.1 4-state repo status + Settings polish + WHAT-phase signals + reset-phase capability)
+- `@maintainabilityai/research-runner`: 0.1.36 (knowledge-code + knowledge-prd + self-review-code-* handlers shipped in D-PR1 / D-PR1.v1.1; audit-event-shape regression test pinned in Refactor 3a)
+- `chiefarcheologist.maintainabilityai` VSIX: 0.1.92 (A12.v1.1 4-state repo status + Settings polish + WHAT-phase signals + reset-phase capability + D-PR1.v1.6 polish + Refactor 3a/3b/3c)
 - Model: `claude-sonnet-4.6` (auto-selected by Copilot session default after we dropped the `model:` override pin)
 
 - **Phase C** — **honestly complete in post-B24 form** (code-verified 2026-05-22). `okr-state-machine.yml` is in `DEPRECATED_MESH_FILES[]` and auto-pruned on next Redeploy ([codeRepoTemplates.ts:522](../src/templates/codeRepoTemplates.ts)). HumanGate UI fully wired (3 message handlers in `LookingGlassPanel.ts:390-392`, 3 private methods, Restricted-tier dual-signature flow with two-distinct-approver validator, renderer in `okrDetail.ts:768` gated on `action.status === 'human_gate' \|\| 'blocked'`) — has not fired in production because persona-switch convergence in author-agent means no auto-revise loop has been exhausted yet. The §14.8 reviewer-dispatch open question is closed-by-substitution: B24's persona-switch replaces separate reviewer agents entirely; `architect-reviewer.yml` + `security-reviewer.yml` are in `DEPRECATED_MESH_FILES[]:533-534` (both pruned on Redeploy). Pocket Watch + Caterpillar drift gates DID fire on PR #118 (Pocket=0.7524, Caterpillar=0.8258). Nothing dormant is also broken.
@@ -2316,15 +2316,26 @@ B5 (context-* runtime) · B25 (chain forgery detection) · B27 (Knight's Seal v1
   - Audit-and-drift workflow runs to completion (job 77407651167); D-PR1.v1.1 closed the 5 bugs that surfaced (parser key path, grep -c bash, markdown formatting, dispatch trigger, UI placeholder). PR #120's first audit applied `design-degraded` due to the parser bug; rerun with patched workflow expected to apply `design-pass`.
 - **Phase E** — not yet started. Detailed at §11.8 + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §3-§4 (`verify-chain` CLI surface in Looking Glass, audit-report export).
 
-**Recently landed (D-PR1.v1.1, post-WHAT-validation polish):**
-- **#27** mode-honesty parser fix — workflow was reading `payload.audit_metadata.mode` but runner emits flat `payload.mode`. Every WHAT run was getting false "no knowledge-code skill_call" findings. Reading correct key now.
+**Recently landed (D-PR1.v1.1-v1.6 post-WHAT-validation polish + Refactor 3a/3b/3c done-done pass):**
+
+*Polish (post-PR #120 + #122 forensic):*
+- **#27** mode-honesty parser fix — workflow was reading `payload.audit_metadata.mode` but runner emits flat `payload.mode`. Every WHAT run was getting false "no knowledge-code skill_call" findings.
 - **#28** self-review count `grep -c || echo 0` double-print fix — empty audit-comment "rounds" + "source" cells.
-- **#29** audit comment markdown collapsed-to-one-line fix — switched from `BODY+=$(printf '...\n')` (command-substitution strips newlines) to heredoc.
-- **#30** dispatch precondition gate trigger fix — was `issues.labeled` only; Looking Glass creates issues with labels attached so the event didn't fire. Now matches both `opened` + `labeled` + `contains(labels, 'oraculum-design')`.
-- **#31** UI `renderWhatMetrics` + WHAT-phase signal extraction — was hardcoded "Phase 3 ships" placeholder. Now surfaces mesh skill count + per-mode knowledge-code count + persona-switch rounds + FR/SR references + Pocket Watch/Caterpillar cosines.
-- **#32 (new feature)** `OKRService.resetPhase()` + UI "⟲ Reset WHY/HOW/WHAT" button — destructive reset for unsealed phases (4 hard guards: seal-immutability via hatterChainRoot OR chain-ladder.yaml entry, cascading via later-phase actions, okr-not-found, idempotent-on-empty). UI button visible only when phase has actions AND none are sealed. Native VS Code confirmation modal lists exactly what gets deleted before destruction. Best-effort GitHub close of stale issues + PRs that referenced the phase's runId.
-- **G2** runner `handleKnowledgePrd` — was deployed-but-missing-handler causing the code-design-agent to fall back to direct file read with no chain evidence. Tolerant FR/SR parser (B31-style id regex, 7-line context window for source/STRIDE/OWASP anchors, optional Coverage Analysis table parse).
-- **Settings polish** — merged "Mesh Provisioning" + "Prompt Packs" into one cohesive section; dropped internal jargon ("v4 personas", "Phase 1/2/3", "B5/B20/B24/B27", SDK version refs, "Recently deprecated (auto-pruned)…"); code-design-agent now listed as a deployed agent.
+- **#29** audit comment markdown collapsed-to-one-line fix — switched to heredoc.
+- **#30** dispatch precondition gate trigger fix — was `issues.labeled` only; Looking Glass creates issues with labels attached.
+- **#31** UI `renderWhatMetrics` + WHAT-phase signal extraction — was hardcoded "Phase 3 ships" placeholder.
+- **#32 (new feature)** `OKRService.resetPhase()` + UI "⟲ Reset" button — destructive reset for unsealed phases with 4 hard guards.
+- **G2** runner `handleKnowledgePrd` — was deployed-but-missing-handler.
+- **v1.2** missing `design-pass` / `design-degraded` / `design-drift-detected` labels in MESH_LABELS + workflow verdict step now logs gh apply errors.
+- **v1.3** Pull Mesh post-refresh fix — track `lastDrilledOkrId` so onPullMesh directly re-fetches the OKR card instead of relying on a webview round-trip + branch/HEAD diagnostics in pullComplete toast.
+- **v1.4** Python finalize createdAt corruption — yaml.safe_load auto-parses ISO timestamps to datetime objects, safe_dump re-serializes in Python's space-separator form which Zod `.datetime()` rejected. Schema loosened to `z.string()` + custom representer added to finalize Python.
+- **v1.5** WHAT finalize parity rewrite — was Python yaml round-trip; now yq + fail-loudly-on-runId + meta.status forward-roll + chain-ladder append. OKR detail + list now render error banner. BasePanel.postMessage routes error-typed messages to Logger so bug-report icon captures them.
+- **v1.6** per-persona reviewer scores in audit comment (parses PR body → artifact md → b29-chain), audit comment shape consistent across WHY/HOW/WHAT, NCMS-aligned code-design prompt packs (`SYNTHESIZE_DESIGN_PROMPT` 10-section structure + concrete code snippets + Design Rationale & Research Traceability section), legacy "Phase A/B/C" terms stripped from user-facing OKR strings.
+
+*Architectural refactors (done-done close-out):*
+- **Refactor 3a** — audit-event payload contract pinned. New `vscode-extension/design/audit-event-shape.md` documents the flat-merge behavior of `auditMetadata` → `payload` (the cause of the v1.1 #27 bug). Regression test in `runner/skills.test.ts` asserts handler `auditMetadata` lands FLAT in payload, canonical fields (`skill`/`ok`/`duration_ms`/`reason`) win on collision, `payload.audit_metadata` IS undefined. Future SKILL handlers can't quietly nest and re-introduce the bug.
+- **Refactor 3b** — phase-spec single source of truth. New `src/types/phaseSpec.ts` is THE authoritative map of per-phase strings (agent name, all label variants, artifact path, workflow file, meta-status transitions, prior-phase, persona-switch skill names). LookingGlassPanel + okrDetail call sites refactored to read from it (6 ternaries → single `phaseSpec(phase).field` reads). Cross-layer consistency tests (`phaseSpec.test.ts`) assert every label/agent/workflow phaseSpec references is also in MESH_LABELS / MESH_AGENTS / MESH_WORKFLOWS — drift FAILS at test time, not at production-run time (the v1.2 missing-`design-pass` bug now mechanically impossible).
+- **Refactor 3c** — composite `finalize-okr-action` ("5 ways to finalize" → 1). New `.github/actions/finalize-okr-action/action.yml` is the canonical finalize body. All three per-agent workflows delegate via `uses: ./.github/actions/finalize-okr-action` with phase-specific inputs. ~270 LOC of duplicated bash collapsed to ~40 LOC of YAML across the three workflows. Inherits both guards from the WHY/HOW pattern (fail-loudly-on-runId-mismatch + meta.status downgrade-guard). Composite registered in MESH_WORKFLOWS so Deploy All ships it to mesh.
 
 **One cosmetic follow-up (doesn't block Phase E):**
 - **UI source-cite display** — Looking Glass WHY card renders `S1–S<huge number>` (some max-S regex matches a multi-digit run elsewhere in the doc). Cosmetic; doesn't affect verdict.
