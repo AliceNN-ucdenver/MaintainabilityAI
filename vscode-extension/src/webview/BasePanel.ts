@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { handleError } from '../utils/errors';
+import { logger } from '../utils/Logger';
 
 /**
  * Abstract base class that eliminates shared boilerplate across all webview panels.
@@ -33,8 +34,25 @@ export abstract class BasePanel<TWebviewMsg, TExtMsg> {
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
   }
 
-  /** Send a typed message to the webview. */
+  /**
+   * Send a typed message to the webview.
+   *
+   * D-PR1.v1.5 — error-typed messages also flow into the Logger buffer
+   * so the status-bar bug-report icon captures them in its log export.
+   * Previously every `postMessage({type:'error', message:...})` call
+   * showed the error to the user but never landed in the Logger, so
+   * the bug-report export was missing all the panel-side error context.
+   * Routing through the Logger here is the single point of capture
+   * across every panel (LookingGlass, Scaffold, Oracular, etc.) without
+   * touching the 100+ individual error call sites.
+   */
   protected postMessage(message: TExtMsg): void {
+    if (typeof message === 'object' && message !== null) {
+      const m = message as unknown as { type?: string; message?: string };
+      if (m.type === 'error' && typeof m.message === 'string') {
+        logger.error(`[webview] ${m.message}`);
+      }
+    }
     this.panel.webview.postMessage(message);
   }
 

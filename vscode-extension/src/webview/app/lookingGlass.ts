@@ -1534,18 +1534,32 @@ function renderView(): string {
     case 'create-bar': content = renderCreateBarForm(); break;
     case 'org-scanner': content = renderOrgScanner(); break;
     case 'settings': content = renderSettings(); break;
-    case 'okr-list': content = renderOkrListView({ okrs: state.okrs, isLoading: state.okrsLoading }); break;
-    case 'okr-detail': content = renderOkrDetailView({
-      okr: state.currentOkr,
-      affectedBars: state.currentOkrAffectedBars,
-      mode: state.currentOkrMode,
-      availablePlatforms: state.currentOkrAvailablePlatforms,
-      availableBars: state.currentOkrAvailableBars,
-      gitStatus: state.gitStatus,
-      phaseSignals: state.okrPhaseSignals,
-    })
-      + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
-      + (state.startPhaseModalOpen ? renderStartPhaseModal() : ''); break;
+    case 'okr-list':
+      // D-PR1.v1.5 — render the error banner inline at the top of the
+      // OKR list view, matching the pattern every other view (portfolio,
+      // bar-detail, settings, etc.) uses. Without this, panel-side
+      // errorMessage state on the OKR list went unsurfaced and looked
+      // like the page just wasn't responding.
+      content = (state.errorMessage ? `<div class="error-msg">${escapeHtml(state.errorMessage)}</div>` : '')
+        + renderOkrListView({ okrs: state.okrs, isLoading: state.okrsLoading });
+      break;
+    case 'okr-detail':
+      // Same error banner pattern as okr-list above. The OKR detail page
+      // was the only top-level view that swallowed panel-side errors;
+      // user surfaced this in the v1.5 code review.
+      content = (state.errorMessage ? `<div class="error-msg">${escapeHtml(state.errorMessage)}</div>` : '')
+        + renderOkrDetailView({
+          okr: state.currentOkr,
+          affectedBars: state.currentOkrAffectedBars,
+          mode: state.currentOkrMode,
+          availablePlatforms: state.currentOkrAvailablePlatforms,
+          availableBars: state.currentOkrAvailableBars,
+          gitStatus: state.gitStatus,
+          phaseSignals: state.okrPhaseSignals,
+        })
+        + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
+        + (state.startPhaseModalOpen ? renderStartPhaseModal() : '');
+      break;
     default: content = renderNoMesh(); break;
   }
   // Overlay: platform governance editor modal

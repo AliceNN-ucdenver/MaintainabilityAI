@@ -541,110 +541,92 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Append chain-ladder WHAT entry + flip action.status
+      # D-PR1.v1.5 — rewrite of the finalize body to mirror the canonical
+      # WHY (market-research-agent.yml) + HOW (prd-agent.yml) pattern.
+      # The previous Python yaml.safe_load/dump round-trip corrupted
+      # createdAt timestamps + dropped meta.status + completedAt + the
+      # fail-loudly-on-missing-runId hardening. This step is now a direct
+      # port of the HOW finalize, with the appropriate phase + status
+      # transitions swapped (HOW → WHAT, prd-pending → design-pending →
+      # building). yq does surgical edits without parsing/reformatting,
+      # so existing format-stable fields stay format-stable.
+      - name: Flip OKR action.status to complete + meta.status to building
         if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
-        env:
-          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
-          RUN_ID: ${{ steps.ctx.outputs.run_id }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
-          PARENT_INTENT_THREAD: ${{ steps.ctx.outputs.parent_intent_thread }}
-          CHAIN_ROOT_HASH: ${{ steps.ctx.outputs.chain_root_hash }}
         run: |
-          python3 <<'PYEOF'
-          import os, yaml
-          from datetime import datetime, timezone, date
+          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
+          if [ ! -f "$OKR_FILE" ]; then
+            echo "::warning::okr.yaml missing — skipping status flip"
+            exit 0
+          fi
+          # 1. Flip THIS action's status to complete. FAIL LOUDLY if the
+          #    runId doesn't match any action — silent no-op was the bug
+          #    that left ACT-10 stuck in_progress on PR #97 (dispatch-
+          #    time commit never pushed → finalize ran against remote
+          #    that lacked the action → yq selector matched 0 → no flip
+          #    → run marked success despite half-doing-the-job). Same
+          #    hardening that ships in market-research-agent.yml +
+          #    prd-agent.yml finalize jobs.
+          RUN_ID="${{ steps.ctx.outputs.run_id }}"
+          MATCHED=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .runId" "$OKR_FILE" | wc -l | tr -d ' ')
+          if [ "$MATCHED" -eq 0 ]; then
+            echo "::error title=Action runId not found::yq select(.runId == \"$RUN_ID\") matched 0 actions in $OKR_FILE. The dispatch-time commit may not have been pushed to remote before this merge. Push the missing commit (or add the action manually) and re-run this workflow. Listing current action runIds for triage:"
+            yq -r '.actions[] | "  - " + .id + " runId=" + .runId + " status=" + .status' "$OKR_FILE"
+            exit 1
+          fi
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"complete\"" "$OKR_FILE"
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .completedAt) = \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"" "$OKR_FILE"
+          # Persist chain_root_hash on the action so Looking Glass can
+          # render the Knight's Seal badge + View Tag / Verify Chain
+          # buttons on the WHAT card (gated on action.hatterChainRoot
+          # being non-empty). Matches the WHY + HOW finalize behavior;
+          # the user's "no hatter no seal" observation on PR #122
+          # traced to this field never being written.
+          CHAIN_ROOT_HASH="${{ steps.ctx.outputs.chain_root_hash }}"
+          if [ -n "$CHAIN_ROOT_HASH" ]; then
+            yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot) = \"$CHAIN_ROOT_HASH\"" "$OKR_FILE"
+          else
+            echo "::warning::No chain_root_hash extracted from Hatter Tag — actions[].hatterChainRoot left empty; UI seal badge will not render for this run. The agent's code-design.md frontmatter likely still says \`chain_root_hash: <write at finalize>\` placeholder — extract-okr-context can't resolve it from a placeholder. Fix in the agent prompt OR write the chain head into the artifact from this workflow before extracting."
+          fi
+          # 2. Roll OKR.meta.status forward: design-pending -> building.
+          # design-bus.yml fan-out (D-PR4) eventually flips it to shipped
+          # once all target_code_repos report shipped. Guarded so a re-run
+          # of WHAT after fan-out already started doesn't downgrade.
+          CURRENT_STATUS=$(yq -r '.meta.status' "$OKR_FILE")
+          if [ "$CURRENT_STATUS" = "design-pending" ]; then
+            yq -i '.meta.status = "building"' "$OKR_FILE"
+          fi
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
 
-          # D-PR1.v1.4 — register a custom representer for datetime/date so
-          # yaml.safe_dump serializes them as ISO 8601 STRINGS (with the
-          # canonical `T` separator) instead of Python's native format
-          # (`2026-05-22 15:35:51.445000+00:00` — space separator, micro-
-          # seconds, offset). Without this, yaml.safe_load auto-parsed
-          # the existing ISO strings into datetime objects, and re-dump
-          # serialized them in the Python format which the extension's
-          # Zod schema (`z.string().datetime()`) silently rejected,
-          # making the entire OKR card unreadable + invisible in the
-          # UI's list view.
-          def _datetime_to_iso(dumper, data):
-              # Emit as a YAML string scalar; quoted form so YAML's own
-              # timestamp re-parse on next safe_load keeps it a STRING
-              # not a datetime object.
-              s = data.isoformat()
-              # Normalize "+00:00" → "Z" for shorter, cleaner ISO 8601
-              # (matches what JS new Date().toISOString() produces).
-              if s.endswith('+00:00'):
-                  s = s[:-6] + 'Z'
-              return dumper.represent_scalar('tag:yaml.org,2002:str', s, style="'")
-          yaml.SafeDumper.add_representer(datetime, _datetime_to_iso)
-          yaml.SafeDumper.add_representer(date, _datetime_to_iso)
+          # 3. Append this run to chain-ladder.yaml. Same shape as the
+          # HOW finalize — phase: what, parent_intent_thread resolves to
+          # the most-recent HOW action's intentThreadUuid (the OKR's
+          # master thread is used as fallback). Read the action's
+          # intentThreadUuid + hatterChainRoot from the now-updated card
+          # so the ladder entry reflects the post-flip state.
+          LADDER="okrs/${{ steps.ctx.outputs.okr_id }}/audit/chain-ladder.yaml"
+          if [ ! -f "$LADDER" ]; then
+            printf '%s\n' '# Cross-phase audit chain ladder. Written by each agent workflow on PR merge.' 'chain: []' > "$LADDER"
+          fi
+          OKR_THREAD=$(yq -r '.meta.intentThreadUuid // ""' "$OKR_FILE")
+          ACTION_THREAD=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .intentThreadUuid // \"\"" "$OKR_FILE")
+          CHAIN_ROOT=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot // \"\"" "$OKR_FILE")
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          PHASE="what"
+          # Parent intent thread: HOW's action.intentThreadUuid for WHAT.
+          # Resolve by reading the most-recent prior action with phase==how
+          # if multiple exist (re-runs). Fallback to OKR root thread.
+          PARENT_THREAD=$(yq -r "[.actions[] | select(.phase == \"how\")] | .[-1].intentThreadUuid // \"$OKR_THREAD\"" "$OKR_FILE")
+          yq -i \
+            "(.chain) += [{\"phase\": \"$PHASE\", \"run_id\": \"$RUN_ID\", \"intent_thread_uuid\": \"$ACTION_THREAD\", \"parent_intent_thread\": \"$PARENT_THREAD\", \"chain_root_hash\": \"$CHAIN_ROOT\", \"merge_commit_sha\": \"$MERGE_SHA\", \"merged_at\": \"$NOW\", \"pr_number\": ${{ github.event.pull_request.number }}}]" \
+            "$LADDER"
 
-          okr_id = os.environ['OKR_ID']
-          run_id = os.environ['RUN_ID']
-          pr_url = os.environ['PR_URL']
-          itu = os.environ.get('INTENT_THREAD_UUID', '')
-          pit = os.environ.get('PARENT_INTENT_THREAD', '')
-          crh = os.environ.get('CHAIN_ROOT_HASH', '')
-
-          # 1. Append chain-ladder entry.
-          ladder_path = f'okrs/{okr_id}/audit/chain-ladder.yaml'
-          ladder = {'entries': []}
-          if os.path.exists(ladder_path):
-              with open(ladder_path) as f:
-                  ladder = yaml.safe_load(f) or {'entries': []}
-          ladder.setdefault('entries', []).append({
-              'phase': 'what',
-              'run_id': run_id,
-              'intent_thread_uuid': itu,
-              'parent_intent_thread': pit,
-              'chain_root_hash': crh,
-              'pr_url': pr_url,
-              'merged_at': datetime.now(timezone.utc).isoformat(),
-          })
-          with open(ladder_path, 'w') as f:
-              yaml.safe_dump(ladder, f, sort_keys=False)
-
-          # 2. Flip action.status to complete + record chainRootHash.
-          okr_yaml = f'okrs/{okr_id}/okr.yaml'
-          card = yaml.safe_load(open(okr_yaml))
-          # Defense in depth: walk the card and convert any datetime
-          # objects parsed by safe_load back to ISO strings BEFORE we
-          # modify + dump. The representer above handles the dump side
-          # but this ensures the in-memory representation is also
-          # string-shaped (e.g. if any downstream code reads from the
-          # card before dump).
-          def _stringify_datetimes(node):
-              if isinstance(node, dict):
-                  for k, v in list(node.items()):
-                      if isinstance(v, (datetime, date)):
-                          s = v.isoformat()
-                          if s.endswith('+00:00'):
-                              s = s[:-6] + 'Z'
-                          node[k] = s
-                      else:
-                          _stringify_datetimes(v)
-              elif isinstance(node, list):
-                  for i, v in enumerate(node):
-                      if isinstance(v, (datetime, date)):
-                          s = v.isoformat()
-                          if s.endswith('+00:00'):
-                              s = s[:-6] + 'Z'
-                          node[i] = s
-                      else:
-                          _stringify_datetimes(v)
-          _stringify_datetimes(card)
-          for a in (card or {}).get('actions', []):
-              if a.get('runId') == run_id:
-                  a['status'] = 'complete'
-                  if crh: a['hatterChainRoot'] = crh
-                  break
-          with open(okr_yaml, 'w') as f:
-              yaml.safe_dump(card, f, sort_keys=False)
-          print(f'finalized WHAT phase for {okr_id} run={run_id}')
-          PYEOF
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "okrs/${OKR_ID}/audit/chain-ladder.yaml" "okrs/${OKR_ID}/okr.yaml"
-          git commit -m "chore(code-design): finalize WHAT phase for ${OKR_ID} run=${RUN_ID}" || echo "nothing to commit"
-          git push origin main
-          echo "::notice::Finalized WHAT phase for $OKR_ID — design-bus.yml fan-out triggers next"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$OKR_FILE" "$LADDER"
+          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} WHAT complete (action ${{ steps.ctx.outputs.run_id }} -> complete; meta.status design-pending -> building; chain-ladder append; PR #${{ github.event.pull_request.number }})" || echo "Nothing to commit"
+          for i in 1 2 3; do
+            if git push; then break; fi
+            git fetch origin main && git rebase origin/main
+          done
+          echo "::notice::Finalized WHAT phase for ${{ steps.ctx.outputs.okr_id }} — design-bus.yml fan-out triggers next (D-PR4)"
