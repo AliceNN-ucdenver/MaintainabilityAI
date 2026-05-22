@@ -10,7 +10,23 @@ For cross-cutting concerns (audit chain, OKR card, orchestration), read [`agenti
 
 ## Current state
 
-**Phase D — in progress (2026-05-22).** Prerequisites all green (Phase A + B validated end-to-end via PR #116 + #118; Phase C orchestration in place per B24-post form; A12.v1.1 4-state repo status landed). MVP scope is **D-PR1 = D0 + D1 + D4 + D6 + D7** to get a runnable `code-design-agent` end-to-end on the IMDB-celebs sample. D2 + D3 review packs ship in D-PR2 (gated on D8 decision). D5 reference-repos Skill, D10 Looking Glass UX, D11 chain-ladder viz, D12 E2E smoke ship after D-PR2 in their own PRs.
+**Phase D — MVP shipped + v1.1 polish landed 2026-05-22, validated end-to-end on PR #120.** `code-design-agent` runs the full WHY → HOW → WHAT pipeline with the same B24 persona-switch the prd-agent uses, against the same end-to-end signed audit chain.
+
+Validation evidence from PR #120 (the open `governance-mesh` repo, IMDB-Celebs sample OKR):
+
+- **Chain**: 14 events, all 14 signed (`{sealed: true, sealVerified: true}`). Head `ba2071ffa65137ed…`.
+- **Brownfield clone**: `knowledge-code` ran against `imdb-react-frontend`, returned `mode: brownfield` with real SHA `4c554fbe6392`, walked 77 files (53 TypeScript + 3 JavaScript), detected 2 manifests + real top-dirs `[.github, automation, src]`. Brownfield section in `code-design.md` cites paths under the real `src/` top-dir.
+- **Greenfield design**: `knowledge-code` ran against the (nonexistent) `celeb-api` repo with `repoStatus: create`, returned `mode: greenfield` with scaffolding hints (TypeScript / Express / seed file list). Greenfield section in `code-design.md` is a scaffolding spec, not file-level changes.
+- **Persona-switch self-critique**: 4 `self-review-code-*` skill_calls (architect r1+r2 + security r1+r2). Scores `Code-Architect 0.91 MINOR → 0.97 PASS`, `Code-Security 0.90 MINOR → 0.96 PASS` — same convergence shape as PR #118 PRD-phase.
+- **Per-repo mode honesty**: every per-repo subsection in §4 + §5 of `code-design.md` carries `mode:` frontmatter matching the chain's knowledge-code response mode (verified by D-PR1.v1.1's fixed audit-and-drift workflow).
+
+**Remaining Phase D work** (not blocking current end-to-end runs):
+
+- **D5** `knowledge-reference-repos` Skill — optional reference-pattern grounding for greenfield targets. Ships in D-PR3.
+- **D8** decision — persona-switch (current) vs hybrid (escalate to separate code-grounded reviewers on Restricted tier). Recommendation pending D-PR1 production runs: keep persona-switch unless human reviewers flag code-grounded findings the agent missed.
+- **D9** `design-bus.yml` per-repo fan-out workflow (brownfield landing-issue + greenfield org-create + seed-commit). Ships in D-PR4.
+- **D10/D11** Looking Glass deeper UX — currently WHAT card surfaces signals via the cross-phase shared renderer; D-PR5 adds a Stage 5 Per-Repo Fan-Out card + Hatter chain-ladder visualization on OKR detail.
+- **D12** full pipeline E2E smoke including the fan-out hand-off. Ships in D-PR6.
 
 Why the WHAT phase is the *heaviest gate* in the entire pipeline:
 

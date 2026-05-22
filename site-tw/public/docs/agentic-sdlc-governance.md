@@ -560,7 +560,7 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 
 **MaintainabilityAI is the only tool that starts from the architecture model and makes governance real in the developer's workflow *and* the agent's tool call.**
 
-**Deterministic audit emission (Court Recorder Auto-Logging, B28).** Other "AI governance" products log what the agent *claims* it did — a self-report the LLM could fabricate, omit, or paraphrase. Hatter's Tea Party logs what the agent *demonstrably* did: the skill runtime emits the `skill_call` audit event before the result returns to the agent; the workflow re-derives `artifact_written` from the filesystem and `self_review` from structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. There is no skill API the LLM can call to "skip the audit," and nothing it writes can override what the runtime saw. This is the trust upgrade you can't buy — it's an architectural property, not a vendor feature.
+**Court Recorder Auto-Logging — deterministic event emission.** Other "AI governance" products log what the agent *claims* it did — a self-report the LLM could fabricate, omit, or paraphrase. Hatter's Tea Party logs what the agent *demonstrably* did: the agent grounding runtime emits the `skill_call` audit event before the result returns to the agent; the workflow re-derives `artifact_written` from the filesystem and `self_review` from structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. There is no skill API the LLM can call to "skip the audit," and nothing it writes can override what the runtime saw. This is the trust upgrade you can't buy — it's an architectural property, not a vendor feature.
 
 <div class="docs-center-block">
 <div class="docs-heading">Free. Open Source. Forever.</div>
@@ -689,7 +689,7 @@ Five actors the Hatter must withstand:
   <text x="494" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · Caterpillar's Challenge</text>
   <rect x="592" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="682" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.false-audit-fabrication</text>
-  <text x="682" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">verify-chain CI gate (B25)</text>
+  <text x="682" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">verify-chain CI gate</text>
   <!-- Status legend (relocated below the ASTRIDE row) -->
   <line x1="20" y1="368" x2="780" y2="368" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
   <text x="400" y="388" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">STATUS LEGEND (applies to all cells above)</text>
@@ -712,7 +712,7 @@ Five actors the Hatter must withstand:
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">Spoof · ✓ in design</div>
     <div class="docs-heading">Identity cannot be faked</div>
-    <div class="docs-copy">Every artifact is signed by the agent session that produced it. At PRD time, the same agent inhabits Architect + Security personas in bounded self-critique. Impersonation is structurally impossible because there are no separate reviewer agents to spoof. <strong>Knight's Seal v1 (Phase B, next push)</strong> adds a per-run cryptographic signature over the chain root + artifact bytes; tampering breaks the signature.</div>
+    <div class="docs-copy">Every artifact is signed by the agent session that produced it. At PRD and code-design time, the same agent inhabits Architect + Security personas in bounded self-critique. Impersonation is structurally impossible because there are no separate reviewer agents to spoof. <strong>Knight's Seal v1 (shipped)</strong> adds a per-run cryptographic signature over the chain root + artifact bytes; tampering breaks the signature.</div>
   </div>
   <div class="docs-card docs-card-amber">
     <div class="docs-card-kicker">Tamper · ✓ / 🛠</div>
@@ -727,12 +727,12 @@ Five actors the Hatter must withstand:
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Info disclosure · ⚠</div>
     <div class="docs-heading">Honest gaps we name</div>
-    <div class="docs-copy">LLM provider prompt retention is outside our trust boundary; we capture costs + token counts, not prompt bodies. Audit-export bundles include research, PRD, and design verbatim. There's no automated PII / IP / secrets redaction layer yet. Phase E will add one for external sharing.</div>
+    <div class="docs-copy">LLM provider prompt retention is outside our trust boundary; we capture costs + token counts, not prompt bodies. Audit-export bundles include research, PRD, and design verbatim. There's no automated PII / IP / secrets redaction layer yet — a redaction layer for external sharing is queued for a future release.</div>
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">DoS · ✓ / ⚠</div>
     <div class="docs-heading">Cost + blast-radius caps</div>
-    <div class="docs-copy">Per-Skill, per-agent, per-OKR, and per-org cost caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure. Open gap: per-OKR fan-out blast radius. One OKR can write landing issues to many target repos; cap + warn threshold queued for Phase C.</div>
+    <div class="docs-copy">Per-Skill, per-agent, per-OKR, and per-org cost caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure. Open gap: per-OKR fan-out blast radius. One OKR can write landing issues to many target repos; cap + warn threshold queued for a future release.</div>
   </div>
   <div class="docs-card docs-card-emerald">
     <div class="docs-card-kicker">Elevation of Privilege · ✓ / 🛠 / ⚠</div>
@@ -753,7 +753,7 @@ Five actors the Hatter must withstand:
 |---|---|---|:-:|
 | **Spoof** | Reviewer impersonates the author on the same PR | At PRD time there is no separate reviewer agent — the prd-agent inhabits Architect + Security personas in bounded self-critique, so impersonation is structurally impossible (same author DID across personas; each persona-round emits its own audit event). At code-design time the same Tweedles check applies if separate code-grounded reviewer agents are reintroduced — `author_did` from PR-description Hatter Tag must differ from any dispatched reviewer DID; collision = `tweedles-violation` label | ✓ |
 | **Spoof** | Dual-signature override second-signer is impersonated | Fingerprint validation tying request to OKR + phase + reason + timestamp; Signer 2 confirmed via GitHub commenter handle or signed YAML commit; signer ≠ signer | ✓ |
-| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag at Phase A; **Knight's Seal v1 — per-run ephemeral Ed25519 keypair** signs the chain-root hash + artifact SHA in Phase B (next push); `seal-broken` CI label blocks merge on signature mismatch. Cosign-anchored persistent signing for long-term third-party verifiability is a future enhancement | 🛠 |
+| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag; **Knight's Seal v1 — per-run ephemeral Ed25519 keypair** signs the chain-root hash + artifact SHA on every event (shipped); `seal-broken` CI label blocks merge on signature mismatch. Cosign-anchored persistent signing for long-term third-party verifiability is a future enhancement | ✓ |
 | **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain | 🛠 |
 | **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id; POSIX advisory locking within file; per-run filenames prevent cross-run collision | ✓ |
 | **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel | ✓ |
@@ -761,20 +761,20 @@ Five actors the Hatter must withstand:
 | **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes | ✓ |
 | **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow | ✓ |
 | **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted | ✓ |
-| **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal v1** (Phase B, B27) signs the chain-root + artifact SHA with a per-run Ed25519 keypair so the agent's own session is the only thing that could have produced the signature. Persistent third-party verifiability (cosign / sigstore) is a future enhancement | 🛠 |
+| **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal v1** (shipped) signs the chain-root + artifact SHA with a per-run Ed25519 keypair so the agent's own session is the only thing that could have produced the signature. Persistent third-party verifiability (cosign / sigstore) is a future enhancement | ✓ |
 | **Info disclosure** | LLM provider retains our prompts indefinitely | Out of our trust boundary; the design captures cost + token counts only, not prompt bodies | ⚠ |
 | **Info disclosure** | Sensitive research-source content lands in audit export | Pure-data Skills emit structured findings; no automated sensitive-content classification on results | ⚠ |
-| **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) — Phase E follow-on | ⚠ |
+| **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) — queued for a future release | ⚠ |
 | **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments | ✓ |
 | **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy; workflow `timeout-minutes` on every bus workflow | ✓ |
-| **DoS** | Fan-out blast radius — one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; `design-bus.yml` will write an issue per entry. Cap + warn threshold queued for Phase C | ⚠ |
+| **DoS** | Fan-out blast radius — one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; `design-bus.yml` will write an issue per entry. Cap + warn threshold queued for a future release | ⚠ |
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference — the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
-| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; sanitization layer + data-vs-instructions partitioning is a Phase B+ research item | ✓ |
+| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; sanitization layer + data-vs-instructions partitioning is a research item | ✓ |
 | **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` detect poisoned state across runs | ✓ |
 | **ASTRIDE: A.inter-agent-influence** | Upstream agent's output steers a downstream agent | Partial coverage via Caterpillar's Challenge cross-phase semantic-drift check (PRD vs research; design vs PRD); full coverage requires agent-to-agent provenance signing | 🛠 |
-| **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge `verify-chain` CI step replays the SHA-256 chain independently of the runner; mismatch applies `chain-forgery-detected` and blocks merge. Closed in B25 | ✓ |
+| **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge `verify-chain` CI step replays the SHA-256 chain independently of the runner; mismatch applies `chain-forgery-detected` and blocks merge (shipped) | ✓ |
 
 </details>
 
@@ -793,17 +793,17 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Framework 2 · ✓ 6 of 6 controls</div>
     <div class="docs-heading">AEGIS Pre-Execution Firewall</div>
-    <div class="docs-copy">Runtime cryptographic controls for agentic tool calls: Ed25519 signing + SHA-256 hash-chained audit. Direct lineage to our <code>audit-emit-event</code> skill. Three recent landings: B25 (pre-merge chain re-verification CI gate), B27 (Knight's Seal v1 — per-run ephemeral Ed25519 signing of every event), and <strong>B28 (Court Recorder Auto-Logging) — the LLM cannot write to the audit log; only deterministic runtime + workflow code can</strong>. The trust story is no longer "verify the chain after the fact" but "the emitter is provably not the agent." <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
+    <div class="docs-copy">Runtime cryptographic controls for agentic tool calls: Ed25519 signing + SHA-256 hash-chained audit. Direct lineage to our <code>audit-emit-event</code> skill. Three recent landings: a pre-merge chain re-verification CI gate (forged-hash detection); Knight's Seal v1 (per-run ephemeral Ed25519 signing of every event); and <strong>Court Recorder Auto-Logging — the LLM cannot write to the audit log; only deterministic runtime + workflow code can</strong>. The trust story is no longer "verify the chain after the fact" but "the emitter is provably not the agent." <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Framework 3 · 🛠 partial</div>
     <div class="docs-heading">Aegis Protocol</div>
-    <div class="docs-copy">Cryptographic protocol for open agentic ecosystems: W3C DIDs for identity, NIST PQC for communication, Halo2 ZKP for verifiable policy. Formalizes "Excessive Agency" as a game. We map it directly to <strong>Pocket Watch goal-drift</strong>: when an agent's PR scope diverges too far from the OKR objective (cosine &lt; 0.85), agency has been exceeded and merge is refused. ZKP policy proofs are a Phase B+ candidate when third-party verifiable attestation becomes a requirement. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></span></div>
+    <div class="docs-copy">Cryptographic protocol for open agentic ecosystems: W3C DIDs for identity, NIST PQC for communication, Halo2 ZKP for verifiable policy. Formalizes "Excessive Agency" as a game. We map it directly to <strong>Pocket Watch goal-drift</strong>: when an agent's PR scope diverges too far from the OKR objective (cosine &lt; 0.85), agency has been exceeded and merge is refused. ZKP policy proofs are a future candidate when third-party verifiable attestation becomes a requirement. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></span></div>
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Framework 4 · ✓ 4 of 4 A-categories</div>
     <div class="docs-heading">ASTRIDE</div>
-    <div class="docs-copy">Formal STRIDE extension that adds an "A" category for AI-agent-specific attacks: prompt manipulation, memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above shows the agent-side controls. <code>A.false-audit-fabrication</code> surfaced on PR #105 and is closed by three layered defenses: B25's pre-merge <code>verify-chain</code> CI gate (forged-hash detection), B27 Knight's Seal v1 (Ed25519 sealing of every event), and <strong>B28 Court Recorder Auto-Logging (deterministic emission — the agent has nothing to forge because it doesn't write the log)</strong>. Companion threats <strong>A.audit-skip</strong> (agent omits events to hide failures) and <strong>A.audit-forge-payload</strong> (agent fabricates artifact_written / self_review content) are closed by the same B28 design. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></span></div>
+    <div class="docs-copy">Formal STRIDE extension that adds an "A" category for AI-agent-specific attacks: prompt manipulation, memory poisoning, inter-agent influence. The STRIDE+ASTRIDE coverage SVG above shows the agent-side controls. <code>A.false-audit-fabrication</code> surfaced on a real PR and is closed by three layered defenses: a pre-merge <code>verify-chain</code> CI gate (forged-hash detection), Knight's Seal v1 (Ed25519 sealing of every event), and <strong>Court Recorder Auto-Logging (deterministic emission — the agent has nothing to forge because it doesn't write the log)</strong>. Companion threats <strong>A.audit-skip</strong> (agent omits events to hide failures) and <strong>A.audit-forge-payload</strong> (agent fabricates artifact_written / self_review content) are closed by the same deterministic-emission design. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></span></div>
   </div>
 </div>
 
@@ -831,9 +831,9 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash`; `verify-chain` catches it offline | ✓ |
 | **Pre-merge chain re-verification (CI gate)** | `audit-and-drift` workflow replays the SHA-256 chain end-to-end against the canonical serialization before any PR can merge. Implemented inline (independent of the runner) so a runner bug can't silently pass. Applies `chain-forgery-detected` label and blocks merge on mismatch. Closed the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
-| **Deterministic emission (Court Recorder Auto-Logging, B28)** | The skill runtime emits `skill_call` events inside `runSkill()` itself — the agent has no API to call and no way to skip. Workflow re-derives `artifact_written` from `git diff` and `self_review` from parsing the agent's structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload | ✓ |
+| **Deterministic emission (Court Recorder Auto-Logging)** | The skill runtime emits `skill_call` events inside `runSkill()` itself — the agent has no API to call and no way to skip. Workflow re-derives `artifact_written` from `git diff` and `self_review` from parsing the agent's structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload | ✓ |
 | Pre-execution interception (log before side effect) | `runSkill()` wraps every handler: emit the audit event before the result returns to the caller. The window between "skill ran" and "audit recorded" doesn't exist — they're the same function | ✓ |
-| **Ed25519 per-run signing key (Knight's Seal v1)** | B27 lands per-run ephemeral Ed25519 keypair generated on first `audit-emit-event` call. Private key in `os.tmpdir()` (never the mesh repo), public key in `audit/keys/<runId>.pub.pem`, every event signed. CI re-verifies and surfaces a "🛡 Sealed" row in the PR audit comment + a green Sealed badge on the Looking Glass phase card. Cosign / sigstore-anchored persistent signing for year-old verifiability is a future enhancement (v2) | ✓ |
+| **Ed25519 per-run signing key (Knight's Seal v1)** | Per-run ephemeral Ed25519 keypair generated on first `audit-emit-event` call. Private key in `os.tmpdir()` (never the mesh repo), public key in `audit/keys/<runId>.pub.pem`, every event signed. CI re-verifies and surfaces a "🛡 Sealed" row in the PR audit comment + a green Sealed badge on the Looking Glass phase card. Cosign / sigstore-anchored persistent signing for year-old verifiability is a future enhancement (v2) | ✓ |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 
 </details>
@@ -866,18 +866,24 @@ No live system access. No proprietary tooling. Just SHA-256. Four checks land th
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Check 4 · Tamper detection</div>
     <div class="docs-heading">Modifications break the chain</div>
-    <div class="docs-copy">Any edit to a past audit event breaks every subsequent <code>prev_event_hash</code>. Knight's Seal v1 (B27, shipped) also signs every event with the run's per-run Ed25519 keypair, so substitution attempts fail the signature check too. The runner refuses to verify a chain where signatures are present on some events and missing on others (partial-signature tampering).</div>
+    <div class="docs-copy">Any edit to a past audit event breaks every subsequent <code>prev_event_hash</code>. Knight's Seal v1 (shipped) also signs every event with the run's per-run Ed25519 keypair, so substitution attempts fail the signature check too. The runner refuses to verify a chain where signatures are present on some events and missing on others (partial-signature tampering).</div>
   </div>
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Check 5 · Deterministic emitter</div>
     <div class="docs-heading">The LLM did not write the log</div>
-    <div class="docs-copy">Court Recorder Auto-Logging (B28, shipped) moves audit emission out of the agent's prompt and into the runner runtime + workflow. <code>skill_call</code> events are emitted inside <code>runSkill()</code> before the result returns to the agent. <code>artifact_written</code> events are emitted by the workflow from <code>git diff</code>. <code>self_review</code> events are parsed from structured PR-body blocks. The agent <strong>has no API to call</strong> and <strong>has nothing to skip</strong>. Trust shifts from "verify the chain after the fact" to "the emitter is provably not the LLM."</div>
+    <div class="docs-copy">Court Recorder Auto-Logging (shipped) moves audit emission out of the agent's prompt and into the runner runtime + workflow. <code>skill_call</code> events are emitted inside <code>runSkill()</code> before the result returns to the agent. <code>artifact_written</code> events are emitted by the workflow from <code>git diff</code>. <code>self_review</code> events are parsed from structured PR-body blocks. The agent <strong>has no API to call</strong> and <strong>has nothing to skip</strong>. Trust shifts from "verify the chain after the fact" to "the emitter is provably not the LLM."</div>
   </div>
 </div>
 
 > 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record — produced by deterministic code, not by the LLM.
 
-> 🎯 **Validated end-to-end (2026-05-22).** Phase A + Phase B both green on the IMDB-Celebs sample OKR — first two agents (`market-research-agent` and `prd-agent`) ran on Claude Sonnet 4.6 with every defense above firing on real merged PRs. Audit JSONLs in the open mesh repo show 19 events for WHY (PR&nbsp;#116, evidence_mode `mixed` honestly logging arXiv 429 + USPTO 404 + zero-result Hacker News searches), 13 events for HOW (PR&nbsp;#118, including the new B29 self-review provenance skills with `tier:supervised, should_proceed:true` — no tier hallucination). Both phases display the green 🛡 Sealed badge in Looking Glass; the chain-ladder file links the two phases via `parent_intent_thread`. The architecture's "the LLM cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion.
+> 🎯 **Validated end-to-end (2026-05-22).** All three Looking-Glass-side agents are now running on the open IMDB-Celebs sample OKR — `market-research-agent` (WHY), `prd-agent` (HOW), and `code-design-agent` (WHAT) — on Claude Sonnet 4.6 with every defense above firing on real merged PRs. Audit JSONLs in the open mesh repo show:
+>
+> - **WHY** — 19 events on PR&nbsp;#116, evidence_mode `mixed` honestly logging arXiv 429 + USPTO 404 + zero-result Hacker News searches.
+> - **HOW** — 13 events on PR&nbsp;#118, including the self-review provenance skills with `tier:supervised, should_proceed:true` (no tier hallucination), and Architect/Security personas converging from 0.88 / 0.87 MINOR to 0.97 / 0.96 PASS in two bounded rounds.
+> - **WHAT** — 14 events on PR&nbsp;#120, all signed. Two `knowledge-code` skill calls — one cloned the existing `imdb-react-frontend` repo at SHA `4c554fbe6392` (77 files walked, 53 TypeScript + 3 JavaScript), the other returned a greenfield scaffolding spec for the `celeb-api` repo that doesn't exist yet. The Code-Architect + Code-Security personas converged MINOR→PASS in two rounds (0.91→0.97 and 0.90→0.96). Same Skill, same chain, two distinct grounding modes — both recorded in the audit metadata so an auditor can see the agent didn't hallucinate either side.
+>
+> Every phase displays the green 🛡 Sealed badge in Looking Glass; the chain-ladder file links the three phases via `parent_intent_thread`. The architecture's "the LLM cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion.
 
 ### Honest gaps — what we will address
 
@@ -889,12 +895,12 @@ We publish this list publicly because honest design beats marketing claims, and 
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Highest impact</div>
     <div class="docs-heading">Prompt injection from external research</div>
-    <div class="docs-copy">A Tavily / arXiv / HN result containing crafted prompt-injection text can manipulate the market-research-agent into following attacker-supplied instructions. Mitigation requires a sanitization layer on Skill outputs and an agent-prompt structure that explicitly partitions data from instructions. Research item; not in Phase B scope.</div>
+    <div class="docs-copy">A Tavily / arXiv / HN result containing crafted prompt-injection text can manipulate the market-research-agent into following attacker-supplied instructions. Mitigation requires a sanitization layer on Skill outputs and an agent-prompt structure that explicitly partitions data from instructions. Research item; not on the current roadmap.</div>
   </div>
-  <div class="docs-card docs-card-amber">
-    <div class="docs-card-kicker">Phase B — planned next</div>
+  <div class="docs-card docs-card-emerald">
+    <div class="docs-card-kicker">Shipped</div>
     <div class="docs-heading">Knight's Seal — Ed25519 signing</div>
-    <div class="docs-copy">Phase A enforces author identity via GitHub App installation ID + system-prompt SHA stamped on every Hatter Tag. <strong>Knight's Seal v1 (B27 in the implementation plan) ships an ephemeral per-run Ed25519 keypair</strong> — generated at agent dispatch, signs the chain-root hash + final artifact SHA, public key + signature posted in the <code>artifact_written</code> audit event, private key destroyed at session end. CI verifies the signature before merge and blocks with <code>seal-broken</code> on mismatch. Looking Glass surfaces a <em>"Phase seal-checked ✓"</em> badge on each phase card so reviewers see the signature status without leaving the UI. <strong>Future evolution:</strong> persistent signing via cosign / sigstore so a third-party auditor can verify a year-old artifact without trusting the public key embedded in its own audit log.</div>
+    <div class="docs-copy">Author identity is enforced via GitHub App installation ID + system-prompt SHA stamped on every Hatter Tag. <strong>Knight's Seal v1 ships an ephemeral per-run Ed25519 keypair</strong> — generated at agent dispatch, signs the chain-root hash + final artifact SHA, public key + signature posted in the <code>artifact_written</code> audit event, private key destroyed at session end. CI verifies the signature before merge and blocks with <code>seal-broken</code> on mismatch. Looking Glass surfaces a green 🛡 Sealed badge on each phase card so reviewers see the signature status without leaving the UI. <strong>Future evolution:</strong> persistent signing via cosign / sigstore so a third-party auditor can verify a year-old artifact without trusting the public key embedded in its own audit log.</div>
   </div>
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Future — cosign era</div>
@@ -909,12 +915,12 @@ We publish this list publicly because honest design beats marketing claims, and 
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">Policy gap</div>
     <div class="docs-heading">Org-separation on dual-signature override</div>
-    <div class="docs-copy">Today: Signer 2 ≠ Signer 1, both must be human, both must have authority per the org's documented override policy. Not enforced: same-team coordination. Two engineers on the same team can pre-arrange overrides and the workflow won't catch it. Org-graph-based enforcement (different team, different cost-center) is a Phase C+ work item.</div>
+    <div class="docs-copy">Today: Signer 2 ≠ Signer 1, both must be human, both must have authority per the org's documented override policy. Not enforced: same-team coordination. Two engineers on the same team can pre-arrange overrides and the workflow won't catch it. Org-graph-based enforcement (different team, different cost-center) is queued for a future release.</div>
   </div>
   <div class="docs-card docs-card-emerald">
     <div class="docs-card-kicker">Compliance</div>
     <div class="docs-heading">Audit Report Export redaction</div>
-    <div class="docs-copy">The bundle includes merged research, PRD, and code-design verbatim. If the export is shared with an external auditor or regulator, IP details in the design surface to that audience. A redaction layer (PII / IP / secrets scrubbing) is a Phase E follow-on. Today: the export is intended for internal audit only.</div>
+    <div class="docs-copy">The bundle includes merged research, PRD, and code-design verbatim. If the export is shared with an external auditor or regulator, IP details in the design surface to that audience. A redaction layer (PII / IP / secrets scrubbing) is queued for a future release. Today: the export is intended for internal audit only.</div>
   </div>
 </div>
 
