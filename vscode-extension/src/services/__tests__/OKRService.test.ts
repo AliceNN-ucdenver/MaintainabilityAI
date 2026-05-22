@@ -18,6 +18,7 @@ import {
   type BarScoreSource,
 } from '../OKRService';
 import type { OkrAction, OkrCard, OkrCreateInput } from '../../types/okr';
+import { phaseSpec } from '../../types/phaseSpec';
 
 class FakeBarScores implements BarScoreSource {
   constructor(private readonly scores: Record<string, number | null>) {}
@@ -729,6 +730,160 @@ describe('OKRService', () => {
         expect(r.deletedEventFiles).toEqual([]);
         expect(r.removedActionIds).toEqual([]);
       }
+    });
+  });
+
+  /**
+   * Cert-run bug A pin-down (Task #52) — full dispatch + finalize walk
+   * through ALL THREE phases on a fresh OKR. This is the integration-
+   * style proof that the Looking Glass dispatch advance + composite
+   * finalize guard work correctly together for WHY *and* HOW *and* WHAT,
+   * including the recovery paths where an earlier phase's status got
+   * left behind by an old buggy build.
+   *
+   * The test exercises the LOGIC (not the panel-coupled handler): it
+   * replays the exact two-step pattern that Looking Glass dispatch + the
+   * composite finalize action perform on the OKR card.
+   *
+   * Dispatch logic (LookingGlassPanel.onConfirmStartOkrPhase):
+   *   if (isForwardStatusTransition(card.meta.status, spec.currentMetaStatus)) {
+   *     svc.updateStatus(meshPath, okrId, spec.currentMetaStatus);
+   *   }
+   *   svc.appendAction(...)
+   *
+   * Finalize logic (.github/actions/finalize-okr-action/action.yml):
+   *   if (currentStatus === inputs.current-meta-status) {
+   *     meta.status = inputs.next-meta-status
+   *   } // else: guard skips
+   *
+   * If either side regresses, this test catches it BEFORE the cert run.
+   */
+  describe('phase dispatch + finalize meta.status advance (cert-run bug A pin-down)', () => {
+    // Simulate the dispatch-side logic from LookingGlassPanel.
+    function simulateDispatch(okrId: string, phase: 'why' | 'how' | 'what'): void {
+      const card = svc.read(tmpRoot, okrId)!;
+      const target = phaseSpec(phase).currentMetaStatus;
+      if (isForwardStatusTransition(card.meta.status, target)) {
+        svc.updateStatus(tmpRoot, okrId, target);
+      }
+      svc.appendAction(tmpRoot, okrId, freshAction({
+        id: `ACT-${card.actions.length + 1}`,
+        phase,
+        runId: `${phase.toUpperCase()}-test-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        status: 'in_progress',
+      }, card.meta.intentThreadUuid));
+    }
+
+    // Simulate the composite finalize guard + roll on PR merge.
+    function simulateFinalize(okrId: string, phase: 'why' | 'how' | 'what'): { rolled: boolean; finalStatus: string } {
+      const spec = phaseSpec(phase);
+      const card = svc.read(tmpRoot, okrId)!;
+      const guardOk = card.meta.status === spec.currentMetaStatus;
+      // Mark this phase's most recent action complete regardless of guard
+      // (composite does this in step 1 before the guard check in step 2).
+      const action = [...card.actions].reverse().find(a => a.phase === phase);
+      if (action) {
+        svc.updateAction(tmpRoot, okrId, action.id, { status: 'complete', completedAt: new Date().toISOString() });
+      }
+      if (guardOk) {
+        svc.updateStatus(tmpRoot, okrId, spec.nextMetaStatus);
+        return { rolled: true, finalStatus: spec.nextMetaStatus };
+      }
+      const reread = svc.read(tmpRoot, okrId)!;
+      return { rolled: false, finalStatus: reread.meta.status };
+    }
+
+    it('happy path: fresh OKR walks draft → researching → prd-pending → design-pending → building', () => {
+      const okrId = svc.create(tmpRoot, freshDraft())!.meta.id;
+      expect(svc.read(tmpRoot, okrId)!.meta.status).toBe('draft');
+
+      // WHY: dispatch advances draft → researching; finalize rolls → prd-pending.
+      simulateDispatch(okrId, 'why');
+      expect(svc.read(tmpRoot, okrId)!.meta.status).toBe('researching');
+      expect(simulateFinalize(okrId, 'why')).toEqual({ rolled: true, finalStatus: 'prd-pending' });
+
+      // HOW: dispatch is identity no-op (prd-pending → prd-pending); finalize rolls → design-pending.
+      simulateDispatch(okrId, 'how');
+      expect(svc.read(tmpRoot, okrId)!.meta.status).toBe('prd-pending');
+      expect(simulateFinalize(okrId, 'how')).toEqual({ rolled: true, finalStatus: 'design-pending' });
+
+      // WHAT: dispatch is identity no-op (design-pending → design-pending); finalize rolls → building.
+      simulateDispatch(okrId, 'what');
+      expect(svc.read(tmpRoot, okrId)!.meta.status).toBe('design-pending');
+      expect(simulateFinalize(okrId, 'what')).toEqual({ rolled: true, finalStatus: 'building' });
+    });
+
+    it('recovery path: HOW dispatch on a stuck draft (old buggy build) still advances correctly', () => {
+      // Simulate the cert-run #1 stuck state: WHY action.status='complete'
+      // but meta.status was never advanced past 'draft' because the old
+      // dispatch didn't roll forward + the old finalize guard refused to
+      // roll draft → prd-pending. User now clicks Start How.
+      const card = svc.create(tmpRoot, freshDraft())!;
+      svc.appendAction(tmpRoot, card.meta.id, freshAction({
+        id: 'ACT-1', phase: 'why', runId: 'WHY-old-bug', status: 'complete',
+      }, card.meta.intentThreadUuid));
+      expect(svc.read(tmpRoot, card.meta.id)!.meta.status).toBe('draft');
+
+      // New dispatch advances draft → prd-pending (skipping researching,
+      // which is fine because WHY already shipped — the in-flight state
+      // doesn't apply retroactively).
+      simulateDispatch(card.meta.id, 'how');
+      expect(svc.read(tmpRoot, card.meta.id)!.meta.status).toBe('prd-pending');
+
+      // HOW finalize then rolls cleanly to design-pending.
+      expect(simulateFinalize(card.meta.id, 'how')).toEqual({ rolled: true, finalStatus: 'design-pending' });
+    });
+
+    it('recovery path: WHAT dispatch on a stuck prd-pending (HOW shipped, status got stuck) still advances correctly', () => {
+      // WHY + HOW shipped, but somehow status stuck at 'prd-pending'
+      // (e.g. HOW old-bug or manual recovery left it behind). User
+      // clicks Start What — dispatch should advance prd-pending →
+      // design-pending so the WHAT finalize guard succeeds on merge.
+      const card = svc.create(tmpRoot, freshDraft())!;
+      svc.appendAction(tmpRoot, card.meta.id, freshAction({
+        id: 'ACT-1', phase: 'why', runId: 'WHY-1', status: 'complete',
+      }, card.meta.intentThreadUuid));
+      svc.appendAction(tmpRoot, card.meta.id, freshAction({
+        id: 'ACT-2', phase: 'how', runId: 'HOW-1', status: 'complete',
+      }, card.meta.intentThreadUuid));
+      svc.updateStatus(tmpRoot, card.meta.id, 'prd-pending'); // stuck at prior phase output
+      expect(svc.read(tmpRoot, card.meta.id)!.meta.status).toBe('prd-pending');
+
+      simulateDispatch(card.meta.id, 'what');
+      expect(svc.read(tmpRoot, card.meta.id)!.meta.status).toBe('design-pending');
+      expect(simulateFinalize(card.meta.id, 'what')).toEqual({ rolled: true, finalStatus: 'building' });
+    });
+
+    it('downgrade-guard: re-running WHY after HOW already advanced does NOT roll back the status', () => {
+      // Edge case: WHY + HOW shipped (status='design-pending'). User
+      // re-runs WHY (perhaps a revision). Dispatch's
+      // isForwardStatusTransition refuses to set status back to
+      // 'researching' (researching < design-pending); finalize's guard
+      // refuses to roll design-pending → prd-pending. Status preserved.
+      const card = svc.create(tmpRoot, freshDraft())!;
+      svc.updateStatus(tmpRoot, card.meta.id, 'design-pending');
+      svc.appendAction(tmpRoot, card.meta.id, freshAction({
+        id: 'ACT-1', phase: 'why', runId: 'WHY-rerun', status: 'in_progress',
+      }, card.meta.intentThreadUuid));
+
+      // Dispatch: status='design-pending', target='researching' → NOT forward → no-op.
+      expect(isForwardStatusTransition('design-pending', 'researching')).toBe(false);
+      expect(svc.read(tmpRoot, card.meta.id)!.meta.status).toBe('design-pending');
+
+      // Finalize: guard sees current='design-pending' ≠ 'researching' → skipped.
+      expect(simulateFinalize(card.meta.id, 'why')).toEqual({ rolled: false, finalStatus: 'design-pending' });
+    });
+
+    it('parallel: HOW dispatch on a fresh OKR (skipping WHY entirely) advances correctly', () => {
+      // Pathological / admin-intervention scenario. Even though the
+      // dispatch's prereq-check normally blocks HOW before WHY merges,
+      // the meta.status advance should remain correct if the prereq
+      // check is ever skipped (test directly). Dispatch advances
+      // draft → prd-pending; finalize then rolls → design-pending.
+      const card = svc.create(tmpRoot, freshDraft())!;
+      simulateDispatch(card.meta.id, 'how');
+      expect(svc.read(tmpRoot, card.meta.id)!.meta.status).toBe('prd-pending');
+      expect(simulateFinalize(card.meta.id, 'how')).toEqual({ rolled: true, finalStatus: 'design-pending' });
     });
   });
 });

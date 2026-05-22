@@ -4796,21 +4796,44 @@ const inboundHandlers: Record<string, InboundHandler> = {
       render();
     },
     'okrDetail': (message: WebviewInboundMessage) => {
-      state.currentOkr = message.okr as OkrCard;
+      // Task #54 flicker fix: distinguish FIRST view of an OKR (cold
+      // start — show "Loading…" placeholder) from a REFRESH of the OKR
+      // we're already showing (preserve previously-known signal data,
+      // mark phases as `refreshing` so the card header pulses but the
+      // metrics stay readable). Without this, every panelActivated /
+      // pull / post-audit poll wiped state.okrPhaseSignals → renderer
+      // showed "Loading…" → live fetch arrived a half-second later →
+      // metrics snapped back. That's the strange-flicker the user saw.
+      const incomingOkr = message.okr as OkrCard;
+      const isRefreshOfSameOkr =
+        state.currentOkr && state.currentOkr.meta.id === incomingOkr.meta.id;
+
+      state.currentOkr = incomingOkr;
       state.currentOkrAffectedBars = (message.affectedBars ?? []) as OkrAffectedBar[];
       state.currentOkrMode = ((message as { mode?: OkrDetailMode }).mode ?? 'view') as OkrDetailMode;
       state.currentOkrAvailablePlatforms = ((message as { availablePlatforms?: OkrAvailablePlatform[] }).availablePlatforms ?? []) as OkrAvailablePlatform[];
       state.currentOkrAvailableBars = ((message as { availableBars?: OkrAvailableBar[] }).availableBars ?? []) as OkrAvailableBar[];
       state.view = 'okr-detail';
-      // Reset phase signals + kick off a live GitHub-API fetch for the
-      // rich Why/How/What cards. Loading placeholders show until response
-      // arrives. View-mode only — edit/create don't display the cards.
+      // View-mode only — edit/create don't display the rich cards.
       if (state.currentOkrMode === 'view' && state.currentOkr) {
-        state.okrPhaseSignals = {
-          why: { loading: true },
-          how: { loading: true },
-          what: { loading: true },
-        };
+        if (isRefreshOfSameOkr && state.okrPhaseSignals) {
+          // REFRESH path: keep last-known data, just flag in-flight so
+          // the polling-indicator dot pulses. When new data lands, the
+          // okrPhaseSignals handler below replaces these entries.
+          const prev = state.okrPhaseSignals;
+          state.okrPhaseSignals = {
+            why: prev.why ? { ...prev.why, refreshing: true } : { loading: true },
+            how: prev.how ? { ...prev.how, refreshing: true } : { loading: true },
+            what: prev.what ? { ...prev.what, refreshing: true } : { loading: true },
+          };
+        } else {
+          // COLD START path: no previous data — show "Loading…" placeholder.
+          state.okrPhaseSignals = {
+            why: { loading: true },
+            how: { loading: true },
+            what: { loading: true },
+          };
+        }
         vscode.postMessage({ type: 'loadOkrPhaseSignals', okrId: state.currentOkr.meta.id });
       } else {
         state.okrPhaseSignals = undefined;
@@ -4820,7 +4843,9 @@ const inboundHandlers: Record<string, InboundHandler> = {
     'okrPhaseSignals': (message: WebviewInboundMessage) => {
       // Payload shape: { okrId, signals: { why?, how?, what? } }. Each
       // phase signal is the populated OkrPhaseSignal shape from the
-      // backend GitHub-API fetch.
+      // backend GitHub-API fetch. Task #54: signals arriving via this
+      // message implicitly clear `refreshing` because the backend
+      // doesn't set the field — replacing the entry drops the flag.
       const msg = message as unknown as { okrId: string; signals: OkrPhaseSignals };
       if (state.currentOkr && state.currentOkr.meta.id === msg.okrId) {
         state.okrPhaseSignals = msg.signals;

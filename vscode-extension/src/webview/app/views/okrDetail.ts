@@ -136,8 +136,17 @@ export interface OkrPhaseSignal {
   sealTampered?: boolean;
   /** Optional error to surface in the card. */
   error?: string;
-  /** Set to true while the extension is fetching. */
+  /** Set to true while the extension is fetching for the FIRST time
+   *  (no previous data to display). Drives the cold-start "Loading…"
+   *  placeholder. */
   loading?: boolean;
+  /** Set to true while a BACKGROUND refresh is in flight (we already
+   *  have last-known data we're still displaying). Task #54 — replaces
+   *  the previous behavior of wiping data + flashing "Loading…" on
+   *  every panel-focus / pull / post-audit poll. The UI keeps showing
+   *  the prior metrics + lights a pulsing dot in the card header so
+   *  the user knows a check is in-flight without state churn. */
+  refreshing?: boolean;
 }
 
 export type OkrPhaseSignals = Partial<Record<OkrPhase, OkrPhaseSignal>>;
@@ -774,11 +783,24 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
   // explicitly NOT offered for them — the audit chain is the product.
   const resetPhaseBtn = renderResetPhaseButton(okr, phase);
 
+  // Task #54 — polling indicator. Shows a small ● in the card header
+  // that's:
+  //   • muted gray  — no live signal fetch attempted (pre-flight)
+  //   • pulsing blue — refresh in flight (`signal.refreshing` set;
+  //     last-known data still displayed underneath)
+  //   • green        — last fetch succeeded, data is fresh on screen
+  //   • red          — last fetch errored (signal.error populated)
+  // Replaces the previous "wipe + flash Loading… on every refresh"
+  // behavior. User asked for a visible polling indicator instead of
+  // state churn.
+  const pollIndicator = renderPollIndicator(signal);
+
   return `
     <div class="okr-action-card okr-action-card-${substate.tone}">
       <div class="okr-action-card-header">
         <span class="okr-action-phase">${escapeHtml(PHASE_LABEL[phase])}</span>
         <span class="okr-action-substate">${escapeHtml(substate.label)}</span>
+        ${pollIndicator}
         <button class="okr-signal-card-refresh" data-action="refresh-okr" data-okr-id="${escapeAttr(okr.meta.id)}" title="Re-fetch this OKR's phase signals from GitHub (PR state, labels, audit verdict).">🔄</button>
       </div>
       <p class="okr-action-rationale">${escapeHtml(substate.rationale)}</p>
@@ -962,8 +984,39 @@ function renderPreflightSignal(phase: OkrPhase): string {
  * Names line up across phases for consistent visual scan; the metrics
  * underneath differ (skill_call mix, refinement style, citation shapes).
  */
+/**
+ * Polling indicator dot — shown in the card header. Task #54 visual
+ * proxy for fetch state. Title attribute carries the same info for
+ * screen readers + hover tooltip.
+ *
+ *   • undefined signal           → muted gray (idle, never fetched)
+ *   • signal.loading             → pulsing blue (cold-start fetch)
+ *   • signal.refreshing          → pulsing blue (background refresh)
+ *   • signal.error               → solid red ("✗" mark — needs attention)
+ *   • otherwise                  → solid green ("●" — fresh data on screen)
+ */
+function renderPollIndicator(signal: OkrPhaseSignal | undefined): string {
+  if (!signal) {
+    return `<span class="okr-poll-dot okr-poll-dot-idle" title="No phase signal — not yet fetched"></span>`;
+  }
+  if (signal.error) {
+    return `<span class="okr-poll-dot okr-poll-dot-error" title="Last fetch failed: ${escapeAttr(signal.error)}">✗</span>`;
+  }
+  if (signal.loading) {
+    return `<span class="okr-poll-dot okr-poll-dot-pulse" title="Fetching live signals from GitHub…"></span>`;
+  }
+  if (signal.refreshing) {
+    return `<span class="okr-poll-dot okr-poll-dot-pulse" title="Refreshing live signals from GitHub… (showing last-known data)"></span>`;
+  }
+  return `<span class="okr-poll-dot okr-poll-dot-fresh" title="Live signals fresh from GitHub"></span>`;
+}
+
 function renderWhyMetrics(s: OkrPhaseSignal | undefined, loading: boolean | undefined): string[] {
-  if (loading) {
+  // Task #54: only show the cold-start placeholder if we truly have NO
+  // data yet. Background refreshes (s.refreshing=true) keep displaying
+  // the last-known metrics + rely on the header poll dot to signal
+  // in-flight. This kills the strange-flicker the user reported.
+  if (loading && !s?.providers && !s?.findings && s?.gapLoops == null) {
     return [`<div class="okr-muted">Loading sources · refine · findings · coverage · drift from GitHub…</div>`];
   }
   const lines: string[] = [];
@@ -1006,7 +1059,8 @@ function renderWhyMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
  *     MVP; calibrated in D-PR1.v2).
  */
 function renderWhatMetrics(s: OkrPhaseSignal | undefined, loading: boolean | undefined): string[] {
-  if (loading) {
+  // Task #54: only cold-start placeholder. Refresh keeps prior data.
+  if (loading && s?.meshSkillCalls == null && s?.knowledgeCodeCalls == null && s?.selfReviewRounds == null && s?.perRepoChangeCount == null) {
     return [`<div class="okr-muted">Loading sources · findings · coverage · drift · self-review from GitHub…</div>`];
   }
   const lines: string[] = [];
@@ -1037,7 +1091,8 @@ function renderWhatMetrics(s: OkrPhaseSignal | undefined, loading: boolean | und
 }
 
 function renderHowMetrics(s: OkrPhaseSignal | undefined, loading: boolean | undefined): string[] {
-  if (loading) {
+  // Task #54: only cold-start placeholder. Refresh keeps prior data.
+  if (loading && s?.meshSkillCalls == null && s?.selfReviewRounds == null && s?.frCount == null) {
     return [`<div class="okr-muted">Loading sources · findings · coverage · drift · self-review from GitHub…</div>`];
   }
   const lines: string[] = [];
@@ -1428,6 +1483,19 @@ export function getOkrDetailStyles(): string {
     .okr-signal-review-requested { font-size: 0.8125rem; padding: 0.375rem 0.5rem; background: rgba(125, 211, 252, 0.08); border: 1px solid rgba(125, 211, 252, 0.25); border-radius: 0.25rem; margin-top: 0.25rem; color: var(--vscode-foreground); }
     .okr-signal-card-refresh { background: transparent; border: 1px solid transparent; color: var(--vscode-descriptionForeground); cursor: pointer; padding: 0 0.375rem; font-size: 0.875rem; border-radius: 0.25rem; margin-left: 0.375rem; opacity: 0.7; }
     .okr-signal-card-refresh:hover { opacity: 1; background: var(--vscode-list-hoverBackground); border-color: var(--vscode-panel-border); }
+    /* Task #54 — polling indicator. Sits between substate badge + refresh
+       button in the action-card header. Color codes fetch state without
+       triggering the metric-line state-flash that the old loading-only
+       branch caused. */
+    .okr-poll-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-left: 0.375rem; vertical-align: middle; flex-shrink: 0; font-size: 0.625rem; line-height: 0.5rem; text-align: center; }
+    .okr-poll-dot-idle { background: var(--vscode-descriptionForeground); opacity: 0.35; }
+    .okr-poll-dot-fresh { background: #22c55e; box-shadow: 0 0 4px rgba(34, 197, 94, 0.55); }
+    .okr-poll-dot-error { background: transparent; color: #ef4444; opacity: 1; width: auto; height: auto; box-shadow: none; }
+    .okr-poll-dot-pulse { background: #38bdf8; animation: okr-poll-pulse 1.2s ease-in-out infinite; }
+    @keyframes okr-poll-pulse {
+      0%, 100% { opacity: 0.35; box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+      50%      { opacity: 1;    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25); }
+    }
     .okr-md-ready-btn { font-size: 0.75rem; padding: 0.25rem 0.625rem; margin-left: auto; }
     .okr-signal-pr-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .okr-md-toggle-btn { font-size: 0.75rem; padding: 0.125rem 0.5rem; }

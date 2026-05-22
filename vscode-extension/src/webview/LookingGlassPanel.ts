@@ -45,6 +45,7 @@ import { MESH_WORKFLOWS } from '../templates/codeRepoTemplates';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
 import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
 import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
+import { isForwardStatusTransition } from '../services/OKRService';
 import { phaseSpec } from '../types/phaseSpec';
 import type { OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode } from '../types';
 import { promptPackService } from '../services/PromptPackService';
@@ -1920,6 +1921,32 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
 
     try {
+      // Cert-run bug A fix (Task #50) — advance meta.status to the phase's
+      // in-flight status BEFORE appendAction. Without this, WHY dispatch
+      // leaves meta.status='draft'; the composite finalize's downgrade
+      // guard then refuses to roll draft → prd-pending on merge (the
+      // guard expects status='researching' as the WHY pre-merge state),
+      // so the OKR master status stays stuck at 'draft' post-WHY-merge
+      // and the UI summary view never reflects forward progress.
+      //
+      // For HOW + WHAT this is a no-op (currentMetaStatus already equals
+      // the post-prior-merge status set by the prior phase's finalize).
+      // isForwardStatusTransition gates against the impossible case
+      // where a re-run of WHY fires after later progress shipped.
+      const dispatchStatus = spec.currentMetaStatus;
+      if (isForwardStatusTransition(card.meta.status, dispatchStatus)) {
+        try {
+          okrService.updateStatus(meshPath, okrId, dispatchStatus);
+        } catch (statusErr) {
+          // Non-fatal — appendAction still proceeds, dispatch still
+          // happens; finalize's guard will catch this on merge.
+          this.postMessage({
+            type: 'error',
+            message: `Dispatch-time meta.status advance failed (${toErrorMessage(statusErr)}). Dispatch will continue but finalize may skip the master-status roll.`,
+          });
+        }
+      }
+
       okrService.appendAction(meshPath, okrId, {
         id: actionId,
         phase,

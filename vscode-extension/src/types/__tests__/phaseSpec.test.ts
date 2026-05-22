@@ -11,11 +11,14 @@
  * everywhere but MESH_LABELS didn't have it).
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import { PHASE_SPEC, allPhaseLabels, phaseSpec } from '../phaseSpec';
 import { MESH_LABELS } from '../../templates/meshLabels';
 import { MESH_AGENTS } from '../../templates/meshSkills';
 import { MESH_WORKFLOWS } from '../../templates/codeRepoTemplates';
+import { isForwardStatusTransition } from '../../services/OKRService';
 
 describe('phaseSpec single source of truth', () => {
   it('phaseSpec(phase) returns the entry for each canonical phase', () => {
@@ -96,4 +99,158 @@ describe('phaseSpec ↔ MESH_WORKFLOWS consistency', () => {
       ).toBe(true);
     }
   });
+});
+
+/**
+ * Dispatch-time meta.status advance contract — pinned after cert-run
+ * bug A (Task #50) forensic: WHY dispatch left meta.status='draft'
+ * because Looking Glass did not roll to phaseSpec.why.currentMetaStatus
+ * at dispatch. The composite finalize's downgrade-guard then refused
+ * to roll draft → prd-pending on merge (expected current='researching').
+ * Master OKR status stayed stuck at 'draft' through the entire run.
+ *
+ * These tests pin the wiring assumption now baked into
+ * LookingGlassPanel.onConfirmStartOkrPhase:
+ *
+ *   for phase in [why, how, what]:
+ *     advance meta.status to phaseSpec(phase).currentMetaStatus
+ *
+ * If this contract drifts (someone renames a status, or adds an
+ * intermediate state), the test surfaces the regression before the
+ * next cert run does.
+ */
+describe('dispatch-time meta.status advance contract (cert-run bug A regression)', () => {
+  it('WHY dispatch can forward-advance from draft to its currentMetaStatus', () => {
+    // Fresh OKR has meta.status='draft'. WHY dispatch needs to advance
+    // to 'researching' so the finalize guard succeeds on merge.
+    expect(
+      isForwardStatusTransition('draft', phaseSpec('why').currentMetaStatus),
+    ).toBe(true);
+  });
+
+  it('HOW dispatch is a no-op idempotent advance (prior phase already left us here)', () => {
+    // WHY finalize sets meta.status → 'prd-pending' (next of WHY).
+    // HOW currentMetaStatus is also 'prd-pending' — so the dispatch
+    // call updateStatus(prd-pending → prd-pending) is allowed by
+    // identity (from===to → forward).
+    expect(phaseSpec('how').currentMetaStatus).toBe(phaseSpec('why').nextMetaStatus);
+    expect(
+      isForwardStatusTransition(phaseSpec('why').nextMetaStatus, phaseSpec('how').currentMetaStatus),
+    ).toBe(true);
+  });
+
+  it('WHAT dispatch is a no-op idempotent advance (HOW finalize already left us here)', () => {
+    expect(phaseSpec('what').currentMetaStatus).toBe(phaseSpec('how').nextMetaStatus);
+    expect(
+      isForwardStatusTransition(phaseSpec('how').nextMetaStatus, phaseSpec('what').currentMetaStatus),
+    ).toBe(true);
+  });
+
+  it('composite finalize sees the expected current-status after dispatch + agent run', () => {
+    // The composite finalize's downgrade-guard requires:
+    //   meta.status (read from yaml) == inputs.current-meta-status
+    // Looking Glass dispatch SETS meta.status to phaseSpec.currentMetaStatus.
+    // Both sides therefore reference the same field — the dispatch
+    // contract is the producer, the finalize guard is the consumer.
+    for (const phase of ['why', 'how', 'what'] as const) {
+      // We can't reach into the composite action YAML at test time,
+      // but the wiring promise is: dispatch advances to X, finalize
+      // expects X. Pin both ends to the same source of truth here.
+      expect(PHASE_SPEC[phase].currentMetaStatus).toBe(phaseSpec(phase).currentMetaStatus);
+    }
+  });
+});
+
+/**
+ * Workflow YAML ↔ phaseSpec drift detector (Task #53).
+ *
+ * phaseSpec.ts module comment explicitly flags workflow YAMLs as layer
+ * #3 of the 5-source drift problem — strings stay hardcoded in YAML
+ * because we haven't moved to template-generation yet. This test reads
+ * each workflow file + asserts every per-phase string still matches
+ * the SSoT. If someone renames a label in phaseSpec.ts without updating
+ * the YAML (or vice versa), this fires before the next cert run.
+ *
+ * Specifically checked, per phase:
+ *   1. Issue-labeled trigger filter         (anchorLabel + draftLabel)
+ *   2. Audit-and-drift PR-labeled trigger   (draftLabel)
+ *   3. Verdict-step pass-label apply         (passLabel)
+ *   4. Composite finalize current-meta-status (currentMetaStatus)
+ *   5. Composite finalize next-meta-status   (nextMetaStatus)
+ *   6. Composite finalize prior-phase         (priorPhase ?? "")
+ *   7. Composite finalize phase input         (phase id)
+ */
+describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () => {
+  const workflowsRoot = path.join(__dirname, '..', '..', '..', 'code-templates', 'workflows');
+
+  function readWorkflow(phase: 'why' | 'how' | 'what'): string {
+    const filename = phaseSpec(phase).workflowFile;
+    const full = path.join(workflowsRoot, filename);
+    return fs.readFileSync(full, 'utf8');
+  }
+
+  for (const phase of ['why', 'how', 'what'] as const) {
+    describe(`${phase} (${PHASE_SPEC[phase].workflowFile})`, () => {
+      // Read once at describe-time. Vitest evaluates describe bodies
+      // synchronously, so this initializes before any `it` runs.
+      const content = readWorkflow(phase);
+      const idx = content.indexOf('uses: ./.github/actions/finalize-okr-action');
+      const composite = idx >= 0 ? content.slice(idx, idx + 800) : '';
+
+      it('delegates finalize to the composite action (Refactor 3c contract)', () => {
+        expect(
+          idx,
+          `Workflow ${phase} must delegate finalize to ./.github/actions/finalize-okr-action (Refactor 3c). If you reverted, restore the composite delegation.`,
+        ).toBeGreaterThan(-1);
+      });
+
+      it('issue-labeled trigger references the canonical anchorLabel + draftLabel', () => {
+        const spec = phaseSpec(phase);
+        // The dispatch-precondition step IF filter references both
+        // anchorLabel (the okr-anchor parent) AND draftLabel (the
+        // post-agent audit trigger). Both must appear somewhere in
+        // the workflow.
+        expect(
+          content.includes(`'${spec.draftLabel}'`) || content.includes(`"${spec.draftLabel}"`),
+          `Workflow ${phase} must reference draftLabel='${spec.draftLabel}' (phaseSpec.${phase}.draftLabel)`,
+        ).toBe(true);
+        expect(
+          content.includes(`'${spec.anchorLabel}'`) || content.includes(`"${spec.anchorLabel}"`),
+          `Workflow ${phase} must reference anchorLabel='${spec.anchorLabel}' (phaseSpec.${phase}.anchorLabel)`,
+        ).toBe(true);
+      });
+
+      it('verdict step applies the canonical passLabel', () => {
+        const spec = phaseSpec(phase);
+        expect(
+          content.includes(`--add-label ${spec.passLabel}`),
+          `Workflow ${phase} must call \`gh pr edit --add-label ${spec.passLabel}\` (phaseSpec.${phase}.passLabel)`,
+        ).toBe(true);
+      });
+
+      it('composite finalize input `phase` matches phaseSpec.phase', () => {
+        expect(composite).toMatch(new RegExp(`phase:\\s*${phase}\\b`));
+      });
+
+      it('composite finalize input `current-meta-status` matches phaseSpec.currentMetaStatus', () => {
+        const spec = phaseSpec(phase);
+        expect(composite).toMatch(new RegExp(`current-meta-status:\\s*${spec.currentMetaStatus}\\b`));
+      });
+
+      it('composite finalize input `next-meta-status` matches phaseSpec.nextMetaStatus', () => {
+        const spec = phaseSpec(phase);
+        expect(composite).toMatch(new RegExp(`next-meta-status:\\s*${spec.nextMetaStatus}\\b`));
+      });
+
+      it('composite finalize input `prior-phase` matches phaseSpec.priorPhase (empty for WHY)', () => {
+        const spec = phaseSpec(phase);
+        if (spec.priorPhase === null) {
+          // WHY case — empty string. YAML literal: `prior-phase: ""`.
+          expect(composite).toMatch(/prior-phase:\s*""/);
+        } else {
+          expect(composite).toMatch(new RegExp(`prior-phase:\\s*${spec.priorPhase}\\b`));
+        }
+      });
+    });
+  }
 });

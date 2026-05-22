@@ -519,4 +519,95 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('value="https://github.com/somewhere-else/special"');
     expect(html).toContain('data-okr-repo-row="0"');
   });
+
+  /**
+   * Task #54 — flicker fix: polling indicator + refresh-preserves-data
+   * contract. The previous behavior wiped state.okrPhaseSignals to
+   * `{ loading: true }` on every panel-focus / pull / post-audit poll,
+   * so the metric lines flashed to "Loading…" then snapped back. The
+   * fix: distinguish first-fetch (cold-start `loading`) from
+   * background refresh (`refreshing`); refresh preserves last-known
+   * data + lights a pulsing dot in the card header.
+   */
+  describe('phase-signal polling indicator (Task #54)', () => {
+    function whyCardHtml(signalOverride: Record<string, unknown> | undefined): string {
+      return renderOkrDetailView({
+        okr: sampleCard({
+          actions: [{
+            id: 'ACT-1',
+            phase: 'why',
+            description: 'Market research',
+            agent: 'market-research-agent',
+            runId: 'WHY-2026-05-22-abc',
+            intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+            parentIntentThread: null,
+            reviewerScores: {},
+            rounds: 0,
+            governanceTier: 'supervised',
+            status: 'complete',
+            createdAt: '2026-05-22T14:00:00Z',
+            completedAt: '2026-05-22T15:00:00Z',
+          }],
+        }),
+        affectedBars: [],
+        phaseSignals: { why: signalOverride as never },
+      });
+    }
+
+    it('renders muted idle dot when no signal has ever been fetched', () => {
+      const html = whyCardHtml(undefined);
+      expect(html).toContain('okr-poll-dot-idle');
+      expect(html).not.toContain('okr-poll-dot-pulse');
+      expect(html).not.toContain('okr-poll-dot-fresh');
+    });
+
+    it('renders pulsing dot AND "Loading…" placeholder for cold-start fetch', () => {
+      const html = whyCardHtml({ loading: true });
+      expect(html).toContain('okr-poll-dot-pulse');
+      expect(html).toContain('Loading sources · refine · findings · coverage · drift');
+    });
+
+    it('renders pulsing dot AND keeps last-known metrics during background refresh', () => {
+      // Has prior data (providers, findings) AND refreshing=true. The
+      // metric lines should still render — NOT flash to "Loading…".
+      const html = whyCardHtml({
+        refreshing: true,
+        providers: { tavily: 5, arxiv: 0, uspto: 0, hn: 0, total: 5 },
+        gapLoops: 1,
+        followUps: 3,
+        findings: 14,
+        conclusions: 4,
+      });
+      expect(html).toContain('okr-poll-dot-pulse');
+      expect(html).toContain('5 successful skill_calls');
+      expect(html).toContain('1 gap-loop');
+      expect(html).toContain('S1–S14 cited');
+      // Critical: the cold-start placeholder must NOT appear when we
+      // have last-known data to display. This is the flicker fix.
+      expect(html).not.toContain('Loading sources · refine · findings · coverage · drift');
+    });
+
+    it('renders fresh green dot when last fetch succeeded (no in-flight refresh)', () => {
+      const html = whyCardHtml({
+        providers: { tavily: 5, arxiv: 0, uspto: 0, hn: 0, total: 5 },
+        findings: 14,
+      });
+      expect(html).toContain('okr-poll-dot-fresh');
+      // No background refresh in flight — but HOW + WHAT phases legitimately
+      // render `okr-poll-dot-idle` because they have no signal yet, so we
+      // don't assert idle's absence globally.
+      expect(html).not.toContain('okr-poll-dot-pulse');
+    });
+
+    it('renders error mark when last fetch failed', () => {
+      const html = whyCardHtml({ error: 'GitHub 404' });
+      expect(html).toContain('okr-poll-dot-error');
+      expect(html).toContain('GitHub 404');
+    });
+
+    it('ships CSS keyframe + dot classes for the polling indicator', () => {
+      expect(getOkrDetailStyles()).toContain('@keyframes okr-poll-pulse');
+      expect(getOkrDetailStyles()).toContain('.okr-poll-dot');
+    });
+  });
 });
