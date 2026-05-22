@@ -736,7 +736,7 @@ function computeSubstate(okr: OkrCard, phase: OkrPhase, primaryTier: 'autonomous
       rationale: 'Restricted tier — escalate BAR governance or use Human Override',
     };
   }
-  return { label: '☐ Not started', tone: 'idle', rationale: 'Ready when Phase B ships' };
+  return { label: '☐ Not started', tone: 'idle', rationale: 'Ready to start' };
 }
 
 function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderState): string {

@@ -103,7 +103,7 @@ export function renderOkrListView(state: OkrListRenderState): string {
       <div class="okr-list-header">
         <div>
           <h1 class="okr-list-title">OKRs</h1>
-          <p class="okr-list-subtitle">${state.okrs.length} OKR${state.okrs.length === 1 ? '' : 's'} · Phase A · agent buttons disabled until Phase B</p>
+          <p class="okr-list-subtitle">${state.okrs.length} OKR${state.okrs.length === 1 ? '' : 's'}</p>
         </div>
         <button class="okr-button-primary" data-action="create-okr-manual">+ Create OKR</button>
       </div>

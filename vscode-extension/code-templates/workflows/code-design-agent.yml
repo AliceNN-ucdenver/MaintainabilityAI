@@ -390,44 +390,128 @@ jobs:
           echo "caterpillar=calibration-pending" >> "$GITHUB_OUTPUT"
           echo "::notice::drift gates report-only in D-PR1 MVP (calibrate in v1.1)"
 
-      # Self-review chain + block reconciliation — same B28c.v1.1 pattern
-      # the prd-agent.yml uses, but for code-* personas. Two evidence
-      # sources: structured `### Self-review — Code-<Persona> (round N)`
-      # blocks in PR body, AND self-review-code-* skill_calls in chain.
-      - name: Count self-review evidence
+      # Self-review reconciliation — D-PR1.v1.6 polish.
+      #
+      # The code-design-agent writes self-review blocks inside the artifact
+      # markdown (code-design.md, lines ~197+) rather than the PR body
+      # — observed in both PR #120 and PR #122 even when the prompt said
+      # "PR body MANDATORY". Three evidence sources, checked in priority
+      # order:
+      #
+      #   1. PR body — `### Self-review — Code-Architect (round N)` blocks
+      #      with structured SCORE/SEVERITY/COVERED/MISSING/CHANGES fields.
+      #   2. Artifact markdown — same block format inside code-design.md.
+      #   3. B29 chain — `self-review-code-*` skill_call events (proof of
+      #      attempt but no scores).
+      #
+      # First two sources carry per-persona SCORE + SEVERITY; the third
+      # carries round count only. We surface scores in the audit comment
+      # whenever ANY of the first two sources has them, regardless of
+      # which source the agent picked. The b29-chain fallback now sets
+      # source=b29-chain ONLY when both 1+2 returned zero blocks.
+      - name: Count self-review evidence (PR body + artifact md + chain)
         id: review
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         env:
           JSONL: ${{ steps.audit.outputs.path }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
         run: |
-          # Bug fix (D-PR1.v1.1): `grep -c ... || echo 0` double-prints "0"
-          # when there are no matches because grep both PRINTS its count of
-          # 0 AND exits status 1. The `|| echo 0` then fires, prepending
-          # ANOTHER "0", so BLOCK_ROUNDS becomes "0\n0", subsequent integer
-          # comparisons fail with "integer expression expected", arithmetic
-          # silently aborts under `set -e`, and both ROUNDS + REVIEW_SOURCE
-          # end up empty. Solution: `|| true` (not `|| echo 0`) — grep -c
-          # already prints 0 on no match, the `|| true` just neutralizes
-          # the non-zero exit code. Also do the same for the B29_ROUNDS
-          # jq pipeline.
-          B29_ROUNDS=$(jq -r 'select(.event_kind == "skill_call" and (.payload.skill == "self-review-code-architect" or .payload.skill == "self-review-code-security")) | .payload.round // 0' "$JSONL" 2>/dev/null | sort -n | tail -1)
-          B29_ROUNDS="${B29_ROUNDS:-0}"
-          BLOCK_ROUNDS=$(printf '%s' "$PR_BODY" | grep -cE '^### Self-review — Code-(Architect|Security) \(round [0-9]+\)' || true)
-          BLOCK_ROUNDS="${BLOCK_ROUNDS:-0}"
-          if [ "$BLOCK_ROUNDS" -eq 0 ] && [ "$B29_ROUNDS" -gt 0 ]; then
-            ROUNDS="$B29_ROUNDS"
-            REVIEW_SOURCE="b29-chain"
-          else
-            ROUNDS=$(( BLOCK_ROUNDS / 2 ))  # 2 blocks per round (architect + security)
-            REVIEW_SOURCE="parser"
+          DESIGN_DOC="okrs/${OKR_ID}/what/code-design.md"
+          ARTIFACT_TEXT=""
+          if [ -f "$DESIGN_DOC" ]; then
+            ARTIFACT_TEXT=$(cat "$DESIGN_DOC")
           fi
-          {
-            echo "rounds=$ROUNDS"
-            echo "source=$REVIEW_SOURCE"
-            echo "b29_rounds=$B29_ROUNDS"
-          } >> "$GITHUB_OUTPUT"
-          echo "::notice::self-review rounds=$ROUNDS source=$REVIEW_SOURCE"
+          JSONL="$JSONL" PR_BODY="$PR_BODY" ARTIFACT_TEXT="$ARTIFACT_TEXT" python3 <<'PYEOF'
+          import os, re, json
+          jsonl = os.environ['JSONL']
+          pr_body = os.environ.get('PR_BODY', '') or ''
+          artifact_text = os.environ.get('ARTIFACT_TEXT', '') or ''
+
+          # Block regex — matches `### Self-review — Code-<Persona> (round N)`
+          # then captures the SCORE, SEVERITY lines that follow within a
+          # 10-line window. Persona casing is tolerant; round 1-9 supported.
+          BLOCK_RE = re.compile(
+              r'^### Self-review — Code-(Architect|Security)\s*\(round\s*(\d+)\)\s*\n'
+              r'(?:[^\n]*\n){0,10}',
+              re.MULTILINE | re.IGNORECASE,
+          )
+          # Inside the matched window, extract SCORE + SEVERITY values.
+          SCORE_RE = re.compile(r'^\s*SCORE:\s*([\d.]+)', re.MULTILINE | re.IGNORECASE)
+          SEV_RE = re.compile(r'^\s*SEVERITY:\s*(PASS|MINOR|MAJOR|BLOCKING)', re.MULTILINE | re.IGNORECASE)
+
+          def parse_blocks(text):
+              """Returns dict: { 'architect' / 'security': { round: (score, severity) }}"""
+              found = {'architect': {}, 'security': {}}
+              for m in BLOCK_RE.finditer(text):
+                  persona = m.group(1).lower()
+                  rnd = int(m.group(2))
+                  block_window = text[m.start():m.end() + 200]  # 200 chars past the match
+                  score_m = SCORE_RE.search(block_window)
+                  sev_m = SEV_RE.search(block_window)
+                  score = float(score_m.group(1)) if score_m else None
+                  sev = sev_m.group(1).upper() if sev_m else None
+                  if score is not None or sev is not None:
+                      found[persona][rnd] = (score, sev)
+              return found
+
+          # 1+2. Prefer PR body; fall back to artifact md.
+          pr_blocks = parse_blocks(pr_body)
+          artifact_blocks = parse_blocks(artifact_text)
+          source = 'pr-body'
+          blocks = pr_blocks
+          if not (pr_blocks['architect'] or pr_blocks['security']):
+              if artifact_blocks['architect'] or artifact_blocks['security']:
+                  source = 'artifact-md'
+                  blocks = artifact_blocks
+              else:
+                  source = 'b29-chain'
+                  blocks = {'architect': {}, 'security': {}}
+
+          # 3. Always count B29 chain skill_calls — proves the loop happened
+          # even when sources 1+2 are empty.
+          b29_rounds = 0
+          with open(jsonl, 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line: continue
+                  try:
+                      e = json.loads(line)
+                  except Exception:
+                      continue
+                  if e.get('event_kind') != 'skill_call': continue
+                  payload = e.get('payload') or {}
+                  skill = payload.get('skill') or ''
+                  if skill in ('self-review-code-architect', 'self-review-code-security'):
+                      r = payload.get('round')
+                      if isinstance(r, int) and r > b29_rounds:
+                          b29_rounds = r
+
+          # Latest-round-per-persona for the audit comment row + page UI.
+          def latest(persona):
+              if not blocks[persona]:
+                  return (None, None, None)
+              max_r = max(blocks[persona].keys())
+              s, sev = blocks[persona][max_r]
+              return (max_r, s, sev)
+          arch_r, arch_s, arch_sev = latest('architect')
+          sec_r, sec_s, sec_sev = latest('security')
+          # ROUNDS = highest round across personas + chain. b29_rounds is
+          # the floor; block rounds can be equal or higher (agent may have
+          # over-iterated, though tier-MAX_AUTO_ROUNDS gates that upstream).
+          rounds = max(b29_rounds, arch_r or 0, sec_r or 0)
+
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'rounds={rounds}\n')
+              f.write(f'source={source}\n')
+              f.write(f'b29_rounds={b29_rounds}\n')
+              f.write(f'arch_score={arch_s if arch_s is not None else ""}\n')
+              f.write(f'arch_severity={arch_sev or ""}\n')
+              f.write(f'sec_score={sec_s if sec_s is not None else ""}\n')
+              f.write(f'sec_severity={sec_sev or ""}\n')
+          print(f'::notice::self-review rounds={rounds} source={source} arch={arch_s}({arch_sev}) sec={sec_s}({sec_sev})')
+          PYEOF
 
       # Apply the design-pass label on clean OR design-degraded on
       # evidence/mode-honesty fail OR design-drift-detected on drift fail.
@@ -472,46 +556,113 @@ jobs:
           fi
           rm -f "$ERRLOG"
 
+      # D-PR1.v1.6 audit-comment polish — exact shape match to
+      # market-research-agent.yml + prd-agent.yml. Same sentinel marker
+      # pattern (<!-- code-design-agent-audit -->) + upsert-via-id flow
+      # so re-runs replace the prior comment in place. Same column order:
+      # skill_calls table -> structural correctness -> drift -> self-review
+      # -> evidence_mode -> Knight's Seal -> footer.
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
-        env:
-          CHAIN_MARK: ${{ steps.chain.outputs.ok == 'true' && '✓' || '✗' }}
-          CHAIN_COUNT: ${{ steps.chain.outputs.count }}
-          CHAIN_SEALED: ${{ steps.chain.outputs.sealed }}
-          MODE_MARK: ${{ steps.mode_honesty.outputs.ok == 'true' && '✓' || '✗' }}
-          MODE_REPOS: ${{ steps.mode_honesty.outputs.repo_count }}
-          MODE_FINDINGS: ${{ steps.mode_honesty.outputs.finding_count }}
-          MODE_FINDINGS_TEXT: ${{ steps.mode_honesty.outputs.findings }}
-          REVIEW_ROUNDS: ${{ steps.review.outputs.rounds }}
-          REVIEW_SOURCE: ${{ steps.review.outputs.source }}
         run: |
-          # Bug fix (D-PR1.v1.1): `BODY+=$(printf '...\n')` strips trailing
-          # newlines via command substitution, so the markdown table
-          # collapsed to a single line in PR #120's audit comment. Use a
-          # heredoc — preserves newlines verbatim and lets us inline the
-          # finding details when mode-honesty failed.
-          BODY_FILE=$(mktemp)
-          cat > "$BODY_FILE" <<EOF
-          ## Code Design Audit
-
-          | Check | Result |
-          |---|---|
-          | Audit chain integrity (B25) | $CHAIN_MARK (count=$CHAIN_COUNT, sealed=$CHAIN_SEALED) |
-          | Per-repo mode honesty (A12.v1.1) | $MODE_MARK (repos=$MODE_REPOS, findings=$MODE_FINDINGS) |
-          | Drift gates (Pocket Watch + Caterpillar) | calibration-pending (D-PR1.v1.1) |
-          | Self-review (B24 / B29) | ${REVIEW_ROUNDS:-0} round(s) · source=${REVIEW_SOURCE:-none} |
-          EOF
-          # Inline mode-honesty finding details when there are any —
-          # auditors shouldn't have to dig into the workflow log.
-          if [ "${MODE_FINDINGS:-0}" != "0" ] && [ -n "${MODE_FINDINGS_TEXT:-}" ]; then
-            {
-              echo ""
-              echo "**Mode-honesty findings:**"
-              echo ""
-              echo "$MODE_FINDINGS_TEXT" | sed 's/^/- /'
-            } >> "$BODY_FILE"
+          # Compute verdict from chain + mode honesty (drift report-only in MVP).
+          CHAIN_OK='${{ steps.chain.outputs.ok }}'
+          MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ]; then
+            VERDICT="ok"
+            REASON=""
+          elif [ "$MODE_OK" = "false" ]; then
+            VERDICT="degraded"
+            REASON="Per-repo mode honesty failed (${{ steps.mode_honesty.outputs.finding_count }} finding(s))"
+          else
+            VERDICT="degraded"
+            REASON="Audit chain verification failed: ${{ steps.chain.outputs.reason }}"
           fi
-          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file "$BODY_FILE"
+
+          BODY=/tmp/audit-body.md
+          : > "$BODY"
+          printf '%s\n' '<!-- code-design-agent-audit -->' >> "$BODY"
+          if [ "$VERDICT" = "ok" ]; then
+            printf '%s\n\n' '✓ **Code Design Audit — pass**' >> "$BODY"
+          else
+            printf '%s\n\n' '⚠️ **Code Design Audit — degraded**' >> "$BODY"
+            printf '**Reason:** %s\n\n' "$REASON" >> "$BODY"
+          fi
+
+          # Skill calls table — mesh + per-mode knowledge-code breakdown.
+          if [ '${{ steps.audit.outputs.found }}' = 'true' ]; then
+            JSONL="${{ steps.audit.outputs.path }}"
+            printf '**Skill calls** (`%s`):\n\n' "$JSONL" >> "$BODY"
+            printf '| Skill family | Successful calls |\n|---|---:|\n' >> "$BODY"
+            MESH=$(jq -r 'select(.event_kind == "skill_call" and .payload.ok != false and ((.payload.skill | startswith("knowledge-")) or (.payload.skill | startswith("context-")))) | .payload.skill' "$JSONL" 2>/dev/null | wc -l | tr -d ' ')
+            KCODE_BROWN=$(jq -r 'select(.event_kind == "skill_call" and .payload.ok != false and .payload.skill == "knowledge-code" and .payload.mode == "brownfield") | .payload.repo' "$JSONL" 2>/dev/null | wc -l | tr -d ' ')
+            KCODE_GREEN=$(jq -r 'select(.event_kind == "skill_call" and .payload.ok != false and .payload.skill == "knowledge-code" and .payload.mode == "greenfield") | .payload.repo' "$JSONL" 2>/dev/null | wc -l | tr -d ' ')
+            SR_CHAIN=$(jq -r 'select(.event_kind == "skill_call" and .payload.ok != false and (.payload.skill == "self-review-code-architect" or .payload.skill == "self-review-code-security")) | .payload.skill' "$JSONL" 2>/dev/null | wc -l | tr -d ' ')
+            printf '| Mesh (knowledge-* + context-*) | %s |\n' "$MESH" >> "$BODY"
+            printf '| knowledge-code — brownfield clone | %s |\n' "$KCODE_BROWN" >> "$BODY"
+            printf '| knowledge-code — greenfield spec | %s |\n' "$KCODE_GREEN" >> "$BODY"
+            printf '| self-review-code-* (B29) | %s |\n' "$SR_CHAIN" >> "$BODY"
+            printf '| **Total** | **%s** |\n\n' '${{ steps.chain.outputs.count }}' >> "$BODY"
+          fi
+
+          # Structural correctness — per-repo mode honesty is the primary
+          # WHAT structural check. FR/SR coverage shows up in §5 frontmatter.
+          printf '**Structural correctness** (`okrs/${{ steps.ctx.outputs.okr_id }}/what/code-design.md`):\n\n' >> "$BODY"
+          printf '| Check | Result |\n|---|---|\n' >> "$BODY"
+          printf '| `code-design.md` written | ✓ |\n' >> "$BODY"
+          printf '| Per-repo mode honesty (A12.v1.1) | ${{ steps.mode_honesty.outputs.ok == ''true'' && ''✓'' || ''✗'' }} (repos=${{ steps.mode_honesty.outputs.repo_count }}, findings=${{ steps.mode_honesty.outputs.finding_count }}) |\n' >> "$BODY"
+          printf '| Pocket Watch (objective vs Problem Restatement) | calibration-pending (D-PR1.v1.x) |\n' >> "$BODY"
+          printf "| Caterpillar's Challenge (code-design vs PRD) | calibration-pending (D-PR1.v1.x) |\n" >> "$BODY"
+
+          # Self-review (B24/B29) — per-persona scores when available.
+          REVIEW_ROUNDS='${{ steps.review.outputs.rounds }}'; REVIEW_ROUNDS="${REVIEW_ROUNDS:-0}"
+          REVIEW_SOURCE='${{ steps.review.outputs.source }}'; REVIEW_SOURCE="${REVIEW_SOURCE:-none}"
+          REVIEW_ARCH_SCORE='${{ steps.review.outputs.arch_score }}'
+          REVIEW_ARCH_SEV='${{ steps.review.outputs.arch_severity }}'
+          REVIEW_SEC_SCORE='${{ steps.review.outputs.sec_score }}'
+          REVIEW_SEC_SEV='${{ steps.review.outputs.sec_severity }}'
+          if [ "$REVIEW_ROUNDS" -gt 0 ]; then
+            case "$REVIEW_SOURCE" in
+              pr-body)     SRC_NOTE="" ;;
+              artifact-md) SRC_NOTE=" · scores from \`code-design.md\` (agent wrote structured block inside the artifact rather than the PR body — both are valid)" ;;
+              b29-chain)   SRC_NOTE=" · evidence from B29 chain (no structured \`### Self-review\` blocks in PR body or artifact — see agent narrative)" ;;
+              *)           SRC_NOTE="" ;;
+            esac
+            printf '| Self-review (B24 / B29) | %s round(s)%s |\n' "$REVIEW_ROUNDS" "$SRC_NOTE" >> "$BODY"
+            if [ "$REVIEW_SOURCE" != "b29-chain" ]; then
+              printf '| ↳ Code-Architect persona | %s severity=%s |\n' "${REVIEW_ARCH_SCORE:-—}" "${REVIEW_ARCH_SEV:-—}" >> "$BODY"
+              printf '| ↳ Code-Security persona | %s severity=%s |\n' "${REVIEW_SEC_SCORE:-—}" "${REVIEW_SEC_SEV:-—}" >> "$BODY"
+            fi
+          else
+            printf '| Self-review (B24 / B29) | — skipped (Restricted tier or no events) |\n' >> "$BODY"
+          fi
+
+          printf '| Hatter Tag `evidence_mode` | `%s` |\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
+          SEALED='${{ steps.chain.outputs.sealed }}'
+          case "$SEALED" in
+            true)  printf "| Knight's Seal (Ed25519) | ✓ Sealed |\n\n" >> "$BODY" ;;
+            false) printf "| Knight's Seal (Ed25519) | — legacy chain (unsigned) |\n\n" >> "$BODY" ;;
+            *)    printf "| Knight's Seal (Ed25519) | — n/a (no chain) |\n\n" >> "$BODY" ;;
+          esac
+
+          # Inline mode-honesty finding details when present — auditors
+          # see what failed without grepping workflow logs.
+          MODE_FINDINGS='${{ steps.mode_honesty.outputs.finding_count }}'
+          if [ "${MODE_FINDINGS:-0}" != "0" ]; then
+            printf '**Mode-honesty findings:**\n\n' >> "$BODY"
+            printf '%s\n' "${{ steps.mode_honesty.outputs.findings }}" | sed 's/^/- /' >> "$BODY"
+            printf '\n' >> "$BODY"
+          fi
+
+          printf '_code-design-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"
+
+          BODY_CONTENT=$(cat "$BODY")
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --jq '.[] | select(.body | startswith("<!-- code-design-agent-audit -->")) | .id' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY_CONTENT" >/dev/null
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$BODY_CONTENT"
+          fi
 
   # ════════════════════════════════════════════════════════════════════
   # JOB 3 — Finalize on PR merge (append chain-ladder + flip action)
