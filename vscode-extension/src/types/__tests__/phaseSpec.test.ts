@@ -252,6 +252,58 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         }
       });
 
+      it('agent prompt "Required skill_call manifest" exists + matches workflow verify-skill-manifest step (Task #62)', () => {
+        // The agent prompt declares the canonical required-skill list
+        // in a "## Required skill_call manifest" section; the workflow
+        // verify-skill-manifest step enforces it. Both must reference
+        // the same skill names — otherwise the agent could legitimately
+        // skip a skill the workflow then refuses for. This test pins
+        // the contract by checking that every skill listed in the
+        // workflow's `required = [...]` Python block ALSO appears in
+        // the agent prompt's manifest section.
+        const agentPath = path.join(
+          __dirname, '..', '..', '..', 'code-templates', 'agents-v4',
+          `${phaseSpec(phase).agentName}.agent.md`,
+        );
+        const agentContent = fs.readFileSync(agentPath, 'utf8');
+
+        // 1. Agent prompt must have the manifest section.
+        expect(
+          /## Required skill_call manifest/i.test(agentContent),
+          `Agent ${phaseSpec(phase).agentName}.agent.md missing "Required skill_call manifest" section (Task #62 contract).`,
+        ).toBe(true);
+
+        // 2. Workflow must have the verify step.
+        expect(
+          /id:\s*manifest/.test(content) && /Required skill_call manifest/.test(content),
+          `Workflow ${phase} missing verify-skill-manifest step (Task #62 contract). Step must have id=manifest + reference "Required skill_call manifest".`,
+        ).toBe(true);
+
+        // 3. Extract skill names from the workflow's Python `required = [...]`
+        //    tuple list and assert each one is referenced in the agent prompt.
+        //    The tuples are written as `('skill-name', N)`.
+        const workflowSkills = new Set<string>();
+        // Pull the chunk containing `required = [` through its closing `]`.
+        const reqMatch = content.match(/required\s*=\s*\[([\s\S]*?)\]/);
+        if (reqMatch) {
+          for (const m of reqMatch[1].matchAll(/\(\s*['"]([a-z][a-z0-9-]*)['"]\s*,/g)) {
+            workflowSkills.add(m[1]);
+          }
+        }
+        expect(workflowSkills.size, `Workflow ${phase} verify-skill-manifest must list at least one required skill`).toBeGreaterThan(0);
+
+        const missingFromAgent: string[] = [];
+        for (const skill of workflowSkills) {
+          if (!agentContent.includes(skill)) {
+            missingFromAgent.push(skill);
+          }
+        }
+        expect(
+          missingFromAgent,
+          `Workflow ${phase} verify-skill-manifest requires these skills but the agent prompt doesn't mention them: ${missingFromAgent.join(', ')}. Either the agent prompt is stale OR the workflow has an extra entry that needs removing. Open both files side-by-side.`,
+        ).toEqual([]);
+      });
+
       it('workflow YAML does not use the broken `${{ ... && \'\'icon\'\' || \'\'icon\'\' }}` inline-ternary pattern', () => {
         // Cert-run-3 forensic: GitHub Actions tightened its expression
         // parser. Inside a `run: |` literal-block scalar, the doubled

@@ -225,6 +225,89 @@ jobs:
           print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""}{seal_note} reason={reason}')
           PYEOF
 
+      # Task #62 — Required skill_call manifest verification. Cert-run-3
+      # forensic: the agent skipped dedupe-and-rank + format-research-issue-
+      # update entirely (12 events instead of expected ~16) while the run
+      # still passed all other checks. The chain became a coverage lie.
+      # This step counts skill_call events per skill and fails the verdict
+      # if any required skill is missing. Per-BAR / per-repo counts read
+      # from okr.yaml so the threshold matches the actual scope.
+      - name: Verify required skill_call manifest
+        id: manifest
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+        run: |
+          OKR_YAML="okrs/${OKR_ID}/okr.yaml"
+          if [ ! -f "$OKR_YAML" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=okr-yaml-missing" >> "$GITHUB_OUTPUT"
+            echo "missing=$OKR_YAML" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          JSONL="$JSONL" OKR_YAML="$OKR_YAML" python3 <<'PYEOF'
+          import json, os, yaml
+          # Count successful skill_call events per skill.
+          counts = {}
+          with open(os.environ['JSONL'], 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line: continue
+                  try:
+                      e = json.loads(line)
+                  except Exception:
+                      continue
+                  if e.get('event_kind') != 'skill_call': continue
+                  payload = e.get('payload') or {}
+                  if payload.get('ok') is False: continue  # don't count failures
+                  skill = payload.get('skill')
+                  if not skill: continue
+                  counts[skill] = counts.get(skill, 0) + 1
+
+          # Dynamic threshold for knowledge-mesh-bar: 1 per affectedBarIds.
+          card = yaml.safe_load(open(os.environ['OKR_YAML'])) or {}
+          oa = card.get('objectiveAlignment') or {}
+          bar_ids = oa.get('affectedBarIds') or []
+          required_bar_calls = max(1, len(bar_ids))
+
+          # Required skill_call manifest — must match the table in
+          # agents-v4/market-research-agent.agent.md "Required skill_call
+          # manifest" section.
+          required = [
+              ('knowledge-okr', 1),
+              ('knowledge-mesh-bar', required_bar_calls),
+              ('knowledge-mesh-threats', 1),
+              ('knowledge-mesh-adrs', 1),
+              ('tavily-search', 1),
+              ('arxiv-search', 1),
+              ('uspto-search', 1),
+              ('hackernews-search', 1),
+              ('dedupe-and-rank', 1),
+              ('format-research-issue-update', 1),
+          ]
+          missing = []
+          for skill, min_count in required:
+              actual = counts.get(skill, 0)
+              if actual < min_count:
+                  missing.append(f'{skill} (got {actual}/{min_count})')
+          ok = len(missing) == 0
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'ok={"true" if ok else "false"}\n')
+              f.write(f'reason={"" if ok else "skill-manifest-incomplete"}\n')
+              # Multiline-safe missing list.
+              f.write('missing<<MEOF\n')
+              for m in missing:
+                  f.write(m + '\n')
+              f.write('MEOF\n')
+          status = 'PASS' if ok else 'FAIL'
+          print(f'::notice::skill-manifest {status} ({len(required)} required, {len(missing)} missing)')
+          if not ok:
+              for m in missing:
+                  print(f'::warning::skill-manifest missing: {m}')
+          PYEOF
+
       # B28 Court Recorder Auto-Logging — the workflow emits artifact_written
       # deterministically from the filesystem so the agent doesn't have
       # to call audit-emit-event after writing research-doc.md. Closes T11.
@@ -543,6 +626,9 @@ jobs:
           POCKET="${{ steps.pocket.outputs.passed }}"
           CHAIN_OK="${{ steps.chain.outputs.ok }}"
           CHAIN_REASON="${{ steps.chain.outputs.reason }}"
+          MANIFEST_OK="${{ steps.manifest.outputs.ok }}"
+          MANIFEST_MISSING_RAW="${{ steps.manifest.outputs.missing }}"
+          MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
 
           VERDICT="ok"; REASON=""
           # Discrete failure-kind flags — used by the label-apply step to
@@ -574,6 +660,16 @@ jobs:
             EVIDENCE_FAIL="true"
           elif [ "$VERDICT" = "ok" ] && [ "$FOUND" = "true" ] && [ "$EVIDENCE_MODE" = "live" ] && [ "$TOTAL" -eq 0 ]; then
             VERDICT="degraded"; REASON="evidence_mode=live but 0 successful provider skill_calls in audit"
+            EVIDENCE_FAIL="true"
+          fi
+
+          # Task #62 — Required skill_call manifest. If the agent skipped
+          # any mandatory skill (cert-run-3: dedupe-and-rank + format-
+          # research-issue-update), evidence is incomplete regardless of
+          # provider counts. Treated as an evidence-honesty failure since
+          # the chain is the contract.
+          if [ "$VERDICT" = "ok" ] && [ "$MANIFEST_OK" = "false" ]; then
+            VERDICT="degraded"; REASON="Required skill_call manifest incomplete: $MANIFEST_MISSING"
             EVIDENCE_FAIL="true"
           fi
 
@@ -644,6 +740,14 @@ jobs:
             *)       printf '| Pocket Watch goal-drift | `%s` (cosine=%s) |\n' "$POCKET_STATE" "$POCKET_COS" >> "$BODY" ;;
           esac
           printf '| Hatter Tag `evidence_mode` | `%s` |\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
+          # Task #62 — Required skill_call manifest row.
+          MANIFEST_OK_DISPLAY='${{ steps.manifest.outputs.ok }}'
+          MANIFEST_MISSING_DISPLAY='${{ steps.manifest.outputs.missing }}'
+          case "$MANIFEST_OK_DISPLAY" in
+            true)  printf '| Required skill_call manifest | ✓ all 10 required skills invoked |\n' >> "$BODY" ;;
+            false) printf '| Required skill_call manifest | ✗ incomplete — missing: %s |\n' "$(echo "$MANIFEST_MISSING_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
+            *)     printf '| Required skill_call manifest | — n/a (no chain) |\n' >> "$BODY" ;;
+          esac
           # Knight's Seal v1 (B27): per-run Ed25519 sealing.
           SEALED='${{ steps.chain.outputs.sealed }}'
           case "$SEALED" in

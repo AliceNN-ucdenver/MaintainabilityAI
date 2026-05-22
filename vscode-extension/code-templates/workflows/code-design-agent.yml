@@ -314,6 +314,88 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "::notice::structure h2=$H2_PRESENT/10"
 
+      # Task #62 — Required skill_call manifest verification. Symmetric
+      # with WHY + HOW workflows: enforce that every skill listed in the
+      # agent prompt's "Required skill_call manifest" section actually
+      # shows up as a successful skill_call in the audit chain.
+      # Per-BAR count for knowledge-mesh-bar + per-repo count for
+      # knowledge-code are dynamic (read from okr.yaml at run time).
+      - name: Verify required skill_call manifest
+        id: manifest
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+        run: |
+          OKR_YAML="okrs/${OKR_ID}/okr.yaml"
+          if [ ! -f "$OKR_YAML" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=okr-yaml-missing" >> "$GITHUB_OUTPUT"
+            echo "missing=$OKR_YAML" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          JSONL="$JSONL" OKR_YAML="$OKR_YAML" python3 <<'PYEOF'
+          import json, os, yaml
+          counts = {}
+          with open(os.environ['JSONL'], 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line: continue
+                  try:
+                      e = json.loads(line)
+                  except Exception:
+                      continue
+                  if e.get('event_kind') != 'skill_call': continue
+                  payload = e.get('payload') or {}
+                  if payload.get('ok') is False: continue
+                  skill = payload.get('skill')
+                  if not skill: continue
+                  counts[skill] = counts.get(skill, 0) + 1
+
+          card = yaml.safe_load(open(os.environ['OKR_YAML'])) or {}
+          oa = card.get('objectiveAlignment') or {}
+          bar_ids = oa.get('affectedBarIds') or []
+          target_repos = oa.get('targetCodeRepos') or []
+          required_bar_calls = max(1, len(bar_ids))
+          required_kcode_calls = max(1, len(target_repos))
+
+          # Required skill_call manifest — must match the table in
+          # agents-v4/code-design-agent.agent.md "Required skill_call
+          # manifest" section.
+          required = [
+              ('knowledge-okr', 1),
+              ('knowledge-prd', 1),
+              ('knowledge-mesh-bar', required_bar_calls),
+              ('knowledge-mesh-adrs', 1),
+              ('knowledge-mesh-threats', 1),
+              ('context-architecture', 1),
+              ('context-security', 1),
+              ('context-quality', 1),
+              ('knowledge-code', required_kcode_calls),
+              ('self-review-code-architect', 1),
+              ('self-review-code-security', 1),
+          ]
+          missing = []
+          for skill, min_count in required:
+              actual = counts.get(skill, 0)
+              if actual < min_count:
+                  missing.append(f'{skill} (got {actual}/{min_count})')
+          ok = len(missing) == 0
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'ok={"true" if ok else "false"}\n')
+              f.write(f'reason={"" if ok else "skill-manifest-incomplete"}\n')
+              f.write('missing<<MEOF\n')
+              for m in missing:
+                  f.write(m + '\n')
+              f.write('MEOF\n')
+          status = 'PASS' if ok else 'FAIL'
+          print(f'::notice::skill-manifest {status} ({len(required)} required, {len(missing)} missing)')
+          if not ok:
+              for m in missing:
+                  print(f'::warning::skill-manifest missing: {m}')
+          PYEOF
+
       # Evidence honesty + per-repo mode honesty. The chain MUST have
       # one knowledge-code skill_call per targetCodeRepos[] entry, AND
       # the per-repo `mode:` frontmatter in code-design.md MUST match
@@ -637,11 +719,15 @@ jobs:
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
         run: |
-          # Compute verdict from chain + mode honesty + structure (Task #59:
-          # H2 coverage + per-repo addresses[] coverage now contribute to
-          # the verdict; drift gates stay report-only per MVP plan).
+          # Compute verdict from chain + mode honesty + structure + manifest
+          # (Tasks #59 + #62 — H2 coverage + per-repo addresses[] coverage +
+          # required skill_call manifest all contribute; drift gates stay
+          # report-only per MVP plan).
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
+          MANIFEST_OK='${{ steps.manifest.outputs.ok }}'
+          MANIFEST_MISSING_RAW='${{ steps.manifest.outputs.missing }}'
+          MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
           H2_PRESENT='${{ steps.structure.outputs.h2_present }}'
           H2_TOTAL='${{ steps.structure.outputs.h2_total }}'
           FR_COUNT='${{ steps.structure.outputs.fr_count }}'
@@ -662,9 +748,16 @@ jobs:
             STRUCT_OK="false"
             STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }SR addressed-by-per-repo §5 ${SR_ADDRESSED}/${SR_COUNT}"
           fi
-          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ]; then
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ]; then
             VERDICT="ok"
             REASON=""
+          elif [ "$MANIFEST_OK" = "false" ]; then
+            # Task #62 — manifest failure is an evidence-honesty problem
+            # (the chain doesn't show the agent went through the canonical
+            # pipeline). Surface BEFORE mode-honesty so the reviewer sees
+            # what was skipped, not what was misclassified.
+            VERDICT="degraded"
+            REASON="Required skill_call manifest incomplete: $MANIFEST_MISSING"
           elif [ "$MODE_OK" = "false" ]; then
             VERDICT="degraded"
             REASON="Per-repo mode honesty failed (${{ steps.mode_honesty.outputs.finding_count }} finding(s))"
@@ -741,6 +834,14 @@ jobs:
             '${{ steps.mode_honesty.outputs.repo_count }}' \
             '${{ steps.mode_honesty.outputs.finding_count }}' \
             >> "$BODY"
+          # Task #62 — Required skill_call manifest row.
+          MANIFEST_OK_DISPLAY='${{ steps.manifest.outputs.ok }}'
+          MANIFEST_MISSING_DISPLAY='${{ steps.manifest.outputs.missing }}'
+          case "$MANIFEST_OK_DISPLAY" in
+            true)  printf '| Required skill_call manifest | ✓ all 11 required skills invoked |\n' >> "$BODY" ;;
+            false) printf '| Required skill_call manifest | ✗ incomplete — missing: %s |\n' "$(echo "$MANIFEST_MISSING_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
+            *)     printf '| Required skill_call manifest | — n/a (no chain) |\n' >> "$BODY" ;;
+          esac
           printf '| Pocket Watch (objective vs Problem Restatement) | calibration-pending (D-PR1.v1.x) |\n' >> "$BODY"
           printf "| Caterpillar's Challenge (code-design vs PRD) | calibration-pending (D-PR1.v1.x) |\n" >> "$BODY"
 
