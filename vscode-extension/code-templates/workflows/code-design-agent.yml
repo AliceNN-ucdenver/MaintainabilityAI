@@ -664,12 +664,19 @@ jobs:
           pr_body = os.environ.get('PR_BODY', '') or ''
           artifact_text = os.environ.get('ARTIFACT_TEXT', '') or ''
 
-          # Block regex — matches `### Self-review — Code-<Persona> (round N)`
-          # then captures the SCORE, SEVERITY lines that follow within a
-          # 10-line window. Persona casing is tolerant; round 1-9 supported.
+          # Block regex — matches ONLY the `### Self-review — Code-<Persona>
+          # (round N)` heading line. Persona casing is tolerant.
+          #
+          # Bug J (cert-run-5 forensic, Task #67): the previous form
+          # `(?:[^\n]*\n){0,10}` greedy-consumed up to 10 lines past
+          # the heading. When Code-Architect was immediately followed by
+          # SCORE/SEVERITY/COVERED/MISSING/CHANGES + blank + the next
+          # Code-Security heading, finditer's non-overlapping search ate
+          # past Security's heading and never matched it. Cert-run-5
+          # produced sec=None(None) for exactly this reason.
+          # Fix: only match the heading; let block_window do the body scan.
           BLOCK_RE = re.compile(
-              r'^### Self-review — Code-(Architect|Security)\s*\(round\s*(\d+)\)\s*\n'
-              r'(?:[^\n]*\n){0,10}',
+              r'^### Self-review — Code-(Architect|Security)\s*\(round\s*(\d+)\)\s*$',
               re.MULTILINE | re.IGNORECASE,
           )
           # Inside the matched window, extract SCORE + SEVERITY values.

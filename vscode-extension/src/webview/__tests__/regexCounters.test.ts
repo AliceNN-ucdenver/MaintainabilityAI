@@ -529,6 +529,37 @@ Just content.
     expect(extractSelfReviewFromArtifact(undefined as unknown as string).source).toBe('none');
   });
 
+  it('parses BOTH personas when their blocks are adjacent (cert-run-5 bug J regression)', () => {
+    // Cert-run-5 workflow forensic: BLOCK_RE consumed 10 lines past
+    // Code-Architect heading, swallowing Code-Security heading. finditer
+    // never matched Security as a separate block → sec=None(None) in
+    // workflow output. The TS-side artifact parser uses an explicit
+    // SCORE/SEVERITY-terminated regex (not the workflow's loose
+    // 10-line consumer) so we don't share the bug, but pin it
+    // explicitly: both personas in cert-run-5-like adjacency must
+    // parse cleanly here.
+    const doc = `## Body content
+
+### Self-review — Code-Architect (round 1)
+SCORE: 0.96
+SEVERITY: PASS
+COVERED: [FR-01]
+MISSING: []
+CHANGES: []
+
+### Self-review — Code-Security (round 1)
+SCORE: 0.95
+SEVERITY: PASS
+COVERED: [SR-01]
+MISSING: []
+CHANGES: []
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-md');
+    expect(r.architect).toEqual({ round: 1, score: 0.96, severity: 'PASS' });
+    expect(r.security).toEqual({ round: 1, score: 0.95, severity: 'PASS' });
+  });
+
   it('tolerates hyphen separator instead of em-dash (--- vs em-dash for stripped-unicode runtimes)', () => {
     const doc = `### Self-review - Architect (round 1)
 SCORE: 0.80

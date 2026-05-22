@@ -208,20 +208,35 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
 
 ### Ship
 
-17. Set the PR ready for review. Write the final Hatter Tag block to the top of `code-design.md` (the finalize workflow will populate `chain_root_hash`, `seal_pub`, `seal_sig`).
+17. Set the PR ready for review. Write the final Hatter Tag block to the top of `code-design.md`. **YOU populate `chain_root_hash` — do NOT leave it as a placeholder.** Cert-run-5 forensic (Task #69): the prior version of this prompt said "the finalize workflow will populate `chain_root_hash`" — that's FALSE. The finalize workflow READS chain_root_hash FROM your frontmatter via `yq`; if you wrote `pending-finalize` (or any non-hash string), the finalize sees that, the composite skips the `actions[].hatterChainRoot` write (the gate is `[ -n "$CHAIN_ROOT_HASH" ]` — non-empty string passes), and the OKR card ends up without a Hatter/Sealed badge in Looking Glass.
+
+    The real chain_root_hash is the `event_hash` of event_id=1 in `okrs/<id>/audit/events/<runId>.jsonl`. Under B28 the runner auto-emits event_id=1 from your first `runSkill()` call (typically `knowledge-okr`), so this hash exists BEFORE you write the artifact. Read it with:
+
+    ```sh
+    jq -r 'select(.event_id == 1) | .event_hash' okrs/<id>/audit/events/<runId>.jsonl
+    ```
+
+    That returns a 64-character hex string. Paste it verbatim. Do NOT use any placeholder, summary, or computed value.
+
+    Canonical Hatter Tag for WHAT phase:
 
     ```yaml
     ---
     phase: what
     okr_id: <id>
-    intent_thread_uuid: <fresh uuid for this WHAT action>
-    parent_intent_thread: <prd action's intent_thread_uuid>
+    run_id: WHAT-...                          # exact value from dispatch issue body
+    intent_thread_uuid: <intent_thread_uuid from Dispatch context table>
+    parent_intent_thread: <prd action's intent_thread_uuid from chain-ladder.yaml>
     governance_tier: <copy from okr.yaml.actions[latest with phase=what]>
     author_did: did:github:copilot-swe-agent
     reviewer_dids: []
     evidence_mode: code
+    audit:
+      chain_root_hash: <64-char hex from jq command above — NEVER a placeholder>
     ---
     ```
+
+    Symmetric with the WHY + HOW agent prompts — same `audit:` block shape, same source for the hash, same anti-placeholder rule. The Knight's Seal `seal_pub` / `seal_sig` are written into each event in the JSONL by the runner; they do NOT belong in the artifact frontmatter.
 
 18. Post a final PR comment with:
     - One-line summary of the design (matches §2 Problem Restatement).
