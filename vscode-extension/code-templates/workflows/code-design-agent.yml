@@ -203,6 +203,7 @@ jobs:
           jsonl = os.environ['JSONL']
           ok, reason, head, n, prev = True, '', '', 0, None
           signed_count = 0
+          workflow_unsigned_count = 0  # Bug K — post-agent workflow-emitted events
           def canonical(v):
               return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
           with open(jsonl, 'r', encoding='utf-8') as f:
@@ -221,16 +222,23 @@ jobs:
               if not isinstance(recorded, str):
                   ok = False; reason = f'missing-event-hash-line-{i+1}'; break
               draft = dict(event); draft['event_hash'] = ''
+              # Bug K: workflow-emitted events legitimate-unsigned by-design.
+              is_workflow_emitted = (event.get('payload') or {}).get('emitted_by') == 'workflow'
               if 'signature' in event:
+                  sig_val = event.get('signature') or ''
                   draft['signature'] = ''
-                  signed_count += 1
+                  if sig_val:
+                      signed_count += 1
+                  elif is_workflow_emitted:
+                      workflow_unsigned_count += 1
               recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
               if recorded != recomputed:
                   ok = False; reason = f'forged-hash-line-{i+1}'; break
               prev = recorded
           sealed = signed_count > 0
-          if ok and sealed and signed_count != n:
-              ok = False; reason = f'partial-signatures: {signed_count}/{n}'
+          agent_event_count = n - workflow_unsigned_count
+          if ok and sealed and signed_count != agent_event_count:
+              ok = False; reason = f'partial-signatures: {signed_count}/{agent_event_count} (workflow-unsigned={workflow_unsigned_count})'
           head = prev or ''
           out = os.environ['GITHUB_OUTPUT']
           with open(out, 'a', encoding='utf-8') as f:
@@ -265,10 +273,23 @@ jobs:
           fi
           echo "doc_found=true" >> "$GITHUB_OUTPUT"
 
+          # Task #70 (cert-run-5 forensic) — switched from planning-level
+          # H2s (Input Premises / Approach / Repo Inventory / ...) to the
+          # developer-actionable set from .caterpillar/prompts/code-design/
+          # synthesis.md. The prior set described intent; the new set is
+          # what a coding agent needs to actually implement (project tree,
+          # typed contracts, schemas, middleware code, tests, deploy).
           REQUIRED_H2=(
-            "Input Premises" "Problem Restatement" "Approach"
-            "Repo Inventory" "Per-Repo Change List" "Interface Contracts"
-            "Data Ownership" "Migration Plan" "Rollback Plan" "Risk Matrix"
+            "Project Structure"
+            "API Endpoint Specifications"
+            "Data Models"
+            "Authentication Middleware Implementation"
+            "Security Control Implementations"
+            "Configuration and Environment Variables"
+            "Error Handling Patterns"
+            "Testing Strategy with Example Test Cases"
+            "Deployment Configuration"
+            "Design Rationale & Research Traceability"
           )
           H2_PRESENT=0; MISSING_H2=""
           for name in "${REQUIRED_H2[@]}"; do

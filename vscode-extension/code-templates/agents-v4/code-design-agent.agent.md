@@ -112,20 +112,22 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
 11. (Optional, D5 follow-up) If the mesh has `.caterpillar/reference-repos/<bar-id>.yaml` configured, invoke `knowledge-reference-repos` to get exemplar code patterns to anchor greenfield designs against. Empty array in D-PR1 — this step lands when D5 ships.
 
 12. Write the first-pass `code-design.md` to `okrs/<id>/what/code-design.md` using the strict format from `.caterpillar/prompts/code-design/synthesis.md`. Required H2 sections in fixed order:
-    1. Input Premises
-    2. Problem Restatement
-    3. Approach
-    4. Repo Inventory (per-repo subsections with `mode:` frontmatter)
-    5. Per-Repo Change List (per-repo subsections with `mode:` + `addresses: [FR-X, SR-Y]` frontmatter)
-    6. Interface Contracts
-    7. Data Ownership
-    8. Migration Plan
-    9. Rollback Plan
-    10. Risk Matrix
+    1. Project Structure
+    2. API Endpoint Specifications
+    3. Data Models
+    4. Authentication Middleware Implementation
+    5. Security Control Implementations
+    6. Configuration and Environment Variables
+    7. Error Handling Patterns
+    8. Testing Strategy with Example Test Cases
+    9. Deployment Configuration
+    10. Design Rationale & Research Traceability
 
-    Every per-repo subsection in §4 + §5 MUST carry frontmatter that includes BOTH a `repo:` key AND a `mode:` key (and `addresses:` for §5). Cert-run-5 forensic (Task #65): the agent wrote the repo slug as a `### heading` and omitted `repo:` from the frontmatter — the workflow's mode-honesty parser found zero matches and reported "repo `X` has no per-repo subsection frontmatter" for every target repo, even though the data was clearly there. **The parser is now tolerant of `repo:`-from-heading inference, but the canonical format includes `repo:` IN the frontmatter.** Don't make the parser do extra work.
+    **CRITICAL — cert-run-5 forensic (Task #70 / Bug M):** the prior version of this prompt listed PLANNING-level sections (Input Premises / Problem Restatement / Approach / Repo Inventory / Per-Repo Change List / Interface Contracts / Data Ownership / Migration Plan / Rollback Plan / Risk Matrix). The artifact the agent produced was reviewed by a human who said: "doesn't include a project structure or specs, interfaces, view changes... doesn't even describe what we're changing in the front end, what the view looks like, what the database looks like — is this something you'd turn over to a coding agent?" Answer: NO. The planning-level sections describe intent; they don't give a coding agent enough to implement.
 
-    Canonical per-repo §4 + §5 subsection format:
+    The 10 sections above are the DEVELOPER-ACTIONABLE set from the synthesis prompt-pack (`.caterpillar/prompts/code-design/synthesis.md`). Each one must include CONCRETE CODE-LEVEL DETAIL: project file tree, typed request/response shapes (TypeScript interfaces / Pydantic models / etc per the repo's language), database schemas with column types and indexes, middleware code, security-control implementations per SR-NN, env var schema with validation, error handler classes, test scenarios with example test cases, deployment config (Dockerfile / compose), and a design-rationale section tracing back to WHY-phase research findings.
+
+    **Per-repo subsections live INSIDE §1 Project Structure** (and §3 Data Models when the entity is per-repo). Each subsection MUST carry frontmatter with `repo: <slug>` + `mode: brownfield|greenfield` + `addresses: [FR-X, SR-Y]`:
 
     ```markdown
     ### `owner/name`
@@ -133,17 +135,23 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
     repo: owner/name
     mode: brownfield | greenfield
     status: connected | create
-    addresses: [FR-01, FR-02, SR-01]   # §5 only — §4 may omit addresses
+    language: typescript | python | go | ...
+    framework: express | fastify | nestjs | ...
+    addresses: [FR-01, FR-02, SR-01]
     ---
 
-    - bullet 1: ground each bullet in real `knowledge-code` outputs
-    - bullet 2: cite specific file paths for brownfield (e.g. `src/auth/middleware.ts`)
-    - bullet 3: cite specific modules for greenfield (e.g. `src/domain/identity/`)
+    For BROWNFIELD: cite real `knowledge-code.structure.topDirs[]` paths.
+    Name SPECIFIC FILES to modify (e.g. `src/state/profileStore.ts`).
+    DO NOT stop at "extend `src`" — the knowledge-code skill gave you
+    top-dirs + entryPoints; drill in.
+
+    For GREENFIELD: name the proposed file tree as a code block.
+    Cite scaffolding hints from knowledge-code.scaffoldingHints.
     ```
 
-    The audit-and-drift workflow checks per-repo mode honesty — a mismatch (claiming brownfield grounding on a greenfield repo or vice versa) is a `BLOCKING` finding. Every per-repo change in §5 MUST list its addressed FR/SR ids via `addresses: [FR-X, SR-Y]`. The union of all per-repo `addresses:` MUST cover every PRD FR/SR. Missing coverage surfaces in the audit comment.
+    See `.caterpillar/prompts/code-design/synthesis.md` for the FULL canonical examples of each section (TypeScript interface examples for §2, zod schema for §3, middleware code for §4, env loader for §6, error class for §7, etc). Mirror those examples to your repo's primary language.
 
-    **Brownfield grounding depth (cert-run-5 observation):** the `knowledge-code` brownfield response carries `structure.topDirs[]` and `entryPoints[]`. Use them. A line like "extend frontend behavior inside `src`" is shallower than the data the skill returned; cite specific file paths inside the listed top-dirs when you propose changes ("modify `src/state/profileStore.ts` to add ambiguousMatchState" beats "extend `src`"). The mesh deserves the depth the skill collected.
+    The audit-and-drift workflow checks: 10/10 H2 sections present, per-repo `mode:` matches `knowledge-code` chain mode, every PRD FR/SR covered by at least one repo's `addresses:` array. Missing any of these is a `BLOCKING` finding.
 
 ### Self-critique (bounded rounds)
 

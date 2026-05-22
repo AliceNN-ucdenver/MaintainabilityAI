@@ -173,6 +173,7 @@ jobs:
           jsonl = os.environ['JSONL']
           ok, reason, head, n, prev = True, '', '', 0, None
           signed_count = 0
+          workflow_unsigned_count = 0  # Bug K — events emitted by post-agent workflow context
           def canonical(v):
               # ensure_ascii=False matches Node's JSON.stringify behavior:
               # the TS canonicalStringify keeps non-ASCII chars as literal
@@ -201,17 +202,31 @@ jobs:
               # event_hash and signature are filled in AFTER the hash is
               # computed. Zero both before recompute. Legacy chains have
               # no signature field; treat them unchanged.
+              #
+              # Bug K (cert-run-5): workflow-attributed events (post-agent
+              # emit, ephemeral key gone) may have signature: '' AND carry
+              # payload.emitted_by == 'workflow'. These are legitimately
+              # unsigned by-design — chain-verify must not flag them as
+              # partial-tampering.
               draft = dict(event); draft['event_hash'] = ''
+              is_workflow_emitted = (event.get('payload') or {}).get('emitted_by') == 'workflow'
               if 'signature' in event:
+                  sig_val = event.get('signature') or ''
                   draft['signature'] = ''
-                  signed_count += 1
+                  if sig_val:
+                      signed_count += 1
+                  elif is_workflow_emitted:
+                      workflow_unsigned_count += 1
               recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
               if recorded != recomputed:
                   ok = False; reason = f'forged-hash-line-{i+1}: recorded={recorded[:16]} recomputed={recomputed[:16]}'; break
               prev = recorded
           sealed = signed_count > 0
-          if ok and sealed and signed_count != n:
-              ok = False; reason = f'partial-signatures: {signed_count}/{n} events signed (chain tampered)'
+          # Sealed iff every event that COULD be signed (agent-emitted) is signed.
+          # Workflow-unsigned events are excluded from the denominator.
+          agent_event_count = n - workflow_unsigned_count
+          if ok and sealed and signed_count != agent_event_count:
+              ok = False; reason = f'partial-signatures: {signed_count}/{agent_event_count} agent-emitted events signed (chain tampered; {workflow_unsigned_count} workflow-emitted unsigned by-design)'
           head = prev or ''
           out = os.environ['GITHUB_OUTPUT']
           with open(out, 'a', encoding='utf-8') as f:

@@ -1347,6 +1347,81 @@ test('Audit contract: runSkill flat-merges auditMetadata into payload (no nestin
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+// ─── Bug K (cert-run-5): post-agent workflow-emit handling ──────────
+
+test('audit-emit-event: workflow context (pub key on disk, no priv) emits UNSIGNED with emitted_by:workflow', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-BUG-K', runId: 'WHY-BUG-K-1', phase: 'why' as const, intentThreadUuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' };
+
+      // 1. Simulate the agent run: first emit creates the keypair.
+      const ev1 = await runSkill('audit-emit-event', {
+        ...base, eventKind: 'skill_call',
+        payload: { skill: 'knowledge-okr', ok: true },
+      });
+      assert.equal(ev1.ok, true);
+
+      // 2. Simulate the workflow context: delete the private key from
+      //    tmpdir (agent runner machine is gone). Public key persists
+      //    on disk (it's in the mesh repo).
+      const os = await import('os');
+      const path = await import('path');
+      const fs = await import('fs');
+      const privPath = path.join(os.tmpdir(), '.research-runner-keys', 'OKR-BUG-K--WHY-BUG-K-1.priv.pem');
+      assert.ok(fs.existsSync(privPath), 'priv key should exist after agent emit');
+      fs.unlinkSync(privPath);
+
+      // 3. Workflow now tries to emit a synthetic self_review event
+      //    WITHOUT emitted_by:workflow → must REFUSE (can't sign, not
+      //    declared as workflow context, would forge if it generated
+      //    a new key + overwrote the committed pub).
+      const refused = await runSkill('audit-emit-event', {
+        ...base, eventKind: 'self_review',
+        payload: { round: 1, persona: 'architect', score: 0.92, severity: 'MINOR' },
+      });
+      assert.equal(refused.ok, false, 'must refuse to emit without emitted_by:workflow');
+      if (!refused.ok) {
+        assert.match(refused.reason ?? '', /ephemeral-private-key-gone/);
+      }
+
+      // 4. Workflow emits the SAME event with emitted_by:'workflow' →
+      //    must succeed UNSIGNED. Sealed: false in the response since
+      //    the event was not signed.
+      const wfEmit = await runSkill('audit-emit-event', {
+        ...base, eventKind: 'self_review',
+        payload: { round: 1, persona: 'architect', score: 0.92, severity: 'MINOR', emitted_by: 'workflow' },
+      });
+      assert.equal(wfEmit.ok, true, `workflow-emit should succeed: reason=${wfEmit.ok ? '' : wfEmit.reason}`);
+      if (wfEmit.ok) {
+        assert.equal(wfEmit.sealed, false, 'workflow-emit is unsigned');
+      }
+
+      // 5. Read the chain. Event 1 should still have its agent signature
+      //    intact (NOT overwritten — that was the cert-run-5 bug). The
+      //    workflow-emitted event 2 should have signature='' AND
+      //    payload.emitted_by='workflow'.
+      const jsonl = path.join(mesh, 'okrs', 'OKR-BUG-K', 'audit', 'events', 'WHY-BUG-K-1.jsonl');
+      const events = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+      assert.equal(events.length, 2);
+      assert.match(events[0].signature, /^[0-9a-f]{128}$/, 'agent event 1 signature intact');
+      assert.equal(events[1].signature, '', 'workflow event 2 unsigned');
+      assert.equal(events[1].payload.emitted_by, 'workflow');
+      assert.equal(events[1].payload.score, 0.92);
+
+      // 6. Chain-verify must still PASS (the agent-emitted events are
+      //    signed; the workflow-emitted one is legitimate-unsigned).
+      //    Note: this calls runner's audit-verify-chain which currently
+      //    expects all-or-nothing signing. Verify the v0.1.38 behavior:
+      //    chain hash linkage is intact; that's the runner's primary
+      //    integrity gate. Per-workflow seal-tamper logic lives in the
+      //    workflow Python (also updated in this commit).
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-BUG-K', runId: 'WHY-BUG-K-1' });
+      assert.equal(verify.ok, true, `chain hash linkage intact even with mixed signing; reason=${verify.ok ? '' : verify.reason}`);
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 /**
  * Companion contract test — canonical fields (skill / ok / duration_ms /
  * reason) WIN on collision with handler-declared auditMetadata. A

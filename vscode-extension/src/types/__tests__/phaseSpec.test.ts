@@ -326,6 +326,60 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         ).toBe(true);
       });
 
+      it('WHAT-phase canonical H2s match across agent prompt + workflow + synthesis pack (Task #70)', () => {
+        // Cert-run-5 bug M: synthesis prompt-pack had developer-actionable
+        // H2s; agent prompt + workflow had planning-level H2s. Agent
+        // followed the agent prompt (the shallower one). Human reviewer
+        // rejected the artifact as "not something you'd turn over to a
+        // coding agent". Reconciled to the synthesis pack's set — pin
+        // all three sources here so future drift fires the test, not
+        // the next cert run.
+        if (phase !== 'what') { return; }
+        const CANONICAL_WHAT_H2 = [
+          'Project Structure',
+          'API Endpoint Specifications',
+          'Data Models',
+          'Authentication Middleware Implementation',
+          'Security Control Implementations',
+          'Configuration and Environment Variables',
+          'Error Handling Patterns',
+          'Testing Strategy with Example Test Cases',
+          'Deployment Configuration',
+          'Design Rationale & Research Traceability',
+        ];
+
+        // 1. Synthesis pack must contain ALL 10 as H2 examples.
+        const synthPath = path.join(
+          __dirname, '..', '..', '..',
+          'prompt-packs', 'looking-glass', 'code-design', 'synthesis.md',
+        );
+        const synthContent = fs.readFileSync(synthPath, 'utf8');
+        const synthMissing = CANONICAL_WHAT_H2.filter(name => !synthContent.includes(name));
+        expect(
+          synthMissing,
+          `synthesis.md missing canonical H2 names: ${synthMissing.join(', ')}`,
+        ).toEqual([]);
+
+        // 2. Agent prompt must reference all 10.
+        const agentPath = path.join(
+          __dirname, '..', '..', '..',
+          'code-templates', 'agents-v4', 'code-design-agent.agent.md',
+        );
+        const agentContent = fs.readFileSync(agentPath, 'utf8');
+        const agentMissing = CANONICAL_WHAT_H2.filter(name => !agentContent.includes(name));
+        expect(
+          agentMissing,
+          `code-design-agent.agent.md missing canonical H2 names (drift between agent prompt + synthesis pack): ${agentMissing.join(', ')}`,
+        ).toEqual([]);
+
+        // 3. Workflow check must reference all 10.
+        const workflowMissing = CANONICAL_WHAT_H2.filter(name => !content.includes(name));
+        expect(
+          workflowMissing,
+          `code-design-agent.yml H2 check missing canonical names (drift between workflow + synthesis pack): ${workflowMissing.join(', ')}`,
+        ).toEqual([]);
+      });
+
       it('HOW + WHAT agent prompts contain the cert-run-4 ANTI-PATTERN block (Task #64)', () => {
         if (phase === 'why') { return; } // WHY agent has no self-review
         const agentPath = path.join(

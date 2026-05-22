@@ -79,17 +79,24 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
  *   verifiable but no seal badge rendered.
  */
 function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampered?: boolean } {
+  // Bug K (cert-run-5): workflow-emitted events (payload.emitted_by ===
+  // 'workflow') are legitimate-unsigned by-design — they're emitted in
+  // post-agent workflow context where the ephemeral private key is gone.
+  // Exclude them from the seal-tamper denominator.
   let signed = 0;
+  let agentEvents = 0;
   for (const line of lines) {
     try {
-      const event = JSON.parse(line) as { signature?: string };
+      const event = JSON.parse(line) as { signature?: string; payload?: { emitted_by?: string } };
+      const isWorkflowEmitted = event.payload?.emitted_by === 'workflow';
+      if (!isWorkflowEmitted) { agentEvents++; }
       if (typeof event.signature === 'string' && event.signature.length > 0) {
         signed++;
       }
     } catch { /* malformed line — skip */ }
   }
-  if (lines.length > 0 && signed === lines.length) { return { sealed: true }; }
-  if (signed > 0) { return { sealed: false, sealTampered: true }; }
+  if (agentEvents > 0 && signed === agentEvents) { return { sealed: true }; }
+  if (signed > 0 && signed < agentEvents) { return { sealed: false, sealTampered: true }; }
   return {};
 }
 
@@ -901,22 +908,30 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           ['Success Metrics'],
           ['References'],
         ]
-        // D-PR1.v1.1 — WHAT-phase canonical 10 H2s per code-design/synthesis.md.
+        // Task #70 (cert-run-5 forensic) — WHAT-phase H2s are the
+        // developer-actionable set from .caterpillar/prompts/code-design/
+        // synthesis.md. The prior set (Input Premises / Approach / Repo
+        // Inventory / Per-Repo Change List / Interface Contracts / Data
+        // Ownership / Migration Plan / Rollback Plan / Risk Matrix) was
+        // planning-level and produced designs that human reviewers
+        // wouldn't hand to a coding agent (no project tree, no typed
+        // request/response shapes, no DB schemas, no per-component
+        // frontend specs). The new set is what a coding agent needs.
         // The synthesis prompt-pack writes them with numbered prefixes
-        // ("## 1. Input Premises") — the heading-match regex below tolerates
-        // optional numeric prefix.
+        // ("## 1. Project Structure") — the heading-match regex below
+        // tolerates optional numeric prefix.
         : phase === 'what'
         ? [
-          ['Input Premises'],
-          ['Problem Restatement'],
-          ['Approach'],
-          ['Repo Inventory'],
-          ['Per-Repo Change List'],
-          ['Interface Contracts'],
-          ['Data Ownership'],
-          ['Migration Plan'],
-          ['Rollback Plan'],
-          ['Risk Matrix'],
+          ['Project Structure'],
+          ['API Endpoint Specifications'],
+          ['Data Models'],
+          ['Authentication Middleware Implementation'],
+          ['Security Control Implementations'],
+          ['Configuration and Environment Variables'],
+          ['Error Handling Patterns'],
+          ['Testing Strategy with Example Test Cases'],
+          ['Deployment Configuration'],
+          ['Design Rationale & Research Traceability'],
         ]
         : [];
       if (requiredH2.length > 0) {

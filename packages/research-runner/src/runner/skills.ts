@@ -1345,7 +1345,19 @@ const handleFormatResearchIssueUpdate: SkillHandler = async (input) => {
 const AuditEmitInput = z.object({
   okrId: z.string().min(1),
   runId: z.string().min(1),
-  eventKind: z.enum(['skill_call', 'llm_call', 'artifact_written', 'review_received', 'state_transition', 'human_gate']),
+  // Bug K (cert-run-5) — added `self_review` and `self_review_exhausted`
+  // to the enum. The HOW + WHAT workflows' review-emit step calls
+  // `audit-emit-event` with `eventKind: 'self_review'` to write per-
+  // persona-per-round events into the chain (parsed from PR-body /
+  // artifact-md / artifact-frontmatter sources). Previously the enum
+  // rejected the kind with bad-input; the workflow logged a warning
+  // and moved on; the chain never got the synthetic event; the UI
+  // had to rely on its artifact-fallback. Now the emit succeeds.
+  eventKind: z.enum([
+    'skill_call', 'llm_call', 'artifact_written', 'review_received',
+    'self_review', 'self_review_exhausted',
+    'state_transition', 'human_gate',
+  ]),
   payload: z.record(z.string(), z.unknown()),
   phase: z.enum(['why', 'how', 'what']),
   intentThreadUuid: z.string().min(1),
@@ -1421,8 +1433,39 @@ function knightSealPrivKeyPath(okrId: string, runId: string): string {
 }
 
 /**
+ * Sentinel error thrown by loadOrCreateRunKeypair when the public key
+ * for a run is committed to disk but the private key (in os.tmpdir())
+ * is gone. This happens in **post-agent workflow context** — the audit
+ * workflow runs in a different GitHub Actions runner from the agent,
+ * so the tmpdir-scoped private key is unrecoverable.
+ *
+ * Critical: if we silently `generateKeyPairSync` here, we'd OVERWRITE
+ * the committed public key with a new one, invalidating every signature
+ * the agent already wrote into the chain. Cert-run-5 bug K forensic.
+ *
+ * The caller (handleAuditEmitEvent) must catch this and fall through
+ * to the workflow-unsigned-emit path.
+ */
+class EphemeralKeyGoneError extends Error {
+  constructor(privPath: string, pubPath: string) {
+    super(`ephemeral-private-key-gone: pub at ${pubPath} but priv missing at ${privPath} — workflow context cannot re-sign`);
+    this.name = 'EphemeralKeyGoneError';
+  }
+}
+
+/**
  * Load the run's private key from tmp, or generate + persist a fresh
  * keypair if this is the first event for the run. Returns both KeyObjects.
+ *
+ * THREE legitimate paths:
+ *   (a) Both priv + pub exist → load + return (in-agent emit chain).
+ *   (b) Neither exists → generate fresh + persist (genesis emit, event 1).
+ *   (c) Pub exists but priv is gone → THROW EphemeralKeyGoneError.
+ *       This is the post-agent workflow context (Bug K). The caller
+ *       must either fall through to an unsigned emit path or return
+ *       a clear error. The previous behavior — silently generating
+ *       a new keypair and overwriting the committed pub — invalidated
+ *       every prior signature in the chain and broke seal integrity.
  */
 function loadOrCreateRunKeypair(okrId: string, runId: string): { privKey: KeyObject; pubKey: KeyObject } {
   const privPath = knightSealPrivKeyPath(okrId, runId);
@@ -1435,6 +1478,14 @@ function loadOrCreateRunKeypair(okrId: string, runId: string): { privKey: KeyObj
       privKey: createPrivateKey({ key: privPem, format: 'pem' }),
       pubKey: createPublicKey({ key: pubPem, format: 'pem' }),
     };
+  }
+
+  // Bug K — explicit refuse: pub on disk but no priv means we're in a
+  // post-agent workflow context. Generating a new keypair here would
+  // overwrite the committed pub and corrupt the chain. Throw and let
+  // the caller decide whether to fall through to unsigned-emit.
+  if (fs.existsSync(pubPath) && !fs.existsSync(privPath)) {
+    throw new EphemeralKeyGoneError(privPath, pubPath);
   }
 
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
@@ -1518,8 +1569,29 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
           nextEventId = last.event_id + 1;
         }
       }
-      const { privKey, pubKey } = loadOrCreateRunKeypair(okrId, runId);
-      const publicKeyPem = pubKey.export({ type: 'spki', format: 'pem' }) as string;
+      // Bug K (cert-run-5) — keypair load may throw EphemeralKeyGoneError
+      // in post-agent workflow context. Tolerate iff the caller declared
+      // `emitted_by: 'workflow'` in the payload — that's the workflow
+      // explicitly identifying itself as a post-agent emitter, NOT an
+      // agent trying to forge events without a signature.
+      let privKey: KeyObject | null = null;
+      let publicKeyPem: string | null = null;
+      try {
+        const keypair = loadOrCreateRunKeypair(okrId, runId);
+        privKey = keypair.privKey;
+        publicKeyPem = keypair.pubKey.export({ type: 'spki', format: 'pem' }) as string;
+      } catch (err) {
+        if (err instanceof EphemeralKeyGoneError) {
+          const emittedBy = (payload as Record<string, unknown> | undefined)?.emitted_by;
+          if (emittedBy !== 'workflow') {
+            return { ok: false, reason: `${err.message} — only emitted_by:'workflow' may proceed unsigned` };
+          }
+          // Workflow-attributed unsigned emit: fall through with null keys.
+        } else {
+          throw err;
+        }
+      }
+
       const draft = {
         event_id: nextEventId,
         ts: new Date().toISOString(),
@@ -1530,19 +1602,22 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
         event_kind: eventKind,
         payload,
         prev_event_hash: prevHash,
-        // Embed public key on event 1 so a single-line audit excerpt
-        // still names its signer. Subsequent events reference the same
-        // committed key on disk; embedding on every line would balloon
-        // the JSONL with no integrity gain.
-        public_key: nextEventId === 1 ? publicKeyPem : null,
+        // Embed public key on event 1 only when we have one (agent run).
+        // Workflow-unsigned events never carry a public_key field —
+        // they're not signed, there's nothing to attribute to a key.
+        public_key: (nextEventId === 1 && publicKeyPem) ? publicKeyPem : null,
         event_hash: '',
         signature: '',
       };
       const hash = sha256(canonicalStringify(draft));
-      const signature = signEventHash(privKey, hash);
+      // Sign if we have the private key; else write signature: '' for
+      // workflow-attributed unsigned events. Chain-verify must treat
+      // these as legitimate-unsigned (not partial-tampering) by checking
+      // payload.emitted_by === 'workflow'.
+      const signature = privKey ? signEventHash(privKey, hash) : '';
       const finalEvent = { ...draft, event_hash: hash, signature };
       fs.appendFileSync(filePath, JSON.stringify(finalEvent) + '\n', 'utf8');
-      return { ok: true, chainHead: hash, eventId: nextEventId, sealed: true };
+      return { ok: true, chainHead: hash, eventId: nextEventId, sealed: signature !== '' };
     } finally {
       if (lockFd !== null) { fs.closeSync(lockFd); }
       try { fs.unlinkSync(lockPath); } catch { /* lock already gone */ }
@@ -1594,6 +1669,7 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
   // EVERY event is signed (sealed=true) or NO event is signed (legacy
   // pre-B27 chain, sealed=false). Partial signatures = tampering.
   let signedCount = 0;
+  let workflowUnsignedCount = 0;  // Bug K (cert-run-5) — post-agent workflow-emitted events, unsigned by-design
   let prev: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     let event: Record<string, unknown>;
@@ -1621,22 +1697,40 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
-    if (recordedSignature !== null) { signedCount++; }
+    // Bug K (cert-run-5): workflow-emitted events (payload.emitted_by ===
+    // 'workflow') carry signature: '' by design — the post-agent workflow
+    // context can't sign because the ephemeral private key is gone. Count
+    // them separately so they don't trip partial-tampering detection or
+    // signature verification.
+    const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
+    const isWorkflowEmitted = eventPayload?.emitted_by === 'workflow';
+    if (recordedSignature !== null && recordedSignature !== '') {
+      signedCount++;
+    } else if (isWorkflowEmitted) {
+      workflowUnsignedCount++;
+    }
     prev = recordedHash;
   }
 
-  // Knight's Seal verification: enforce all-or-nothing.
+  // Knight's Seal verification: every AGENT-emitted event must be signed.
+  // Workflow-unsigned events are excluded from the denominator (their
+  // emitted_by: 'workflow' marker proves they're legitimate-unsigned).
   const sealed = signedCount > 0;
+  const agentEventCount = lines.length - workflowUnsignedCount;
   let sealVerified = false;
   if (sealed) {
-    if (signedCount !== lines.length) {
-      return { ok: false, reason: `partial-signatures: ${signedCount}/${lines.length} events signed (chain tampered)` };
+    if (signedCount !== agentEventCount) {
+      return { ok: false, reason: `partial-signatures: ${signedCount}/${agentEventCount} agent-emitted events signed (chain tampered; ${workflowUnsignedCount} workflow-emitted unsigned by-design)` };
     }
     if (!pubKey) {
       return { ok: false, reason: `public-key-missing: events are signed but no <runId>.pub.pem found in audit/keys/` };
     }
     for (let i = 0; i < lines.length; i++) {
-      const event = JSON.parse(lines[i]) as { event_hash: string; signature: string };
+      const event = JSON.parse(lines[i]) as { event_hash: string; signature: string; payload?: { emitted_by?: string } };
+      // Skip verification for workflow-unsigned events (signature='').
+      if (event.payload?.emitted_by === 'workflow' && (!event.signature || event.signature === '')) {
+        continue;
+      }
       if (!verifyEventSignature(pubKey, event.event_hash, event.signature)) {
         return { ok: false, reason: `signature-mismatch-line-${i + 1}: Ed25519 verify failed` };
       }
