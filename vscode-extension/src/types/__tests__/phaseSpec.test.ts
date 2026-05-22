@@ -304,6 +304,46 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         ).toEqual([]);
       });
 
+      it('HOW + WHAT workflows accept artifact-frontmatter YAML self_review fallback (Task #64)', () => {
+        // The prd-agent (HOW) and code-design-agent (WHAT) workflow
+        // self-review parsers must accept THREE sources: PR body markdown,
+        // artifact md markdown, AND artifact frontmatter YAML. The WHY
+        // workflow doesn't run self-review (no personas), so this test
+        // skips WHY.
+        if (phase === 'why') {
+          // WHY has no self-review parser. Pin the contract: WHY workflow
+          // must NOT have artifact-frontmatter-yaml branches (negative test).
+          expect(content.includes('artifact-frontmatter-yaml')).toBe(false);
+          return;
+        }
+        expect(
+          content.includes('artifact-frontmatter-yaml'),
+          `Workflow ${phase} must accept artifact-frontmatter-yaml as a self-review source (Task #64). Add the YAML-frontmatter fallback to the review parser.`,
+        ).toBe(true);
+        expect(
+          /self_review:/.test(content),
+          `Workflow ${phase} self-review parser must reference the YAML frontmatter \`self_review:\` key shape.`,
+        ).toBe(true);
+      });
+
+      it('HOW + WHAT agent prompts contain the cert-run-4 ANTI-PATTERN block (Task #64)', () => {
+        if (phase === 'why') { return; } // WHY agent has no self-review
+        const agentPath = path.join(
+          __dirname, '..', '..', '..', 'code-templates', 'agents-v4',
+          `${phaseSpec(phase).agentName}.agent.md`,
+        );
+        const agentContent = fs.readFileSync(agentPath, 'utf8');
+        expect(
+          /ANTI-PATTERN/.test(agentContent),
+          `Agent ${phaseSpec(phase).agentName}.agent.md missing ANTI-PATTERN block (Task #64). The model has demonstrated multiple wrong-location anti-patterns; the prompt must enumerate them with explicit DO NOT labels.`,
+        ).toBe(true);
+        // Specific anti-pattern: YAML frontmatter (cert-run-4)
+        expect(
+          /frontmatter|YAML/i.test(agentContent),
+          `Agent ${phaseSpec(phase).agentName}.agent.md ANTI-PATTERN block must mention the YAML-frontmatter form (cert-run-4 forensic).`,
+        ).toBe(true);
+      });
+
       it('workflow YAML does not contain the broken inline-ternary pattern ANYWHERE (including bash comments)', () => {
         // Cert-run-3 forensic (Task #61): GitHub Actions tightened its
         // expression parser. Inside a `run: |` literal-block scalar,

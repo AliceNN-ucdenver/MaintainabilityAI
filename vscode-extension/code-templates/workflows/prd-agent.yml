@@ -348,11 +348,49 @@ jobs:
             && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
             || echo "::warning::artifact_written emit failed (best-effort)"
 
-      # B28 — parse the agent's structured self-review PR-body blocks
-      # and emit one self_review audit event per persona per round. The
-      # agent writes the content; the workflow emits the audit event.
-      # Closes T11 (agent forges self_review payloads) — the parser is
-      # deterministic and the events land in the same hash chain.
+      # B28 — parse the agent's self-review evidence and emit one
+      # self_review audit event per persona per round. The agent writes
+      # the content; the workflow emits the audit event. Closes T11
+      # (agent forges self_review payloads) — the parser is deterministic
+      # and the events land in the same hash chain.
+      #
+      # Task #64 (cert-run-4 forensic): the agent has been observed
+      # writing the self-review data in FOUR different locations across
+      # cert runs. The parser now tries all four sources, in order, so
+      # the scores surface regardless of which form the agent picked:
+      #
+      #   1. PR body, structured markdown blocks (canonical, per prompt)
+      #        ### Self-review — Architect (round 1)
+      #        SCORE: 0.92
+      #        SEVERITY: MINOR
+      #        COVERED: [...]
+      #        MISSING: [...]
+      #        CHANGES: [...]
+      #
+      #   2. Artifact md (prd.md), same structured markdown blocks
+      #      anywhere in the doc (cert-run-2 / Task #43 evidence — agent
+      #      sometimes embeds inside the artifact instead of PR body).
+      #
+      #   3. Artifact frontmatter YAML `self_review:` block (cert-run-4
+      #      evidence — agent wrote scores as YAML in the Hatter Tag
+      #      frontmatter instead of either markdown form). Shape:
+      #        self_review:
+      #          rounds: 1
+      #          converged: true
+      #          architect:
+      #            score: 0.92
+      #            severity: MINOR
+      #          security:
+      #            score: 0.90
+      #            severity: MINOR
+      #
+      #   4. B29 chain — `self-review-*` skill_call events (proof the
+      #      persona-switch loop ran; no scores carried). Fallback only.
+      #
+      # If any of sources 1-3 carries scores, we emit synthetic
+      # self_review events with score/severity into the chain. Downstream
+      # (audit comment + UI fetchPhaseSignal) then sees the scores
+      # regardless of where the agent put them.
       - name: Parse self-review blocks + emit per-persona-per-round events (B28)
         id: review-emit
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
@@ -366,35 +404,111 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BODY=$(gh pr view "$PR_NUMBER" --json body --jq .body)
-          python3 <<'PYEOF'
+          ARTIFACT="okrs/${OKR_ID}/how/prd.md"
+          ARTIFACT_TEXT=""
+          if [ -f "$ARTIFACT" ]; then
+            ARTIFACT_TEXT=$(cat "$ARTIFACT")
+          fi
+          BODY="$BODY" ARTIFACT_TEXT="$ARTIFACT_TEXT" python3 <<'PYEOF'
           import re, os, json, subprocess, sys
           body = os.environ.get('BODY') or ''
+          artifact_text = os.environ.get('ARTIFACT_TEXT') or ''
           jsonl_path = os.environ['JSONL']
-          # The agent writes structured blocks per design §11.6 spec:
-          #   ### Self-review — Architect (round 1)
-          #   SCORE: 0.8
-          #   SEVERITY: MINOR
-          #   COVERED: [ADR-0001, CALM:api-node]
-          #   MISSING: [NFR coverage for p99 latency]
-          #   CHANGES: [Add SR-04 covering rate limits on /search]
-          # The em-dash between "Self-review" and the persona is the
-          # canonical separator; the parser is tolerant of EITHER em-dash
-          # (—) OR a hyphen (-) for runtimes that strip the unicode.
-          pat = re.compile(
-              r'^###\s+Self-review\s+[—-]\s+(\w+)\s+\(round\s+(\d+)\)\s*\n+'
+
+          # --- Source 1+2: structured markdown blocks ---------------------
+          # Persona names for HOW are bare (Architect / Security). The
+          # em-dash between "Self-review" and persona is canonical; we
+          # tolerate either em-dash (—) or hyphen (-) for runtimes that
+          # strip the unicode.
+          MD_BLOCK_RE = re.compile(
+              r'^###\s+Self-review\s+[—-]\s+(Architect|Security)\s+\(round\s+(\d+)\)\s*\n+'
               r'\s*SCORE:\s*([\d.]+)\s*\n+'
               r'\s*SEVERITY:\s*(\w+)\s*\n+'
               r'\s*COVERED:\s*\[([^\]]*)\]\s*\n+'
               r'\s*MISSING:\s*\[([^\]]*)\]\s*\n+'
               r'\s*CHANGES:\s*\[([^\]]*)\]',
-              re.M,
+              re.M | re.IGNORECASE,
           )
-          matches = list(pat.finditer(body))
-          if not matches:
-              print('::notice::no self-review blocks in PR body (Restricted tier or agent skipped self-critique)')
+
+          def parse_md_blocks(text):
+              """Returns list of (persona, round, score, severity, covered, missing, changes)."""
+              out = []
+              for m in MD_BLOCK_RE.finditer(text):
+                  persona = m.group(1).lower()
+                  out.append((
+                      persona, int(m.group(2)), float(m.group(3)),
+                      m.group(4).upper(), m.group(5), m.group(6), m.group(7),
+                  ))
+              return out
+
+          # --- Source 3: artifact frontmatter YAML self_review: block ----
+          # Frontmatter sits between two `---` lines at the top of the file.
+          # We extract it as a plain string + scan for `self_review:` +
+          # the architect / security sub-blocks. Hand-rolled to avoid a
+          # PyYAML dependency on the workflow runner.
+          def parse_frontmatter_yaml(text):
+              """Returns list of (persona, round, score, severity) from
+              YAML frontmatter self_review block. Empty list if absent."""
+              m = re.match(r'^---\s*\n(.+?)\n---\s*\n', text, re.DOTALL)
+              if not m:
+                  return []
+              fm = m.group(1)
+              # Find the self_review: top-level key + its indented body.
+              sr_m = re.search(
+                  r'^self_review:\s*\n((?:[ \t]+.+\n?)+)',
+                  fm, re.MULTILINE,
+              )
+              if not sr_m:
+                  return []
+              body_fm = sr_m.group(1)
+              rounds_m = re.search(r'^\s+rounds:\s*(\d+)', body_fm, re.MULTILINE)
+              rounds_val = int(rounds_m.group(1)) if rounds_m else 1
+              out = []
+              for persona in ('architect', 'security'):
+                  # Find the persona's sub-block.
+                  p_m = re.search(
+                      rf'^\s+{persona}:\s*\n((?:\s{{4,}}.+\n?)+)',
+                      body_fm, re.MULTILINE | re.IGNORECASE,
+                  )
+                  if not p_m: continue
+                  p_body = p_m.group(1)
+                  score_m = re.search(r'score:\s*([\d.]+)', p_body)
+                  sev_m = re.search(r'severity:\s*(\w+)', p_body, re.IGNORECASE)
+                  if score_m or sev_m:
+                      out.append((
+                          persona, rounds_val,
+                          float(score_m.group(1)) if score_m else None,
+                          (sev_m.group(1).upper() if sev_m else None),
+                      ))
+              return out
+
+          # --- Try the sources in order ---------------------------------
+          pr_md = parse_md_blocks(body)
+          artifact_md = parse_md_blocks(artifact_text)
+          frontmatter = parse_frontmatter_yaml(artifact_text)
+
+          source = None
+          # Each entry: (persona, round, score, severity, covered_str, missing_str, changes_str)
+          extracted = []
+          if pr_md:
+              source = 'pr-body-md'
+              extracted = pr_md
+          elif artifact_md:
+              source = 'artifact-md'
+              extracted = artifact_md
+          elif frontmatter:
+              source = 'artifact-frontmatter-yaml'
+              # Frontmatter YAML doesn't carry COVERED/MISSING/CHANGES — empty those.
+              extracted = [(p, r, s, sev, '', '', '') for (p, r, s, sev) in frontmatter]
+
+          if not extracted:
+              print('::notice::no self-review evidence in PR body, artifact md, or artifact frontmatter (Restricted tier or agent skipped self-critique)')
               sys.exit(0)
+
+          print(f'::notice::self-review evidence source={source} blocks={len(extracted)}')
+
           # Idempotency: skip events already in the chain for the same
-          # (persona, round).
+          # (persona, round) — handles re-runs.
           existing = set()
           try:
               with open(jsonl_path, 'r', encoding='utf-8') as f:
@@ -405,18 +519,21 @@ jobs:
                       if e.get('event_kind') == 'self_review':
                           p = e.get('payload', {})
                           if p.get('persona') and p.get('round') is not None:
-                              existing.add((p['persona'].lower(), int(p['round'])))
+                              # Only count events that have a real score (re-emit
+                              # null-score events with the better data).
+                              if p.get('score') is not None:
+                                  existing.add((p['persona'].lower(), int(p['round'])))
           except Exception:
               pass
+
+          def parselist(s):
+              return [x.strip() for x in s.split(',') if x.strip()]
+
           emitted = 0
-          for m in matches:
-              persona_raw, rnd, score, sev, covered, missing, changes = m.groups()
-              persona = persona_raw.lower()
-              if (persona, int(rnd)) in existing:
-                  print(f'::notice::self_review for {persona} round {rnd} already in chain — skip')
+          for (persona, rnd, score, sev, covered, missing, changes) in extracted:
+              if (persona, rnd) in existing:
+                  print(f'::notice::self_review for {persona} round {rnd} already in chain with score — skip')
                   continue
-              def parselist(s):
-                  return [x.strip() for x in s.split(',') if x.strip()]
               evt = {
                   'okrId': os.environ['OKR_ID'],
                   'runId': os.environ['RUN_ID'],
@@ -424,15 +541,16 @@ jobs:
                   'intentThreadUuid': os.environ['INTENT_THREAD_UUID'],
                   'eventKind': 'self_review',
                   'payload': {
-                      'round': int(rnd),
+                      'round': rnd,
                       'persona': persona,
-                      'score': float(score),
-                      'severity': sev.upper(),
+                      'score': score,
+                      'severity': sev,
                       'covered': parselist(covered),
                       'missing': parselist(missing),
                       'changes': parselist(changes),
                       'prompt_pack': f'prd/{persona}-review.md',
                       'emitted_by': 'workflow',
+                      'source': source,
                   },
               }
               try:
@@ -441,10 +559,14 @@ jobs:
                       input=json.dumps(evt), text=True, check=True, capture_output=True,
                   )
                   emitted += 1
-                  print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev}')
+                  print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev} source={source}')
               except Exception as ex:
                   print(f'::warning::self_review emit failed for {persona} round {rnd}: {ex}')
-          print(f'::notice::self-review emit summary: {emitted} new events from {len(matches)} blocks ({len(matches) - emitted} were already in chain)')
+
+          # Write source for the audit-comment step to surface.
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write(f'source={source or ""}\n')
+          print(f'::notice::self-review emit summary: {emitted} new events from {len(extracted)} blocks (source={source})')
           PYEOF
 
       - name: Count mesh-skill calls
@@ -515,7 +637,12 @@ jobs:
             ROUNDS="$B29_ROUNDS"
             REVIEW_SOURCE="b29-chain"  # skill_call evidence only — no SCORE/SEVERITY
           else
-            REVIEW_SOURCE="parser"     # rich event from PR-body parser
+            # Task #64: review-emit step output names WHICH source it
+            # found (pr-body-md / artifact-md / artifact-frontmatter-yaml).
+            # Use that specific source so the audit comment can be honest
+            # about where the agent put the data.
+            EMIT_SOURCE='${{ steps.review-emit.outputs.source }}'
+            REVIEW_SOURCE="${EMIT_SOURCE:-parser}"
           fi
 
           last_score() {
@@ -980,16 +1107,35 @@ jobs:
           REVIEW_EXH='${{ steps.review.outputs.exhausted }}'; REVIEW_EXH="${REVIEW_EXH:-false}"
           if [ "$REVIEW_ROUNDS" -gt 0 ]; then
             EXH_MARK=$( [ "$REVIEW_EXH" = "true" ] && echo " — ⚠ exhausted before convergence" || echo "" )
+            # Task #64 source notes — be honest about where the agent
+            # put the self-review data. All non-b29-chain sources carry
+            # real SCORE + SEVERITY so we surface the persona rows.
+            case "$REVIEW_SOURCE" in
+              pr-body-md)
+                SRC_NOTE=""
+                ;;
+              artifact-md)
+                SRC_NOTE=" · scores parsed from \`prd.md\` (agent wrote structured block inside the artifact instead of the PR body — both are valid)"
+                ;;
+              artifact-frontmatter-yaml)
+                SRC_NOTE=" · scores parsed from \`prd.md\` Hatter Tag \`self_review:\` YAML frontmatter (agent used the YAML form — accepted but the canonical location is a PR-body \`### Self-review\` markdown block)"
+                ;;
+              b29-chain)
+                SRC_NOTE=" · evidence from B29 chain only (no structured \`### Self-review\` block in PR body, artifact md, or artifact frontmatter — see agent narrative)"
+                ;;
+              *)
+                SRC_NOTE=""
+                ;;
+            esac
             if [ "$REVIEW_SOURCE" = "b29-chain" ]; then
               # B29 chain evidence only — agent ran the persona-switch
               # loop (self-review-architect + self-review-security skill
-              # calls in chain) but didn't write the structured PR-body
-              # block format, so we have round counts but no per-persona
-              # SCORE / SEVERITY. Surface the source explicitly so
-              # readers know to look at the agent's narrative.
-              printf "| Self-review (B24) | %s round(s)%s · evidence from B29 chain (no structured \`### Self-review\` block in PR body — see agent narrative) |\n" "$REVIEW_ROUNDS" "$EXH_MARK" >> "$BODY"
+              # calls in chain) but didn't write the data in any of the
+              # three parseable forms. We have round counts but no
+              # per-persona SCORE / SEVERITY.
+              printf '| Self-review (B24) | %s round(s)%s%s |\n' "$REVIEW_ROUNDS" "$EXH_MARK" "$SRC_NOTE" >> "$BODY"
             else
-              printf '| Self-review (B24) | %s round(s)%s |\n' "$REVIEW_ROUNDS" "$EXH_MARK" >> "$BODY"
+              printf '| Self-review (B24) | %s round(s)%s%s |\n' "$REVIEW_ROUNDS" "$EXH_MARK" "$SRC_NOTE" >> "$BODY"
               printf '| ↳ Architect persona | %s severity=%s |\n' "${REVIEW_ARCH_SCORE:-—}" "${REVIEW_ARCH_SEV:-—}" >> "$BODY"
               printf '| ↳ Security persona | %s severity=%s |\n' "${REVIEW_SEC_SCORE:-—}" "${REVIEW_SEC_SEV:-—}" >> "$BODY"
             fi

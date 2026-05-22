@@ -570,13 +570,17 @@ jobs:
           JSONL: ${{ steps.audit.outputs.path }}
           PR_BODY: ${{ github.event.pull_request.body }}
           OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
         run: |
           DESIGN_DOC="okrs/${OKR_ID}/what/code-design.md"
           ARTIFACT_TEXT=""
           if [ -f "$DESIGN_DOC" ]; then
             ARTIFACT_TEXT=$(cat "$DESIGN_DOC")
           fi
-          JSONL="$JSONL" PR_BODY="$PR_BODY" ARTIFACT_TEXT="$ARTIFACT_TEXT" python3 <<'PYEOF'
+          JSONL="$JSONL" PR_BODY="$PR_BODY" ARTIFACT_TEXT="$ARTIFACT_TEXT" \
+            OKR_ID="$OKR_ID" RUN_ID="$RUN_ID" INTENT_THREAD_UUID="$INTENT_THREAD_UUID" \
+            python3 <<'PYEOF'
           import os, re, json
           jsonl = os.environ['JSONL']
           pr_body = os.environ.get('PR_BODY', '') or ''
@@ -609,15 +613,58 @@ jobs:
                       found[persona][rnd] = (score, sev)
               return found
 
-          # 1+2. Prefer PR body; fall back to artifact md.
+          # Task #64: also parse YAML frontmatter `self_review:` block —
+          # cert-run-4 forensic showed the prd-agent picked this location.
+          # The code-design-agent's prompt has the same MANDATORY format
+          # rule, so we mirror the fallback here for symmetry.
+          def parse_frontmatter_yaml(text):
+              """Returns same shape as parse_blocks. Architects + security
+              sub-blocks under `self_review:` in YAML frontmatter."""
+              found = {'architect': {}, 'security': {}}
+              m = re.match(r'^---\s*\n(.+?)\n---\s*\n', text, re.DOTALL)
+              if not m: return found
+              fm = m.group(1)
+              sr_m = re.search(
+                  r'^self_review:\s*\n((?:[ \t]+.+\n?)+)',
+                  fm, re.MULTILINE,
+              )
+              if not sr_m: return found
+              body_fm = sr_m.group(1)
+              rounds_m = re.search(r'^\s+rounds:\s*(\d+)', body_fm, re.MULTILINE)
+              rounds_val = int(rounds_m.group(1)) if rounds_m else 1
+              for persona in ('architect', 'security'):
+                  # Tolerate both "code-architect" key (matching skill names)
+                  # and bare "architect" key (matching prd-agent convention).
+                  key_patterns = [persona, f'code-{persona}']
+                  for key in key_patterns:
+                      p_m = re.search(
+                          rf'^\s+{re.escape(key)}:\s*\n((?:\s{{4,}}.+\n?)+)',
+                          body_fm, re.MULTILINE | re.IGNORECASE,
+                      )
+                      if not p_m: continue
+                      p_body = p_m.group(1)
+                      score_m_local = re.search(r'score:\s*([\d.]+)', p_body)
+                      sev_m_local = re.search(r'severity:\s*(\w+)', p_body, re.IGNORECASE)
+                      if score_m_local or sev_m_local:
+                          score = float(score_m_local.group(1)) if score_m_local else None
+                          sev = sev_m_local.group(1).upper() if sev_m_local else None
+                          found[persona][rounds_val] = (score, sev)
+                          break
+              return found
+
+          # 1+2+3. Prefer PR body; fall back to artifact md; then frontmatter.
           pr_blocks = parse_blocks(pr_body)
           artifact_blocks = parse_blocks(artifact_text)
+          frontmatter_blocks = parse_frontmatter_yaml(artifact_text)
           source = 'pr-body'
           blocks = pr_blocks
           if not (pr_blocks['architect'] or pr_blocks['security']):
               if artifact_blocks['architect'] or artifact_blocks['security']:
                   source = 'artifact-md'
                   blocks = artifact_blocks
+              elif frontmatter_blocks['architect'] or frontmatter_blocks['security']:
+                  source = 'artifact-frontmatter-yaml'
+                  blocks = frontmatter_blocks
               else:
                   source = 'b29-chain'
                   blocks = {'architect': {}, 'security': {}}
@@ -665,6 +712,65 @@ jobs:
               f.write(f'sec_score={sec_s if sec_s is not None else ""}\n')
               f.write(f'sec_severity={sec_sev or ""}\n')
           print(f'::notice::self-review rounds={rounds} source={source} arch={arch_s}({arch_sev}) sec={sec_s}({sec_sev})')
+
+          # Task #64 — emit synthetic self_review events into the chain
+          # for each persona we extracted scores for. Mirrors HOW workflow.
+          # The UI's fetchPhaseSignal reads self_review events to surface
+          # per-persona scores on the WHAT card; without these emits the
+          # chain only has skill_call events (no score). Idempotent —
+          # skip events already present for (persona, round).
+          import subprocess
+          existing = set()
+          try:
+              with open(jsonl, 'r', encoding='utf-8') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line: continue
+                      e = json.loads(line)
+                      if e.get('event_kind') == 'self_review':
+                          p = e.get('payload', {})
+                          if p.get('persona') and p.get('round') is not None:
+                              if p.get('score') is not None:
+                                  existing.add((p['persona'].lower(), int(p['round'])))
+          except Exception:
+              pass
+
+          to_emit = []
+          for (persona, rnd, score, sev) in (
+              ('architect', arch_r, arch_s, arch_sev),
+              ('security', sec_r, sec_s, sec_sev),
+          ):
+              if rnd is None or (score is None and sev is None):
+                  continue
+              if (persona, rnd) in existing:
+                  continue
+              to_emit.append((persona, rnd, score, sev))
+
+          for (persona, rnd, score, sev) in to_emit:
+              evt = {
+                  'okrId': os.environ['OKR_ID'],
+                  'runId': os.environ.get('RUN_ID') or '',
+                  'phase': 'what',
+                  'intentThreadUuid': os.environ.get('INTENT_THREAD_UUID') or '',
+                  'eventKind': 'self_review',
+                  'payload': {
+                      'round': rnd,
+                      'persona': persona,
+                      'score': score,
+                      'severity': sev,
+                      'prompt_pack': f'code-design/{persona}-review.md',
+                      'emitted_by': 'workflow',
+                      'source': source,
+                  },
+              }
+              try:
+                  subprocess.run(
+                      ['npx', '-y', '@maintainabilityai/research-runner', 'skill-audit-emit-event'],
+                      input=json.dumps(evt), text=True, check=True, capture_output=True,
+                  )
+                  print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev} source={source}')
+              except Exception as ex:
+                  print(f'::warning::self_review emit failed for {persona} round {rnd}: {ex}')
           PYEOF
 
       # Apply the design-pass label on clean OR design-degraded on
@@ -860,10 +966,11 @@ jobs:
           REVIEW_SEC_SEV='${{ steps.review.outputs.sec_severity }}'
           if [ "$REVIEW_ROUNDS" -gt 0 ]; then
             case "$REVIEW_SOURCE" in
-              pr-body)     SRC_NOTE="" ;;
-              artifact-md) SRC_NOTE=" · scores from \`code-design.md\` (agent wrote structured block inside the artifact rather than the PR body — both are valid)" ;;
-              b29-chain)   SRC_NOTE=" · evidence from B29 chain (no structured \`### Self-review\` blocks in PR body or artifact — see agent narrative)" ;;
-              *)           SRC_NOTE="" ;;
+              pr-body)                   SRC_NOTE="" ;;
+              artifact-md)               SRC_NOTE=" · scores from \`code-design.md\` (agent wrote structured block inside the artifact rather than the PR body — both are valid)" ;;
+              artifact-frontmatter-yaml) SRC_NOTE=" · scores from \`code-design.md\` Hatter Tag \`self_review:\` YAML frontmatter (agent used the YAML form — accepted but the canonical location is a PR-body \`### Self-review\` markdown block)" ;;
+              b29-chain)                 SRC_NOTE=" · evidence from B29 chain only (no structured \`### Self-review\` blocks in PR body, artifact md, or artifact frontmatter — see agent narrative)" ;;
+              *)                         SRC_NOTE="" ;;
             esac
             printf '| Self-review (B24 / B29) | %s round(s)%s |\n' "$REVIEW_ROUNDS" "$SRC_NOTE" >> "$BODY"
             if [ "$REVIEW_SOURCE" != "b29-chain" ]; then

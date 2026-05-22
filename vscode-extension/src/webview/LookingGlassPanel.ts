@@ -65,7 +65,7 @@ import type { GovernanceTimestamps } from '../types/redqueen';
 // Structural-id counters + WHAT artifact signal extractor live in
 // their own module so unit tests can exercise them without dragging
 // in the VS Code runtime. See `regexCounters.ts` for the full rationale.
-import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals } from './regexCounters';
+import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extractSelfReviewFromArtifact } from './regexCounters';
 
 /**
  * Knight's Seal v1 (B27) — scan an audit-events JSONL for per-event
@@ -153,6 +153,47 @@ function extractWhatChainSignals(lines: string[]): WhatChainSignals {
 }
 
 // extractWhatArtifactSignals lives in regexCounters.ts — see import above.
+
+/**
+ * Task #64 — apply artifact-side self-review fallback onto a partially-
+ * populated signal result. Chain wins when it has real (non-null) scores.
+ * Artifact is the fallback (3 sub-sources via extractSelfReviewFromArtifact).
+ * Surfaces scores immediately on PR open, not only after audit completes.
+ *
+ * Extracted from fetchPhaseSignal to keep that function under its
+ * cyclomatic-complexity ratchet (PR architecture-fitness test).
+ */
+function applyArtifactSelfReviewFallback(
+  result: Record<string, unknown>,
+  docText: string,
+): void {
+  const arch = result.selfReviewArchitect as { score?: number } | undefined;
+  const sec = result.selfReviewSecurity as { score?: number } | undefined;
+  const chainHasScores = (arch?.score != null) || (sec?.score != null);
+  if (chainHasScores) { return; }
+  const fromArtifact = extractSelfReviewFromArtifact(docText);
+  if (fromArtifact.architect) {
+    result.selfReviewArchitect = {
+      score: fromArtifact.architect.score,
+      severity: fromArtifact.architect.severity,
+    };
+  }
+  if (fromArtifact.security) {
+    result.selfReviewSecurity = {
+      score: fromArtifact.security.score,
+      severity: fromArtifact.security.severity,
+    };
+  }
+  // If chain showed 0 rounds but artifact has scores, lift the round
+  // count too so the card doesn't show "0 rounds" alongside real scores.
+  const rounds = result.selfReviewRounds as number | undefined;
+  if ((rounds == null || rounds === 0) && (fromArtifact.architect?.round || fromArtifact.security?.round)) {
+    result.selfReviewRounds = Math.max(
+      fromArtifact.architect?.round ?? 0,
+      fromArtifact.security?.round ?? 0,
+    );
+  }
+}
 
 /**
  * Discriminated-union dispatch table type. Given a union `U` keyed by
@@ -761,6 +802,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
       } else if (phase === 'what') {
         Object.assign(result, extractWhatChainSignals(lines));
+        // Task #64 — WHAT branch also surfaces per-persona scores from
+        // self_review chain events when the workflow emits them. The
+        // shared event loop above populated `finalReview`; the HOW
+        // branch already uses it. Mirror here so future WHAT workflows
+        // that emit synthetic self_review events surface in the UI too.
+        if (finalReview.architect) {
+          result.selfReviewArchitect = { score: finalReview.architect.score, severity: finalReview.architect.severity };
+        }
+        if (finalReview.security) {
+          result.selfReviewSecurity = { score: finalReview.security.score, severity: finalReview.security.severity };
+        }
+        if (exhausted) {
+          result.selfReviewExhausted = true;
+        }
       }
     }
 
@@ -772,6 +827,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // when the PR is open (file lives on the feature branch).
     const artifactPath = artifactPathForPr;
     const docText = await this.githubService.getRepoFileText(owner, repo, artifactPath, fetchRef);
+
+    // Task #64 — artifact-side self-review fallback. Extracted to
+    // keep fetchPhaseSignal under its complexity ratchet.
+    if (docText && (phase === 'how' || phase === 'what')) {
+      applyArtifactSelfReviewFallback(result, docText);
+    }
     const openPhases = this.artifactOpenPhases.get(okrId);
     const isArtifactOpen = openPhases?.has(phase) === true;
     if (isArtifactOpen) {

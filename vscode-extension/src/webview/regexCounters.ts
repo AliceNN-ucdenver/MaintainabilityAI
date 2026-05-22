@@ -92,6 +92,95 @@ export interface WhatArtifactSignals {
   perRepoChangeCount: number;
 }
 
+/**
+ * Self-review extraction from artifact markdown (Task #64).
+ *
+ * Mirror of the workflow's 3-source parser so the UI surfaces scores
+ * even before the audit workflow runs (or when it fails to parse).
+ * The workflow's chain events are authoritative when present, but
+ * the artifact carries the same data in multiple forms — extracting
+ * here means the OKR card shows real scores immediately on PR open.
+ *
+ * Sources (each returns the same shape):
+ *   1. `### Self-review — <Persona> (round N)` markdown blocks inside
+ *      the artifact body (HOW + WHAT canonical inside-artifact form).
+ *   2. `self_review:` YAML frontmatter block at the top of the artifact
+ *      (cert-run-4 forensic — agent picked this location).
+ *
+ * Persona matching tolerates BOTH bare names ("Architect" / "Security"
+ * for HOW) and Code-prefixed names ("Code-Architect" / "Code-Security"
+ * for WHAT) so one function serves both phases.
+ */
+export interface SelfReviewScore {
+  round: number;
+  score?: number;
+  severity?: string;
+}
+export interface SelfReviewExtract {
+  architect?: SelfReviewScore;
+  security?: SelfReviewScore;
+  source: 'artifact-md' | 'artifact-frontmatter-yaml' | 'none';
+}
+
+export function extractSelfReviewFromArtifact(docText: string): SelfReviewExtract {
+  if (!docText) { return { source: 'none' }; }
+
+  // --- Source 1: markdown blocks ----------------------------------
+  const mdBlockRe = /^###\s+Self-review\s+[—-]\s+(?:Code-)?(Architect|Security)\s+\(round\s+(\d+)\)\s*\n+\s*SCORE:\s*([\d.]+)\s*\n+\s*SEVERITY:\s*(\w+)/gim;
+  const mdScores: Record<string, SelfReviewScore> = {};
+  for (const m of docText.matchAll(mdBlockRe)) {
+    const persona = m[1].toLowerCase();
+    const round = parseInt(m[2], 10);
+    const score = parseFloat(m[3]);
+    const severity = m[4].toUpperCase();
+    // Latest-round-wins per persona.
+    if (!mdScores[persona] || round > mdScores[persona].round) {
+      mdScores[persona] = { round, score, severity };
+    }
+  }
+  if (mdScores.architect || mdScores.security) {
+    return { architect: mdScores.architect, security: mdScores.security, source: 'artifact-md' };
+  }
+
+  // --- Source 2: YAML frontmatter ---------------------------------
+  const fmMatch = docText.match(/^---\s*\n([\s\S]+?)\n---\s*\n/);
+  if (!fmMatch) { return { source: 'none' }; }
+  const fm = fmMatch[1];
+
+  // Find the top-level self_review: key + its indented body.
+  const srMatch = fm.match(/^self_review:\s*\n((?:[ \t]+.+\n?)+)/m);
+  if (!srMatch) { return { source: 'none' }; }
+  const srBody = srMatch[1];
+
+  const roundsMatch = srBody.match(/^\s+rounds:\s*(\d+)/m);
+  const roundsVal = roundsMatch ? parseInt(roundsMatch[1], 10) : 1;
+
+  const result: SelfReviewExtract = { source: 'artifact-frontmatter-yaml' };
+  for (const persona of ['architect', 'security'] as const) {
+    // Tolerate both bare key (`architect:`) and Code-prefixed (`code-architect:`).
+    for (const key of [persona, `code-${persona}`]) {
+      const personaRe = new RegExp(`^\\s+${key}:\\s*\\n((?:\\s{4,}.+\\n?)+)`, 'mi');
+      const pMatch = srBody.match(personaRe);
+      if (!pMatch) { continue; }
+      const pBody = pMatch[1];
+      const scoreM = pBody.match(/score:\s*([\d.]+)/);
+      const sevM = pBody.match(/severity:\s*(\w+)/i);
+      if (scoreM || sevM) {
+        result[persona] = {
+          round: roundsVal,
+          score: scoreM ? parseFloat(scoreM[1]) : undefined,
+          severity: sevM ? sevM[1].toUpperCase() : undefined,
+        };
+        break;
+      }
+    }
+  }
+  if (!result.architect && !result.security) {
+    return { source: 'none' };
+  }
+  return result;
+}
+
 export function extractWhatArtifactSignals(docText: string): WhatArtifactSignals {
   const frIds = new Set<string>();
   const srIds = new Set<string>();

@@ -161,6 +161,25 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
 
     You MAY ALSO write a human-readable summary table for reviewer convenience after all rounds complete (e.g. `| Round | Code-Architect severity | Code-Security severity |`) — but the structured block above is the contract.
 
+    ### ⚠ ANTI-PATTERN — DO NOT do any of these (cert-run-4 forensic, Task #64)
+
+    Across recent cert runs the model has consistently found wrong places to put the self-review data. The workflow parser is now tolerant of three locations — PR body markdown (canonical), artifact md markdown, and artifact frontmatter YAML — but the canonical PR-body markdown is what unlocks the rich audit comment WITHOUT a "scores parsed from non-canonical location" note. Mistakes that have actually happened (on the sibling prd-agent — but the same model decisions surface here):
+
+    1. **❌ Markdown summary table only** — agent writes `| Round | Code-Architect | Code-Security |` with severity cells and calls it done. Parser finds zero `### Self-review — Code-Architect (round N)` blocks → audit comment says "skipped" even though the loop ran.
+
+    2. **❌ YAML in artifact frontmatter (cert-run-4 forensic on prd-agent)** — agent writes:
+       ```yaml
+       self_review:
+         rounds: 1
+         code-architect: { score: 0.92, severity: MINOR }
+         code-security:  { score: 0.90, severity: MINOR }
+       ```
+       inside the Hatter Tag frontmatter at the top of `code-design.md`. **The workflow NOW falls back to this and surfaces the scores, but with a note that you used the non-canonical location.** Don't make the workflow do extra work — write the markdown block in the PR body.
+
+    3. **❌ Prose paragraph at bottom of PR body** — "I reviewed as Code-Architect and Code-Security personas, both came in around MINOR severity" with no SCORE/SEVERITY/COVERED/MISSING/CHANGES anchors. Parser can't extract; falls to B29 chain (round count only).
+
+    The canonical format is the one shown above this anti-pattern note. Use it.
+
 15. **Code-Security persona self-review.** Call `self-review-code-security` with `{okrId, runId, round}` to get the authoritative tier echo + `.caterpillar/prompts/code-design/security-review.md` prompt pack. Apply the criteria. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block with header `### Self-review — Code-Security (round <N>)`.
 
     The chain MUST contain ONE `self-review-code-architect` skill_call AND ONE `self-review-code-security` skill_call per round. The audit-and-drift workflow compares those counts against the count of `### Self-review` blocks in your PR body — a mismatch surfaces as an audit-comment row.

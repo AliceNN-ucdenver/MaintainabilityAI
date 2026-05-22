@@ -21,7 +21,12 @@
  */
 import { describe, expect, it } from 'vitest';
 // Counters live in a standalone module so tests skip the vscode runtime.
-import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals } from '../regexCounters';
+import {
+  countUniqueIds,
+  countUniqueSourceIds,
+  extractWhatArtifactSignals,
+  extractSelfReviewFromArtifact,
+} from '../regexCounters';
 
 /**
  * Synthetic doc modeled on cert-run-2's research-doc.md:
@@ -317,5 +322,155 @@ addresses: [FR-02]
     const sig = extractWhatArtifactSignals(doc);
     expect(sig.frCount).toBe(2);
     expect(sig.frWithCites).toBe(2); // union of both repos' addresses
+  });
+});
+
+/**
+ * Task #64 — artifact-side self-review fallback parser. Mirrors the
+ * workflow's 3-source parser so the UI surfaces scores even before the
+ * audit workflow runs (or when its parser misses). Each test pins
+ * one source so any future drift surfaces here.
+ *
+ * Cert-run-4 forensic: the agent wrote self-review data in YAML
+ * frontmatter — the workflow's PR-body-only parser missed it. Both
+ * sides (workflow + UI) now have a YAML-frontmatter fallback.
+ */
+describe('artifact-side self-review extraction (Task #64)', () => {
+  it('parses ### Self-review markdown blocks inside artifact body', () => {
+    const doc = `# Research Doc
+
+## 1. Section
+Some content.
+
+### Self-review — Architect (round 1)
+SCORE: 0.85
+SEVERITY: MINOR
+COVERED: [ADR-001]
+MISSING: []
+CHANGES: []
+
+### Self-review — Security (round 1)
+SCORE: 0.88
+SEVERITY: PASS
+COVERED: [THR-002]
+MISSING: []
+CHANGES: []
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-md');
+    expect(r.architect).toEqual({ round: 1, score: 0.85, severity: 'MINOR' });
+    expect(r.security).toEqual({ round: 1, score: 0.88, severity: 'PASS' });
+  });
+
+  it('parses Code- prefixed personas (WHAT phase)', () => {
+    const doc = `### Self-review — Code-Architect (round 2)
+SCORE: 0.96
+SEVERITY: PASS
+COVERED: []
+MISSING: []
+CHANGES: []
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-md');
+    expect(r.architect).toEqual({ round: 2, score: 0.96, severity: 'PASS' });
+  });
+
+  it('parses YAML frontmatter self_review block (cert-run-4 exact shape)', () => {
+    const doc = `---
+okr_id: OKR-test-001
+run_id: HOW-test-001
+phase: how
+self_review:
+  rounds: 1
+  converged: true
+  architect:
+    score: 0.92
+    severity: MINOR
+  security:
+    score: 0.90
+    severity: MINOR
+---
+
+## Body
+content
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-frontmatter-yaml');
+    expect(r.architect).toEqual({ round: 1, score: 0.92, severity: 'MINOR' });
+    expect(r.security).toEqual({ round: 1, score: 0.90, severity: 'MINOR' });
+  });
+
+  it('tolerates code-architect/code-security keys in YAML frontmatter (WHAT variant)', () => {
+    const doc = `---
+phase: what
+self_review:
+  rounds: 2
+  code-architect:
+    score: 0.96
+    severity: PASS
+  code-security:
+    score: 0.94
+    severity: PASS
+---
+
+## Body
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-frontmatter-yaml');
+    expect(r.architect).toEqual({ round: 2, score: 0.96, severity: 'PASS' });
+    expect(r.security).toEqual({ round: 2, score: 0.94, severity: 'PASS' });
+  });
+
+  it('prefers markdown blocks when both forms are present (markdown is canonical)', () => {
+    const doc = `---
+phase: how
+self_review:
+  rounds: 1
+  architect: { score: 0.50, severity: BLOCKING }
+  security:  { score: 0.40, severity: BLOCKING }
+---
+
+### Self-review — Architect (round 1)
+SCORE: 0.92
+SEVERITY: MINOR
+COVERED: []
+MISSING: []
+CHANGES: []
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-md');
+    // Markdown values win, not the frontmatter's BLOCKING-on-0.50.
+    expect(r.architect?.score).toBe(0.92);
+    expect(r.architect?.severity).toBe('MINOR');
+  });
+
+  it('returns source: none when artifact has neither form', () => {
+    const doc = `# Bare doc with no self-review data anywhere.
+
+## Body
+Just content.
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('none');
+    expect(r.architect).toBeUndefined();
+    expect(r.security).toBeUndefined();
+  });
+
+  it('handles empty / missing input gracefully', () => {
+    expect(extractSelfReviewFromArtifact('').source).toBe('none');
+    expect(extractSelfReviewFromArtifact(undefined as unknown as string).source).toBe('none');
+  });
+
+  it('tolerates hyphen separator instead of em-dash (--- vs em-dash for stripped-unicode runtimes)', () => {
+    const doc = `### Self-review - Architect (round 1)
+SCORE: 0.80
+SEVERITY: MINOR
+COVERED: []
+MISSING: []
+CHANGES: []
+`;
+    const r = extractSelfReviewFromArtifact(doc);
+    expect(r.source).toBe('artifact-md');
+    expect(r.architect?.score).toBe(0.80);
   });
 });
