@@ -45,6 +45,7 @@ import { MESH_WORKFLOWS } from '../templates/codeRepoTemplates';
 import { generateArchetype, type ArchetypeId } from '../templates/mesh/archetypeTemplates';
 import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
 import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
+import { phaseSpec } from '../types/phaseSpec';
 import type { OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode } from '../types';
 import { promptPackService } from '../services/PromptPackService';
 import { ScaffoldPanel } from './ScaffoldPanel';
@@ -730,8 +731,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // says in_progress — but the PR is real and this run's).
     result.okrId = okrId;
     const artifactPathForPr = `okrs/${okrId}/${phase}/${phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md'}`;
-    const auditLabel = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
-    const passLabel = phase === 'why' ? 'research-pass' : phase === 'how' ? 'prd-pass' : 'design-pass';
+    const auditLabel = phaseSpec(phase).draftLabel;
+    const passLabel = phaseSpec(phase).passLabel;
     let pr: Awaited<ReturnType<typeof this.findArtifactPr>> = null;
     try {
       pr = await this.findArtifactPr(owner, repo, artifactPathForPr, action.createdAt ?? null);
@@ -1165,7 +1166,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'Cannot resolve mesh repo for Run Audit.' });
       return;
     }
-    const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
+    if (phase !== 'why' && phase !== 'how' && phase !== 'what') {
+      this.postMessage({ type: 'error', message: `Unknown OKR phase: ${phase}` });
+      return;
+    }
+    const labelName = phaseSpec(phase).draftLabel;
     try {
       await this.githubService.addIssueLabels(meshRepo.owner, meshRepo.repo, prNumber, [labelName]);
       void vscode.window.showInformationMessage(
@@ -1310,7 +1315,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
     const phase = phaseStr as 'why' | 'how' | 'what';
-    const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
+    const labelName = phaseSpec(phase).draftLabel;
     const staleFailureLabels = ['degraded-evidence', 'goal-drift-detected', 'caterpillar-drift-detected'];
     try {
       // Remove trigger label first.
@@ -1748,10 +1753,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    const agentByPhase = { why: 'market-research-agent', how: 'prd-agent', what: 'code-design-agent' } as const;
-    const labelByPhase = { why: 'oraculum-research', how: 'oraculum-prd', what: 'oraculum-design' } as const;
-    const agent = agentByPhase[phase];
-    const issueLabel = labelByPhase[phase];
+    // Refactor 3b — read from the single source of truth.
+    const spec = phaseSpec(phase);
+    const agent = spec.agentName;
+    const issueLabel = spec.anchorLabel;
 
     // Render the issue body for preview. The actual runId + actionId
     // are computed in onConfirmStartOkrPhase so each modal show
@@ -1801,10 +1806,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    const agentByPhase = { why: 'market-research-agent', how: 'prd-agent', what: 'code-design-agent' } as const;
-    const labelByPhase = { why: 'oraculum-research', how: 'oraculum-prd', what: 'oraculum-design' } as const;
-    const agent = agentByPhase[phase];
-    const issueLabel = labelByPhase[phase];
+    // Refactor 3b — read from the single source of truth.
+    const spec = phaseSpec(phase);
+    const agent = spec.agentName;
+    const issueLabel = spec.anchorLabel;
 
     const stamp = new Date();
     const ymd = stamp.toISOString().slice(0, 10);

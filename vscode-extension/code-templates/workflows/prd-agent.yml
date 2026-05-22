@@ -1027,87 +1027,19 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Flip OKR action.status to complete + meta.status to design-pending
+      # Refactor 3c — delegate to the canonical finalize composite action.
+      # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.
+      # If you rename a label / agent / phase here, update phaseSpec.ts too.
+      - name: Finalize OKR action
         if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
-        run: |
-          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
-          if [ ! -f "$OKR_FILE" ]; then
-            echo "::warning::okr.yaml missing — skipping status flip"
-            exit 0
-          fi
-          # 1. Flip THIS action's status to complete. FAIL LOUDLY if the
-          #    runId doesn't match any action — silent no-op was the bug
-          #    that left ACT-10 stuck in_progress on PR #97 (dispatch-
-          #    time commit never pushed → finalize ran against remote
-          #    that lacked the action → yq selector matched 0 → no flip
-          #    → run marked success despite half-doing-the-job). See
-          #    market-research-agent.yml for the same hardening.
-          RUN_ID="${{ steps.ctx.outputs.run_id }}"
-          MATCHED=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .runId" "$OKR_FILE" | wc -l | tr -d ' ')
-          if [ "$MATCHED" -eq 0 ]; then
-            echo "::error title=Action runId not found::yq select(.runId == \"$RUN_ID\") matched 0 actions in $OKR_FILE. The dispatch-time commit may not have been pushed to remote before this merge. Push the missing commit (or add the action manually) and re-run this workflow. Listing current action runIds for triage:"
-            yq -r '.actions[] | "  - " + .id + " runId=" + .runId + " status=" + .status' "$OKR_FILE"
-            exit 1
-          fi
-          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"complete\"" "$OKR_FILE"
-          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .completedAt) = \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"" "$OKR_FILE"
-          # Persist chain_root_hash on the action so Looking Glass can
-          # render the Knight's Seal badge + View Tag / Verify Chain
-          # buttons on the HOW card (gated on action.hatterChainRoot
-          # being non-empty). Pre-B27.v1.2 the field was never written
-          # so the card displayed only metrics — no provenance link.
-          CHAIN_ROOT_HASH="${{ steps.ctx.outputs.chain_root_hash }}"
-          if [ -n "$CHAIN_ROOT_HASH" ]; then
-            yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot) = \"$CHAIN_ROOT_HASH\"" "$OKR_FILE"
-          else
-            echo "::warning::No chain_root_hash extracted from Hatter Tag — actions[].hatterChainRoot left empty; UI seal badge will not render for this run"
-          fi
-          # 2. Roll OKR.meta.status forward: prd-pending -> design-pending.
-          # Done in bash (not yq's `if/then/else/end` — that's jq syntax;
-          # Go yq / mikefarah uses different conditional syntax and
-          # exits with a lexer error if you pass jq-style). Guarded so
-          # a re-run of HOW after WHAT already shipped doesn't downgrade.
-          CURRENT_STATUS=$(yq -r '.meta.status' "$OKR_FILE")
-          if [ "$CURRENT_STATUS" = "prd-pending" ]; then
-            yq -i '.meta.status = "design-pending"' "$OKR_FILE"
-          fi
-          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
-
-          # 3. Append this run to chain-ladder.yaml — the cross-phase
-          # audit ladder that stitches WHY → HOW → WHAT runs by
-          # intent_thread_uuid + parent_intent_thread. Scaffolded
-          # empty (chain: []) by OKRService; the original design routed
-          # the writes through okr-bus.yml but that workflow was never
-          # built, so without this step the ladder stayed empty forever
-          # and the audit-export bundle (§11.6) was missing its
-          # cross-phase lineage. We write it from each agent's finalize
-          # step so the lineage is captured at merge time, when all the
-          # values (action runId, intent thread, chain root, merge sha)
-          # are known.
-          LADDER="okrs/${{ steps.ctx.outputs.okr_id }}/audit/chain-ladder.yaml"
-          if [ ! -f "$LADDER" ]; then
-            printf '%s\n' '# Cross-phase audit chain ladder. Written by each agent workflow on PR merge.' 'chain: []' > "$LADDER"
-          fi
-          OKR_THREAD=$(yq -r '.meta.intentThreadUuid // ""' "$OKR_FILE")
-          ACTION_THREAD=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .intentThreadUuid // \"\"" "$OKR_FILE")
-          CHAIN_ROOT=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot // \"\"" "$OKR_FILE")
-          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
-          PHASE="how"
-          # Parent intent thread: WHY's action.intentThreadUuid for HOW.
-          # Resolve by reading the most-recent prior action with phase==why
-          # if multiple exist (re-runs). Fallback to OKR root thread.
-          PARENT_THREAD=$(yq -r "[.actions[] | select(.phase == \"why\")] | .[-1].intentThreadUuid // \"$OKR_THREAD\"" "$OKR_FILE")
-          yq -i \
-            "(.chain) += [{\"phase\": \"$PHASE\", \"run_id\": \"$RUN_ID\", \"intent_thread_uuid\": \"$ACTION_THREAD\", \"parent_intent_thread\": \"$PARENT_THREAD\", \"chain_root_hash\": \"$CHAIN_ROOT\", \"merge_commit_sha\": \"$MERGE_SHA\", \"merged_at\": \"$NOW\", \"pr_number\": ${{ github.event.pull_request.number }}}]" \
-            "$LADDER"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$OKR_FILE" "$LADDER"
-          git commit -m "chore(okr): ${{ steps.ctx.outputs.okr_id }} HOW complete (action ${{ steps.ctx.outputs.run_id }} -> complete; meta.status prd-pending -> design-pending; chain-ladder append; PR #${{ github.event.pull_request.number }})" || echo "Nothing to commit"
-          for i in 1 2 3; do
-            if git push; then break; fi
-            git fetch origin main && git rebase origin/main
-            sleep 2
-          done
+        uses: ./.github/actions/finalize-okr-action
+        with:
+          phase: how
+          okr-id: ${{ steps.ctx.outputs.okr_id }}
+          run-id: ${{ steps.ctx.outputs.run_id }}
+          chain-root-hash: ${{ steps.ctx.outputs.chain_root_hash }}
+          current-meta-status: prd-pending
+          next-meta-status: design-pending
+          prior-phase: why
+          pr-number: ${{ github.event.pull_request.number }}
+          pr-merge-commit-sha: ${{ github.event.pull_request.merge_commit_sha }}

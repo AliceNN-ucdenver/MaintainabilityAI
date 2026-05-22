@@ -24,6 +24,7 @@ import type {
   OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode,
   GitSyncStatus,
 } from '../../../types';
+import { phaseSpec } from '../../../types/phaseSpec';
 
 /**
  * Per-phase signal data fetched live from GitHub API (audit JSONL +
@@ -1107,8 +1108,7 @@ function renderPrCascade(s: OkrPhaseSignal, phase: OkrPhase): string[] {
     lines.push(`<div class="okr-signal-review-requested">📋 Review requested by the agent.</div>`);
   }
 
-  const labelName = phase === 'why' ? 'research-synthesis' : phase === 'how' ? 'prd-draft' : 'design-draft';
-  const agentName = phase === 'why' ? 'market-research-agent' : phase === 'how' ? 'prd-agent' : 'code-design-agent';
+  const { draftLabel: labelName, agentName } = phaseSpec(phase);
 
   // Cascade — exactly one of these branches fires.
   if (state === 'open' && !draft && s?.auditLabelApplied === false && s?.passLabelApplied !== true) {
@@ -1160,7 +1160,7 @@ function renderPrCascade(s: OkrPhaseSignal, phase: OkrPhase): string[] {
   } else if (s?.auditLabelApplied && s?.passLabelApplied !== true) {
     lines.push(`<div class="okr-signal-audit-status">⏳ Audit in flight — refresh after the workflow posts its summary comment.</div>`);
   } else if (s?.passLabelApplied) {
-    const passLabel = phase === 'why' ? 'research-pass' : phase === 'how' ? 'prd-pass' : 'design-pass';
+    const passLabel = phaseSpec(phase).passLabel;
     lines.push(`<div class="okr-signal-audit-status">✓ Audit passed — <code>${passLabel}</code> applied. Merge unlocked (subject to branch protection).</div>`);
   }
 

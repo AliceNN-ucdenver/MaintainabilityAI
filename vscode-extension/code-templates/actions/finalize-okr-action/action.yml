@@ -1,0 +1,145 @@
+name: "Finalize OKR phase action (canonical — used by all per-agent finalize jobs)"
+description: |
+  Canonical finalize body — eliminates the "5 ways to finalize" smell
+  by consolidating the three per-agent workflows' finalize steps into
+  one composite. Refactor 3c (post D-PR1.v1.6).
+
+  Reads the OKR card on the default branch, flips the action's
+  status to complete + writes completedAt + writes hatterChainRoot,
+  rolls meta.status forward (gated on the current-meta-status input
+  to prevent downgrade on re-runs), appends a chain-ladder.yaml
+  entry stitching this phase to its parent intent thread, then
+  commits + pushes back to main with a retry loop.
+
+  Two hard guards inherited from the prior per-agent implementations:
+    1. **Fail loudly on runId mismatch.** The yq selector matching 0
+       actions was the silent-no-op bug behind PR #97 (dispatch-time
+       commit not pushed before merge → finalize couldn't find the
+       action → run reported success without flipping anything).
+       Action exits 1 + lists current action runIds for triage.
+    2. **Guard meta.status forward-roll.** A re-run of an earlier
+       phase after a later one shipped MUST NOT downgrade the
+       master status; the bash conditional checks
+       current-meta-status before writing next-meta-status.
+
+  Pre-condition: workflow MUST have checked out main with write
+  credentials BEFORE calling this action.
+
+inputs:
+  phase:
+    description: "Phase id — why | how | what."
+    required: true
+  okr-id:
+    description: "OKR id (e.g. OKR-2026Q2-IMDB-001-celeb-api)."
+    required: true
+  run-id:
+    description: "Run id of the action being finalized (e.g. HOW-2026-05-21-5pvl2x)."
+    required: true
+  chain-root-hash:
+    description: "Chain-root SHA-256 extracted from artifact Hatter Tag. Empty string disables hatterChainRoot write + UI seal badge."
+    required: false
+    default: ""
+  current-meta-status:
+    description: "OKR meta.status MUST equal this for the forward-roll to fire. Acts as a downgrade guard."
+    required: true
+  next-meta-status:
+    description: "OKR meta.status will be set to this on successful finalize."
+    required: true
+  prior-phase:
+    description: "Phase id of the parent for chain-ladder.parent_intent_thread resolution (empty for WHY)."
+    required: false
+    default: ""
+  pr-number:
+    description: "GitHub PR number (for chain-ladder + commit message)."
+    required: true
+  pr-merge-commit-sha:
+    description: "github.event.pull_request.merge_commit_sha — recorded in chain-ladder for cross-ref."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Finalize phase action — flip status + roll meta.status + append chain-ladder
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        OKR_FILE="okrs/${{ inputs.okr-id }}/okr.yaml"
+        if [ ! -f "$OKR_FILE" ]; then
+          echo "::warning::okr.yaml missing at $OKR_FILE — skipping status flip"
+          exit 0
+        fi
+
+        # ── Guard 1: runId mismatch → fail loudly. ──────────────────
+        # PR #97 silent-no-op forensic: if the dispatch-time commit
+        # was never pushed to remote before the agent's PR merged,
+        # finalize would run against a remote that lacked the action,
+        # yq selector matched 0, no flip happened, workflow reported
+        # success — but the OKR stayed in_progress forever.
+        RUN_ID='${{ inputs.run-id }}'
+        MATCHED=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .runId" "$OKR_FILE" | wc -l | tr -d ' ')
+        if [ "$MATCHED" -eq 0 ]; then
+          echo "::error title=Action runId not found::yq select(.runId == \"$RUN_ID\") matched 0 actions in $OKR_FILE. The dispatch-time commit may not have been pushed to remote before this merge. Push the missing commit (or add the action manually) and re-run this workflow. Listing current action runIds for triage:"
+          yq -r '.actions[] | "  - " + .id + " runId=" + .runId + " status=" + .status' "$OKR_FILE"
+          exit 1
+        fi
+
+        # ── 1. Flip action: status complete + completedAt + hatterChainRoot. ──
+        NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .status) = \"complete\"" "$OKR_FILE"
+        yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .completedAt) = \"$NOW\"" "$OKR_FILE"
+        CHAIN_ROOT_HASH='${{ inputs.chain-root-hash }}'
+        if [ -n "$CHAIN_ROOT_HASH" ]; then
+          yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot) = \"$CHAIN_ROOT_HASH\"" "$OKR_FILE"
+        else
+          echo "::warning::No chain_root_hash extracted from Hatter Tag — actions[].hatterChainRoot left empty; UI seal badge will not render for this run. The agent's artifact frontmatter likely still says \`chain_root_hash: <write at finalize>\` placeholder — extract-okr-context can't resolve from a placeholder."
+        fi
+
+        # ── 2. Roll meta.status forward (guarded — no downgrade). ──
+        # When a re-run of an earlier phase fires after a later one
+        # shipped, the master status MUST NOT downgrade.
+        CURRENT_STATUS=$(yq -r '.meta.status' "$OKR_FILE")
+        if [ "$CURRENT_STATUS" = '${{ inputs.current-meta-status }}' ]; then
+          yq -i ".meta.status = \"${{ inputs.next-meta-status }}\"" "$OKR_FILE"
+        else
+          echo "::notice::Skipping meta.status forward-roll: current='${CURRENT_STATUS}' expected='${{ inputs.current-meta-status }}' (re-run of earlier phase after forward progress — guard preserved)"
+        fi
+        yq -i ".meta.updatedAt = \"$NOW\"" "$OKR_FILE"
+
+        # ── 3. Append chain-ladder entry. ────────────────────────────
+        # Scaffolds an empty chain: [] if missing. Parent thread
+        # resolves to the most-recent prior-phase action; fallback to
+        # the OKR's master intent thread for WHY (no parent).
+        LADDER="okrs/${{ inputs.okr-id }}/audit/chain-ladder.yaml"
+        if [ ! -f "$LADDER" ]; then
+          printf '%s\n' '# Cross-phase audit chain ladder. Written by each agent workflow on PR merge.' 'chain: []' > "$LADDER"
+        fi
+        OKR_THREAD=$(yq -r '.meta.intentThreadUuid // ""' "$OKR_FILE")
+        ACTION_THREAD=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .intentThreadUuid // \"\"" "$OKR_FILE")
+        CHAIN_ROOT=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .hatterChainRoot // \"\"" "$OKR_FILE")
+        MERGE_SHA='${{ inputs.pr-merge-commit-sha }}'
+        PHASE='${{ inputs.phase }}'
+        PRIOR_PHASE='${{ inputs.prior-phase }}'
+        # Resolve parent_intent_thread: most-recent action with the
+        # prior phase's id. Fallback to OKR root thread (used by WHY
+        # since prior-phase='').
+        if [ -n "$PRIOR_PHASE" ]; then
+          PARENT_THREAD=$(yq -r "[.actions[] | select(.phase == \"$PRIOR_PHASE\")] | .[-1].intentThreadUuid // \"$OKR_THREAD\"" "$OKR_FILE")
+        else
+          PARENT_THREAD="$OKR_THREAD"
+        fi
+        yq -i \
+          "(.chain) += [{\"phase\": \"$PHASE\", \"run_id\": \"$RUN_ID\", \"intent_thread_uuid\": \"$ACTION_THREAD\", \"parent_intent_thread\": \"$PARENT_THREAD\", \"chain_root_hash\": \"$CHAIN_ROOT\", \"merge_commit_sha\": \"$MERGE_SHA\", \"merged_at\": \"$NOW\", \"pr_number\": ${{ inputs.pr-number }}}]" \
+          "$LADDER"
+
+        # ── 4. Commit + push with retry. ────────────────────────────
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add "$OKR_FILE" "$LADDER"
+        PHASE_UPPER=$(echo "$PHASE" | tr '[:lower:]' '[:upper:]')
+        git commit -m "chore(okr): ${{ inputs.okr-id }} $PHASE_UPPER complete (action $RUN_ID -> complete; meta.status ${{ inputs.current-meta-status }} -> ${{ inputs.next-meta-status }}; chain-ladder append; PR #${{ inputs.pr-number }})" || echo "Nothing to commit"
+        for i in 1 2 3; do
+          if git push; then break; fi
+          git fetch origin main && git rebase origin/main
+        done
+        echo "::notice::Finalized $PHASE_UPPER phase for ${{ inputs.okr-id }} (run=$RUN_ID, chain_root=${CHAIN_ROOT_HASH:0:12}, meta.status -> ${{ inputs.next-meta-status }})"

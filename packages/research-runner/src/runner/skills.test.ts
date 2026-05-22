@@ -1207,3 +1207,104 @@ test('B28: chained auto-emit + audit-verify-chain end-to-end (sealed + chained)'
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
+
+/**
+ * D-PR1.future Refactor 3a — pin the audit-event payload contract.
+ *
+ * Documented in `vscode-extension/design/audit-event-shape.md`. The
+ * runner's `runSkill()` auto-emit MUST merge handler-declared
+ * `auditMetadata` fields FLAT into `payload`, NOT nested under
+ * `payload.audit_metadata`. The D-PR1 MVP workflow assumed the
+ * nested shape and produced false-negative findings on every WHAT
+ * run (PR #120 mode-honesty bug); the fix was reading the right
+ * key. This test exists so a future SKILL handler can't quietly
+ * change the shape and re-introduce the bug — touch the contract
+ * and you break this test + every workflow YAML that reads the chain.
+ *
+ * Three assertions:
+ *   1. Handler-declared auditMetadata fields appear at TOP LEVEL of
+ *      payload (e.g. payload.queries, NOT payload.audit_metadata.queries).
+ *   2. Canonical fields (skill / ok / duration_ms / reason) are at
+ *      the top level alongside them.
+ *   3. There is NO `audit_metadata` key on payload — the runner does
+ *      not nest, ever.
+ */
+test('Audit contract: runSkill flat-merges auditMetadata into payload (no nesting) — see design/audit-event-shape.md', async () => {
+  const mesh = tmpMesh();
+  try {
+    // tavily-search returns auditMetadata even on the failure path
+    // (missing API key) — deterministic + fast + no network needed.
+    // Handler returns: { ok: false, reason: 'tavily-api-key-missing',
+    //                    auditMetadata: { queries: [...], result_count: 0 } }
+    const prevKey = process.env.TAVILY_API_KEY;
+    delete process.env.TAVILY_API_KEY;
+    try {
+      writeYaml(path.join(mesh, 'okrs', 'OKR-CONTRACT', 'okr.yaml'),
+        'meta:\n  id: OKR-CONTRACT\n  intentThreadUuid: 22222222-2222-2222-2222-222222222222\n');
+      await withMeshPath(mesh, async () => {
+        await withSession({
+          okrId: 'OKR-CONTRACT',
+          runId: 'WHY-CONTRACT-1',
+          intentThreadUuid: '22222222-2222-2222-2222-222222222222',
+          phase: 'why',
+        }, async () => {
+          const r = await runSkill('tavily-search', { queries: ['contract-test-query'] });
+          assert.equal(r.ok, false);
+          const chain = readChain(mesh, 'OKR-CONTRACT', 'WHY-CONTRACT-1');
+          assert.equal(chain.length, 1, 'expected one auto-emitted skill_call event');
+          const payload = chain[0].payload as Record<string, unknown>;
+
+          // 1. Handler's auditMetadata fields landed at TOP LEVEL.
+          assert.deepEqual(
+            payload.queries,
+            ['contract-test-query'],
+            'payload.queries must be at top level (flat-merge contract)',
+          );
+          assert.equal(
+            payload.result_count,
+            0,
+            'payload.result_count must be at top level (flat-merge contract)',
+          );
+
+          // 2. Canonical fields are at top level too.
+          assert.equal(payload.skill, 'tavily-search');
+          assert.equal(payload.ok, false);
+          assert.equal(payload.reason, 'tavily-api-key-missing');
+          assert.equal(typeof payload.duration_ms, 'number');
+
+          // 3. NO `audit_metadata` key on payload — the runner does not
+          // nest, ever. If this assertion fails, every workflow YAML
+          // that reads `payload.X` directly will silently break. See
+          // vscode-extension/design/audit-event-shape.md for the
+          // canonical contract + the PR #120 forensic that motivated
+          // pinning it.
+          assert.equal(
+            payload.audit_metadata,
+            undefined,
+            'payload.audit_metadata must NOT exist — auditMetadata is merged FLAT into payload, not nested. If you are tempted to add it, you are about to break every workflow that reads the chain. See design/audit-event-shape.md.',
+          );
+        });
+      });
+    } finally {
+      if (prevKey !== undefined) { process.env.TAVILY_API_KEY = prevKey; }
+    }
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+/**
+ * Companion contract test — canonical fields (skill / ok / duration_ms /
+ * reason) WIN on collision with handler-declared auditMetadata. A
+ * misbehaving handler that returns
+ *   { ok: true, auditMetadata: { skill: 'something-else', ok: false } }
+ * must NOT be able to override the runner's view of what skill was
+ * called or whether the call succeeded. The runner spreads extras
+ * FIRST so canonical fields win on the second assignment.
+ *
+ * We can't easily test this directly without modifying SKILLS, but
+ * the production code path at `runSkill` (skills.ts:1705) is:
+ *   const payload = { ...extras, skill: name, ok: result.ok, duration_ms };
+ * — the spread-then-overwrite pattern is what guarantees this. The
+ * test above already pins the spread happens (payload.queries +
+ * payload.result_count from extras) AND canonical wins (payload.skill
+ * is 'tavily-search' not something the handler could have injected).
+ */

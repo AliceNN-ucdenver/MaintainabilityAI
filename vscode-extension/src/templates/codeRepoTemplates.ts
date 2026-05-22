@@ -476,6 +476,21 @@ export function generateCheckTierBoundAction(extensionPath: string): string {
 }
 
 /**
+ * Composite action: canonical finalize body shared across all three
+ * per-agent workflows (WHY / HOW / WHAT). Refactor 3c eliminated the
+ * "5 ways to finalize" smell by consolidating: yq-based action status
+ * flip + completedAt + hatterChainRoot write + meta.status forward-
+ * roll + chain-ladder append + commit-and-push retry loop. Each
+ * workflow delegates via `uses: ./.github/actions/finalize-okr-action`
+ * with phase-specific inputs (phase + current-meta-status +
+ * next-meta-status + prior-phase). See phaseSpec.ts for the canonical
+ * input values per phase.
+ */
+export function generateFinalizeOkrAction(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'actions', 'finalize-okr-action', 'action.yml');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -508,6 +523,8 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/actions/extract-okr-context/action.yml', generate: generateExtractOkrContextAction },
   { relativePath: '.github/actions/count-skill-calls/action.yml',   generate: generateCountSkillCallsAction },
   { relativePath: '.github/actions/check-tier-bound/action.yml',    generate: generateCheckTierBoundAction },
+  // Refactor 3c — canonical finalize body shared by all per-agent workflows.
+  { relativePath: '.github/actions/finalize-okr-action/action.yml',  generate: generateFinalizeOkrAction },
 
   // No transitional workflows remain. WHY + HOW + WHAT are owned end-
   // to-end by per-agent workflows above. The prior bus / state-machine
