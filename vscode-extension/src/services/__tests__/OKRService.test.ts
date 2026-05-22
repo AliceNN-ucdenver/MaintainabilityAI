@@ -304,6 +304,35 @@ describe('OKRService', () => {
       expect(r.ok).toBe(false);
       if (!r.ok) { expect(r.error).toContain('Schema validation failed'); }
     });
+
+    // A12.v1.1 — legacy `'declared'` values auto-migrate to `'not-connected'`
+    // via z.preprocess on the TargetRepoStatusSchema. Build a valid OKR via
+    // svc.create() (so all required fields are present), then patch the
+    // YAML on disk to inject the legacy 'declared' value, then re-read and
+    // verify the preprocessor translated it.
+    it('migrates legacy targetCodeRepoStatus "declared" → "not-connected" on read', () => {
+      const card = svc.create(tmpRoot, freshDraft())!;
+      const yamlPath = path.join(tmpRoot, 'okrs', card.meta.id, 'okr.yaml');
+      let yaml = fs.readFileSync(yamlPath, 'utf8');
+      // Inject a fake target repo + 'declared' status into the YAML to
+      // simulate an OKR card written under the pre-A12.v1.1 schema. The
+      // simple string replacement is sufficient: yaml.dump() emits the
+      // section in a stable shape and we just append our entries.
+      yaml = yaml.replace(
+        /targetCodeRepos:\s*\[\]/,
+        `targetCodeRepos:\n    - https://github.com/example-org/legacy-repo`,
+      );
+      yaml = yaml.replace(
+        /targetCodeRepoStatus:\s*\{\}/,
+        `targetCodeRepoStatus:\n    "https://github.com/example-org/legacy-repo": declared`,
+      );
+      fs.writeFileSync(yamlPath, yaml, 'utf8');
+      const reread = svc.read(tmpRoot, card.meta.id);
+      expect(reread).not.toBeNull();
+      expect(reread!.objectiveAlignment.targetCodeRepoStatus).toEqual({
+        'https://github.com/example-org/legacy-repo': 'not-connected',
+      });
+    });
   });
 
   describe('appendAction', () => {

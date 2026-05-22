@@ -390,8 +390,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
+    'setOkrRepoStatus':            (m) => this.onSetOkrRepoStatus(m.okrId, m.repoUrl, m.status),
     'cancelOkrAction':             (m) => this.onCancelOkrAction(m.okrId, m.actionId),
-    'toggleOkrRepoConnected':      (m) => this.onToggleOkrRepoConnected(m.okrId, m.repoUrl, m.status),
     // Client-side-only navigation / filter messages - declared so a
     // future rename surfaces at compile time instead of silently dropping.
     'backToPortfolio':             this.noop,
@@ -1401,13 +1401,24 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   }
 
   /**
-   * A12 — flip the per-repo connection status on an OKR's targetCodeRepos.
-   * Called when the user clicks "Mark connected" / "Mark disconnected"
-   * on the OKR detail view after verifying GitHub Actions + app install.
-   * The Phase D code-design fan-out reads `targetCodeRepoStatus` to gate
-   * fanning out into still-Declared repos.
+   * A12 + A12.v1.1 — set the per-repo intent + connection status on an
+   * OKR's targetCodeRepos. Called when the user picks a status from the
+   * OKR detail Target Code Repos section. Four states:
+   *
+   * - `'connected'` — repo exists + wired; Phase D will clone + ground on
+   *   real code via `knowledge-code`.
+   * - `'not-connected'` — repo exists but not wired; Phase D refuses to
+   *   dispatch and prompts the user.
+   * - `'create'` — greenfield; repo doesn't exist yet. Phase D designs
+   *   from PRD + mesh only; fan-out manifest flags it as net-new for
+   *   `design-bus.yml` to create before opening the design-landing issue.
+   * - `'unreachable'` — system-set only after a probe; not user-pickable.
+   *
+   * The Phase D code-design-agent reads `targetCodeRepoStatus` per repo
+   * to branch on brownfield (`connected` → clone + ground) vs greenfield
+   * (`create` → design-only).
    */
-  private async onToggleOkrRepoConnected(okrId: string, repoUrl: string, status: 'declared' | 'connected' | 'unreachable'): Promise<void> {
+  private async onSetOkrRepoStatus(okrId: string, repoUrl: string, status: 'not-connected' | 'connected' | 'create' | 'unreachable'): Promise<void> {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) {
       this.postMessage({ type: 'error', message: 'No mesh configured' });

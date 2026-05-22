@@ -444,10 +444,12 @@ export type LookingGlassWebviewMessage =
   // GitHub Contents API and renders it inline in the OKR detail card.
   // Stateful: clicking again hides the panel.
   | { type: 'toggleOkrArtifact'; okrId: string; phase: string }
-  // A12 — flip the per-repo connection status on the OKR's
-  // targetCodeRepos. Persisted into the OKR card so the Phase D
-  // code-design fan-out can skip still-Declared repos.
-  | { type: 'toggleOkrRepoConnected'; okrId: string; repoUrl: string; status: 'declared' | 'connected' | 'unreachable' }
+  // A12 + A12.v1.1 — set the per-repo intent + connection status on the
+  // OKR's targetCodeRepos. Persisted into the OKR card so the Phase D
+  // code-design fan-out can branch on (a) clone+ground for 'connected'
+  // repos, (b) greenfield design for 'create' repos, (c) skip + prompt
+  // for 'not-connected'. 'unreachable' is system-set after a probe.
+  | { type: 'setOkrRepoStatus'; okrId: string; repoUrl: string; status: 'not-connected' | 'connected' | 'create' | 'unreachable' }
   // ✓ Merge PR — merges the artifact PR via the GitHub pulls.merge API
   // (squash). Extension prompts for confirmation natively before calling.
   // After success, finalize workflow flips action.status to complete on

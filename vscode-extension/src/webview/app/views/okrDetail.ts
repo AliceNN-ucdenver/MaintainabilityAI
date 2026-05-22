@@ -568,35 +568,61 @@ function renderTargetRepos(state: OkrDetailRenderState, mode: OkrDetailMode): st
         <p class="okr-muted">None declared.</p>
       `;
     }
-    // A12: per-repo Connect Repo flow. Status defaults to 'declared'.
-    // Connect button opens GitHub Settings → Actions in the browser; the
-    // Mark Connected / Disconnect toggle persists state back to the OKR
-    // card via OKRService.update (handled by the panel-side message).
+    // A12 + A12.v1.1: per-repo intent + connection state. Four states drive
+    // Phase D's brownfield-vs-greenfield branching:
+    //   - 'connected'     → ✓ exists + wired; agent clones + grounds on code
+    //   - 'not-connected' → exists, not wired; agent refuses, user must
+    //                       Connect (open Actions settings) or reclassify
+    //                       as Create
+    //   - 'create'        → ✨ greenfield; repo doesn't exist; agent designs
+    //                       from PRD + mesh only; fan-out scaffolds it
+    //   - 'unreachable'   → ⚠ system-set after a probe; not user-pickable
+    // The dropdown surfaces the three user-pickable states explicitly so
+    // the user's intent is recorded (no more guessing what 'declared' meant).
     const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
     const items = repos.map(r => {
-      const status = statusMap[r] ?? 'declared';
+      const status = statusMap[r] ?? 'not-connected';
       const settingsUrl = `${r.replace(/\/$/, '')}/settings/actions`;
       const badge = status === 'connected'
         ? '<span class="okr-repo-status okr-repo-connected">✓ Connected</span>'
+        : status === 'create'
+        ? '<span class="okr-repo-status okr-repo-create">✨ Create (greenfield)</span>'
         : status === 'unreachable'
         ? '<span class="okr-repo-status okr-repo-unreachable">⚠ Unreachable</span>'
-        : '<span class="okr-repo-status okr-repo-declared">Declared — Not Connected</span>';
-      const connectBtn = `<button class="okr-link-button" data-action="open-repo-actions-settings" data-url="${escapeAttr(settingsUrl)}" title="Open the repo's GitHub Settings → Actions page so you can enable workflows + approve the app installation.">Connect Repo ↗</button>`;
-      const toggleBtn = status === 'connected'
-        ? `<button class="okr-link-button" data-action="toggle-repo-connected" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-url="${escapeAttr(r)}" data-next-status="declared" title="Mark this repo as not yet connected.">Mark disconnected</button>`
-        : `<button class="okr-link-button" data-action="toggle-repo-connected" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-url="${escapeAttr(r)}" data-next-status="connected" title="Mark this repo as connected after you've enabled Actions + approved the app install on GitHub.">Mark connected</button>`;
+        : '<span class="okr-repo-status okr-repo-not-connected">○ Not Connected</span>';
+      // Connect Repo ↗ only makes sense for 'not-connected' (exists but
+      // not wired). For 'create' there's no repo to connect to; for
+      // 'connected' the work is already done; for 'unreachable' the user
+      // needs to fix the probe error before re-toggling.
+      const showConnectBtn = status === 'not-connected';
+      const connectBtn = showConnectBtn
+        ? `<button class="okr-link-button" data-action="open-repo-actions-settings" data-url="${escapeAttr(settingsUrl)}" title="Open the repo's GitHub Settings → Actions page so you can enable workflows + approve the app installation.">Connect Repo ↗</button>`
+        : '';
+      // Dropdown — three user-pickable states. 'unreachable' is excluded
+      // (system-set only after a probe-fail; surfaced via the badge).
+      const opt = (val: 'connected' | 'not-connected' | 'create', label: string, hint: string) => {
+        const selected = status === val ? ' selected' : '';
+        return `<option value="${val}" title="${escapeAttr(hint)}"${selected}>${escapeHtml(label)}</option>`;
+      };
+      const statusSelect = `
+        <select class="okr-repo-status-picker" data-action="set-repo-status" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-url="${escapeAttr(r)}" aria-label="Repo status for ${escapeAttr(r)}">
+          ${opt('connected',     '✓ Connected',          'Repo exists on GitHub and Actions + app install are approved. Phase D code-design agent will clone + ground on the actual code.')}
+          ${opt('not-connected', '○ Not Connected',      'Repo exists on GitHub but not wired to Looking Glass yet. Phase D will refuse to dispatch until you Connect or mark as Create.')}
+          ${opt('create',        '✨ Create (greenfield)', "Repo does NOT exist yet — Phase D will design from PRD + mesh only, and the fan-out manifest will flag it for scaffolding. Use this when you're building a new repo from this OKR.")}
+        </select>
+      `;
       return `
         <li class="okr-repo-row">
           <code>${escapeHtml(r)}</code>
           ${badge}
-          <span class="okr-repo-actions">${connectBtn} ${toggleBtn}</span>
+          <span class="okr-repo-actions">${statusSelect}${connectBtn}</span>
         </li>
       `;
     }).join('');
     return `
       <h2 class="okr-section-heading">Target Code Repos</h2>
       <ul class="okr-repo-list">${items}</ul>
-      <p class="okr-muted okr-section-note">Click <strong>Connect Repo</strong> to open the repo's Actions settings. After enabling workflows + approving the app install, click <strong>Mark connected</strong>. The Phase D code-design fan-out won't fire against repos still marked Declared.</p>
+      <p class="okr-muted okr-section-note">Pick a status per repo. <strong>Connected</strong> = exists + wired (Phase D clones + grounds on real code). <strong>Not Connected</strong> = exists, not wired (click <strong>Connect Repo ↗</strong> to enable Actions + approve the app install). <strong>Create</strong> = greenfield (repo doesn't exist; Phase D designs from PRD + mesh, fan-out scaffolds it). Phase D won't dispatch until every repo is either Connected or Create.</p>
     `;
   }
 
@@ -1235,11 +1261,13 @@ export function getOkrDetailStyles(): string {
     .okr-repo-list { list-style: none; padding: 0; margin: 0; }
     .okr-repo-list li { padding: 0.5rem 0.75rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     .okr-repo-status { font-size: 0.75rem; padding: 0.125rem 0.5rem; border-radius: 0.375rem; }
-    .okr-repo-declared { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+    .okr-repo-not-connected { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
     .okr-repo-connected { background: rgba(74, 222, 128, 0.14); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+    .okr-repo-create { background: rgba(168, 85, 247, 0.14); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
     .okr-repo-unreachable { background: rgba(248, 113, 113, 0.14); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
     .okr-repo-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .okr-repo-actions { display: flex; gap: 0.375rem; margin-left: auto; }
+    .okr-repo-actions { display: flex; gap: 0.375rem; margin-left: auto; align-items: center; }
+    .okr-repo-status-picker { font-size: 0.75rem; padding: 0.125rem 0.375rem; background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border); border-radius: 0.25rem; }
     .okr-section-note { font-size: 0.75rem; opacity: 0.7; }
     .okr-action-card { padding: 1rem 1.25rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.5rem; margin-bottom: 0.75rem; background: var(--vscode-editor-background); }
     .okr-action-card-idle { border-color: rgba(148, 163, 184, 0.3); }
@@ -1399,8 +1427,8 @@ export function attachOkrDetailEvents(
   });
   // A12: Connect Repo flow. Opens the repo's GitHub Settings → Actions
   // page in the browser (user enables workflows + approves app install
-  // there). The Mark connected toggle persists state back to the OKR
-  // card via the panel-side toggleOkrRepoConnected message.
+  // there). After that, the user flips the status to 'connected' via the
+  // 4-state picker — persisted via the setOkrRepoStatus message (A12.v1.1).
   document.querySelectorAll('[data-action="open-repo-actions-settings"]').forEach(el => {
     el.addEventListener('click', () => {
       const url = (el as HTMLElement).dataset.url;
@@ -1409,14 +1437,17 @@ export function attachOkrDetailEvents(
       }
     });
   });
-  document.querySelectorAll('[data-action="toggle-repo-connected"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const e = el as HTMLElement;
+  // A12.v1.1 — repo-status picker (4-state select). Fires on change, not
+  // click — the user picks one of the three user-pickable states (the 4th,
+  // 'unreachable', is system-set only after a probe).
+  document.querySelectorAll('[data-action="set-repo-status"]').forEach(el => {
+    el.addEventListener('change', () => {
+      const e = el as HTMLSelectElement;
       const okrId = e.dataset.okrId;
       const repoUrl = e.dataset.repoUrl;
-      const nextStatus = e.dataset.nextStatus;
-      if (okrId && repoUrl && (nextStatus === 'connected' || nextStatus === 'declared' || nextStatus === 'unreachable')) {
-        vscode.postMessage({ type: 'toggleOkrRepoConnected', okrId, repoUrl, status: nextStatus });
+      const nextStatus = e.value;
+      if (okrId && repoUrl && (nextStatus === 'connected' || nextStatus === 'not-connected' || nextStatus === 'create')) {
+        vscode.postMessage({ type: 'setOkrRepoStatus', okrId, repoUrl, status: nextStatus });
       }
     });
   });

@@ -253,10 +253,49 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('data-bar-path="/m/bars/imdb-celebs"');
   });
 
-  it('renders target repos as Declared — Not Connected', () => {
+  // A12.v1.1: 4-state repo status — connected / not-connected / create /
+  // unreachable. Default for absent entries is 'not-connected'.
+  it('renders target repos defaulting to Not Connected when no status set', () => {
     const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [] });
     expect(html).toContain('&lt;org&gt;/celeb-api');
-    expect(html).toContain('Declared — Not Connected');
+    expect(html).toContain('○ Not Connected');
+    // Status picker is rendered with all three user-pickable options.
+    expect(html).toContain('data-action="set-repo-status"');
+    expect(html).toContain('value="connected"');
+    expect(html).toContain('value="not-connected"');
+    expect(html).toContain('value="create"');
+  });
+
+  it('renders Connect Repo ↗ button only for not-connected status', () => {
+    const card = sampleCard();
+    card.objectiveAlignment.targetCodeRepoStatus = {
+      [card.objectiveAlignment.targetCodeRepos[0]]: 'create',
+    };
+    const html = renderOkrDetailView({ okr: card, affectedBars: [] });
+    // 'create' state should NOT surface the Connect Repo ↗ button (no
+    // repo to connect to — it's greenfield).
+    expect(html).toContain('✨ Create (greenfield)');
+    expect(html).not.toContain('open-repo-actions-settings');
+  });
+
+  it('renders ✓ Connected badge when status is connected', () => {
+    const card = sampleCard();
+    card.objectiveAlignment.targetCodeRepoStatus = {
+      [card.objectiveAlignment.targetCodeRepos[0]]: 'connected',
+    };
+    const html = renderOkrDetailView({ okr: card, affectedBars: [] });
+    expect(html).toContain('✓ Connected');
+    // Connected repos also don't need the Connect Repo ↗ button.
+    expect(html).not.toContain('open-repo-actions-settings');
+  });
+
+  it('renders ⚠ Unreachable badge when status is unreachable', () => {
+    const card = sampleCard();
+    card.objectiveAlignment.targetCodeRepoStatus = {
+      [card.objectiveAlignment.targetCodeRepos[0]]: 'unreachable',
+    };
+    const html = renderOkrDetailView({ okr: card, affectedBars: [] });
+    expect(html).toContain('⚠ Unreachable');
   });
 
   it('renders the back-to-list breadcrumb', () => {

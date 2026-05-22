@@ -77,7 +77,34 @@ export const IntentCascadeSchema = z.object({
 });
 export type IntentCascade = z.infer<typeof IntentCascadeSchema>;
 
-export const TargetRepoStatusSchema = z.enum(['declared', 'connected', 'unreachable']);
+/**
+ * Per-repo intent + connection state for `targetCodeRepos`. Four states:
+ *
+ * - `'connected'` — repo exists on GitHub AND is wired to Looking Glass
+ *   (Actions enabled + app install approved). Phase D's `knowledge-code`
+ *   Skill will clone + tree-sitter-index this repo and the code-design-
+ *   agent will ground its design on the actual code.
+ * - `'not-connected'` — repo exists on GitHub but not wired. Phase D
+ *   refuses to dispatch and prompts the user to either Connect or
+ *   reclassify as Create.
+ * - `'create'` — repo does NOT exist yet; this is a greenfield target.
+ *   Phase D's code-design-agent designs from PRD + mesh only (no clone),
+ *   and the fan-out manifest flags this repo as net-new for the per-repo
+ *   coding agents to scaffold (`design-bus.yml` creates the repo before
+ *   opening the design-landing issue). This is the IMDB-celebs case: the
+ *   celeb-api repo is in `targetCodeRepos` but doesn't exist on GitHub.
+ * - `'unreachable'` — system-set only after a probe (404 / auth fail).
+ *   Not user-pickable. Surfaced as a warning chip.
+ *
+ * Migration: pre-A12.v1.1 OKRs used `'declared'` as the catch-all for
+ * "exists, not wired." `z.preprocess` translates `'declared'` →
+ * `'not-connected'` on read so legacy cards keep loading. Anyone writing
+ * new state goes through the post-preprocess enum.
+ */
+export const TargetRepoStatusSchema = z.preprocess(
+  (val) => (val === 'declared' ? 'not-connected' : val),
+  z.enum(['not-connected', 'connected', 'create', 'unreachable']),
+);
 export type TargetRepoStatus = z.infer<typeof TargetRepoStatusSchema>;
 
 export const ObjectiveAlignmentSchema = z.object({
@@ -87,10 +114,11 @@ export const ObjectiveAlignmentSchema = z.object({
   affectedBarIds: z.array(z.string()).min(1),
   targetCodeRepos: z.array(z.string()).default([]),
   /**
-   * Per-repo connection state for the declared `targetCodeRepos`. Keyed by
-   * repo URL → status. Absent entries default to 'declared'. The user
-   * toggles this from the OKR detail "Connect Repo" flow (A12) after
-   * verifying Actions / app install on GitHub.
+   * Per-repo connection + intent state for the declared `targetCodeRepos`.
+   * Keyed by repo URL → status. Absent entries default to 'not-connected'.
+   * The user toggles this from the OKR detail Target Code Repos section
+   * (A12 + A12.v1.1) — the value drives Phase D code-design-agent's
+   * brownfield-vs-greenfield branching.
    */
   targetCodeRepoStatus: z.record(z.string(), TargetRepoStatusSchema).default({}),
   intentCascade: IntentCascadeSchema.default({ org: '', role: '', developer: '', user: '' }),
