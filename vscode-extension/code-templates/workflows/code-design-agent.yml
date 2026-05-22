@@ -438,16 +438,39 @@ jobs:
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
           # MVP: drift gates report-only, so verdict gates only chain + mode.
+          #
+          # D-PR1.v1.2 bug fix — the previous `gh pr edit ... 2>/dev/null
+          # || true` swallowed stderr AND the exit code, so failures (e.g.
+          # the label doesn't exist in the mesh repo's label registry)
+          # were silent. PR #122 hit this: clean audit, label apply
+          # failed because `design-pass` wasn't provisioned, UI stayed
+          # at "audit in flight" indefinitely. Capture gh's stdout+stderr
+          # to a tempfile and surface the failure as a workflow ::warning::
+          # so the next operator sees the gap without grepping logs.
+          # Label-apply failures still don't fail the workflow (labels
+          # are operational, not security) — we just stop silently no-oping.
+          ERRLOG=$(mktemp)
+          apply_label() {
+            local args="$@"
+            if ! gh pr edit "$PR" $args >"$ERRLOG" 2>&1; then
+              echo "::warning::gh pr edit failed (args: $args) — ${args}: $(cat "$ERRLOG")"
+              echo "::warning::Hint: if 'label does not exist', redeploy mesh labels via Looking Glass Settings → Mesh Provisioning → Deploy All."
+              return 1
+            fi
+            return 0
+          }
           if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ]; then
-            gh pr edit $PR --add-label design-pass --remove-label design-degraded,design-drift-detected 2>/dev/null || true
-            echo "::notice::Applied design-pass label"
+            if apply_label --add-label design-pass --remove-label design-degraded,design-drift-detected; then
+              echo "::notice::Applied design-pass label to PR #$PR"
+            fi
           elif [ "$MODE_OK" = "false" ]; then
-            gh pr edit $PR --add-label design-degraded 2>/dev/null || true
+            apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"
           else
-            gh pr edit $PR --add-label design-degraded 2>/dev/null || true
+            apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — chain reason: ${{ steps.chain.outputs.reason }}"
           fi
+          rm -f "$ERRLOG"
 
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'

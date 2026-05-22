@@ -101,4 +101,16 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // governance-pass. Distinct label so the failure mode is legible in
   // the PR sidebar without expanding the audit comment.
   { name: 'caterpillar-drift-detected', description: "Caterpillar's Challenge: cross-phase drift from prior phase artifact (§11.5). Merge blocked.",         color: 'D32F2F' },
+
+  // ── WHAT-phase audit gate labels (code-design-agent.yml — D-PR1) ───
+  // Applied by code-design-agent.yml's audit-and-drift job on
+  // `design-draft` PRs. Mirror the prd-* / research-* shape. Without
+  // these labels declared in MESH_LABELS, the verdict step's
+  // `gh pr edit --add-label design-pass` silently no-ops because the
+  // label doesn't exist in the repo (the gh CLI returns an error which
+  // `|| true` swallows). PR #122 hit this exact failure mode — clean
+  // audit, no pass label applied, UI stuck at "audit in flight".
+  { name: 'design-pass',             description: 'WHAT-phase code-design passed the audit gate (chain + mode honesty + drift). Reviewers can score.',   color: '43A047' },
+  { name: 'design-degraded',         description: 'WHAT-phase audit found degraded evidence or mode-honesty findings. Merge blocked until revised.',   color: 'D32F2F' },
+  { name: 'design-drift-detected',   description: 'WHAT-phase Pocket Watch or Caterpillar drift gate failed (§11.5). Merge blocked.',                 color: 'D32F2F' },
 ];
