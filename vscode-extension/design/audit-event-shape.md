@@ -2,6 +2,18 @@
 
 **Status:** canonical · **Last revised:** 2026-05-23 · **Owners:** runner package + workflow YAML
 
+## Trust model (post-Bug-V/W)
+
+Deterministic skills gather facts, emit `skill_call`, verify chains, check structure, enforce manifests, pin paths, and apply workflow labels. The LLM does synthesis, gap-loop intent, and persona-critique judgment. The split is:
+
+| Event class | Emitter | Trust property |
+|---|---|---|
+| **`skill_call`, `llm_call`** | Runner runtime (auto-emit from `runSkill()`) | Deterministic evidence — code observed the call before the result returned to the agent. Signed under the active per-epoch private key. |
+| **`artifact_written`, `state_transition`, `human_gate`** | Workflow YAML (deterministic, from `git diff` / PR labels / reviewer state) | Re-derivable evidence — any third party with read access can recompute the canonical source and check the payload matches. Unsigned (no signing key available to the workflow), but the workflow allowlist `WORKFLOW_EMITTABLE_KINDS` constrains workflow-attribution to exactly these three kinds. |
+| **`self_review`, `self_review_exhausted`** | Agent, via `audit-emit-event` from inside the persona-prompt section | **Signed LLM judgment** — the agent inhabits the Architect / Security persona, applies the prompt-pack criteria, emits the scored verdict. The runner signs under the per-epoch private key. Cross-checked against PR-body structured blocks by the workflow for block-vs-chain parity, but the chain is authoritative. |
+
+`self_review` is not deterministic evidence — it's signed LLM judgment, with deterministic cross-checking and gating around it. The runner rejects any workflow-attributed event whose kind is outside the narrow `WORKFLOW_EMITTABLE_KINDS` allowlist with `workflow-event-kind-not-allowed`; the Looking Glass UI mirrors the same allowlist in `vscode-extension/src/webview/chainVerify.ts` so the badge agrees with what CI will accept (Bug W / Codex round-7).
+
 This document is the **single source of truth** for the shape of audit
 events emitted by `@maintainabilityai/research-runner`. Every workflow
 job that reads `okrs/<id>/audit/events/<runId>.jsonl` MUST match the

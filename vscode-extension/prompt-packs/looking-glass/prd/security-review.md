@@ -1,17 +1,26 @@
 # PRD Security Review (grounding gate)
 
-The second parallel expert-review node. Reads the drafted PRD plus the mesh
-STRIDE entries, OWASP categories, and NIST controls and produces a structured
-review with `SCORE`, `COVERED` / `MISSING` lists, and concrete `CHANGES`
-for the next refinement loop iteration.
+Persona-prompt consumed by the `prd-agent` during its **Security
+persona-switch self-critique** phase (B24 / Bug-V model). Fetched via
+the `self-review-security` skill; the agent applies the criteria to
+the drafted PRD against the mesh STRIDE / OWASP / NIST baseline and
+emits the verdict in two places: a structured `### Self-review —
+Security (round N)` block at the bottom of the PR body, AND a signed
+`self_review` audit event via `audit-emit-event` from inside the
+persona-prompt section. The workflow's audit-and-drift job cross-checks
+block ↔ chain for parity.
 
-Pairs with `prd/architecture-review.md`. Both run in parallel; the grounding
-verifier reads both signals plus a deterministic citation parse before
-deciding whether to publish or iterate.
+Pairs with `prd/architecture-review.md` — same agent, first persona-
+switch, first `self_review` event per round. No separate reviewer-
+agent dispatch (the B24 pivot retired that model; see
+`vscode-extension/design/agentic-sdlc.md` §5.2 + §14.8 CLOSED).
 
 Pack ID: `prd/security-review`
-Output format: `structured-review` (regex-parsed by `verify_grounding`)
-Adopts NCMS `SECURITY_REVIEW` persona from `expert_prompts.py`.
+Output format: `structured-review` — five anchors (`SCORE`,
+`SEVERITY`, `COVERED`, `MISSING`, `CHANGES`) regex-parsed by the
+workflow's review-parse step for UI surfacing; the signed
+`self_review` event is the authoritative chain record.
+Adopts NCMS `SECURITY_REVIEW` persona criteria from `expert_prompts.py`.
 
 ## Input variables
 

@@ -1,17 +1,27 @@
 # PRD Architecture Review (grounding gate)
 
-One of the two parallel expert-review nodes the PRD pipeline runs after
-synthesis. Reads the drafted PRD plus the mesh CALM model and produces a
-structured review with a `SCORE` (0.0-1.0), `COVERED` / `MISSING` lists,
-and concrete `CHANGES` proposed for the next refinement loop iteration.
+Persona-prompt consumed by the `prd-agent` during its **Architect
+persona-switch self-critique** phase (B24 / Bug-V model). The agent
+fetches this pack via the `self-review-architect` skill, applies the
+criteria below to the drafted PRD, and emits the verdict in two
+places: a structured `### Self-review — Architect (round N)` block at
+the bottom of the PR body, AND a signed `self_review` audit event
+via `audit-emit-event` from inside the persona-prompt section (so
+the runner signs it under the active per-epoch private key while
+it's still in scope). The workflow's audit-and-drift job cross-checks
+block ↔ chain for parity.
 
-Pairs with `prd/security-review.md`. Both run in parallel; the grounding
-verifier reads both signals plus a deterministic citation parse before
-deciding whether to publish or iterate.
+Pairs with `prd/security-review.md` — same agent, second persona-
+switch, second `self_review` event per round. There is no separate
+reviewer-agent dispatch (the B24 pivot retired that model; see
+`vscode-extension/design/agentic-sdlc.md` §5.2 + §14.8 CLOSED).
 
 Pack ID: `prd/architecture-review`
-Output format: `structured-review` (regex-parsed by `verify_grounding`)
-Adopts NCMS `ARCHITECT_REVIEW` persona from `expert_prompts.py`.
+Output format: `structured-review` — five anchors (`SCORE`,
+`SEVERITY`, `COVERED`, `MISSING`, `CHANGES`) regex-parsed by the
+workflow's review-parse step for UI surfacing; the signed
+`self_review` event is the authoritative chain record.
+Adopts NCMS `ARCHITECT_REVIEW` persona criteria from `expert_prompts.py`.
 
 ## Input variables
 

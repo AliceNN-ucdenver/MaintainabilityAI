@@ -2100,9 +2100,13 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
       // not an agent). Everything else (original agent + revise agent)
       // gets a per-epoch signature; each agent session = one signer epoch.
       //
-      // Backward compat: legacy chains with emitted_by:'revise-agent' +
-      // unsigned events still verify (chain-verify accepts the legacy
-      // attribution). New chains sign all agent events.
+      // Post-Bug-T contract: every agent event MUST sign under the
+      // active per-epoch private key. The only legitimately-unsigned
+      // attribution is `emitted_by:'workflow'`, AND only for kinds
+      // in the WORKFLOW_EMITTABLE_KINDS allowlist (Bug V narrowed
+      // to {artifact_written, state_transition, human_gate}; Bug U
+      // added the enforcement, Bug V tightened the set). The legacy
+      // unsigned-revise-agent back-compat path was removed in Bug T.
       const emittedBy = (payload as Record<string, unknown> | undefined)?.emitted_by;
       const isWorkflowEmit = emittedBy === 'workflow';
 
@@ -2422,15 +2426,14 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
       const extras = (result as { auditMetadata?: Record<string, unknown> }).auditMetadata ?? {};
       const payload: Record<string, unknown> = { ...extras, skill: name, ok: result.ok, duration_ms };
       if (!result.ok) { payload.reason = result.reason; }
-      // Bug O (Task #72) — per-epoch signing now handles revise-agent
+      // Bug O (Task #72) — per-epoch signing handles revise-agent
       // context natively. handleAuditEmitEvent's findActiveEpoch()
       // detects revise-context from filesystem state and advances to
-      // a fresh epoch with its own keypair. No payload tagging needed
-      // here — every agent-emitted event gets a real signature
-      // attributable to a specific signer_epoch. The legacy
-      // emitted_by:'revise-agent' attribution (Bug N) is still
-      // accepted by chain-verify for backward compat with chains
-      // created before this commit, but new code doesn't emit it.
+      // a fresh epoch with its own keypair. Every agent-emitted event
+      // gets a real signature attributable to a specific signer_epoch
+      // (Bug T removed the legacy unsigned-revise-agent back-compat;
+      // the chain-verify path rejects any agent event without a
+      // signer_epoch + valid signature).
       // Best-effort: an audit-write failure must not shadow the real
       // skill result. But we MUST surface the failure to stderr — pre-
       // B28a.v1.1 these were silently swallowed and PR #108 dropped 3

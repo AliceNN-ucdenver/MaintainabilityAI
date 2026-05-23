@@ -64,11 +64,16 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   // the dispatch-table refactor moved per-type handlers into a class
   // field literal where each arrow is its own function. Each handler's
   // complexity is measured independently; the router itself is now
-  // trivially simple. The remaining ceiling is fetchPhaseSignal (72) —
+  // trivially simple. The remaining ceiling is fetchPhaseSignal (73) —
   // a per-phase audit/PR/structure aggregator that's a future split
-  // target. Ratcheting at 72 to lock in the dispatch-table win and
-  // make any future growth visible.
-  'webview/LookingGlassPanel.ts': 72,
+  // target. Bug W (Codex round-7) bumped from 72 → 73 by adding one
+  // `if (!isEventLegitimate(event)) continue` legitimacy gate inside
+  // the chain-walk loop (mirrors runner audit-verify-chain). The
+  // alternative — extracting the chain-walk into its own helper —
+  // would be a separate refactor. Bug W keeps the change minimal and
+  // re-ratchets the budget at 73; the underlying split-target lives
+  // in the backlog (extract `walkChainEvents` from fetchPhaseSignal).
+  'webview/LookingGlassPanel.ts': 73,
   // OKR detail view's renderPhaseSignals was 97 (per-phase × audit verdict
   // × PR state × revise-pending × artifact-open branches). Split into
   // renderPreflightSignal + renderWhyMetrics + renderHowMetrics +

@@ -11,15 +11,28 @@ command: npx @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event
 
 Hash-chained, append-only audit log writer; one JSONL event per line per run. Every event is Ed25519-sealed (Knight's Seal v1, B27).
 
-## When to call this skill (post-B28)
+## When to call this skill (post-Bug-V)
 
-Under **Court Recorder Auto-Logging (B28, design §11.6)**, the runner auto-emits `skill_call` events for every `runSkill()` invocation; the workflow emits `artifact_written` + `self_review` deterministically. **You should rarely call this skill directly.** The legitimate remaining use cases are:
+Audit-event ownership in the current contract (Bug V / Codex round-6 + Bug W / round-7):
 
-- **Gap-loop semantic markers** (market-research-agent step 8b) — the runner can't infer that you noticed a coverage gap and are doing a second pass. Emit with `payload.skill: "gap-loop"` and the follow-up queries.
-- **Custom semantic events** — any future declarative marker the runner has no way to know about (e.g. a Quality persona "I flagged a missing SLO" annotation that doesn't fit `self_review`).
-- **Legacy / no-session-context runtimes** — if `OKR_ID` / `RUN_ID` / `INTENT_THREAD_UUID` / `PHASE` env vars are absent, the runner skips auto-emission. In that mode you SHOULD call this skill explicitly for every skill_call. Modern workflows set the vars; this is a fallback only.
+| Event kind | Emitter | When |
+|---|---|---|
+| `skill_call` | **Runner** (auto-emit via `runSkill()`) | Every skill invocation. Agent does nothing. |
+| `llm_call` | **Runner** (when wired) | Every model call. Agent does nothing. |
+| `artifact_written` | **Workflow** (deterministic, from `git diff`) | Post-PR commit. Agent does nothing. |
+| `state_transition` | **Workflow** (from PR labels) | Label flip / phase advance. Agent does nothing. |
+| `human_gate` | **Workflow** (from PR reviewer state) | HumanGate transition. Agent does nothing. |
+| `self_review` | **AGENT — you, via this skill** | At the end of each persona-prompt section (Architect / Security / Code-Architect / Code-Security) while your per-epoch private key is still in scope. The runner signs it. |
+| `self_review_exhausted` | **AGENT — you, via this skill** | When the auto-revise loop hits MAX_AUTO_ROUNDS without convergence. |
+| `review_received` / `review_emitted` | (reserved) | The separate reviewer-agent dispatch was retired in B24; nothing emits these today. Reserved for future use; would be agent-signed if revived. |
 
-For everything else (every regular skill_call, every artifact_written, every self_review), do nothing — the runner and workflow already handle it.
+**You DO call this skill — for `self_review` events.** This is the post-Bug-V contract: the agent (you) is the only legitimate emitter of `self_review` because the persona-critique is LLM judgment, not workflow-derived. Pre-Bug-V the workflow parsed PR-body blocks and emitted unsigned synthetic `self_review` events with `payload.emitted_by:"workflow"`; Codex round-6 demonstrated that path was forgeable (hand-write an unsigned `self_review` with `emitted_by:workflow` and audit-verify-chain pre-Bug-V returned `ok:true sealed:true`). Workflow allowlist now excludes `self_review` — the only legitimate `self_review` event is one signed under your per-epoch keypair via this skill.
+
+Other use cases:
+- **Gap-loop semantic markers** (market-research-agent step 8b) — the runner can't infer coverage-gap iteration. Emit with `payload.skill: "gap-loop"` and the follow-up queries (uses `eventKind: "skill_call"`).
+- **Legacy / no-session-context runtimes** — if `OKR_ID` / `RUN_ID` / `INTENT_THREAD_UUID` / `PHASE` env vars are absent the runner skips auto-emission. In that fallback mode call this skill explicitly per skill_call.
+
+For `skill_call` (regular case) / `artifact_written` / `state_transition` / `human_gate`: do nothing — the runner + workflow already handle it.
 
 ## Inputs (stdin JSON)
 
@@ -27,8 +40,8 @@ For everything else (every regular skill_call, every artifact_written, every sel
 |---|---|---|---|---|
 | `okrId` | `string` | yes | — | Which OKR's audit log to append to. |
 | `runId` | `string` | yes | — | Stable per agent run (e.g. `RES-2026-05-19-abc123`). |
-| `eventKind` | `"skill_call" \| "llm_call" \| "artifact_written" \| "review_received" \| "state_transition" \| "human_gate"` | yes | — | See §7.5. |
-| `payload` | `Record<string, unknown>` | yes | — | Event-kind-specific data. Must not contain secrets. |
+| `eventKind` | `"skill_call" \| "llm_call" \| "artifact_written" \| "self_review" \| "self_review_exhausted" \| "review_received" \| "state_transition" \| "human_gate"` | yes | — | See §7.5. |
+| `payload` | `Record<string, unknown>` | yes | — | Event-kind-specific data. Must not contain secrets. For `self_review`, include `{round, persona, score, severity, prompt_pack}` at minimum. |
 | `phase` | `"why" \| "how" \| "what"` | yes | — | OKR phase this event belongs to (v4 §11.1.6). |
 | `intentThreadUuid` | `string` | yes | — | The OKR's `meta.intentThreadUuid`. |
 

@@ -9,7 +9,11 @@ tools:
   - execute
   - github/*
   - github/add_issue_comment
-  - github/update_issue
+  # Bug W (Codex round-7): github/update_issue removed — the hard
+  # rules below forbid the agent from applying labels or mutating
+  # issue state (deterministic-workflow boundary). The tool scope
+  # now matches the rule scope; only remediation/diagnostic
+  # comments via github/add_issue_comment remain.
   # Custom skills
   - knowledge-okr
   - knowledge-prd

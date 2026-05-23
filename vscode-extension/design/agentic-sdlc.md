@@ -111,7 +111,7 @@ What's first-class and what we have to compose around:
 | **Skill calls another Skill (within one agent turn)** | ⚠ partial | Skills can chain via slash-commands the user types; no API-level Skill-A-invokes-Skill-B. |
 | `sessionStart` / `sessionEnd` hooks | ✅ | Used for governance logging. We tie the audit-emit-event Skill to these. |
 
-**Implication for our architecture**: experts (Architect, Security) become **Skills** the parent agent invokes mid-session for grounded answers; reviewers (architect-reviewer, security-reviewer) become **separate agent assignments** on the artifact PR. Same compositional power as NCMS's Python orchestrator, different shape.
+**Implication for our architecture**: experts (Architect, Security) become **Skills** the parent agent invokes mid-session for grounded answers (`context-architecture`, `context-security`). Review happens via **persona-switch inside the author agent** — Architect + Security personas in bounded rounds inside `prd-agent` / `code-design-agent`, each persona emitting a signed `self_review` event per round. The same author DID inhabits all personas across the run; segregation is enforced via the per-persona/per-round signed events on the chain rather than per-DID dispatch. Same compositional power as NCMS's Python orchestrator, different shape. _(B24 pivot + Bug V confirmation 2026-05-23 retired the earlier separate-reviewer model — see §5.3 banner + §14.8 CLOSED for the full historical rationale.)_
 
 ---
 
@@ -208,7 +208,8 @@ Looking Glass — Portfolio
 │                audit-emit-event                                  │
 │   Output: ONE code-design doc — okrs/<id>/what/code-design.md    │
 │           cross-cutting; references each impacted repo by name.  │
-│   Reviewers:  design/architecture-review + design/security-review│
+│   Self-review packs:  code-design/architecture-review +          │
+│                       code-design/security-review                │
 │               (CODE-GROUNDED gate — CALM drift analysis, OWASP   │
 │               pattern scan against the actual code, threat-model │
 │               compliance check; this is the HEAVIEST gate).      │
@@ -267,7 +268,7 @@ This is the single most important distinction in the pipeline and must not blur.
 | Refinement loop | `prd/ask-experts` Skill (clarifying questions back from a mesh-grounded "expert" persona — the mesh IS the expert) | None — the code-design is reviewed, not refined by Q&A |
 | What it answers | "Given the intent + research findings + mesh state, **what must the system do** (FRs, NFRs, SRs)?" | "Given the PRD + the actual code in the impacted repos, **how must each repo change** to deliver the PRD?" |
 | Grounding inputs | Research doc (Phase 1) + CALM model + threat library + ADRs (mesh artifacts only) | The PRD + **every linked code repo** (cloned + indexed) + reference repos + the mesh artifacts the PRD already cites |
-| Reviewer agents | `architect-reviewer` + `security-reviewer` running [`prd/architecture-review`](../prompt-packs/looking-glass/prd/architecture-review.md) + [`prd/security-review`](../prompt-packs/looking-glass/prd/security-review.md) | Same two reviewer agents, but running **NEW** packs: `design/architecture-review` + `design/security-review` (see §7.0.5 deliverable rows) |
+| Persona-switch packs | `prd-agent` inhabits Architect + Security personas via prompt-switch self-critique, running [`prd/architecture-review`](../prompt-packs/looking-glass/prd/architecture-review.md) + [`prd/security-review`](../prompt-packs/looking-glass/prd/security-review.md) | `code-design-agent` inhabits Code-Architect + Code-Security personas via the same pattern, running [`code-design/architecture-review`](../prompt-packs/looking-glass/code-design/architecture-review.md) + [`code-design/security-review`](../prompt-packs/looking-glass/code-design/security-review.md). One DID per artifact run; each persona-round emits a signed `self_review` event. _(Pre-B24 ran as separate `architect-reviewer` + `security-reviewer` agents; retired — see §5.2 + §14.8 CLOSED.)_ |
 | What the gate scores | **Mesh-grounding** — does the PRD cite CALM nodes that exist? are STRIDE threats covered? are ADRs respected? FR↔R↔E traceability complete? | **Code-grounding** — does the proposed design respect CALM flows in the actual code? does it introduce OWASP-pattern violations? does it satisfy the threat model when applied to the real repos? are interface contracts consistent across linked repos? |
 | Tier-aware bound applies | Yes, but the gate is lighter — most blocking failures here are "the PRD didn't cite enough" (fixable in a revision round) | Yes, and this is the **heaviest** gate. Restricted-tier BAR + a code-grounded security failure here is the most common reason an OKR stalls until governance is escalated. |
 | Output artifact | `okrs/<id>/how/prd.md` (one file) | `okrs/<id>/what/code-design.md` (one cross-cutting file referencing each impacted repo) |
@@ -675,14 +676,16 @@ Each agent is a `.agent.md` file deployed by `provisionWorkflow` into the mesh's
 | `code-design-agent` | `oraculum-design` label + `@copilot` mention (one assignment, cross-cutting) | PR: `okrs/<id>/what/code-design.md` (ONE doc, cross-cutting) | `knowledge-prd`, `knowledge-code` (called once per target_code_repos[] entry), `knowledge-code-read` (≥1 per brownfield repo — Bug-Q phase 2; the agent reads actual file contents so cited paths are grounded in real code, not hallucinated), `knowledge-reference-repos`, `context-architecture`, `context-security`, `audit-emit-event`. **Last Looking-Glass-side agent.** Workflow cross-checks every brownfield path the artifact cites against `knowledge-code` inventory; any cited path not in the inventory fails STRUCT_OK. |
 | ~~`design-agent` (per-repo)~~ | _superseded by `code-design-agent` (one cross-cutting design) + `design-bus.yml` fan-out_ | — | The per-repo design-agent model in v3 conflated "produce a code-grounded design" with "execute the design in this repo." v4 separates them: code-design-agent produces one doc; coding agents (out of scope) execute per-repo against the merged slice. |
 
-### 5.2 Reviewer agents
+### 5.2 Review — persona-switch inside the author agent
 
-| Agent | Triggered by | Output |
+> **POST-B24/Bug-V (2026-05-23):** This section was rewritten — the original §5.2 described `architect-reviewer` + `security-reviewer` as separate auto-firing agents. That model was retired in B24 (PRD time) and the user confirmed 2026-05-23 (Bug V) it's not coming back for WHAT either. The historical text + retirement rationale lives in §13 B24 + §14.8 CLOSED. The active model is below.
+
+| Persona-prompt | Inhabited by | Output |
 |---|---|---|
-| `architect-reviewer` | Auto-fires on any artifact PR (Phase 1/2/3a) | PR review with scored certificate: `SCORE / SEVERITY / COVERED / MISSING / CHANGES`. **Runs different prompt packs depending on the artifact** — `prd/architecture-review` (mesh-grounded gate on PRDs), `design/architecture-review` (code-grounded heavyweight gate on code-design docs). |
-| `security-reviewer` | Same | Same certificate, STRIDE / OWASP / NIST cross-refs. Same pack-per-artifact split: `prd/security-review` vs `design/security-review`. |
+| Architect | `prd-agent` (HOW) / `code-design-agent` (WHAT) via prompt-switch self-critique | Structured PR-body block `### Self-review — Architect (round N)` with `SCORE / SEVERITY / COVERED / MISSING / CHANGES` anchors, PLUS a signed `self_review` audit event emitted via `audit-emit-event` from inside the persona-prompt section while the per-epoch private key is in scope. Prompt packs: `prd/architecture-review.md` (mesh-grounded), `code-design/architecture-review.md` (code-grounded). |
+| Security | Same agents, same shape | STRIDE / OWASP / NIST anchors in COVERED/MISSING. Prompt packs: `prd/security-review.md`, `code-design/security-review.md`. |
 
-Reviewer agents **do not block merge by themselves** — they post scored review comments and apply labels (`revision-required` / `governance-pass`). The recycle loop (§6) gates merge.
+The persona-switch model **does not block merge by itself** — each persona's signed `self_review` event lands on the chain; the workflow's audit-and-drift job cross-checks PR-body blocks against chain events (block-vs-chain parity) and gates merge on convergence + chain sealed status. The recycle loop (§6) gates merge.
 
 ### 5.3 Tweedles — Reviewer MUST NOT equal Author
 
@@ -706,7 +709,7 @@ NCMS's `expert_prompts.py` has the Architect / Security personas as standalone L
 So:
 - **The persona text lives inline in the parent agent's `.agent.md` system prompt.** When the agent gets to the architecture section of the PRD, the system prompt has already told it to "adopt the Architect persona; reason about CALM compliance, ADR alignment, fitness-function impact, quality attributes."
 - **The grounded context comes from pure-data Skills** (`context-architecture`, `context-security`). These return structured JSON of CALM nodes, ADRs, threats, controls — never an LLM-generated narrative. The agent does the synthesis.
-- **Review mode** is a separate `architect-reviewer` agent assignment on the PR. Same persona prompt, but invoked as a new agent session for scoring. Posts a review with the certificate format.
+- **Review mode** is a persona-switch inside the same author agent — after the synthesis pass, the agent enters the Architect persona, applies the criteria from `prd/architecture-review.md` (or `code-design/architecture-review.md`), writes a structured `### Self-review` PR-body block, AND calls `audit-emit-event` to put a signed `self_review` event on the chain. Same for Security. The PR-body block is the human-readable surface; the signed audit event is the cryptographic record. Pre-B24 this ran as a separate `architect-reviewer` agent dispatch; that model was retired (see §5.2 + §14.8 CLOSED).
 
 ### 5.5 Agent runtime contract
 
@@ -968,9 +971,9 @@ Every agent persona and every Skill that needs a structured output references a 
 | PRD — ask experts (clarifying questions) | [`prompt-packs/looking-glass/prd/ask-experts.md`](../prompt-packs/looking-glass/prd/ask-experts.md) | `structured-review` | Runs in `deep` mode only. Each question has exactly: `scope`, `triggered_by_mesh_gap`, `question`, `why_it_matters`, `answerable_by`. **The mesh IS the expert** — questions anchor to mesh gaps. |
 | PRD — architecture review (grounding gate) | [`prompt-packs/looking-glass/prd/architecture-review.md`](../prompt-packs/looking-glass/prd/architecture-review.md) | `structured-review` (regex-parsed by `verify_grounding`) | Emits `SCORE` (0.0-1.0), `COVERED`, `MISSING`, `CHANGES`. Reads `mesh.bar.calm_summary` + `calm_node_ids` + `adrs_in_scope` + `iteration`. NCMS `ARCHITECT_REVIEW` persona. |
 | PRD — security review (grounding gate) | [`prompt-packs/looking-glass/prd/security-review.md`](../prompt-packs/looking-glass/prd/security-review.md) | `structured-review` (regex-parsed) | Same output shape as architecture-review. Reads `stride_entries` + `owasp_in_scope` + `nist_controls`. NCMS `SECURITY_REVIEW` persona. |
-| **Code Design — synthesis** (NEW, Phase D) | `prompt-packs/looking-glass/design/synthesis.md` (to author) | `markdown-with-tables` | Reads PRD + indexed target_code_repos. Emits ONE cross-cutting code-design doc with: per-repo change list, interface contracts (OpenAPI/proto/GraphQL diffs), data-ownership decisions, migration plan, rollback plan. Each section carries `addresses: [FR-X, SR-Y]` frontmatter — feeds the traceability matrix. |
-| **Code Design — architecture review** (NEW, Phase D, code-grounded) | `prompt-packs/looking-glass/design/architecture-review.md` (to author) | `structured-review` | Adapts NCMS `ARCHITECT_REVIEW` persona to read **the actual code**: CALM drift analysis (does the design's flow match the code's flow?), interface contract diffs (oasdiff / buf / graphql-inspector), module boundary respect. **This is the heavyweight gate.** |
-| **Code Design — security review** (NEW, Phase D, code-grounded) | `prompt-packs/looking-glass/design/security-review.md` (to author) | `structured-review` | Adapts the OWASP pattern scan from [`application-security.md`](../prompt-packs/looking-glass/application-security.md) to score the design against the actual code in each impacted repo. Threat-model compliance check applied to code-as-it-will-exist-after-the-design. **Also heavyweight.** |
+| **Code Design — synthesis** (NEW, Phase D) | `prompt-packs/looking-glass/code-design/synthesis.md` (to author) | `markdown-with-tables` | Reads PRD + indexed target_code_repos. Emits ONE cross-cutting code-design doc with: per-repo change list, interface contracts (OpenAPI/proto/GraphQL diffs), data-ownership decisions, migration plan, rollback plan. Each section carries `addresses: [FR-X, SR-Y]` frontmatter — feeds the traceability matrix. |
+| **Code Design — architecture review** (NEW, Phase D, code-grounded) | `prompt-packs/looking-glass/code-design/architecture-review.md` (consumed by `code-design-agent` as Code-Architect persona-prompt) | `structured-review` | Adapts NCMS `ARCHITECT_REVIEW` persona to read **the actual code**: CALM drift analysis (does the design's flow match the code's flow?), interface contract diffs (oasdiff / buf / graphql-inspector), module boundary respect. **This is the heavyweight gate.** |
+| **Code Design — security review** (NEW, Phase D, code-grounded) | `prompt-packs/looking-glass/code-design/security-review.md` (consumed by `code-design-agent` as Code-Security persona-prompt) | `structured-review` | Adapts the OWASP pattern scan from [`application-security.md`](../prompt-packs/looking-glass/application-security.md) to score the design against the actual code in each impacted repo. Threat-model compliance check applied to code-as-it-will-exist-after-the-design. **Also heavyweight.** |
 | Architecture domain pack (Oraculum review on code repo) | [`prompt-packs/looking-glass/architecture.md`](../prompt-packs/looking-glass/architecture.md) | Markdown guidance | CALM drift analysis: node-to-code mapping, phantom nodes, undocumented components. Used by `architect-reviewer` agent and the legacy `oraculum-review.yml` workflow. |
 | Application security domain pack | [`prompt-packs/looking-glass/application-security.md`](../prompt-packs/looking-glass/application-security.md) | Markdown guidance | OWASP Top 10 pattern scan, threat-model compliance, dependency vuln analysis, security-control verification. Used by `security-reviewer` agent and the legacy `oraculum-review.yml` workflow. |
 
@@ -1440,7 +1443,8 @@ This is the screen the user spends 80% of their time on. Single scrolling page; 
 │                                                                                │
 │ ╭─ What — 3a. Code Design (Looking-Glass) ──────── ☐ Blocked ──────────────╮ │
 │ │  Agent:     code-design-agent                                              │ │
-│ │  Reviewers: design/architecture-review · design/security-review            │ │
+│ │  Self-review packs: code-design/architecture-review ·                     │ │
+│ │                     code-design/security-review                           │ │
 │ │             (CODE-GROUNDED gate — heaviest gate in the pipeline)           │ │
 │ │  Inputs:    PRD + cloned/indexed code repos (all targets)                  │ │
 │ │  Output:    ONE okrs/<id>/what/code-design.md (cross-cutting)              │ │

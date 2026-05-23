@@ -79,10 +79,11 @@ function agentSpec(name: string): MeshAgentSpec {
 }
 
 export const MESH_AGENTS: MeshAgentSpec[] = [
-  // B24: self-critique in prd-agent.agent.md replaces separate
-  // architect-reviewer + security-reviewer agents at PRD time. The
-  // two reviewer .agent.md templates stay on disk under
-  // code-templates/agents-v4/ for reference but aren't deployed.
+  // B24 + Bug V (2026-05-23): persona-switch self-critique inside the
+  // author agent replaces the separate-reviewer model at every phase.
+  // The architect-reviewer + security-reviewer .agent.md templates
+  // were DELETED in Bug V; this list is the authoritative set of
+  // mesh-deployable agents.
   agentSpec('market-research-agent'),
   agentSpec('prd-agent'),
   // D-PR1 — code-design-agent (Phase D / WHAT). Third and last Looking-

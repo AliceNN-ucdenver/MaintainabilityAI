@@ -908,7 +908,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   </div>
 </div>
 
-<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Two hundred twenty six runtime tests pass. Five hundred seventeen dashboard tests pass. Fifteen of fifteen field bugs from the cert runs are closed. One pinned payload contract.">
+<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Runtime tests, dashboard tests, and field-bug regressions all gate every push to main. Payload contract is regression-locked.">
   <defs>
     <linearGradient id="receiptsBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0b1424"/>
@@ -919,26 +919,26 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   <text x="400" y="32" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">RECEIPTS · AT A GLANCE</text>
   <g transform="translate(28,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
-    <text x="89" y="34" text-anchor="middle" fill="#86efac" font-size="28" font-weight="800" font-family="system-ui, sans-serif">226</text>
-    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RUNTIME TESTS</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signing, chain, drift checks</text>
+    <text x="89" y="38" text-anchor="middle" fill="#86efac" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ all green</text>
+    <text x="89" y="56" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RUNTIME TESTS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signing, chain, drift, allowlist</text>
   </g>
   <g transform="translate(214,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
-    <text x="89" y="34" text-anchor="middle" fill="#86efac" font-size="28" font-weight="800" font-family="system-ui, sans-serif">517</text>
-    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">DASHBOARD TESTS</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">UI, audit, phase parity</text>
+    <text x="89" y="38" text-anchor="middle" fill="#86efac" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ all green</text>
+    <text x="89" y="56" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">DASHBOARD TESTS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">UI, audit, phase parity, seal</text>
   </g>
   <g transform="translate(400,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
-    <text x="89" y="34" text-anchor="middle" fill="#7dd3fc" font-size="22" font-weight="800" font-family="system-ui, sans-serif">15 / 15</text>
-    <text x="89" y="54" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">FIELD BUGS CLOSED</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">from five live cert runs</text>
+    <text x="89" y="38" text-anchor="middle" fill="#7dd3fc" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ regressed</text>
+    <text x="89" y="56" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">FIELD BUGS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">every cert-run finding has a test</text>
   </g>
   <g transform="translate(586,56)">
     <rect x="0" y="0" width="186" height="84" rx="10" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.4)"/>
-    <text x="93" y="34" text-anchor="middle" fill="#c4b5fd" font-size="28" font-weight="800" font-family="system-ui, sans-serif">1</text>
-    <text x="93" y="54" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">PAYLOAD CONTRACT</text>
+    <text x="93" y="38" text-anchor="middle" fill="#c4b5fd" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ pinned</text>
+    <text x="93" y="56" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">PAYLOAD CONTRACT</text>
     <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">regression-locked</text>
   </g>
   <rect x="28" y="160" width="744" height="44" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
@@ -1213,7 +1213,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash`; the runner's `audit-verify-chain` skill catches it both online (CI) and offline (auditor re-run) | ✓ |
 | **Pre-merge chain verification (CI gate)** | `audit-and-drift` workflow calls the runner's `audit-verify-chain` skill — the same code path the runner uses to write the chain — pinned to a specific runner version per workflow template. Verifies SHA-256 hash chain integrity AND per-epoch Ed25519 signatures against every committed `<runId>.epoch-N.pub.pem`. One implementation, one source of truth, no drift between writer and verifier. Sealed chains that fail signature verification block merge with `chain-forgery-detected`; per-epoch chains that arrive unsealed are rejected too (the contract says signed). Closed the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
-| **Deterministic emission (Court Recorder Auto-Logging)** | The skill runtime emits `skill_call` events inside `runSkill()` itself — the only event the agent emits directly is the gap-loop semantic marker (which the runner cannot infer). Workflow re-derives `artifact_written` from `git diff` and `self_review` from parsing the agent's structured PR-body blocks. The LLM produces *content*; deterministic code produces *events*. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload | ✓ |
+| **Three-class event ownership (Court Recorder Auto-Logging + Bug V/W)** | The skill runtime emits `skill_call` events inside `runSkill()` itself. The workflow re-derives `artifact_written` from `git diff` and `state_transition` / `human_gate` from PR labels + reviewer state. The agent emits `self_review` via `audit-emit-event` from inside its persona-prompt section while its per-epoch private key is still in scope — the runner signs it cryptographically. The split is deterministic-vs-LLM: facts that deterministic code can derive are workflow-emitted; signed LLM judgment (persona-critique scoring) is agent-emitted; everything is cross-checked against the chain. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload | ✓ |
 | **Audit-event payload contract pinned with a regression test** | The emitted event shape is documented in a canonical contract (`design/audit-event-shape.md`) and pinned by an automated test that asserts the flat-merge behavior, canonical-field-wins-on-collision, and absence of nested `payload.audit_metadata`. Any future drift between emitter + downstream auditor breaks the test before reaching production. Closes the operational-drift class of bugs where the contract was implicit and a workflow could silently read the wrong key | ✓ |
 | **Phase-spec cross-layer consistency tests** | The per-phase strings (agent name, label variants, artifact path, workflow file, meta-status transitions) live in a single source-of-truth map (`src/types/phaseSpec.ts`). Cross-layer consistency tests assert every label / agent / workflow this map references is also in the deploy registries. Drift between the extension and what's deployed to the mesh repo fails at test time, not at production-run time. Closes the class of bugs where a label was renamed in one place and silently broke `gh pr edit` somewhere else | ✓ |
 | Pre-execution interception (log before side effect) | `runSkill()` wraps every handler: emit the audit event before the result returns to the caller. The window between "skill ran" and "audit recorded" doesn't exist — they're the same function | ✓ |
@@ -1253,9 +1253,9 @@ No live system access. No proprietary tooling. Just SHA-256. Four checks land th
     <div class="docs-copy">Any edit to a past audit event breaks every subsequent <code>prev_event_hash</code>. Knight's Seal (shipped) also signs every event with the originating session's ephemeral Ed25519 keypair — and CI cryptographically verifies each event against the right per-epoch public key (not just a hash recompute), so substitution attempts fail the signature check too. The runner refuses to verify a chain where signatures are present on some events and missing on others (partial-signature tampering); revise rounds advance to a fresh epoch with a fresh keypair, so a chain with mixed epochs is the normal shape, not an attack signal.</div>
   </div>
   <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Check 5 · Deterministic emitter</div>
-    <div class="docs-heading">The LLM did not write the log</div>
-    <div class="docs-copy">Court Recorder Auto-Logging (shipped) moves audit emission out of the agent's prompt and into the runner runtime + workflow. <code>skill_call</code> events are emitted inside <code>runSkill()</code> before the result returns to the agent. <code>artifact_written</code> events are emitted by the workflow from <code>git diff</code>. <code>self_review</code> events are parsed from structured PR-body blocks. The only event the agent emits directly is the gap-loop semantic marker (which the runner cannot infer); every <code>skill_call</code>, <code>artifact_written</code>, and <code>self_review</code> event comes from deterministic code the agent cannot bypass. Trust shifts from "verify the chain after the fact" to "the emitter is provably not the LLM."</div>
+    <div class="docs-card-kicker">Check 5 · Three-class event ownership</div>
+    <div class="docs-heading">Facts are deterministic, judgment is signed</div>
+    <div class="docs-copy">Court Recorder Auto-Logging splits audit emission into three lanes — deterministic skill runtime emits <code>skill_call</code> inside <code>runSkill()</code>; deterministic workflow emits <code>artifact_written</code> from <code>git diff</code> and <code>state_transition</code> / <code>human_gate</code> from PR labels + reviewer state; the agent emits <code>self_review</code> via <code>audit-emit-event</code> from inside its persona-prompt section, signed under its per-epoch private key. Self-review is signed LLM judgment, not deterministic evidence — the chain proves which key signed which verdict, and the workflow cross-checks PR-body blocks against signed chain events. Any workflow-attributed event whose kind is not in the narrow allowlist <code>{artifact_written, state_transition, human_gate}</code> is forgery; the runner rejects with <code>workflow-event-kind-not-allowed</code> and the Looking Glass UI badge agrees. Trust splits into "deterministic code can prove this is a fact" and "this key signed this judgment."</div>
   </div>
 </div>
 

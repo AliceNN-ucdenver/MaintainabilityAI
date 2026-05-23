@@ -9,14 +9,15 @@ tools:
   - search
   - execute
   # GitHub MCP — route through api.githubcopilot.com (allow-listed by
-  # default). NOTE: github/update_issue + github/add_issue_comment are
-  # declared but have been observed unavailable in the Coding Agent
-  # runtime (see WHY-phase forensics + PR #91 HOW run). Looking Glass's
-  # body-extension assignment + user-driven Run Audit button cover the
-  # critical paths; these tool declarations are best-effort.
+  # default). Looking Glass's body-extension assignment + user-driven
+  # Run Audit button cover the critical dispatch paths.
   - github/*
   - github/add_issue_comment
-  - github/update_issue
+  # Bug W (Codex round-7): github/update_issue removed — the hard
+  # rule below ("Do NOT post issue comments or apply labels directly")
+  # forbids the agent from mutating label state, but the tool was
+  # still declared. Tool scope now matches rule scope; label state
+  # is owned by the verdict step in prd-agent.yml.
   # Custom skills
   - knowledge-okr
   - knowledge-research

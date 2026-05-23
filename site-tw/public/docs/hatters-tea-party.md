@@ -477,11 +477,11 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
   <!-- Self-critique personas (right column) — same agent, two persona-switched rounds -->
   <rect x="500" y="98" width="270" height="70" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
   <text x="635" y="121" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Architect persona</text>
-  <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design/architecture-review prompt pack</text>
+  <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">code-design/architecture-review prompt pack</text>
   <text x="635" y="154" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM drift · interface contract diffs</text>
   <rect x="500" y="180" width="270" height="70" rx="10" fill="rgba(248,113,113,0.10)" stroke="rgba(248,113,113,0.4)"/>
   <text x="635" y="203" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Security persona</text>
-  <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design/security-review prompt pack</text>
+  <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">code-design/security-review prompt pack</text>
   <text x="635" y="236" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">OWASP scan · threat-model compliance</text>
   <text x="635" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">against actual repos · code-grounded</text>
   <!-- Code-grounded gate label -->
@@ -495,8 +495,8 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
 
 The code-design-agent runs **different prompt packs** in its two personas than it did at PRD time:
 
-- **`design/architecture-review`** (Architect persona): CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL; a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
-- **`design/security-review`** (Security persona): OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
+- **`code-design/architecture-review`** (Code-Architect persona-switch inside `code-design-agent`): CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL; a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
+- **`code-design/security-review`** (Code-Security persona-switch inside `code-design-agent`): OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
 
 Same self-critique pattern as the PRD stage — **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point, and the workshop's pedagogical sweet spot.
 
@@ -636,7 +636,7 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <line x1="548" y1="226" x2="766" y2="226" stroke="rgba(252,211,77,0.25)"/>
   <text x="548" y="240" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:    code-design-agent</text>
   <text x="548" y="253" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Inputs:   PRD + 3 repos (indexed)</text>
-  <text x="548" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Reviewers: design/arch · design/sec</text>
+  <text x="548" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Personas: code-design/arch · code-design/sec</text>
   <text x="548" y="279" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Will score: Arch · Sec (code-grnd)</text>
   <text x="548" y="292" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">          CALM drift · contracts · OWASP</text>
   <text x="548" y="305" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Gated on: How merged</text>
@@ -663,7 +663,7 @@ The screen is **deliberately linear, not tabbed.** Tabs let a user open How with
 
 - **Why (Research)** shows what the research pipeline actually produced: sources count, refinement loops, findings cited, JTBD/brief-topic coverage. Reviewer scores exist (every PR gets reviewed) but the headline is the evidence base.
 - **How (PRD)** shows PRD-specific signals: ask-experts Q&A count, FR/NFR/SR counts, and **mesh-grounding scores** (the PRD-pack reviewers score against CALM/ADRs and STRIDE/OWASP, not against code yet). MISSING items from the reviewers are inline.
-- **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. These reviewers run `design/architecture-review` + `design/security-review` against the actual indexed code repos: CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
+- **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. The `code-design-agent` persona-switches through `code-design/architecture-review` + `code-design/security-review` against the actual indexed code repos: CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
 
 ---
 

@@ -9,7 +9,7 @@ command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-thr
 
 # Knowledge Mesh Threats Skill
 
-Returns STRIDE entries from `threats/` that match the concern. Used by `prd-agent` + `security-reviewer` to ground security sections.
+Returns STRIDE entries from `threats/` that match the concern. Used by `prd-agent` (during its Security persona-switch) + `code-design-agent` (during its Code-Security persona-switch) to ground security sections. _(Pre-B24 was also consumed by a separate `security-reviewer` agent; that dispatch was retired — persona-switch self-critique inside the author agent replaced it.)_
 
 ## Inputs (stdin JSON)
 

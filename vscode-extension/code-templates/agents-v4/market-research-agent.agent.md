@@ -19,7 +19,11 @@ tools:
   # named explicitly below.
   - github/*
   - github/add_issue_comment   # post format-research-issue-update output to OKR anchor issue
-  - github/update_issue        # apply/remove labels via the issues API
+  # Bug W (Codex round-7): github/update_issue removed — the hard
+  # rule below ("Do NOT post issue comments or apply labels directly")
+  # forbids the agent from mutating label state, but the tool was
+  # still declared. Now tool scope matches rule scope; label state
+  # is workflow-owned (post-merge / verdict step).
   # Custom skills — declared in .github/skills/<name>/SKILL.md.
   - knowledge-okr
   - knowledge-mesh-bar

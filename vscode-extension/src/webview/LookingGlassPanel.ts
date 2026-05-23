@@ -66,39 +66,17 @@ import type { GovernanceTimestamps } from '../types/redqueen';
 // their own module so unit tests can exercise them without dragging
 // in the VS Code runtime. See `regexCounters.ts` for the full rationale.
 import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extractSelfReviewFromArtifact } from './regexCounters';
+// Audit-chain verification (Bug W / Codex round-7) — UI-side mirror
+// of the runner's allowlist + signature gate. Lives in chainVerify.ts
+// so vitest tests run without the VS Code runtime + the constant
+// has a single home synchronized with the runner.
+import { detectKnightSeal, isEventLegitimate } from './chainVerify';
 
-/**
- * Knight's Seal v1 (B27) — scan an audit-events JSONL for per-event
- * Ed25519 signatures and report a UI-shaped seal verdict.
- *
- * - All events signed → `{sealed: true}`. CI workflow re-verifies.
- * - Some events signed → `{sealed: false, sealTampered: true}`. Surfaces
- *   the red Tampered badge; CI workflow blocks merge with
- *   `partial-signatures` chain-check failure.
- * - No events signed → `{}`. Legacy unsigned chain; chainRoot still
- *   verifiable but no seal badge rendered.
- */
-function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampered?: boolean } {
-  // Bug T (pre-release simplification) — mirror runner's universal
-  // rule. Only `payload.emitted_by === 'workflow'` may be unsigned
-  // (post-agent context, no key). Every other event MUST be signed.
-  // No legacy paths, no chain-by-chain mode detection.
-  let signed = 0;
-  let agentEvents = 0;
-  for (const line of lines) {
-    try {
-      const event = JSON.parse(line) as { signature?: string; payload?: { emitted_by?: string } };
-      const isWorkflowEmitted = event.payload?.emitted_by === 'workflow';
-      if (!isWorkflowEmitted) { agentEvents++; }
-      if (typeof event.signature === 'string' && event.signature.length > 0) {
-        signed++;
-      }
-    } catch { /* malformed line — skip */ }
-  }
-  if (agentEvents > 0 && signed === agentEvents) { return { sealed: true }; }
-  if (signed > 0 && signed < agentEvents) { return { sealed: false, sealTampered: true }; }
-  return {};
-}
+// Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
+// allowlist live in chainVerify.ts (see import above). Lifted out
+// of this file so vitest can exercise them without dragging in the
+// VS Code runtime + so the constant has one definition synchronized
+// with the runner's `audit-verify-chain` skill.
 
 /**
  * WHAT-phase chain signal extraction (D-PR1.v1.1).
@@ -131,8 +109,14 @@ function extractWhatChainSignals(lines: string[]): WhatChainSignals {
     try {
       const event = JSON.parse(line) as {
         event_kind?: string;
-        payload?: { skill?: string; ok?: boolean; mode?: string; round?: number };
+        signature?: string;
+        payload?: { skill?: string; ok?: boolean; mode?: string; round?: number; emitted_by?: string };
       };
+      // Bug W (Codex round-7) — same legitimacy gate as fetchPhaseSignal.
+      // skill_call is an agent-only kind (not in WORKFLOW_EMITTABLE_KINDS);
+      // a forged unsigned skill_call with emitted_by:'workflow' would
+      // otherwise inflate the meshSkillCalls / knowledgeCodeCalls counts.
+      if (!isEventLegitimate(event)) { continue; }
       if (event.event_kind !== 'skill_call' || event.payload?.ok === false) { continue; }
       const skill = event.payload?.skill;
       if (!skill) { continue; }
@@ -781,8 +765,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             payload?: {
               skill?: string; ok?: boolean; queries?: string[]; reason?: string;
               round?: number; persona?: string; score?: number; severity?: string;
+              emitted_by?: string;
             };
           };
+          // Bug W (Codex round-7) — gate metrics extraction on the
+          // same legitimacy rules the runner's audit-verify-chain
+          // enforces. Forged events (workflow attribution on a
+          // non-allowlisted kind, OR unsigned agent event) MUST NOT
+          // pollute the UI counts or per-persona scores.
+          if (!isEventLegitimate(event)) { continue; }
           if (event.event_kind === 'skill_call' && event.payload?.skill && event.payload?.ok !== false) {
             counts.set(event.payload.skill, (counts.get(event.payload.skill) ?? 0) + 1);
           }
