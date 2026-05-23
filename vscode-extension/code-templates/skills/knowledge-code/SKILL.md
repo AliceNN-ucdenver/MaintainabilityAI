@@ -4,7 +4,7 @@ description: Per-repo grounding for the code-design-agent. Three modes per A12.v
 version: 0.2.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner skill-knowledge-code
+command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-code
 ---
 
 # Knowledge Code Skill

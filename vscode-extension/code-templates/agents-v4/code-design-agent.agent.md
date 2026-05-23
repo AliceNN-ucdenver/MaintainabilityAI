@@ -105,7 +105,7 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
 
     | Response `mode` | What you do |
     |---|---|
-    | `brownfield` | Read `structure.topDirs` + `entryPoints[]` + `structure.languages`; ground the per-repo subsection on real file paths from these fields. Cite exact paths in §5 Per-Repo Change List. |
+    | `brownfield` | Read `structure.files[]` (with `role` classification: source / test / config / route / doc), `structure.routes[]`, `structure.tests[]`, `structure.modules[]`. Cite exact paths from this inventory across §1 Project Structure AND any other section that needs them (§2 API Endpoint Specifications uses `routes[]`; §3 Data Models uses files with schema paths; §8 Testing Strategy uses `tests[]`). Then invoke `knowledge-code-read` on AT LEAST one file you intend to modify per brownfield repo, so the design quotes real code, not paraphrased guesses. The workflow path-citation gate cross-checks every backtick-quoted path against the chain's `inventory_paths`; cited paths not in inventory fail STRUCT_OK. |
     | `greenfield` | Read `scaffoldingHints` + `referenceRepos`; ground the per-repo subsection on the scaffolding spec (target layout, framework choice, seed files). NO file-path citations from brownfield space — this is a *design*, not a *modification*. |
     | (refuse, `ok: false`) | STOP. Post a PR comment with the `remediation` hint and exit. The dispatch precondition should have prevented this; reaching here indicates a mid-run repo-status edit or workflow misconfiguration. |
 
@@ -150,10 +150,15 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
     addresses: [FR-01, FR-02, SR-01]
     ---
 
-    For BROWNFIELD: cite real `knowledge-code.structure.topDirs[]` paths.
-    Name SPECIFIC FILES to modify (e.g. `src/state/profileStore.ts`).
-    DO NOT stop at "extend `src`" — the knowledge-code skill gave you
-    top-dirs + entryPoints; drill in.
+    For BROWNFIELD: cite real paths from `knowledge-code.structure.files[]`
+    (role-classified: source / test / config / route / doc) plus the
+    per-classification arrays `routes[]`, `tests[]`, `modules[]`. For
+    each file you intend to MODIFY, also call `knowledge-code-read` so
+    the design quotes real code. Name SPECIFIC FILES (e.g.
+    `src/state/profileStore.ts`) — DO NOT stop at "extend `src`".
+    The workflow cross-checks every backtick-quoted path against the
+    chain's `inventory_paths`; cited paths not in inventory fail
+    STRUCT_OK with `cited-path-not-in-inventory: <repo> <path>`.
 
     For GREENFIELD: name the proposed file tree as a code block.
     Cite scaffolding hints from knowledge-code.scaffoldingHints.

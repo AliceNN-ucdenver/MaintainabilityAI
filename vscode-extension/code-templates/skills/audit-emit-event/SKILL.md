@@ -4,7 +4,7 @@ description: Append one hash-chained audit event to okrs/<id>/audit/events/<run-
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner skill-audit-emit-event
+command: npx @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event
 ---
 
 # Audit Emit Event Skill
@@ -44,7 +44,7 @@ For everything else (every regular skill_call, every artifact_written, every sel
 
 ```sh
 echo '{"okrId":"...", "runId":"...", "eventKind":"skill_call", "payload":{"skill":"tavily-search","duration_ms":420}, "phase":"why", "intentThreadUuid":"..."}' \
-  | npx @maintainabilityai/research-runner skill-audit-emit-event
+  | npx @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event
 ```
 
 ## Implementation

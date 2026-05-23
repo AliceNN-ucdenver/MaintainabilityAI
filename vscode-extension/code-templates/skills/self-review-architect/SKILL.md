@@ -4,7 +4,7 @@ description: Authoritative tier + prompt-pack handoff for the Architect persona-
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner skill-self-review-architect
+command: npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-architect
 ---
 
 # Self-Review Architect Skill
@@ -49,7 +49,7 @@ A mismatch surfaces in the PR audit comment as a contract violation. The agent l
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","runId":"HOW-2026-05-21-ux9tzd","round":1}' \
-  | npx @maintainabilityai/research-runner skill-self-review-architect
+  | npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-architect
 ```
 
 ## Implementation

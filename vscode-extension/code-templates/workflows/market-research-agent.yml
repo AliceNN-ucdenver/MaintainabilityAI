@@ -648,6 +648,20 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
+          # Bug-S / S1 (Codex round-4 closeout) — chain_root_hash
+          # mismatch hard-rejects. extract-okr-context now derives
+          # chain_root_hash from JSONL event 1 and emits
+          # chain_root_ok=false when the agent's pasted artifact-
+          # frontmatter value disagrees. The artifact frontmatter is
+          # the agent's claim, the JSONL is ground truth; disagreement
+          # means the agent pasted a stale or fabricated hash.
+          CHAIN_ROOT_OK_OUT="${{ steps.ctx.outputs.chain_root_ok }}"
+          if [ "$VERDICT" = "ok" ] && [ "$CHAIN_ROOT_OK_OUT" = "false" ]; then
+            VERDICT="degraded"; REASON="chain_root_hash mismatch: ${{ steps.ctx.outputs.chain_root_reason }}"
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
           # Evidence honesty
           if [ "$VERDICT" = "ok" ] && [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence: block — declare evidence_mode (§11.1.7)"

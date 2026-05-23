@@ -4,7 +4,7 @@ description: Authoritative tier + prompt-pack handoff for the Code-Security pers
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner skill-self-review-code-security
+command: npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-code-security
 ---
 
 # Self-Review Code-Security Skill (Phase D)

@@ -1171,6 +1171,12 @@ jobs:
           # blocks design-pass like it does for the other phases.
           SEALED='${{ steps.chain.outputs.sealed }}'
           SEAL_VERIFIED='${{ steps.chain.outputs.seal_verified }}'
+          # Bug-S / S1 (Codex round-4) — chain_root_hash mismatch.
+          # extract-okr-context now derives chain_root_hash from JSONL
+          # event 1; mismatch with the agent's pasted artifact-
+          # frontmatter value emits chain_root_ok=false here.
+          CHAIN_ROOT_OK='${{ steps.ctx.outputs.chain_root_ok }}'
+          CHAIN_ROOT_REASON='${{ steps.ctx.outputs.chain_root_reason }}'
           # D-PR1.v1.2 bug fix — the previous `gh pr edit ... 2>/dev/null
           # || true` swallowed stderr AND the exit code, so failures (e.g.
           # the label doesn't exist in the mesh repo's label registry)
@@ -1199,10 +1205,13 @@ jobs:
           if [ "$SEALED" = "true" ] && [ "$SEAL_VERIFIED" != "true" ]; then
             SEAL_OK="false"
           fi
-          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ] && [ "$SEAL_OK" = "true" ]; then
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ] && [ "$SEAL_OK" = "true" ] && [ "$CHAIN_ROOT_OK" != "false" ]; then
             if apply_label --add-label design-pass --remove-label design-degraded,design-drift-detected; then
-              echo "::notice::Applied design-pass label to PR #$PR (chain+mode+structure+manifest+seal all clean)"
+              echo "::notice::Applied design-pass label to PR #$PR (chain+mode+structure+manifest+seal+chain-root all clean)"
             fi
+          elif [ "$CHAIN_ROOT_OK" = "false" ]; then
+            apply_label --add-label design-degraded || true
+            echo "::warning::Applied design-degraded — chain_root_hash mismatch: $CHAIN_ROOT_REASON"
           elif [ "$SEAL_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — Knight's Seal verification failed (chain has signatures but at least one did not verify against its epoch public key)"

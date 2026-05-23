@@ -47,7 +47,7 @@ You will be invoked on a PR carrying a `*-draft` label (`prd-draft` for PRDs, `d
 6. Call `context-architecture` with `{platformId, barIds}` — the grounding data your persona scores against.
 7. Apply the right prompt pack based on the PR's `*-draft` label:
    - `prd-draft` → `.caterpillar/prompts/prd/architecture-review.md` (MESH-grounded gate on PRDs)
-   - `design-draft` (Phase D) → `.caterpillar/prompts/design/architecture-review.md` (CODE-grounded heavyweight gate)
+   - `design-draft` (Phase D) → `.caterpillar/prompts/code-design/architecture-review.md` (CODE-grounded heavyweight gate). NOTE (Bug-S / S7 — Codex round-4): the prompt-pack tree is `code-design/`, not `design/`. The legacy `design/` path is the pre-rename layout and does not exist on disk.
 8. Emit a PR review (NOT a comment — an actual review) using the prompt-pack's structured-review format. Emit on disk via the standard review pack contract: `SCORE` (0.0-1.0), `SEVERITY` (PASS|MINOR|MAJOR|BLOCKING), `COVERED` (list), `MISSING` (list), `CHANGES` (specific requests). The reviewer-bus regex-parses these anchors — do NOT free-form the format.
 9. Apply the appropriate label per outcome: `governance-pass-architecture` if SCORE ≥ threshold AND no BLOCKING, else `revision-required`. The merge-gate workflow (Phase C C4) only flips `governance-pass` when both reviewers (architect + security) pass.
 10. `audit-emit-event` at start (`review_received`) and end (`review_emitted`) with your DID + score.

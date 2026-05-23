@@ -4,7 +4,7 @@ description: Authoritative tier + prompt-pack handoff for the Security persona-s
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner skill-self-review-security
+command: npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-security
 ---
 
 # Self-Review Security Skill
@@ -43,7 +43,7 @@ See `self-review-architect/SKILL.md` for the full forensic. Identical pattern, d
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","runId":"HOW-2026-05-21-ux9tzd","round":1}' \
-  | npx @maintainabilityai/research-runner skill-self-review-security
+  | npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-security
 ```
 
 ## Implementation

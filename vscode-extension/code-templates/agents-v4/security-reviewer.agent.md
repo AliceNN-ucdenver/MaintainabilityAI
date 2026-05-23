@@ -45,7 +45,7 @@ You will be invoked on a PR carrying a `*-draft` label. The `reviewer-bus.yml` w
 6. Call `context-security` with `{platformId, barIds}` — your grounding data.
 7. Apply the right prompt pack based on the PR's `*-draft` label:
    - `prd-draft` → `.caterpillar/prompts/prd/security-review.md` (MESH-grounded gate on PRDs)
-   - `design-draft` (Phase D) → `.caterpillar/prompts/design/security-review.md` (CODE-grounded heavyweight gate; OWASP pattern scan + threat-model compliance against actual code)
+   - `design-draft` (Phase D) → `.caterpillar/prompts/code-design/security-review.md` (CODE-grounded heavyweight gate; OWASP pattern scan + threat-model compliance against actual code). NOTE (Bug-S / S7 — Codex round-4): the prompt-pack tree is `code-design/`, not `design/`. The legacy `design/` path does not exist on disk.
 8. Emit a PR review using the prompt-pack's structured-review format. Same anchor set as `architect-reviewer`: `SCORE`, `SEVERITY`, `COVERED`, `MISSING`, `CHANGES`. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries.
 9. Apply `governance-pass-security` if SCORE ≥ threshold AND no BLOCKING, else `revision-required`.
 10. `audit-emit-event` at start + end.

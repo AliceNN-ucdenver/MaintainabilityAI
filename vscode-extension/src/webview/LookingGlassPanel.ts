@@ -79,17 +79,41 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
  *   verifiable but no seal badge rendered.
  */
 function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampered?: boolean } {
-  // Bug K + N (cert-run-5): post-agent events (payload.emitted_by in
-  // {'workflow', 'revise-agent'}) are legitimate-unsigned by-design —
-  // they're emitted in contexts where the ephemeral private key is
-  // gone. Exclude them from the seal-tamper denominator.
+  // Bug-S / S2 (Codex round-4) — align UI seal-detection with the
+  // runner's audit-verify-chain logic. Runner Q3 / Bug O tightened
+  // the legitimate-unsigned bucket: `workflow`-emitted events stay
+  // legitimate forever (post-agent context has no key), but
+  // `revise-agent`-emitted events are legitimate ONLY on legacy
+  // chains (no event carries `signer_epoch`). On per-epoch chains
+  // (any event with `signer_epoch`), revise-agent MUST sign.
+  //
+  // The round-3 UI still used the round-2 broad allowance, so a
+  // chain the runner rejected could still render a green Sealed
+  // badge in Looking Glass — a lying metric. This function now
+  // mirrors the runner: do a first pass to detect per-epoch-ness,
+  // then build the seal verdict with that context.
+  let chainUsesPerEpochSigning = false;
+  for (const line of lines) {
+    try {
+      const ev = JSON.parse(line) as { signer_epoch?: number };
+      if (typeof ev.signer_epoch === 'number') {
+        chainUsesPerEpochSigning = true;
+        break;
+      }
+    } catch { /* skip malformed */ }
+  }
   let signed = 0;
   let agentEvents = 0;
   for (const line of lines) {
     try {
       const event = JSON.parse(line) as { signature?: string; payload?: { emitted_by?: string } };
       const emittedBy = event.payload?.emitted_by;
-      const isUnsignedByDesign = emittedBy === 'workflow' || emittedBy === 'revise-agent';
+      // workflow-emitted events are always unsigned-by-design
+      // (post-agent context, no key). revise-agent events are
+      // unsigned-by-design ONLY on legacy chains.
+      const isWorkflowUnsigned = emittedBy === 'workflow';
+      const isLegitimateReviseUnsigned = emittedBy === 'revise-agent' && !chainUsesPerEpochSigning;
+      const isUnsignedByDesign = isWorkflowUnsigned || isLegitimateReviseUnsigned;
       if (!isUnsignedByDesign) { agentEvents++; }
       if (typeof event.signature === 'string' && event.signature.length > 0) {
         signed++;

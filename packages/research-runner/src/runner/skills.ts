@@ -1261,18 +1261,30 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
     // Workflow gate consumes this to validate cited paths.
     inventory_paths: inventoryPaths,
   };
-  // Bug-R / R6 (Codex round-3) — persist inventory to the clone
-  // cache so knowledge-code-read can strict-mode validate requested
-  // paths against the same list that lands in the audit chain.
-  // Without this, the agent could ask knowledge-code-read for
-  // arbitrary paths inside the clone that the chain never advertised.
+  // Bug-R / R6 + Bug-S / S6 (Codex round-4 hardening) — persist
+  // inventory to the clone cache so knowledge-code-read can strict-
+  // mode validate requested paths against the same list that lands
+  // in the audit chain. Round-3 caught the inventory-persist write
+  // being non-fatal; round-4 flagged that as fail-open — without
+  // a written inventory, knowledge-code-read's path-not-in-inventory
+  // check silently falls through (the file just isn't there to
+  // check against). S6 fix: persist failure is now FATAL. The
+  // brownfield grounding contract requires the inventory to exist;
+  // a skill_call that succeeded without writing it is a coverage lie.
   try {
     fs.writeFileSync(
       path.join(cloneTarget, '.knowledge-code-inventory.json'),
       JSON.stringify({ inventory_paths: inventoryPaths, sha, cachedAt: new Date().toISOString() }),
       'utf8',
     );
-  } catch { /* inventory persist failure is non-fatal — read skill will fall back to cache-only check */ }
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `inventory-persist-failed: ${err instanceof Error ? err.message : String(err)}`,
+      repo: repoSlug,
+      remediation: "knowledge-code MUST persist its file inventory so knowledge-code-read can strict-mode validate file reads against it. Check tmpdir permissions and disk space.",
+    } as SkillResult;
+  }
   return {
     ok: true,
     mode: 'brownfield',
@@ -1371,26 +1383,46 @@ const handleKnowledgeCodeRead: SkillHandler = async (input) => {
       remediation: `Could not access clone for ${repoUrl}. Underlying error: ${cloneResult.error ?? 'unknown'}`,
     } as SkillResult;
   }
-  // Bug-R / R6 (strict mode part 2) — validate the requested path
-  // against the inventory persisted by knowledge-code. Only paths
-  // that knowledge-code already advertised in `inventory_paths` are
-  // readable — closes the gap where the agent could ask for any
-  // file inside the clone, including files not visible in the
-  // bounded walk. Test mode bypasses (see allowUncached).
+  // Bug-R / R6 + Bug-S / S6 (Codex round-4 hardening) — validate
+  // the requested path against the inventory persisted by knowledge-
+  // code. Only paths knowledge-code advertised in `inventory_paths`
+  // are readable. Round-3 left missing/malformed inventory as a
+  // fall-through (silent pass); round-4 caught that as fail-open.
+  // S6: missing inventory file or malformed JSON is now a HARD
+  // FAILURE in non-test mode. The cache exists (we passed the
+  // earlier no-cache check), so the inventory file MUST exist —
+  // its absence means knowledge-code didn't complete normally.
   if (!allowUncached) {
     const inventoryPath = path.join(cloneResult.path, '.knowledge-code-inventory.json');
-    if (fs.existsSync(inventoryPath)) {
-      try {
-        const inv = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) as { inventory_paths?: string[] };
-        const allowed = new Set(inv.inventory_paths ?? []);
-        if (allowed.size > 0 && !allowed.has(normalized)) {
-          return {
-            ok: false,
-            reason: `path-not-in-inventory: ${normalized} is not in the knowledge-code inventory_paths for ${gh.owner}/${gh.name}. The agent can only read files knowledge-code advertised in the chain.`,
-            remediation: "If the file is real but missed by the bounded walk (default maxFiles=200), call knowledge-code with a higher maxFiles before retrying.",
-          } as SkillResult;
-        }
-      } catch { /* malformed inventory; fall through (cache-only check still applied) */ }
+    if (!fs.existsSync(inventoryPath)) {
+      return {
+        ok: false,
+        reason: `inventory-missing: ${gh.owner}/${gh.name}'s clone exists but .knowledge-code-inventory.json is absent. knowledge-code did not complete normally — re-run it before invoking knowledge-code-read.`,
+      } as SkillResult;
+    }
+    let inv: { inventory_paths?: string[] };
+    try {
+      inv = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) as { inventory_paths?: string[] };
+    } catch (err) {
+      return {
+        ok: false,
+        reason: `inventory-malformed: .knowledge-code-inventory.json could not be parsed: ${err instanceof Error ? err.message : String(err)}`,
+        remediation: "Re-run knowledge-code to regenerate the inventory.",
+      } as SkillResult;
+    }
+    const allowed = new Set(inv.inventory_paths ?? []);
+    if (allowed.size === 0) {
+      return {
+        ok: false,
+        reason: `inventory-empty: .knowledge-code-inventory.json carries no inventory_paths. knowledge-code likely walked zero files (empty repo? maxFiles=0?). Cannot validate file reads.`,
+      } as SkillResult;
+    }
+    if (!allowed.has(normalized)) {
+      return {
+        ok: false,
+        reason: `path-not-in-inventory: ${normalized} is not in the knowledge-code inventory_paths for ${gh.owner}/${gh.name}. The agent can only read files knowledge-code advertised in the chain.`,
+        remediation: "If the file is real but missed by the bounded walk (default maxFiles=200), call knowledge-code with a higher maxFiles before retrying.",
+      } as SkillResult;
     }
   }
   const absPath = path.join(cloneResult.path, normalized);

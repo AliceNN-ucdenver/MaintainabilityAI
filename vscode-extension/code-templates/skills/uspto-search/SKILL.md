@@ -4,7 +4,7 @@ description: Patent search via USPTO's PatentsView API. Two-stage XML fetch retu
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner skill-uspto-search
+command: npx @maintainabilityai/research-runner@~0.1.42 skill-uspto-search
 secrets:
   - USPTO_API_KEY
 ---
@@ -31,7 +31,7 @@ Call when the agent needs prior-art / patent-landscape evidence (whitespace anal
 
 ```sh
 echo '{"queries":["celebrity AND identity AND disambiguation"]}' \
-  | npx @maintainabilityai/research-runner skill-uspto-search
+  | npx @maintainabilityai/research-runner@~0.1.42 skill-uspto-search
 ```
 
 ## Implementation

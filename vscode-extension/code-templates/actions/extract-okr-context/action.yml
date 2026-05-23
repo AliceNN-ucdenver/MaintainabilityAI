@@ -61,8 +61,14 @@ outputs:
     description: "Repo-relative path to the artifact file detected in the PR's changed-files (e.g. okrs/<id>/why/research-doc.md). Empty if no artifact path matched."
     value: ${{ steps.parse.outputs.artifact_path }}
   chain_root_hash:
-    description: "Hatter Tag audit.chain_root_hash — sha256 of event_id=1 in the run's audit JSONL. Used by the finalize step to set actions[].hatterChainRoot and the chain-ladder.yaml entry, which Looking Glass reads to render the Knight's Seal badge. Empty if absent."
+    description: "sha256 of event_id=1 in the run's audit JSONL. Bug-S / S1 (Codex round-4) — this value is now WORKFLOW-DERIVED when the JSONL exists; the agent-pasted artifact frontmatter value is only used as a fallback when the JSONL is missing. Used by the finalize step to set actions[].hatterChainRoot and the chain-ladder.yaml entry, which Looking Glass reads to render the Knight's Seal badge."
     value: ${{ steps.parse.outputs.chain_root_hash }}
+  chain_root_ok:
+    description: "Bug-S / S1 — false when the agent's pasted chain_root_hash didn't match the JSONL event-1 hash the workflow recomputed. Consumed by the downstream verdict step in each agent workflow; chain_root_ok=false produces a degraded label regardless of the rest of the chain (the artifact frontmatter is the agent's claim, the JSONL is ground truth; disagreement means the agent lied or pasted stale)."
+    value: ${{ steps.parse.outputs.chain_root_ok }}
+  chain_root_reason:
+    description: "Bug-S / S1 — human-readable reason when chain_root_ok=false."
+    value: ${{ steps.parse.outputs.chain_root_reason }}
 
 runs:
   using: "composite"
@@ -161,34 +167,27 @@ runs:
           [ -z "$CHAIN_ROOT_HASH" ] && CHAIN_ROOT_HASH=$(body_extract 'chain_root_hash:[[:space:]]*[0-9a-f]{64}'      's/^chain_root_hash:[[:space:]]*//')
         fi
 
-        {
-          echo "okr_id=$OKR_ID"
-          echo "run_id=$RUN_ID"
-          echo "phase=$PHASE"
-          echo "intent_thread_uuid=$INTENT"
-          echo "evidence_mode=$EVIDENCE_MODE"
-          echo "fresh_provider_search_performed=$FRESH"
-          echo "author_did=$AUTHOR_DID"
-          echo "artifact_path=$ARTIFACT"
-          echo "chain_root_hash=$CHAIN_ROOT_HASH"
-        } >> "$GITHUB_OUTPUT"
-
-        # Bug-R / R10 (Codex round-3) — workflow-derived cross-check.
-        # Until R10, chain_root_hash was agent-pasted and the only
-        # validation was the 64-hex regex above. Codex round-3 noted
-        # the chain hash should be workflow-derived or cross-checked
-        # against the actual event-1 hash from the JSONL — the
-        # agent's paste must match what the runner wrote, or the
-        # Hatter Tag is lying about which run it represents.
+        # Bug-S / S1 (Codex round-4 closeout of R10) — chain_root_hash
+        # is now WORKFLOW-DERIVED, not agent-asserted. Round-3 only
+        # surfaced a `::warning::` on mismatch; finalize then persisted
+        # the agent's pasted (possibly stale or fabricated) value into
+        # actions[].hatterChainRoot AND chain-ladder.yaml. Codex
+        # round-4 flagged this as still-open: a downstream audit-verify-
+        # chain pass on the JSONL doesn't catch artifact-frontmatter
+        # lies because the verifier only walks the JSONL.
         #
-        # If the JSONL exists and event 1 is present, recompute its
-        # event_hash and compare. Mismatch = warning surfaced in the
-        # workflow log so the audit gate can pick it up. We don't
-        # hard-fail here to preserve back-compat with chains that
-        # predate this check; the downstream audit-and-drift verdict
-        # already calls audit-verify-chain which catches the same.
+        # New contract: if the JSONL exists, the workflow recomputes
+        # event 1's hash and uses THAT as the canonical
+        # chain_root_hash output. The agent-pasted value is reduced
+        # to a defense-in-depth cross-check that surfaces
+        # `chain_root_ok=false` (a step output the downstream audit
+        # verdict consumes) on mismatch. Result: finalize persists
+        # what the WORKFLOW saw, not what the agent claimed.
+        AGENT_CHAIN_ROOT_HASH="$CHAIN_ROOT_HASH"
+        CHAIN_ROOT_OK="true"
+        CHAIN_ROOT_REASON=""
         JSONL="okrs/$OKR_ID/audit/events/$RUN_ID.jsonl"
-        if [ -n "$CHAIN_ROOT_HASH" ] && [ -f "$JSONL" ]; then
+        if [ -f "$JSONL" ]; then
           ACTUAL_EVENT1_HASH=$(python3 -c "
         import json
         with open('$JSONL', 'r', encoding='utf-8') as f:
@@ -203,9 +202,33 @@ runs:
                     print(ev.get('event_hash') or '')
                     break
         " 2>/dev/null || echo "")
-          if [ -n "$ACTUAL_EVENT1_HASH" ] && [ "$ACTUAL_EVENT1_HASH" != "$CHAIN_ROOT_HASH" ]; then
-            echo "::warning::chain_root_hash mismatch: artifact frontmatter says ${CHAIN_ROOT_HASH:0:12}… but JSONL event 1 hash is ${ACTUAL_EVENT1_HASH:0:12}…. The agent may have pasted a stale or fabricated hash. audit-verify-chain (downstream) will catch and reject the chain."
+          if [ -n "$ACTUAL_EVENT1_HASH" ]; then
+            # Workflow value wins. This is the chain_root_hash that
+            # gets persisted by finalize-okr-action.
+            CHAIN_ROOT_HASH="$ACTUAL_EVENT1_HASH"
+            # Cross-check the agent's pasted value (if any). Mismatch
+            # = `chain_root_ok=false` consumed by the downstream
+            # verdict step in each agent workflow.
+            if [ -n "$AGENT_CHAIN_ROOT_HASH" ] && [ "$AGENT_CHAIN_ROOT_HASH" != "$ACTUAL_EVENT1_HASH" ]; then
+              CHAIN_ROOT_OK="false"
+              CHAIN_ROOT_REASON="agent pasted ${AGENT_CHAIN_ROOT_HASH:0:12}…; workflow read ${ACTUAL_EVENT1_HASH:0:12}… from JSONL event 1"
+              echo "::warning::chain_root_hash mismatch — $CHAIN_ROOT_REASON. Workflow value wins; downstream verdict will mark chain_root_ok=false."
+            fi
           fi
         fi
 
-        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH artifact=$ARTIFACT chain_root=${CHAIN_ROOT_HASH:0:12}"
+        {
+          echo "okr_id=$OKR_ID"
+          echo "run_id=$RUN_ID"
+          echo "phase=$PHASE"
+          echo "intent_thread_uuid=$INTENT"
+          echo "evidence_mode=$EVIDENCE_MODE"
+          echo "fresh_provider_search_performed=$FRESH"
+          echo "author_did=$AUTHOR_DID"
+          echo "artifact_path=$ARTIFACT"
+          echo "chain_root_hash=$CHAIN_ROOT_HASH"
+          echo "chain_root_ok=$CHAIN_ROOT_OK"
+          echo "chain_root_reason=$CHAIN_ROOT_REASON"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH artifact=$ARTIFACT chain_root=${CHAIN_ROOT_HASH:0:12} chain_root_ok=$CHAIN_ROOT_OK"

@@ -466,6 +466,9 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
       });
 
       it('workflow pins the runner reference to a tilde-range matching package.json — every form (Bug-R / R3 — Codex round-3 closeout)', () => {
+        // (legacy in-loop test — superseded by the wider scan below
+        // which covers every file under code-templates/**, not just
+        // the three agent workflows. Kept for per-phase parity proof.)
         // Codex round-3 caught a parity-test blind spot: the round-2
         // version of this test only scanned shell text `npx -y
         // @maintainabilityai/research-runner` and missed two Python
@@ -635,6 +638,17 @@ describe('stale-truth phrase grep — marketing + design (Bug-R / R8)', () => {
         /signing chain-root \+ artifact hash/i,
       ],
     },
+    // Bug-S / S4 (Codex round-4) — extend stale-phrase grep into
+    // current-state design prose. Historical backlog entries with
+    // a SUPERSEDED marker are exempted by the post-match filter
+    // below; live claims that escaped round-3 break here.
+    {
+      file: 'vscode-extension/design/agentic-sdlc-marketresearcher.md',
+      forbidden: [
+        /per-run ephemeral keypair(?!.*epoch)/i,
+        /per-run.{0,40}Ed25519(?!.*epoch)/i,
+      ],
+    },
   ];
   for (const { file, forbidden } of guarded) {
     it(`${file} contains no stale-truth phrases`, () => {
@@ -679,4 +693,79 @@ describe('review-pack CHANGES bracket form (Bug-Q / Q9)', () => {
       expect(text, `${rel} still has the old bullet-form CHANGES`).not.toMatch(/CHANGES:\s*\n\s*-\s/);
     });
   }
+});
+
+/**
+ * Bug-S / S3 (Codex round-4) — runner-pin parity ACROSS ALL deployed
+ * templates. The round-3 parity test (kept above, per-workflow) only
+ * scanned the three agent workflow YAML files; SKILL.md command
+ * headers + examples shipped to consumer meshes were silently unpinned
+ * even after Bug-R closed the workflow holes. Codex round-4 caught
+ * this. This wider scan walks every file under code-templates/** and
+ * fails on any unpinned reference, regardless of which template
+ * deploys it.
+ *
+ * False-positive exclusions (verified by hand):
+ *   - `runtime: research-runner` YAML frontmatter key — describes the
+ *     pure-data skill's runtime; not an invocation.
+ *   - `npx research-runner archeologist|prd` — local invocation of a
+ *     pre-installed runner (the `npm install ... @~0.1.42` step
+ *     above is what carries the version pin).
+ *   - Prose mentions of `research-runner` as a package name in
+ *     comments/docs (no `npx` / `npm install` adjacent).
+ *
+ * Test logic: any `@maintainabilityai/research-runner` substring
+ * MUST be followed by `@<version>`. References without the `@`
+ * prefix (e.g. `runtime: research-runner`) are out of scope.
+ */
+describe('runner-pin parity across all code-templates (Bug-S / S3)', () => {
+  const TEMPLATES_DIR = path.join(__dirname, '..', '..', '..', 'code-templates');
+  function walk(dir: string, out: string[] = []): string[] {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        walk(full, out);
+      } else if (ent.isFile() && /\.(yml|md|yaml|ts|json)$/.test(ent.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+  it('every @maintainabilityai/research-runner reference under code-templates is pinned to a tilde-range matching package.json', () => {
+    const RUNNER_PKG = path.join(__dirname, '..', '..', '..', '..', 'packages', 'research-runner', 'package.json');
+    const runnerPkg = JSON.parse(fs.readFileSync(RUNNER_PKG, 'utf8')) as { version: string };
+    const [pkgMajor, pkgMinor] = runnerPkg.version.split('.');
+    const RUNNER_REF_RE = /@maintainabilityai\/research-runner(@[^\s'",)]+)?/g;
+    const VERSION_RE = /^@(~?\^?)(\d+)\.(\d+)\.(\d+)(?:-[\w.]+)?$/;
+    const files = walk(TEMPLATES_DIR);
+    const violations: string[] = [];
+    for (const file of files) {
+      const text = fs.readFileSync(file, 'utf8');
+      const matches = Array.from(text.matchAll(RUNNER_REF_RE));
+      for (const m of matches) {
+        const pin = m[1];
+        if (!pin) {
+          violations.push(`${path.relative(TEMPLATES_DIR, file)}: unpinned ref at index ${m.index}`);
+          continue;
+        }
+        if (pin === '@latest') {
+          violations.push(`${path.relative(TEMPLATES_DIR, file)}: @latest forbidden at index ${m.index}`);
+          continue;
+        }
+        const parts = VERSION_RE.exec(pin);
+        if (!parts) {
+          violations.push(`${path.relative(TEMPLATES_DIR, file)}: unrecognised pin ${pin} at index ${m.index}`);
+          continue;
+        }
+        const [, , major, minor] = parts;
+        if (`${major}.${minor}` !== `${pkgMajor}.${pkgMinor}`) {
+          violations.push(`${path.relative(TEMPLATES_DIR, file)}: pin ${pin} mismatches package.json ${pkgMajor}.${pkgMinor}`);
+        }
+      }
+    }
+    expect(
+      violations,
+      `Found ${violations.length} runner-pin violation(s) under code-templates/. Either pin to @~${pkgMajor}.${pkgMinor}.x or remove the reference.\n  ${violations.join('\n  ')}`,
+    ).toEqual([]);
+  });
 });

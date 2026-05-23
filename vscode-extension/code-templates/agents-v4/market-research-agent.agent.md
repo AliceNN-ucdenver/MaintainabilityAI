@@ -78,7 +78,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 
    The `run_id` is the action's identity in `okr.yaml.actions[]`. The finalize workflow uses this exact value to flip `actions[].status` on PR merge via `yq select(.runId == "<value>")`. **Never invent or generate your own `run_id`.** A made-up `run_id` makes finalize a no-op — `action.status` stays `in_progress` forever and the OKR is stuck. If both the HTML markers AND the Dispatch context table are absent, post a comment naming what's missing and stop. Do NOT parse the human-readable objective/summary prose for either id.
 
-1b. **Export the session context as env vars** before any `npx @maintainabilityai/research-runner skill-*` call:
+1b. **Export the session context as env vars** before any `npx @maintainabilityai/research-runner@~0.1.42 skill-*` call:
    ```sh
    export OKR_ID="<okr_id from step 1>" \
           RUN_ID="<run_id from step 1>" \

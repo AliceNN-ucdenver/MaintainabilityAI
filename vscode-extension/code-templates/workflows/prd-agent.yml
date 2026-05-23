@@ -998,6 +998,15 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
+          # Bug-S / S1 (Codex round-4) — chain_root_hash mismatch
+          # hard-reject. See market-research-agent.yml for rationale.
+          CHAIN_ROOT_OK_OUT="${{ steps.ctx.outputs.chain_root_ok }}"
+          if [ "$VERDICT" = "ok" ] && [ "$CHAIN_ROOT_OK_OUT" = "false" ]; then
+            VERDICT="degraded"; REASON="chain_root_hash mismatch: ${{ steps.ctx.outputs.chain_root_reason }}"
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
           if [ "$VERDICT" = "ok" ] && [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence_mode (§11.1.7)"
             EVIDENCE_FAIL="true"
