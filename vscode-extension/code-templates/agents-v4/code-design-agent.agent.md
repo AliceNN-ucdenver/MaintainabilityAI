@@ -81,7 +81,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-design` label.
 **How to invoke every skill.** Pipe JSON stdin to the runner CLI inside `execute`:
 
 ```sh
-echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner skill-<name>
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@0.1.42 skill-<name>
 ```
 
 This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** use Copilot's `skill_use` tool — that only loads SKILL.md into your context, it does NOT run the backend, and the chain stays empty. PR #114 surfaced this exact gap in WHY phase; the same discipline applies here.

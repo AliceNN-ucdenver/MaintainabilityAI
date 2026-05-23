@@ -91,7 +91,7 @@ ambiguous status the Skill itself stops cleanly.
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","repoUrl":"https://github.com/acme/celeb-api","repoStatus":"create"}' \
-  | npx -y @maintainabilityai/research-runner skill-knowledge-code
+  | npx -y @maintainabilityai/research-runner@0.1.42 skill-knowledge-code
 ```
 
 The agent prompt MUST use this invocation form, not Copilot's `skill_use`

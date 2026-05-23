@@ -118,11 +118,9 @@ drift step regex-extracts each field; drift breaks parsing.
 ```
 SCORE: <float 0.00 - 1.00>
 SEVERITY: <PASS | MINOR | MAJOR | BLOCKING>
-COVERED: <comma-separated list — SR-NN / THR-NNN / A0X ids the design addresses correctly>
-MISSING: <comma-separated list — SR-NN / THR-NNN / A0X ids the design should have addressed but did not>
-CHANGES:
-- <one concrete change for next iteration: which section, what to add>
-- <another>
+COVERED: [<comma-separated list — SR-NN / THR-NNN / A0X ids the design addresses correctly>]
+MISSING: [<comma-separated list — SR-NN / THR-NNN / A0X ids the design should have addressed but did not>]
+CHANGES: [<one concrete change for next iteration: which section, what to add>, <another>]
 ```
 
 ### Scoring rubric

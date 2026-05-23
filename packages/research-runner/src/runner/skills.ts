@@ -1876,6 +1876,24 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
   const sealed = signedCount > 0;
   const agentEventCount = lines.length - workflowUnsignedCount;
   let sealVerified = false;
+  // Bug-Q / Q3 (Codex audit round 2) — a chain that USES per-epoch
+  // signing (any event carries `signer_epoch`) MUST be sealed AND seal-
+  // verified. Without this guard, an attacker could hand-craft a chain
+  // where event 1 is signed (forcing `chainUsesPerEpochSigning=true`)
+  // but every subsequent event is unsigned — `signedCount > 0` would
+  // be true and the per-event check below would pass each unsigned
+  // event as `legitimateUnsigned` if attribution were faked. Equally,
+  // a chain where the runner reports `sealed=true` but the legacy
+  // `chainUsesPerEpochSigning=false` path runs is the gold-product
+  // promise we make to the marketing page. Legacy chains (no event
+  // carries signer_epoch) keep the prior allowance — they predate
+  // Bug O and a user audit-replaying them is intentionally tolerant.
+  if (chainUsesPerEpochSigning && !sealed) {
+    return {
+      ok: false,
+      reason: `per-epoch-chain-not-sealed: chain references signer_epoch (per-epoch signing contract) but no events carry signatures; gold-product contract requires per-epoch chains to be fully sealed`,
+    };
+  }
   if (sealed) {
     if (signedCount !== agentEventCount) {
       return { ok: false, reason: `partial-signatures: ${signedCount}/${agentEventCount} agent-emitted events signed (chain tampered; ${workflowUnsignedCount} workflow-emitted unsigned by-design)` };

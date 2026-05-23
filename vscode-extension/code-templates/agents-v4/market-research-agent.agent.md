@@ -90,7 +90,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 **How to "call" / "invoke" any skill below.** Every skill in this run MUST be invoked by piping JSON stdin into the runner CLI inside your `execute` shell:
 
 ```sh
-echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner skill-<name>
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@0.1.42 skill-<name>
 ```
 
 This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Recorder Auto-Logging). Do **NOT** use Copilot's `skill_use` tool — that only loads the SKILL.md into your context, it does NOT run the skill's backend, and the chain stays empty. PR #114 surfaced this exact gap: agent loaded `knowledge-okr` via `skill_use`, never ran the runner, audit chain had no proof the data was actually consulted; the UI reported "0 mesh skill_calls" honestly. If you find yourself reasoning about data you never invoked the runner for, STOP — the chain is your evidence trail.

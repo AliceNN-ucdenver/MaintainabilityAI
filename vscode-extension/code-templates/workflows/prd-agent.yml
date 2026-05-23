@@ -188,7 +188,7 @@ jobs:
         run: |
           set -e
           RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" \
-            | npx -y @maintainabilityai/research-runner skill-audit-verify-chain 2>&1 || true)
+            | npx -y @maintainabilityai/research-runner@0.1.42 skill-audit-verify-chain 2>&1 || true)
           echo "$RESULT" > /tmp/chain-verify.json
           python3 <<'PYEOF'
           import json, os
@@ -327,7 +327,7 @@ jobs:
             '{path: $path, sha256: $sha, bytes: $bytes, emitted_by: "workflow"}')
           jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg phase "$PHASE" --arg thread "$INTENT_THREAD_UUID" --argjson payload "$PAYLOAD" \
             '{okrId: $okr, runId: $run, phase: $phase, intentThreadUuid: $thread, eventKind: "artifact_written", payload: $payload}' \
-            | npx -y @maintainabilityai/research-runner skill-audit-emit-event \
+            | npx -y @maintainabilityai/research-runner@0.1.42 skill-audit-emit-event \
             && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
             || echo "::warning::artifact_written emit failed (best-effort)"
 
@@ -959,6 +959,8 @@ jobs:
           REVIEW_SEC_SEVERITY="${{ steps.review.outputs.sec_severity }}"
           CHAIN_OK="${{ steps.chain.outputs.ok }}"
           CHAIN_REASON="${{ steps.chain.outputs.reason }}"
+          SEALED="${{ steps.chain.outputs.sealed }}"
+          SEAL_VERIFIED="${{ steps.chain.outputs.seal_verified }}"
           MANIFEST_OK="${{ steps.manifest.outputs.ok }}"
           MANIFEST_MISSING_RAW="${{ steps.manifest.outputs.missing }}"
           MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
@@ -980,6 +982,14 @@ jobs:
           # downstream symptom.
           if [ "$FOUND" = "true" ] && [ "$CHAIN_OK" = "false" ]; then
             VERDICT="degraded"; REASON="Audit chain verification failed: $CHAIN_REASON"
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
+          # Q4 (Bug-Q / Codex audit round 2) — seal-verification gate.
+          # See market-research-agent.yml for the same pattern + rationale.
+          if [ "$VERDICT" = "ok" ] && [ "$SEALED" = "true" ] && [ "$SEAL_VERIFIED" != "true" ]; then
+            VERDICT="degraded"; REASON="Knight's Seal verification failed: chain has signatures but at least one did not verify against its epoch public key"
             CHAIN_FAIL="true"
             EVIDENCE_FAIL="true"
           fi

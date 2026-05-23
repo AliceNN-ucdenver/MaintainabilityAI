@@ -52,12 +52,9 @@ regex-extracts each — drift breaks parsing.
 ```
 SCORE: <float 0.00 - 1.00>
 SEVERITY: <one of: PASS | MINOR | MAJOR | BLOCKING>
-COVERED: <comma-separated list of CALM node ids / ADR ids / FR/NFR IDs the PRD grounds correctly>
-MISSING: <comma-separated list of CALM node ids / ADR ids the PRD should have cited but did not>
-CHANGES:
-- <one concrete change for next iteration: which section, what to add/edit/remove>
-- <another>
-- <another>
+COVERED: [<comma-separated list of CALM node ids / ADR ids / FR/NFR IDs the PRD grounds correctly>]
+MISSING: [<comma-separated list of CALM node ids / ADR ids the PRD should have cited but did not>]
+CHANGES: [<one concrete change for next iteration: which section, what to add/edit/remove>, <another>, <another>]
 ```
 
 ### Scoring rubric

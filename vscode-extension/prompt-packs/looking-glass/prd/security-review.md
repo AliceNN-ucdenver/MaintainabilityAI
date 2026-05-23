@@ -50,12 +50,9 @@ Produce a structured review with exactly these five fields (parser-strict):
 ```
 SCORE: <float 0.00 - 1.00>
 SEVERITY: <one of: PASS | MINOR | MAJOR | BLOCKING>
-COVERED: <comma-separated list of THR-NNN / A0X / NIST-XX-NN IDs grounded in SR-NN entries>
-MISSING: <comma-separated list of in-scope IDs the PRD failed to address or defer>
-CHANGES:
-- <one concrete change for next iteration: which SR/Risk Matrix entry to add/edit>
-- <another>
-- <another>
+COVERED: [<comma-separated list of THR-NNN / A0X / NIST-XX-NN IDs grounded in SR-NN entries>]
+MISSING: [<comma-separated list of in-scope IDs the PRD failed to address or defer>]
+CHANGES: [<one concrete change for next iteration: which SR/Risk Matrix entry to add/edit>, <another>, <another>]
 ```
 
 ### Scoring rubric

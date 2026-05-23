@@ -407,6 +407,30 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         expect(content).toContain(expectedMarker);
       });
 
+      it('workflow pins the runner CLI to an exact published version (Bug-Q / Q6)', () => {
+        // Codex audit round 2 — unpinned `npx -y @maintainabilityai/
+        // research-runner` lets npm ship an unaudited runner that CI
+        // would silently trust. The template must reference an exact
+        // version so the runner the workflow loads is the one the
+        // mesh redeploy was reviewed against.
+        const callMatches = content.match(/npx -y @maintainabilityai\/research-runner(@[^\s]+)?/g) || [];
+        const unpinned = callMatches.filter(m => !m.includes('@', '@maintainabilityai/research-runner'.length));
+        // Cleaner check: every match must include a version suffix.
+        const VERSION_RE = /@maintainabilityai\/research-runner@(\d+\.\d+\.\d+(?:-[\w.]+)?)/;
+        const allPinned = callMatches.every(m => VERSION_RE.test(m));
+        expect(
+          allPinned,
+          `workflow has unpinned runner refs: ${callMatches.filter(m => !VERSION_RE.test(m)).join(', ')}`,
+        ).toBe(true);
+        void unpinned;
+        // All pins must agree (one runner version per workflow file).
+        const pins = new Set(callMatches.map(m => (VERSION_RE.exec(m) || [])[1]).filter(Boolean));
+        expect(
+          pins.size,
+          `workflow mixes runner versions: ${Array.from(pins).join(', ')}`,
+        ).toBeLessThanOrEqual(1);
+      });
+
       it('HOW + WHAT agent prompts contain the cert-run-4 ANTI-PATTERN block (Task #64)', () => {
         if (phase === 'why') { return; } // WHY agent has no self-review
         const agentPath = path.join(
@@ -467,6 +491,40 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
           `Workflow ${phase} contains the broken GHA inline-ternary pattern (doubled-single-quote escape inside \`\${{ ... }}\` expression). GitHub Actions cannot parse this inside \`run: |\` blocks — INCLUDING in bash comments. Use a bash \`case "$VAR" in ...\` ladder + describe the pattern in prose (don't reproduce it verbatim). Offending lines:\n${violations.map(v => `  L${v.lineNum}: ${v.line}`).join('\n')}`,
         ).toEqual([]);
       });
+    });
+  }
+});
+
+/**
+ * Bug-Q / Q9 (Codex audit round 2) — every persona-switch review pack
+ * must use the bracket form for COVERED / MISSING / CHANGES so the
+ * agent's output matches the regex-strict workflow parser.
+ *
+ * Pre-Q9, packs documented `CHANGES:\n- <one>\n- <other>` (bullet
+ * form) while the workflow parser regex required `CHANGES:\s*\[...\]`.
+ * Pack and parser disagreed; the agent prompt elsewhere told the
+ * agent to write bracket form, but having the pack contradict was
+ * an avoidable source of confusion that broke previous runs.
+ */
+describe('review-pack CHANGES bracket form (Bug-Q / Q9)', () => {
+  const packs = [
+    'prompt-packs/looking-glass/prd/architecture-review.md',
+    'prompt-packs/looking-glass/prd/security-review.md',
+    'prompt-packs/looking-glass/code-design/architecture-review.md',
+    'prompt-packs/looking-glass/code-design/security-review.md',
+  ];
+  for (const rel of packs) {
+    it(`${rel} declares COVERED/MISSING/CHANGES in bracket form`, () => {
+      const full = path.join(__dirname, '..', '..', '..', rel);
+      const text = fs.readFileSync(full, 'utf8');
+      // Bracket form: `CHANGES: [...` somewhere in the pack.
+      expect(text, `${rel} missing bracket CHANGES form`).toMatch(/CHANGES:\s*\[/);
+      expect(text, `${rel} missing bracket COVERED form`).toMatch(/COVERED:\s*\[/);
+      expect(text, `${rel} missing bracket MISSING form`).toMatch(/MISSING:\s*\[/);
+      // Negative: must NOT use the old bullet form pattern `CHANGES:\n- `
+      // (the leading newline catches the documented multi-line shape;
+      // a passing CHANGES: [<x>, <y>] is fine).
+      expect(text, `${rel} still has the old bullet-form CHANGES`).not.toMatch(/CHANGES:\s*\n\s*-\s/);
     });
   }
 });

@@ -126,10 +126,13 @@ export interface OkrPhaseSignal {
   selfReviewExhausted?: boolean;
   /** Audit chain root prefix (12 chars). */
   chainRoot?: string;
-  /** Knight's Seal v1 (B27): runner produced Ed25519 signatures on every
-   *  event. The CI workflow re-verifies and stamps the PR audit comment
-   *  with the canonical Sealed ✓ — this flag drives the inline UI badge
-   *  for fast scanning before clicking through to the PR. */
+  /** Knight's Seal (B27 + Bug O): runner produces per-event Ed25519
+   *  signatures using a per-epoch keypair (each agent session = its
+   *  own signer epoch). CI invokes the runner's own audit-verify-chain
+   *  skill against every committed `<runId>.epoch-N.pub.pem` and
+   *  stamps the PR audit comment with the canonical Sealed ✓ — this
+   *  flag drives the inline UI badge for fast scanning before clicking
+   *  through to the PR. */
   sealed?: boolean;
   /** Partial-signature tampering observed: some events signed, some not.
    *  Block-worthy (the CI workflow fails the chain check with

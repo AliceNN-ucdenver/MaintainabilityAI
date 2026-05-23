@@ -1507,6 +1507,84 @@ test('Bug O backward compat — legacy chain (no signer_epoch, only <runId>.pub.
 });
 
 /**
+ * Bug-Q / Q5 (Codex audit round 2) — malicious unsigned revise-agent
+ * on a per-epoch chain MUST be rejected.
+ *
+ * Threat: an attacker who can write to the mesh repo crafts a chain
+ * where event 1 is correctly signed by the agent (locking the chain
+ * into per-epoch contract), then appends an unsigned revise-agent
+ * event 2 with a hand-rolled correct hash. Bug O's contract says
+ * revise-agent on a per-epoch chain MUST sign; this test pins the
+ * runner's rejection.
+ */
+test('Bug-Q / Q5 — unsigned revise-agent on a per-epoch chain is rejected', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-Q5';
+      const runId = 'WHY-Q5-1';
+      // Event 1: real signed agent emit. This sets chainUsesPerEpochSigning=true.
+      await runSkill('audit-emit-event', {
+        okrId, runId, phase: 'why',
+        intentThreadUuid: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+        eventKind: 'skill_call',
+        payload: { skill: 'knowledge-okr', ok: true },
+      });
+      const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+      const event1 = JSON.parse(fs.readFileSync(jsonl, 'utf8').trim().split('\n')[0]) as Record<string, unknown>;
+
+      // Craft a malicious event 2: revise-agent attribution, unsigned,
+      // hash recomputed to look superficially correct. This is exactly
+      // what an attacker with mesh write access could do.
+      const crypto = await import('crypto');
+      function canonicalStringify(v: unknown): string {
+        // Same canonical form the runner uses.
+        if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+          return JSON.stringify(v);
+        }
+        const obj = v as Record<string, unknown>;
+        const keys = Object.keys(obj).sort();
+        return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalStringify(obj[k])).join(',') + '}';
+      }
+      const maliciousEvent2: Record<string, unknown> = {
+        event_id: 2,
+        ts: new Date().toISOString(),
+        okr_id: okrId,
+        run_id: runId,
+        intent_thread_uuid: event1.intent_thread_uuid,
+        phase: 'why',
+        event_kind: 'skill_call',
+        payload: {
+          skill: 'fake-attacker-skill',
+          ok: true,
+          emitted_by: 'revise-agent',  // attacker claims revise-agent attribution
+        },
+        prev_event_hash: event1.event_hash,
+        public_key: null,
+        event_hash: '',
+        signature: '',
+      };
+      const malHash = crypto.createHash('sha256').update(canonicalStringify(maliciousEvent2)).digest('hex');
+      maliciousEvent2.event_hash = malHash;
+      fs.appendFileSync(jsonl, JSON.stringify(maliciousEvent2) + '\n', 'utf8');
+
+      // Verifier must reject: chainUsesPerEpochSigning (from event 1's
+      // signer_epoch) combined with an unsigned revise-agent event 2
+      // trips the Q5/Bug-O contract.
+      const verify = await runSkill('audit-verify-chain', { okrId, runId });
+      assert.equal(verify.ok, false, 'malicious chain must be rejected');
+      if (!verify.ok) {
+        assert.match(
+          verify.reason,
+          /revise-agent-unsigned-on-per-epoch-chain/,
+          `wrong reject reason — expected revise-agent-unsigned-on-per-epoch-chain, got: ${verify.reason}`,
+        );
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+/**
  * Companion contract test — canonical fields (skill / ok / duration_ms /
  * reason) WIN on collision with handler-declared auditMetadata. A
  * misbehaving handler that returns
@@ -1581,15 +1659,45 @@ test('Bug-P / P10 — emitted event top-level fields match the audit-event-shape
       assert.equal(events.length, 1, 'one event emitted');
       const event = events[0] as Record<string, unknown>;
       const emittedFields = new Set(Object.keys(event));
-      // Every documented field must be present (value may be null for
-      // optional fields like public_key on non-first-of-epoch events
-      // and prev_event_hash on event 1).
-      for (const field of documentedFields) {
+      // Every documented field must be present on an AGENT event (value
+      // may be null for optional fields like public_key on non-first-
+      // of-epoch events and prev_event_hash on event 1).
+      // Q7 (Bug-Q / Codex audit round 2): `signer_epoch` is the one
+      // exception — it's documented as present-on-agent-events,
+      // absent-on-workflow-events, so the per-event presence check
+      // below excludes it; the workflow-event sub-test below pins
+      // the optionality.
+      const requiredOnAgentEvents = new Set(documentedFields);
+      requiredOnAgentEvents.delete('signer_epoch'); // optional even on some agent paths in tests
+      for (const field of requiredOnAgentEvents) {
         assert.ok(
           emittedFields.has(field),
           `runner-emitted event missing \`${field}\` — drift between runner and audit-event-shape.md`,
         );
       }
+      // signer_epoch should be present on a normal first agent event.
+      assert.ok(emittedFields.has('signer_epoch'), `agent event missing signer_epoch — Bug O contract`);
+
+      // Q7 sub-assertion — emit a synthetic workflow event (the runner
+      // skips signing AND signer_epoch for these by design) and verify
+      // the documented optionality. This pins the "workflow events
+      // legitimately omit signer_epoch" contract so a future code
+      // change that started emitting signer_epoch on workflow events
+      // (or stopped emitting it on agent events) would break the test.
+      await runSkill('audit-emit-event', {
+        okrId, runId, phase: 'why',
+        intentThreadUuid: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+        eventKind: 'state_transition',
+        payload: { emitted_by: 'workflow', state: 'audit-and-drift-fired' },
+      });
+      const allEvents = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l)) as Array<Record<string, unknown>>;
+      const workflowEvent = allEvents[1] as Record<string, unknown> | undefined;
+      assert.ok(workflowEvent, 'workflow event 2 must have been emitted');
+      const wfFields = new Set(Object.keys(workflowEvent!));
+      assert.ok(!wfFields.has('signer_epoch') || workflowEvent!.signer_epoch === undefined,
+        `workflow event must NOT carry signer_epoch (it has no signing key); got: ${JSON.stringify(workflowEvent!.signer_epoch)}`);
+      // Workflow event signature is intentionally empty by-design.
+      assert.equal(workflowEvent!.signature, '', `workflow event signature must be empty string by-design`);
       // Conversely: any field the runner emits that the doc doesn't
       // describe is also drift. Allow no surprises.
       for (const field of emittedFields) {
