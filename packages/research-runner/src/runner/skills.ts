@@ -845,6 +845,11 @@ const handleSelfReviewCodeSecurity = makeCodeReviewHandler('code-security');
 
 const KnowledgeCodeInput = z.object({
   okrId: z.string().min(1),
+  // Bug-Q phase 2 — `runId` is the cache key for the clone retained
+  // between this skill and `knowledge-code-read`. Falls back to the
+  // RUN_ID env var when omitted (the runner already sets it from
+  // session context); failing both yields a clear error.
+  runId: z.string().min(1).optional(),
   repoUrl: z.string().min(1),
   repoStatus: z.enum(['connected', 'not-connected', 'create', 'unreachable']),
   ref: z.string().optional(),
@@ -913,32 +918,189 @@ function walkRepo(rootDir: string, maxFiles: number): string[] {
   return out;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Bug-Q phase 2 — brownfield clone cache.
+// ─────────────────────────────────────────────────────────────────────
+// Until phase 2, `knowledge-code` cloned + classified + deleted the
+// tree in one invocation. That left the agent with structural metadata
+// only — no way to read actual file contents to ground its design.
+// Codex audit round 2 (B1) flagged this: the prompt asks for
+// `src/state/profileStore.ts`-level paths against a substrate that
+// returns only top-dirs and language counts.
+//
+// Phase 2 splits the lifecycle:
+//   1. `knowledge-code` clones + walks + classifies + RETAINS the clone
+//      in a per-runId tmpdir cache.
+//   2. `knowledge-code-read` reads files FROM that cache (with a
+//      content-addressable re-clone fallback so a stale or expired
+//      cache doesn't break the agent).
+//
+// The cache key is `(runId, owner, name)` — one clone per (session, repo)
+// pair. Workflow runners are sandboxed per-job so tmpdir starts empty,
+// so cross-run pollution is impossible. Local dev / tests can stale the
+// cache; `.cache-meta.json` carries `ref` + `sha` so the read skill can
+// detect staleness and re-clone.
+//
+// SECURITY: `knowledge-code-read` enforces a path perimeter — relative
+// paths only, no `..` segments, resolved path must be a child of the
+// clone root. Any escape attempt is rejected without reading bytes.
+function knowledgeCodeCacheDir(runId: string, owner: string, name: string): string {
+  // Filesystem-safe key. runId / owner / name are short ascii so the
+  // basename can't blow up POSIX path limits.
+  return path.join(os.tmpdir(), 'knowledge-code-cache', runId, `${owner}-${name}`);
+}
+
+interface CloneResult {
+  ok: boolean;
+  path: string;
+  sha: string;
+  reused: boolean;
+  error?: string;
+}
+
+function ensureClone(runId: string, repoUrl: string, ref: string, owner: string, name: string): CloneResult {
+  const cacheDir = knowledgeCodeCacheDir(runId, owner, name);
+  const metaPath = path.join(cacheDir, '.cache-meta.json');
+  // Cache hit if meta exists AND ref matches.
+  if (fs.existsSync(metaPath)) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) as { ref?: string; sha?: string };
+      if (meta.ref === ref && typeof meta.sha === 'string') {
+        return { ok: true, path: cacheDir, sha: meta.sha, reused: true };
+      }
+    } catch { /* unreadable meta — re-clone */ }
+  }
+  // Clean out a stale cache before re-cloning to avoid mixing two refs.
+  try { fs.rmSync(cacheDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  fs.mkdirSync(path.dirname(cacheDir), { recursive: true });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
+  const cloneArgs = ['clone', '--depth=1', '--filter=blob:limit=10m'];
+  if (ref && ref !== 'HEAD') { cloneArgs.push('--branch', ref); }
+  cloneArgs.push(repoUrl, cacheDir);
+  try {
+    execFileSync('git', cloneArgs, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000 });
+  } catch (err) {
+    try { fs.rmSync(cacheDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    return { ok: false, path: '', sha: '', reused: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  let sha = '';
+  try {
+    sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: cacheDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  } catch { /* sha stays empty */ }
+  try {
+    fs.writeFileSync(metaPath, JSON.stringify({ owner, name, ref, sha, clonedAt: new Date().toISOString() }), 'utf8');
+  } catch { /* meta write failure is non-fatal — next call will just re-clone */ }
+  return { ok: true, path: cacheDir, sha, reused: false };
+}
+
+/**
+ * Bug-Q phase 2 — extended file-level metadata.
+ * A FileInfo lets the agent + the workflow path-citation gate know
+ * which paths actually exist + what role each plays. Without `role`,
+ * a workflow gate can't distinguish "agent cited src/state/store.ts
+ * (a source path that should exist)" from "agent cited package.json
+ * (a config — different validation rules)".
+ */
+type FileRole = 'source' | 'test' | 'config' | 'route' | 'doc' | 'other';
+
+interface FileInfo {
+  path: string;
+  lang: string;
+  role: FileRole;
+}
+
+function classifyRole(filePath: string, lang: string): FileRole {
+  const lower = filePath.toLowerCase();
+  // Tests — broadest match wins. `__tests__/` dir, `.test.`, `.spec.`,
+  // or top-level `test/` / `tests/`.
+  if (/(^|\/)__tests__\//.test(lower)
+    || /\.(test|spec)\.(t|j)sx?$/.test(lower)
+    || /\.(test|spec)\.py$/.test(lower)
+    || /^test(s)?\//.test(lower)) { return 'test'; }
+  // Routes — files in `routes/`, `pages/` (Next), `app/` (Next/Nuxt
+  // app router), or files named `*.route(s).*`.
+  if (/(^|\/)(routes|pages|app)\//.test(lower)
+    || /\.routes?\.(t|j)sx?$/.test(lower)) { return 'route'; }
+  // Docs — `.md`, or anything in `docs/` / `doc/`.
+  if (/\.md$/i.test(lower)
+    || /^docs?\//.test(lower)) { return 'doc'; }
+  // Config — top-level YAML/JSON/TOML config files, manifests,
+  // dot-files at root.
+  const base = path.basename(filePath);
+  if (MANIFEST_FILES.has(base)
+    || /^\.[\w.-]+$/.test(base)  // .eslintrc, .gitignore, …
+    || /(^|\/)tsconfig(\.[^.]+)?\.json$/.test(lower)
+    || /(^|\/)[^/]+\.config\.(t|j)sx?$/.test(lower)) { return 'config'; }
+  if (lang && lang !== 'unknown') { return 'source'; }
+  return 'other';
+}
+
 /**
  * Guess the primary BAR-level language + framework from the manifest +
- * file mix. For greenfield scaffolding the agent can override these from
- * BAR-app.yaml calm-node hints; this is just the brownfield read.
+ * file mix, AND surface bounded file/test/route/module inventories the
+ * agent + workflow gate can use to ground brownfield decisions.
+ *
+ * Bug-Q phase 2 (Codex audit round 2 / B1) extended the return shape
+ * with `files[]`, `tests[]`, `routes[]`, `modules[]`. Before phase 2,
+ * the only structural outputs were `topDirs` + `languages` + manifest
+ * count — enough for the agent to KNOW what kind of repo it was, not
+ * enough to GROUND specific file-level design choices.
  */
-function classifyRepo(files: string[]): {
+function classifyRepo(filesRaw: string[]): {
   topDirs: string[];
   languages: Record<string, number>;
   packageManifests: string[];
+  files: FileInfo[];
+  tests: string[];
+  routes: string[];
+  modules: Array<{ name: string; fileCount: number }>;
 } {
   const topDirs = new Set<string>();
   const languages: Record<string, number> = {};
   const packageManifests: string[] = [];
-  for (const f of files) {
+  const files: FileInfo[] = [];
+  const tests: string[] = [];
+  const routes: string[] = [];
+  const moduleCounts: Record<string, number> = {};
+  for (const f of filesRaw) {
     const slashIdx = f.indexOf('/');
     if (slashIdx > 0) { topDirs.add(f.slice(0, slashIdx)); }
     const ext = path.extname(f).toLowerCase();
-    const lang = LANG_EXTS[ext];
-    if (lang) { languages[lang] = (languages[lang] ?? 0) + 1; }
+    const lang = LANG_EXTS[ext] ?? 'unknown';
+    if (LANG_EXTS[ext]) { languages[lang] = (languages[lang] ?? 0) + 1; }
     const base = path.basename(f);
     if (MANIFEST_FILES.has(base)) { packageManifests.push(f); }
+    const role = classifyRole(f, lang);
+    files.push({ path: f, lang, role });
+    if (role === 'test') { tests.push(f); }
+    if (role === 'route') { routes.push(f); }
+    // Modules — top-level subdirectory of `src/` if present, otherwise
+    // top-level repo subdir. Skips files at the repo root (those aren't
+    // module-organized).
+    const srcMatch = /^src\/([^/]+)\//.exec(f);
+    if (srcMatch) {
+      moduleCounts[srcMatch[1]] = (moduleCounts[srcMatch[1]] ?? 0) + 1;
+    } else if (slashIdx > 0) {
+      const topDir = f.slice(0, slashIdx);
+      // Avoid double-counting top-level dirs that are clearly not
+      // modules (tests, docs, config dirs, infra dirs).
+      if (!['tests', 'test', '__tests__', 'docs', 'doc', '.github', '.vscode', 'scripts'].includes(topDir)) {
+        moduleCounts[topDir] = (moduleCounts[topDir] ?? 0) + 1;
+      }
+    }
   }
+  const modules = Object.entries(moduleCounts)
+    .map(([name, fileCount]) => ({ name, fileCount }))
+    .sort((a, b) => b.fileCount - a.fileCount);
   return {
     topDirs: Array.from(topDirs).sort(),
     languages,
     packageManifests: packageManifests.sort(),
+    files,
+    tests: tests.sort(),
+    routes: routes.sort(),
+    modules,
   };
 }
 
@@ -1010,49 +1172,43 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
   }
 
   // ─── Brownfield branch (connected) ─────────────────────────────────
-  // Shallow git clone (`--depth=1`) into a tmp dir, walk + classify.
-  // Cleanup on exit (process-scoped tmpdir). On clone failure we degrade
-  // to a soft-refuse rather than crash — the agent can still attempt
-  // partial grounding from the SKILL response shape.
+  // Bug-Q phase 2 — uses the per-runId clone cache (`ensureClone`)
+  // so `knowledge-code-read` can read the same files later in the
+  // session without re-cloning. The cache stays for the runner-job
+  // tmpdir lifetime (workflow runners get a clean tmpdir per job, so
+  // cross-run pollution is impossible).
   if (!gh) {
     return { ok: false, reason: 'repo-url-not-github', repo: repoUrl } as SkillResult;
   }
-  const { execFileSync } = await import('node:child_process');
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), `knowledge-code-${gh.name}-`));
-  const cloneTarget = path.join(tmpRoot, gh.name);
-  const cloneRef = ref ?? 'HEAD';
-  const cloneArgs = ['clone', '--depth=1', '--filter=blob:limit=10m'];
-  if (ref && ref !== 'HEAD') { cloneArgs.push('--branch', ref); }
-  cloneArgs.push(repoUrl, cloneTarget);
-  let cloneOk = true;
-  let cloneError = '';
-  try {
-    execFileSync('git', cloneArgs, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000 });
-  } catch (err) {
-    cloneOk = false;
-    cloneError = err instanceof Error ? err.message : String(err);
+  // Resolve the session runId — explicit input wins; fall back to
+  // RUN_ID env var (the runner sets this from session context).
+  const runId = parsed.data.runId ?? process.env.RUN_ID;
+  if (!runId) {
+    return {
+      ok: false,
+      reason: 'missing-run-id',
+      repo: repoSlug,
+      remediation: "knowledge-code needs a session runId to scope the clone cache. Either pass `runId` in the skill input, or set the RUN_ID env var before invoking (the agent does this automatically via session-context export — see agent.md step 1b).",
+    } as SkillResult;
   }
-  if (!cloneOk) {
-    // Clean up the empty tmpdir before bailing.
-    try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+  const cloneRef = ref ?? 'HEAD';
+  const cloneResult = ensureClone(runId, repoUrl, cloneRef, gh.owner, gh.name);
+  if (!cloneResult.ok) {
     const auditMetadata = { phase: 'what', repo: repoSlug, mode: 'brownfield-clone-failed', repo_status: 'connected', okr_id: okrId };
     return {
       ok: false,
       reason: 'clone-failed',
       repo: repoSlug,
-      remediation: `git clone failed for ${repoUrl}. Verify the GitHub App install is approved on this repo and the ref (${cloneRef}) exists. Underlying error: ${cloneError}`,
+      remediation: `git clone failed for ${repoUrl}. Verify the GitHub App install is approved on this repo and the ref (${cloneRef}) exists. Underlying error: ${cloneResult.error ?? 'unknown'}`,
       auditMetadata,
     } as SkillResult;
   }
-  // Resolve the actual SHA so the response is reproducible.
-  let sha = '';
-  try {
-    sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: cloneTarget, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-  } catch { /* sha stays empty */ }
+  const cloneTarget = cloneResult.path;
+  const sha = cloneResult.sha;
 
   const cap = maxFiles ?? 200;
-  const files = walkRepo(cloneTarget, cap);
-  const structure = classifyRepo(files);
+  const filesRaw = walkRepo(cloneTarget, cap);
+  const structure = classifyRepo(filesRaw);
 
   // Best-effort entrypoint detection from the most-common manifest +
   // top-level layout. Conservative: only mark something as an entrypoint
@@ -1077,11 +1233,17 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
     }
   }
 
-  // Clean up the cloned tree — the SKILL is a one-shot read, no need to
-  // keep ~10MB of git data per invocation.
-  try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch { /* ignore */ }
+  // Bug-Q phase 2 — DO NOT delete the clone here. `knowledge-code-read`
+  // will reuse it through `ensureClone`. Workflow-runner tmpdir is wiped
+  // when the job ends, so cleanup happens for free at the right scope.
 
   const primaryLanguage = Object.entries(structure.languages).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'unknown';
+  // Bug-Q phase 2 — surface the file/test/route/module inventory in the
+  // audit payload so the workflow path-citation gate can cross-check
+  // every brownfield path cited in code-design.md against what actually
+  // exists in the clone. `inventory_paths` is the flat list of file
+  // paths (sorted) the workflow uses as its membership set.
+  const inventoryPaths = structure.files.map(f => f.path).sort();
   const auditMetadata = {
     phase: 'what',
     repo: repoSlug,
@@ -1089,9 +1251,15 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
     repo_status: 'connected',
     okr_id: okrId,
     sha: sha.slice(0, 12),
-    file_count: files.length,
+    file_count: filesRaw.length,
     primary_language: primaryLanguage,
     manifests: structure.packageManifests.length,
+    test_count: structure.tests.length,
+    route_count: structure.routes.length,
+    module_count: structure.modules.length,
+    // Inventory: flat path list — bounded by the `maxFiles` cap above.
+    // Workflow gate consumes this to validate cited paths.
+    inventory_paths: inventoryPaths,
   };
   return {
     ok: true,
@@ -1099,6 +1267,140 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
     repo: { owner: gh.owner, name: gh.name, ref: cloneRef, sha },
     structure,
     entryPoints,
+    auditMetadata,
+  } as SkillResult;
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// knowledge-code-read — Bug-Q phase 2 (Codex audit round 2 / B1).
+// ─────────────────────────────────────────────────────────────────────
+// `knowledge-code` returns structural metadata; this skill returns
+// bounded file CONTENTS so the agent can ground design with real code,
+// not paraphrased guesses. Same session-scoped clone cache as
+// `knowledge-code` — the read is essentially free after the initial
+// clone.
+//
+// SECURITY PERIMETER: the runner only reads paths that resolve INSIDE
+// the cloned repo. Path-traversal attempts (`../`, absolute paths) are
+// rejected without reading bytes. The clone is a shallow git clone in
+// an isolated tmpdir; even if a malicious file in the repo contained
+// a symlink to /etc/passwd, the `realpath` check below would refuse.
+//
+// CONTENT BOUNDS: max 10 KB per response; binary files (any NUL byte)
+// rejected. The agent is meant to read CODE, not blobs.
+//
+// AUDIT: every read auto-emits a skill_call event with file + bytes
+// returned, so the chain captures exactly which files the agent
+// consulted while writing the design.
+const KnowledgeCodeReadInput = z.object({
+  okrId: z.string().min(1),
+  runId: z.string().min(1).optional(),
+  repoUrl: z.string().min(1),
+  ref: z.string().optional(),
+  filePath: z.string().min(1),
+});
+
+const KNOWLEDGE_CODE_READ_MAX_BYTES = 10_240;  // 10 KB cap per response
+
+const handleKnowledgeCodeRead: SkillHandler = async (input) => {
+  const parsed = KnowledgeCodeReadInput.safeParse(input);
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const { okrId, repoUrl, ref, filePath } = parsed.data;
+  const gh = parseGithubUrl(repoUrl);
+  if (!gh) { return { ok: false, reason: 'repo-url-not-github', repo: repoUrl } as SkillResult; }
+  const runId = parsed.data.runId ?? process.env.RUN_ID;
+  if (!runId) {
+    return {
+      ok: false,
+      reason: 'missing-run-id',
+      remediation: "knowledge-code-read needs a session runId to find the clone cache shared with knowledge-code. Pass `runId` in input or set the RUN_ID env var (the agent does this via session-context export).",
+    } as SkillResult;
+  }
+  // Security perimeter — reject obvious escape attempts BEFORE touching
+  // the filesystem so the audit chain captures the rejection cleanly.
+  if (path.isAbsolute(filePath)) {
+    return { ok: false, reason: `path-rejected: absolute paths are forbidden (${filePath})` } as SkillResult;
+  }
+  // Normalize and re-check — a path like `foo/../../bar` would resolve
+  // up two levels even though the literal string contains no leading
+  // `../`. `path.normalize` collapses it; we then reject if it starts
+  // with `..`.
+  const normalized = path.normalize(filePath);
+  if (normalized.startsWith('..') || normalized === '..' || normalized.includes(`${path.sep}..${path.sep}`)) {
+    return { ok: false, reason: `path-rejected: path-traversal segments forbidden (${filePath} -> ${normalized})` } as SkillResult;
+  }
+
+  // Reuse the cached clone from knowledge-code; clone fresh if missing
+  // (e.g. agent called knowledge-code-read without calling knowledge-
+  // code first — supported but slower).
+  const cloneResult = ensureClone(runId, repoUrl, ref ?? 'HEAD', gh.owner, gh.name);
+  if (!cloneResult.ok) {
+    return {
+      ok: false,
+      reason: 'clone-failed',
+      repo: `${gh.owner}/${gh.name}`,
+      remediation: `Could not access clone for ${repoUrl}. Underlying error: ${cloneResult.error ?? 'unknown'}`,
+    } as SkillResult;
+  }
+  const absPath = path.join(cloneResult.path, normalized);
+  // Final paranoia check — resolve the real path and verify it's still
+  // a child of the clone root. Defends against symlink-shaped escapes
+  // (an attacker-controlled file in the repo that's a symlink to /etc).
+  let realPath: string;
+  try {
+    realPath = fs.realpathSync.native(absPath);
+  } catch {
+    return { ok: false, reason: `file-not-found: ${filePath} not in ${gh.owner}/${gh.name}@${cloneResult.sha.slice(0, 12)}` } as SkillResult;
+  }
+  const realClone = fs.realpathSync.native(cloneResult.path);
+  if (!realPath.startsWith(realClone + path.sep) && realPath !== realClone) {
+    return { ok: false, reason: `path-escape: resolved path falls outside the cloned repo (${filePath} -> ${realPath})` } as SkillResult;
+  }
+  let stat: fs.Stats;
+  try { stat = fs.statSync(realPath); }
+  catch { return { ok: false, reason: `file-not-found: ${filePath}` } as SkillResult; }
+  if (stat.isDirectory()) {
+    return { ok: false, reason: `path-is-directory: ${filePath} is a directory; knowledge-code-read returns file contents only` } as SkillResult;
+  }
+
+  // Read + truncate + reject binary.
+  let buf: Buffer;
+  try { buf = fs.readFileSync(realPath); }
+  catch (err) { return { ok: false, reason: `read-failed: ${err instanceof Error ? err.message : String(err)}` } as SkillResult; }
+  // Heuristic: a NUL byte in the first 8 KB is a strong binary signal.
+  // Strings of bytes that legitimately contain NUL bytes (gzip, images,
+  // wasm) are not source code; refuse them.
+  if (buf.slice(0, Math.min(buf.length, 8192)).includes(0)) {
+    return { ok: false, reason: `binary-file: ${filePath} contains NUL bytes; knowledge-code-read returns text only` } as SkillResult;
+  }
+  const totalBytes = buf.length;
+  const truncated = totalBytes > KNOWLEDGE_CODE_READ_MAX_BYTES;
+  const content = (truncated ? buf.subarray(0, KNOWLEDGE_CODE_READ_MAX_BYTES) : buf).toString('utf8');
+  const lang = LANG_EXTS[path.extname(filePath).toLowerCase()] ?? 'unknown';
+  const lineCount = content.split('\n').length;
+
+  const auditMetadata = {
+    phase: 'what',
+    repo: `${gh.owner}/${gh.name}`,
+    file: normalized,
+    sha: cloneResult.sha.slice(0, 12),
+    bytes_returned: content.length,
+    bytes_total: totalBytes,
+    truncated,
+    lang,
+    okr_id: okrId,
+  };
+  return {
+    ok: true,
+    repo: `${gh.owner}/${gh.name}`,
+    file: normalized,
+    sha: cloneResult.sha,
+    content,
+    lang,
+    lineCount,
+    truncated,
+    bytesReturned: content.length,
+    bytesTotal: totalBytes,
     auditMetadata,
   } as SkillResult;
 };
@@ -1956,6 +2258,12 @@ export const SKILLS: Record<string, SkillHandler> = {
   // targetCodeRepoStatus: brownfield (clone + classify), greenfield
   // (scaffolding hints, no clone), refuse (not-connected / unreachable).
   'knowledge-code': handleKnowledgeCode,
+  // Bug-Q phase 2 — knowledge-code-read returns bounded file CONTENT
+  // from the brownfield clone retained by knowledge-code. Lets the
+  // agent ground design decisions in real code excerpts (Codex audit
+  // round 2 / B1: agent was hallucinating brownfield file paths
+  // because the substrate was structural metadata only).
+  'knowledge-code-read': handleKnowledgeCodeRead,
   'tavily-search': handleTavilySearch,
   'arxiv-search': handleArxivSearch,
   'uspto-search': handleUsptoSearch,

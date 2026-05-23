@@ -14,6 +14,7 @@ tools:
   - knowledge-okr
   - knowledge-prd
   - knowledge-code
+  - knowledge-code-read
   - knowledge-mesh-bar
   - knowledge-mesh-adrs
   - knowledge-mesh-threats
@@ -56,6 +57,7 @@ You do NOT write implementation code. You write the architectural plan that the 
 | `context-security` | exactly 1 | Grounding for security-relevant per-repo changes. |
 | `context-quality` | exactly 1 | Grounding for Risk Matrix. |
 | `knowledge-code` | **1 per `targetCodeRepos[]` entry** | Brownfield/greenfield decision per repo. Mode honesty depends on this chain proof. |
+| `knowledge-code-read` | **≥1 per brownfield repo** | Bug-Q phase 2 — for every brownfield repo, read AT LEAST one file you intend to cite in your per-repo §5 subsection (typically the main module / route file you'll be extending). The audit-and-drift workflow now cross-checks every brownfield path cited in `code-design.md` against the `knowledge-code` inventory; reading the file you cite proves you grounded the design on real code, not paraphrased guesses. Greenfield repos skip this. |
 | `self-review-code-architect` | ≥1 (1 per round) | Tier echo + persona-switch entry. Required even if tier=restricted. |
 | `self-review-code-security` | ≥1 (1 per round) | Same — required even if tier=restricted. |
 
@@ -81,7 +83,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-design` label.
 **How to invoke every skill.** Pipe JSON stdin to the runner CLI inside `execute`:
 
 ```sh
-echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@0.1.42 skill-<name>
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-<name>
 ```
 
 This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** use Copilot's `skill_use` tool — that only loads SKILL.md into your context, it does NOT run the backend, and the chain stays empty. PR #114 surfaced this exact gap in WHY phase; the same discipline applies here.
@@ -108,6 +110,14 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
     | (refuse, `ok: false`) | STOP. Post a PR comment with the `remediation` hint and exit. The dispatch precondition should have prevented this; reaching here indicates a mid-run repo-status edit or workflow misconfiguration. |
 
     Calling `knowledge-code` for every target repo is **non-optional**. The audit-and-drift workflow counts `skill_call` events with `skill == knowledge-code` and verifies one per `targetCodeRepos[]` entry. Skipping a repo (or grounding on assumed code without calling the Skill) = degraded evidence-mode + audit-comment violation.
+
+10b. **For every BROWNFIELD repo, invoke `knowledge-code-read` at least once** before writing the per-repo §5 subsection. Pick the most-impacted file the design will modify (typically an entry point, the main router, or the module that owns the FR you're addressing). The agent prompt that asks you to cite `src/state/profileStore.ts` only stays honest when you've actually READ that file — Bug-Q phase 2 closes the substrate gap that previously let an agent invent paths. Input shape:
+    ```json
+    {"okrId":"<id>","repoUrl":"<url>","filePath":"src/state/profileStore.ts"}
+    ```
+    The skill returns up to 10 KB of file content; larger files come back truncated with `truncated: true` (the prefix is usually enough to ground the design). Multiple calls per repo are encouraged — read the route file, the schema file, the test file you'll extend. The chain captures exactly which files you read; reviewers can cross-check your design's code excerpts against the chain.
+
+    **Workflow gate (Bug-Q phase 2):** the audit-and-drift workflow extracts every backtick-quoted file path from your per-repo §5 subsection and cross-checks it against the `knowledge-code` skill_call payload's `inventory_paths` for that repo. Any cited brownfield path NOT in the inventory fails `STRUCT_OK` with `cited-path-not-in-inventory: <repo> <path>`. The path-citation gate is independent of the file-read manifest — you can cite paths you didn't read (other paths shown by knowledge-code inventory), but every cited path must EXIST in the brownfield clone.
 
 11. (Optional, D5 follow-up) If the mesh has `.caterpillar/reference-repos/<bar-id>.yaml` configured, invoke `knowledge-reference-repos` to get exemplar code patterns to anchor greenfield designs against. Empty array in D-PR1 — this step lands when D5 ships.
 

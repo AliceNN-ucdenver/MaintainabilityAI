@@ -1517,6 +1517,115 @@ test('Bug O backward compat — legacy chain (no signer_epoch, only <runId>.pub.
  * revise-agent on a per-epoch chain MUST sign; this test pins the
  * runner's rejection.
  */
+
+/**
+ * Bug-Q phase 2 — knowledge-code returns extended inventory.
+ * Codex audit round 2 (B1): knowledge-code returned only topDirs /
+ * languages / manifests / heuristic entryPoints, forcing the agent
+ * to hallucinate file paths. Phase 2 extends with `files[]`,
+ * `tests[]`, `routes[]`, `modules[]`, and surfaces an `inventory_paths`
+ * list in auditMetadata so the workflow path-citation gate has a
+ * membership set to validate against.
+ */
+test('Bug-Q phase 2 — knowledge-code emits files/tests/routes/modules + inventory_paths', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-Q-PHASE2-1';
+      const runId = 'WHAT-Q-PHASE2-1';
+      const result = await runSkill('knowledge-code', {
+        okrId, runId,
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        repoStatus: 'connected',
+        maxFiles: 50,
+      });
+      if (!result.ok) {
+        // Network-dependent — skip gracefully if clone fails (CI sandbox / offline).
+        console.warn(`skipping knowledge-code inventory test: ${result.reason}`);
+        return;
+      }
+      const r = result as Record<string, unknown> & { structure?: Record<string, unknown>; auditMetadata?: Record<string, unknown> };
+      assert.equal(r.mode, 'brownfield');
+      const structure = r.structure as { files?: Array<{ path: string; lang: string; role: string }>; tests?: string[]; routes?: string[]; modules?: Array<{ name: string; fileCount: number }> };
+      assert.ok(Array.isArray(structure.files), 'structure.files[] present');
+      assert.ok(structure.files!.length > 0, 'structure.files[] non-empty');
+      assert.ok(structure.files!.every(f => typeof f.path === 'string' && typeof f.lang === 'string' && typeof f.role === 'string'),
+        'every FileInfo has path + lang + role');
+      assert.ok(Array.isArray(structure.tests), 'structure.tests[] present');
+      assert.ok(Array.isArray(structure.routes), 'structure.routes[] present');
+      assert.ok(Array.isArray(structure.modules), 'structure.modules[] present');
+      const audit = r.auditMetadata as { inventory_paths?: string[]; test_count?: number; route_count?: number; module_count?: number };
+      assert.ok(Array.isArray(audit.inventory_paths), 'auditMetadata.inventory_paths present');
+      assert.equal(audit.inventory_paths!.length, structure.files!.length, 'inventory_paths length matches files[]');
+      assert.equal(typeof audit.test_count, 'number');
+      assert.equal(typeof audit.route_count, 'number');
+      assert.equal(typeof audit.module_count, 'number');
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('Bug-Q phase 2 — knowledge-code-read rejects absolute paths', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('knowledge-code-read', {
+        okrId: 'OKR-PERIM-1', runId: 'WHAT-PERIM-1',
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        filePath: '/etc/passwd',
+      });
+      assert.equal(r.ok, false, 'absolute path must be rejected');
+      if (!r.ok) { assert.match(r.reason, /path-rejected.*absolute/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('Bug-Q phase 2 — knowledge-code-read rejects ../ traversal', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const r = await runSkill('knowledge-code-read', {
+        okrId: 'OKR-PERIM-2', runId: 'WHAT-PERIM-2',
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        filePath: '../../../etc/passwd',
+      });
+      assert.equal(r.ok, false, 'parent-dir traversal must be rejected');
+      if (!r.ok) { assert.match(r.reason, /path-rejected.*traversal/); }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('Bug-Q phase 2 — knowledge-code-read returns bounded file contents from cached clone', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-READ-1';
+      const runId = 'WHAT-READ-1';
+      const prime = await runSkill('knowledge-code', {
+        okrId, runId,
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        repoStatus: 'connected', maxFiles: 50,
+      });
+      if (!prime.ok) {
+        console.warn(`skipping knowledge-code-read content test: clone failed (${prime.reason})`);
+        return;
+      }
+      const r = await runSkill('knowledge-code-read', {
+        okrId, runId,
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        filePath: 'README.md',
+      });
+      assert.equal(r.ok, true, `expected ok, got: ${r.ok ? '' : r.reason}`);
+      if (r.ok) {
+        const rr = r as Record<string, unknown> & { content?: string; bytesReturned?: number; truncated?: boolean };
+        assert.equal(typeof rr.content, 'string');
+        assert.ok(rr.content!.length > 0, 'content non-empty');
+        assert.ok(rr.content!.length <= 10240, `content respects 10 KB cap, got ${rr.content!.length}`);
+        assert.equal(typeof rr.truncated, 'boolean');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 test('Bug-Q / Q5 — unsigned revise-agent on a per-epoch chain is rejected', async () => {
   const mesh = tmpMesh();
   try {

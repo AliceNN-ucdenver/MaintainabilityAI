@@ -407,28 +407,42 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         expect(content).toContain(expectedMarker);
       });
 
-      it('workflow pins the runner CLI to an exact published version (Bug-Q / Q6)', () => {
+      it('workflow pins the runner CLI to a tilde-range matching package.json (Bug-Q / Q6 + Codex audit response)', () => {
         // Codex audit round 2 — unpinned `npx -y @maintainabilityai/
         // research-runner` lets npm ship an unaudited runner that CI
-        // would silently trust. The template must reference an exact
-        // version so the runner the workflow loads is the one the
-        // mesh redeploy was reviewed against.
+        // would silently trust. We chose semver-range pinning (`~X.Y.Z`)
+        // so the auto-publish patch bumps flow without per-PR template
+        // edits, while still requiring deliberate review for a minor
+        // bump (potential breaking change).
+        //
+        // The tilde range MUST match the major.minor of the runner's
+        // package.json — so the templates can't drift to a stale minor
+        // even if package.json moved forward.
+        const RUNNER_PKG = path.join(__dirname, '..', '..', '..', '..', 'packages', 'research-runner', 'package.json');
+        const runnerPkg = JSON.parse(fs.readFileSync(RUNNER_PKG, 'utf8')) as { version: string };
+        const [pkgMajor, pkgMinor] = runnerPkg.version.split('.');
+
         const callMatches = content.match(/npx -y @maintainabilityai\/research-runner(@[^\s]+)?/g) || [];
-        const unpinned = callMatches.filter(m => !m.includes('@', '@maintainabilityai/research-runner'.length));
-        // Cleaner check: every match must include a version suffix.
-        const VERSION_RE = /@maintainabilityai\/research-runner@(\d+\.\d+\.\d+(?:-[\w.]+)?)/;
+        // Accept `@~X.Y.Z` (tilde range — patch flows) OR `@X.Y.Z`
+        // (exact pin — back-compat for any not-yet-converted template).
+        const VERSION_RE = /@maintainabilityai\/research-runner@(~?)(\d+)\.(\d+)\.(\d+)(?:-[\w.]+)?/;
         const allPinned = callMatches.every(m => VERSION_RE.test(m));
         expect(
           allPinned,
           `workflow has unpinned runner refs: ${callMatches.filter(m => !VERSION_RE.test(m)).join(', ')}`,
         ).toBe(true);
-        void unpinned;
-        // All pins must agree (one runner version per workflow file).
-        const pins = new Set(callMatches.map(m => (VERSION_RE.exec(m) || [])[1]).filter(Boolean));
-        expect(
-          pins.size,
-          `workflow mixes runner versions: ${Array.from(pins).join(', ')}`,
-        ).toBeLessThanOrEqual(1);
+        // Every pin's major.minor must match the runner's current
+        // package.json. A future minor bump in package.json without
+        // a matching template update breaks the test loudly.
+        for (const match of callMatches) {
+          const parts = VERSION_RE.exec(match);
+          if (!parts) { continue; }
+          const [, , major, minor] = parts;
+          expect(
+            `${major}.${minor}`,
+            `workflow pin ${match} doesn't match runner package.json major.minor (${pkgMajor}.${pkgMinor})`,
+          ).toBe(`${pkgMajor}.${pkgMinor}`);
+        }
       });
 
       it('HOW + WHAT agent prompts contain the cert-run-4 ANTI-PATTERN block (Task #64)', () => {

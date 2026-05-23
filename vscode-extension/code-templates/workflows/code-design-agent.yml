@@ -213,7 +213,7 @@ jobs:
           # dispatcher (skill-* subcommand reads JSON stdin, writes JSON
           # stdout, exits non-zero on `ok: false`).
           RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" \
-            | npx -y @maintainabilityai/research-runner@0.1.42 skill-audit-verify-chain 2>&1 || true)
+            | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain 2>&1 || true)
           echo "$RESULT" > /tmp/chain-verify.json
           # Robust parsing — runner emits one JSON object on stdout;
           # if the npx fetch failed the file may contain log noise, so
@@ -388,6 +388,109 @@ jobs:
             echo "missing_h2=${MISSING_H2%; }"
           } >> "$GITHUB_OUTPUT"
           echo "::notice::structure h2=$H2_PRESENT/10"
+
+      # Bug-Q phase 2 — brownfield path-citation gate.
+      # Codex audit round 2 (B1): the WHAT prompt asks for `src/state/
+      # profileStore.ts`-level file paths but `knowledge-code` only
+      # returned topDirs/languages/manifests, so the agent had room to
+      # hallucinate paths and ship a "design" that referenced files
+      # that don't exist. Phase 2 extends `knowledge-code` with a
+      # bounded `inventory_paths` flat list in its skill_call payload
+      # (every actual file path the clone walked). This step parses
+      # every backtick-quoted file path from `code-design.md`, groups
+      # by repo subsection, and cross-checks against the inventory
+      # for that repo from the audit chain. Any cited brownfield path
+      # not in the inventory fails STRUCT_OK with cited-path-not-in-
+      # inventory: <repo> <path>.
+      - name: Brownfield path-citation gate
+        id: paths
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true' && steps.structure.outputs.doc_found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+          DOC: okrs/${{ steps.ctx.outputs.okr_id }}/what/code-design.md
+        run: |
+          JSONL="$JSONL" DOC="$DOC" python3 <<'PYEOF'
+          import json, os, re
+          doc = open(os.environ['DOC'], 'r', encoding='utf-8').read()
+          jsonl = os.environ['JSONL']
+
+          # 1. Build per-repo inventory from the chain. For each
+          #    knowledge-code skill_call with mode=brownfield, grab
+          #    inventory_paths and key by repo slug.
+          inventory = {}  # repo_slug -> set(paths)
+          mode_by_repo = {}  # repo_slug -> 'brownfield' | 'greenfield'
+          try:
+              with open(jsonl, 'r', encoding='utf-8') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line: continue
+                      try: ev = json.loads(line)
+                      except Exception: continue
+                      payload = ev.get('payload') or {}
+                      if payload.get('skill') != 'knowledge-code': continue
+                      if payload.get('ok') is not True: continue
+                      repo = payload.get('repo')
+                      mode = payload.get('mode')
+                      if not repo or not mode: continue
+                      mode_by_repo[repo] = mode
+                      if mode == 'brownfield':
+                          paths = payload.get('inventory_paths') or []
+                          inventory[repo] = set(paths)
+          except Exception as e:
+              print(f"::warning::path-gate: failed to read JSONL: {e}")
+
+          # 2. Parse the artifact: walk per-repo subsections (### `owner/name`
+          #    or `### owner/name`), collect backtick-quoted file paths in
+          #    each subsection until the next ### or ## heading.
+          REPO_HEADING_RE = re.compile(r'^###\s+`?([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)`?\s*$', re.MULTILINE)
+          # Backtick-quoted paths that look like source files. We're
+          # conservative: must contain a `/` and a file extension. This
+          # avoids false-positives on terms like `npm` or `eslint`.
+          PATH_IN_BACKTICKS_RE = re.compile(r'`([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]{1,8})`')
+          lines = doc.split('\n')
+          cited_by_repo = {}  # repo -> set(cited paths)
+          current_repo = None
+          for ln in lines:
+              hm = REPO_HEADING_RE.match(ln)
+              if hm:
+                  current_repo = hm.group(1)
+                  cited_by_repo.setdefault(current_repo, set())
+                  continue
+              # H2 or new H3 ends the per-repo subsection
+              if ln.startswith('## ') or (ln.startswith('### ') and not REPO_HEADING_RE.match(ln)):
+                  current_repo = None
+                  continue
+              if not current_repo: continue
+              for m in PATH_IN_BACKTICKS_RE.finditer(ln):
+                  cited_by_repo[current_repo].add(m.group(1))
+
+          # 3. Cross-check per-repo. Only brownfield repos are gated —
+          #    greenfield is by-definition not in any existing file tree.
+          violations = []
+          checked = 0
+          for repo, cited in cited_by_repo.items():
+              mode = mode_by_repo.get(repo)
+              if mode != 'brownfield': continue
+              repo_inventory = inventory.get(repo, set())
+              if not repo_inventory:
+                  print(f"::warning::path-gate: brownfield repo {repo} has no inventory_paths — skipping gate (knowledge-code skill_call may be pre-Bug-Q phase 2)")
+                  continue
+              for p in cited:
+                  checked += 1
+                  if p not in repo_inventory:
+                      violations.append(f"{repo}:{p}")
+          ok = "true" if not violations else "false"
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f"ok={ok}\n")
+              f.write(f"checked={checked}\n")
+              f.write(f"violation_count={len(violations)}\n")
+              f.write(f"violations={'; '.join(violations[:10])}\n")
+          if violations:
+              print(f"::warning::path-gate: {len(violations)} cited brownfield paths not in knowledge-code inventory: {'; '.join(violations[:5])}")
+          else:
+              print(f"::notice::path-gate: {checked} cited brownfield paths all verified against inventory")
+          PYEOF
 
       # Task #62 — Required skill_call manifest verification. Symmetric
       # with WHY + HOW workflows: enforce that every skill listed in the
@@ -923,6 +1026,9 @@ jobs:
           SR_ADDRESSED: ${{ steps.structure.outputs.sr_addressed }}
           MANIFEST_OK_IN: ${{ steps.manifest.outputs.ok }}
           MANIFEST_MISSING: ${{ steps.manifest.outputs.missing }}
+          PATHS_OK_IN: ${{ steps.paths.outputs.ok }}
+          PATHS_VIOLATIONS: ${{ steps.paths.outputs.violations }}
+          PATHS_VIOLATION_COUNT: ${{ steps.paths.outputs.violation_count }}
         run: |
           STRUCT_OK="true"
           STRUCT_REASON=""
@@ -937,6 +1043,16 @@ jobs:
           if [ "${SR_COUNT:-0}" -gt 0 ] && [ "${SR_ADDRESSED:-0}" != "${SR_COUNT:-0}" ]; then
             STRUCT_OK="false"
             STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }SR coverage ${SR_ADDRESSED}/${SR_COUNT}"
+          fi
+          # Bug-Q phase 2 — brownfield path-citation gate folds into
+          # STRUCT_OK. If the agent cited file paths in a brownfield
+          # repo subsection that don't exist in the knowledge-code
+          # inventory, the structural verdict fails and design-pass
+          # can't land. Empty PATHS_OK_IN (step didn't run, e.g. no
+          # doc) is treated as pass to avoid false failures.
+          if [ -n "$PATHS_OK_IN" ] && [ "$PATHS_OK_IN" = "false" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }brownfield path-citation ${PATHS_VIOLATION_COUNT} not in inventory: ${PATHS_VIOLATIONS}"
           fi
           # Manifest verdict (P1): the manifest step already computes
           # ok/missing; surface them as a step output so the label step

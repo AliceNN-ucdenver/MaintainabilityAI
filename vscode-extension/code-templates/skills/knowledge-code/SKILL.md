@@ -48,14 +48,45 @@ ambiguous status the Skill itself stops cleanly.
   "structure": {
     "topDirs": ["src", "test", "docs"],
     "languages": { "typescript": 142, "javascript": 8 },
-    "packageManifests": ["package.json", "package-lock.json"]
+    "packageManifests": ["package.json", "package-lock.json"],
+    "files": [
+      { "path": "src/index.ts", "lang": "typescript", "role": "source" },
+      { "path": "src/api/users.ts", "lang": "typescript", "role": "source" },
+      { "path": "src/api/__tests__/users.test.ts", "lang": "typescript", "role": "test" },
+      { "path": "src/routes/v1/orders.ts", "lang": "typescript", "role": "route" },
+      { "path": "package.json", "lang": "unknown", "role": "config" }
+    ],
+    "tests": ["src/api/__tests__/users.test.ts"],
+    "routes": ["src/routes/v1/orders.ts"],
+    "modules": [{ "name": "api", "fileCount": 12 }, { "name": "state", "fileCount": 4 }]
   },
   "entryPoints": [
     { "path": "src/index.ts", "kind": "api", "framework": "express" }
   ],
-  "auditMetadata": { "phase": "what", "repo": "...", "mode": "brownfield", "sha": "...", "file_count": 150, "primary_language": "typescript" }
+  "auditMetadata": {
+    "phase": "what", "repo": "...", "mode": "brownfield", "sha": "...",
+    "file_count": 150, "primary_language": "typescript",
+    "test_count": 38, "route_count": 7, "module_count": 5,
+    "inventory_paths": ["src/api/users.ts", "src/api/__tests__/users.test.ts", "..."]
+  }
 }
 ```
+
+**Bug-Q phase 2 — extended inventory.** Before phase 2, brownfield
+response carried only `topDirs` / `languages` / manifests, so an agent
+asked for `src/state/profileStore.ts`-level paths had to hallucinate.
+Phase 2 adds `files[]` (path + lang + role classification), `tests[]`,
+`routes[]`, `modules[]`. The `inventory_paths` flat list in
+`auditMetadata` is the workflow path-citation gate's membership set —
+any brownfield path the artifact cites that isn't in this list fails
+the structural verdict.
+
+**Clone retention pairing with `knowledge-code-read`.** Brownfield
+mode retains the clone in `os.tmpdir()/knowledge-code-cache/<runId>/
+<owner>-<name>/` for the duration of the runner job. The companion
+skill `knowledge-code-read` reads bounded file content (≤10 KB) from
+this cache — call `knowledge-code` first, then `knowledge-code-read`
+for each file the agent wants to ground design on.
 
 ## Outputs (stdout JSON) — greenfield mode
 
@@ -91,7 +122,7 @@ ambiguous status the Skill itself stops cleanly.
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","repoUrl":"https://github.com/acme/celeb-api","repoStatus":"create"}' \
-  | npx -y @maintainabilityai/research-runner@0.1.42 skill-knowledge-code
+  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-knowledge-code
 ```
 
 The agent prompt MUST use this invocation form, not Copilot's `skill_use`

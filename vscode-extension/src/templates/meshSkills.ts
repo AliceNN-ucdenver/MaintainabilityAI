@@ -116,6 +116,13 @@ export const MESH_SKILLS: MeshSkillSpec[] = [
   skillSpec('knowledge-research', 'knowledge'),
   skillSpec('knowledge-prd', 'knowledge'),
   skillSpec('knowledge-code', 'knowledge'),
+  // Bug-Q phase 2 — knowledge-code-read pairs with knowledge-code:
+  // knowledge-code clones + classifies (returns inventory); knowledge-
+  // code-read returns bounded file content from the cached clone so
+  // the agent can ground design with real code excerpts. Reading paths
+  // are cross-checked by the workflow path-citation gate against the
+  // chain's inventory_paths payload.
+  skillSpec('knowledge-code-read', 'knowledge'),
   // B5 — context (mesh aggregators; no LLM inside)
   skillSpec('context-architecture', 'context'),
   skillSpec('context-security', 'context'),
