@@ -55,7 +55,7 @@ outputs:
     description: "Hatter Tag fresh_provider_search_performed: true | false. Empty if absent."
     value: ${{ steps.parse.outputs.fresh_provider_search_performed }}
   author_did:
-    description: "Hatter Tag author_did for Tweedles enforcement. Empty if absent."
+    description: "Hatter Tag author_did — identifies which agent authored the artifact (e.g. did:gh:installation:<id>/agent:prd-agent). Surfaced in the audit comment for provenance. Empty if absent."
     value: ${{ steps.parse.outputs.author_did }}
   artifact_path:
     description: "Repo-relative path to the artifact file detected in the PR's changed-files (e.g. okrs/<id>/why/research-doc.md). Empty if no artifact path matched."

@@ -95,7 +95,7 @@ We&rsquo;re honest about the gaps. The following are real capabilities competito
   <div class="docs-card docs-card-muted">
     <div class="docs-card-kicker">Gap &middot; independence</div>
     <h3 class="docs-card-title">Tests that didn&rsquo;t come from the author</h3>
-    <p class="docs-card-body">NIST 800-53 SA-11 and SOC 2 segregation of duties expect independent test evidence. Most teams let the same agent write code and tests. <strong>Building as &ldquo;The Tweedles&rdquo; &mdash; two reviewer-agents, one can&rsquo;t be the author.</strong></p>
+    <p class="docs-card-body">NIST 800-53 SA-11 and SOC 2 segregation of duties expect independent test evidence. Most teams let the same agent write code and tests. <strong>Shipping as persona-switch self-critique inside the author agent &mdash; Architect + Security personas in bounded rounds, each scoring against the same mesh state.</strong> Segregation is addressed via the persona contract plus the per-persona, per-round signed <code>self_review</code> events on the audit chain &mdash; the chain itself is the independence evidence.</p>
   </div>
 
   <div class="docs-card docs-card-muted">
@@ -242,7 +242,7 @@ Everything above maps to one question your security and compliance reviewer will
   </div>
 </div>
 
-The combination of <strong>The Court Recorder</strong> (audit chain), <strong>The Hatter&rsquo;s Tag</strong> (per-PR provenance), <strong>The Knight&rsquo;s Seal</strong> (signed commits with agent identity), <strong>The Tweedles</strong> (independent reviewers), and <strong>The Caterpillar&rsquo;s Challenge</strong> (architecture conformance tests) is designed to answer that question completely &mdash; from one PR back to the prompt, model version, threat model, and approval rationale that produced it.
+The combination of <strong>The Court Recorder</strong> (audit chain), <strong>The Hatter&rsquo;s Tag</strong> (per-PR provenance), <strong>The Knight&rsquo;s Seal</strong> (signed commits with agent identity), <strong>persona-switch self-critique</strong> (Architect + Security personas in the author agent, each scoring against the same mesh state), and <strong>The Caterpillar&rsquo;s Challenge</strong> (architecture conformance tests) is designed to answer that question completely &mdash; from one PR back to the prompt, model version, threat model, and approval rationale that produced it.
 
 ---
 

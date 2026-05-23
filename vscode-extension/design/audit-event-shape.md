@@ -1,6 +1,6 @@
 # Audit event shape — runner / workflow contract
 
-**Status:** canonical · **Last revised:** 2026-05-22 · **Owners:** runner package + workflow YAML
+**Status:** canonical · **Last revised:** 2026-05-23 · **Owners:** runner package + workflow YAML
 
 This document is the **single source of truth** for the shape of audit
 events emitted by `@maintainabilityai/research-runner`. Every workflow
@@ -53,7 +53,7 @@ Every event written to JSONL has this top-level shape:
 | Field | Type | Source | Notes |
 |---|---|---|---|
 | `event_id` | integer | runner | Monotonically increases from 1 per JSONL file. |
-| `event_kind` | string | runner | `skill_call` \| `artifact_written` \| `self_review` \| `state_transition` \| `human_gate` |
+| `event_kind` | string | runner | `skill_call` \| `llm_call` \| `artifact_written` \| `self_review` \| `self_review_exhausted` \| `review_received` \| `state_transition` \| `human_gate` |
 | `phase` | string | runner | `why` \| `how` \| `what` — from `PHASE` env var. |
 | `okr_id` | string | runner | From `OKR_ID` env var. |
 | `run_id` | string | runner | From `RUN_ID` env var — the per-run identity that names this JSONL file. |
@@ -61,9 +61,9 @@ Every event written to JSONL has this top-level shape:
 | `ts` | string | runner | ISO 8601 with `T` separator + `Z` UTC offset. (Field is named `ts`, NOT `timestamp` — pre-B28 docs called it `timestamp`; the runner has always written `ts`.) |
 | `prev_event_hash` | string \| null | runner | SHA-256 of the previous event in this JSONL (`null` for event_id=1). |
 | `event_hash` | string | runner | SHA-256 of the canonical-stringified event (with `event_hash` + `signature` zeroed). |
-| `signature` | string | runner | Knight's Seal Ed25519 sig over the event's canonical bytes. Empty string (`""`) is legitimate for events emitted post-agent (e.g. `payload.emitted_by = "workflow"` synthetic self_review backfill — the ephemeral private key is gone by then). On a per-epoch chain (Bug O), `revise-agent`-emitted events MUST be signed; on legacy chains they may be empty for back-compat. |
+| `signature` | string | runner | Knight's Seal Ed25519 sig over the event's canonical bytes. Empty string (`""`) is legitimate ONLY for events that BOTH carry `payload.emitted_by = "workflow"` AND have an `event_kind` in the workflow-emittable allowlist (Bug V / Codex round-6): `artifact_written`, `state_transition`, `human_gate`. Every other event MUST be signed under the active per-epoch private key. Bug T removed the legacy unsigned-revise-agent back-compat path; Bug V narrowed the workflow allowlist after Codex round-6 demonstrated that hand-written unsigned `self_review` / `review_received` events with `emitted_by:workflow` were forgeable (returned `ok:true, sealed:true`). Today the runner rejects them with `workflow-event-kind-not-allowed-line-N`. |
 | `public_key` | string \| null | runner | PEM-encoded Ed25519 public key for this event's `signer_epoch`. Present on the FIRST event of each new epoch (1, 2, 3, …) so a chain replay can recover the verification key inline. `null` on every other event — verifiers should also fall back to `okrs/<okrId>/audit/keys/<runId>.epoch-N.pub.pem`. |
-| `signer_epoch` | integer | runner | Which epoch's key signed this event. Original agent invocation = 1; first revise-agent = 2; second revise = 3; … **Required on every agent event.** **Absent on workflow events** (`payload.emitted_by = "workflow"`) — those have no signing key and the field is omitted by design. Bug T (pre-release simplification) removed the prior legacy-chain back-compat path; verifiers now reject any agent event missing `signer_epoch`. |
+| `signer_epoch` | integer | runner | Which epoch's key signed this event. Original agent invocation = 1; first revise-agent = 2; second revise = 3; … **Required on every agent event** (including `self_review` events emitted by the agent from inside its persona-prompt section — Bug V contract). **Absent on workflow events** with `payload.emitted_by = "workflow"` AND `event_kind` in the post-Bug-V allowlist (artifact_written, state_transition, human_gate). Bug T removed the legacy-chain back-compat path; verifiers reject any agent event missing `signer_epoch`. |
 | `payload` | object | runner + handler | See below — the flat-merged map. |
 
 ## `payload` shape (skill_call events)

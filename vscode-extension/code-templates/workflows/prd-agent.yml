@@ -331,50 +331,28 @@ jobs:
             && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
             || echo "::warning::artifact_written emit failed (best-effort)"
 
-      # B28 — parse the agent's self-review evidence and emit one
-      # self_review audit event per persona per round. The agent writes
-      # the content; the workflow emits the audit event. Closes T11
-      # (agent forges self_review payloads) — the parser is deterministic
-      # and the events land in the same hash chain.
+      # Bug V (Codex round-6) — parser-only step. The agent now emits
+      # signed `self_review` events directly from inside its persona-
+      # prompt section (see prd-agent.agent.md §13–14, Bug V contract)
+      # while its per-epoch private key is still in scope. The chain
+      # is the authoritative source of self-review evidence.
       #
-      # Task #64 (cert-run-4 forensic): the agent has been observed
-      # writing the self-review data in FOUR different locations across
-      # cert runs. The parser now tries all four sources, in order, so
-      # the scores surface regardless of which form the agent picked:
+      # This step PARSES the PR body / artifact for UI surfacing only —
+      # it no longer emits self_review events. Pre-Bug-V the workflow
+      # also called audit-emit-event with `emitted_by:workflow` as a
+      # safety net when the agent forgot. Round-6 audit demonstrated
+      # that path was forgeable (hand-write an unsigned self_review with
+      # `emitted_by:workflow` and the chain accepts it as sealed). Fix:
+      # `self_review` removed from WORKFLOW_EMITTABLE_KINDS in the
+      # runner allowlist; agent is the only legitimate emitter.
       #
-      #   1. PR body, structured markdown blocks (canonical, per prompt)
-      #        ### Self-review — Architect (round 1)
-      #        SCORE: 0.92
-      #        SEVERITY: MINOR
-      #        COVERED: [...]
-      #        MISSING: [...]
-      #        CHANGES: [...]
-      #
-      #   2. Artifact md (prd.md), same structured markdown blocks
-      #      anywhere in the doc (cert-run-2 / Task #43 evidence — agent
-      #      sometimes embeds inside the artifact instead of PR body).
-      #
-      #   3. Artifact frontmatter YAML `self_review:` block (cert-run-4
-      #      evidence — agent wrote scores as YAML in the Hatter Tag
-      #      frontmatter instead of either markdown form). Shape:
-      #        self_review:
-      #          rounds: 1
-      #          converged: true
-      #          architect:
-      #            score: 0.92
-      #            severity: MINOR
-      #          security:
-      #            score: 0.90
-      #            severity: MINOR
-      #
-      #   4. B29 chain — `self-review-*` skill_call events (proof the
-      #      persona-switch loop ran; no scores carried). Fallback only.
-      #
-      # If any of sources 1-3 carries scores, we emit synthetic
-      # self_review events with score/severity into the chain. Downstream
-      # (audit comment + UI fetchPhaseSignal) then sees the scores
-      # regardless of where the agent put them.
-      - name: Parse self-review blocks + emit per-persona-per-round events (B28)
+      # Parser still tolerant of three locations (PR body markdown,
+      # artifact markdown, artifact frontmatter YAML) for surface
+      # purposes. If the agent fails to emit signed `self_review`
+      # events, the audit-verify-chain output's `sealed=true` gate +
+      # the `Count self-review events` step's B29 skill_call fallback
+      # surface that as a degraded run.
+      - name: Parse self-review blocks for UI source attribution (Bug V — parse-only)
         id: review-emit
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         env:
@@ -509,51 +487,28 @@ jobs:
           except Exception:
               pass
 
-          def parselist(s):
-              return [x.strip() for x in s.split(',') if x.strip()]
+          # Bug V (Codex round-6): no synthetic workflow emission. The
+          # agent is the only legitimate emitter of `self_review` events
+          # (signed under its per-epoch key, written from inside the
+          # persona-prompt section per prd-agent.agent.md §13–14).
+          # The chain is authoritative; the parser is just for surface
+          # attribution. Cross-check chain ↔ blocks for diagnostic value.
+          chain_block_match = len(extracted) == len(existing)
 
-          emitted = 0
-          for (persona, rnd, score, sev, covered, missing, changes) in extracted:
-              if (persona, rnd) in existing:
-                  print(f'::notice::self_review for {persona} round {rnd} already in chain with score — skip')
-                  continue
-              evt = {
-                  'okrId': os.environ['OKR_ID'],
-                  'runId': os.environ['RUN_ID'],
-                  'phase': os.environ['PHASE'],
-                  'intentThreadUuid': os.environ['INTENT_THREAD_UUID'],
-                  'eventKind': 'self_review',
-                  'payload': {
-                      'round': rnd,
-                      'persona': persona,
-                      'score': score,
-                      'severity': sev,
-                      'covered': parselist(covered),
-                      'missing': parselist(missing),
-                      'changes': parselist(changes),
-                      'prompt_pack': f'prd/{persona}-review.md',
-                      'emitted_by': 'workflow',
-                      'source': source,
-                  },
-              }
-              try:
-                  # Bug-R / R3 (Codex round-3) — pinned to ~0.1.42 (tilde range)
-                  # so auto-publish patches flow without per-PR template edits.
-                  # Parity test asserts every runner ref (shell or array form)
-                  # carries a pin.
-                  subprocess.run(
-                      ['npx', '-y', '@maintainabilityai/research-runner@~0.1.42', 'skill-audit-emit-event'],
-                      input=json.dumps(evt), text=True, check=True, capture_output=True,
-                  )
-                  emitted += 1
-                  print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev} source={source}')
-              except Exception as ex:
-                  print(f'::warning::self_review emit failed for {persona} round {rnd}: {ex}')
-
-          # Write source for the audit-comment step to surface.
+          # Write source for the audit-comment step to surface, plus a
+          # diagnostic flag for the verdict step (block count vs chain
+          # signed-event count). If the agent emitted blocks but didn't
+          # call audit-emit-event, the chain lacks the corresponding
+          # self_review events; the verdict's sealed/manifest gates
+          # surface that as degraded.
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
               f.write(f'source={source or ""}\n')
-          print(f'::notice::self-review emit summary: {emitted} new events from {len(extracted)} blocks (source={source})')
+              f.write(f'block_count={len(extracted)}\n')
+              f.write(f'chain_signed_count={len(existing)}\n')
+              f.write(f'chain_block_match={"true" if chain_block_match else "false"}\n')
+          if not chain_block_match:
+              print(f'::warning::self-review block-vs-chain mismatch — {len(extracted)} blocks in PR body / artifact, {len(existing)} signed self_review events in chain. Agent should call `audit-emit-event` with eventKind:self_review from inside its persona-prompt section (post-Bug-V contract).')
+          print(f'::notice::self-review parse summary: {len(extracted)} blocks parsed, {len(existing)} signed events in chain (source={source})')
           PYEOF
 
       - name: Count mesh-skill calls
@@ -946,6 +901,11 @@ jobs:
           EVIDENCE_MODE="${{ steps.ctx.outputs.evidence_mode }}"
           FOUND="${{ steps.audit.outputs.found }}"
           TOTAL="${{ steps.counts.outputs.total }}"; TOTAL="${TOTAL:-0}"
+          # Bug V (Codex round-6) — sealed gate now keys on raw chain
+          # count (not TOTAL). TOTAL is the sum of mesh-skill counts;
+          # sealed-required should fire on ANY chain event. Brings
+          # HOW into parity with WHAT.
+          CHAIN_COUNT="${{ steps.chain.outputs.count }}"; CHAIN_COUNT="${CHAIN_COUNT:-0}"
           DOC_FOUND="${{ steps.structure.outputs.doc_found }}"
           H2="${{ steps.structure.outputs.h2_present }}"
           FR_COUNT="${{ steps.structure.outputs.fr_count }}"; FR_COUNT="${FR_COUNT:-0}"
@@ -1007,9 +967,11 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
-          # Bug-U / U2 (Codex round-5) — sealed=true required for any
-          # non-empty chain. See market-research-agent.yml for rationale.
-          if [ "$VERDICT" = "ok" ] && [ "${TOTAL:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
+          # Bug-U / U2 (Codex round-5) + Bug V (Codex round-6) —
+          # sealed=true required for any non-empty chain (keyed on
+          # CHAIN_COUNT, not TOTAL). See market-research-agent.yml
+          # for the full rationale; same wording, same gate.
+          if [ "$VERDICT" = "ok" ] && [ "${CHAIN_COUNT:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
             VERDICT="degraded"; REASON="chain has events but is unsealed — no agent-emitted signed events present. Every agent event MUST sign with its per-epoch keypair (Bug T contract)."
             CHAIN_FAIL="true"
             EVIDENCE_FAIL="true"

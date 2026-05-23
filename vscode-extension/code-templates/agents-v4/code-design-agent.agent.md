@@ -180,16 +180,14 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
 
     Calling this skill is **non-optional** — the chain depends on its `skill_call` event to prove you entered the persona-switch loop. The runner auto-emits.
 
-14. **Code-Architect persona self-review.** Switch to the Code-Architect persona. Apply the criteria from the `prompt_pack` field the skill just returned. Produce a structured critique with these exact anchor names (the workflow parser depends on them):
+14. **Code-Architect persona self-review.** Switch to the Code-Architect persona. Apply the criteria from the `prompt_pack` field the skill just returned. Produce a structured critique with these exact anchor names (the workflow parser AND the audit-emit-event payload both depend on them):
     - `SCORE` (float, 0.0–1.0)
     - `SEVERITY` (one of: `PASS`, `MINOR`, `MAJOR`, `BLOCKING`)
     - `COVERED` (array of strings — what the design grounds correctly, anchored to FR/SR ids, file paths, CALM nodes)
     - `MISSING` (array of strings — gaps)
     - `CHANGES` (array of specific revision requests — actionable, not vague)
 
-    **MANDATORY format — write this critique as a structured block at the bottom of the PR body.** NOT in the artifact frontmatter. NOT as an audit-emit-event call. NOT as YAML. NOT as a markdown summary table (PR #118 surfaced this exact anti-pattern at PRD time: the agent wrote a `| Round | Architect | Security |` table instead of the per-block format, the workflow's parser found zero blocks, and the audit comment misleadingly said "self-review skipped" despite the B29 chain proving the loop ran). The workflow parses markdown blocks out of the PR body using a strict regex; alternative formats produce zero events.
-
-    Format exactly (with em-dash `—`):
+    **MANDATORY format — write this critique as a structured block at the bottom of the PR body** (NOT YAML in frontmatter, NOT a summary table — PR #118 anti-pattern). Format exactly (with em-dash `—`):
 
     ```markdown
     ### Self-review — Code-Architect (round <N>)
@@ -200,7 +198,23 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
     CHANGES: [<comma-separated strings>]
     ```
 
-    You MAY ALSO write a human-readable summary table for reviewer convenience after all rounds complete (e.g. `| Round | Code-Architect severity | Code-Security severity |`) — but the structured block above is the contract.
+    **THEN — immediately after writing the block — call `audit-emit-event` to put a SIGNED `self_review` event on the chain** (Bug V / Codex round-6 contract). The block is the human-readable surface; the audit event is the cryptographic record. The two must agree.
+
+    ```sh
+    OKR_ID="$OKR_ID" RUN_ID="$RUN_ID" INTENT_THREAD_UUID="$INTENT_THREAD_UUID" PHASE="what" \
+      jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg thread "$INTENT_THREAD_UUID" \
+        --argjson round <N> --arg score <SCORE> --arg severity <SEVERITY> \
+        '{okrId: $okr, runId: $run, phase: "what", intentThreadUuid: $thread,
+          eventKind: "self_review",
+          payload: { round: $round, persona: "architect",
+                     score: ($score | tonumber), severity: $severity,
+                     prompt_pack: "code-design/architecture-review.md" }}' \
+      | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event
+    ```
+
+    The runner signs the event under your per-epoch private key — this is what makes the chain `sealed`. Pre-Bug-V the workflow emitted unsigned synthetic events from PR-body parsing; Codex round-6 demonstrated that path was forgeable, so it's gone. **If you skip the audit-emit-event call, the chain will lack signed self_review events and the verdict step will mark the run as degraded.**
+
+    You MAY ALSO write a human-readable summary table for reviewer convenience after all rounds complete (e.g. `| Round | Code-Architect severity | Code-Security severity |`) — but the structured block + signed event are the contract.
 
     ### ⚠ ANTI-PATTERN — DO NOT do any of these (cert-run-4 forensic, Task #64)
 
@@ -223,7 +237,9 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do **NOT** u
 
 15. **Code-Security persona self-review.** Call `self-review-code-security` with `{okrId, runId, round}` to get the authoritative tier echo + `.caterpillar/prompts/code-design/security-review.md` prompt pack. Apply the criteria. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block with header `### Self-review — Code-Security (round <N>)`.
 
-    The chain MUST contain ONE `self-review-code-architect` skill_call AND ONE `self-review-code-security` skill_call per round. The audit-and-drift workflow compares those counts against the count of `### Self-review` blocks in your PR body — a mismatch surfaces as an audit-comment row.
+    **THEN — same as Code-Architect (step 14) — call `audit-emit-event` to put a SIGNED `self_review` event on the chain with `persona: "security"` and `prompt_pack: "code-design/security-review.md"`.** This is the Bug V / round-6 contract: the chain is the cryptographic record, the PR-body block is the human surface.
+
+    The chain MUST contain — per round, per persona — ONE `self-review-code-{architect|security}` skill_call (the prompt-pack fetch) AND ONE signed `self_review` event (the scored verdict). The audit-and-drift workflow cross-checks PR-body blocks against chain events; a mismatch surfaces a `block-vs-chain mismatch` warning + degraded verdict.
 
 16. **Decide whether to revise.** If EITHER persona's `SEVERITY` > `PASS` AND `round < max_auto_rounds`, revise `code-design.md` addressing the `CHANGES` blocks (push a new commit to the PR branch), then loop back to step 13 with `round = round + 1`. The cycle exits when both personas converge to `PASS` OR rounds exhausted (whichever first).
 
@@ -276,7 +292,7 @@ The user clicks `design-pass` in Looking Glass Run Audit after reviewing your PR
 - **No fabricated grounding.** Per-repo subsection mode MUST match `knowledge-code` response mode.
 - **No skipping `knowledge-code` calls.** Every `targetCodeRepos[]` entry gets one Skill invocation. Skipping = degraded chain.
 - **No file-path citations outside `knowledge-code.structure`** for brownfield repos.
-- **`audit-emit-event` is the only path for direct audit events** (state transitions). Skill calls auto-emit via the runner — don't double-emit.
+- **Audit-event ownership (post-Bug-V):** runner auto-emits `skill_call` for every `runSkill()` (you do nothing). Workflow auto-emits `artifact_written` from `git diff`. **YOU call `audit-emit-event` for each `self_review` block** (one per persona per round, from inside the persona-prompt section while your per-epoch key is still in scope — see steps 14–15). Pre-Bug-V the workflow synthesized those unsigned from PR-body parsing; round-6 demonstrated that path was forgeable, so it's removed. Never hand-write JSONL.
 
 ## Failure modes
 

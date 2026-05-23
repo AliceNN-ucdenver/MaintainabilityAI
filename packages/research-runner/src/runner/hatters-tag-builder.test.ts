@@ -145,18 +145,26 @@ test('buildHattersTag: emits attestation when author_did + prompt pack supplied'
 });
 
 test('buildHattersTag: emits reviewer DIDs as a YAML list', () => {
+  // Post-B24 / Bug-V: the prd-agent + code-design-agent inhabit
+  // Architect + Security personas internally via prompt-switch — there
+  // are NO separate reviewer agents at PRD time. The `reviewer_dids`
+  // field stays in the schema as dormant capacity for any future
+  // genuinely-separate reviewer (e.g. a code-grounded WHAT-phase
+  // reviewer per the Phase-D open question). The test fixture uses
+  // a generic agent name so deleted agent IDs don't get cargo-culted
+  // back into the codebase by future readers grepping for examples.
   const out = buildHattersTag({
     ...BASE_INPUT,
     attestation: {
       reviewer_dids: [
-        'did:gh:installation:7654321/agent:architect-reviewer',
-        'did:gh:installation:7654321/agent:security-reviewer',
+        'did:gh:installation:7654321/agent:future-reviewer-a',
+        'did:gh:installation:7654321/agent:future-reviewer-b',
       ],
     },
   });
   assert.match(out, /  reviewer_dids:/);
-  assert.match(out, /    - did:gh:installation:7654321\/agent:architect-reviewer/);
-  assert.match(out, /    - did:gh:installation:7654321\/agent:security-reviewer/);
+  assert.match(out, /    - did:gh:installation:7654321\/agent:future-reviewer-a/);
+  assert.match(out, /    - did:gh:installation:7654321\/agent:future-reviewer-b/);
 });
 
 test('buildHattersTag: emits reviewer scores when supplied', () => {

@@ -678,7 +678,7 @@ When it lands, the Audit Report Export will be a **single zip** generated from t
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">README.md</div>
-    <div class="docs-copy">The auditor starts here. Quotes the master question, points to every sub-answer's location in the bundle, summarizes chain integrity, tier history, Tweedles check, goal-drift, and prompt-pack versions used.</div>
+    <div class="docs-copy">The auditor starts here. Quotes the master question, points to every sub-answer's location in the bundle, summarizes chain integrity, tier history, persona-switch convergence (Architect + Security personas in the author agent both PASS), goal-drift, and prompt-pack versions used.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">okr-card.pdf</div>

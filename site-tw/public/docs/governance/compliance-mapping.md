@@ -144,7 +144,7 @@ The three frameworks below are AI-specific. They&rsquo;re newer, evolving, and i
 | **T4** | Resource overload | Red Queen Bash deny in Restricted tier; rate limits in workflow generation | Per-tier permissions |
 | **T5** | Cascading hallucination | Cheshire&rsquo;s OWASP packs with explicit output schemas; fitness functions reject malformed output | <code>.cheshire/prompts/</code>; CI logs |
 | **T6** | Intent breaking / goal manipulation | <em>White Rabbit&rsquo;s Pocket Watch</em> goal-drift detector compares RCTRO Task hash to PR scope <em>(roadmap)</em> | Per-PR drift score |
-| **T7** | Misaligned / deceptive behaviour | <em>The Tweedles</em> independent reviewer-agents must sign off; one cannot be the author <em>(roadmap)</em> | Dual signatures on PR |
+| **T7** | Misaligned / deceptive behaviour | Persona-switch self-critique inside the author agent — Architect + Security personas in bounded rounds, each emitting a signed <code>self_review</code> event per persona per round on the hash-chained audit log; convergence to PASS gates merge. NIST SA-11 / SOC 2 segregation is addressed via the persona contract + chain audit trail. | Per-persona, per-round signed self_review events; chain re-verification in CI |
 | **T8** | Repudiation / untraceability | <em>The Knight&rsquo;s Seal</em> signed commits with agent DID; <em>The Court Recorder</em> Merkle-chained audit log <em>(roadmap)</em> | Signed commit history; audit JSONL |
 | **T9** | Identity spoofing | Per-agent Ed25519 keys via <em>Knight&rsquo;s Seal</em> <em>(roadmap)</em> | Agent keyring |
 | **T10** | HITL overwhelm | Score-gated approval workflow; auto-approve in Autonomous tier, mandatory review in Restricted | Tier thresholds in <code>mesh.yaml</code> |

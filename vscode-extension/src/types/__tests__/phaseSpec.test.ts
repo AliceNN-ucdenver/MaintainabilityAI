@@ -649,6 +649,51 @@ describe('stale-truth phrase grep — marketing + design (Bug-R / R8)', () => {
         /per-run.{0,40}Ed25519(?!.*epoch)/i,
       ],
     },
+    // Bug-V (Codex round-6) — extend stale-phrase grep to the three
+    // round-6-flagged files. The Codex audit found these still
+    // described pre-Bug-T / pre-Bug-V models (revise-agent may be
+    // unsigned on legacy chains, per-run keypair, workflow-emittable
+    // self_review). The agent + workflow now contradict that prose;
+    // these regexes break at test time if the stale claims return.
+    {
+      file: 'vscode-extension/design/audit-event-shape.md',
+      forbidden: [
+        /revise-agent.*may be unsigned/i,
+        /legacy chains? may be empty/i,
+        // Negative lookbehind for "removed the" / "Bug T " — those mark
+        // the historical retirement clarification, not stale prose.
+        /(?<!removed the legacy )(?<!Bug T removed the legacy )unsigned[ -]revise-agent/i,
+        /legacy chain back-compat(?!.* removed)/i,
+      ],
+    },
+    {
+      file: 'site-tw/public/docs/workshop/agentic-sdlc-touchpoints.md',
+      forbidden: [
+        /per-run ephemeral.{0,40}signing(?!.*epoch)/i,
+        /per-run keypair(?!.*epoch)/i,
+        /reviewer-bus\.yml(?!.*deprecated|.*retired)/i,
+      ],
+    },
+    // The runner-driven workflow no longer emits `self_review`
+    // synthetic events with `emitted_by:workflow`. Bug V keeps that
+    // path out of the codebase by failing this test if it comes back.
+    // The regex matches the python emit-dict pattern (`'eventKind':
+    // 'self_review'`) specifically — narrative comments that mention
+    // `eventKind:self_review` in passing don't trip.
+    {
+      file: 'vscode-extension/code-templates/workflows/prd-agent.yml',
+      forbidden: [
+        /['"]eventKind['"]\s*:\s*['"]self_review['"]/,
+        /['"]eventKind['"]\s*:\s*['"]review_received['"]/,
+      ],
+    },
+    {
+      file: 'vscode-extension/code-templates/workflows/code-design-agent.yml',
+      forbidden: [
+        /['"]eventKind['"]\s*:\s*['"]self_review['"]/,
+        /['"]eventKind['"]\s*:\s*['"]review_received['"]/,
+      ],
+    },
   ];
   for (const { file, forbidden } of guarded) {
     it(`${file} contains no stale-truth phrases`, () => {

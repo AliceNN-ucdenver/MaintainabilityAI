@@ -18,11 +18,11 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 
 **v4.2 (this update) — shovel-ready gap closure**:
 - **Issue + label vocabulary (§3.4)** — canonical issue body template (HTML-comment frontmatter + human-readable summary), exhaustive label table with owners and forbidden combinations. No more ambiguity about what `okr-anchor` means vs `oraculum-research` vs `design-draft`.
-- **Agent runtime contract (§5.5)** — `.agent.md` system-prompt template, scripted Skill invocation order per agent, per-Skill timeout + retry + terminal-failure policy, model-selection rules, completion sequence, agent-session death recovery, Tweedles timing, cost caps. Engineers can write `.agent.md` files tomorrow.
+- **Agent runtime contract (§5.5)** — `.agent.md` system-prompt template, scripted Skill invocation order per agent, per-Skill timeout + retry + terminal-failure policy, model-selection rules, completion sequence, agent-session death recovery, cost caps. (Original v4.2: ~~Tweedles timing~~ — retired 2026-05-23, Bug V; see §5.3 banner.) Engineers can write `.agent.md` files tomorrow.
 - **Workflow permissions matrix (§9.1)** — every bus workflow's `on:` trigger, permission set, write target, and `concurrency:` group spec. Plus Pocket Watch threshold definition + drift measurement (§9.2) and design-bus partial-failure handling (§9.3).
 - **UX state matrix (§10.8)** — every Action card sub-state's visual treatment + click targets; live-event-ticker transport (REST polling tiered by visibility); empty/loading/error states per surface; race-condition policy; `Pause` vs `Cancel` semantics; per-repo design PR tracking strategy.
 - **Restricted-tier escalation + Dual-Signature Override (§10.9)** — concrete UX flows for the workshop's centerpiece moment. Click-by-click escalate-BAR flow; modal-based dual-signature override with fingerprint validation, audit YAML, comment-based or paste-based second-signer mechanism.
-- **Hatter's Tag canonical location (§11.1.5)** — frontmatter wins over PR-description on conflict; reviewer-bus re-syncs PR-description from frontmatter; cross-repo Tag propagation rules.
+- **Hatter's Tag canonical location (§11.1.5)** — frontmatter wins over PR-description on conflict; cross-repo Tag propagation rules. (Original v4.2 mentioned reviewer-bus re-syncing PR-description from frontmatter — reviewer-bus retired 2026-05-23, Bug V; the per-agent workflows write the Tag directly.)
 - **Audit JSONL write protocol (§11.1.6)** — partitioned per-run, separate workflow-event files, POSIX advisory locking within a file, git-level serialization across runs.
 - **`intent_thread_uuid` lifecycle (§4.4)** — generated at OKR creation in Looking Glass, propagated through every issue body, Hatter Tag, and per-repo fan-out. The invariant: every artifact carries it; `verify-chain` enforces.
 - **Setup + ops (§18)** — new-mesh bootstrap flow (modal + IMDB-Lite seed option), GitHub App installation flow with Queen's Keyring per-OKR token scoping, secrets categories (GitHub Secrets vs local config), per-OKR + per-org cost caps, failure notification taxonomy (in-app banner / VS Code notification / GitHub issue comment).
@@ -30,7 +30,7 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 **v4 — end-to-end refactor**:
 - **OKR is the only trigger surface.** "Promote to research-request" is **removed**. The OKR detail page has `Start Why / Start How / Start What` buttons; each creates the right kind of issue with `okr_id` + objective + KRs + intent_cascade + affected BARs inlined. The agent reads OKR context cold via the `knowledge-okr` Skill — no body-parser fragility.
 - **Oraculum narrows to code-repo architecture reviews.** It no longer hosts research issues. Its old "Promote" button becomes **"Create OKR from finding"** — pre-fills an OKR draft from a review's findings, then the user starts the pipeline from the OKR screen.
-- **Custom workflow deprecation.** `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` are deprecated and replaced by `.github/agents/*.agent.md` + `.github/skills/<name>/SKILL.md` + bus workflows (`reviewer-bus`, `okr-bus`, `design-bus`). Settings screen evolves to **Mesh Provisioning** with tabs for Workflows / Agents / Skills.
+- **Custom workflow deprecation.** `oraculum-research.yml`, `archeologist.yml`, `prd.yml`, `notify-code-repos.yml` are deprecated and replaced by `.github/agents/*.agent.md` + `.github/skills/<name>/SKILL.md` + per-agent workflows. (Original v4 listed `reviewer-bus`, `okr-bus`, `design-bus`. Per B20, those bus workflows were consolidated into per-agent workflows; reviewer-bus retired entirely 2026-05-23, Bug V.) Settings screen evolves to **Mesh Provisioning** with tabs for Workflows / Agents / Skills.
 - **First sample OKR seeds on Celebs (Restricted tier)** — workshop's central learning moment. Why runs normally; How fails security review (missing threat model on `APP-IMDB-002`); learner must escalate Celebs governance OR dual-signature override before unlocking What. Demonstrates "governance unlocks autonomy" loop end-to-end.
 - **Full OKR screen UI design** (§10.2) with ASCII mockup: header (objective + intent cascade + tier badge) → KR table → Affected BARs (with tier) → Target repos (declared/connected) → three Action cards (Why/How/What) with phase status, scores, Hatter Tag access, recycle counter, gates → action bar (Export Audit Report, Verify Chain).
 - **Hatter Tag UI surfacing** (§10.4) — compact badge on each Action card + full-schema sheet on demand + embedded verbatim in audit report.
@@ -41,7 +41,7 @@ End-to-end agent-orchestrated pipeline from **market research → PRD → design
 **v3 alignment** — reviewed against [agentic-governance-roadmap-2026.md](../../docs/design/agentic-governance-roadmap-2026.md) and [agentic-governance-landscape.md](../../site-tw/public/docs/research/agentic-governance-landscape.md):
 - **OKR Cards reframed as IntentSpecs** — "declarative intent that travels with the work". Why/How/What is the intent cascade.
 - **Maps onto the existing 6-phase SDLC** (Design → Implement → Verify → Govern → Deploy → Evolve) — does NOT replace it.
-- **Reviewer ≠ Author enforcement (Tweedles)** — architect/security reviewers are distinct Copilot agent sessions with distinct DIDs. NIST 800-53 SA-11 + SOC 2 segregation of duties. Roadmap §4.5 explicit.
+- **Reviewer ≠ Author enforcement** — ~~Tweedles: architect/security reviewers as distinct Copilot agent sessions with distinct DIDs.~~ **RETIRED 2026-05-23 (Bug V).** Replaced by persona-switch self-critique inside the author agent — one DID per artifact run; Architect + Security personas run in bounded rounds with per-persona/per-round signed `self_review` events on the audit chain. NIST 800-53 SA-11 + SOC 2 segregation addressed via the persona contract + chain audit trail. See §5.3 banner and §14.8 closure.
 - **Tier-aware recycle bounds** — Autonomous (80–100) / Supervised (50–79) / Restricted (0–49) read from BAR score. Restricted gets 0 auto-rounds + mandatory dual signature.
 - **Hatter's Tag full provenance** — `{agent_did, model_version, system_prompt_sha, prompt_pack_version, threat_model_ref, owasp_categories, fitness_results, reviewer, rationale, intent_thread_uuid}`. Required by SOC 2 CC8.1 and EU AI Act Art. 12.
 - **Intent Thread UUID** — what `parent_run_id` becomes; stamped on every action/commit/PR/review across repos. Fills Microsoft AGT's named "reasoning-trace correlation" gap.
@@ -140,7 +140,7 @@ The Why/How/What is not a replacement for the 6-phase SDLC — it's how the thre
 - **Hatter's Tag** — provenance JSON appended to every artifact PR.
 - **Court Recorder** — Merkle-chained, append-only audit; CloudEvents v1.0 envelopes; SIEM-exportable.
 - **Knight's Seal** — per-event, per-epoch Ed25519 signatures over the canonical event bytes. Each agent session is its own **signer epoch**: the original agent invocation is epoch 1, the first revise-agent (different runner machine) is epoch 2, the second revise is epoch 3, and so on. The public key for each epoch is committed to the mesh as `okrs/<okrId>/audit/keys/<runId>.epoch-N.pub.pem`; the private key never leaves the session that created it. Every emitted event carries a `signature` plus a `signer_epoch` field; chain verification loads all epoch pub keys and looks up the right one per event. CI invokes the runner's `audit-verify-chain` skill (single source of truth for the verifier) on every agent PR. Cosign / sigstore-anchored persistent signing for third-party verifiability remains a future enhancement.
-- **Tweedles** — segregation-of-duties gate: reviewer agent ≠ author agent.
+- ~~**Tweedles** — segregation-of-duties gate: reviewer agent ≠ author agent.~~ **RETIRED 2026-05-23 (Bug V).** Replaced by persona-switch self-critique inside the author agent (Architect + Security personas, per-persona/per-round signed `self_review` events on the chain). See §5.3 banner.
 - **White Rabbit's Pocket Watch** — goal-drift hash check between OKR.objective and final PR scope.
 - **Queen's Keyring** — short-lived per-task agent credentials, auto-revoked at PR close.
 - **Agent Roster / AI-BOM** — every agent in the pipeline (Why/How/What/reviewer) declared with identity, model version, prompt hash, scope, owner.
@@ -335,8 +335,8 @@ Every issue the OKR-driven pipeline writes follows the same body shape: a small 
 | `revision-required` | rose | `label-on-merge.yml` | Reviewer score < threshold AND tier allows auto-revise | Author agent on next push |
 | `governance-pass` | green | `label-on-merge.yml` | Both reviewers ≥ threshold AND no `goal-drift-detected` | Never |
 | `human-gate` | yellow | `label-on-merge.yml` | Round counter hit MAX_AUTO_ROUNDS for tier | Looking Glass HumanGate UI (Approve / Re-run / Reject) |
-| `goal-drift-detected` | red | `reviewer-bus.yml` (Pocket Watch step) | OKR.objective hash drift > threshold | Author agent after re-scoping |
-| `tweedles-violation` | red | `reviewer-bus.yml` | reviewer DID = author DID detected | Workflow auto-reassigns to a fresh reviewer session |
+| `goal-drift-detected` | red | `drift-gate.yml` (Pocket Watch step) — _historical: originally planned in reviewer-bus.yml; reviewer-bus retired 2026-05-23 (Bug V)_ | OKR.objective hash drift > threshold | Author agent after re-scoping |
+| ~~`tweedles-violation`~~ **RETIRED 2026-05-23 (Bug V)** | red | ~~`reviewer-bus.yml`~~ never deployed | ~~reviewer DID = author DID detected~~ structurally impossible — one DID per artifact run | n/a |
 | `dual-signature-override` | violet | Looking Glass on override commit | User completes the override modal | Never |
 | `restricted-tier` | orange | `okr-bus.yml` | OKR primary BAR is Restricted at run start | Never (informational) |
 
@@ -686,6 +686,8 @@ Reviewer agents **do not block merge by themselves** — they post scored review
 
 ### 5.3 Tweedles — Reviewer MUST NOT equal Author
 
+> **RETIRED 2026-05-23 (Bug V):** The Tweedles separate-reviewer model was retired in B24 (PRD time) and confirmed not planned for any phase (WHY, HOW, WHAT). Persona-switch self-critique inside the author agent — Architect + Security personas in bounded rounds, signed `self_review` events per persona per round on the audit chain — replaces it. There is only one DID per artifact run; segregation is addressed via the persona contract + the per-persona/per-round signed events. The rest of this section is preserved for historical context; see §13 B24 and §14.8 for the closure record.
+
 NIST 800-53 SA-11 and SOC 2 segregation-of-duties require that the reviewer is not the author. Roadmap §4.5 says explicitly: *"agents reliably skew positive when grading their own work."*
 
 In our pipeline:
@@ -821,7 +823,9 @@ Settings UI exposes a "per-agent override" selector — admins can pin reviewer 
 
 Failed runs do NOT advance the OKR status. The action remains in its current sub-state (`in-progress` → `failed_*`) until the user re-runs or marks the OKR paused.
 
-**5.5.8 Tweedles enforcement timing.** The reviewer-bus checks reviewer DID ≠ author DID **before assigning the reviewer**, not after. Sequence:
+**5.5.8 Tweedles enforcement timing.** _**RETIRED 2026-05-23 (Bug V):** reviewer-bus dispatch never shipped. The sequence below is preserved for historical context only — persona-switch self-critique inside the author agent has no second-DID to check against._
+
+The reviewer-bus checks reviewer DID ≠ author DID **before assigning the reviewer**, not after. Sequence:
 
 1. Author PR opens with the author DID in the PR description's Hatter Tag fenced block (written in agent-completion-step 3 above — so the DID is available before reviewer-bus fires).
 2. `reviewer-bus.yml` fires on `pull_request.opened` (label `*-draft`), reads the Hatter Tag fenced block from the PR body, extracts `author_did`.
@@ -1264,7 +1268,7 @@ The orchestration shifts from per-phase workflows (one per phase, each containin
 | Workflow | Trigger | Action |
 |---|---|---|
 | **`okr-bus.yml`** (NEW, Phase C) | Issue opened with `okr-anchor` label | Reads `okr_id` from issue body; resolves to OKR via `knowledge-okr` Skill; assigns the right agent (`market-research-agent` for `oraculum-research`, `prd-agent` for `oraculum-prd`); updates `okrs/<id>/okr.yaml` `actions[]` + `chain-ladder.yaml` on every state transition; flips OKR `status` field; posts status comments back to the anchor issue. |
-| **`reviewer-bus.yml`** (NEW, Phase C) | PR opened with `research-synthesis` / `prd-draft` / `design-draft` label | Fires architect-reviewer + security-reviewer agents **in parallel**; enforces **Tweedles** (reviewer DID ≠ author DID — checked before agent dispatch and again after review); applies labels per state machine §6; runs **White Rabbit's Pocket Watch** drift check against OKR.objective hash; runs **Caterpillar's Challenge** semantic-drift comparison vs prior phase. |
+| ~~**`reviewer-bus.yml`** (NEW, Phase C)~~ **RETIRED 2026-05-23 (Bug V)** — never deployed | ~~PR opened with `research-synthesis` / `prd-draft` / `design-draft` label~~ | ~~Fires architect-reviewer + security-reviewer agents **in parallel**; enforces **Tweedles** (reviewer DID ≠ author DID — checked before agent dispatch and again after review); applies labels per state machine §6; runs **White Rabbit's Pocket Watch** drift check against OKR.objective hash; runs **Caterpillar's Challenge** semantic-drift comparison vs prior phase.~~ Replaced by persona-switch self-critique inside the author agent (B24 pivot, confirmed all-phases 2026-05-23). Drift gates run in `drift-gate.yml`; review scoring runs inside the author-agent workflow via signed `self_review` events. |
 | **`design-bus.yml`** (NEW, Phase C) | PR merged with `prd-draft` + `governance-pass` | Reads merged PRD's `target_code_repos[]` from manifest; opens one `oraculum-design` issue **in each target code repo** (not in the mesh) carrying OKR context + PRD ref + landing scope; assigns `design-agent` on each. |
 | `label-on-merge.yml` (retained, **extended**) | PR merge | Adds `governance-pass` only when both reviewers ≥ threshold AND tier allows; applies `revision-required` on Supervised/Autonomous up to MAX_AUTO_ROUNDS; emits `human-gate` label on round exhaustion. |
 | `oraculum-review.yml` (retained, **scope narrowed**) | `@claude` / `@copilot` on `oraculum-review` issue (code-repo architecture review) | Unchanged from v3 — but no longer the entry point for any OKR-anchored work. |
@@ -1278,9 +1282,9 @@ The orchestration shifts from per-phase workflows (one per phase, each containin
 | ~~`prd.yml`~~ | `prd-agent` + `okr-bus.yml` |
 | ~~`notify-code-repos.yml`~~ | `design-bus.yml` |
 
-**Why bus workflows.** Each bus has one concern (Tweedles + label state, or OKR-state update, or per-repo fan-out). Concerns compose; bus workflows can be reasoned about independently. The old per-phase workflows mixed LLM-call orchestration with state management, which made changing either side risky. The v4 design isolates them.
+**Why bus workflows.** Each bus has one concern (label state, OKR-state update, or per-repo fan-out). Concerns compose; bus workflows can be reasoned about independently. The old per-phase workflows mixed LLM-call orchestration with state management, which made changing either side risky. The v4 design isolates them. _Historical: reviewer-bus.yml was originally listed here for "Tweedles + label state"; retired 2026-05-23 — see banner on the row above._
 
-**State machine reference**: see §6.1 (auto-rounds + HumanGate) and §6.2 (tier-aware bounds). The reviewer-bus enforces the tier cap; the label-on-merge writes the resulting label.
+**State machine reference**: see §6.1 (auto-rounds + HumanGate) and §6.2 (tier-aware bounds). _Post-Bug V (2026-05-23): the per-agent workflow (`prd-agent.yml` / `code-design-agent.yml`) enforces the tier-bounded round cap via persona-switch self-critique inside the author agent; `label-on-merge.yml` writes the resulting label._
 
 ### 9.1 Workflow trigger + permissions matrix
 
@@ -1289,7 +1293,7 @@ Each bus workflow has an exact `on:` clause and a minimal permission set. The me
 | Workflow | `on:` trigger | Permissions | What it writes |
 |---|---|---|---|
 | `okr-bus.yml` | `issues: [labeled]` with label-filter `okr-anchor` AND one of `oraculum-research / oraculum-prd / oraculum-design`; also `pull_request: [closed]` with `merged: true` filter for status updates; also `schedule: cron 0 * * * *` for the agent-stall watchdog | `issues: write`, `pull-requests: write`, `contents: write` (to commit `okr.yaml.actions[]` updates) | Comment on the anchor issue assigning the agent; commit to `okrs/<id>/okr.yaml` on every phase transition; emit audit events to `okrs/<id>/audit/events/okr-bus-<event-id>.jsonl` |
-| `reviewer-bus.yml` | `pull_request: [opened, synchronize, ready_for_review]` with label-filter on one of `research-synthesis / prd-draft / design-draft` | `pull-requests: write`, `contents: read`, `checks: write` (to fail-on-violation), `issues: write` (to comment on the OKR anchor issue) | PR comments assigning reviewers; review labels; Pocket Watch hash comparison output as a check-run; `tweedles-violation` or `goal-drift-detected` labels on violations |
+| ~~`reviewer-bus.yml`~~ **RETIRED 2026-05-23 (Bug V)** — never deployed | ~~`pull_request: [opened, synchronize, ready_for_review]` with label-filter on one of `research-synthesis / prd-draft / design-draft`~~ | ~~`pull-requests: write`, `contents: read`, `checks: write` (to fail-on-violation), `issues: write` (to comment on the OKR anchor issue)~~ | ~~PR comments assigning reviewers; review labels; Pocket Watch hash comparison output as a check-run; `tweedles-violation` or `goal-drift-detected` labels on violations~~. Pocket Watch / Caterpillar drift checks moved to `drift-gate.yml`; review scoring is now persona-switch self-critique inside the author agent. |
 | `design-bus.yml` | `pull_request: [closed]` with `merged: true` AND label `design-draft` AND no `revision-required` | `pull-requests: read`, `contents: read` (to read the merged code-design.md), uses the GitHub App installation to write to target code repos | One issue per `target_code_repos[]` entry in the target repo (uses the App installation token); commit `design-fan-out.yaml` to `okrs/<id>/what/` recording each fan-out result (success / failure per repo) |
 | `label-on-merge.yml` | `pull_request: [closed]` and `pull_request_review: [submitted]` | `pull-requests: write`, `contents: read` | Applies `governance-pass` / `revision-required` / `human-gate` per the state machine; never applies `goal-drift-detected` (that's reviewer-bus) |
 | `oraculum-review.yml` (retained, narrowed) | `issues: [labeled]` with label `oraculum-review` | `pull-requests: write`, `issues: write`, `contents: read` | Same as today — code-repo arch review only; does NOT touch OKRs |
@@ -1477,7 +1481,7 @@ A single component renders all three Action cards. Its sub-state model:
 | `not-started` | ☐ gray title; primary button "Start <phase>" | No `actions[]` entry for this phase yet |
 | `gated` | ☐ gray title + reason chip ("Gated on Why merged" / "Restricted — escalate") | Prerequisite not met |
 | `in-progress` | ⏳ amber title + live event ticker (last 3 skill calls) | `actions[].status = in_progress` |
-| `under-review` | ⏳ amber title + "Reviewers running…" | PR open, reviewer-bus active |
+| `under-review` | ⏳ amber title + "Self-review running…" | PR open, per-agent workflow's audit-and-drift job evaluating persona-switch `self_review` events (post-Bug V 2026-05-23; pre-V this read "reviewer-bus active") |
 | `revision-required` | ⚠ orange title + reviewer findings + "Auto-revising (round 2/2)" | Supervised/Autonomous tier, score below threshold |
 | `blocked` | ⛔ red title + reviewer findings + escalation choices | Restricted tier OR auto-rounds exhausted |
 | `human-gate` | 🛑 red title + Approve / Re-run / Reject buttons | MAX_AUTO_ROUNDS reached on Supervised tier |
@@ -1508,11 +1512,11 @@ Hatter:    chain_root sha256:a8c2…f019    [View Tag ↗] [Verify Chain ↗]
 │  Prompt SHA     sha256:a8c2…f019                                 │
 │  Prompt Pack    research/query-plan@v3 + research/synthesis@v2   │
 │                                                                  │
-│ Reviewers (Tweedles: reviewer DIDs ≠ author DID ✓)               │
-│  Architect      did:gh:installation:…/agent:architect-reviewer   │
-│                 score 85                                         │
-│  Security       did:gh:installation:…/agent:security-reviewer    │
-│                 score 88                                         │
+│ Self-review (persona-switch — Bug V 2026-05-23; pre-V: Tweedles)│
+│  Architect persona  (same author DID, persona-round 1)           │
+│                     score 85                                     │
+│  Security persona   (same author DID, persona-round 1)           │
+│                     score 88                                     │
 │                                                                  │
 │ Grounding                                                        │
 │  Threat model   platforms/imdb-lite/…/threat-model.yaml@7a3b9d   │
@@ -1581,7 +1585,7 @@ The current Settings panel deploys 6 workflows (`oraculum-review`, `oraculum-res
 | `oraculum-review.yml` | ✓ Active — code-repo architecture reviews | Deploy / Redeploy |
 | `label-on-merge.yml` | ✓ Active — housekeeping | Deploy / Redeploy |
 | `okr-bus.yml` | ✦ New (Phase C) — OKR phase orchestration | Deploy |
-| `reviewer-bus.yml` | ✦ New (Phase C) — fires Tweedle reviewers in parallel | Deploy |
+| ~~`reviewer-bus.yml`~~ | ⊘ **RETIRED 2026-05-23 (Bug V)** — never deployed; replaced by persona-switch self-critique inside each author agent's workflow | n/a |
 | `design-bus.yml` | ✦ New (Phase C) — per-repo design fan-out | Deploy |
 | ~~`oraculum-research.yml`~~ | ⊘ Deprecated — replaced by market-research-agent + Skills | Remove (after Phase B verified) |
 | ~~`archeologist.yml`~~ | ⊘ Deprecated — same | Remove |
@@ -1679,7 +1683,7 @@ Every Action card has eight sub-states (§10.3), but each sub-state needs an exp
 
 **PR status visibility — how scores appear on the Action card.**
 
-The PR description carries the Hatter's Tag fenced block (with `reviewer_scores: { architect: ..., security: ... }`). When a reviewer agent posts its structured review, `reviewer-bus.yml` parses the SCORE values from the comment body (regex against the prompt-pack's required format) and **commits the updated Hatter's Tag back to the PR description**. Looking Glass reads scores from the PR description in the 15s poll. This makes scores append-only and audit-visible without re-running anything.
+The PR description carries the Hatter's Tag fenced block. **Post-Bug V (2026-05-23):** there are no separate reviewer agents. The per-agent workflow (`prd-agent.yml` / `code-design-agent.yml`) parses the persona-switch `self_review` events from the audit chain and surfaces per-persona scores (Architect / Security) in the audit-comment posted to the PR. Looking Glass reads scores from the PR description and the audit comment in the 15s poll. _Historical (pre-V): `reviewer-bus.yml` was originally specified to parse SCORE values from separate reviewer-agent comments — never deployed._
 
 **Per-repo design PR tracking.** For Phase 3b fan-out, Looking Glass uses the GitHub App installation token (read scope) to fetch each `target_code_repos[]` issue + linked PRs. This avoids requiring the user to authenticate to each code repo separately. Failed reads (auth-revoked, repo deleted) display as `unreachable` on the per-repo line in the Action card with a `Re-check access` button.
 
@@ -1810,10 +1814,12 @@ hatters_tag:
   author_system_prompt_sha: sha256:<32 hex>
   author_prompt_pack_version: prd@v2.1
 
-  # Reviewer identities (Tweedles — MUST NOT equal author)
-  reviewer_dids:
-    - did:gh:installation:7654321/agent:architect-reviewer
-    - did:gh:installation:7654321/agent:security-reviewer
+  # Reviewer identities — RETIRED 2026-05-23 (Bug V): there are no separate
+  # reviewers. Persona-switch self-critique inside the author agent emits
+  # signed self_review events per persona per round on the audit chain;
+  # reviewer_dids[] is no longer populated. Field preserved for historical
+  # parsers; reviewer_scores below is computed from the chain.
+  reviewer_dids: []
 
   # Grounding refs
   threat_model_ref: platforms/imdb-lite/bars/imdb-celebs/security/threat-model.yaml@sha
@@ -1859,9 +1865,9 @@ The Hatter's Tag is written to **two** places, by different actors, at different
 | Location | Written by | Written when | Authoritative for |
 |---|---|---|---|
 | **Artifact frontmatter** (e.g., top of `okrs/<id>/why/research-doc.md` between `---` fences) | The author agent, on artifact write (completion step 2 in §5.5.6) | Once, atomic with the artifact commit | **Canonical** — this is the single source of truth |
-| **PR description fenced block** (a ```yaml hatters-tag fenced block in the PR body) | Same author agent, on PR open (completion step 3); UPDATED by `reviewer-bus.yml` after each reviewer posts to inject `reviewer_dids[]` + `reviewer_scores` | Once at open, plus N times as reviewers come in | **Display mirror** of the canonical — for human readability in the GitHub UI |
+| **PR description fenced block** (a ```yaml hatters-tag fenced block in the PR body) | Same author agent, on PR open (completion step 3). **Post-Bug V (2026-05-23):** no reviewer-bus updates — the author agent's persona-switch self-critique writes its own per-persona scores into the audit chain, and the per-agent workflow surfaces them in the audit comment. _Pre-V: this was updated by reviewer-bus after each reviewer posted._ | Once at open | **Display mirror** of the canonical — for human readability in the GitHub UI |
 
-**Conflict resolution.** If the two diverge (e.g., a human hand-edited the PR description), the **frontmatter wins**. `verify-chain` reads the frontmatter; the PR description is informational. The reviewer-bus workflow re-syncs the PR description from the frontmatter after every update (i.e., reads frontmatter, appends its own reviewer fields, rewrites the PR description's fenced block).
+**Conflict resolution.** If the two diverge (e.g., a human hand-edited the PR description), the **frontmatter wins**. `verify-chain` reads the frontmatter; the PR description is informational. _Pre-Bug V: reviewer-bus.yml was specified to re-sync the PR description from the frontmatter after every reviewer update; retired 2026-05-23._
 
 **Why frontmatter is canonical.** The artifact is git-history-immutable — once merged, the commit SHA pins the Hatter's Tag forever. PR descriptions are mutable forever (anyone with write access can edit). The audit chain's integrity needs an immutable anchor; the merged-artifact's frontmatter provides one.
 
@@ -1875,16 +1881,17 @@ The Hatter's Tag is written to **two** places, by different actors, at different
 
 **Within a single file** (same run), the `audit-emit-event` Skill is the **only** writer. It uses POSIX advisory locking (`fcntl.flock` with `LOCK_EX`) on the file handle. Lock is held only during the `read-last-line-for-hash + append-new-line` operation (~5ms). Other Skills wait briefly on the lock.
 
-**Workflow audit events** (events emitted by `okr-bus.yml`, `reviewer-bus.yml`, etc.) write to **separate JSONL files** to avoid contention with agent-driven `audit-emit-event` Skill calls:
+**Workflow audit events** (events emitted by per-agent workflows like `prd-agent.yml`, `code-design-agent.yml`) write to **separate JSONL files** to avoid contention with agent-driven `audit-emit-event` Skill calls:
 
 ```
 okrs/<id>/audit/events/
   RES-2026-05-19-abc123.jsonl              # market-research-agent's events
   PRD-2026-05-19-def456.jsonl              # prd-agent's events
-  okr-bus-state-transitions.jsonl          # all okr-bus.yml state changes
-  reviewer-bus-2026-05-19.jsonl            # one file per day for bus events
+  workflow-events-2026-05-19.jsonl         # per-agent-workflow audit-and-drift events
   pocket-watch.jsonl                        # all Pocket Watch checks across runs
 ```
+
+_Historical (pre-Bug V): `okr-bus.yml` + `reviewer-bus.yml` were listed here. Per B20 those were consolidated into per-agent workflows; reviewer-bus retired 2026-05-23 (Bug V)._
 
 Each file is independently hash-chained. `verify-chain` walks ALL JSONL files under `audit/events/` and validates each chain. Cross-file ordering uses the CloudEvents `time` field — strictly increasing per `intent_thread_uuid`.
 
@@ -2196,7 +2203,7 @@ Auto-generated. Structure:
 2. **Auditor's master question** — quoted verbatim, with pointer-list to where each sub-answer lives
 3. **Chain integrity** — pass/fail summary for every phase's `verify-chain` run, with the chain root SHAs
 4. **Governance tier story** — tier at start, any escalations / overrides, final tier
-5. **Tweedles check** — confirmation that every reviewer DID ≠ author DID across all phases
+5. **Persona-switch convergence** — confirmation that Architect + Security personas both reached PASS in each phase's bounded rounds, with per-persona/per-round signed `self_review` events present on the chain (Bug V 2026-05-23; pre-V: "Tweedles check — reviewer DID ≠ author DID")
 6. **Goal-drift (Pocket Watch)** — hash of objective at start vs at end, drift percentage
 7. **Prompt-pack versions** — every pack cited, with frozen copies in `prompt-packs/`
 8. **Index** — table of all files in the bundle with one-line descriptions
@@ -2247,7 +2254,7 @@ The agentic-SDLC design must coexist with [workshop-starter-imdb-lite.md](../../
 | Part 4 — Fitness Functions | Adds `threats:` + fitness blocks to Celebs | Once added, Celebs' score increases → tier upgrades from Restricted to Supervised; demonstrable in Looking Glass |
 | Part 5 — Security Pipeline | Adds NIST controls to Celebs | Same — tier upgrade and reviewer auto-passes more findings |
 | Part 6 — Team Prompt Library | Curates `.caterpillar/prompts/` | The prompt-pack version becomes a Hatter's Tag field; learners see provenance updates when they bump it |
-| Part 7 — Red Queen's Court | Policy enforcement + role separation | **The Tweedles enforcement (§5.3) is exactly this lesson.** Architecture-reviewer rejecting agent-authored PRDs is the live demo. |
+| Part 7 — Red Queen's Court | Policy enforcement + role separation | **Persona-switch self-critique inside the author agent is the lesson** (Bug V 2026-05-23 retired the original Tweedles separate-reviewer demo from §5.3). Live demo: the author agent inhabits Architect + Security personas in bounded rounds, surfaces per-persona scores in the audit comment, and the persona-switch evidence is on the signed audit chain. |
 | Part 8 — Governance Capstone | End-to-end feature shipped | Learners create an OKR, run the Why/How/What pipeline, watch reviewers fire, end with a fully-audited Hatter's Tag in each artifact |
 
 ### 12.3 Mesh-side artifacts the seed must produce
@@ -2438,16 +2445,16 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
   **What got deleted.**
   - `code-templates/workflows/architect-reviewer.yml` — workflow file removed
   - `code-templates/workflows/security-reviewer.yml` — same
-  - `MESH_AGENTS` no longer lists `architect-reviewer` / `security-reviewer` (the `.agent.md` files stay on disk under `code-templates/agents-v4/` in case Phase 3's WHAT phase wants code-grounded reviewers, but they're not deployed to mesh repos)
+  - `MESH_AGENTS` no longer lists `architect-reviewer` / `security-reviewer` (the `.agent.md` files were kept on disk under `code-templates/agents-v4/` as historical references; Bug V (2026-05-23) deleted them outright since persona-switch is now confirmed for all phases including WHAT)
   - Generators `generateArchitectReviewerWorkflow` / `generateSecurityReviewerWorkflow` removed from `codeRepoTemplates.ts`
   - `DEPRECATED_MESH_FILES` extended with the two workflow paths + the two `.agent.md` paths so `pruneDeprecatedWorkflows` sweeps them from any mesh repo on next Redeploy
   - `meshLabels.ts` flags `governance-pass-architecture`, `governance-pass-security`, and the `round-N` family as DEPRECATED — kept in the catalog so older PRs aren't broken, but no workflow writes to them anymore
 
   **What stayed.** The structural correctness + Pocket Watch + Caterpillar drift gates in `prd-agent.yml`'s audit-and-drift job — those check structural properties the author can't trivially self-grade (10 H2 sections present, every FR cites R-N/E-N, cosine similarity to OKR objective + prior phase). The `prd-pass` label remains the canonical merge gate, set when audit-and-drift's verdict is `ok` AND `self_review_exhausted` is absent.
 
-  **Implications for WHAT phase (deferred to Phase 3).** Where reviewers ground against actual code (read repos, run pattern scans, check ADR alignment against committed implementations), the independent-evidence axis IS real — the author hasn't read the code, the reviewer has. Phase 3 may bring back separate `architect-reviewer` + `security-reviewer` agents for `design-draft` PRs. The two `.agent.md` files were kept to make that revival cheap.
+  **Implications for WHAT phase (CLOSED 2026-05-23 — Bug V).** Originally this entry left the door open for code-grounded separate reviewers on `design-draft` PRs. User confirmed (Bug V, 2026-05-23) that persona-switch self-critique will remain the model for **all phases including WHAT**. `code-design-agent` runs the same persona-switch self-critique (Architect + Security personas in bounded rounds, per-persona/per-round signed `self_review` events on the chain) — found less brittle than a separate-reviewer mechanism. The two `.agent.md` files referenced below remain in `DEPRECATED_MESH_FILES` and will not be revived.
 
-- [x] **B23.** Phase 2 of B20 — `prd-agent.yml` shipped (B-PR1l). Note: the original B-PR1l plan also shipped `architect-reviewer.yml` + `security-reviewer.yml`, but both were superseded by B24's persona-switch self-critique pivot. They live on disk under `code-templates/agents-v4/` (kept for Phase D's open D8 decision) and in `DEPRECATED_MESH_FILES` so any stale copy gets swept from mesh repos on next Redeploy.
+- [x] **B23.** Phase 2 of B20 — `prd-agent.yml` shipped (B-PR1l). Note: the original B-PR1l plan also shipped `architect-reviewer.yml` + `security-reviewer.yml`, but both were superseded by B24's persona-switch self-critique pivot. They were kept on disk under `code-templates/agents-v4/` (originally for the Phase D D8 open decision) and in `DEPRECATED_MESH_FILES` so any stale copy gets swept from mesh repos on next Redeploy. **Bug V (2026-05-23):** D8 closed — persona-switch confirmed for WHAT phase too; the `.agent.md` files were deleted from `code-templates/agents-v4/`.
 
   Phase 2 of B20 ships HOW-phase + reviewer dispatch on the per-agent workflow pattern proven by `market-research-agent.yml` in Phase 1. Three new workflow files, applying every lesson from Phase 1:
 
@@ -2459,7 +2466,7 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
   - Trigger model: `pull_request_target: labeled` only (same gate-bypass as Phase 1).
   - Dispatch precondition: refuses to mention `@copilot use agent prd-agent` until `okrs/<id>/why/research-doc.md` exists on main. Surfaces a clear "WHY phase not merged yet" message in the issue thread instead of letting the agent fail noisily inside its own run.
 
-  ~~**architect-reviewer.yml + security-reviewer.yml** — per-reviewer dispatch on `prd-draft` / `design-draft` labels.~~ **Superseded by B24** below. The B-PR1l plan briefly shipped these as per-reviewer workflows; B24 collapsed PRD-time review into the prd-agent's own persona-switch self-critique because the reviewers were reading the same mesh state the author already grounded on (no independent evidence surface). The workflows are now in `DEPRECATED_MESH_FILES` and the .agent.md files live on disk for the Phase D D8 open decision on whether code-grounded reviewers come back for the WHAT phase.
+  ~~**architect-reviewer.yml + security-reviewer.yml** — per-reviewer dispatch on `prd-draft` / `design-draft` labels.~~ **Superseded by B24** below. The B-PR1l plan briefly shipped these as per-reviewer workflows; B24 collapsed PRD-time review into the prd-agent's own persona-switch self-critique because the reviewers were reading the same mesh state the author already grounded on (no independent evidence surface). The workflows are in `DEPRECATED_MESH_FILES`. **Bug V (2026-05-23):** D8 closed — persona-switch confirmed for WHAT phase too; the `.agent.md` files were deleted.
 
   Transitional workflows fully removed in this commit (decided not to carry six dormant files for the WHAT-phase window). Per-agent workflows own WHY + HOW end-to-end; WAT phase doesn't run anywhere until code-design-agent.yml ships in Phase 3. All six files moved to `DEPRECATED_MESH_FILES` so `pruneDeprecatedWorkflows` sweeps any stale copy from the mesh on the next Redeploy:
   - `okr-bus.yml` (label routing — superseded by per-agent if-clauses on the labeled event)
@@ -2621,10 +2628,10 @@ Agent deployment lands. Sample OKR becomes runnable end-to-end on Supervised tie
 Bus workflows land. Reviewer recycle loop works on Supervised/Autonomous tiers. Restricted tier still blocks (which is the point).
 
 - [x] **C1.** `okr-bus.yml` workflow — listens for `oraculum-research` / `oraculum-prd` / `oraculum-design` labels on issues; verifies the agent file is deployed; posts `@copilot use agent <name>` comment; flips `okr.yaml.meta.status` (researching / prd-pending / design-pending) and bumps `updatedAt`; concurrency group keyed by issue number; defense-in-depth refusal when agent file missing.
-- [x] **C2.** `reviewer-bus.yml` workflow — fires architect-reviewer + security-reviewer in parallel on `pull_request.opened` with `prd-draft` / `design-draft` labels; extracts `author_did` from PR body Hatter Tag; Tweedles guard refuses dispatch if a reviewer agent name matches author's; re-entrance guard skips when already dispatched. Pocket Watch + Caterpillar drift steps land in C-PR5. **Note (updated B-PR1c):** `research-synthesis` was originally in the trigger list but has been removed — research docs are descriptive (synthesis from sources, no design decisions to grade) and have no reviewer prompt packs. WHY-phase merge gate is `audit-validate.yml` + `research-pass` label only. **Open issue (§14.x):** the `@copilot use agent <name>` PR-comment dispatch pattern puts the reviewer in sub-agent mode (limited tools — `view` / `skill` / `report_progress` only); the architect/security reviewers need the `agent_assignment` body extension treatment that worked for author agents, which means moving to a per-reviewer tracking-issue dispatch pattern. Tracking work item in §14.x.
+- [x] **C2.** `reviewer-bus.yml` workflow — fires architect-reviewer + security-reviewer in parallel on `pull_request.opened` with `prd-draft` / `design-draft` labels; extracts `author_did` from PR body Hatter Tag; Tweedles guard refuses dispatch if a reviewer agent name matches author's; re-entrance guard skips when already dispatched. Pocket Watch + Caterpillar drift steps land in C-PR5. **Note (updated B-PR1c):** `research-synthesis` was originally in the trigger list but has been removed — research docs are descriptive (synthesis from sources, no design decisions to grade) and have no reviewer prompt packs. WHY-phase merge gate is `audit-validate.yml` + `research-pass` label only. **RETIRED 2026-05-23 (Bug V):** This workflow was never deployed. B24 collapsed PRD-time review into the prd-agent; Bug V confirmed persona-switch self-critique for all phases. The §14.8 reviewer-dispatch open issue is CLOSED.
 - [x] **C3.** `design-bus.yml` workflow — fans out per `target_code_repos[]`; opens issue in each target repo with OKR context inlined — fires on `pull_request.closed` with `design-draft` + `governance-pass` labels; reads `targetCodeRepos[]` from `okr.yaml`; opens one `oraculum-design-landing` issue per target repo carrying canonical markers (`okr_id`, `intent_thread_uuid`, `parent_intent_thread`, `design_pr_url`) + readable OKR context. Cross-repo writes use `secrets.GH_TOKEN_FANOUT` (fine-grained PAT) with fallback to workflow token for same-org repos.
 - [x] **C4.** State machine in `label-on-merge.yml` — `governance-pass` only when both reviewer scores ≥ threshold AND tier allows; `revision-required` applied on Supervised/Autonomous tiers up to MAX_AUTO_ROUNDS — implemented as a NEW workflow `okr-state-machine.yml` (the legacy `label-on-merge.yml` stays for the research → PRD → spec-ready handoff in the legacy CI path). Promotes master `governance-pass` when both reviewer pass-labels are present; escalates to `needs-human-review` when round >= tier MAX.
-- [x] **C5.** Round counter + HumanGate transitions wired into `okr-bus.yml` — round counter implemented via `round-N` PR labels (visible, gh-cli-manipulable). `reviewer-bus.yml` extended to fire on `pull_request.synchronize` (author-agent revision push), bumps the label, re-dispatches reviewers. `okr-state-machine.yml` reads the round label + frozen `governanceTier` from the OKR's latest action and gates accordingly.
+- [x] **C5.** Round counter + HumanGate transitions wired into `okr-bus.yml` — round counter implemented via `round-N` PR labels (visible, gh-cli-manipulable). `reviewer-bus.yml` extended to fire on `pull_request.synchronize` (author-agent revision push), bumps the label, re-dispatches reviewers. `okr-state-machine.yml` reads the round label + frozen `governanceTier` from the OKR's latest action and gates accordingly. **RETIRED 2026-05-23 (Bug V):** reviewer-bus.yml was never deployed; round-counter logic shipped inside per-agent workflows' persona-switch loops instead.
 - [x] **C6.** HumanGate UI on OKR detail (Approve / Re-run / Reject buttons; dual-signature override modal) — Action card surfaces the gate panel when latest action's status is `human_gate` or `blocked`. Approve applies `governance-pass` to the PR + flips action to `complete`; Re-run re-comments `@copilot use agent <author>` + increments rounds; Reject closes the PR + marks the action `cancelled`. Restricted tier requires dual signature via a two-step native input flow (Approver #1 + Approver #2, must be distinct).
 - [x] **C7.** White Rabbit's Pocket Watch goal-drift gate — workflow step that hashes OKR.objective at phase start vs PR scope at merge; blocks merge on drift > threshold — shipped as `drift-gate.yml` (a separate workflow rather than a step inside reviewer-bus, for clearer toggling). Uses GitHub Models `text-embedding-3-small` via the workflow's GITHUB_TOKEN (no extra secret needed). Thresholds per §9.2: cosine ≥ 0.85 AND edit_distance/length ≤ 0.30 — BOTH must hold. Falls back to edit-distance-only when embeddings unavailable. On drift: applies `goal-drift-detected` label + posts violation comment + fails the workflow.
 - [x] **C8.** Caterpillar's Challenge — semantic-drift comparison hook in `reviewer-bus.yml` (research → PRD → design → code) — implemented as a second check in the same `drift-gate.yml`. Compares current-phase artifact (PR body or full doc) against the prior phase's merged artifact (`okrs/<id>/why/research-doc.md` for How, `okrs/<id>/how/prd.md` for What). Threshold: cosine ≥ 0.70 (looser than Pocket Watch since phases add detail). Only runs on `how` and `what` PRs.
@@ -2713,7 +2720,7 @@ The auditor's master question is answerable in one click.
 
 - **Goal drift (OWASP T6)** — mitigated by White Rabbit's Pocket Watch (§11.4). Each phase boundary hashes the OKR.objective and compares.
 - **Tier creep (§4.5 of roadmap)** — mitigated by recording the tier at run start in the Hatter's Tag. If a BAR's score gets bumped mid-pipeline, the recorded tier still applies; auditor can spot tier creep.
-- **Role separation (NIST SA-11, SOC 2)** — mitigated by Tweedles (§5.3). Reviewer DID ≠ author DID; workflow enforces.
+- **Role separation (NIST SA-11, SOC 2)** — mitigated by persona-switch self-critique inside the author agent (Architect + Security personas in bounded rounds, per-persona/per-round signed `self_review` events on the audit chain). The chain itself is the segregation evidence. _Historical: §5.3 originally proposed separate-reviewer Tweedles — retired 2026-05-23 (Bug V)._
 - **Repudiation (OWASP T8) / identity spoofing (T9)** — partially mitigated by GitHub App installation tokens (Queen's Keyring) recorded in audit; **fully** mitigated only when Knight's Seal (Ed25519) ships (Phase B+).
 - **LLM-rephrasing bypass** — mitigated by pure-data Skills (no agent rewrites another agent's grounding via a Skill call). Plus the Caterpillar's Challenge: explicit comparison step that flags semantic drift between phase artifacts.
 - **Implicit-intent guesswork** — mitigated by IntentSpec frontmatter (Phase B+). The OKR Card carries `owasp_categories`, `stride_threats`, `calm_nodes`, `fitness_gates`, `governance_tier_required` — explicit, not inferred.
@@ -2726,7 +2733,9 @@ The auditor's master question is answerable in one click.
 - Model version + inputs + operator + timestamps: ✓ (Hatter's Tag fields)
 - Deadline 2 Aug 2026: this design Phase A unblocks; Phase B closes (with Knight's Seal making it cryptographic)
 
-### 14.8 Reviewer dispatch — sub-agent vs primary-agent capability gap (OPEN)
+### 14.8 Reviewer dispatch — sub-agent vs primary-agent capability gap (CLOSED 2026-05-23)
+
+> **CLOSED 2026-05-23 (Bug V):** User confirmed persona-switch self-critique is the model for **all phases** (WHY, HOW, WHAT). There is one DID per artifact run; the author agent inhabits Architect + Security personas in bounded rounds and emits signed `self_review` events per persona per round. No separate reviewer dispatch will be implemented — none of the candidate solutions below ship. The investigation below is preserved as historical context for the design space we explored.
 
 **Problem.** GitHub Copilot Coding Agent has two dispatch modes with very different tool surfaces:
 
@@ -2853,20 +2862,20 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` shipped · `[!]` bloc
 | `[x]` | **Dispatch-table refactor — handleMessage** (cyclomatic 125 → router < 5). Typed `messageHandlers: MessageHandlers<U>` with a discriminated-union mapped type that preserves per-variant payload narrowing. Each handler is its own arrow whose complexity is measured independently. Caught two latent bugs the union form makes visible: `addReposToBar` had `m.repos` (didn't exist) instead of `m.repoUrls`; `openSettings` message type was declared but had no handler. Both fixed. | `vscode-extension/src/webview/LookingGlassPanel.ts` | B (post-B25) |
 | `[x]` | **Dispatch-table refactor — webview entry IIFE** (cyclomatic 232 → router < 5, ceiling 29). 988-line extension→webview switch replaced with `inboundHandlers: Record<string, InboundHandler>` (84 type keys, brace-balanced extraction so nested `if`s survived). `WebviewInboundMessage = { type: string } & Record<string, unknown>` lets existing `(message as Record<...>).foo as Foo` casts in handlers continue to work. | `vscode-extension/src/webview/app/lookingGlass.ts` | B (post-B25) |
 | `[x]` | **Dispatch-table refactor — renderPhaseSignals** (cyclomatic 97 → orchestrator < 10). Split into `renderPreflightSignal` + `renderWhyMetrics` + `renderHowMetrics` + `renderPrCascade`. The orchestrator is a thin dispatcher; only `renderPrCascade` (45) is legitimately state-branchy (each PR state surfaces a different affordance). | `vscode-extension/src/webview/app/views/okrDetail.ts` | B (post-B25) |
-| `[x]` | `market-research-agent`, `prd-agent`, `architect-reviewer`, `security-reviewer` `.agent.md` files (with **Tweedles** enforcement) | `vscode-extension/code-templates/agents-v4/<name>.agent.md` | B |
+| `[x]` | `market-research-agent`, `prd-agent` `.agent.md` files. ~~`architect-reviewer`, `security-reviewer` (with Tweedles enforcement)~~ — **RETIRED 2026-05-23 (Bug V):** persona-switch self-critique inside author agents replaces both. The two reviewer `.agent.md` files were deleted from `code-templates/agents-v4/`. | `vscode-extension/code-templates/agents-v4/<name>.agent.md` | B |
 | `[ ]` | `code-design-agent` `.agent.md` (one cross-cutting agent — supersedes per-repo `design-agent`) | mesh template | D |
 | `[ ]` | **`design/synthesis.md`** prompt pack — emits ONE cross-cutting code-design doc grounded on PRD + indexed code repos | `vscode-extension/prompt-packs/looking-glass/design/synthesis.md` (new) | D |
 | `[ ]` | **`design/architecture-review.md`** prompt pack — CODE-grounded architect review (CALM drift + interface contract diffs against actual code) | `vscode-extension/prompt-packs/looking-glass/design/architecture-review.md` (new) | D |
 | `[ ]` | **`design/security-review.md`** prompt pack — CODE-grounded security review (OWASP pattern scan + threat-model compliance against actual code) | `vscode-extension/prompt-packs/looking-glass/design/security-review.md` (new) | D |
 | `[x]` | AgentDeploymentService — deploys agents + skills + retained workflows. `deploySkills` / `listDeployedSkills` (B-PR1) + `deployAgents` / `listDeployedAgents` (B-PR2). Refuses to deploy any agent declaring a Skill not in `MESH_SKILLS`. | `vscode-extension/src/services/AgentDeploymentService.ts` | B |
-| `[~]` | `reviewer-bus.yml`, `okr-bus.yml`, `design-bus.yml` (incl. Tweedles segregation check + Pocket Watch gate) — all three buses shipped (okr-bus + reviewer-bus C-PR1; design-bus C-PR4); Pocket Watch + Caterpillar drift steps appended to reviewer-bus in C-PR5 | `vscode-extension/code-templates/workflows/<bus>.yml` | C |
+| `[~]` | `okr-bus.yml`, `design-bus.yml` — buses originally shipped C-PR1/C-PR4; Pocket Watch + Caterpillar drift moved to standalone `drift-gate.yml` in C-PR5. ~~`reviewer-bus.yml` (incl. Tweedles segregation)~~ **RETIRED 2026-05-23 (Bug V)** — never deployed; persona-switch self-critique inside per-agent workflows replaces it. | `vscode-extension/code-templates/workflows/<bus>.yml` | C |
 | `[x]` | State-machine logic in `label-on-merge.yml` (round counter + tier-aware) — shipped as a NEW workflow `okr-state-machine.yml` to keep the legacy bus separate; round counter implemented via `round-N` labels on the PR; tier read from the OKR's latest action's frozen `governanceTier` (§6.2). | `vscode-extension/code-templates/workflows/okr-state-machine.yml` | C |
 | `[x]` | HumanGate UI (Approve / Re-run / Reject + dual-signature override modal) — surfaces on Action card when latest action status is `human_gate` / `blocked`; Restricted tier requires two distinct approver handles via sequential native input boxes | `vscode-extension/src/webview/app/views/okrDetail.ts` (renderHumanGate) + `LookingGlassPanel.ts` (onHumanGate{Approve,Rerun,Reject}) | C |
 | `[x]` | `Start Why` button (OKR detail) — creates issue with `okr-anchor` + `oraculum-research` labels and `<!-- okr_id: ... -->` body marker per §5.5.4; appends queued OkrAction with `governanceTier` frozen at run start | `vscode-extension/src/webview/LookingGlassPanel.ts` (onStartOkrPhase) + `okrDetail.ts` (renderStartButton) | B |
 | `[x]` | `Start How` button — shares `onStartOkrPhase`; prerequisite-checks that Why has merged (server-side defense-in-depth on top of UI gating); refuses duplicate in-flight issues | `vscode-extension/src/webview/LookingGlassPanel.ts` + `okrDetail.ts` | B |
 | `[x]` | `Start What` button + per-repo fan-out — button wired via parameterized `onStartOkrPhase('what')`; fan-out implemented in `design-bus.yml` (fires on code-design PR merge with governance-pass; opens one landing issue per `targetCodeRepos[]` entry) | OKR detail view + `design-bus.yml` | C |
 | `[ ]` | `knowledge-reference-repos` Skill (clones + indexes curated reference repos) | mesh template | D |
-| `[ ]` | Per-repo design reviser loop (reviewer-bus.yml runs on code repo PRs) | mesh template | D |
+| `[ ]` | ~~Per-repo design reviser loop (reviewer-bus.yml runs on code repo PRs)~~ **RETIRED 2026-05-23 (Bug V):** code-design-agent does its own persona-switch self-critique; no separate reviser loop. | n/a | D |
 | `[ ]` | Hatter chain ladder tree visualization on OKR detail | OKR detail view | D |
 | `[ ]` | `verify-chain` CLI surface in Looking Glass (validates hash chain, signature chain, intent thread continuity, tier compliance) | Looking Glass action + research-runner CLI | E |
 | `[ ]` | End-to-end smoke (IMDB Lite OKR — Supervised path on Lite, Restricted-blocked path on Celebs) | docs/test | E |
@@ -2979,7 +2988,7 @@ Three categories of secret, three different homes.
 |---|---|---|---|
 | `TAVILY_API_KEY` (research) | Mesh repo's GitHub Secrets (org-level if shared) | Tavily-search Skill at runtime via `${{ secrets.TAVILY_API_KEY }}` | Server-side API key; no user-machine access needed |
 | `ANTHROPIC_API_KEY` (agent fallback) | Mesh repo's GitHub Secrets (org-level) | Anthropic client in `research-runner` legacy CI path; NOT needed for Copilot-driven agent path | Only used in fallback scenarios |
-| `OPENAI_API_KEY` (Pocket Watch embeddings) | Mesh repo's GitHub Secrets (org-level) | `reviewer-bus.yml` for `text-embedding-3-small` calls | Embedding model for semantic-drift gate |
+| `OPENAI_API_KEY` (Pocket Watch embeddings) | Mesh repo's GitHub Secrets (org-level) | `drift-gate.yml` for `text-embedding-3-small` calls (originally targeted `reviewer-bus.yml` — retired 2026-05-23, Bug V) | Embedding model for semantic-drift gate |
 | Copilot license / GitHub auth | GitHub user's account (Copilot subscription, GitHub App install) | Agent assignment | Not a "secret" — auth state |
 | `mesh-config.yaml` (installation IDs, paths) | Local workspace (`.vscode/maintainabilityai/`) — gitignored | Looking Glass | Per-user / per-machine state |
 
@@ -3022,7 +3031,7 @@ A user can have multiple OKRs running concurrently and isn't watching every scre
 | Agent timeout | In-app banner + GitHub comment | error | `Re-run` from OKR detail |
 | Skill terminal failure (e.g., missing API key) | In-app banner with `Open Setup` link | error | Open Setup tab, fix config, `Re-run` |
 | Workflow run failure | GitHub Actions native notification + in-app banner | error | Inspect workflow logs; `Re-run` |
-| Tweedles violation (no available reviewer DID) | In-app banner | warning | Org admin needs to add a second App installation OR add more user-DIDs to reviewer pool |
+| ~~Tweedles violation (no available reviewer DID)~~ **RETIRED 2026-05-23 (Bug V)** — structurally impossible with one-DID-per-artifact persona-switch model | n/a | n/a | n/a |
 | Goal-drift detected | In-app banner + PR check-run failure | warning | Agent re-scopes OR HumanGate approval |
 | GitHub App auth revoked | VS Code notification + Settings banner | critical | Re-install or re-authorize the App |
 | Cost cap reached | VS Code notification + OKR banner + `cost-cap-reached` label | critical | Org admin raises cap OR user closes/archives older OKRs |

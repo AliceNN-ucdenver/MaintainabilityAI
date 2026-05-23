@@ -1021,13 +1021,18 @@ jobs:
               f.write(f'sec_severity={sec_sev or ""}\n')
           print(f'::notice::self-review rounds={rounds} source={source} arch={arch_s}({arch_sev}) sec={sec_s}({sec_sev})')
 
-          # Task #64 — emit synthetic self_review events into the chain
-          # for each persona we extracted scores for. Mirrors HOW workflow.
-          # The UI's fetchPhaseSignal reads self_review events to surface
-          # per-persona scores on the WHAT card; without these emits the
-          # chain only has skill_call events (no score). Idempotent —
-          # skip events already present for (persona, round).
-          import subprocess
+          # Bug V (Codex round-6): no synthetic workflow emission. The
+          # code-design-agent emits signed `self_review` events from
+          # inside its persona-prompt section (Code-Architect / Code-
+          # Security, see code-design-agent.agent.md Bug V contract)
+          # while its per-epoch private key is still in scope. Workflow
+          # attribution on `self_review` is forgery — round-6 manual
+          # repro demonstrated a hand-written unsigned self_review with
+          # `emitted_by:workflow` was accepted as sealed pre-Bug-V; the
+          # runner's narrowed WORKFLOW_EMITTABLE_KINDS allowlist closes
+          # that path. Chain ↔ block cross-check below surfaces if the
+          # agent skipped emitting; the verdict's sealed gate fails the
+          # run as degraded in that case.
           existing = set()
           try:
               with open(jsonl, 'r', encoding='utf-8') as f:
@@ -1043,46 +1048,25 @@ jobs:
           except Exception:
               pass
 
-          to_emit = []
+          # Diagnostic: how many block-derived (persona,round) pairs
+          # don't have a matching signed event in the chain?
+          parsed_pairs = set()
           for (persona, rnd, score, sev) in (
               ('architect', arch_r, arch_s, arch_sev),
               ('security', sec_r, sec_s, sec_sev),
           ):
-              if rnd is None or (score is None and sev is None):
-                  continue
-              if (persona, rnd) in existing:
-                  continue
-              to_emit.append((persona, rnd, score, sev))
-
-          for (persona, rnd, score, sev) in to_emit:
-              evt = {
-                  'okrId': os.environ['OKR_ID'],
-                  'runId': os.environ.get('RUN_ID') or '',
-                  'phase': 'what',
-                  'intentThreadUuid': os.environ.get('INTENT_THREAD_UUID') or '',
-                  'eventKind': 'self_review',
-                  'payload': {
-                      'round': rnd,
-                      'persona': persona,
-                      'score': score,
-                      'severity': sev,
-                      'prompt_pack': f'code-design/{persona}-review.md',
-                      'emitted_by': 'workflow',
-                      'source': source,
-                  },
-              }
-              try:
-                  # Bug-R / R3 (Codex round-3) — pinned to ~0.1.42 (tilde range)
-                  # so auto-publish patches flow without per-PR template edits.
-                  # The parity test in phaseSpec.test.ts asserts every runner
-                  # reference (shell text AND Python array form) carries a pin.
-                  subprocess.run(
-                      ['npx', '-y', '@maintainabilityai/research-runner@~0.1.42', 'skill-audit-emit-event'],
-                      input=json.dumps(evt), text=True, check=True, capture_output=True,
-                  )
-                  print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev} source={source}')
-              except Exception as ex:
-                  print(f'::warning::self_review emit failed for {persona} round {rnd}: {ex}')
+              if rnd is None: continue
+              parsed_pairs.add((persona, rnd))
+          missing_from_chain = parsed_pairs - existing
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write(f'block_count={len(parsed_pairs)}\n')
+              f.write(f'chain_signed_count={len(existing)}\n')
+              f.write(f'chain_block_match={"true" if not missing_from_chain else "false"}\n')
+          if missing_from_chain:
+              for (persona, rnd) in sorted(missing_from_chain):
+                  print(f'::warning::self_review block for persona={persona} round={rnd} not present as signed event in chain — agent should call `audit-emit-event` with eventKind:self_review from inside its persona-prompt section (post-Bug-V contract).')
+          else:
+              print(f'::notice::self-review chain ↔ block parity ok ({len(existing)} signed events match {len(parsed_pairs)} blocks)')
           PYEOF
 
       # P1 (Bug-P / Codex audit) — compute the structural-correctness

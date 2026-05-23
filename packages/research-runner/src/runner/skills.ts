@@ -1787,45 +1787,62 @@ const handleFormatResearchIssueUpdate: SkillHandler = async (input) => {
 const AuditEmitInput = z.object({
   okrId: z.string().min(1),
   runId: z.string().min(1),
-  // Bug K (cert-run-5) — added `self_review` and `self_review_exhausted`
-  // to the enum. The HOW + WHAT workflows' review-emit step calls
-  // `audit-emit-event` with `eventKind: 'self_review'` to write per-
-  // persona-per-round events into the chain (parsed from PR-body /
-  // artifact-md / artifact-frontmatter sources). Previously the enum
-  // rejected the kind with bad-input; the workflow logged a warning
-  // and moved on; the chain never got the synthetic event; the UI
-  // had to rely on its artifact-fallback. Now the emit succeeds.
+  // Bug K (cert-run-5) added `self_review` + `self_review_exhausted`
+  // to the enum so they could be emitted by the workflow's PR-body
+  // parser. Bug V (Codex round-6) keeps the kinds in the enum but
+  // flips ownership: the agent now emits `self_review` from inside
+  // its persona-prompt section (Architect / Security) while the
+  // per-epoch private key is still in scope, producing signed
+  // events. The workflow no longer emits self_review at all.
   eventKind: z.enum([
     'skill_call', 'llm_call', 'artifact_written', 'review_received',
     'self_review', 'self_review_exhausted',
     'state_transition', 'human_gate',
   ]),
   // Note: WORKFLOW_EMITTABLE_KINDS (defined below) constrains which of
-  // these event kinds may carry `payload.emitted_by: 'workflow'` in the
-  // chain verifier. Agent-only kinds (skill_call, llm_call,
-  // self_review_exhausted) MUST always be signed regardless of attribution.
+  // these event kinds may carry `payload.emitted_by: 'workflow'` in
+  // the chain verifier. Post-Bug-V only {artifact_written,
+  // state_transition, human_gate} are workflow-emittable; everything
+  // else MUST be agent-signed regardless of attribution.
   payload: z.record(z.string(), z.unknown()),
   phase: z.enum(['why', 'how', 'what']),
   intentThreadUuid: z.string().min(1),
 });
 
 /**
- * Bug U (Codex round-5) — workflow-emittable event_kind allowlist.
+ * Bug U (Codex round-5) + Bug V (Codex round-6) — workflow-emittable
+ * event_kind allowlist.
  *
  * `payload.emitted_by === 'workflow'` may be unsigned (post-agent
  * context has no key), BUT only for event_kinds the workflow
- * legitimately produces. Workflow attribution on an agent-only kind
+ * legitimately produces. Workflow attribution on an agent-owned kind
  * is forgery — an attacker hand-writing the JSONL could otherwise
- * mark a fake `skill_call` as workflow-emitted to skip the signing
- * requirement. The allowlist below mirrors what the workflow
- * templates actually emit.
+ * mark a fake `skill_call` or `self_review` as workflow-emitted to
+ * skip the signing requirement.
+ *
+ * Bug V removed `self_review` and `review_received` from this set:
+ *   - `self_review` is the persona-prompt's voice (Architect /
+ *     Security inside the prd-agent + code-design-agent runs). It
+ *     belongs to the agent, not the workflow. Agents now call
+ *     `audit-emit-event` from inside their persona-prompt section
+ *     while the per-epoch private key is still available, producing
+ *     signed events. Codex round-6 manual repro showed unsigned
+ *     `self_review` with `emitted_by:workflow` returning
+ *     `ok:true, sealed:true` — that path is now closed.
+ *   - `review_received` is reviewer-persona output. The separate
+ *     reviewer-agent dispatch was removed in the B24 pivot
+ *     (persona-switch self-critique inside the author agent), so
+ *     no workflow legitimately emits `review_received` today. If
+ *     reviewer-bus is ever revived, it'll be agent-signed too.
+ *
+ * The remaining three kinds are workflow-infrastructure events
+ * re-derivable from canonical sources (git diff, PR labels, PR
+ * reviewer state).
  */
 const WORKFLOW_EMITTABLE_KINDS = new Set<string>([
   'artifact_written',  // workflow re-derives from `git diff`
-  'self_review',       // workflow parses PR-body blocks
-  'state_transition',  // workflow infrastructure events
-  'human_gate',        // workflow gate events
-  'review_received',   // workflow records reviewer-agent verdicts
+  'state_transition',  // workflow infrastructure events (label flips)
+  'human_gate',        // workflow gate events (PR reviewer state)
 ]);
 
 /**
@@ -2226,24 +2243,32 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
-    // Bug T (pre-release simplification) + Bug U (Codex round-5):
-    // universal rule + workflow-kind allowlist. Only
-    // `payload.emitted_by === 'workflow'` may be unsigned, AND only
-    // for event_kinds the workflow legitimately produces.
+    // Bug T (pre-release simplification) + Bug U (Codex round-5) +
+    // Bug V (Codex round-6): universal rule + narrow workflow-kind
+    // allowlist. Only `payload.emitted_by === 'workflow'` may be
+    // unsigned, AND only for event_kinds the workflow legitimately
+    // produces from re-derivable canonical sources.
     //
-    // Workflow-emittable kinds (mirrors what the workflow templates
-    // actually emit):
-    //   - artifact_written  — workflow re-derives from `git diff`
-    //   - self_review       — workflow parses PR-body blocks
-    //   - state_transition  — workflow infrastructure events
-    //   - human_gate        — workflow gate events
-    //   - review_received   — workflow records reviewer-agent verdicts
+    // Workflow-emittable kinds (post-Bug-V):
+    //   - artifact_written  — re-derived from `git diff`
+    //   - state_transition  — re-derived from PR labels
+    //   - human_gate        — re-derived from PR reviewer state
     //
-    // `skill_call` and `llm_call` are ALWAYS agent-emitted via the
-    // runner's auto-emit. Workflow attribution on those kinds is
-    // forgery — an attacker hand-writing a JSONL could set
-    // emitted_by:'workflow' on a fake skill_call to skip the signing
-    // requirement; the allowlist below closes that path.
+    // Removed in Bug V:
+    //   - self_review       — persona-prompt's voice (Architect /
+    //                         Security inside the agent run); MUST
+    //                         be agent-signed via audit-emit-event
+    //                         from inside the persona-prompt.
+    //   - review_received   — the B24 pivot eliminated separate
+    //                         reviewer agents; nothing emits this
+    //                         today. Agent-signed if revived.
+    //
+    // All other kinds (skill_call, llm_call, self_review,
+    // review_received, self_review_exhausted, review_emitted) MUST be
+    // agent-emitted under a verified signature. Workflow attribution
+    // on any of those kinds is forgery — an attacker hand-writing
+    // JSONL could set emitted_by:'workflow' on a fake self_review to
+    // skip signing (round-6 manual repro). The allowlist closes that.
     const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
     const emittedBy = eventPayload?.emitted_by;
     const eventKind = (event as { event_kind?: string }).event_kind;

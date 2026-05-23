@@ -973,7 +973,7 @@ Five actors the Hatter must withstand:
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">Insider</div>
     <div class="docs-heading">Malicious insider</div>
-    <div class="docs-copy">Legitimate GitHub access. Goals: ship code that bypasses governance, manipulate BAR scores to unlock tier, coordinate a dual-signature override to push restricted work. The Tweedles, Pocket Watch, and tier-freeze controls are aimed here.</div>
+    <div class="docs-copy">Legitimate GitHub access. Goals: ship code that bypasses governance, manipulate BAR scores to unlock tier, coordinate a dual-signature override to push restricted work. The dual-signature override (HumanGate tier=restricted), Pocket Watch (drift gate), and tier-freeze controls are aimed here.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Insider</div>
@@ -1016,7 +1016,7 @@ Five actors the Hatter must withstand:
   <text x="717" y="74" text-anchor="middle" fill="#e2e8f0" font-size="26" font-weight="800" font-family="system-ui, sans-serif">E</text>
   <text x="717" y="92" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">ELEVATE</text>
   <rect x="28" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
-  <text x="83" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Tweedles DID</text>
+  <text x="83" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Author DID</text>
   <rect x="28" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="83" y="151" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Override fingerprint</text>
   <rect x="28" y="164" width="110" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
@@ -1133,7 +1133,7 @@ Five actors the Hatter must withstand:
 
 | STRIDE | Concrete threat | Control in design | Status |
 |---|---|---|:-:|
-| **Spoof** | Reviewer impersonates the author on the same PR | At PRD time there is no separate reviewer agent — the prd-agent inhabits Architect + Security personas in bounded self-critique, so impersonation is structurally impossible (same author DID across personas; each persona-round emits its own audit event). At code-design time the same Tweedles check applies if separate code-grounded reviewer agents are reintroduced — `author_did` from PR-description Hatter Tag must differ from any dispatched reviewer DID; collision = `tweedles-violation` label | ✓ |
+| **Spoof** | Reviewer impersonates the author on the same PR | At PRD AND code-design time there is no separate reviewer agent — the author agent (prd-agent / code-design-agent) inhabits Architect + Security personas in bounded self-critique, so impersonation is structurally impossible. There is only one DID per artifact run; each persona-round emits its own agent-signed `self_review` audit event from inside the persona-prompt section. The workflow no longer synthesizes unsigned review events (Bug V, 2026-05-23) | ✓ |
 | **Spoof** | Dual-signature override second-signer is impersonated | Fingerprint validation tying request to OKR + phase + reason + timestamp; Signer 2 confirmed via GitHub commenter handle or signed YAML commit; signer ≠ signer | ✓ |
 | **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag; **Knight's Seal — per-event, per-epoch ephemeral Ed25519 signing** (each agent session is its own signer epoch with its own keypair; revise rounds advance to epoch 2, 3, …; the runner's `audit-verify-chain` skill cryptographically verifies every event against the right epoch's pub key on every PR — same code path the runner uses to write the chain). Cosign-anchored persistent signing for long-term third-party verifiability is the next act | ✓ |
 | **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain | 🛠 |
@@ -1199,7 +1199,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
 | Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped. **Pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
 | Threat Management & SecOps | Real-time monitoring + detection engineering | Hash-chained audit JSONL is queryable; `verify-chain` (Phase E) replays the full run from disk; gap-loop refinement events visible in audit trail | ✓ |
-| Zero Trust | "Least agency" — minimum permissions per goal | Reviewer agents `tools:` deliberately omit `edit` (Tweedles boundary); skill backends are pure-data, can't mutate beyond their declared writes | ✓ |
+| Zero Trust | "Least agency" — minimum permissions per goal | Each agent's `.agent.md` declares a minimum-per-task `tools:` list; skill backends are pure-data and can't mutate beyond their declared writes. There are no separate reviewer agents — the author agent's tool scope is bounded to what its persona-switch self-critique requires | ✓ |
 
 **Core principles satisfaction.** *Least Agency* ✓ (per-agent tool whitelists). *Continuous Assurance* ✓ (every PR re-runs the gate workflows, not point-in-time review). *Explainable Outcomes* ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
 

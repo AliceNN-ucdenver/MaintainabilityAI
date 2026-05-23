@@ -102,14 +102,16 @@ Each gap below names: the **standard or competitor** driving the expectation, th
 
 ### Gap 4 — Independent test evidence (separation of agent-as-author from agent-as-tester)
 
+> **RETIRED 2026-05-23 (Bug V):** Separate reviewer agents ("The Tweedles") were retired. PRD-time review was collapsed into the author agent in B24; the user confirmed on 2026-05-23 (Bug V) that persona-switch self-critique will remain the model for **all phases** (WHY, HOW, WHAT). See [`vscode-extension/design/agentic-sdlc-prd.md`](../../vscode-extension/design/agentic-sdlc-prd.md) §3 for the B24 pivot rationale. The row below is preserved for historical context.
+
 | | |
 |---|---|
 | **Standard / source** | NIST 800-53 SA-11 (independent developer testing) · SOC 2 segregation of duties · OWASP T7 (misaligned/deceptive behaviour — agent reporting false success) |
 | **Competitor parity** | None — most competitors let the same agent test its own code |
 | **Our gap** | Workshop teaches RCTRO + tests, but no enforcement that tests come from an independent source |
 | **Extends** | Red Queen (review consensus) + Cheshire (test scaffolding) |
-| **Proposed name** | **The Tweedles** — Tweedledum & Tweedledee: two independent reviewer-agents must sign off, one cannot be the agent that authored the change. Optionally human can be one of the two for high-risk tiers. |
-| **Artifact for auditor** | Dual signatures on every PR; mismatch blocks merge in Restricted tier |
+| **Proposed name (retired)** | ~~**The Tweedles** — Tweedledum & Tweedledee: two independent reviewer-agents must sign off, one cannot be the agent that authored the change.~~ Replaced by persona-switch self-critique inside the author agent — Architect + Security personas in bounded rounds, each emitting a signed `self_review` event per persona per round on the audit chain. The chain itself is the segregation evidence. |
+| **Artifact for auditor** | Per-persona, per-round signed `self_review` events on the hash-chained JSONL audit log; convergence to PASS gates merge |
 
 ### Gap 5 — Goal-drift / intent-pinning detector
 
@@ -332,7 +334,7 @@ Three new named components extend existing systems:
 
 ### Red Queen adds
 - **The Court Recorder** (Gap 1) — Merkle-chained audit chain + SIEM export
-- **The Tweedles** (Gap 4) — twin-reviewer consensus enforcement
+- ~~**The Tweedles** (Gap 4) — twin-reviewer consensus enforcement~~ **RETIRED 2026-05-23 (Bug V)** — replaced by persona-switch self-critique inside the author agent (Architect + Security personas in bounded rounds, per-persona/per-round signed `self_review` events). See Gap 4 above.
 - **The White Rabbit's Pocket Watch** (Gap 5) — goal-drift detection
 - **The Knight's Seal** (Gap 8) — Ed25519-signed agent commits
 - **The Queen's Keyring** (Gap 12) — agent credential lifecycle
@@ -361,10 +363,10 @@ Each cell shows which proposed component primarily satisfies the standard's evid
 | Which prompt | EU AI Act Art. 12 · SOC 2 CC8.1 (2026) | The Hatter's Tag |
 | Which model version | EU AI Act Art. 12 · SA-15(11) | The Hatter's Tag · Agent Roster |
 | Threat model | OWASP Agentic T1–T10 · STRIDE | RCTRO + threat-model.md (existing) |
-| Test coverage | NIST 800-53 SA-11 | The Tweedles · Caterpillar's Challenge |
+| Test coverage | NIST 800-53 SA-11 | Persona-switch self-critique (per-persona signed self_review on chain) · Caterpillar's Challenge |
 | Architecture conformance | ISO 27001 A.8.27 | The Caterpillar's Challenge |
 | Goal alignment | OWASP T6 · T7 | White Rabbit's Pocket Watch |
-| Who approved | EU AI Act Art. 14 · ISO 42001 A.3.2 | Tweedles · CODEOWNER (existing) |
+| Who approved | EU AI Act Art. 14 · ISO 42001 A.3.2 | Persona-switch convergence (Architect + Security personas) · CODEOWNER (existing) · HumanGate dual-signature override (restricted tier) |
 | Rationale | EU AI Act Annex IV | Hatter's Tag + Oraculum's verdict scroll |
 | Audit trail | EU AI Act Art. 12 · OWASP T8 | The Court Recorder |
 | Incident replay | EU AI Act Art. 73 | The Caterpillar's hookah |
@@ -386,7 +388,7 @@ Highest leverage / lowest implementation cost. Establish the audit chain and per
 ### Wave 2 — Process strengthening (3 months)
 Make the existing review process safer, deterministic, architecture-aware.
 
-- **The Tweedles** — twin-reviewer enforcement
+- ~~**The Tweedles** — twin-reviewer enforcement~~ **RETIRED 2026-05-23 (Bug V).** PRD-time review uses persona-switch self-critique inside the author agent (B24 pivot — see [`vscode-extension/design/agentic-sdlc-prd.md`](../../vscode-extension/design/agentic-sdlc-prd.md) §3). Separate code-grounded reviewers were considered for WHAT phase but the user confirmed (2026-05-23, Bug V) that persona-switch will remain the model for all phases.
 - **The Caterpillar's Challenge** — CALM conformance tests
 - **The Knight's Seal** — signed commits + agent DID
 - **Phase 9 CI hard gate** (already on roadmap) — `redqueen-action`

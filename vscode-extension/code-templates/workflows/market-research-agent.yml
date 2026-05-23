@@ -600,6 +600,12 @@ jobs:
           EVIDENCE_MODE="${{ steps.ctx.outputs.evidence_mode }}"
           FOUND="${{ steps.audit.outputs.found }}"
           TOTAL="${{ steps.counts.outputs.total }}"; TOTAL="${TOTAL:-0}"
+          # Bug V (Codex round-6) — sealed gate now keys on raw chain
+          # count (steps.chain.outputs.count) not TOTAL. TOTAL is the
+          # sum of provider/mesh-skill counts; the sealed-required
+          # gate should fire on ANY chain event, not just successful
+          # provider calls. Brings WHY into parity with WHAT.
+          CHAIN_COUNT="${{ steps.chain.outputs.count }}"; CHAIN_COUNT="${CHAIN_COUNT:-0}"
           DOC_FOUND="${{ steps.structure.outputs.doc_found }}"
           H2="${{ steps.structure.outputs.h2_present }}"
           H3="${{ steps.structure.outputs.h3_present }}"
@@ -662,16 +668,15 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
-          # Bug-U / U2 (Codex round-5) — an agent run with events
-          # in the chain MUST be sealed. A chain that exists but
-          # has zero signed agent events means the agent didn't
-          # actually do anything (or the chain is entirely forged
-          # workflow-attributed events with no agent contribution).
-          # Pre-U2 this passed if every other gate was clean. Now
-          # the verdict requires sealed=true for any non-empty run.
-          # Empty chains (TOTAL=0) still fail earlier as
-          # "0 successful provider skill_calls".
-          if [ "$VERDICT" = "ok" ] && [ "${TOTAL:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
+          # Bug-U / U2 (Codex round-5) + Bug V (Codex round-6) — an
+          # agent run with ANY events in the chain MUST be sealed.
+          # Round-6 audit found WHY/HOW were keying on TOTAL (sum of
+          # mesh-skill counts) instead of raw chain count, so a chain
+          # could have unsigned workflow-attributed events without
+          # tripping the sealed gate. Bug V switches the gate to
+          # CHAIN_COUNT so it matches WHAT's behaviour. Pre-V this
+          # passed if TOTAL was 0 but the chain had any other events.
+          if [ "$VERDICT" = "ok" ] && [ "${CHAIN_COUNT:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
             VERDICT="degraded"; REASON="chain has events but is unsealed — no agent-emitted signed events present. Every agent event MUST sign with its per-epoch keypair (Bug T contract)."
             CHAIN_FAIL="true"
             EVIDENCE_FAIL="true"
