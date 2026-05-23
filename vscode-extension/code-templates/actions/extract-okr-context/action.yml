@@ -173,4 +173,39 @@ runs:
           echo "chain_root_hash=$CHAIN_ROOT_HASH"
         } >> "$GITHUB_OUTPUT"
 
+        # Bug-R / R10 (Codex round-3) — workflow-derived cross-check.
+        # Until R10, chain_root_hash was agent-pasted and the only
+        # validation was the 64-hex regex above. Codex round-3 noted
+        # the chain hash should be workflow-derived or cross-checked
+        # against the actual event-1 hash from the JSONL — the
+        # agent's paste must match what the runner wrote, or the
+        # Hatter Tag is lying about which run it represents.
+        #
+        # If the JSONL exists and event 1 is present, recompute its
+        # event_hash and compare. Mismatch = warning surfaced in the
+        # workflow log so the audit gate can pick it up. We don't
+        # hard-fail here to preserve back-compat with chains that
+        # predate this check; the downstream audit-and-drift verdict
+        # already calls audit-verify-chain which catches the same.
+        JSONL="okrs/$OKR_ID/audit/events/$RUN_ID.jsonl"
+        if [ -n "$CHAIN_ROOT_HASH" ] && [ -f "$JSONL" ]; then
+          ACTUAL_EVENT1_HASH=$(python3 -c "
+        import json
+        with open('$JSONL', 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line: continue
+                try:
+                    ev = json.loads(line)
+                except Exception:
+                    break
+                if ev.get('event_id') == 1:
+                    print(ev.get('event_hash') or '')
+                    break
+        " 2>/dev/null || echo "")
+          if [ -n "$ACTUAL_EVENT1_HASH" ] && [ "$ACTUAL_EVENT1_HASH" != "$CHAIN_ROOT_HASH" ]; then
+            echo "::warning::chain_root_hash mismatch: artifact frontmatter says ${CHAIN_ROOT_HASH:0:12}… but JSONL event 1 hash is ${ACTUAL_EVENT1_HASH:0:12}…. The agent may have pasted a stale or fabricated hash. audit-verify-chain (downstream) will catch and reject the chain."
+          fi
+        fi
+
         echo "::notice::okr=$OKR_ID run=$RUN_ID phase=$PHASE evidence=$EVIDENCE_MODE fresh=$FRESH artifact=$ARTIFACT chain_root=${CHAIN_ROOT_HASH:0:12}"

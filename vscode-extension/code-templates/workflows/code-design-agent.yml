@@ -441,23 +441,54 @@ jobs:
 
           # 2. Parse the artifact: walk per-repo subsections (### `owner/name`
           #    or `### owner/name`), collect backtick-quoted file paths in
-          #    each subsection until the next ### or ## heading.
-          REPO_HEADING_RE = re.compile(r'^###\s+`?([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)`?\s*$', re.MULTILINE)
-          # Backtick-quoted paths that look like source files. We're
-          # conservative: must contain a `/` and a file extension. This
-          # avoids false-positives on terms like `npm` or `eslint`.
+          #    each subsection until the next ## heading OR a new repo H3.
+          #
+          # Bug-R / R2 (Codex round-3 closeout) — round-2 code reset
+          # `current_repo` on ANY non-repo H3, so file paths cited
+          # under `### 5.1 API Endpoints` inside a repo subsection
+          # were silently un-attributed. Per the agent prompt, the
+          # design is expected to cite paths across §1 (Project
+          # Structure), §2 (API Endpoints), §3 (Data Models), §5
+          # (Per-Repo Change List) — ALL of those need attribution.
+          # Fix: H2 resets repo attribution; H3 does NOT (sub-sections
+          # of a repo subsection keep the parent repo). ALSO support
+          # an explicit `cited_paths: [...]` field in each repo's
+          # frontmatter — the agent can preemptively declare paths
+          # the narrative prose might not enumerate.
+          REPO_HEADING_RE = re.compile(r'^###\s+`?([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)`?\s*$')
           PATH_IN_BACKTICKS_RE = re.compile(r'`([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]{1,8})`')
+          CITED_PATHS_FM_RE = re.compile(r'^\s*cited_paths:\s*\[([^\]]*)\]', re.MULTILINE)
           lines = doc.split('\n')
-          cited_by_repo = {}  # repo -> set(cited paths)
+          cited_by_repo = {}
           current_repo = None
+          in_frontmatter = False
+          frontmatter_buf = []
           for ln in lines:
+              # Track frontmatter (--- ... ---) so we can pull
+              # `cited_paths:` explicit declarations.
+              if ln.strip() == '---':
+                  if in_frontmatter and current_repo:
+                      fm_text = '\n'.join(frontmatter_buf)
+                      fm_match = CITED_PATHS_FM_RE.search(fm_text)
+                      if fm_match:
+                          for raw in fm_match.group(1).split(','):
+                              p = raw.strip().strip('"').strip("'")
+                              if p: cited_by_repo.setdefault(current_repo, set()).add(p)
+                  in_frontmatter = not in_frontmatter
+                  frontmatter_buf = []
+                  continue
+              if in_frontmatter:
+                  frontmatter_buf.append(ln)
+                  continue
               hm = REPO_HEADING_RE.match(ln)
               if hm:
                   current_repo = hm.group(1)
                   cited_by_repo.setdefault(current_repo, set())
                   continue
-              # H2 or new H3 ends the per-repo subsection
-              if ln.startswith('## ') or (ln.startswith('### ') and not REPO_HEADING_RE.match(ln)):
+              # H2 RESETS attribution. H3 does NOT — sub-sections of a
+              # repo subsection (### 5.1 API Endpoints) keep the parent
+              # repo. This was the round-3 fix.
+              if ln.startswith('## '):
                   current_repo = None
                   continue
               if not current_repo: continue
@@ -530,6 +561,41 @@ jobs:
                   if not skill: continue
                   counts[skill] = counts.get(skill, 0) + 1
 
+          # Bug-R / R1 (Codex round-3): per-brownfield-repo manifest
+          # for knowledge-code-read. Aggregate count alone doesn't
+          # catch the case where the agent reads file X in repo A
+          # five times and skips repo B entirely. Re-scan the chain
+          # to build per-repo coverage for both skills.
+          kc_mode_by_repo = {}   # repo_slug -> 'brownfield' | 'greenfield' | 'refuse'
+          kcread_by_repo = {}    # repo_slug -> count of reads
+          with open(jsonl, 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line: continue
+                  try:
+                      ev = json.loads(line)
+                  except Exception:
+                      continue
+                  if ev.get('event_kind') != 'skill_call': continue
+                  payload = ev.get('payload') or {}
+                  if payload.get('ok') is False: continue
+                  skill = payload.get('skill')
+                  if skill == 'knowledge-code':
+                      repo = payload.get('repo')
+                      # knowledge-code returns repo as either string or {owner,name}
+                      if isinstance(repo, dict):
+                          repo = f"{repo.get('owner','')}/{repo.get('name','')}"
+                      mode = payload.get('mode')
+                      if repo and mode:
+                          kc_mode_by_repo[repo] = mode
+                  elif skill == 'knowledge-code-read':
+                      repo = payload.get('repo')
+                      if isinstance(repo, dict):
+                          repo = f"{repo.get('owner','')}/{repo.get('name','')}"
+                      if repo:
+                          kcread_by_repo[repo] = kcread_by_repo.get(repo, 0) + 1
+          brownfield_repos = sorted([r for r, m in kc_mode_by_repo.items() if m == 'brownfield'])
+
           card = yaml.safe_load(open(os.environ['OKR_YAML'])) or {}
           oa = card.get('objectiveAlignment') or {}
           bar_ids = oa.get('affectedBarIds') or []
@@ -539,7 +605,9 @@ jobs:
 
           # Required skill_call manifest — must match the table in
           # agents-v4/code-design-agent.agent.md "Required skill_call
-          # manifest" section.
+          # manifest" section. Bidirectional parity test in phaseSpec.
+          # test.ts asserts every entry here appears in the agent
+          # prompt AND vice versa.
           required = [
               ('knowledge-okr', 1),
               ('knowledge-prd', 1),
@@ -558,6 +626,15 @@ jobs:
               actual = counts.get(skill, 0)
               if actual < min_count:
                   missing.append(f'{skill} (got {actual}/{min_count})')
+          # Bug-R / R1: per-brownfield-repo knowledge-code-read
+          # enforcement. For each brownfield repo, at least one
+          # knowledge-code-read against that same repo. Aggregate
+          # check would pass if the agent read the same repo twice
+          # and skipped the other entirely.
+          for repo in brownfield_repos:
+              reads = kcread_by_repo.get(repo, 0)
+              if reads < 1:
+                  missing.append(f'knowledge-code-read[{repo}] (got 0/1)')
           ok = len(missing) == 0
           out = os.environ['GITHUB_OUTPUT']
           with open(out, 'a', encoding='utf-8') as f:
@@ -995,8 +1072,12 @@ jobs:
                   },
               }
               try:
+                  # Bug-R / R3 (Codex round-3) — pinned to ~0.1.42 (tilde range)
+                  # so auto-publish patches flow without per-PR template edits.
+                  # The parity test in phaseSpec.test.ts asserts every runner
+                  # reference (shell text AND Python array form) carries a pin.
                   subprocess.run(
-                      ['npx', '-y', '@maintainabilityai/research-runner', 'skill-audit-emit-event'],
+                      ['npx', '-y', '@maintainabilityai/research-runner@~0.1.42', 'skill-audit-emit-event'],
                       input=json.dumps(evt), text=True, check=True, capture_output=True,
                   )
                   print(f'::notice::self_review emitted persona={persona} round={rnd} score={score} severity={sev} source={source}')
@@ -1082,6 +1163,14 @@ jobs:
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
           STRUCT_OK='${{ steps.verdict.outputs.struct_ok }}'
           MANIFEST_OK='${{ steps.verdict.outputs.manifest_ok }}'
+          # Bug-R / R4 (Codex round-3) — WHAT verdict now gates on
+          # seal_verified parity with WHY + HOW. Round-2 wired seal
+          # into market-research-agent.yml + prd-agent.yml but missed
+          # this workflow. A sealed-but-unverified chain (signatures
+          # present but at least one fails per-epoch verify) now
+          # blocks design-pass like it does for the other phases.
+          SEALED='${{ steps.chain.outputs.sealed }}'
+          SEAL_VERIFIED='${{ steps.chain.outputs.seal_verified }}'
           # D-PR1.v1.2 bug fix — the previous `gh pr edit ... 2>/dev/null
           # || true` swallowed stderr AND the exit code, so failures (e.g.
           # the label doesn't exist in the mesh repo's label registry)
@@ -1102,10 +1191,21 @@ jobs:
             fi
             return 0
           }
-          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ]; then
+          # Bug-R / R4: SEAL_OK derived from sealed + seal_verified.
+          # A sealed chain must verify; an unsealed chain is allowed
+          # past this gate only for legacy (pre-Bug-O) chains, which
+          # the runner already accepts. Match the WHY + HOW pattern.
+          SEAL_OK="true"
+          if [ "$SEALED" = "true" ] && [ "$SEAL_VERIFIED" != "true" ]; then
+            SEAL_OK="false"
+          fi
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ] && [ "$SEAL_OK" = "true" ]; then
             if apply_label --add-label design-pass --remove-label design-degraded,design-drift-detected; then
-              echo "::notice::Applied design-pass label to PR #$PR (chain+mode+structure+manifest all clean)"
+              echo "::notice::Applied design-pass label to PR #$PR (chain+mode+structure+manifest+seal all clean)"
             fi
+          elif [ "$SEAL_OK" = "false" ]; then
+            apply_label --add-label design-degraded || true
+            echo "::warning::Applied design-degraded — Knight's Seal verification failed (chain has signatures but at least one did not verify against its epoch public key)"
           elif [ "$MODE_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"

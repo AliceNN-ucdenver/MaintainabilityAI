@@ -48,7 +48,7 @@ how the agent grounds its per-repo design:
 
 | Repo status | Grounding | Section content |
 |---|---|---|
-| `connected` (brownfield) | Real code from `knowledge-code` clone | Cite **real file paths** from `structure.topDirs` / `entryPoints[].path`. Mark each change as `ADD` / `MODIFY` / `DELETE`. The **language + framework choice is determined by `knowledge-code.primary_language` + `entryPoints[].framework`** — do NOT impose a different stack on existing code. |
+| `connected` (brownfield) | Real code from `knowledge-code` clone + bounded file reads | Cite **real file paths** from `structure.files[]` (path + lang + role classification) — `routes[]` for endpoint changes, `tests[]` for the test files you'll extend, `modules[]` for top-level subdir touchpoints. For EVERY brownfield repo you cite, also invoke **`knowledge-code-read`** on at least one file you intend to modify (typically the main router or the module owning the FR) so the design quotes real code, not paraphrased guesses. Mark each change as `ADD` / `MODIFY` / `DELETE`. Language + framework from `knowledge-code.primary_language` + `entryPoints[].framework` — do NOT impose a different stack on existing code. The audit-and-drift workflow cross-checks every backtick-quoted file path you cite against the chain's `inventory_paths`; cited paths not in inventory fail `STRUCT_OK` with `cited-path-not-in-inventory: <repo> <path>`. |
 | `create` (greenfield) | PRD + mesh + reference-repos | Write a **scaffolding spec**. Pick language + framework from the BAR's ADRs (`{architect_input}`) and from any reference-repos exemplars provided. If neither specifies, default to TypeScript + Node.js (Express/Fastify) per the platform standard — but DO NOT hardcode TypeScript when the BAR ADRs prescribe a different stack. |
 | `not-connected` / `unreachable` | (refused at dispatch — agent never reaches synthesis with these states) | n/a |
 
@@ -109,12 +109,13 @@ mode: brownfield | greenfield   # MATCH the knowledge-code response mode
 status: connected | create       # MATCH the A12.v1.1 targetCodeRepoStatus
 language: <typescript|python|go|...>   # from knowledge-code.primary_language OR BAR ADR
 framework: <express|fastify|nestjs|...> # from knowledge-code.entryPoints[].framework OR scaffold spec
+cited_paths: [src/api/users.ts, src/api/__tests__/users.test.ts]  # OPTIONAL but recommended for brownfield — explicit list of file paths this design modifies. Workflow path-citation gate cross-checks both this list AND every backtick-quoted path in the body against knowledge-code.inventory_paths.
 ---
 ```
 
 Body:
 
-- **Brownfield**: Cite real `structure.topDirs` from `knowledge-code`.
+- **Brownfield**: Cite real paths from `knowledge-code.structure.files[]` (with role classification: source / test / config / route / doc). For modules + routes, use the per-classification `modules[]` and `routes[]` arrays. Read sample contents via `knowledge-code-read` for any file you intend to MODIFY.
   Directory tree (current shape + where new files land). Per-module
   responsibilities. Existing entrypoints (cite `entryPoints[].path`).
 - **Greenfield**: Proposed directory tree as a code block. Seed files

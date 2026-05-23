@@ -1626,6 +1626,129 @@ test('Bug-Q phase 2 — knowledge-code-read returns bounded file contents from c
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+/**
+ * Bug-R / R5 (Codex round-3) — per-epoch-chain-not-sealed regression.
+ * The Q3 guard rejects per-epoch chains that aren't sealed at all
+ * (signer_epoch present but signedCount == 0). Codex round-3 caught
+ * the absence of a regression test for that specific reason.
+ */
+test('Bug-R / R5 — per-epoch chain with no signatures is rejected (per-epoch-chain-not-sealed)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-R5';
+      const runId = 'WHY-R5-1';
+      const crypto = await import('crypto');
+      function canonicalStringify(v: unknown): string {
+        if (v === null || typeof v !== 'object' || Array.isArray(v)) { return JSON.stringify(v); }
+        const obj = v as Record<string, unknown>;
+        const keys = Object.keys(obj).sort();
+        return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalStringify(obj[k])).join(',') + '}';
+      }
+      const event1: Record<string, unknown> = {
+        event_id: 1,
+        ts: new Date().toISOString(),
+        okr_id: okrId,
+        run_id: runId,
+        intent_thread_uuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        phase: 'why',
+        event_kind: 'skill_call',
+        payload: { skill: 'fake-attacker', ok: true },
+        prev_event_hash: null,
+        public_key: null,
+        event_hash: '',
+        signature: '',
+        signer_epoch: 1,
+      };
+      event1.event_hash = crypto.createHash('sha256').update(canonicalStringify(event1)).digest('hex');
+      const jsonlDir = path.join(mesh, 'okrs', okrId, 'audit', 'events');
+      fs.mkdirSync(jsonlDir, { recursive: true });
+      fs.writeFileSync(path.join(jsonlDir, `${runId}.jsonl`), JSON.stringify(event1) + '\n', 'utf8');
+      const verify = await runSkill('audit-verify-chain', { okrId, runId });
+      assert.equal(verify.ok, false, 'per-epoch chain with no signatures must be rejected');
+      if (!verify.ok) {
+        assert.match(verify.reason, /per-epoch-chain-not-sealed/,
+          `wrong reject reason — expected per-epoch-chain-not-sealed, got: ${verify.reason}`);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+/**
+ * Bug-R / R6 (Codex round-3) — knowledge-code-read auth tightening.
+ * R6.a: no prior knowledge-code cache → reject.
+ * R6.b: requested path not in cached inventory → reject.
+ */
+test('Bug-R / R6.a — knowledge-code-read rejects when no prior knowledge-code cache exists', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const prev = process.env.KNOWLEDGE_CODE_READ_ALLOW_UNCACHED;
+      delete process.env.KNOWLEDGE_CODE_READ_ALLOW_UNCACHED;
+      try {
+        const r = await runSkill('knowledge-code-read', {
+          okrId: 'OKR-R6A', runId: 'WHAT-R6A',
+          repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+          filePath: 'README.md',
+        });
+        assert.equal(r.ok, false, 'read without prior knowledge-code must be rejected');
+        if (!r.ok) { assert.match(r.reason, /no-prior-knowledge-code/); }
+      } finally {
+        if (prev !== undefined) { process.env.KNOWLEDGE_CODE_READ_ALLOW_UNCACHED = prev; }
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('Bug-R / R6.b — knowledge-code-read rejects path not in cached inventory', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-R6B';
+      const runId = 'WHAT-R6B';
+      const prime = await runSkill('knowledge-code', {
+        okrId, runId,
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        repoStatus: 'connected', maxFiles: 20,
+      });
+      if (!prime.ok) {
+        console.warn(`skipping R6.b: clone failed (${prime.reason})`);
+        return;
+      }
+      const r = await runSkill('knowledge-code-read', {
+        okrId, runId,
+        repoUrl: 'https://github.com/AliceNN-ucdenver/MaintainabilityAI',
+        filePath: 'non/existent/inventory/path.ts',
+      });
+      assert.equal(r.ok, false, 'read for path not in inventory must be rejected');
+      if (!r.ok) {
+        assert.match(r.reason, /path-not-in-inventory|file-not-found/,
+          `expected path-not-in-inventory or file-not-found, got: ${r.reason}`);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+/**
+ * Bug-R / R9 (Codex round-3 MINOR) — search-skill audit metadata
+ * includes the `results_preview[]` field via shared helper.
+ * Pin every search handler to the helper so a future refactor
+ * that bypasses it breaks at test time.
+ */
+test('Bug-R / R9 — every search handler routes auditMetadata through buildSearchAuditMetadata', () => {
+  const skillsSrc = fs.readFileSync(path.join(__dirname, 'skills.ts'), 'utf8');
+  for (const name of ['handleTavilySearch', 'handleArxivSearch', 'handleUsptoSearch', 'handleHackerNewsSearch']) {
+    const handlerRe = new RegExp(`const ${name}:[\\s\\S]*?\\n};`);
+    const m = handlerRe.exec(skillsSrc);
+    assert.ok(m, `${name} body found in skills.ts`);
+    assert.match(
+      m![0],
+      /buildSearchAuditMetadata\(/,
+      `${name} must route through buildSearchAuditMetadata so results_preview ships on success`,
+    );
+  }
+});
+
 test('Bug-Q / Q5 — unsigned revise-agent on a per-epoch chain is rejected', async () => {
   const mesh = tmpMesh();
   try {

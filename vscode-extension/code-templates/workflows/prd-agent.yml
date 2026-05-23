@@ -537,8 +537,12 @@ jobs:
                   },
               }
               try:
+                  # Bug-R / R3 (Codex round-3) — pinned to ~0.1.42 (tilde range)
+                  # so auto-publish patches flow without per-PR template edits.
+                  # Parity test asserts every runner ref (shell or array form)
+                  # carries a pin.
                   subprocess.run(
-                      ['npx', '-y', '@maintainabilityai/research-runner', 'skill-audit-emit-event'],
+                      ['npx', '-y', '@maintainabilityai/research-runner@~0.1.42', 'skill-audit-emit-event'],
                       input=json.dumps(evt), text=True, check=True, capture_output=True,
                   )
                   emitted += 1

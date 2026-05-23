@@ -396,6 +396,64 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         ).toEqual([]);
       });
 
+      it('workflow required[] manifest matches the agent prompt manifest BOTH WAYS (Bug-R / R1 — bidirectional parity)', () => {
+        // Codex round-3 caught: round-2's parity test only checked
+        // workflow→agent (every workflow-required skill must appear
+        // in the agent prompt). The reverse direction (every agent-
+        // required skill must appear in workflow required[]) was
+        // missing, so `knowledge-code-read` was demanded by the agent
+        // manifest but not enforced by the workflow. The agent
+        // could skip every read and still pass the audit.
+        //
+        // This test asserts BOTH directions: workflow ⊆ agent AND
+        // agent ⊆ workflow (modulo skills the workflow tracks per-
+        // repo with bracket-suffix names like
+        // `knowledge-code-read[<repo>]`).
+        const agentPath = path.join(
+          __dirname, '..', '..', '..',
+          'code-templates', 'agents-v4',
+          `${phaseSpec(phase).agentName}.agent.md`,
+        );
+        const agentContent = fs.readFileSync(agentPath, 'utf8');
+        // Extract skill names from the agent's "Required skill_call
+        // manifest" table. Format: rows like `| \`skill-name\` | ...`
+        const manifestSection = agentContent.split('Required skill_call manifest')[1]?.split('## ')[0] ?? '';
+        const AGENT_SKILL_ROW = /^\|\s*`([a-z][a-z0-9_-]+)`\s*\|/gm;
+        const agentSkills = new Set<string>();
+        for (const m of manifestSection.matchAll(AGENT_SKILL_ROW)) {
+          agentSkills.add(m[1]);
+        }
+        // Extract workflow-required skills from the `required = [...]`
+        // bash-Python tuple list. Format: `('skill-name', N),`.
+        const WORKFLOW_REQUIRED_RE = /required\s*=\s*\[([\s\S]*?)\]/;
+        const wm = WORKFLOW_REQUIRED_RE.exec(content);
+        const workflowSection = wm ? wm[1] : '';
+        const WORKFLOW_SKILL_ROW = /\(\s*'([a-z][a-z0-9_-]+)'/g;
+        const workflowSkills = new Set<string>();
+        for (const m of workflowSection.matchAll(WORKFLOW_SKILL_ROW)) {
+          workflowSkills.add(m[1]);
+        }
+        // Workflows may track some skills per-repo with dynamic
+        // bracket-suffix counts (e.g. `knowledge-code-read[<repo>]`).
+        // Read the workflow text for those names too — they count
+        // as covered for parity even if not in the static required[].
+        if (/knowledge-code-read\[/.test(content)) {
+          workflowSkills.add('knowledge-code-read');
+        }
+        // Direction 1: workflow ⊆ agent
+        const workflowOnly = [...workflowSkills].filter(s => !agentSkills.has(s));
+        expect(
+          workflowOnly,
+          `Workflow requires skills not declared in the agent manifest: ${workflowOnly.join(', ')}. Add them to the "Required skill_call manifest" table in ${phaseSpec(phase).agentName}.agent.md.`,
+        ).toEqual([]);
+        // Direction 2: agent ⊆ workflow
+        const agentOnly = [...agentSkills].filter(s => !workflowSkills.has(s));
+        expect(
+          agentOnly,
+          `Agent prompt manifest requires skills not enforced by the workflow: ${agentOnly.join(', ')}. Add them to the \`required = [...]\` list in ${phaseSpec(phase).workflowFile} so the workflow actually counts them.`,
+        ).toEqual([]);
+      });
+
       it('phaseSpec auditMarker matches the marker the workflow actually writes (Bug-P P8)', () => {
         // Codex audit minor — LookingGlassPanel used to inline the
         // marker map (why → market-research-agent-audit, ELSE → prd-
@@ -407,40 +465,64 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         expect(content).toContain(expectedMarker);
       });
 
-      it('workflow pins the runner CLI to a tilde-range matching package.json (Bug-Q / Q6 + Codex audit response)', () => {
-        // Codex audit round 2 — unpinned `npx -y @maintainabilityai/
-        // research-runner` lets npm ship an unaudited runner that CI
-        // would silently trust. We chose semver-range pinning (`~X.Y.Z`)
-        // so the auto-publish patch bumps flow without per-PR template
-        // edits, while still requiring deliberate review for a minor
-        // bump (potential breaking change).
+      it('workflow pins the runner reference to a tilde-range matching package.json — every form (Bug-R / R3 — Codex round-3 closeout)', () => {
+        // Codex round-3 caught a parity-test blind spot: the round-2
+        // version of this test only scanned shell text `npx -y
+        // @maintainabilityai/research-runner` and missed two Python
+        // array-form subprocess.run calls (PRD + WHAT self-review
+        // emit) plus an `npm install --no-save @latest` in archeologist
+        // + prd workflows.
         //
-        // The tilde range MUST match the major.minor of the runner's
-        // package.json — so the templates can't drift to a stale minor
-        // even if package.json moved forward.
+        // R3 fix: scan EVERY occurrence of `@maintainabilityai/
+        // research-runner` in the workflow content, regardless of
+        // shell-text vs array form vs `npm install`. Each occurrence
+        // must be followed by an `@<version>` pin matching the
+        // runner's package.json major.minor. `@latest` is explicitly
+        // forbidden (it defeats the audit perimeter).
         const RUNNER_PKG = path.join(__dirname, '..', '..', '..', '..', 'packages', 'research-runner', 'package.json');
         const runnerPkg = JSON.parse(fs.readFileSync(RUNNER_PKG, 'utf8')) as { version: string };
         const [pkgMajor, pkgMinor] = runnerPkg.version.split('.');
 
-        const callMatches = content.match(/npx -y @maintainabilityai\/research-runner(@[^\s]+)?/g) || [];
-        // Accept `@~X.Y.Z` (tilde range — patch flows) OR `@X.Y.Z`
-        // (exact pin — back-compat for any not-yet-converted template).
-        const VERSION_RE = /@maintainabilityai\/research-runner@(~?)(\d+)\.(\d+)\.(\d+)(?:-[\w.]+)?/;
-        const allPinned = callMatches.every(m => VERSION_RE.test(m));
+        // Universal regex — matches the package name followed by an
+        // optional version pin. Captures the pin (or undefined) so we
+        // can validate it. Works for:
+        //   shell:   npx -y @maintainabilityai/research-runner@~0.1.42 skill-x
+        //   array:   ['npx','-y','@maintainabilityai/research-runner@~0.1.42','skill-x']
+        //   install: npm install --no-save @maintainabilityai/research-runner@~0.1.42
+        const RUNNER_OCCURRENCE_RE = /@maintainabilityai\/research-runner(@[^\s'",]+)?/g;
+        const occurrences = Array.from(content.matchAll(RUNNER_OCCURRENCE_RE));
+
+        // Each occurrence must have a pin.
+        const unpinned = occurrences.filter(m => !m[1]);
         expect(
-          allPinned,
-          `workflow has unpinned runner refs: ${callMatches.filter(m => !VERSION_RE.test(m)).join(', ')}`,
-        ).toBe(true);
-        // Every pin's major.minor must match the runner's current
-        // package.json. A future minor bump in package.json without
-        // a matching template update breaks the test loudly.
-        for (const match of callMatches) {
-          const parts = VERSION_RE.exec(match);
+          unpinned.length,
+          `workflow has ${unpinned.length} unpinned runner refs at indices: ${unpinned.map(m => m.index).join(', ')}. Every @maintainabilityai/research-runner reference must carry an @<version> pin (tilde range recommended).`,
+        ).toBe(0);
+
+        // No `@latest` allowed — defeats the audit perimeter.
+        const latestRefs = occurrences.filter(m => m[1] === '@latest');
+        expect(
+          latestRefs.length,
+          `workflow uses @latest for the runner (${latestRefs.length} occurrence(s)). @latest auto-deploys an unaudited runner into CI on every npm publish; pin to a tilde range matching package.json instead.`,
+        ).toBe(0);
+
+        // Every pin must match the runner's current package.json
+        // major.minor. A future minor bump without a matching template
+        // update fails this test loudly.
+        const VERSION_RE = /^@(~?\^?)(\d+)\.(\d+)\.(\d+)(?:-[\w.]+)?$/;
+        for (const match of occurrences) {
+          const pin = match[1];
+          if (!pin || pin === '@latest') { continue; }  // already errored above
+          const parts = VERSION_RE.exec(pin);
+          expect(
+            parts !== null,
+            `workflow pin ${pin} is not a recognised semver shape (need @X.Y.Z, @~X.Y.Z, or @^X.Y.Z)`,
+          ).toBe(true);
           if (!parts) { continue; }
           const [, , major, minor] = parts;
           expect(
             `${major}.${minor}`,
-            `workflow pin ${match} doesn't match runner package.json major.minor (${pkgMajor}.${pkgMinor})`,
+            `workflow pin ${pin} doesn't match runner package.json major.minor (${pkgMajor}.${pkgMinor})`,
           ).toBe(`${pkgMajor}.${pkgMinor}`);
         }
       });
@@ -520,6 +602,62 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
  * agent to write bracket form, but having the pack contradict was
  * an avoidable source of confusion that broke previous runs.
  */
+/**
+ * Bug-R / R8 (Codex round-3) — stale-phrase grep test for marketing
+ * + design docs. Codex round-3 caught 10 lines that still described
+ * the audit chain in pre-Bug-Q-phase-1 terms (`inline (independent
+ * of the runner)`, per-run Knight's Seal, `no API to call`). Each
+ * round-2 truth sweep missed a few of these. This test pins the
+ * truth: any of the forbidden phrases reappearing in live marketing
+ * or current-state design prose breaks at test time.
+ *
+ * Exclusions: historical backlog log entries (B27 done lists, etc.)
+ * are kept verbatim and prefixed with a SUPERSEDED note; this test
+ * only fails on the live-claim sections.
+ */
+describe('stale-truth phrase grep — marketing + design (Bug-R / R8)', () => {
+  // (filename, phrases that must NOT appear as live claims)
+  const guarded: Array<{ file: string; forbidden: RegExp[] }> = [
+    {
+      file: 'site-tw/public/docs/agentic-sdlc-governance.md',
+      forbidden: [
+        /independently of the runner/,                                 // round-2 + 3 fix targets
+        /inline (?:Python )?(?:so the verification is )?INDEPENDENT of the runner/i,
+        /per-run cryptographic signature/,
+        /has no API to call(?!.*gap-loop)/i,                           // bare "has no API to call" — qualified versions pass
+        /has nothing to skip/i,
+      ],
+    },
+    {
+      file: 'site-tw/public/docs/hatters-tea-party.md',
+      forbidden: [
+        /Knight's Seal.*coming next/i,
+        /signing chain-root \+ artifact hash/i,
+      ],
+    },
+  ];
+  for (const { file, forbidden } of guarded) {
+    it(`${file} contains no stale-truth phrases`, () => {
+      const full = path.join(__dirname, '..', '..', '..', '..', file);
+      const text = fs.readFileSync(full, 'utf8');
+      const hits: string[] = [];
+      for (const re of forbidden) {
+        const m = re.exec(text);
+        if (m) {
+          // Pull the surrounding 60 chars for the failure message.
+          const start = Math.max(0, (m.index ?? 0) - 30);
+          const snippet = text.slice(start, start + Math.min(120, m[0].length + 60));
+          hits.push(`${re.source} → "...${snippet.replace(/\n/g, ' ')}..."`);
+        }
+      }
+      expect(
+        hits,
+        `${file} has ${hits.length} stale-truth phrase(s). Either fix the claim or, for historical/log entries, prefix with a SUPERSEDED note + update this test's regex to skip the note context.\n  ${hits.join('\n  ')}`,
+      ).toEqual([]);
+    });
+  }
+});
+
 describe('review-pack CHANGES bracket form (Bug-Q / Q9)', () => {
   const packs = [
     'prompt-packs/looking-glass/prd/architecture-review.md',

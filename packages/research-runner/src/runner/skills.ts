@@ -1261,6 +1261,18 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
     // Workflow gate consumes this to validate cited paths.
     inventory_paths: inventoryPaths,
   };
+  // Bug-R / R6 (Codex round-3) — persist inventory to the clone
+  // cache so knowledge-code-read can strict-mode validate requested
+  // paths against the same list that lands in the audit chain.
+  // Without this, the agent could ask knowledge-code-read for
+  // arbitrary paths inside the clone that the chain never advertised.
+  try {
+    fs.writeFileSync(
+      path.join(cloneTarget, '.knowledge-code-inventory.json'),
+      JSON.stringify({ inventory_paths: inventoryPaths, sha, cachedAt: new Date().toISOString() }),
+      'utf8',
+    );
+  } catch { /* inventory persist failure is non-fatal — read skill will fall back to cache-only check */ }
   return {
     ok: true,
     mode: 'brownfield',
@@ -1330,9 +1342,26 @@ const handleKnowledgeCodeRead: SkillHandler = async (input) => {
     return { ok: false, reason: `path-rejected: path-traversal segments forbidden (${filePath} -> ${normalized})` } as SkillResult;
   }
 
-  // Reuse the cached clone from knowledge-code; clone fresh if missing
-  // (e.g. agent called knowledge-code-read without calling knowledge-
-  // code first — supported but slower).
+  // Bug-R / R6 (Codex round-3) — auth tightening. A prior knowledge-
+  // code call for this (runId, owner, name) MUST have populated the
+  // cache before knowledge-code-read can return content. Closes two
+  // gaps Codex flagged: (1) skill could read any public GitHub repo
+  // by URL alone, (2) audit chain didn't prove the standard
+  // brownfield-grounding pipeline ran before the file read. Test
+  // mode (KNOWLEDGE_CODE_READ_ALLOW_UNCACHED=1) bypasses this for
+  // unit tests that drive the skill directly.
+  const cacheDir = knowledgeCodeCacheDir(runId, gh.owner, gh.name);
+  const metaPath = path.join(cacheDir, '.cache-meta.json');
+  const allowUncached = process.env.KNOWLEDGE_CODE_READ_ALLOW_UNCACHED === '1';
+  if (!allowUncached && !fs.existsSync(metaPath)) {
+    return {
+      ok: false,
+      reason: `no-prior-knowledge-code: knowledge-code-read requires a prior knowledge-code call for ${gh.owner}/${gh.name} in run ${runId}. Call knowledge-code first to clone + classify the repo, then knowledge-code-read can return file contents from the cached clone.`,
+      remediation: "Call `knowledge-code` with the same repoUrl + runId before invoking knowledge-code-read. The audit chain then proves the agent went through brownfield grounding before reading files.",
+    } as SkillResult;
+  }
+  // Reuse the cached clone from knowledge-code; clone fresh only in
+  // test mode (allowUncached).
   const cloneResult = ensureClone(runId, repoUrl, ref ?? 'HEAD', gh.owner, gh.name);
   if (!cloneResult.ok) {
     return {
@@ -1341,6 +1370,28 @@ const handleKnowledgeCodeRead: SkillHandler = async (input) => {
       repo: `${gh.owner}/${gh.name}`,
       remediation: `Could not access clone for ${repoUrl}. Underlying error: ${cloneResult.error ?? 'unknown'}`,
     } as SkillResult;
+  }
+  // Bug-R / R6 (strict mode part 2) — validate the requested path
+  // against the inventory persisted by knowledge-code. Only paths
+  // that knowledge-code already advertised in `inventory_paths` are
+  // readable — closes the gap where the agent could ask for any
+  // file inside the clone, including files not visible in the
+  // bounded walk. Test mode bypasses (see allowUncached).
+  if (!allowUncached) {
+    const inventoryPath = path.join(cloneResult.path, '.knowledge-code-inventory.json');
+    if (fs.existsSync(inventoryPath)) {
+      try {
+        const inv = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) as { inventory_paths?: string[] };
+        const allowed = new Set(inv.inventory_paths ?? []);
+        if (allowed.size > 0 && !allowed.has(normalized)) {
+          return {
+            ok: false,
+            reason: `path-not-in-inventory: ${normalized} is not in the knowledge-code inventory_paths for ${gh.owner}/${gh.name}. The agent can only read files knowledge-code advertised in the chain.`,
+            remediation: "If the file is real but missed by the bounded walk (default maxFiles=200), call knowledge-code with a higher maxFiles before retrying.",
+          } as SkillResult;
+        }
+      } catch { /* malformed inventory; fall through (cache-only check still applied) */ }
+    }
   }
   const absPath = path.join(cloneResult.path, normalized);
   // Final paranoia check — resolve the real path and verify it's still
