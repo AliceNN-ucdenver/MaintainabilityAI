@@ -22,13 +22,26 @@ import { WORKFLOW_EMITTABLE_KINDS, detectKnightSeal, isEventLegitimate } from '.
 
 // Test-helper: build a minimal JSONL event line with the fields
 // detectKnightSeal cares about. Pads the rest with placeholders.
-function event(kind: string, opts: { signature?: string; emittedBy?: string } = {}): string {
-  return JSON.stringify({
+// `epoch` defaults to 1 when a signature is provided so the line
+// satisfies the round-8 signer_epoch contract; pass `epoch: undefined`
+// to test the missing-epoch attack explicitly.
+function event(kind: string, opts: { signature?: string; emittedBy?: string; epoch?: number | undefined; omitEpoch?: boolean } = {}): string {
+  const out: Record<string, unknown> = {
     event_id: 1,
     event_kind: kind,
     signature: opts.signature ?? '',
     payload: opts.emittedBy ? { emitted_by: opts.emittedBy } : {},
-  });
+  };
+  // Include signer_epoch when signed unless explicitly omitted.
+  // Workflow events default to no epoch (omitEpoch true unless overridden).
+  if (!opts.omitEpoch) {
+    if (opts.epoch !== undefined) {
+      out.signer_epoch = opts.epoch;
+    } else if (opts.signature && !opts.emittedBy) {
+      out.signer_epoch = 1;  // default for signed agent events
+    }
+  }
+  return JSON.stringify(out);
 }
 
 describe('chainVerify — WORKFLOW_EMITTABLE_KINDS allowlist', () => {
@@ -139,11 +152,11 @@ describe('chainVerify — detectKnightSeal Bug W round-7 regression', () => {
 });
 
 describe('chainVerify — isEventLegitimate gate for UI metrics', () => {
-  it('signed agent event → legitimate', () => {
-    expect(isEventLegitimate({ event_kind: 'skill_call', signature: 'a'.repeat(128) })).toBe(true);
+  it('signed agent event with numeric signer_epoch → legitimate', () => {
+    expect(isEventLegitimate({ event_kind: 'skill_call', signature: 'a'.repeat(128), signer_epoch: 1 })).toBe(true);
   });
 
-  it('workflow-emittable allowlisted kinds (unsigned, workflow-attributed) → legitimate', () => {
+  it('workflow-emittable allowlisted kinds (unsigned, no signer_epoch, workflow-attributed) → legitimate', () => {
     for (const kind of ['artifact_written', 'state_transition', 'human_gate']) {
       expect(isEventLegitimate({ event_kind: kind, payload: { emitted_by: 'workflow' } }), kind).toBe(true);
     }
@@ -157,5 +170,71 @@ describe('chainVerify — isEventLegitimate gate for UI metrics', () => {
 
   it('unsigned agent event (no workflow claim) → illegitimate', () => {
     expect(isEventLegitimate({ event_kind: 'self_review' })).toBe(false);
+  });
+
+  // Bug X / round-8 — signer_epoch contract on UI side
+  it('signed agent event WITHOUT signer_epoch → illegitimate (round-8 contract)', () => {
+    expect(isEventLegitimate({ event_kind: 'self_review', signature: 'a'.repeat(128) })).toBe(false);
+  });
+
+  it('signed agent event with non-numeric signer_epoch → illegitimate', () => {
+    expect(isEventLegitimate({ event_kind: 'self_review', signature: 'a'.repeat(128), signer_epoch: '1' })).toBe(false);
+  });
+
+  // Bug X / round-8 — signed workflow event is forgery (matches runner)
+  it('SIGNED workflow event (allowlisted kind) → illegitimate', () => {
+    expect(isEventLegitimate({ event_kind: 'artifact_written', signature: 'a'.repeat(128), payload: { emitted_by: 'workflow' } })).toBe(false);
+  });
+
+  it('workflow event carrying signer_epoch → illegitimate', () => {
+    expect(isEventLegitimate({ event_kind: 'artifact_written', signer_epoch: 1, payload: { emitted_by: 'workflow' } })).toBe(false);
+  });
+});
+
+describe('chainVerify — Bug X / round-8 forgery regressions', () => {
+  // The round-8 manual repro: hand-write a JSONL with event_kind in
+  // the allowlist + emitted_by:workflow + a fake signature + fake
+  // signer_epoch. Pre-X the runner skipped signature verification for
+  // workflow events (second-loop continue) so the line came back
+  // sealVerified:true. UI did the same. Both now reject.
+  it('THE round-8 attack: signed allowlisted workflow event → sealTampered', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128), epoch: 1 }),
+      event('artifact_written', { emittedBy: 'workflow', signature: 'b'.repeat(128), epoch: 1 }),
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('workflow event carrying signer_epoch (but no signature) → sealTampered', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128), epoch: 1 }),
+      event('artifact_written', { emittedBy: 'workflow', epoch: 1 }),
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('signed agent event WITHOUT signer_epoch → sealTampered (runner rejects with missing-signer-epoch)', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128), epoch: 1 }),
+      event('self_review', { signature: 'b'.repeat(128), omitEpoch: true }),
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('malformed JSONL line → sealTampered (runner rejects with bad-jsonl-line)', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128), epoch: 1 }),
+      '{not valid json',
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('clean post-round-8 chain (signed agent + signer_epoch + legitimate workflow event) → sealed:true', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128), epoch: 1 }),
+      event('self_review', { signature: 'b'.repeat(128), epoch: 1 }),
+      event('artifact_written', { emittedBy: 'workflow' }),  // unsigned, no epoch — legitimate
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: true });
   });
 });

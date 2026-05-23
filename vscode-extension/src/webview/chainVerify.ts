@@ -39,6 +39,7 @@ export const WORKFLOW_EMITTABLE_KINDS = new Set<string>([
 interface SealEvent {
   event_kind?: string;
   signature?: string;
+  signer_epoch?: unknown;
   payload?: { emitted_by?: string };
 }
 
@@ -46,13 +47,22 @@ interface SealEvent {
  * Knight's Seal v1 (B27) — scan an audit-events JSONL for per-event
  * Ed25519 signatures and report a UI-shaped seal verdict.
  *
- * Verdict matrix (mirrors runner's `audit-verify-chain`):
+ * Verdict matrix (mirrors runner's `audit-verify-chain` exactly):
  *
- * - `{ sealed: true }` — every agent event signed; no forged workflow
- *   attribution. CI workflow re-verifies cryptographically.
- * - `{ sealed: false, sealTampered: true }` — any unsigned agent event,
- *   OR any workflow-attributed event whose `event_kind` is NOT in
- *   `WORKFLOW_EMITTABLE_KINDS`. Renders the red Tampered badge.
+ * - `{ sealed: true }` — every agent event signed AND carries
+ *   `signer_epoch:number`; no forged workflow attribution; every
+ *   line parses. CI workflow re-verifies cryptographically.
+ * - `{ sealed: false, sealTampered: true }` — any of these forgeries:
+ *     - workflow attribution on a non-allowlisted kind (round-7)
+ *     - workflow attribution carrying a non-empty signature
+ *       (round-8: runner skips signature verification for workflow
+ *       events, so a fake signature would otherwise sneak through)
+ *     - workflow attribution carrying a `signer_epoch` (round-8:
+ *       epochs are agent-session concept; workflow has none)
+ *     - any unsigned agent event
+ *     - any signed agent event missing numeric `signer_epoch`
+ *     - any malformed JSONL line (runner hard-rejects with
+ *       `bad-jsonl-line-N`; UI must match)
  * - `{}` — chain has no agent events at all (rare; e.g. a
  *   workflow-infrastructure-only chain). No seal badge rendered.
  *
@@ -65,26 +75,34 @@ export function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampe
   let agentEvents = 0;
   let forged = false;
   for (const line of lines) {
+    let event: SealEvent;
     try {
-      const event = JSON.parse(line) as SealEvent;
-      const claimsWorkflow = event.payload?.emitted_by === 'workflow';
-      const kind = event.event_kind ?? '';
-      const hasSignature = typeof event.signature === 'string' && event.signature.length > 0;
-      // Workflow attribution on a non-allowlisted kind is the round-7
-      // attack: hand-write `event_kind: self_review` +
-      // `payload.emitted_by: workflow` and the runner pre-Bug-V said
-      // sealed:true. Post-Bug-V the runner rejects with
-      // `workflow-event-kind-not-allowed-line-N`; the UI matches here.
-      if (claimsWorkflow && !WORKFLOW_EMITTABLE_KINDS.has(kind)) {
-        forged = true;
-        continue;
-      }
-      const isLegitimateWorkflowEmission = claimsWorkflow && WORKFLOW_EMITTABLE_KINDS.has(kind);
-      if (!isLegitimateWorkflowEmission) {
-        agentEvents++;
-        if (hasSignature) { signed++; }
-      }
-    } catch { /* malformed line — skip */ }
+      event = JSON.parse(line) as SealEvent;
+    } catch {
+      // Bug X (round-8) — runner rejects malformed lines with
+      // bad-jsonl-line-N; UI was silently skipping. Treat as forgery
+      // so the UI badge doesn't render green on a chain CI rejects.
+      forged = true;
+      continue;
+    }
+    const claimsWorkflow = event.payload?.emitted_by === 'workflow';
+    const kind = event.event_kind ?? '';
+    const hasSignature = typeof event.signature === 'string' && event.signature.length > 0;
+    const hasNumericEpoch = typeof event.signer_epoch === 'number';
+    const epochAbsent = event.signer_epoch === undefined;
+    if (claimsWorkflow) {
+      // Round-7 attack: workflow attribution on a non-allowlisted kind.
+      if (!WORKFLOW_EMITTABLE_KINDS.has(kind)) { forged = true; continue; }
+      // Round-8 attacks: signed workflow event OR workflow event
+      // carrying signer_epoch. Both forgery — workflow has no key
+      // and no epoch concept.
+      if (hasSignature || !epochAbsent) { forged = true; continue; }
+      continue;  // legitimate workflow event — not counted as agent
+    }
+    agentEvents++;
+    if (!hasSignature) { continue; }  // unsigned agent event — caught at end
+    if (!hasNumericEpoch) { forged = true; continue; }  // round-8 contract
+    signed++;
   }
   if (forged) { return { sealed: false, sealTampered: true }; }
   if (agentEvents === 0) { return {}; }
@@ -95,18 +113,26 @@ export function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampe
 /**
  * Returns true if the event would be accepted by the runner's
  * `audit-verify-chain` — i.e., either a legitimately-signed agent
- * event, or a workflow-emittable allowlisted kind carrying
- * `payload.emitted_by:'workflow'`. Used by the UI to gate metric
- * extraction (skill_call counts, self_review surfacing) so forged
- * events never pollute the audit comment / phase card numbers ahead
- * of CI's chain-check failure.
+ * event (signature + numeric signer_epoch), or a workflow-emittable
+ * allowlisted kind with empty signature AND no signer_epoch. Used
+ * by the UI to gate metric extraction (skill_call counts,
+ * self_review surfacing) so forged events never pollute the audit
+ * comment / phase card numbers ahead of CI's chain-check failure.
+ *
+ * Bug X (round-8) — tightened in lockstep with detectKnightSeal:
+ * signer_epoch and signed-workflow-event checks now match the runner.
  */
-export function isEventLegitimate(event: { event_kind?: string; signature?: string; payload?: { emitted_by?: string } }): boolean {
+export function isEventLegitimate(event: { event_kind?: string; signature?: string; signer_epoch?: unknown; payload?: { emitted_by?: string } }): boolean {
   const claimsWorkflow = event.payload?.emitted_by === 'workflow';
   const kind = event.event_kind ?? '';
   const hasSignature = typeof event.signature === 'string' && event.signature.length > 0;
+  const hasNumericEpoch = typeof event.signer_epoch === 'number';
+  const epochAbsent = event.signer_epoch === undefined;
   if (claimsWorkflow) {
-    return WORKFLOW_EMITTABLE_KINDS.has(kind);
+    if (!WORKFLOW_EMITTABLE_KINDS.has(kind)) { return false; }
+    // Workflow events MUST be unsigned + carry no signer_epoch.
+    return !hasSignature && epochAbsent;
   }
-  return hasSignature;
+  // Agent event: signature AND signer_epoch:number both required.
+  return hasSignature && hasNumericEpoch;
 }

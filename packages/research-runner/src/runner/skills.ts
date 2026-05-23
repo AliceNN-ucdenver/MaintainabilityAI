@@ -2280,30 +2280,55 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     const eventKind = (event as { event_kind?: string }).event_kind;
     const claimsWorkflow = emittedBy === 'workflow';
     const hasSignature = recordedSignature !== null && recordedSignature !== '';
-    if (claimsWorkflow && !WORKFLOW_EMITTABLE_KINDS.has(eventKind ?? '')) {
-      return {
-        ok: false,
-        reason: `workflow-event-kind-not-allowed-line-${i + 1}: event_kind='${eventKind ?? 'unknown'}' is not in the workflow-emittable allowlist {${[...WORKFLOW_EMITTABLE_KINDS].join(',')}}. Workflow attribution on agent-only event kinds (skill_call, llm_call) is forgery.`,
-      };
+    const recordedEpoch = (event as { signer_epoch?: unknown }).signer_epoch;
+    if (claimsWorkflow) {
+      // Bug V allowlist — kind must be one the workflow legitimately produces.
+      if (!WORKFLOW_EMITTABLE_KINDS.has(eventKind ?? '')) {
+        return {
+          ok: false,
+          reason: `workflow-event-kind-not-allowed-line-${i + 1}: event_kind='${eventKind ?? 'unknown'}' is not in the workflow-emittable allowlist {${[...WORKFLOW_EMITTABLE_KINDS].join(',')}}. Workflow attribution on agent-owned event kinds is forgery.`,
+        };
+      }
+      // Bug X (Codex round-8) — the second loop SKIPS signature
+      // verification for workflow events (the workflow has no key).
+      // Pre-X a hand-written workflow event with a fake signature +
+      // fake signer_epoch passed the first loop, incremented
+      // signedCount, and the second loop's `continue` skipped the
+      // verify step → ok:true, sealed:true, sealVerified:true on a
+      // fully forged workflow line. Fix: workflow events MUST be
+      // empty-signature AND absent signer_epoch. Any signed workflow
+      // event is forgery — the workflow has no per-epoch key to sign with.
+      if (hasSignature) {
+        return {
+          ok: false,
+          reason: `workflow-event-with-signature-line-${i + 1}: payload.emitted_by==='workflow' events must be unsigned (the workflow has no per-epoch private key). A non-empty signature on a workflow-attributed event is forgery — the second verification loop skips workflow events, so a fake signature would otherwise pass unverified.`,
+        };
+      }
+      if (recordedEpoch !== undefined) {
+        return {
+          ok: false,
+          reason: `workflow-event-with-signer-epoch-line-${i + 1}: payload.emitted_by==='workflow' events must not carry signer_epoch (epochs are an agent-session concept; workflow events have no session). Found signer_epoch=${JSON.stringify(recordedEpoch)}.`,
+        };
+      }
     }
-    const isWorkflowEmitted = claimsWorkflow;
-    if (!isWorkflowEmitted && !hasSignature) {
+    if (!claimsWorkflow && !hasSignature) {
       return {
         ok: false,
         reason: `unsigned-agent-event-line-${i + 1}: agent-emitted events MUST carry a non-empty signature (Knight's Seal per-event, per-epoch contract). Only payload.emitted_by==='workflow' events may be unsigned, and only for event_kinds in the workflow-emittable allowlist.`,
       };
     }
     if (hasSignature) {
+      // Reached only when !claimsWorkflow (signed workflow events
+      // rejected above). Every signed agent event MUST carry
+      // signer_epoch — no legacy fallback.
       signedCount++;
-      // Signed events MUST carry signer_epoch — no legacy fallback.
-      const epoch = (event as { signer_epoch?: number }).signer_epoch;
-      if (typeof epoch !== 'number') {
+      if (typeof recordedEpoch !== 'number') {
         return {
           ok: false,
-          reason: `missing-signer-epoch-line-${i + 1}: signed events MUST carry signer_epoch (Bug O contract).`,
+          reason: `missing-signer-epoch-line-${i + 1}: signed agent events MUST carry signer_epoch (Bug O contract).`,
         };
       }
-    } else if (isWorkflowEmitted) {
+    } else if (claimsWorkflow) {
       workflowUnsignedCount++;
     }
     prev = recordedHash;

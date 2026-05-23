@@ -23,13 +23,13 @@ Under Court Recorder Auto-Logging (design [agentic-sdlc.md](agentic-sdlc.md) §1
 | Self-review reasoning (SCORE, SEVERITY, COVERED, MISSING, CHANGES) | ✅ | — |
 | Writing self-review as a structured `### Self-review — <persona> (round N)` block in the PR body | ✅ | — |
 | `skill_call` audit event emission | — | ✅ Runtime auto-emits inside `runSkill()` |
-| `artifact_written` audit event emission | — | ✅ Workflow detects via `git diff` |
-| `self_review` audit event emission | — | ✅ Workflow parses PR-body blocks |
+| `artifact_written` audit event emission | — | ✅ Workflow detects via `git diff` (re-derivable from canonical source — unsigned, allowlisted) |
+| `self_review` audit event emission | ✅ Agent calls `audit-emit-event` from inside the persona-prompt section while the per-epoch private key is in scope; the runner signs it | — Workflow only cross-checks PR-body block ↔ signed chain event for parity (Bug V/W contract) |
 | Hash chaining + canonical serialization | — | ✅ Runtime (B25) |
-| Ed25519 sealing | — | ✅ Runtime (B27) |
-| `state_transition` / `human_gate` events | — | ✅ Workflow |
+| Per-event, per-epoch Ed25519 signing | — | ✅ Runtime (B27 + Bug O) — signs `skill_call`, `llm_call`, `self_review`, `self_review_exhausted` |
+| `state_transition` / `human_gate` events | — | ✅ Workflow (re-derivable from PR labels / reviewer state — unsigned, allowlisted) |
 
-The agent literally **cannot** write to the audit log. It produces content (the PRD, the structured self-review blocks); deterministic code produces events. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written or self_review payloads).
+The split is **deterministic-vs-LLM-judgment**: deterministic code (runtime + workflow) emits `skill_call` / `artifact_written` / `state_transition` / `human_gate` because all four are observable from canonical sources (the actual call, the git diff, PR labels, PR reviewer state). The agent emits `self_review` because the persona-critique verdict IS LLM judgment — there's no canonical source the workflow could re-derive it from. The signed chain event is what makes that judgment auditable: every `self_review` line carries the persona's per-epoch signature, the cross-checked PR-body block proves the human-readable surface matches, and the runner's narrowed workflow-emittable allowlist `{artifact_written, state_transition, human_gate}` (Bug V) + signed-workflow-event rejection (Bug X) keeps the workflow-attribution path tight enough that an attacker can't fabricate a self_review by pretending to be the workflow. This closes T10 (agent skips emission to hide failures — caught by chain-vs-block parity check + runner sealed=true gate) and T11 (agent fabricates self_review or artifact_written content — self_review is signed under the agent's per-epoch key, artifact_written is re-derived from git diff).
 
 ## Current state — validated end-to-end 2026-05-22 (PR #118)
 
@@ -45,7 +45,7 @@ The prd-agent is **validated end-to-end on real Claude Sonnet 4.6 runs.** Last c
 - ✅ **Knight's Seal v1** (B27) — every event signed Ed25519 with per-run ephemeral keypair. Private key in `os.tmpdir()` (NEVER in mesh — verified zero `.priv.pem` files in tree). Public key persisted to `<mesh>/okrs/<id>/audit/keys/<runId>.pub.pem` and committed with the PR. Looking Glass HOW card displays 🛡 Sealed badge inline with `chain_root: 387494d4f70e…`.
 - ✅ **B27.v1.2 — `actions[].hatterChainRoot` auto-populated by finalize step** from the Hatter Tag's `audit.chain_root_hash` (no manual backfill needed). Same value lands in chain-ladder entry.
 - ✅ **B5 `context-*` runtime backends** — `context-architecture` / `context-security` / `context-quality` all called via runner CLI (1 successful skill_call each in PR #118 chain).
-- ✅ **B28 Court Recorder Auto-Logging** — every skill_call event in the chain has `payload.duration_ms` (runtime auto-emit signature). Agent does not call `audit-emit-event` for skill_calls or self_reviews. Workflow audit-shift handles `artifact_written` from git-diff and `self_review` from PR-body parsing.
+- ✅ **B28 Court Recorder Auto-Logging + Bug V agent-signed self_review** — every skill_call event in the chain has `payload.duration_ms` (runtime auto-emit signature). Agent does not call `audit-emit-event` for skill_call (runtime does it) or for artifact_written (workflow re-derives from git diff). Agent DOES call `audit-emit-event` for `self_review` from inside its persona-prompt section — the runner signs under the active per-epoch private key (Bug V Codex round-6 closeout — pre-V the workflow emitted unsigned synthetic `self_review` events with `emitted_by:workflow`, which round-6 demonstrated was forgeable).
 - ✅ **B29 self-review attempt provenance** — 4 chain events (`self-review-architect` r1+r2, `self-review-security` r1+r2) with authoritative `tier:supervised, should_proceed:true, max_auto_rounds:2`. Skill returns the OKR action's frozen `governanceTier` — agent cannot hallucinate tier (PR #112 failure mode prevented).
 - ✅ **B30 invocation discipline** — agent prompt explicitly requires `echo '{...}' | npx -y @maintainabilityai/research-runner skill-<name>` rather than Copilot's `skill_use` tool. PR #118 chain shows 9 mesh-skill calls + 4 self-review calls all via runner CLI.
 

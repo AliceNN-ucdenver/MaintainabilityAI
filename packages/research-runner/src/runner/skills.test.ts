@@ -1149,6 +1149,101 @@ for (const deniedKind of ['skill_call', 'llm_call', 'self_review', 'self_review_
   });
 }
 
+/**
+ * Bug X / Codex round-8 — even when the event_kind IS in the
+ * workflow-emittable allowlist, a workflow-attributed event with a
+ * non-empty signature OR a signer_epoch is forgery. Pre-X the runner
+ * had a hole: the first loop incremented `signedCount` for the line,
+ * but the second (signature-verification) loop skipped it via
+ * `if (emittedBy === 'workflow') continue`, so a fully forged
+ * workflow event with a fake signature + fake signer_epoch returned
+ * `ok:true sealed:true sealVerified:true`. Manual repro from Codex
+ * audit. Closed by adding the empty-signature / absent-signer_epoch
+ * preconditions to the first-loop workflow branch.
+ */
+for (const allowedKind of ['artifact_written', 'state_transition', 'human_gate']) {
+  test(`Bug X / round-8 — signed allowlisted '${allowedKind}' workflow event is rejected`, async () => {
+    const mesh = tmpMesh();
+    try {
+      await withMeshPath(mesh, async () => {
+        const dir = path.join(mesh, 'okrs', `OKR-X-SIG-${allowedKind}`, 'audit', 'events');
+        fs.mkdirSync(dir, { recursive: true });
+        function canonical(obj: unknown): string {
+          if (obj === null || typeof obj !== 'object') { return JSON.stringify(obj); }
+          if (Array.isArray(obj)) { return '[' + obj.map(canonical).join(',') + ']'; }
+          const o = obj as Record<string, unknown>;
+          const keys = Object.keys(o).sort();
+          return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}';
+        }
+        function hash(s: string): string {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          return require('node:crypto').createHash('sha256').update(s, 'utf8').digest('hex');
+        }
+        // Forged: allowlisted kind + emitted_by:workflow + fake
+        // signature + fake signer_epoch. Pre-Bug-X this passed because
+        // the second-loop signature-verification step skipped workflow
+        // events.
+        const draft = {
+          event_id: 1, ts: '2026-01-01T00:00:00.000Z',
+          okr_id: `OKR-X-SIG-${allowedKind}`, run_id: `WHY-X-SIG-${allowedKind}`,
+          intent_thread_uuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          phase: 'why', event_kind: allowedKind, signer_epoch: 1,
+          payload: { kind: allowedKind, emitted_by: 'workflow' },
+          prev_event_hash: null, event_hash: '', signature: '',
+        };
+        const draftForHash = { ...draft, signature: '' };
+        const h = hash(canonical(draftForHash));
+        const e = { ...draft, event_hash: h, signature: 'a'.repeat(128) };
+        fs.writeFileSync(path.join(dir, `WHY-X-SIG-${allowedKind}.jsonl`), JSON.stringify(e) + '\n', 'utf8');
+        const verify = await runSkill('audit-verify-chain', { okrId: `OKR-X-SIG-${allowedKind}`, runId: `WHY-X-SIG-${allowedKind}` });
+        assert.equal(verify.ok, false, `forged signed workflow '${allowedKind}' must be rejected`);
+        if (!verify.ok) {
+          assert.match(verify.reason, /workflow-event-with-signature-line-1/,
+            `wrong reject reason for signed workflow '${allowedKind}' — expected workflow-event-with-signature-line-1, got: ${verify.reason}`);
+        }
+      });
+    } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+  });
+
+  test(`Bug X / round-8 — workflow '${allowedKind}' carrying signer_epoch (but no signature) is rejected`, async () => {
+    const mesh = tmpMesh();
+    try {
+      await withMeshPath(mesh, async () => {
+        const dir = path.join(mesh, 'okrs', `OKR-X-EPOCH-${allowedKind}`, 'audit', 'events');
+        fs.mkdirSync(dir, { recursive: true });
+        function canonical(obj: unknown): string {
+          if (obj === null || typeof obj !== 'object') { return JSON.stringify(obj); }
+          if (Array.isArray(obj)) { return '[' + obj.map(canonical).join(',') + ']'; }
+          const o = obj as Record<string, unknown>;
+          const keys = Object.keys(o).sort();
+          return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}';
+        }
+        function hash(s: string): string {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          return require('node:crypto').createHash('sha256').update(s, 'utf8').digest('hex');
+        }
+        const draft = {
+          event_id: 1, ts: '2026-01-01T00:00:00.000Z',
+          okr_id: `OKR-X-EPOCH-${allowedKind}`, run_id: `WHY-X-EPOCH-${allowedKind}`,
+          intent_thread_uuid: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+          phase: 'why', event_kind: allowedKind, signer_epoch: 1,
+          payload: { kind: allowedKind, emitted_by: 'workflow' },
+          prev_event_hash: null, event_hash: '',
+        };
+        const h = hash(canonical(draft));
+        const e = { ...draft, event_hash: h };
+        fs.writeFileSync(path.join(dir, `WHY-X-EPOCH-${allowedKind}.jsonl`), JSON.stringify(e) + '\n', 'utf8');
+        const verify = await runSkill('audit-verify-chain', { okrId: `OKR-X-EPOCH-${allowedKind}`, runId: `WHY-X-EPOCH-${allowedKind}` });
+        assert.equal(verify.ok, false, `workflow '${allowedKind}' with signer_epoch must be rejected`);
+        if (!verify.ok) {
+          assert.match(verify.reason, /workflow-event-with-signer-epoch-line-1/,
+            `wrong reject reason for workflow '${allowedKind}' with epoch — expected workflow-event-with-signer-epoch-line-1, got: ${verify.reason}`);
+        }
+      });
+    } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+  });
+}
+
 // ─── Court Recorder Auto-Logging (B28) — skill self-emission ─────────
 
 /**

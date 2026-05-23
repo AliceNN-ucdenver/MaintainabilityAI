@@ -827,11 +827,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
       } else if (phase === 'what') {
         Object.assign(result, extractWhatChainSignals(lines));
-        // Task #64 — WHAT branch also surfaces per-persona scores from
-        // self_review chain events when the workflow emits them. The
-        // shared event loop above populated `finalReview`; the HOW
-        // branch already uses it. Mirror here so future WHAT workflows
-        // that emit synthetic self_review events surface in the UI too.
+        // Bug V/W (post-2026-05-23) — WHAT branch surfaces per-persona
+        // scores from signed `self_review` chain events the code-design-
+        // agent emits via audit-emit-event from inside its Code-Architect
+        // / Code-Security persona-prompt sections. The shared event loop
+        // above populated `finalReview` after isEventLegitimate() gating
+        // (Bug W round-7) — forged or unsigned self_review entries are
+        // dropped before reaching this branch, so the scores rendered
+        // here are guaranteed to be ones a runner re-verification would
+        // also accept.
         if (finalReview.architect) {
           result.selfReviewArchitect = { score: finalReview.architect.score, severity: finalReview.architect.severity };
         }

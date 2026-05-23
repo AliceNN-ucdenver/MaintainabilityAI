@@ -48,8 +48,8 @@ Why the WHAT phase is the *heaviest gate* in the entire pipeline:
 - ONE agent (`code-design-agent`) producing ONE cross-cutting `code-design.md` per OKR — NOT per-repo. Cross-cutting features need a single design that reasons about all impacted repos together; per-repo fan-out happens AFTER this artifact merges via `design-bus.yml` (see [Hand-off](#hand-off-per-repo-fan-out-from-mesh-to-code-repos-canonical) below).
 - ONE workflow file (`code-design-agent.yml`) following the Phase B per-agent pattern (B20): dispatch + audit-and-drift + finalize + design-bus fan-out trigger.
 - TWO new mesh Skills (`knowledge-code`, `knowledge-reference-repos`) that clone + index code via tree-sitter (deterministic, polyglot, NOT a full code-intelligence service — see [futurethoughts §1](agentic-sdlc-futurethoughts.md#1-archaeology-research-mode--code-grounded-why-phase) for the same data model applied to WHY-phase archaeology).
-- THREE new prompt packs (`design/synthesis`, `design/architecture-review`, `design/security-review`) — the review packs adapt the existing PRD-side packs to read indexed-code data, not mesh artifacts.
-- ONE open decision (D8 below): whether to keep self-critique (B24 pattern from HOW) or bring separate code-grounded reviewer agents back for WHAT, since code-grounding IS an independent evidence axis (the author hasn't read the code, the reviewer has).
+- THREE new prompt packs (`code-design/synthesis`, `code-design/architecture-review`, `code-design/security-review`) — the review packs adapt the existing PRD-side packs to read indexed-code data, not mesh artifacts. Consumed by the `code-design-agent` via its Code-Architect / Code-Security persona-switches (B24 pattern carried forward — D8 below CLOSED in Bug V).
+- ~~ONE open decision (D8 below): whether to keep self-critique (B24 pattern from HOW) or bring separate code-grounded reviewer agents back for WHAT~~ **CLOSED 2026-05-23 (Bug V):** user confirmed persona-switch self-critique is the model for all phases including WHAT — "less brittle keeping it contained with the agent."
 - ONE Caterpillar drift primitive (`code-design.md ## Approach` vs `prd.md ## Problem Statement`) — gets calibrated in D-PR1's first end-to-end run, same way B22 calibrated WHY's Pocket Watch threshold.
 
 ---
@@ -89,7 +89,7 @@ Establishes the data flow + decision tree + verdict gates *before* writing promp
 
 **Output:** ONE `okrs/<id>/what/code-design.md` with: per-repo change list, interface contracts (OpenAPI / proto / GraphQL diffs), data-ownership decisions, migration plan, rollback plan, fan-out manifest. Each section carries `addresses: [FR-X, SR-Y]` frontmatter (per-FR / per-SR traceability — feeds the §11.7 traceability matrix). Same Hatter Tag schema as HOW + the §11.5 Knight's Seal.
 
-### D1 — Prompt pack `design/synthesis.md`
+### D1 — Prompt pack `code-design/synthesis.md`
 
 Operating contract for the code-design-agent's *first-pass* synthesis. Reads PRD + indexed code repos. Required sections (10 — mirrors HOW's contract for tooling reuse):
 
@@ -104,7 +104,7 @@ Operating contract for the code-design-agent's *first-pass* synthesis. Reads PRD
 9. **Risk Matrix** — same shape as HOW's risk matrix but populated with code-specific risks
 10. **Hatter Tag** (frontmatter at the top in YAML) — `intent_thread_uuid`, `parent_intent_thread = prd-action's intent_thread_uuid`, `evidence_mode: code` (NEW canonical value for WHAT — `live` is WHY, `mesh` is HOW, `code` is WHAT), `seal_pub` + `seal_sig` (B27)
 
-### D2 — Prompt pack `design/architecture-review.md`
+### D2 — Prompt pack `code-design/architecture-review.md`
 
 Code-grounded review pack. The reviewer reads the actual code via `knowledge-code` outputs (NOT the mesh's CALM model). Three structural checks:
 
@@ -114,7 +114,7 @@ Code-grounded review pack. The reviewer reads the actual code via `knowledge-cod
 
 Output format: `SCORE / SEVERITY / COVERED / MISSING / CHANGES` (same NCMS structured-review shape used at PRD time).
 
-### D3 — Prompt pack `design/security-review.md`
+### D3 — Prompt pack `code-design/security-review.md`
 
 Code-grounded security review. Adapts OWASP pattern-scan + threat-model compliance from `application-security.md` to score the design against actual code in each impacted repo. Three structural checks:
 

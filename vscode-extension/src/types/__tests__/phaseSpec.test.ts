@@ -694,6 +694,39 @@ describe('stale-truth phrase grep — marketing + design (Bug-R / R8)', () => {
         /['"]eventKind['"]\s*:\s*['"]review_received['"]/,
       ],
     },
+    // Bug X (Codex round-8) — three doc files escaped the prior
+    // sweeps because they weren't in the guarded list. Adding them
+    // here so the next round's stale-text findings break at test
+    // time, not in the audit.
+    {
+      file: 'vscode-extension/design/agentic-sdlc-prd.md',
+      forbidden: [
+        // Pre-Bug-V claim that the workflow emits self_review.
+        /Workflow parses PR-body blocks/i,
+        // Pre-Bug-V claim that the agent cannot write to the audit log
+        // (post-Bug-V the agent emits signed self_review).
+        /agent literally\s*\*?\*?\s*cannot\s*\*?\*?\s*write to the audit log/i,
+        /self_review.*Workflow audit-shift handles.*self_review.*from PR-body parsing/i,
+      ],
+    },
+    {
+      file: 'vscode-extension/design/agentic-sdlc-codedesigner.md',
+      forbidden: [
+        // Bare `design/synthesis` (without `code-` prefix). Negative
+        // lookbehind ensures we don't trip on the corrected
+        // `code-design/synthesis` form.
+        /(?<!code-)design\/synthesis/,
+        /(?<!code-)design\/architecture-review/,
+        /(?<!code-)design\/security-review/,
+      ],
+    },
+    {
+      file: 'site-tw/public/docs/research/agentic-governance-landscape.md',
+      forbidden: [
+        // Knight's Seal signs audit events, not commits.
+        /Knight['’]s Seal[^<]{0,80}signed commits/i,
+      ],
+    },
   ];
   for (const { file, forbidden } of guarded) {
     it(`${file} contains no stale-truth phrases`, () => {

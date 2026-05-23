@@ -242,7 +242,7 @@ Everything above maps to one question your security and compliance reviewer will
   </div>
 </div>
 
-The combination of <strong>The Court Recorder</strong> (audit chain), <strong>The Hatter&rsquo;s Tag</strong> (per-PR provenance), <strong>The Knight&rsquo;s Seal</strong> (signed commits with agent identity), <strong>persona-switch self-critique</strong> (Architect + Security personas in the author agent, each scoring against the same mesh state), and <strong>The Caterpillar&rsquo;s Challenge</strong> (architecture conformance tests) is designed to answer that question completely &mdash; from one PR back to the prompt, model version, threat model, and approval rationale that produced it.
+The combination of <strong>The Court Recorder</strong> (audit chain), <strong>The Hatter&rsquo;s Tag</strong> (per-PR provenance), <strong>The Knight&rsquo;s Seal</strong> (per-event, per-epoch Ed25519 signing of audit events &mdash; original agent = epoch 1, each revise-agent dispatch = epoch 2, 3, &hellip;; every event signed under its epoch&rsquo;s keypair, the public key committed to the mesh so any third-party auditor can verify offline), <strong>persona-switch self-critique</strong> (Architect + Security personas in the author agent, each emitting a signed <code>self_review</code> audit event per persona per round), and <strong>The Caterpillar&rsquo;s Challenge</strong> (architecture conformance tests) is designed to answer that question completely &mdash; from one PR back to the prompt, model version, threat model, and approval rationale that produced it.
 
 ---
 
