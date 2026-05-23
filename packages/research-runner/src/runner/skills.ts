@@ -1839,57 +1839,40 @@ async function sleep(ms: number): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Knight's Seal v1 — per-run ephemeral Ed25519 signing (B27)
+// Knight's Seal — per-event, per-epoch Ed25519 signing (B27 + Bug O).
 //
-// Each run gets an ephemeral Ed25519 keypair generated on first
-// `audit-emit-event` call. The PUBLIC key is persisted beside the audit
-// JSONL so verify-chain (and future external auditors) can validate
-// signatures forever. The PRIVATE key lives in `os.tmpdir()` for the
-// duration of the run — NEVER inside the mesh repo (so a careless
-// `git add` can't commit it).
-//
-// Per-event flow:
-//   1. Build event with event_hash='' and signature=''
-//   2. event_hash = sha256(canonical(event))   ← chain integrity
-//   3. signature  = Ed25519(privKey, event_hash)   ← nonrepudiation
-//   4. Persist {...event, event_hash, signature}
-//
-// Verify flow (in audit-verify-chain):
-//   1. Recompute event_hash (set signature='' AND event_hash='')
-//   2. Match recorded event_hash (current chain check)
-//   3. Verify Ed25519(pubKey, recorded event_hash, recorded signature)
-//
-// Backward compat: a chain with NO signature fields is reported as
-// `sealed: false, sealVerified: false` but still passes if hashes are
-// intact. A chain with PARTIAL signatures is treated as tampering.
-// ─────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────
-// Bug O (Task #72) — Per-epoch Ed25519 signing.
-//
-// Each agent session = one "signer epoch":
+// Each agent session is one "signer epoch" with its own ephemeral
+// Ed25519 keypair:
 //   - Original agent invocation → epoch 1
-//   - First revise-agent invocation (different runner machine) → epoch 2
+//   - First revise-agent (different runner machine) → epoch 2
 //   - Second revise → epoch 3
 //   - ... etc
 //
-// Each epoch persists its OWN keypair:
-//   <runId>.epoch-N.pub.pem    (mesh, committed)
-//   <runId>--<runId>.epoch-N.priv.pem  (tmpdir, ephemeral)
+// Each epoch persists:
+//   <runId>.epoch-N.pub.pem            (mesh, committed)
+//   <okrId>--<runId>.epoch-N.priv.pem  (tmpdir, ephemeral)
 //
-// Events carry `signer_epoch: N` so chain-verify can look up the right
-// pub key per event. Workflow-emitted events (`emitted_by: 'workflow'`)
-// stay unsigned-by-design — those are CI infrastructure, not an agent.
+// Per-event flow:
+//   1. Build event with event_hash='' and signature=''
+//   2. event_hash = sha256(canonical(event))     ← chain integrity
+//   3. signature  = Ed25519(privKey, event_hash) ← nonrepudiation
+//   4. Persist {...event, event_hash, signature, signer_epoch}
 //
-// Backward compat:
-//   - Legacy chains used <runId>.pub.pem with no epoch suffix. Verifiers
-//     treat that as the epoch-1 pub key if no epoch-suffixed files exist.
-//   - Events without `signer_epoch` field default to epoch 1.
+// Verify flow (in audit-verify-chain):
+//   1. Recompute event_hash (set signature='' AND event_hash='')
+//   2. Match recorded event_hash (chain integrity)
+//   3. For every agent-emitted event (emitted_by !== 'workflow'),
+//      verify Ed25519(pubKey[signer_epoch], event_hash, signature)
+//
+// Contract (Bug T — pre-release simplification, drops Bug O's legacy
+// back-compat tail):
+//   - Every agent-emitted event MUST be signed AND carry `signer_epoch`.
+//   - `payload.emitted_by === 'workflow'` is the ONLY legitimate
+//     unsigned attribution — post-agent context, no private key.
+//   - revise-agent events MUST sign with their own epoch key.
+//   - Legacy `<runId>.pub.pem` (no epoch suffix) is no longer accepted.
+//   - Events without `signer_epoch` are no longer accepted.
 // ─────────────────────────────────────────────────────────────────────
-
-function knightSealLegacyPubKeyPath(okrId: string, runId: string): string {
-  return path.join(meshPath(), 'okrs', okrId, 'audit', 'keys', `${runId}.pub.pem`);
-}
 
 function knightSealEpochPubKeyPath(okrId: string, runId: string, epoch: number): string {
   return path.join(meshPath(), 'okrs', okrId, 'audit', 'keys', `${runId}.epoch-${epoch}.pub.pem`);
@@ -1910,14 +1893,12 @@ function knightSealEpochPrivKeyPath(okrId: string, runId: string, epoch: number)
  * Returns the epoch number AND whether the caller should generate a
  * fresh keypair (isNewSession=true) or load the existing one (false).
  *
- * Logic:
+ * Logic (Bug T — legacy paths removed):
  *   1. Scan `audit/keys/<runId>.epoch-N.pub.pem` files → find max N.
- *   2. Legacy compat: if no epoch files but `<runId>.pub.pem` exists,
- *      treat it as the epoch-1 pub (max=1).
- *   3. If max=0 (no keys at all) → genesis, return { epoch: 1, isNew: true }.
- *   4. If max>0 and `<okrId>--<runId>.epoch-N.priv.pem` exists in tmp →
+ *   2. max=0 → genesis, return { epoch: 1, isNew: true }.
+ *   3. max>0 and `<okrId>--<runId>.epoch-N.priv.pem` exists in tmp →
  *      same session, return { epoch: max, isNew: false }.
- *   5. If max>0 and priv missing → new session (revise pass / different
+ *   4. max>0 and priv missing → new session (revise pass / different
  *      runner machine), return { epoch: max+1, isNew: true }.
  */
 function findActiveEpoch(okrId: string, runId: string): { epoch: number; isNewSession: boolean } {
@@ -1930,23 +1911,13 @@ function findActiveEpoch(okrId: string, runId: string): { epoch: number; isNewSe
       const m = f.match(epochRe);
       if (m) { maxEpoch = Math.max(maxEpoch, parseInt(m[1], 10)); }
     }
-    // Legacy fallback: bare `<runId>.pub.pem` counts as epoch 1.
-    if (maxEpoch === 0 && fs.existsSync(knightSealLegacyPubKeyPath(okrId, runId))) {
-      maxEpoch = 1;
-    }
   }
   if (maxEpoch === 0) {
     return { epoch: 1, isNewSession: true };
   }
   // Check if the max-epoch's private key still exists in tmp.
   const privPath = knightSealEpochPrivKeyPath(okrId, runId, maxEpoch);
-  // For legacy compat: epoch 1 priv key might be at the legacy path.
-  const legacyPrivPath = path.join(
-    os.tmpdir(),
-    '.research-runner-keys',
-    `${okrId.replace(/[^A-Za-z0-9_-]/g, '_')}--${runId.replace(/[^A-Za-z0-9_-]/g, '_')}.priv.pem`,
-  );
-  if (fs.existsSync(privPath) || (maxEpoch === 1 && fs.existsSync(legacyPrivPath))) {
+  if (fs.existsSync(privPath)) {
     return { epoch: maxEpoch, isNewSession: false };
   }
   // Priv gone → new session, advance to the next epoch.
@@ -1959,13 +1930,9 @@ function findActiveEpoch(okrId: string, runId: string): { epoch: number; isNewSe
  * BOTH the pub key (mesh) and priv key (tmpdir, mode 0600). When
  * isNewSession is false, loads the existing pair from disk.
  *
- * Bug O (Task #72) — replaces the old single-key `loadOrCreateRunKeypair`.
- * Per-epoch model means every agent session signs with its own identity,
- * closing the cryptographic gap that revise-agent events previously had.
- *
- * Backward compat: for epoch 1 only, if no `<runId>.epoch-1.pub.pem`
- * exists but the legacy `<runId>.pub.pem` does, load from the legacy
- * path (existing chains keep verifying without renaming files).
+ * Bug T — legacy paths (`<runId>.pub.pem` without epoch suffix) are no
+ * longer accepted. Pre-release simplification: every key file uses the
+ * epoch-suffixed shape, no compat fallback.
  */
 function loadOrCreateEpochKeypair(
   okrId: string,
@@ -1975,30 +1942,14 @@ function loadOrCreateEpochKeypair(
 ): { privKey: KeyObject; pubKey: KeyObject } {
   const privPath = knightSealEpochPrivKeyPath(okrId, runId, epoch);
   const pubPath = knightSealEpochPubKeyPath(okrId, runId, epoch);
-  const legacyPubPath = knightSealLegacyPubKeyPath(okrId, runId);
-  const legacyPrivPath = path.join(
-    os.tmpdir(),
-    '.research-runner-keys',
-    `${okrId.replace(/[^A-Za-z0-9_-]/g, '_')}--${runId.replace(/[^A-Za-z0-9_-]/g, '_')}.priv.pem`,
-  );
 
   if (!isNewSession) {
-    // Load existing keypair. For epoch 1, try the epoch-suffixed path
-    // first; fall back to legacy paths if those are what's on disk.
-    let privPem: string;
-    let pubPem: string;
-    if (fs.existsSync(privPath) && fs.existsSync(pubPath)) {
-      privPem = fs.readFileSync(privPath, 'utf8');
-      pubPem = fs.readFileSync(pubPath, 'utf8');
-    } else if (epoch === 1 && fs.existsSync(legacyPrivPath) && fs.existsSync(legacyPubPath)) {
-      privPem = fs.readFileSync(legacyPrivPath, 'utf8');
-      pubPem = fs.readFileSync(legacyPubPath, 'utf8');
-    } else {
+    if (!fs.existsSync(privPath) || !fs.existsSync(pubPath)) {
       throw new Error(`epoch-keypair-load-failed: epoch=${epoch} privPath=${privPath} pubPath=${pubPath}`);
     }
     return {
-      privKey: createPrivateKey({ key: privPem, format: 'pem' }),
-      pubKey: createPublicKey({ key: pubPem, format: 'pem' }),
+      privKey: createPrivateKey({ key: fs.readFileSync(privPath, 'utf8'), format: 'pem' }),
+      pubKey: createPublicKey({ key: fs.readFileSync(pubPath, 'utf8'), format: 'pem' }),
     };
   }
 
@@ -2018,8 +1969,11 @@ function loadOrCreateEpochKeypair(
 
 /**
  * Load every epoch's public key for this run into a Map<epoch, KeyObject>.
- * Used by audit-verify-chain. Includes the legacy `<runId>.pub.pem` as
- * epoch 1 when present (so old chains verify without renaming).
+ * Used by audit-verify-chain.
+ *
+ * Bug T — legacy `<runId>.pub.pem` (no epoch suffix) is no longer
+ * accepted. Pre-release simplification: a chain that pre-dates the
+ * epoch-suffixed layout cannot be verified by this runner.
  */
 function loadAllEpochPubKeys(okrId: string, runId: string): Map<number, KeyObject> {
   const keysDir = path.join(meshPath(), 'okrs', okrId, 'audit', 'keys');
@@ -2036,22 +1990,8 @@ function loadAllEpochPubKeys(okrId: string, runId: string): Map<number, KeyObjec
       result.set(epoch, createPublicKey({ key: pem, format: 'pem' }));
     } catch { /* skip unreadable */ }
   }
-  // Legacy fallback: bare `<runId>.pub.pem` populates epoch 1 if not
-  // already set by an epoch-suffixed file.
-  if (!result.has(1)) {
-    const legacyPath = knightSealLegacyPubKeyPath(okrId, runId);
-    if (fs.existsSync(legacyPath)) {
-      try {
-        result.set(1, createPublicKey({ key: fs.readFileSync(legacyPath, 'utf8'), format: 'pem' }));
-      } catch { /* skip */ }
-    }
-  }
   return result;
 }
-
-// tryLoadRunPublicKey removed in Bug O (Task #72) — the per-epoch
-// model uses loadAllEpochPubKeys() to load every signer's key.
-// Legacy callers should switch to the multi-key flow.
 
 function signEventHash(privKey: KeyObject, eventHashHex: string): string {
   // Ed25519 signs raw bytes — we sign the UTF-8 bytes of the hex digest,
@@ -2230,15 +2170,12 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
   // Each agent session signs with its own epoch key. Includes legacy
   // <runId>.pub.pem as epoch-1 if no epoch-suffixed files exist.
   const epochPubKeys = loadAllEpochPubKeys(okrId, runId);
-  // Track signature state across the whole chain.
+  // Track signature state across the whole chain. Bug T — pre-release
+  // simplification: legacy compat removed. Only `payload.emitted_by ===
+  // 'workflow'` is legitimate-unsigned (post-agent context, no key).
+  // Every other event MUST be signed AND carry signer_epoch.
   let signedCount = 0;
-  let workflowUnsignedCount = 0;  // post-agent workflow-emitted events, unsigned by-design
-  // P9 (Bug-P / Codex audit): revise-agent unsigned events get their own
-  // bucket so we can decide legitimacy chain-by-chain — legacy chains
-  // (no per-epoch signing anywhere) keep the old allowance; per-epoch
-  // chains (any event with `signer_epoch`) require revise-agent to sign.
-  let reviseAgentUnsignedCount = 0;
-  let chainUsesPerEpochSigning = false;
+  let workflowUnsignedCount = 0;
   let prev: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     let event: Record<string, unknown>;
@@ -2266,97 +2203,60 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
-    // Bug K + N (cert-run-5): post-agent events emitted by the workflow
-    // (e.g. the synthetic self_review backfill that runs AFTER the agent
-    // session ended) genuinely cannot sign — the ephemeral private key
-    // is gone by then. `payload.emitted_by: 'workflow'` is the legitimate
-    // unsigned attribution.
-    //
-    // P9 (Bug-P / Codex audit) — `revise-agent` used to share the same
-    // legitimate-unsigned bucket because Bug N landed BEFORE Bug O. With
-    // per-epoch signing (Bug O), a revise-agent session DOES have an
-    // ephemeral key and DOES sign its events. So an unsigned revise-agent
-    // event is now only legitimate on LEGACY chains — chains where no
-    // event carries `signer_epoch`. Tracking that requires a chain-level
-    // verdict, so we count unsigned revise-agent events into a separate
-    // bucket and decide legitimacy after the loop sees whether the chain
-    // uses per-epoch signing at all.
-    const eventPayload = (event as { payload?: { emitted_by?: string }; signer_epoch?: number }).payload;
+    // Bug T (pre-release simplification) — universal rule: only
+    // `payload.emitted_by === 'workflow'` may be unsigned. Every other
+    // event MUST carry a non-empty signature AND a signer_epoch.
+    // Workflow events legitimately have neither (post-agent context,
+    // no private key); they're CI infrastructure, not an agent claim.
+    const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
     const emittedBy = eventPayload?.emitted_by;
-    const isWorkflowUnsigned = emittedBy === 'workflow';
-    const isReviseAgentUnsigned = emittedBy === 'revise-agent';
-    if (typeof (event as { signer_epoch?: number }).signer_epoch === 'number') {
-      chainUsesPerEpochSigning = true;
+    const isWorkflowEmitted = emittedBy === 'workflow';
+    const hasSignature = recordedSignature !== null && recordedSignature !== '';
+    if (!isWorkflowEmitted && !hasSignature) {
+      return {
+        ok: false,
+        reason: `unsigned-agent-event-line-${i + 1}: agent-emitted events MUST carry a non-empty signature (Knight's Seal per-event, per-epoch contract). Only payload.emitted_by==='workflow' events may be unsigned.`,
+      };
     }
-    if (recordedSignature !== null && recordedSignature !== '') {
+    if (hasSignature) {
       signedCount++;
-    } else if (isWorkflowUnsigned) {
+      // Signed events MUST carry signer_epoch — no legacy fallback.
+      const epoch = (event as { signer_epoch?: number }).signer_epoch;
+      if (typeof epoch !== 'number') {
+        return {
+          ok: false,
+          reason: `missing-signer-epoch-line-${i + 1}: signed events MUST carry signer_epoch (Bug O contract).`,
+        };
+      }
+    } else if (isWorkflowEmitted) {
       workflowUnsignedCount++;
-    } else if (isReviseAgentUnsigned) {
-      reviseAgentUnsignedCount++;
     }
     prev = recordedHash;
   }
-  // P9: legacy chains (pre-Bug-O — no signer_epoch on any event) keep
-  // the broad allowance. New chains (any event carries signer_epoch)
-  // require revise-agent events to be signed; an unsigned revise-agent
-  // event on a per-epoch chain is now a real chain-integrity failure.
-  if (chainUsesPerEpochSigning && reviseAgentUnsignedCount > 0) {
-    return {
-      ok: false,
-      reason: `revise-agent-unsigned-on-per-epoch-chain: ${reviseAgentUnsignedCount} revise-agent events without signatures; per-epoch chains require revise-agent to sign with its own epoch key (Bug O contract)`,
-    };
-  }
-  // Legacy chains: roll revise-agent unsigned into the workflow-unsigned
-  // bucket so the downstream "agent_event_count" math still excludes them.
-  workflowUnsignedCount += reviseAgentUnsignedCount;
 
   // Knight's Seal verification: every AGENT-emitted event must be signed
-  // by its declared signer_epoch's pub key. Workflow-unsigned events are
-  // excluded from the denominator (their emitted_by: 'workflow' marker
-  // proves they're legitimate-unsigned).
+  // by its declared signer_epoch's pub key. The first loop above
+  // already enforced "agent event MUST be signed" — we only reach here
+  // with `signedCount === agentEventCount`. Workflow-unsigned events
+  // are excluded from the denominator. Bug T — legacy paths removed.
   const sealed = signedCount > 0;
   const agentEventCount = lines.length - workflowUnsignedCount;
   let sealVerified = false;
-  // Bug-Q / Q3 (Codex audit round 2) — a chain that USES per-epoch
-  // signing (any event carries `signer_epoch`) MUST be sealed AND seal-
-  // verified. Without this guard, an attacker could hand-craft a chain
-  // where event 1 is signed (forcing `chainUsesPerEpochSigning=true`)
-  // but every subsequent event is unsigned — `signedCount > 0` would
-  // be true and the per-event check below would pass each unsigned
-  // event as `legitimateUnsigned` if attribution were faked. Equally,
-  // a chain where the runner reports `sealed=true` but the legacy
-  // `chainUsesPerEpochSigning=false` path runs is the gold-product
-  // promise we make to the marketing page. Legacy chains (no event
-  // carries signer_epoch) keep the prior allowance — they predate
-  // Bug O and a user audit-replaying them is intentionally tolerant.
-  if (chainUsesPerEpochSigning && !sealed) {
-    return {
-      ok: false,
-      reason: `per-epoch-chain-not-sealed: chain references signer_epoch (per-epoch signing contract) but no events carry signatures; gold-product contract requires per-epoch chains to be fully sealed`,
-    };
-  }
   if (sealed) {
     if (signedCount !== agentEventCount) {
       return { ok: false, reason: `partial-signatures: ${signedCount}/${agentEventCount} agent-emitted events signed (chain tampered; ${workflowUnsignedCount} workflow-emitted unsigned by-design)` };
     }
     if (epochPubKeys.size === 0) {
-      return { ok: false, reason: `public-key-missing: events are signed but no <runId>.epoch-*.pub.pem (or legacy <runId>.pub.pem) found in audit/keys/` };
+      return { ok: false, reason: `public-key-missing: events are signed but no <runId>.epoch-*.pub.pem found in audit/keys/` };
     }
     for (let i = 0; i < lines.length; i++) {
       const event = JSON.parse(lines[i]) as { event_hash: string; signature: string; signer_epoch?: number; payload?: { emitted_by?: string } };
       const emittedBy = event.payload?.emitted_by;
-      // P9: workflow-emitted unsigned events are always legitimate
-      // (the post-agent context genuinely has no private key). For
-      // revise-agent unsigned events, the loop above already returned
-      // an error if we're on a per-epoch chain, so reaching this point
-      // means we're on a legacy chain where the looser bucket applies.
-      const isLegitimateUnsigned = (emittedBy === 'workflow' || emittedBy === 'revise-agent')
-        && (!event.signature || event.signature === '');
-      if (isLegitimateUnsigned) { continue; }
-      // Bug O (Task #72) — per-epoch verification. Events default to
-      // epoch 1 if signer_epoch absent (legacy chains).
-      const epoch = typeof event.signer_epoch === 'number' ? event.signer_epoch : 1;
+      // Workflow events legitimately carry no signature + no signer_epoch.
+      if (emittedBy === 'workflow') { continue; }
+      // Every other event MUST verify. signer_epoch presence was
+      // enforced in the first loop, so it's guaranteed here.
+      const epoch = event.signer_epoch as number;
       const pubKey = epochPubKeys.get(epoch);
       if (!pubKey) {
         return { ok: false, reason: `pub-key-missing-for-epoch-${epoch}-line-${i + 1}: chain references epoch ${epoch} but no <runId>.epoch-${epoch}.pub.pem on disk` };

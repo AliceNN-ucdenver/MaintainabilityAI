@@ -892,7 +892,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
     <div class="docs-card-kicker">Promise 1</div>
     <div class="docs-heading">One signed audit trail per OKR</div>
     <div class="docs-copy">Every agent session generates its own ephemeral signing key. The public key is committed to the mesh; the private key never leaves the session that created it. Every event the agent emits carries a signature plus the session number. Verification picks the right key per event and walks the chain from objective to merged code.</div>
-    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> two regression tests pin the signing path. One covers the revise round (a second agent session can never overwrite the first). One covers legacy chains so older OKRs keep verifying after the upgrade.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> a regression test pins the revise-round path so a second agent session can never overwrite the first epoch's keypair. The verifier rejects any chain with an unsigned agent-emitted event or an event missing <code>signer_epoch</code> — only workflow-emitted events may be unsigned (post-agent context, no key). One contract, no legacy escape hatch.</div>
   </div>
   <div class="docs-card docs-card-amber">
     <div class="docs-card-kicker">Promise 2</div>

@@ -941,15 +941,21 @@ test("Knight's Seal: audit-verify-chain catches partial-signature tampering", as
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
-test("Knight's Seal: audit-verify-chain accepts a legacy unsigned chain (sealed:false)", async () => {
+// Bug T — pre-release simplification removed the legacy-unsigned-chain
+// accept path. A test that used to assert "legacy unsigned chain
+// verifies sealed:false" no longer applies; the runner now requires
+// every agent event to be signed. Workflow-emitted events remain the
+// only legitimate unsigned attribution.
+
+test('Bug T — chain with an unsigned agent event is rejected (universal rule, no legacy fallback)', async () => {
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
-      // Hand-craft a pre-B27 chain — no signature, no public_key field.
-      // event_hash is computed correctly so the chain check passes.
-      const dir = path.join(mesh, 'okrs', 'OKR-LEGACY', 'audit', 'events');
+      // Hand-craft a chain with no signature on an agent-emitted event.
+      // Pre-Bug-T this would have been accepted as "legacy unsigned"
+      // with sealed:false. The new universal rule rejects it.
+      const dir = path.join(mesh, 'okrs', 'OKR-T-UNSIGNED', 'audit', 'events');
       fs.mkdirSync(dir, { recursive: true });
-
       function canonical(obj: unknown): string {
         if (obj === null || typeof obj !== 'object') { return JSON.stringify(obj); }
         if (Array.isArray(obj)) { return '[' + obj.map(canonical).join(',') + ']'; }
@@ -961,30 +967,21 @@ test("Knight's Seal: audit-verify-chain accepts a legacy unsigned chain (sealed:
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         return require('node:crypto').createHash('sha256').update(s, 'utf8').digest('hex');
       }
-
-      const draft1 = {
+      const draft = {
         event_id: 1, ts: '2026-01-01T00:00:00.000Z',
-        okr_id: 'OKR-LEGACY', run_id: 'WHY-LEG-1',
+        okr_id: 'OKR-T-UNSIGNED', run_id: 'WHY-T-UNSIGNED',
         intent_thread_uuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         phase: 'why', event_kind: 'skill_call',
         payload: { skill: 'knowledge-okr', ok: true },
         prev_event_hash: null, event_hash: '',
       };
-      const h1 = hash(canonical(draft1));
-      const e1 = { ...draft1, event_hash: h1 };
-
-      const draft2 = { ...draft1, event_id: 2, ts: '2026-01-01T00:00:01.000Z', payload: { skill: 'tavily-search', ok: true }, prev_event_hash: h1 };
-      const h2 = hash(canonical(draft2));
-      const e2 = { ...draft2, event_hash: h2 };
-
-      fs.writeFileSync(path.join(dir, 'WHY-LEG-1.jsonl'), [JSON.stringify(e1), JSON.stringify(e2)].join('\n') + '\n', 'utf8');
-
-      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-LEGACY', runId: 'WHY-LEG-1' });
-      assert.equal(verify.ok, true);
-      if (verify.ok) {
-        assert.equal(verify.sealed, false);
-        assert.equal(verify.sealVerified, false);
-        assert.equal(verify.eventCount, 2);
+      const h = hash(canonical(draft));
+      const e = { ...draft, event_hash: h };
+      fs.writeFileSync(path.join(dir, 'WHY-T-UNSIGNED.jsonl'), JSON.stringify(e) + '\n', 'utf8');
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-T-UNSIGNED', runId: 'WHY-T-UNSIGNED' });
+      assert.equal(verify.ok, false);
+      if (!verify.ok) {
+        assert.match(verify.reason, /unsigned-agent-event-line-1/);
       }
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
@@ -1465,46 +1462,11 @@ test('Bug O (Task #72) — revise-agent auto-emit signs with epoch-2 keypair (ga
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
-test('Bug O backward compat — legacy chain (no signer_epoch, only <runId>.pub.pem) still verifies', async () => {
-  // Old chains created with pre-Bug-O code have:
-  //   - <runId>.pub.pem (legacy single-key path, no .epoch-N suffix)
-  //   - Events with NO signer_epoch field, signed with that single key
-  // The new verifier must still accept these as valid (legacy = epoch 1).
-  const mesh = tmpMesh();
-  try {
-    await withMeshPath(mesh, async () => {
-      // Hand-craft a legacy-shape chain by writing a single epoch-1
-      // pub file at the LEGACY name (no epoch suffix). Note we still
-      // use the new emit code which writes epoch-suffixed pub by default,
-      // so we simulate legacy by RENAMING the pub file after emit.
-      const okrId = 'OKR-LEGACY';
-      const runId = 'WHY-LEGACY-1';
-      const base = { okrId, runId, phase: 'why' as const, intentThreadUuid: 'dddddddd-dddd-dddd-dddd-dddddddddddd' };
-      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
-      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } });
-
-      // Simulate legacy layout by renaming epoch-1.pub.pem → <runId>.pub.pem
-      // and stripping signer_epoch from events.
-      const path = await import('path');
-      const fs = await import('fs');
-      const keysDir = path.join(mesh, 'okrs', okrId, 'audit', 'keys');
-      fs.renameSync(
-        path.join(keysDir, `${runId}.epoch-1.pub.pem`),
-        path.join(keysDir, `${runId}.pub.pem`),
-      );
-      // Strip signer_epoch + recompute hash for legacy shape.
-      const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
-      // For this test, we don't need to recompute hash — the legacy
-      // verifier reads signer_epoch as missing-defaults-to-1, and the
-      // events as-emitted still have signer_epoch:1 baked into the
-      // hash. So we just verify the chain succeeds as-is — that proves
-      // the multi-key loader picks up the legacy-renamed pub for epoch 1.
-      const verify = await runSkill('audit-verify-chain', { okrId, runId });
-      assert.equal(verify.ok, true, `legacy chain verify: ${verify.ok ? '' : verify.reason}`);
-      void jsonl; void fs;
-    });
-  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
-});
+// Bug T (pre-release simplification) — removed: "Bug O backward
+// compat — legacy chain still verifies". The runner no longer accepts
+// chains that lack epoch-suffixed pub keys or events that lack
+// signer_epoch. Pre-release decision: simpler contract > legacy
+// support. Every chain MUST be per-epoch signed.
 
 /**
  * Bug-Q / Q5 (Codex audit round 2) — malicious unsigned revise-agent
@@ -1665,10 +1627,14 @@ test('Bug-R / R5 — per-epoch chain with no signatures is rejected (per-epoch-c
       fs.mkdirSync(jsonlDir, { recursive: true });
       fs.writeFileSync(path.join(jsonlDir, `${runId}.jsonl`), JSON.stringify(event1) + '\n', 'utf8');
       const verify = await runSkill('audit-verify-chain', { okrId, runId });
-      assert.equal(verify.ok, false, 'per-epoch chain with no signatures must be rejected');
+      assert.equal(verify.ok, false, 'chain with unsigned agent event must be rejected');
       if (!verify.ok) {
-        assert.match(verify.reason, /per-epoch-chain-not-sealed/,
-          `wrong reject reason — expected per-epoch-chain-not-sealed, got: ${verify.reason}`);
+        // Bug T (pre-release simplification) — universal rule:
+        // every agent-emitted event MUST be signed. The pre-Bug-T
+        // reason was `per-epoch-chain-not-sealed`; under the
+        // simplified rule it's `unsigned-agent-event-line-N`.
+        assert.match(verify.reason, /unsigned-agent-event-line-1/,
+          `wrong reject reason — expected unsigned-agent-event-line-1, got: ${verify.reason}`);
       }
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
@@ -1806,10 +1772,15 @@ test('Bug-Q / Q5 — unsigned revise-agent on a per-epoch chain is rejected', as
       const verify = await runSkill('audit-verify-chain', { okrId, runId });
       assert.equal(verify.ok, false, 'malicious chain must be rejected');
       if (!verify.ok) {
+        // Bug T (pre-release simplification) — universal rule:
+        // every agent event MUST be signed. revise-agent is no
+        // exception. The pre-Bug-T reason was
+        // `revise-agent-unsigned-on-per-epoch-chain`; under the
+        // simplified rule it's just `unsigned-agent-event-line-2`.
         assert.match(
           verify.reason,
-          /revise-agent-unsigned-on-per-epoch-chain/,
-          `wrong reject reason — expected revise-agent-unsigned-on-per-epoch-chain, got: ${verify.reason}`,
+          /unsigned-agent-event-line-2/,
+          `wrong reject reason — expected unsigned-agent-event-line-2, got: ${verify.reason}`,
         );
       }
     });
