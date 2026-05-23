@@ -1800,10 +1800,33 @@ const AuditEmitInput = z.object({
     'self_review', 'self_review_exhausted',
     'state_transition', 'human_gate',
   ]),
+  // Note: WORKFLOW_EMITTABLE_KINDS (defined below) constrains which of
+  // these event kinds may carry `payload.emitted_by: 'workflow'` in the
+  // chain verifier. Agent-only kinds (skill_call, llm_call,
+  // self_review_exhausted) MUST always be signed regardless of attribution.
   payload: z.record(z.string(), z.unknown()),
   phase: z.enum(['why', 'how', 'what']),
   intentThreadUuid: z.string().min(1),
 });
+
+/**
+ * Bug U (Codex round-5) — workflow-emittable event_kind allowlist.
+ *
+ * `payload.emitted_by === 'workflow'` may be unsigned (post-agent
+ * context has no key), BUT only for event_kinds the workflow
+ * legitimately produces. Workflow attribution on an agent-only kind
+ * is forgery — an attacker hand-writing the JSONL could otherwise
+ * mark a fake `skill_call` as workflow-emitted to skip the signing
+ * requirement. The allowlist below mirrors what the workflow
+ * templates actually emit.
+ */
+const WORKFLOW_EMITTABLE_KINDS = new Set<string>([
+  'artifact_written',  // workflow re-derives from `git diff`
+  'self_review',       // workflow parses PR-body blocks
+  'state_transition',  // workflow infrastructure events
+  'human_gate',        // workflow gate events
+  'review_received',   // workflow records reviewer-agent verdicts
+]);
 
 /**
  * Audit-JSONL file-lock retry budget. Sized for parallel auto-emission:
@@ -2203,19 +2226,40 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
-    // Bug T (pre-release simplification) — universal rule: only
-    // `payload.emitted_by === 'workflow'` may be unsigned. Every other
-    // event MUST carry a non-empty signature AND a signer_epoch.
-    // Workflow events legitimately have neither (post-agent context,
-    // no private key); they're CI infrastructure, not an agent claim.
+    // Bug T (pre-release simplification) + Bug U (Codex round-5):
+    // universal rule + workflow-kind allowlist. Only
+    // `payload.emitted_by === 'workflow'` may be unsigned, AND only
+    // for event_kinds the workflow legitimately produces.
+    //
+    // Workflow-emittable kinds (mirrors what the workflow templates
+    // actually emit):
+    //   - artifact_written  — workflow re-derives from `git diff`
+    //   - self_review       — workflow parses PR-body blocks
+    //   - state_transition  — workflow infrastructure events
+    //   - human_gate        — workflow gate events
+    //   - review_received   — workflow records reviewer-agent verdicts
+    //
+    // `skill_call` and `llm_call` are ALWAYS agent-emitted via the
+    // runner's auto-emit. Workflow attribution on those kinds is
+    // forgery — an attacker hand-writing a JSONL could set
+    // emitted_by:'workflow' on a fake skill_call to skip the signing
+    // requirement; the allowlist below closes that path.
     const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
     const emittedBy = eventPayload?.emitted_by;
-    const isWorkflowEmitted = emittedBy === 'workflow';
+    const eventKind = (event as { event_kind?: string }).event_kind;
+    const claimsWorkflow = emittedBy === 'workflow';
     const hasSignature = recordedSignature !== null && recordedSignature !== '';
+    if (claimsWorkflow && !WORKFLOW_EMITTABLE_KINDS.has(eventKind ?? '')) {
+      return {
+        ok: false,
+        reason: `workflow-event-kind-not-allowed-line-${i + 1}: event_kind='${eventKind ?? 'unknown'}' is not in the workflow-emittable allowlist {${[...WORKFLOW_EMITTABLE_KINDS].join(',')}}. Workflow attribution on agent-only event kinds (skill_call, llm_call) is forgery.`,
+      };
+    }
+    const isWorkflowEmitted = claimsWorkflow;
     if (!isWorkflowEmitted && !hasSignature) {
       return {
         ok: false,
-        reason: `unsigned-agent-event-line-${i + 1}: agent-emitted events MUST carry a non-empty signature (Knight's Seal per-event, per-epoch contract). Only payload.emitted_by==='workflow' events may be unsigned.`,
+        reason: `unsigned-agent-event-line-${i + 1}: agent-emitted events MUST carry a non-empty signature (Knight's Seal per-event, per-epoch contract). Only payload.emitted_by==='workflow' events may be unsigned, and only for event_kinds in the workflow-emittable allowlist.`,
       };
     }
     if (hasSignature) {

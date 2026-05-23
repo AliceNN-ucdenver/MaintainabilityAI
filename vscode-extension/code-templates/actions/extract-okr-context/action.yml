@@ -206,10 +206,21 @@ runs:
             # Workflow value wins. This is the chain_root_hash that
             # gets persisted by finalize-okr-action.
             CHAIN_ROOT_HASH="$ACTUAL_EVENT1_HASH"
-            # Cross-check the agent's pasted value (if any). Mismatch
-            # = `chain_root_ok=false` consumed by the downstream
-            # verdict step in each agent workflow.
-            if [ -n "$AGENT_CHAIN_ROOT_HASH" ] && [ "$AGENT_CHAIN_ROOT_HASH" != "$ACTUAL_EVENT1_HASH" ]; then
+            # Bug U / round-5 (M1): cross-check the agent's pasted
+            # value AND fail closed when the agent value is
+            # missing/invalid. Round-4 only failed on non-empty
+            # mismatch — an artifact with NO chain_root_hash in
+            # frontmatter would silently pass because
+            # AGENT_CHAIN_ROOT_HASH was empty. Now: missing or
+            # mismatched both produce chain_root_ok=false. The
+            # downstream verdict still persists the workflow-derived
+            # value so finalize has the right hash; the gate just
+            # surfaces that the agent's claim was bogus.
+            if [ -z "$AGENT_CHAIN_ROOT_HASH" ]; then
+              CHAIN_ROOT_OK="false"
+              CHAIN_ROOT_REASON="agent did not paste a chain_root_hash; workflow derived ${ACTUAL_EVENT1_HASH:0:12}… from JSONL event 1. The artifact Hatter Tag MUST include chain_root_hash so reviewers can verify offline; missing value = agent omitted required provenance."
+              echo "::warning::chain_root_hash missing — $CHAIN_ROOT_REASON"
+            elif [ "$AGENT_CHAIN_ROOT_HASH" != "$ACTUAL_EVENT1_HASH" ]; then
               CHAIN_ROOT_OK="false"
               CHAIN_ROOT_REASON="agent pasted ${AGENT_CHAIN_ROOT_HASH:0:12}…; workflow read ${ACTUAL_EVENT1_HASH:0:12}… from JSONL event 1"
               echo "::warning::chain_root_hash mismatch — $CHAIN_ROOT_REASON. Workflow value wins; downstream verdict will mark chain_root_ok=false."

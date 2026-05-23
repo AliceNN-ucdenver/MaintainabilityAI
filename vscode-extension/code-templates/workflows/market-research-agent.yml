@@ -662,6 +662,21 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
+          # Bug-U / U2 (Codex round-5) — an agent run with events
+          # in the chain MUST be sealed. A chain that exists but
+          # has zero signed agent events means the agent didn't
+          # actually do anything (or the chain is entirely forged
+          # workflow-attributed events with no agent contribution).
+          # Pre-U2 this passed if every other gate was clean. Now
+          # the verdict requires sealed=true for any non-empty run.
+          # Empty chains (TOTAL=0) still fail earlier as
+          # "0 successful provider skill_calls".
+          if [ "$VERDICT" = "ok" ] && [ "${TOTAL:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
+            VERDICT="degraded"; REASON="chain has events but is unsealed — no agent-emitted signed events present. Every agent event MUST sign with its per-epoch keypair (Bug T contract)."
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
           # Evidence honesty
           if [ "$VERDICT" = "ok" ] && [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence: block — declare evidence_mode (§11.1.7)"
@@ -763,7 +778,7 @@ jobs:
           SEALED='${{ steps.chain.outputs.sealed }}'
           case "$SEALED" in
             true)  printf "| Knight's Seal (Ed25519) | ✓ Sealed |\n\n" >> "$BODY" ;;
-            false) printf "| Knight's Seal (Ed25519) | — legacy chain (unsigned) |\n\n" >> "$BODY" ;;
+            false) printf "| Knight's Seal (Ed25519) | ✗ Unsealed — no signed agent events (Bug T contract: every agent event must sign) |\n\n" >> "$BODY" ;;
             *)    printf "| Knight's Seal (Ed25519) | — n/a (no chain) |\n\n" >> "$BODY" ;;
           esac
           printf '_market-research-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"

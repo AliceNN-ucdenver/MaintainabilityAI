@@ -1007,6 +1007,14 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
+          # Bug-U / U2 (Codex round-5) — sealed=true required for any
+          # non-empty chain. See market-research-agent.yml for rationale.
+          if [ "$VERDICT" = "ok" ] && [ "${TOTAL:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
+            VERDICT="degraded"; REASON="chain has events but is unsealed — no agent-emitted signed events present. Every agent event MUST sign with its per-epoch keypair (Bug T contract)."
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
           if [ "$VERDICT" = "ok" ] && [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence_mode (§11.1.7)"
             EVIDENCE_FAIL="true"
@@ -1181,7 +1189,7 @@ jobs:
           SEALED='${{ steps.chain.outputs.sealed }}'
           case "$SEALED" in
             true)  printf "| Knight's Seal (Ed25519) | ✓ Sealed |\n\n" >> "$BODY" ;;
-            false) printf "| Knight's Seal (Ed25519) | — legacy chain (unsigned) |\n\n" >> "$BODY" ;;
+            false) printf "| Knight's Seal (Ed25519) | ✗ Unsealed — no signed agent events (Bug T contract: every agent event must sign) |\n\n" >> "$BODY" ;;
             *)    printf "| Knight's Seal (Ed25519) | — n/a (no chain) |\n\n" >> "$BODY" ;;
           esac
           printf '_prd-agent.yml · run `%s`_\n' '${{ github.run_id }}' >> "$BODY"

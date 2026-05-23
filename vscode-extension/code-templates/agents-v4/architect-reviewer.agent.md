@@ -59,7 +59,7 @@ You will be invoked on a PR carrying a `*-draft` label (`prd-draft` for PRDs, `d
 - If your DID equals the PR author's DID, refuse. The Tweedles invariant is not negotiable.
 - If `context-architecture` returns `{ ok: false }`, refuse with `score: 0.0, severity: BLOCKING, reason: mesh-walk-failed`.
 - Honor the prompt-pack's anchor names literally — `SCORE`, `SEVERITY`, `COVERED`, `MISSING`, `CHANGES`. The reviewer-bus's regex parser depends on them.
-- Phase A → C: PRDs use the mesh-grounded `prd/architecture-review.md` pack. Phase D adds the code-grounded `design/architecture-review.md` pack.
+- Phase A → C: PRDs use the mesh-grounded `prd/architecture-review.md` pack. Phase D adds the code-grounded `code-design/architecture-review.md` pack (the prompt-pack tree is `code-design/`, not `design/`; Bug-U / U6 corrected the legacy reference).
 
 ## Persona — Architect
 

@@ -1197,12 +1197,15 @@ jobs:
             fi
             return 0
           }
-          # Bug-R / R4: SEAL_OK derived from sealed + seal_verified.
-          # A sealed chain must verify; an unsealed chain is allowed
-          # past this gate only for legacy (pre-Bug-O) chains, which
-          # the runner already accepts. Match the WHY + HOW pattern.
+          # Bug-R / R4 + Bug-U / U2 (Codex round-5): SEAL_OK now
+          # requires sealed=true AND seal_verified=true. Bug T made
+          # signing universal; an agent design run with events MUST
+          # land sealed. An unsealed chain on an agent workflow is
+          # an error state (no agent contribution OR chain was
+          # entirely forged workflow-attributed events that now
+          # fail the U1 allowlist anyway).
           SEAL_OK="true"
-          if [ "$SEALED" = "true" ] && [ "$SEAL_VERIFIED" != "true" ]; then
+          if [ "$SEALED" != "true" ] || [ "$SEAL_VERIFIED" != "true" ]; then
             SEAL_OK="false"
           fi
           if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ] && [ "$SEAL_OK" = "true" ] && [ "$CHAIN_ROOT_OK" != "false" ]; then
@@ -1214,7 +1217,7 @@ jobs:
             echo "::warning::Applied design-degraded — chain_root_hash mismatch: $CHAIN_ROOT_REASON"
           elif [ "$SEAL_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — Knight's Seal verification failed (chain has signatures but at least one did not verify against its epoch public key)"
+            echo "::warning::Applied design-degraded — Knight's Seal not verified (sealed=$SEALED, seal_verified=$SEAL_VERIFIED). Agent runs MUST land sealed (every agent event signed)."
           elif [ "$MODE_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"
@@ -1396,7 +1399,7 @@ jobs:
           SEALED='${{ steps.chain.outputs.sealed }}'
           case "$SEALED" in
             true)  printf "| Knight's Seal (Ed25519) | ✓ Sealed |\n\n" >> "$BODY" ;;
-            false) printf "| Knight's Seal (Ed25519) | — legacy chain (unsigned) |\n\n" >> "$BODY" ;;
+            false) printf "| Knight's Seal (Ed25519) | ✗ Unsealed — no signed agent events (Bug T contract: every agent event must sign) |\n\n" >> "$BODY" ;;
             *)    printf "| Knight's Seal (Ed25519) | — n/a (no chain) |\n\n" >> "$BODY" ;;
           esac
 

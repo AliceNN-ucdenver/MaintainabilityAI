@@ -987,6 +987,109 @@ test('Bug T — chain with an unsigned agent event is rejected (universal rule, 
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+/**
+ * Bug U / Codex round-5 — the exact exploit Codex reproduced:
+ * a forged unsigned `skill_call` claims `emitted_by:'workflow'` to
+ * skip the signing requirement. The verifier must reject any
+ * workflow-attributed event whose event_kind is NOT in the
+ * WORKFLOW_EMITTABLE_KINDS allowlist (`skill_call`, `llm_call`,
+ * `self_review_exhausted` are agent-only).
+ */
+test('Bug U / round-5 — forged unsigned skill_call with emitted_by:workflow is rejected', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      // Hand-craft the exact attack vector: unsigned skill_call,
+      // payload.emitted_by:'workflow', no signer_epoch, correct
+      // hash. Pre-Bug-U the verifier returned ok:true sealed:false
+      // for this; the workflows then counted skill_call events
+      // without excluding workflow-attributed payloads, so a
+      // forged chain could shape the "evidence" metric.
+      const dir = path.join(mesh, 'okrs', 'OKR-U-FORGE', 'audit', 'events');
+      fs.mkdirSync(dir, { recursive: true });
+      function canonical(obj: unknown): string {
+        if (obj === null || typeof obj !== 'object') { return JSON.stringify(obj); }
+        if (Array.isArray(obj)) { return '[' + obj.map(canonical).join(',') + ']'; }
+        const o = obj as Record<string, unknown>;
+        const keys = Object.keys(o).sort();
+        return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}';
+      }
+      function hash(s: string): string {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        return require('node:crypto').createHash('sha256').update(s, 'utf8').digest('hex');
+      }
+      const draft = {
+        event_id: 1, ts: '2026-01-01T00:00:00.000Z',
+        okr_id: 'OKR-U-FORGE', run_id: 'WHY-U-FORGE',
+        intent_thread_uuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        phase: 'why', event_kind: 'skill_call',
+        payload: { skill: 'knowledge-okr', ok: true, emitted_by: 'workflow' },
+        prev_event_hash: null, event_hash: '',
+      };
+      const h = hash(canonical(draft));
+      const e = { ...draft, event_hash: h };
+      fs.writeFileSync(path.join(dir, 'WHY-U-FORGE.jsonl'), JSON.stringify(e) + '\n', 'utf8');
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-U-FORGE', runId: 'WHY-U-FORGE' });
+      assert.equal(verify.ok, false, 'forged workflow-attributed skill_call must be rejected');
+      if (!verify.ok) {
+        assert.match(verify.reason, /workflow-event-kind-not-allowed-line-1/,
+          `wrong reject reason — expected workflow-event-kind-not-allowed-line-1, got: ${verify.reason}`);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+/**
+ * Bug U / round-5 — positive case: artifact_written + self_review
+ * + state_transition + human_gate + review_received are LEGITIMATE
+ * workflow-emittable kinds and pass the allowlist (still must be
+ * unsigned-by-design or signed; this test pins they're not rejected
+ * by the new gate).
+ */
+test('Bug U / round-5 — legitimate workflow-emitted event kinds pass the allowlist', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const dir = path.join(mesh, 'okrs', 'OKR-U-OK', 'audit', 'events');
+      fs.mkdirSync(dir, { recursive: true });
+      function canonical(obj: unknown): string {
+        if (obj === null || typeof obj !== 'object') { return JSON.stringify(obj); }
+        if (Array.isArray(obj)) { return '[' + obj.map(canonical).join(',') + ']'; }
+        const o = obj as Record<string, unknown>;
+        const keys = Object.keys(o).sort();
+        return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}';
+      }
+      function hash(s: string): string {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        return require('node:crypto').createHash('sha256').update(s, 'utf8').digest('hex');
+      }
+      const e1Draft = {
+        event_id: 1, ts: '2026-01-01T00:00:00.000Z',
+        okr_id: 'OKR-U-OK', run_id: 'WHY-U-OK',
+        intent_thread_uuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        phase: 'why', event_kind: 'artifact_written',
+        payload: { artifact_path: 'okrs/X/why/research-doc.md', emitted_by: 'workflow' },
+        prev_event_hash: null, event_hash: '',
+      };
+      const h1 = hash(canonical(e1Draft));
+      const e1 = { ...e1Draft, event_hash: h1 };
+      fs.writeFileSync(path.join(dir, 'WHY-U-OK.jsonl'), JSON.stringify(e1) + '\n', 'utf8');
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-U-OK', runId: 'WHY-U-OK' });
+      // No signed events — sealed:false. But the chain is structurally
+      // valid (workflow-attributed artifact_written on a kind that's
+      // in the allowlist) so verify still returns ok:true. The
+      // sealed:false signal tells downstream "no agent evidence"; the
+      // workflow verdict step layers on the "if this is an agent
+      // run, demand sealed:true" gate (see Bug U / U2 in workflows).
+      assert.equal(verify.ok, true, `allowlisted workflow event passes verifier: ${verify.ok ? '' : verify.reason}`);
+      if (verify.ok) {
+        assert.equal(verify.sealed, false);
+        assert.equal(verify.sealVerified, false);
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 // ─── Court Recorder Auto-Logging (B28) — skill self-emission ─────────
 
 /**
