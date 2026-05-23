@@ -48,7 +48,7 @@ contract backwards**. Read the fields directly off `payload`.
 
 ## Canonical event shape
 
-Every `skill_call` event written to JSONL has this top-level shape:
+Every event written to JSONL has this top-level shape:
 
 | Field | Type | Source | Notes |
 |---|---|---|---|
@@ -56,11 +56,14 @@ Every `skill_call` event written to JSONL has this top-level shape:
 | `event_kind` | string | runner | `skill_call` \| `artifact_written` \| `self_review` \| `state_transition` \| `human_gate` |
 | `phase` | string | runner | `why` \| `how` \| `what` — from `PHASE` env var. |
 | `okr_id` | string | runner | From `OKR_ID` env var. |
+| `run_id` | string | runner | From `RUN_ID` env var — the per-run identity that names this JSONL file. |
 | `intent_thread_uuid` | string | runner | From `INTENT_THREAD_UUID` env var — the OKR's master thread. |
+| `ts` | string | runner | ISO 8601 with `T` separator + `Z` UTC offset. (Field is named `ts`, NOT `timestamp` — pre-B28 docs called it `timestamp`; the runner has always written `ts`.) |
 | `prev_event_hash` | string \| null | runner | SHA-256 of the previous event in this JSONL (`null` for event_id=1). |
 | `event_hash` | string | runner | SHA-256 of the canonical-stringified event (with `event_hash` + `signature` zeroed). |
-| `signature` | string | runner | Knight's Seal v1 Ed25519 sig over the event's canonical bytes (B27). Optional pre-B27. |
-| `timestamp` | string | runner | ISO 8601 with `T` separator + `Z` UTC offset. |
+| `signature` | string | runner | Knight's Seal Ed25519 sig over the event's canonical bytes. Empty string (`""`) is legitimate for events emitted post-agent (e.g. `payload.emitted_by = "workflow"` synthetic self_review backfill — the ephemeral private key is gone by then). On a per-epoch chain (Bug O), `revise-agent`-emitted events MUST be signed; on legacy chains they may be empty for back-compat. |
+| `public_key` | string \| null | runner | PEM-encoded Ed25519 public key for this event's `signer_epoch`. Present on the FIRST event of each new epoch (1, 2, 3, …) so a chain replay can recover the verification key inline. `null` on every other event — verifiers should also fall back to `okrs/<okrId>/audit/keys/<runId>.epoch-N.pub.pem`. |
+| `signer_epoch` | integer | runner | Which epoch's key signed this event. Original agent invocation = 1; first revise-agent = 2; second revise = 3; … Absent on legacy chains (pre-Bug-O) — verifiers default missing values to 1 for back-compat. |
 | `payload` | object | runner + handler | See below — the flat-merged map. |
 
 ## `payload` shape (skill_call events)

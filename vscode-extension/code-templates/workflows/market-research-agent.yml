@@ -159,86 +159,50 @@ jobs:
           echo "found=true"   >> "$GITHUB_OUTPUT"
           echo "path=$JSONL"  >> "$GITHUB_OUTPUT"
 
-      # Defense-in-depth against agent-fabricated audit chains. See the
-      # same step in prd-agent.yml for the rationale + PR #105 incident.
-      # Inline Python so the verification is INDEPENDENT of the runner.
-      - name: Verify audit chain integrity
+      # P2 (Bug-P / Codex audit) — chain verification now goes through
+      # the runner's `audit-verify-chain` skill instead of inline Python.
+      # The previous form recomputed SHA hashes and *counted* non-empty
+      # signatures, but never cryptographically verified the Ed25519
+      # signatures themselves. The runner skill loads every <runId>.
+      # epoch-N.pub.pem from audit/keys/ and verifies each agent-signed
+      # event against the right epoch's public key (Bug O contract).
+      # One implementation, one source of truth.
+      - name: Verify audit chain integrity (per-epoch Ed25519 + hash replay)
         id: chain
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         env:
-          JSONL: ${{ steps.audit.outputs.path }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
         run: |
+          set -e
+          RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" \
+            | npx -y @maintainabilityai/research-runner skill-audit-verify-chain 2>&1 || true)
+          echo "$RESULT" > /tmp/chain-verify.json
           python3 <<'PYEOF'
-          import json, hashlib, os
-          jsonl = os.environ['JSONL']
-          ok, reason, head, n, prev = True, '', '', 0, None
-          signed_count = 0
-          workflow_unsigned_count = 0  # Bug K — events emitted by post-agent workflow context
-          def canonical(v):
-              # ensure_ascii=False matches Node's JSON.stringify behavior:
-              # the TS canonicalStringify keeps non-ASCII chars as literal
-              # UTF-8 (e.g. em-dash —, smart quotes); Python's default
-              # `ensure_ascii=True` would escape them to — etc, producing
-              # a different canonical string and a false-positive forged-hash
-              # error on any event whose payload contains non-ASCII (PR #110
-              # uspto 404 reason field surfaced this).
-              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
-          with open(jsonl, 'r', encoding='utf-8') as f:
-              lines = [l.strip() for l in f if l.strip()]
-          for i, line in enumerate(lines):
-              try:
-                  event = json.loads(line)
-              except Exception as e:
-                  ok = False; reason = f'bad-jsonl-line-{i+1}: {e}'; break
-              n += 1
-              if event.get('event_id') != i + 1:
-                  ok = False; reason = f"event-id-mismatch-line-{i+1}: expected {i+1} got {event.get('event_id')}"; break
-              if event.get('prev_event_hash') != prev:
-                  ok = False; reason = f"prev-hash-mismatch-line-{i+1}: expected {prev} got {event.get('prev_event_hash')}"; break
-              recorded = event.get('event_hash')
-              if not isinstance(recorded, str):
-                  ok = False; reason = f'missing-event-hash-line-{i+1}'; break
-              # Knight's Seal v1 (B27): when the runner signs events, BOTH
-              # event_hash and signature are filled in AFTER the hash is
-              # computed. Zero both before recompute. Legacy chains have
-              # no signature field; treat them unchanged.
-              #
-              # Bug K (cert-run-5): workflow-attributed events (post-agent
-              # emit, ephemeral key gone) may have signature: '' AND carry
-              # payload.emitted_by == 'workflow'. These are legitimately
-              # unsigned by-design — chain-verify must not flag them as
-              # partial-tampering.
-              draft = dict(event); draft['event_hash'] = ''
-              emitted_by = (event.get('payload') or {}).get('emitted_by')
-              is_workflow_emitted = emitted_by in ('workflow', 'revise-agent')  # Bug N: revise-agent joins workflow as legitimate-unsigned
-              if 'signature' in event:
-                  sig_val = event.get('signature') or ''
-                  draft['signature'] = ''
-                  if sig_val:
-                      signed_count += 1
-                  elif is_workflow_emitted:
-                      workflow_unsigned_count += 1
-              recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
-              if recorded != recomputed:
-                  ok = False; reason = f'forged-hash-line-{i+1}: recorded={recorded[:16]} recomputed={recomputed[:16]}'; break
-              prev = recorded
-          sealed = signed_count > 0
-          # Sealed iff every event that COULD be signed (agent-emitted) is signed.
-          # Workflow-unsigned events are excluded from the denominator.
-          agent_event_count = n - workflow_unsigned_count
-          if ok and sealed and signed_count != agent_event_count:
-              ok = False; reason = f'partial-signatures: {signed_count}/{agent_event_count} agent-emitted events signed (chain tampered; {workflow_unsigned_count} workflow-emitted unsigned by-design)'
-          head = prev or ''
-          out = os.environ['GITHUB_OUTPUT']
-          with open(out, 'a', encoding='utf-8') as f:
-              f.write(f'ok={"true" if ok else "false"}\n')
-              f.write(f'reason={reason}\n')
-              f.write(f'head={head}\n')
-              f.write(f'count={n}\n')
-              f.write(f'sealed={"true" if sealed else "false"}\n')
-          status = 'PASS' if ok else 'FAIL'
-          seal_note = f' sealed={sealed}' if n > 0 else ''
-          print(f'::notice::audit chain {status} count={n} head={head[:16]}{"..." if head else ""}{seal_note} reason={reason}')
+          import json, os
+          raw = open('/tmp/chain-verify.json', 'r', encoding='utf-8').read()
+          obj = None
+          for line in raw.splitlines():
+              line = line.strip()
+              if line.startswith('{') and line.endswith('}'):
+                  try:
+                      obj = json.loads(line); break
+                  except Exception: pass
+          if obj is None:
+              obj = {'ok': False, 'reason': f'runner-cli-no-json: {raw[:200]}'}
+          out_path = os.environ['GITHUB_OUTPUT']
+          with open(out_path, 'a', encoding='utf-8') as f:
+              f.write(f"ok={'true' if obj.get('ok') else 'false'}\n")
+              f.write(f"reason={obj.get('reason','') if not obj.get('ok') else ''}\n")
+              f.write(f"head={obj.get('chainHead','') or ''}\n")
+              f.write(f"count={obj.get('eventCount', 0)}\n")
+              f.write(f"sealed={'true' if obj.get('sealed') else 'false'}\n")
+              f.write(f"seal_verified={'true' if obj.get('sealVerified') else 'false'}\n")
+          status = 'PASS' if obj.get('ok') else 'FAIL'
+          print(f"::notice::audit chain {status} count={obj.get('eventCount', 0)} "
+                f"sealed={obj.get('sealed', False)} seal_verified={obj.get('sealVerified', False)}")
+          if not obj.get('ok'):
+              print(f"::warning::audit chain reason: {obj.get('reason','')}")
           PYEOF
 
       # Task #62 — Required skill_call manifest verification. Cert-run-3

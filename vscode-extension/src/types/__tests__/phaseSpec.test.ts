@@ -378,6 +378,33 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
           workflowMissing,
           `code-design-agent.yml H2 check missing canonical names (drift between workflow + synthesis pack): ${workflowMissing.join(', ')}`,
         ).toEqual([]);
+
+        // Bug-P / Codex audit (minor closeout) — tighten the workflow
+        // check from "name appears anywhere" to "name appears INSIDE
+        // the REQUIRED_H2 bash array literal". Previously a synthesis
+        // pack example string elsewhere in the workflow could satisfy
+        // the test while the REQUIRED_H2 array was missing the name.
+        // Extract the array literal and assert each canonical name is
+        // in there.
+        const arrayMatch = /REQUIRED_H2=\(\n([\s\S]*?)\n\s*\)/.exec(content);
+        expect(arrayMatch, 'code-design-agent.yml must declare REQUIRED_H2 as a bash array').not.toBeNull();
+        const arrayBody = arrayMatch![1];
+        const inArrayMissing = CANONICAL_WHAT_H2.filter(name => !arrayBody.includes(`"${name}"`));
+        expect(
+          inArrayMissing,
+          `REQUIRED_H2 array missing names (workflow declares them outside the gate-relevant array): ${inArrayMissing.join(', ')}`,
+        ).toEqual([]);
+      });
+
+      it('phaseSpec auditMarker matches the marker the workflow actually writes (Bug-P P8)', () => {
+        // Codex audit minor — LookingGlassPanel used to inline the
+        // marker map (why → market-research-agent-audit, ELSE → prd-
+        // agent-audit). The phase spec now owns the marker; this test
+        // pins parity between the spec value and the workflow's
+        // upsert sentinel string so a future rename in one place
+        // breaks the test, not the revise-with-agent flow.
+        const expectedMarker = phaseSpec(phase).auditMarker;
+        expect(content).toContain(expectedMarker);
       });
 
       it('HOW + WHAT agent prompts contain the cert-run-4 ANTI-PATTERN block (Task #64)', () => {

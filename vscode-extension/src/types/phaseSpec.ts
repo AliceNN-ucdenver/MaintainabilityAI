@@ -65,6 +65,15 @@ export interface PhaseSpec {
   /** PR label applied on drift gate failure (Pocket Watch / Caterpillar). */
   driftLabel: string;
 
+  // ── Audit comment marker (P8 / Bug-P closeout) ──────────────────────
+  /** HTML-comment sentinel the agent workflow writes into its audit
+   *  comment on the PR. Used by LookingGlassPanel + revise-agent flow
+   *  to upsert the comment in place rather than appending a new one
+   *  every run. Cert-run-5 forensic caught this drifting: the panel
+   *  was using the PRD marker for WHAT, so revise rounds couldn't find
+   *  the prior audit comment and lost the failure-reasons context. */
+  auditMarker: string;
+
   // ── Artifact ────────────────────────────────────────────────────────
   /** Mesh-relative path to the artifact this phase produces. */
   artifactPath: (okrId: string) => string;
@@ -113,6 +122,7 @@ export const PHASE_SPEC: Record<OkrPhase, PhaseSpec> = {
     passLabel: 'research-pass',
     degradedLabel: 'degraded-evidence',
     driftLabel: 'goal-drift-detected',
+    auditMarker: '<!-- market-research-agent-audit -->',
     artifactPath: (okrId) => `okrs/${okrId}/why/research-doc.md`,
     artifactBasename: 'research-doc.md',
     workflowFile: 'market-research-agent.yml',
@@ -134,6 +144,7 @@ export const PHASE_SPEC: Record<OkrPhase, PhaseSpec> = {
     passLabel: 'prd-pass',
     degradedLabel: 'degraded-evidence',
     driftLabel: 'caterpillar-drift-detected',
+    auditMarker: '<!-- prd-agent-audit -->',
     artifactPath: (okrId) => `okrs/${okrId}/how/prd.md`,
     artifactBasename: 'prd.md',
     workflowFile: 'prd-agent.yml',
@@ -155,6 +166,7 @@ export const PHASE_SPEC: Record<OkrPhase, PhaseSpec> = {
     passLabel: 'design-pass',
     degradedLabel: 'design-degraded',
     driftLabel: 'design-drift-detected',
+    auditMarker: '<!-- code-design-agent-audit -->',
     artifactPath: (okrId) => `okrs/${okrId}/what/code-design.md`,
     artifactBasename: 'code-design.md',
     workflowFile: 'code-design-agent.yml',

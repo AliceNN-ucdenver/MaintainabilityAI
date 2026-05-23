@@ -984,8 +984,9 @@ function renderPreflightSignal(phase: OkrPhase): string {
     </div>`;
   }
   return `<div class="okr-action-signals">
-    <div><strong>Agent:</strong> code-design-agent <em class="okr-muted">(Phase 3 — coming)</em></div>
-    <div><strong>Will run:</strong> code-grounded design synthesis · per-repo indexing · heavy reviewer gate</div>
+    <div><strong>Agent:</strong> code-design-agent</div>
+    <div><strong>Will run:</strong> code-grounded design synthesis (knowledge-prd · knowledge-code per repo · context-architecture/security/quality) + persona-switch self-critique (code-architect · code-security)</div>
+    <div><strong>Audit gate:</strong> 10 H2 sections · FR-NN/SR-NN coverage from merged PRD · per-repo mode honesty · required skill_call manifest · per-epoch Ed25519 chain</div>
     <div><strong>Gated on:</strong> How merged</div>
   </div>`;
 }

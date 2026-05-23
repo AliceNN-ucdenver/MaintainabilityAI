@@ -611,6 +611,68 @@ describe('renderOkrDetailView', () => {
       expect(html).toContain('GitHub 404');
     });
 
+    // Bug-P / Codex audit minor closeout — extend polling-indicator
+    // coverage to HOW + WHAT. The renderer was always generic; the
+    // tests were only ever WHY-shaped, so a future regression on the
+    // HOW/WHAT branch would have shipped silently.
+    it('renders pulsing dot for cold-start HOW phase fetch', () => {
+      const html = renderOkrDetailView({
+        okr: sampleCard({
+          actions: [{
+            id: 'ACT-H1',
+            phase: 'how',
+            description: 'PRD',
+            agent: 'prd-agent',
+            runId: 'HOW-2026-05-22-xyz',
+            intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+            parentIntentThread: '7f3e9c2d-1111-4222-8333-444444444444',
+            reviewerScores: {},
+            rounds: 0,
+            governanceTier: 'supervised',
+            status: 'in_progress',
+            createdAt: '2026-05-23T14:00:00Z',
+          }],
+        }),
+        affectedBars: [],
+        phaseSignals: { how: { loading: true } as never },
+      });
+      expect(html).toContain('okr-poll-dot-pulse');
+    });
+
+    it('renders fresh green dot for completed WHAT phase fetch', () => {
+      const html = renderOkrDetailView({
+        okr: sampleCard({
+          actions: [{
+            id: 'ACT-W1',
+            phase: 'what',
+            description: 'Code design',
+            agent: 'code-design-agent',
+            runId: 'WHAT-2026-05-22-abc',
+            intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+            parentIntentThread: '7f3e9c2d-1111-4222-8333-444444444444',
+            reviewerScores: {},
+            rounds: 0,
+            governanceTier: 'supervised',
+            status: 'complete',
+            createdAt: '2026-05-23T14:00:00Z',
+            completedAt: '2026-05-23T15:00:00Z',
+          }],
+        }),
+        affectedBars: [],
+        phaseSignals: {
+          what: {
+            // Reasonable WHAT-shaped signal stub — counts whatever
+            // extractWhatChainSignals would produce for a clean run.
+            skillCalls: 14,
+            artifacts: 1,
+            selfReviews: 4,
+          } as never,
+        },
+      });
+      expect(html).toContain('okr-poll-dot-fresh');
+      expect(html).not.toContain('okr-poll-dot-pulse');
+    });
+
     it('ships CSS keyframe + dot classes for the polling indicator', () => {
       expect(getOkrDetailStyles()).toContain('@keyframes okr-poll-pulse');
       expect(getOkrDetailStyles()).toContain('.okr-poll-dot');

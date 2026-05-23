@@ -1523,3 +1523,81 @@ test('Bug O backward compat — legacy chain (no signer_epoch, only <runId>.pub.
  * payload.result_count from extras) AND canonical wins (payload.skill
  * is 'tavily-search' not something the handler could have injected).
  */
+
+/**
+ * Bug-P / P10 (Codex audit) — audit-event-shape regression test.
+ *
+ * Pins the runner's actual emitted top-level event fields against the
+ * canonical contract documented at
+ * vscode-extension/design/audit-event-shape.md. The Codex audit caught
+ * audit-event-shape.md describing `timestamp` while the runner has
+ * always written `ts`, and missing `public_key` / `signer_epoch`
+ * entirely. This test makes that class of drift impossible to ship:
+ * if the doc lists field X, the runner must emit X; if the runner
+ * emits X, the doc must list it.
+ *
+ * Run AFTER audit-event-shape.md has been corrected so the test is
+ * pinning the truth, not the broken older shape.
+ */
+test('Bug-P / P10 — emitted event top-level fields match the audit-event-shape.md contract', async () => {
+  const docPath = path.resolve(__dirname, '..', '..', '..', '..', 'vscode-extension', 'design', 'audit-event-shape.md');
+  const doc = fs.readFileSync(docPath, 'utf8');
+  // Pull the canonical-event-shape table; every row's first cell is a
+  // backtick-quoted field name. Extract those.
+  const tableSection = doc.split('## Canonical event shape')[1] ?? '';
+  const headerEnd = tableSection.indexOf('## `payload`');
+  const tableBody = headerEnd === -1 ? tableSection : tableSection.slice(0, headerEnd);
+  const documentedFields = new Set<string>();
+  for (const line of tableBody.split('\n')) {
+    const m = /^\|\s*`([a-z_]+)`\s*\|/.exec(line);
+    if (m) { documentedFields.add(m[1]); }
+  }
+  // Sanity — the documented set must include the fields we know are
+  // canonical, otherwise the test would silently pass against an
+  // empty contract.
+  for (const required of ['event_id', 'event_kind', 'phase', 'okr_id', 'intent_thread_uuid', 'ts', 'prev_event_hash', 'event_hash', 'signature', 'public_key', 'signer_epoch', 'payload']) {
+    assert.ok(documentedFields.has(required), `audit-event-shape.md must document the \`${required}\` field`);
+  }
+  // The contract must NOT use the deprecated `timestamp` name — the
+  // runner emits `ts`, so any doc reference to `timestamp` as a top-
+  // level event field is the exact drift the Codex audit caught.
+  assert.ok(!documentedFields.has('timestamp'), `audit-event-shape.md must NOT use 'timestamp' as a top-level event field — runner emits 'ts'`);
+
+  // Emit a real event end-to-end and verify every documented field
+  // exists on it (allowing null for the optional ones).
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-P10';
+      const runId = 'WHY-P10-1';
+      await runSkill('audit-emit-event', {
+        okrId, runId, phase: 'why',
+        intentThreadUuid: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+        eventKind: 'skill_call',
+        payload: { skill: 'knowledge-okr', ok: true },
+      });
+      const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+      const events = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+      assert.equal(events.length, 1, 'one event emitted');
+      const event = events[0] as Record<string, unknown>;
+      const emittedFields = new Set(Object.keys(event));
+      // Every documented field must be present (value may be null for
+      // optional fields like public_key on non-first-of-epoch events
+      // and prev_event_hash on event 1).
+      for (const field of documentedFields) {
+        assert.ok(
+          emittedFields.has(field),
+          `runner-emitted event missing \`${field}\` — drift between runner and audit-event-shape.md`,
+        );
+      }
+      // Conversely: any field the runner emits that the doc doesn't
+      // describe is also drift. Allow no surprises.
+      for (const field of emittedFields) {
+        assert.ok(
+          documentedFields.has(field),
+          `runner emits \`${field}\` but audit-event-shape.md doesn't document it — update the contract`,
+        );
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});

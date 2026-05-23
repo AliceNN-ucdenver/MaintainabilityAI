@@ -190,65 +190,59 @@ jobs:
           echo "found=true"   >> "$GITHUB_OUTPUT"
           echo "path=$JSONL"  >> "$GITHUB_OUTPUT"
 
-      # Same chain-integrity check prd-agent.yml uses (B25 / B27). Inline
-      # Python; same canonical JSON serialization the runner uses.
-      - name: Verify audit chain integrity
+      # P2 (Bug-P / Codex audit) — chain verification now goes through
+      # the runner's `audit-verify-chain` skill instead of inline Python.
+      # The previous form only recomputed SHA hashes and *counted* non-
+      # empty signatures; it never cryptographically verified the
+      # Ed25519 signatures themselves, so a chain with a hash-correct
+      # but signature-forged event would pass CI silently. The runner
+      # skill loads every <runId>.epoch-N.pub.pem from audit/keys/ and
+      # cryptographically verifies each agent-signed event against the
+      # right epoch's public key. One implementation, one source of
+      # truth — same code path the runner uses to verify the chain it
+      # just wrote, so CI accepts iff the runner would have accepted.
+      - name: Verify audit chain integrity (per-epoch Ed25519 + hash replay)
         id: chain
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         env:
-          JSONL: ${{ steps.audit.outputs.path }}
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
         run: |
+          set -e
+          # Pipe the canonical input shape into the runner's CLI skill
+          # dispatcher (skill-* subcommand reads JSON stdin, writes JSON
+          # stdout, exits non-zero on `ok: false`).
+          RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" \
+            | npx -y @maintainabilityai/research-runner skill-audit-verify-chain 2>&1 || true)
+          echo "$RESULT" > /tmp/chain-verify.json
+          # Robust parsing — runner emits one JSON object on stdout;
+          # if the npx fetch failed the file may contain log noise, so
+          # pull out the JSON line first.
           python3 <<'PYEOF'
-          import json, hashlib, os
-          jsonl = os.environ['JSONL']
-          ok, reason, head, n, prev = True, '', '', 0, None
-          signed_count = 0
-          workflow_unsigned_count = 0  # Bug K — post-agent workflow-emitted events
-          def canonical(v):
-              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
-          with open(jsonl, 'r', encoding='utf-8') as f:
-              lines = [l.strip() for l in f if l.strip()]
-          for i, line in enumerate(lines):
-              try:
-                  event = json.loads(line)
-              except Exception as e:
-                  ok = False; reason = f'bad-jsonl-line-{i+1}: {e}'; break
-              n += 1
-              if event.get('event_id') != i + 1:
-                  ok = False; reason = f"event-id-mismatch-line-{i+1}"; break
-              if event.get('prev_event_hash') != prev:
-                  ok = False; reason = f"prev-hash-mismatch-line-{i+1}"; break
-              recorded = event.get('event_hash')
-              if not isinstance(recorded, str):
-                  ok = False; reason = f'missing-event-hash-line-{i+1}'; break
-              draft = dict(event); draft['event_hash'] = ''
-              # Bug K: workflow-emitted events legitimate-unsigned by-design.
-              emitted_by = (event.get('payload') or {}).get('emitted_by')
-              is_workflow_emitted = emitted_by in ('workflow', 'revise-agent')  # Bug N: revise-agent joins workflow as legitimate-unsigned
-              if 'signature' in event:
-                  sig_val = event.get('signature') or ''
-                  draft['signature'] = ''
-                  if sig_val:
-                      signed_count += 1
-                  elif is_workflow_emitted:
-                      workflow_unsigned_count += 1
-              recomputed = hashlib.sha256(canonical(draft).encode('utf-8')).hexdigest()
-              if recorded != recomputed:
-                  ok = False; reason = f'forged-hash-line-{i+1}'; break
-              prev = recorded
-          sealed = signed_count > 0
-          agent_event_count = n - workflow_unsigned_count
-          if ok and sealed and signed_count != agent_event_count:
-              ok = False; reason = f'partial-signatures: {signed_count}/{agent_event_count} (workflow-unsigned={workflow_unsigned_count})'
-          head = prev or ''
-          out = os.environ['GITHUB_OUTPUT']
-          with open(out, 'a', encoding='utf-8') as f:
-              f.write(f'ok={"true" if ok else "false"}\n')
-              f.write(f'reason={reason}\n')
-              f.write(f'head={head}\n')
-              f.write(f'count={n}\n')
-              f.write(f'sealed={"true" if sealed else "false"}\n')
-          print(f'::notice::audit chain {"PASS" if ok else "FAIL"} count={n} sealed={sealed}')
+          import json, os, sys, re
+          raw = open('/tmp/chain-verify.json', 'r', encoding='utf-8').read()
+          obj = None
+          for line in raw.splitlines():
+              line = line.strip()
+              if line.startswith('{') and line.endswith('}'):
+                  try:
+                      obj = json.loads(line); break
+                  except Exception: pass
+          if obj is None:
+              obj = {'ok': False, 'reason': f'runner-cli-no-json: {raw[:200]}'}
+          out_path = os.environ['GITHUB_OUTPUT']
+          with open(out_path, 'a', encoding='utf-8') as f:
+              f.write(f"ok={'true' if obj.get('ok') else 'false'}\n")
+              f.write(f"reason={obj.get('reason','') if not obj.get('ok') else ''}\n")
+              f.write(f"head={obj.get('chainHead','') or ''}\n")
+              f.write(f"count={obj.get('eventCount', 0)}\n")
+              f.write(f"sealed={'true' if obj.get('sealed') else 'false'}\n")
+              f.write(f"seal_verified={'true' if obj.get('sealVerified') else 'false'}\n")
+          status = 'PASS' if obj.get('ok') else 'FAIL'
+          print(f"::notice::audit chain {status} count={obj.get('eventCount', 0)} "
+                f"sealed={obj.get('sealed', False)} seal_verified={obj.get('sealVerified', False)}")
+          if not obj.get('ok'):
+              print(f"::warning::audit chain reason: {obj.get('reason','')}")
           PYEOF
 
       # Task #59 — H2 structural check (parity with WHY + HOW workflows).
@@ -313,11 +307,36 @@ jobs:
           # the frontmatter — both forms now count. The gate is now
           # "either `repo:` in frontmatter OR preceding `### heading`
           # that looks like a repo slug".
-          DOC="$DOC" python3 <<'PYEOF'
+          #
+          # P4 (Bug-P / Codex audit) — FR/SR UNIVERSE now comes from the
+          # merged PRD (the canonical contract upstream), not the code-
+          # design artifact itself. Previously the universe was extracted
+          # from `doc` (code-design.md) so an artifact that omitted FR-07
+          # entirely would shrink the denominator and pass the gate
+          # silently. Now we read /tmp/base/okrs/<id>/how/prd.md (the
+          # merged PRD on the base branch, fetched in "Checkout base ref
+          # to /tmp/base for cross-phase reads") and pin the universe
+          # there. Coverage is `addressed ∩ prd_universe` over `prd_universe`.
+          # If the artifact misses any FR/SR from the PRD, the gate fails.
+          PRD="/tmp/base/okrs/${OKR_ID}/how/prd.md"
+          DOC="$DOC" PRD="$PRD" python3 <<'PYEOF'
           import os, re
           doc = open(os.environ['DOC'], 'r', encoding='utf-8').read()
-          fr_ids = set(re.findall(r'\bFR-\d+\b', doc))
-          sr_ids = set(re.findall(r'\bSR-\d+\b', doc))
+          prd_path = os.environ.get('PRD', '')
+          # PRD universe — canonical FR/SR contract from the merged PRD.
+          # Fallback to artifact-derived IDs only if the PRD file isn't
+          # present (greenfield + first WHAT phase with no merged HOW
+          # yet, or local dev runs without /tmp/base). The fallback is
+          # noted in the audit so reviewers can distinguish.
+          if prd_path and os.path.exists(prd_path):
+              prd_text = open(prd_path, 'r', encoding='utf-8').read()
+              fr_ids = set(re.findall(r'\bFR-\d+\b', prd_text))
+              sr_ids = set(re.findall(r'\bSR-\d+\b', prd_text))
+              fr_sr_universe_source = 'prd'
+          else:
+              fr_ids = set(re.findall(r'\bFR-\d+\b', doc))
+              sr_ids = set(re.findall(r'\bSR-\d+\b', doc))
+              fr_sr_universe_source = 'artifact-fallback'
           doc_lines = doc.split('\n')
           HEADING_RE = re.compile(r'^###\s+`?([^\s`]+)`?\s*$')
           SLUG_RE = re.compile(r'^(?:https?://github\.com/)?([\w.-]+)/([\w.-]+?)(?:\.git)?/?$')
@@ -358,7 +377,9 @@ jobs:
               f.write(f'fr_addressed={fr_addressed}\n')
               f.write(f'sr_count={len(sr_ids)}\n')
               f.write(f'sr_addressed={sr_addressed}\n')
-          print(f'::notice::structure fr={fr_addressed}/{len(fr_ids)} sr={sr_addressed}/{len(sr_ids)}')
+              f.write(f'fr_sr_universe_source={fr_sr_universe_source}\n')
+          print(f"::notice::structure fr={fr_addressed}/{len(fr_ids)} "
+                f"sr={sr_addressed}/{len(sr_ids)} universe={fr_sr_universe_source}")
           PYEOF
 
           {
@@ -880,16 +901,71 @@ jobs:
                   print(f'::warning::self_review emit failed for {persona} round {rnd}: {ex}')
           PYEOF
 
+      # P1 (Bug-P / Codex audit) — compute the structural-correctness
+      # verdict (10 H2 + per-repo FR/SR coverage) BEFORE applying the
+      # label, so design-pass cannot land while structure or manifest
+      # is broken. Previously this math was buried inside the audit-
+      # comment step that runs AFTER label application — the label
+      # gate only checked CHAIN_OK + MODE_OK and silently ignored
+      # missing H2 sections or unaddressed FR/SR IDs. Now hoisted into
+      # its own step that publishes a single boolean per gate; the
+      # label step + comment step both consume those booleans.
+      - name: Compute structural + manifest verdict
+        id: verdict
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          H2_PRESENT: ${{ steps.structure.outputs.h2_present }}
+          H2_TOTAL: ${{ steps.structure.outputs.h2_total }}
+          H2_MISSING: ${{ steps.structure.outputs.missing_h2 }}
+          FR_COUNT: ${{ steps.structure.outputs.fr_count }}
+          FR_ADDRESSED: ${{ steps.structure.outputs.fr_addressed }}
+          SR_COUNT: ${{ steps.structure.outputs.sr_count }}
+          SR_ADDRESSED: ${{ steps.structure.outputs.sr_addressed }}
+          MANIFEST_OK_IN: ${{ steps.manifest.outputs.ok }}
+          MANIFEST_MISSING: ${{ steps.manifest.outputs.missing }}
+        run: |
+          STRUCT_OK="true"
+          STRUCT_REASON=""
+          if [ "${H2_PRESENT:-0}" != "${H2_TOTAL:-10}" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${H2_PRESENT}/${H2_TOTAL} H2 sections (missing: ${H2_MISSING})"
+          fi
+          if [ "${FR_COUNT:-0}" -gt 0 ] && [ "${FR_ADDRESSED:-0}" != "${FR_COUNT:-0}" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }FR coverage ${FR_ADDRESSED}/${FR_COUNT}"
+          fi
+          if [ "${SR_COUNT:-0}" -gt 0 ] && [ "${SR_ADDRESSED:-0}" != "${SR_COUNT:-0}" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }SR coverage ${SR_ADDRESSED}/${SR_COUNT}"
+          fi
+          # Manifest verdict (P1): the manifest step already computes
+          # ok/missing; surface them as a step output so the label step
+          # can consume them on equal footing with CHAIN_OK + MODE_OK.
+          MANIFEST_OK="${MANIFEST_OK_IN:-false}"
+          MANIFEST_MISSING_FLAT=$(echo "$MANIFEST_MISSING" | tr '\n' ';' | sed 's/;$//')
+          {
+            echo "struct_ok=$STRUCT_OK"
+            echo "struct_reason=$STRUCT_REASON"
+            echo "manifest_ok=$MANIFEST_OK"
+            echo "manifest_missing=$MANIFEST_MISSING_FLAT"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict struct=$STRUCT_OK manifest=$MANIFEST_OK"
+
       # Apply the design-pass label on clean OR design-degraded on
-      # evidence/mode-honesty fail OR design-drift-detected on drift fail.
+      # evidence/mode-honesty/structure/manifest fail OR design-drift-
+      # detected on drift fail. P1 (Bug-P / Codex audit): the gate now
+      # consumes ALL FOUR safety verdicts (chain + mode + structure +
+      # manifest). Drift gates stay calibration-only — see the
+      # threat-model section in the design doc + the next-act note in
+      # the marketing page.
       - name: Apply verdict label
         if: steps.gate.outputs.skip != 'true'
         run: |
           PR=${{ github.event.pull_request.number }}
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
-          # MVP: drift gates report-only, so verdict gates only chain + mode.
-          #
+          STRUCT_OK='${{ steps.verdict.outputs.struct_ok }}'
+          MANIFEST_OK='${{ steps.verdict.outputs.manifest_ok }}'
           # D-PR1.v1.2 bug fix — the previous `gh pr edit ... 2>/dev/null
           # || true` swallowed stderr AND the exit code, so failures (e.g.
           # the label doesn't exist in the mesh repo's label registry)
@@ -910,13 +986,19 @@ jobs:
             fi
             return 0
           }
-          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ]; then
+          if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ]; then
             if apply_label --add-label design-pass --remove-label design-degraded,design-drift-detected; then
-              echo "::notice::Applied design-pass label to PR #$PR"
+              echo "::notice::Applied design-pass label to PR #$PR (chain+mode+structure+manifest all clean)"
             fi
           elif [ "$MODE_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"
+          elif [ "$STRUCT_OK" = "false" ]; then
+            apply_label --add-label design-degraded || true
+            echo "::warning::Applied design-degraded — structure: ${{ steps.verdict.outputs.struct_reason }}"
+          elif [ "$MANIFEST_OK" = "false" ]; then
+            apply_label --add-label design-degraded || true
+            echo "::warning::Applied design-degraded — manifest: ${{ steps.verdict.outputs.manifest_missing }}"
           else
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — chain reason: ${{ steps.chain.outputs.reason }}"
@@ -932,35 +1014,25 @@ jobs:
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
         run: |
-          # Compute verdict from chain + mode honesty + structure + manifest
-          # (Tasks #59 + #62 — H2 coverage + per-repo addresses[] coverage +
-          # required skill_call manifest all contribute; drift gates stay
-          # report-only per MVP plan).
+          # P1 (Bug-P): consume the SAME verdict the label step consumed.
+          # Previously this step re-derived STRUCT_OK + MANIFEST_OK inline,
+          # so the comment could disagree with the label in subtle ways
+          # (e.g. trailing-whitespace differences in the H2 check). Now
+          # both steps read `steps.verdict.outputs.*` — one source of
+          # truth for the four-way safety verdict.
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
-          MANIFEST_OK='${{ steps.manifest.outputs.ok }}'
-          MANIFEST_MISSING_RAW='${{ steps.manifest.outputs.missing }}'
-          MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
+          STRUCT_OK='${{ steps.verdict.outputs.struct_ok }}'
+          STRUCT_REASON='${{ steps.verdict.outputs.struct_reason }}'
+          MANIFEST_OK='${{ steps.verdict.outputs.manifest_ok }}'
+          MANIFEST_MISSING='${{ steps.verdict.outputs.manifest_missing }}'
           H2_PRESENT='${{ steps.structure.outputs.h2_present }}'
           H2_TOTAL='${{ steps.structure.outputs.h2_total }}'
           FR_COUNT='${{ steps.structure.outputs.fr_count }}'
           FR_ADDRESSED='${{ steps.structure.outputs.fr_addressed }}'
           SR_COUNT='${{ steps.structure.outputs.sr_count }}'
           SR_ADDRESSED='${{ steps.structure.outputs.sr_addressed }}'
-          STRUCT_OK="true"
-          STRUCT_REASON=""
-          if [ "${H2_PRESENT:-0}" != "${H2_TOTAL:-10}" ]; then
-            STRUCT_OK="false"
-            STRUCT_REASON="${H2_PRESENT}/${H2_TOTAL} H2 sections (missing: ${{ steps.structure.outputs.missing_h2 }})"
-          fi
-          if [ "${FR_COUNT:-0}" -gt 0 ] && [ "${FR_ADDRESSED:-0}" != "${FR_COUNT:-0}" ]; then
-            STRUCT_OK="false"
-            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }FR addressed-by-per-repo §5 ${FR_ADDRESSED}/${FR_COUNT}"
-          fi
-          if [ "${SR_COUNT:-0}" -gt 0 ] && [ "${SR_ADDRESSED:-0}" != "${SR_COUNT:-0}" ]; then
-            STRUCT_OK="false"
-            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }SR addressed-by-per-repo §5 ${SR_ADDRESSED}/${SR_COUNT}"
-          fi
+          FR_SR_UNIVERSE_SOURCE='${{ steps.structure.outputs.fr_sr_universe_source }}'
           if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ]; then
             VERDICT="ok"
             REASON=""
@@ -1022,13 +1094,20 @@ jobs:
           FR_ADDRESSED='${{ steps.structure.outputs.fr_addressed }}'
           SR_TOTAL='${{ steps.structure.outputs.sr_count }}'
           SR_ADDRESSED='${{ steps.structure.outputs.sr_addressed }}'
+          # P4 (Bug-P / Codex audit) — surface the universe source so a
+          # reviewer can tell whether the FR/SR contract came from the
+          # merged PRD (canonical, the gate is honest) or from the
+          # artifact itself (fallback for greenfield / no-merged-PRD;
+          # the gate can only detect what the artifact mentions).
           if [ "${FR_TOTAL:-0}" -gt 0 ]; then
             FR_ICON="✗"; [ "$FR_ADDRESSED" = "$FR_TOTAL" ] && FR_ICON="✓"
-            printf '| FR addressed by per-repo §5 | %s/%s %s |\n' "$FR_ADDRESSED" "$FR_TOTAL" "$FR_ICON" >> "$BODY"
+            printf '| FR addressed by per-repo §5 | %s/%s %s (universe: %s) |\n' \
+              "$FR_ADDRESSED" "$FR_TOTAL" "$FR_ICON" "$FR_SR_UNIVERSE_SOURCE" >> "$BODY"
           fi
           if [ "${SR_TOTAL:-0}" -gt 0 ]; then
             SR_ICON="✗"; [ "$SR_ADDRESSED" = "$SR_TOTAL" ] && SR_ICON="✓"
-            printf '| SR addressed by per-repo §5 | %s/%s %s |\n' "$SR_ADDRESSED" "$SR_TOTAL" "$SR_ICON" >> "$BODY"
+            printf '| SR addressed by per-repo §5 | %s/%s %s (universe: %s) |\n' \
+              "$SR_ADDRESSED" "$SR_TOTAL" "$SR_ICON" "$FR_SR_UNIVERSE_SOURCE" >> "$BODY"
           fi
           # Workflow-validity fix (post-cert-3): GitHub Actions tightened
           # its expression parser. The previous inline-ternary pattern (a

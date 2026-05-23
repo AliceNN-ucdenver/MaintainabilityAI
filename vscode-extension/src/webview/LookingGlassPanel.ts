@@ -1271,7 +1271,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // comment so the dispatch carries the SPECIFIC findings (not a
     // generic "please revise"). The reasons land in the agent's
     // context so it knows what to fix.
-    const auditCommentMarker = phase === 'why' ? '<!-- market-research-agent-audit -->' : '<!-- prd-agent-audit -->';
+    //
+    // P8 (Bug-P closeout): pull the per-phase audit marker from the
+    // phase spec instead of an inline why-vs-prd ternary. The previous
+    // form silently used the PRD marker for WHAT, so revise on a WHAT
+    // PR couldn't find its own audit comment and lost the failure-
+    // reasons context. phaseSpec is the single source of truth.
+    const auditCommentMarker = phaseSpec(phase).auditMarker;
     const auditComment = await this.fetchPrCommentByMarker(meshRepo.owner, meshRepo.repo, prNumber, auditCommentMarker);
 
     // No modal confirmation — the button click itself is the consent.

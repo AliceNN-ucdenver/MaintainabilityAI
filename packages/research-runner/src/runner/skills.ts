@@ -1791,6 +1791,12 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
   // Track signature state across the whole chain.
   let signedCount = 0;
   let workflowUnsignedCount = 0;  // post-agent workflow-emitted events, unsigned by-design
+  // P9 (Bug-P / Codex audit): revise-agent unsigned events get their own
+  // bucket so we can decide legitimacy chain-by-chain — legacy chains
+  // (no per-epoch signing anywhere) keep the old allowance; per-epoch
+  // chains (any event with `signer_epoch`) require revise-agent to sign.
+  let reviseAgentUnsignedCount = 0;
+  let chainUsesPerEpochSigning = false;
   let prev: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     let event: Record<string, unknown>;
@@ -1818,22 +1824,50 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     if (recordedHash !== recomputed) {
       return { ok: false, reason: `forged-hash-line-${i + 1}: recorded=${recordedHash.slice(0, 16)}… recomputed=${recomputed.slice(0, 16)}…` };
     }
-    // Bug K + N (cert-run-5): post-agent events (payload.emitted_by in
-    // {'workflow', 'revise-agent'}) carry signature: '' by design — the
-    // post-agent context can't sign because the ephemeral private key is
-    // gone. Count them separately so they don't trip partial-tampering
-    // detection or signature verification. Both attributions are
-    // legitimate-unsigned.
-    const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
+    // Bug K + N (cert-run-5): post-agent events emitted by the workflow
+    // (e.g. the synthetic self_review backfill that runs AFTER the agent
+    // session ended) genuinely cannot sign — the ephemeral private key
+    // is gone by then. `payload.emitted_by: 'workflow'` is the legitimate
+    // unsigned attribution.
+    //
+    // P9 (Bug-P / Codex audit) — `revise-agent` used to share the same
+    // legitimate-unsigned bucket because Bug N landed BEFORE Bug O. With
+    // per-epoch signing (Bug O), a revise-agent session DOES have an
+    // ephemeral key and DOES sign its events. So an unsigned revise-agent
+    // event is now only legitimate on LEGACY chains — chains where no
+    // event carries `signer_epoch`. Tracking that requires a chain-level
+    // verdict, so we count unsigned revise-agent events into a separate
+    // bucket and decide legitimacy after the loop sees whether the chain
+    // uses per-epoch signing at all.
+    const eventPayload = (event as { payload?: { emitted_by?: string }; signer_epoch?: number }).payload;
     const emittedBy = eventPayload?.emitted_by;
-    const isUnsignedByDesign = emittedBy === 'workflow' || emittedBy === 'revise-agent';
+    const isWorkflowUnsigned = emittedBy === 'workflow';
+    const isReviseAgentUnsigned = emittedBy === 'revise-agent';
+    if (typeof (event as { signer_epoch?: number }).signer_epoch === 'number') {
+      chainUsesPerEpochSigning = true;
+    }
     if (recordedSignature !== null && recordedSignature !== '') {
       signedCount++;
-    } else if (isUnsignedByDesign) {
+    } else if (isWorkflowUnsigned) {
       workflowUnsignedCount++;
+    } else if (isReviseAgentUnsigned) {
+      reviseAgentUnsignedCount++;
     }
     prev = recordedHash;
   }
+  // P9: legacy chains (pre-Bug-O — no signer_epoch on any event) keep
+  // the broad allowance. New chains (any event carries signer_epoch)
+  // require revise-agent events to be signed; an unsigned revise-agent
+  // event on a per-epoch chain is now a real chain-integrity failure.
+  if (chainUsesPerEpochSigning && reviseAgentUnsignedCount > 0) {
+    return {
+      ok: false,
+      reason: `revise-agent-unsigned-on-per-epoch-chain: ${reviseAgentUnsignedCount} revise-agent events without signatures; per-epoch chains require revise-agent to sign with its own epoch key (Bug O contract)`,
+    };
+  }
+  // Legacy chains: roll revise-agent unsigned into the workflow-unsigned
+  // bucket so the downstream "agent_event_count" math still excludes them.
+  workflowUnsignedCount += reviseAgentUnsignedCount;
 
   // Knight's Seal verification: every AGENT-emitted event must be signed
   // by its declared signer_epoch's pub key. Workflow-unsigned events are
@@ -1852,9 +1886,14 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     for (let i = 0; i < lines.length; i++) {
       const event = JSON.parse(lines[i]) as { event_hash: string; signature: string; signer_epoch?: number; payload?: { emitted_by?: string } };
       const emittedBy = event.payload?.emitted_by;
-      const isLegacyUnsigned = (emittedBy === 'workflow' || emittedBy === 'revise-agent')
+      // P9: workflow-emitted unsigned events are always legitimate
+      // (the post-agent context genuinely has no private key). For
+      // revise-agent unsigned events, the loop above already returned
+      // an error if we're on a per-epoch chain, so reaching this point
+      // means we're on a legacy chain where the looser bucket applies.
+      const isLegitimateUnsigned = (emittedBy === 'workflow' || emittedBy === 'revise-agent')
         && (!event.signature || event.signature === '');
-      if (isLegacyUnsigned) { continue; }
+      if (isLegitimateUnsigned) { continue; }
       // Bug O (Task #72) — per-epoch verification. Events default to
       // epoch 1 if signer_epoch absent (legacy chains).
       const epoch = typeof event.signer_epoch === 'number' ? event.signer_epoch : 1;

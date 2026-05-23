@@ -523,8 +523,21 @@ export class OKRService {
     if (fs.existsSync(ladderPath)) {
       try {
         const raw = fs.readFileSync(ladderPath, 'utf8');
-        const ladder = yaml.parse(raw) as { entries?: Array<{ phase?: string }> } | null;
-        const hasEntry = (ladder?.entries ?? []).some(e => e.phase === phase);
+        // Bug-P / P3 (Codex audit) — finalize-okr-action writes the
+        // ladder under the top-level `chain:` key (see action.yml ~L127:
+        // `printf '...' 'chain: []' > "$LADDER"` and L144: `yq -i
+        // "(.chain) += [...]"`). The previous read pulled `entries` —
+        // which is never produced — so this guard *always* fell open
+        // when only chain-ladder proved finalization. Read `.chain`
+        // first; keep `.entries` as a defensive fallback so any pre-
+        // production fixture written under the old shape still trips
+        // the sealed guard.
+        const ladder = yaml.parse(raw) as {
+          chain?: Array<{ phase?: string }>;
+          entries?: Array<{ phase?: string }>;
+        } | null;
+        const records = ladder?.chain ?? ladder?.entries ?? [];
+        const hasEntry = records.some(e => e.phase === phase);
         if (hasEntry) {
           return {
             ok: false,

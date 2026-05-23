@@ -665,11 +665,32 @@ describe('OKRService', () => {
       expect(fs.existsSync(path.join(tmpRoot, 'okrs', okrId, 'why', 'fake-artifact.md'))).toBe(true);
     });
 
-    it('refuses when chain-ladder.yaml has an entry for the phase', () => {
+    it('refuses when chain-ladder.yaml has a `chain:` entry for the phase (production shape)', () => {
+      // Bug-P / P3 (Codex audit) — production finalize writes a top-
+      // level `chain: []` and appends entries to it. The test fixture
+      // used to pin `entries:` (which finalize never writes), so the
+      // chain-ladder guard could never trip on a real merged OKR — it
+      // only tripped on a synthetic fixture shape. Rewritten to mirror
+      // what finalize-okr-action/action.yml actually produces.
       const okrId = buildCardWithPhase('how', 'HOW-test-001');
-      // Drop a ladder entry without populating hatterChainRoot on the
-      // action — the workflow's finalize runs in pieces; either source
-      // of truth should block reset.
+      const ladderPath = path.join(tmpRoot, 'okrs', okrId, 'audit', 'chain-ladder.yaml');
+      fs.mkdirSync(path.dirname(ladderPath), { recursive: true });
+      fs.writeFileSync(
+        ladderPath,
+        'chain:\n  - phase: how\n    run_id: HOW-test-001\n    chain_root_hash: ""\n',
+        'utf8',
+      );
+      const r = svc.resetPhase(tmpRoot, okrId, 'how');
+      expect(r.ok).toBe(false);
+      if (!r.ok) { expect(r.reason).toMatch(/phase-sealed.*chain-ladder/); }
+    });
+
+    it('refuses when chain-ladder.yaml uses the legacy `entries:` shape (back-compat)', () => {
+      // Bug-P / P3 back-compat — historical fixtures + any third-party
+      // tooling that wrote the ladder under `entries:` (the shape the
+      // resetPhase TS interface used to require) should still trip the
+      // sealed guard so we never accidentally delete pre-prod data.
+      const okrId = buildCardWithPhase('how', 'HOW-test-001');
       const ladderPath = path.join(tmpRoot, 'okrs', okrId, 'audit', 'chain-ladder.yaml');
       fs.mkdirSync(path.dirname(ladderPath), { recursive: true });
       fs.writeFileSync(ladderPath, 'entries:\n  - phase: how\n    run_id: HOW-test-001\n', 'utf8');

@@ -271,11 +271,28 @@ governance_tier: <copy from okr.yaml.actions[latest with phase=what]>
 author_did: did:github:copilot-swe-agent
 reviewer_dids: []
 evidence_mode: code
-chain_root_hash: <write at finalize — workflow patches this post-merge>
-seal_pub: <write at finalize via Knight's Seal>
-seal_sig: <write at finalize via Knight's Seal>
+chain_root_hash: <YOU paste the REAL event-1 hash here — see below>
 ---
 ```
+
+> 🪧 **Bug L closeout — `chain_root_hash` is written by YOU, not finalize.**
+> The agent populates `chain_root_hash` with the actual event-1 hash from
+> the audit JSONL. After your first `runSkill()` call auto-emits event 1,
+> run:
+> ```sh
+> jq -r 'select(.event_id == 1) | .event_hash' "okrs/${OKR_ID}/audit/events/${RUN_ID}.jsonl"
+> ```
+> and paste that 64-character lower-case hex value into `chain_root_hash`.
+> The `extract-okr-context` action validates the format and rejects any
+> placeholder, `<...>`, or empty string.
+>
+> 🛡 **Knight's Seal fields live in the JSONL, not the frontmatter.**
+> Each emitted event already carries its own `signature` and `signer_epoch`
+> (per-event, per-epoch Ed25519 signing — see [audit-event-shape.md](../../../design/audit-event-shape.md)).
+> The artifact frontmatter does NOT carry `seal_pub` or `seal_sig`. Earlier
+> versions of this pack said it did; that was a cert-run-5 documentation
+> bug (Bug L) and is incorrect. The runner is the only legitimate signer;
+> the chain is the only legitimate place those fields live.
 
 ## Persona-switch self-review (after first-pass synthesis)
 

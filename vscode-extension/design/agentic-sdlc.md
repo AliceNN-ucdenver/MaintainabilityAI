@@ -139,7 +139,7 @@ The Why/How/What is not a replacement for the 6-phase SDLC — it's how the thre
 - **Intent Thread** — UUID stamped on every action/commit/PR/review for one OKR's pipeline. (`parent_run_id` becomes the Intent Thread.)
 - **Hatter's Tag** — provenance JSON appended to every artifact PR.
 - **Court Recorder** — Merkle-chained, append-only audit; CloudEvents v1.0 envelopes; SIEM-exportable.
-- **Knight's Seal** — per-run ephemeral Ed25519 signature over the chain root + artifact SHA + run identity. **Phase B (B27)** — full spec §11.5. v2 cosign / sigstore for persistent third-party verifiability is in §16 future.
+- **Knight's Seal** — per-event, per-epoch Ed25519 signatures over the canonical event bytes. Each agent session is its own **signer epoch**: the original agent invocation is epoch 1, the first revise-agent (different runner machine) is epoch 2, the second revise is epoch 3, and so on. The public key for each epoch is committed to the mesh as `okrs/<okrId>/audit/keys/<runId>.epoch-N.pub.pem`; the private key never leaves the session that created it. Every emitted event carries a `signature` plus a `signer_epoch` field; chain verification loads all epoch pub keys and looks up the right one per event. CI invokes the runner's `audit-verify-chain` skill (single source of truth for the verifier) on every agent PR. Cosign / sigstore-anchored persistent signing for third-party verifiability remains a future enhancement.
 - **Tweedles** — segregation-of-duties gate: reviewer agent ≠ author agent.
 - **White Rabbit's Pocket Watch** — goal-drift hash check between OKR.objective and final PR scope.
 - **Queen's Keyring** — short-lived per-task agent credentials, auto-revoked at PR close.
