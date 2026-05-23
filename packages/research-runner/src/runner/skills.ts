@@ -1,6 +1,8 @@
 /**
  * skills — CLI subcommand backends for the agentic-SDLC Skills surface
  * declared in `vscode-extension/code-templates/skills/<name>/SKILL.md`.
+ * Bug V (Codex round-6): WORKFLOW_EMITTABLE_KINDS narrowed; self_review
+ * + review_received are agent-signed only — see allowlist definition.
  *
  * Each skill is a one-shot, stateless handler: read JSON from stdin →
  * validate with zod → do the work → write JSON to stdout. Exits 1 on
