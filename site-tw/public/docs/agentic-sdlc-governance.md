@@ -212,7 +212,7 @@ The trap most agentic systems fall into is asking humans to do the 30 percent li
   <rect x="24" y="48" width="380" height="60" rx="10" fill="rgba(125,211,252,0.12)" stroke="rgba(125,211,252,0.4)"/>
   <text x="44" y="80" fill="#7dd3fc" font-size="26" font-weight="800" font-family="system-ui, sans-serif">70%</text>
   <text x="120" y="76" fill="#e2e8f0" font-size="13" font-weight="700" font-family="system-ui, sans-serif">AGENTS do this well</text>
-  <text x="120" y="94" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">drafting, searching, synthesizing, comparing, running in parallel</text>
+  <text x="120" y="96" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">drafting · searching · synthesizing · comparing</text>
   <rect x="24" y="116" width="184" height="26" rx="6" fill="rgba(125,211,252,0.07)" stroke="rgba(125,211,252,0.18)"/>
   <text x="116" y="133" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Draft + research</text>
   <rect x="216" y="116" width="188" height="26" rx="6" fill="rgba(125,211,252,0.07)" stroke="rgba(125,211,252,0.18)"/>
@@ -223,7 +223,7 @@ The trap most agentic systems fall into is asking humans to do the 30 percent li
   <rect x="420" y="48" width="356" height="60" rx="10" fill="rgba(196,181,253,0.12)" stroke="rgba(196,181,253,0.4)"/>
   <text x="440" y="80" fill="#c4b5fd" font-size="26" font-weight="800" font-family="system-ui, sans-serif">30%</text>
   <text x="516" y="76" fill="#e2e8f0" font-size="13" font-weight="700" font-family="system-ui, sans-serif">HUMANS do this better</text>
-  <text x="516" y="94" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">intent, threats, fitness, decisions, "we don't do that, here's why"</text>
+  <text x="516" y="96" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">intent · threats · fitness · decisions</text>
   <rect x="420" y="116" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
   <text x="506" y="133" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Architecture as code</text>
   <rect x="604" y="116" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
@@ -232,8 +232,8 @@ The trap most agentic systems fall into is asking humans to do the 30 percent li
   <text x="506" y="167" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Fitness functions</text>
   <rect x="604" y="150" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
   <text x="690" y="167" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">ADRs with rationale</text>
-  <rect x="180" y="196" width="440" height="22" rx="11" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.5)"/>
-  <text x="400" y="211" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">MESH: 30% OF HUMAN JUDGMENT, AT 100% OF AGENT SPEED</text>
+  <rect x="100" y="196" width="600" height="22" rx="11" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.5)"/>
+  <text x="400" y="211" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">MESH · 30% OF HUMAN JUDGMENT · 100% OF AGENT SPEED</text>
 </svg>
 
 ---
@@ -883,32 +883,32 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 
 ---
 
-## How we keep the promises (the receipts)
+## How we keep the promises
 
-Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, three concrete receipts you can read in code.
+Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, three plain-English receipts. Every one is enforced by code that runs on every PR, not by a slide.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Promise 1 · the receipt</div>
+    <div class="docs-card-kicker">Promise 1</div>
     <div class="docs-heading">One signed audit trail per OKR</div>
-    <div class="docs-copy">Per-epoch Ed25519 signing in the runtime. Each agent session is its own signer epoch with an ephemeral keypair (<code>epoch-1.pub.pem</code>, <code>epoch-2.pub.pem</code>, etc.) committed to the mesh. Every emitted event carries <code>signer_epoch</code>; chain verification loads all epoch keys and picks the right one per event. Backward-compatible with legacy single-key chains.</div>
-    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>Backing:</strong> <code>research-runner/src/runner/skills.ts</code> · <code>findActiveEpoch</code>, <code>loadOrCreateEpochKeypair</code>, <code>loadAllEpochPubKeys</code>. Regression tests: "Bug O, revise-agent auto-emit signs with epoch-2 keypair" and "Bug O backward compat, legacy chain still verifies."</div>
+    <div class="docs-copy">Every agent session generates its own ephemeral signing key. The public key is committed to the mesh; the private key never leaves the session that created it. Every event the agent emits carries a signature plus the session number. Verification picks the right key per event and walks the chain from objective to merged code.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> two regression tests pin the signing path. One covers the revise round (a second agent session can never overwrite the first). One covers legacy chains so older OKRs keep verifying after the upgrade.</div>
   </div>
   <div class="docs-card docs-card-amber">
-    <div class="docs-card-kicker">Promise 2 · the receipt</div>
+    <div class="docs-card-kicker">Promise 2</div>
     <div class="docs-heading">One human gate per phase</div>
-    <div class="docs-copy">A single phase-spec module owns the WHY / HOW / WHAT contract end to end. A composite <code>finalize-okr-action</code> runs the same finalize logic across all three phases (no more "five ways to finalize"). The audit comment shape is pinned by an automated regression test that breaks before drift reaches production.</div>
-    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>Backing:</strong> <code>vscode-extension/src/types/phaseSpec.ts</code> · <code>code-templates/composite-actions/finalize-okr-action</code>. Regression tests: <code>phaseSpec.test.ts</code> "canonical H2 set matches across synthesis pack, agent prompt, and workflow check."</div>
+    <div class="docs-copy">A single phase contract owns the WHY, HOW, and WHAT phases end to end. The same finalize step runs for all three. The shape of the audit comment a reviewer sees is locked by a regression test, so drift between what the workflow writes and what the dashboard reads breaks at test time, not in production.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> a parity test verifies the same set of required sections appears in the agent prompt, the synthesis pack, and the workflow's structural check. Three layers, one source of truth.</div>
   </div>
   <div class="docs-card docs-card-cyan">
-    <div class="docs-card-kicker">Promise 3 · the receipt</div>
+    <div class="docs-card-kicker">Promise 3</div>
     <div class="docs-heading">Zero credential reissuance between agents</div>
-    <div class="docs-copy">The runner refuses to overwrite a committed public key. A revise round detects its own context from the filesystem and advances to the next epoch with a fresh keypair. No agent is ever handed another agent's keys. The handoff is the signature on the prior epoch's last event. No shared service account, no proxy auth, no impersonation.</div>
-    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>Backing:</strong> Same module as Promise 1. Bug-K protection preserved: pub keys committed in the mesh are immutable. The chain is the only credential.</div>
+    <div class="docs-copy">The runtime refuses to overwrite a published key. When a revise round starts, the system detects that the prior session is closed and advances to a fresh key automatically. No agent is ever handed another agent's credentials. The handoff between agents is the signature on the prior event. No shared service account. No proxy auth. No impersonation.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> committed public keys are immutable by contract. The chain is the only credential. Two unit tests fail loudly the moment a future change tries to relax either rule.</div>
   </div>
 </div>
 
-<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Two hundred twenty six runner tests pass. Five hundred seventeen extension tests pass. Court Recorder deterministically emits skill_call events. The audit payload contract is pinned by an automated regression test.">
+<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Two hundred twenty six runtime tests pass. Five hundred seventeen dashboard tests pass. Fifteen of fifteen field bugs from the cert runs are closed. One pinned payload contract.">
   <defs>
     <linearGradient id="receiptsBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0b1424"/>
@@ -920,34 +920,34 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   <g transform="translate(28,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
     <text x="89" y="34" text-anchor="middle" fill="#86efac" font-size="28" font-weight="800" font-family="system-ui, sans-serif">226</text>
-    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RUNNER TESTS</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">per-epoch + legacy + drift</text>
+    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RUNTIME TESTS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signing, chain, drift checks</text>
   </g>
   <g transform="translate(214,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
     <text x="89" y="34" text-anchor="middle" fill="#86efac" font-size="28" font-weight="800" font-family="system-ui, sans-serif">517</text>
-    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">EXTENSION TESTS</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">UI + audit + phase-spec parity</text>
+    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">DASHBOARD TESTS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">UI, audit, phase parity</text>
   </g>
   <g transform="translate(400,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
     <text x="89" y="34" text-anchor="middle" fill="#7dd3fc" font-size="22" font-weight="800" font-family="system-ui, sans-serif">15 / 15</text>
-    <text x="89" y="54" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CERT-RUN BUGS</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">A through O, all closed</text>
+    <text x="89" y="54" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">FIELD BUGS CLOSED</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">from five live cert runs</text>
   </g>
   <g transform="translate(586,56)">
     <rect x="0" y="0" width="186" height="84" rx="10" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.4)"/>
     <text x="93" y="34" text-anchor="middle" fill="#c4b5fd" font-size="28" font-weight="800" font-family="system-ui, sans-serif">1</text>
-    <text x="93" y="54" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">AUDIT CONTRACT</text>
-    <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">pinned by regression test</text>
+    <text x="93" y="54" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">PAYLOAD CONTRACT</text>
+    <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">regression-locked</text>
   </g>
   <rect x="28" y="160" width="744" height="44" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
-  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">COURT RECORDER · the runtime emits, not the LLM</text>
-  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">There is no skill API the agent can call to "skip the audit." Nothing it writes overrides what the runtime saw.</text>
+  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AUDIT EVENTS · EMITTED BY THE RUNTIME, NOT THE AGENT</text>
+  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">There is no way for an agent to skip the audit log. Nothing it writes can override what the runtime saw.</text>
   <text x="400" y="232" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">Trust earned, not granted. Per agent, per session, per event.</text>
 </svg>
 
-> The full design lives in [`vscode-extension/design/agentic-sdlc.md`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md). The threat model section below names the gaps we have not yet closed.
+The threat model section below names the gaps we have not yet closed. We publish them openly because honest design beats marketing claims.
 
 ---
 
@@ -1261,13 +1261,24 @@ No live system access. No proprietary tooling. Just SHA-256. Four checks land th
 
 > 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record — produced by deterministic code, not by the LLM.
 
-> 🎯 **Validated end-to-end (2026-05-22).** All three Looking-Glass-side agents are now running on the open IMDB-Celebs sample OKR — `market-research-agent` (WHY), `prd-agent` (HOW), and `code-design-agent` (WHAT) — on Claude Sonnet 4.6 with every defense above firing on real merged PRs. Audit JSONLs in the open mesh repo show:
->
-> - **WHY** — 19 events on PR&nbsp;#116, evidence_mode `mixed` honestly logging arXiv 429 + USPTO 404 + zero-result Hacker News searches.
-> - **HOW** — 13 events on PR&nbsp;#118, including the self-review provenance skills with `tier:supervised, should_proceed:true` (no tier hallucination), and Architect/Security personas converging from 0.88 / 0.87 MINOR to 0.97 / 0.96 PASS in two bounded rounds.
-> - **WHAT** — 14 events on PR&nbsp;#120 + 17 events on PR&nbsp;#122, all signed. Two `knowledge-code` skill calls per run — one cloned the existing `imdb-react-frontend` repo at SHA `4c554fbe6392` (77 files walked, 53 TypeScript + 3 JavaScript), the other returned a greenfield scaffolding spec for the `celeb-api` repo that doesn't exist yet. The Code-Architect + Code-Security personas converged MINOR→PASS in two rounds (0.91→0.97 and 0.90→0.96). Same Skill, same chain, two distinct grounding modes — both recorded in the audit metadata so an auditor can see the agent didn't hallucinate either side.
->
-> Every phase displays the green 🛡 Sealed badge in Looking Glass; the chain-ladder file links the three phases via `parent_intent_thread`. The architecture's "the LLM cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion — and the audit-event payload shape is now pinned by a regression test + cross-layer consistency tests so future drift between the emitter, the workflow that reads the chain, and the deploy registries breaks at test time, not in production.
+> 🎯 **Validated end to end on a live run (May 2026).** All three planning agents shipped a real OKR on the open IMDB-Celebs sample, on Claude Sonnet 4.6, with every defense above firing on merged PRs. Each phase ended with a green Sealed badge in the dashboard, and the three phases link to each other through the audit chain.
+
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">WHY · research phase</div>
+    <div class="docs-copy">19 signed events. Evidence mode logged honestly when sources failed (rate-limited APIs, zero-result searches). No fabrication of coverage the agent did not actually have.</div>
+  </div>
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">HOW · product spec phase</div>
+    <div class="docs-copy">13 signed events. Reviewer personas converged from MINOR to PASS in two bounded rounds. The tier the agent declared matched the tier the runtime measured. No tier hallucination.</div>
+  </div>
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">WHAT · code design phase</div>
+    <div class="docs-copy">31 signed events across two PRs. One run grounded against an existing repo (77 files walked at a specific commit), one run returned a scaffolding spec for a repo that did not exist yet. Both modes recorded in the audit so a reviewer can see the agent did not hallucinate either side.</div>
+  </div>
+</div>
+
+The "the agent cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion. The audit-event shape is regression-locked across the runtime, the workflow that reads the chain, and the dashboard that displays it. Drift between any two layers breaks at test time.
 
 ### Honest gaps — what we will address
 
