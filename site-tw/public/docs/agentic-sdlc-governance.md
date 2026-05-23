@@ -5,7 +5,7 @@
     <div class="docs-eyebrow">Vision · The agentic SDLC governance framework <span class="docs-hero-meta">~12 min read</span></div>
     <h1 class="docs-hero-title">An agentic governed SDLC</h1>
     <p class="docs-hero-copy">
-      AI agents write 70% of the code well. The other 30% — architecture, security, threat awareness, governance — is where systems live or die. <strong>MaintainabilityAI gives humans and agents the architectural map, the planning rails, and the enforcement gates to ship governed code on purpose.</strong>
+      <strong>One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.</strong> The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. Trust earned, not granted. Per agent, per session, per event.
     </p>
     <p class="docs-hero-copy">
       One control plane. Two governance modalities. Every artifact audit-chained from intent to shipped code.
@@ -23,56 +23,370 @@
 
 ---
 
-## A human/agent SDLC — the gap nobody is filling
+## Imagine a world
 
-Software is shifting to a development model where **humans lead and AI agents execute**, at scale, in parallel, across every repository at once. The human is the persona at the wheel: setting intent, approving scope, owning outcome. The agents handle the typing. They're fast enough now that the keyboard is no longer the bottleneck.
+Imagine a world where you can ask "where did this design come from?" and get back a hash, a public key, and a verifiable chain back to the OKR your business approved last week. Not a hope. Not a model card. A cryptographic answer.
 
-The bottleneck is **whether the human at the wheel can see the architecture clearly enough to lead, and whether the agents executing can see it clearly enough to follow.** Today, both sides operate blind.
+Now look at what most agentic systems actually deliver. Credentials reissued at every agent hop. Attribution dissolved. The chain of trust broken the moment a second agent touches the work. Audit becomes a guess. Compliance becomes a slide.
 
-- The **human** gets a one-line objective from leadership, a whiteboard sketch from a meeting last quarter, and a Slack channel. No map of which BARs in their portfolio are healthy. No view of the threat model the new feature will brush against. No read on whether the OKR they just approved is even within the org's governance tolerance.
-- The **agent** gets a prompt and a code repo. No read of the CALM architecture model. No view of the STRIDE threat catalog. No awareness that Service A must never reach the database directly. No signal that this BAR requires PCI-DSS compliance.
+The mesh you are about to see does not work that way.
 
-The result: humans approve work without instruments; agents ship work without guardrails. The 70% of code that's boilerplate-shaped (CRUD, scaffolding, patterns) gets done brilliantly. The 30% that's **architecture, security, threat awareness, and governance** is where systems fail, breaches happen, and technical debt compounds into organizational debt.
+**One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. **Trust earned, not granted. Per agent, per session, per event.**
 
-This is the gap. Every AI agent in your organization operates in an **architectural vacuum**, and every human leading those agents is leading **without instruments**.
-
-<svg viewBox="0 0 800 210" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="One signed chain from OKR to code. The Hatter signs each artifact in the top half, the Red Queen gates the merge in the bottom half, the Cheshire Cat watches per-repo health, and a chain seam runs between them with epoch-signed handoffs and zero credential reissuance.">
   <defs>
-    <linearGradient id="gapBg" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="heroTopBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1138"/>
+      <stop offset="100%" stop-color="#0f0a24"/>
+    </linearGradient>
+    <linearGradient id="heroBotBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a1828"/>
+      <stop offset="100%" stop-color="#060f1c"/>
+    </linearGradient>
+    <linearGradient id="heroCup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(196,181,253,0.32)"/>
+      <stop offset="100%" stop-color="rgba(196,181,253,0.08)"/>
+    </linearGradient>
+    <linearGradient id="heroRepo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(125,211,252,0.28)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0.06)"/>
+    </linearGradient>
+    <linearGradient id="heroGate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(248,113,113,0.30)"/>
+      <stop offset="100%" stop-color="rgba(248,113,113,0.08)"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="800" height="520" rx="12" fill="#06101a"/>
+  <rect x="0" y="0" width="800" height="252" fill="url(#heroTopBg)"/>
+  <text x="400" y="30" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">PLAN · THE HATTER (CHAIN SIGNER) SIGNS EACH ARTIFACT</text>
+  <g transform="translate(40,58)">
+    <rect x="0" y="0" width="220" height="178" rx="14" fill="url(#heroCup)" stroke="rgba(196,181,253,0.55)" stroke-width="1.5"/>
+    <path d="M 70 30 Q 70 18 84 18 L 136 18 Q 150 18 150 30 L 150 60 Q 150 86 110 86 Q 70 86 70 60 Z" fill="rgba(196,181,253,0.22)" stroke="rgba(196,181,253,0.7)" stroke-width="1.4"/>
+    <path d="M 150 38 Q 168 38 168 50 Q 168 62 150 62" fill="none" stroke="rgba(196,181,253,0.7)" stroke-width="1.4"/>
+    <path d="M 88 12 Q 92 4 96 12" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <path d="M 106 10 Q 110 2 114 10" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <path d="M 124 12 Q 128 4 132 12" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <text x="110" y="112" text-anchor="middle" fill="#ede9fe" font-size="13" font-weight="700" font-family="system-ui, sans-serif">Knowledge OKR</text>
+    <text x="110" y="128" text-anchor="middle" fill="#a78bfa" font-size="9.5" font-weight="600" letter-spacing="1" font-family="system-ui, sans-serif">WHY PHASE · EPOCH 1</text>
+    <rect x="32" y="142" width="156" height="22" rx="11" fill="rgba(196,181,253,0.14)" stroke="rgba(196,181,253,0.45)"/>
+    <text x="110" y="157" text-anchor="middle" fill="#ddd6fe" font-size="9.5" font-weight="600" font-family="ui-monospace, Menlo, monospace">sig 0x7a4f...e9c2</text>
+  </g>
+  <g transform="translate(290,58)">
+    <rect x="0" y="0" width="220" height="178" rx="14" fill="url(#heroCup)" stroke="rgba(196,181,253,0.55)" stroke-width="1.5"/>
+    <path d="M 70 30 Q 70 18 84 18 L 136 18 Q 150 18 150 30 L 150 60 Q 150 86 110 86 Q 70 86 70 60 Z" fill="rgba(196,181,253,0.22)" stroke="rgba(196,181,253,0.7)" stroke-width="1.4"/>
+    <path d="M 150 38 Q 168 38 168 50 Q 168 62 150 62" fill="none" stroke="rgba(196,181,253,0.7)" stroke-width="1.4"/>
+    <path d="M 88 12 Q 92 4 96 12" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <path d="M 106 10 Q 110 2 114 10" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <path d="M 124 12 Q 128 4 132 12" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <text x="110" y="112" text-anchor="middle" fill="#ede9fe" font-size="13" font-weight="700" font-family="system-ui, sans-serif">Product Spec</text>
+    <text x="110" y="128" text-anchor="middle" fill="#a78bfa" font-size="9.5" font-weight="600" letter-spacing="1" font-family="system-ui, sans-serif">HOW PHASE · EPOCH 2</text>
+    <rect x="32" y="142" width="156" height="22" rx="11" fill="rgba(196,181,253,0.14)" stroke="rgba(196,181,253,0.45)"/>
+    <text x="110" y="157" text-anchor="middle" fill="#ddd6fe" font-size="9.5" font-weight="600" font-family="ui-monospace, Menlo, monospace">sig 0xb1c8...3da6</text>
+  </g>
+  <g transform="translate(540,58)">
+    <rect x="0" y="0" width="220" height="178" rx="14" fill="url(#heroCup)" stroke="rgba(196,181,253,0.55)" stroke-width="1.5"/>
+    <path d="M 70 30 Q 70 18 84 18 L 136 18 Q 150 18 150 30 L 150 60 Q 150 86 110 86 Q 70 86 70 60 Z" fill="rgba(196,181,253,0.22)" stroke="rgba(196,181,253,0.7)" stroke-width="1.4"/>
+    <path d="M 150 38 Q 168 38 168 50 Q 168 62 150 62" fill="none" stroke="rgba(196,181,253,0.7)" stroke-width="1.4"/>
+    <path d="M 88 12 Q 92 4 96 12" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <path d="M 106 10 Q 110 2 114 10" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <path d="M 124 12 Q 128 4 132 12" fill="none" stroke="rgba(196,181,253,0.55)" stroke-width="1.2"/>
+    <text x="110" y="112" text-anchor="middle" fill="#ede9fe" font-size="13" font-weight="700" font-family="system-ui, sans-serif">Code Design</text>
+    <text x="110" y="128" text-anchor="middle" fill="#a78bfa" font-size="9.5" font-weight="600" letter-spacing="1" font-family="system-ui, sans-serif">WHAT PHASE · EPOCH 3</text>
+    <rect x="32" y="142" width="156" height="22" rx="11" fill="rgba(196,181,253,0.14)" stroke="rgba(196,181,253,0.45)"/>
+    <text x="110" y="157" text-anchor="middle" fill="#ddd6fe" font-size="9.5" font-weight="600" font-family="ui-monospace, Menlo, monospace">sig 0xf3a0...8b41</text>
+  </g>
+  <rect x="0" y="252" width="800" height="42" fill="rgba(99,102,241,0.07)"/>
+  <line x1="40" y1="273" x2="200" y2="273" stroke="rgba(165,180,252,0.4)" stroke-width="1.4" stroke-dasharray="3 4"/>
+  <line x1="270" y1="273" x2="380" y2="273" stroke="rgba(165,180,252,0.4)" stroke-width="1.4" stroke-dasharray="3 4"/>
+  <line x1="450" y1="273" x2="560" y2="273" stroke="rgba(165,180,252,0.4)" stroke-width="1.4" stroke-dasharray="3 4"/>
+  <line x1="630" y1="273" x2="760" y2="273" stroke="rgba(165,180,252,0.4)" stroke-width="1.4" stroke-dasharray="3 4"/>
+  <g transform="translate(225,273)">
+    <ellipse cx="0" cy="0" rx="14" ry="8" fill="none" stroke="#c4b5fd" stroke-width="2.4"/>
+    <ellipse cx="20" cy="0" rx="14" ry="8" fill="none" stroke="#7dd3fc" stroke-width="2.4"/>
+  </g>
+  <g transform="translate(405,273)">
+    <ellipse cx="0" cy="0" rx="14" ry="8" fill="none" stroke="#c4b5fd" stroke-width="2.4"/>
+    <ellipse cx="20" cy="0" rx="14" ry="8" fill="none" stroke="#7dd3fc" stroke-width="2.4"/>
+  </g>
+  <g transform="translate(585,273)">
+    <ellipse cx="0" cy="0" rx="14" ry="8" fill="none" stroke="#c4b5fd" stroke-width="2.4"/>
+    <ellipse cx="20" cy="0" rx="14" ry="8" fill="none" stroke="#7dd3fc" stroke-width="2.4"/>
+  </g>
+  <text x="400" y="290" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">EPOCH-SIGNED HANDOFF · ZERO CREDENTIAL REISSUANCE</text>
+  <rect x="0" y="294" width="800" height="226" fill="url(#heroBotBg)"/>
+  <text x="400" y="320" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">ENFORCE · THE RED QUEEN (MERGE GATE) · THE CHESHIRE CAT (REPO HEALTH)</text>
+  <g transform="translate(40,340)">
+    <rect x="0" y="0" width="106" height="72" rx="9" fill="url(#heroRepo)" stroke="rgba(125,211,252,0.55)"/>
+    <text x="53" y="20" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">api-auth</text>
+    <text x="53" y="40" text-anchor="middle" fill="#7dd3fc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">87</text>
+    <text x="53" y="54" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">arch · sec · risk · ops</text>
+    <text x="53" y="66" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">Sealed</text>
+    <circle cx="88" cy="11" r="2.2" fill="#fcd34d"/>
+    <circle cx="96" cy="11" r="2.2" fill="#fcd34d"/>
+  </g>
+  <g transform="translate(156,340)">
+    <rect x="0" y="0" width="106" height="72" rx="9" fill="url(#heroRepo)" stroke="rgba(125,211,252,0.55)"/>
+    <text x="53" y="20" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">orders-svc</text>
+    <text x="53" y="40" text-anchor="middle" fill="#7dd3fc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">72</text>
+    <text x="53" y="54" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">arch · sec · risk · ops</text>
+    <text x="53" y="66" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">Drift +2</text>
+    <circle cx="88" cy="11" r="2.2" fill="#fcd34d"/>
+    <circle cx="96" cy="11" r="2.2" fill="#fcd34d"/>
+  </g>
+  <g transform="translate(272,340)">
+    <rect x="0" y="0" width="106" height="72" rx="9" fill="url(#heroRepo)" stroke="rgba(125,211,252,0.55)"/>
+    <text x="53" y="20" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">web-ui</text>
+    <text x="53" y="40" text-anchor="middle" fill="#7dd3fc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">91</text>
+    <text x="53" y="54" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">arch · sec · risk · ops</text>
+    <text x="53" y="66" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">Sealed</text>
+    <circle cx="88" cy="11" r="2.2" fill="#fcd34d"/>
+    <circle cx="96" cy="11" r="2.2" fill="#fcd34d"/>
+  </g>
+  <g transform="translate(388,340)">
+    <rect x="0" y="0" width="106" height="72" rx="9" fill="url(#heroRepo)" stroke="rgba(125,211,252,0.55)"/>
+    <text x="53" y="20" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">data-mesh</text>
+    <text x="53" y="40" text-anchor="middle" fill="#7dd3fc" font-size="18" font-weight="800" font-family="system-ui, sans-serif">79</text>
+    <text x="53" y="54" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">arch · sec · risk · ops</text>
+    <text x="53" y="66" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">Sealed</text>
+    <circle cx="88" cy="11" r="2.2" fill="#fcd34d"/>
+    <circle cx="96" cy="11" r="2.2" fill="#fcd34d"/>
+  </g>
+  <text x="60" y="432" fill="#7dd3fc" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">CHESHIRE · PER-REPO HEALTH AT A GLANCE</text>
+  <text x="60" y="448" fill="#94a3b8" font-size="9.5" font-family="system-ui, sans-serif">Four pillars (architecture, security, risk, operations) scored from artifacts.</text>
+  <g transform="translate(520,340)">
+    <rect x="0" y="0" width="240" height="138" rx="11" fill="url(#heroGate)" stroke="rgba(248,113,113,0.55)"/>
+    <text x="120" y="22" text-anchor="middle" fill="#fda4af" font-size="10" font-weight="700" letter-spacing="2.5" font-family="system-ui, sans-serif">RED QUEEN · MERGE GATE</text>
+    <rect x="42" y="42" width="8" height="60" rx="2" fill="rgba(248,113,113,0.65)"/>
+    <rect x="190" y="42" width="8" height="60" rx="2" fill="rgba(248,113,113,0.65)"/>
+    <rect x="42" y="42" width="156" height="8" rx="2" fill="rgba(248,113,113,0.65)"/>
+    <rect x="68" y="64" width="104" height="24" rx="12" fill="rgba(74,222,128,0.18)" stroke="rgba(74,222,128,0.55)"/>
+    <text x="120" y="80" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">chain verified</text>
+    <text x="120" y="118" text-anchor="middle" fill="#fda4af" font-size="9" font-family="system-ui, sans-serif">deny by default · six deterministic rails</text>
+  </g>
+  <text x="640" y="498" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signature + drift + fitness checked before merge</text>
+  <rect x="0" y="504" width="800" height="16" fill="rgba(165,180,252,0.10)"/>
+  <text x="400" y="516" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700" letter-spacing="4" font-family="system-ui, sans-serif">ONE SIGNED CHAIN · OKR TO CODE</text>
+</svg>
+
+### Three promises, plainly stated
+
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">Promise 1</div>
+    <div class="docs-heading">One signed audit trail per OKR</div>
+    <div class="docs-copy">Every artifact (research, product spec, code design) is signed by the agent that produced it, with an ephemeral Ed25519 keypair generated for that session alone. Per-epoch keys mean even revise rounds sign with a fresh key. The chain verifies end to end, from objective to merged pull request.</div>
+  </div>
+  <div class="docs-card docs-card-amber">
+    <div class="docs-card-kicker">Promise 2</div>
+    <div class="docs-heading">One human gate per phase</div>
+    <div class="docs-copy">Three deliberate human decisions per OKR. Approve the WHY. Approve the HOW. Approve the WHAT. No more, no less. Your team's calendar stays sane while every agent decision in between stays auditable, attributable, and reversible.</div>
+  </div>
+  <div class="docs-card docs-card-cyan">
+    <div class="docs-card-kicker">Promise 3</div>
+    <div class="docs-heading">Zero credential reissuance between agents</div>
+    <div class="docs-copy">No agent ever gets handed another agent's keys. No proxy auth, no impersonation, no shared service account. The handoff between agents is the signature itself, verifiable by anyone with the public chain. The chain of trust never breaks at a hop.</div>
+  </div>
+</div>
+
+### Seventy percent and thirty percent
+
+Agents do 70 percent of the work well. Drafting, searching, synthesizing, comparing sources, generating structured outputs, running in parallel.
+
+Humans do 30 percent of the work better. Setting intent. Deciding what good looks like. Modeling threats. Choosing fitness ratchets. Writing the architecture decision that says "we don't do that, here's why."
+
+The trap most agentic systems fall into is asking humans to do the 30 percent live, in the loop, on every run. That is how you choke agent speed with human latency.
+
+**The mesh inverts it.** Your team captures the 30 percent once, as code. Architecture as code. Threats as code. Fitness functions as code. Risk assessments as code. ADRs explaining why.
+
+**Thirty percent of human judgment, running at one hundred percent of agent speed.**
+
+<svg viewBox="0 0 800 230" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Seventy percent of work done well by agents, thirty percent done better by humans and captured as code so the mesh inherits human judgment.">
+  <defs>
+    <linearGradient id="seventyThirtyBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
       <stop offset="100%" stop-color="#1e293b"/>
     </linearGradient>
   </defs>
-  <rect width="800" height="210" rx="12" fill="url(#gapBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#818cf8" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">THE 70/30 GAP</text>
-  <rect x="24" y="46" width="366" height="50" rx="8" fill="rgba(74,222,128,0.12)" stroke="rgba(74,222,128,0.3)"/>
-  <text x="44" y="77" fill="#4ade80" font-size="24" font-weight="800" font-family="system-ui, sans-serif">70%</text>
-  <text x="104" y="77" fill="#e2e8f0" font-size="14" font-weight="600" font-family="system-ui, sans-serif">AI handles brilliantly</text>
-  <rect x="24" y="106" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="113" y="124" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Boilerplate</text>
-  <rect x="212" y="106" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="301" y="124" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">CRUD</text>
-  <rect x="24" y="142" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="113" y="160" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Scaffolding</text>
-  <rect x="212" y="142" width="178" height="28" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)"/>
-  <text x="301" y="160" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Patterns</text>
-  <line x1="406" y1="46" x2="406" y2="170" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
-  <rect x="422" y="46" width="354" height="50" rx="8" fill="rgba(248,113,113,0.12)" stroke="rgba(248,113,113,0.3)"/>
-  <text x="442" y="77" fill="#f87171" font-size="24" font-weight="800" font-family="system-ui, sans-serif">30%</text>
-  <text x="502" y="77" fill="#e2e8f0" font-size="14" font-weight="600" font-family="system-ui, sans-serif">Makes or breaks</text>
-  <rect x="422" y="106" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="508" y="124" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Architecture</text>
-  <rect x="604" y="106" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="690" y="124" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Security Posture</text>
-  <rect x="422" y="142" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="508" y="160" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Threat Awareness</text>
-  <rect x="604" y="142" width="172" height="28" rx="6" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.2)"/>
-  <text x="690" y="160" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Governance</text>
-  <rect x="250" y="182" width="300" height="22" rx="11" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)"/>
-  <text x="400" y="197" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MaintainabilityAI closes the 30%</text>
+  <rect width="800" height="230" rx="12" fill="url(#seventyThirtyBg)"/>
+  <text x="400" y="28" text-anchor="middle" fill="#818cf8" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">70 / 30 · WHO DOES WHAT WELL, AND WHO CAPTURES IT</text>
+  <rect x="24" y="48" width="380" height="60" rx="10" fill="rgba(125,211,252,0.12)" stroke="rgba(125,211,252,0.4)"/>
+  <text x="44" y="80" fill="#7dd3fc" font-size="26" font-weight="800" font-family="system-ui, sans-serif">70%</text>
+  <text x="120" y="76" fill="#e2e8f0" font-size="13" font-weight="700" font-family="system-ui, sans-serif">AGENTS do this well</text>
+  <text x="120" y="94" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">drafting, searching, synthesizing, comparing, running in parallel</text>
+  <rect x="24" y="116" width="184" height="26" rx="6" fill="rgba(125,211,252,0.07)" stroke="rgba(125,211,252,0.18)"/>
+  <text x="116" y="133" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Draft + research</text>
+  <rect x="216" y="116" width="188" height="26" rx="6" fill="rgba(125,211,252,0.07)" stroke="rgba(125,211,252,0.18)"/>
+  <text x="310" y="133" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Synthesize + compare</text>
+  <rect x="24" y="150" width="380" height="26" rx="6" fill="rgba(125,211,252,0.07)" stroke="rgba(125,211,252,0.18)"/>
+  <text x="214" y="167" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Generate structured output in parallel</text>
+  <line x1="412" y1="48" x2="412" y2="200" stroke="rgba(148,163,184,0.18)" stroke-width="1" stroke-dasharray="4"/>
+  <rect x="420" y="48" width="356" height="60" rx="10" fill="rgba(196,181,253,0.12)" stroke="rgba(196,181,253,0.4)"/>
+  <text x="440" y="80" fill="#c4b5fd" font-size="26" font-weight="800" font-family="system-ui, sans-serif">30%</text>
+  <text x="516" y="76" fill="#e2e8f0" font-size="13" font-weight="700" font-family="system-ui, sans-serif">HUMANS do this better</text>
+  <text x="516" y="94" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">intent, threats, fitness, decisions, "we don't do that, here's why"</text>
+  <rect x="420" y="116" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
+  <text x="506" y="133" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Architecture as code</text>
+  <rect x="604" y="116" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
+  <text x="690" y="133" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Threats as code</text>
+  <rect x="420" y="150" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
+  <text x="506" y="167" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Fitness functions</text>
+  <rect x="604" y="150" width="172" height="26" rx="6" fill="rgba(196,181,253,0.07)" stroke="rgba(196,181,253,0.18)"/>
+  <text x="690" y="167" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">ADRs with rationale</text>
+  <rect x="180" y="196" width="440" height="22" rx="11" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.5)"/>
+  <text x="400" y="211" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">MESH: 30% OF HUMAN JUDGMENT, AT 100% OF AGENT SPEED</text>
 </svg>
 
-We close the gap **from both directions**. Humans get a control plane that shows the architecture, the threats, the scores, the audit chain. Instruments at the wheel. Agents get the same map, formatted for them, and gates that refuse to let them ship outside it. The human leads; the agents execute; the governance is shared.
+---
+
+## A Monday morning
+
+It is Monday morning. A product leader writes one sentence into the mesh. "Let customers see their order status in one click, without exposing other accounts."
+
+By Monday afternoon, the mesh has run four kinds of research in parallel. What the web is saying about the topic right now. What academic researchers have proven. What incumbents have patented. What working developers complain about. Sixteen sources, cross-checked against each other, gaps closed. The research draft is signed by the agent that produced it, with a key only it ever held. You read it. You approve.
+
+Tuesday morning, the mesh writes the product spec. It asks clarifying questions anchored in your team's existing architecture, your existing threats, your existing decisions. The spec comes back with every requirement tied to a real constraint. Signed by a different agent, with a different key. You read it. You approve.
+
+Tuesday afternoon, the mesh writes the code design. It reads the actual repositories the work will touch. It checks the design against your architecture rules. It flags drift before it ships. Signed by a third agent, with a third key. You read it. You approve.
+
+The coding agents take over. Each tool call they make is checked against the architecture in milliseconds. The wrong action is blocked before it happens, not flagged at code review. The pull request opens carrying provenance, not surprises.
+
+By Wednesday morning, the work is in main. Behind it: one chain, three signatures, three human approvals, eleven minutes of agent runtime, drift score 0.74.[^cert5] If anyone asks where any of it came from, you don't have to guess.
+
+**The work happened. You read the receipts.**
+
+[^cert5]: Numbers from cert run 5, May 2026, on the IMDB-Lite sample. Your numbers will vary as the mesh scales to more agents and bigger repos.
+
+---
+
+## Your team in this world
+
+Agentic engineering reshapes who sits at the table. The keyboard is no longer the bottleneck. The bottleneck is intent, judgment, and the architecture decisions that say "we don't do that, here's why." Three human roles do the work the agents cannot, and a Jr seat rotates through so the bench keeps deepening.
+
+<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Agentic team composition. Three human roles at the top set intent and curate the mesh. The mesh in the middle holds the Hatter, the Red Queen, the Cheshire Cat, the Caterpillar, and the Pocket Watch. Agents at the bottom execute in parallel against the repos.">
+  <defs>
+    <linearGradient id="teamBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#070d18"/>
+    </linearGradient>
+    <linearGradient id="teamHuman" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(165,180,252,0.30)"/>
+      <stop offset="100%" stop-color="rgba(165,180,252,0.08)"/>
+    </linearGradient>
+    <linearGradient id="teamMesh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(125,211,252,0.20)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0.05)"/>
+    </linearGradient>
+    <linearGradient id="teamAgent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(196,181,253,0.26)"/>
+      <stop offset="100%" stop-color="rgba(196,181,253,0.06)"/>
+    </linearGradient>
+    <marker id="teamArrowDown" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a5b4fc"/>
+    </marker>
+    <marker id="teamArrowUp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#86efac"/>
+    </marker>
+  </defs>
+  <rect width="800" height="540" rx="12" fill="url(#teamBg)"/>
+  <text x="400" y="30" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">AGENTIC TEAM · WHO SITS AT THE TABLE</text>
+  <text x="20" y="62" fill="#c7d2fe" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">HUMANS · SET INTENT, CURATE THE MESH</text>
+  <g transform="translate(28,76)">
+    <rect x="0" y="0" width="240" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="120" y="24" text-anchor="middle" fill="#ede9fe" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Agentic Team Orchestrator</text>
+    <text x="120" y="42" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">replaces Scrum Master role</text>
+    <text x="20" y="64" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• owns OKR intent flow</text>
+    <text x="20" y="80" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• approves the three human gates</text>
+    <text x="20" y="96" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• closes the loop with stakeholders</text>
+    <text x="20" y="112" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">one per team, often a player-coach</text>
+  </g>
+  <g transform="translate(280,76)">
+    <rect x="0" y="0" width="240" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="120" y="24" text-anchor="middle" fill="#ede9fe" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Software Architect</text>
+    <text x="120" y="42" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">Mesh Steward</text>
+    <text x="20" y="64" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• curates ADRs, CALM, threat catalog</text>
+    <text x="20" y="80" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• writes the fitness functions</text>
+    <text x="20" y="96" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• reads merged designs to learn appetite</text>
+    <text x="20" y="112" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">the 30 percent as code is their craft</text>
+  </g>
+  <g transform="translate(532,76)">
+    <rect x="0" y="0" width="240" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="120" y="24" text-anchor="middle" fill="#ede9fe" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Jr Agentic Architect</text>
+    <text x="120" y="42" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">rotational seat</text>
+    <text x="20" y="64" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• rising talent rotates through</text>
+    <text x="20" y="80" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• learns architecture by writing it</text>
+    <text x="20" y="96" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• the bench for tomorrow's seniors</text>
+    <text x="20" y="112" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2 quarters on, then back to product</text>
+  </g>
+  <line x1="148" y1="200" x2="148" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="400" y1="200" x2="400" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="652" y1="200" x2="652" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <text x="20" y="226" fill="#7dd3fc" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">MESH · CARRIES INTENT, SIGNS WORK</text>
+  <rect x="28" y="240" width="744" height="120" rx="10" fill="url(#teamMesh)" stroke="rgba(125,211,252,0.55)" stroke-width="1.4"/>
+  <text x="80" y="266" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Hatter</text>
+  <text x="80" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">chain signer</text>
+  <text x="220" y="266" text-anchor="middle" fill="#fda4af" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Red Queen</text>
+  <text x="220" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">merge gate</text>
+  <text x="360" y="266" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Cheshire Cat</text>
+  <text x="360" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">per-repo health</text>
+  <text x="500" y="266" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Caterpillar</text>
+  <text x="500" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">cross-phase drift</text>
+  <text x="640" y="266" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Pocket Watch</text>
+  <text x="640" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">goal drift gate</text>
+  <line x1="60" y1="296" x2="720" y2="296" stroke="rgba(125,211,252,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="400" y="318" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">CALM architecture · STRIDE threats · NIST controls · ADRs · fitness functions</text>
+  <text x="400" y="338" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">human judgment captured once, applied to every agent run</text>
+  <line x1="200" y1="364" x2="200" y2="394" stroke="#86efac" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="400" y1="364" x2="400" y2="394" stroke="#86efac" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="600" y1="364" x2="600" y2="394" stroke="#86efac" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <text x="20" y="390" fill="#c4b5fd" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AGENTS · EXECUTE IN PARALLEL</text>
+  <g transform="translate(28,402)">
+    <rect x="0" y="0" width="174" height="74" rx="9" fill="url(#teamAgent)" stroke="rgba(196,181,253,0.5)"/>
+    <text x="87" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">research-agent</text>
+    <text x="87" y="40" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="system-ui, sans-serif">epoch 1 · WHY</text>
+    <text x="87" y="60" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">four oracles in parallel</text>
+  </g>
+  <g transform="translate(214,402)">
+    <rect x="0" y="0" width="174" height="74" rx="9" fill="url(#teamAgent)" stroke="rgba(196,181,253,0.5)"/>
+    <text x="87" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">prd-agent</text>
+    <text x="87" y="40" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="system-ui, sans-serif">epoch 2 · HOW</text>
+    <text x="87" y="60" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">mesh-anchored experts</text>
+  </g>
+  <g transform="translate(400,402)">
+    <rect x="0" y="0" width="174" height="74" rx="9" fill="url(#teamAgent)" stroke="rgba(196,181,253,0.5)"/>
+    <text x="87" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">code-design-agent</text>
+    <text x="87" y="40" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="system-ui, sans-serif">epoch 3 · WHAT</text>
+    <text x="87" y="60" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">grounded in every repo</text>
+  </g>
+  <g transform="translate(586,402)">
+    <rect x="0" y="0" width="186" height="74" rx="9" fill="url(#teamAgent)" stroke="rgba(196,181,253,0.5)"/>
+    <text x="93" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">coding agents</text>
+    <text x="93" y="40" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="system-ui, sans-serif">in target repos</text>
+    <text x="93" y="60" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">deterministic rails per tool call</text>
+  </g>
+  <rect x="0" y="494" width="800" height="46" fill="rgba(165,180,252,0.10)"/>
+  <text x="400" y="514" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">TEAMS SHRINK IN SIZE · GROW IN IMPACT</text>
+  <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Forrester 2026 calls this role the AI Orchestrator. The mesh is what the orchestrator orchestrates.</text>
+</svg>
+
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-indigo">
+    <div class="docs-card-kicker">Human · always at the table</div>
+    <div class="docs-heading">Agentic Team Orchestrator</div>
+    <div class="docs-copy">Owns the intent flow from objective to merged code. Approves the three human gates per OKR (WHY, HOW, WHAT) and closes the loop with stakeholders. Often a player-coach who can read a signed audit chain as fluently as a release plan. Replaces the classic Scrum Master role in agentic teams.</div>
+  </div>
+  <div class="docs-card docs-card-cyan">
+    <div class="docs-card-kicker">Human · mesh steward</div>
+    <div class="docs-heading">Software Architect</div>
+    <div class="docs-copy">The 30 percent as code is their craft. Curates the CALM architecture, the STRIDE threat catalog, the ADRs, the fitness functions. Reads merged designs to learn what the organization's actual appetite is, then tightens the mesh so the next run inherits the lesson. They write the rules; the agents follow them at speed.</div>
+  </div>
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">Human · rotational seat</div>
+    <div class="docs-heading">Jr Agentic Architect</div>
+    <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns architecture by writing it, not by reading old wiki pages. The mesh makes the apprenticeship legible: every ADR, every fitness function, every signed design is a teaching artifact. This is the bench that becomes tomorrow's senior architects.</div>
+  </div>
+</div>
+
+> 📈 **Forrester 2026** names "AI Orchestrator / Agentic Engineer" as the new pivotal role on engineering teams. Teams shrink in size and grow in impact. **Gartner 2026** forecasts 40 percent of enterprise applications will embed task-specific AI agents by end of the year. The mesh is what makes that shift governable instead of chaotic.
 
 ---
 
@@ -569,6 +883,74 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 
 ---
 
+## How we keep the promises (the receipts)
+
+Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, three concrete receipts you can read in code.
+
+<div class="docs-grid docs-grid-wide">
+  <div class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">Promise 1 · the receipt</div>
+    <div class="docs-heading">One signed audit trail per OKR</div>
+    <div class="docs-copy">Per-epoch Ed25519 signing in the runtime. Each agent session is its own signer epoch with an ephemeral keypair (<code>epoch-1.pub.pem</code>, <code>epoch-2.pub.pem</code>, etc.) committed to the mesh. Every emitted event carries <code>signer_epoch</code>; chain verification loads all epoch keys and picks the right one per event. Backward-compatible with legacy single-key chains.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>Backing:</strong> <code>research-runner/src/runner/skills.ts</code> · <code>findActiveEpoch</code>, <code>loadOrCreateEpochKeypair</code>, <code>loadAllEpochPubKeys</code>. Regression tests: "Bug O, revise-agent auto-emit signs with epoch-2 keypair" and "Bug O backward compat, legacy chain still verifies."</div>
+  </div>
+  <div class="docs-card docs-card-amber">
+    <div class="docs-card-kicker">Promise 2 · the receipt</div>
+    <div class="docs-heading">One human gate per phase</div>
+    <div class="docs-copy">A single phase-spec module owns the WHY / HOW / WHAT contract end to end. A composite <code>finalize-okr-action</code> runs the same finalize logic across all three phases (no more "five ways to finalize"). The audit comment shape is pinned by an automated regression test that breaks before drift reaches production.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>Backing:</strong> <code>vscode-extension/src/types/phaseSpec.ts</code> · <code>code-templates/composite-actions/finalize-okr-action</code>. Regression tests: <code>phaseSpec.test.ts</code> "canonical H2 set matches across synthesis pack, agent prompt, and workflow check."</div>
+  </div>
+  <div class="docs-card docs-card-cyan">
+    <div class="docs-card-kicker">Promise 3 · the receipt</div>
+    <div class="docs-heading">Zero credential reissuance between agents</div>
+    <div class="docs-copy">The runner refuses to overwrite a committed public key. A revise round detects its own context from the filesystem and advances to the next epoch with a fresh keypair. No agent is ever handed another agent's keys. The handoff is the signature on the prior epoch's last event. No shared service account, no proxy auth, no impersonation.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>Backing:</strong> Same module as Promise 1. Bug-K protection preserved: pub keys committed in the mesh are immutable. The chain is the only credential.</div>
+  </div>
+</div>
+
+<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Two hundred twenty six runner tests pass. Five hundred seventeen extension tests pass. Court Recorder deterministically emits skill_call events. The audit payload contract is pinned by an automated regression test.">
+  <defs>
+    <linearGradient id="receiptsBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1424"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="260" rx="12" fill="url(#receiptsBg)"/>
+  <text x="400" y="32" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">RECEIPTS · AT A GLANCE</text>
+  <g transform="translate(28,56)">
+    <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
+    <text x="89" y="34" text-anchor="middle" fill="#86efac" font-size="28" font-weight="800" font-family="system-ui, sans-serif">226</text>
+    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RUNNER TESTS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">per-epoch + legacy + drift</text>
+  </g>
+  <g transform="translate(214,56)">
+    <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
+    <text x="89" y="34" text-anchor="middle" fill="#86efac" font-size="28" font-weight="800" font-family="system-ui, sans-serif">517</text>
+    <text x="89" y="54" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">EXTENSION TESTS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">UI + audit + phase-spec parity</text>
+  </g>
+  <g transform="translate(400,56)">
+    <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
+    <text x="89" y="34" text-anchor="middle" fill="#7dd3fc" font-size="22" font-weight="800" font-family="system-ui, sans-serif">15 / 15</text>
+    <text x="89" y="54" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CERT-RUN BUGS</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">A through O, all closed</text>
+  </g>
+  <g transform="translate(586,56)">
+    <rect x="0" y="0" width="186" height="84" rx="10" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.4)"/>
+    <text x="93" y="34" text-anchor="middle" fill="#c4b5fd" font-size="28" font-weight="800" font-family="system-ui, sans-serif">1</text>
+    <text x="93" y="54" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">AUDIT CONTRACT</text>
+    <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">pinned by regression test</text>
+  </g>
+  <rect x="28" y="160" width="744" height="44" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
+  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">COURT RECORDER · the runtime emits, not the LLM</text>
+  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">There is no skill API the agent can call to "skip the audit." Nothing it writes overrides what the runtime saw.</text>
+  <text x="400" y="232" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">Trust earned, not granted. Per agent, per session, per event.</text>
+</svg>
+
+> The full design lives in [`vscode-extension/design/agentic-sdlc.md`](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md). The threat model section below names the gaps we have not yet closed.
+
+---
+
 ## Threat model: the Hatter feature
 
 The Hatter's Tea Party is in design. Threat modeling is part of how we design it, not a checklist after the fact. The model below uses **STRIDE** because it's the language enterprise security teams already speak, and we publish it openly because honest design beats marketing claims. It covers the actors we expect, the threats we enumerate, the controls already in the design, and the gaps that remain.
@@ -950,6 +1332,22 @@ We treat this list as **living**. As the design ships and we learn from real OKR
     <div class="docs-copy">Curriculum for teams adopting governed AI engineering. Eight parts. Run end-to-end against the IMDB-Lite sample.</div>
     <div class="docs-copy"><a href="/docs/workshop" class="docs-button-secondary">Workshop →</a></div>
   </div>
+</div>
+
+---
+
+## Manage intent. Quality follows.
+
+The shift is not "AI will do more of the work." That part is settled. The shift is whether the work it does is governed, attributable, and worth the speed.
+
+Three human gates per OKR. Per-epoch signatures on every agent event. A chain anyone can verify. A control plane your architect, your compliance lead, and your CISO can all read from the same screen. **One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** Trust earned, not granted.
+
+Manage intent. Quality follows.
+
+<div class="docs-actions docs-actions-center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" class="docs-button-primary">Install the Extension</a>
+  <a href="/docs/hatters-tea-party" class="docs-button-secondary">Read the Hatter's Tea Party</a>
+  <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" class="docs-button-secondary">View on GitHub</a>
 </div>
 
 ---

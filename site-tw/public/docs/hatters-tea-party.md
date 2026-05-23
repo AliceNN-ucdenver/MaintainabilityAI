@@ -5,7 +5,10 @@
     <div class="docs-eyebrow">Vision · In Development <span class="docs-hero-meta">~14 min read</span></div>
     <h1 class="docs-hero-title">The Hatter's Tea Party</h1>
     <p class="docs-hero-copy">
-      A second vision sits beside The Red Queen: a place where AI agents don't fight, they <em>plan</em>. They turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design, all under a chain of provenance an auditor can read in one sitting. If the planning is governed, the coding can prosper. That's the tea party.
+      The Hatter is the chain signer. The agents around the table turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design. Every artifact is signed by the agent that produced it, with an ephemeral key only that session ever held. The chain verifies end to end, from objective to merged pull request.
+    </p>
+    <p class="docs-hero-copy">
+      <strong>One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.</strong> Trust earned, not granted.
     </p>
     <div class="docs-actions">
       <a href="/docs/red-queens-court" class="docs-button-secondary">Meet the Red Queen</a>
@@ -14,7 +17,7 @@
   </div>
   <figure class="docs-hero-figure">
     <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of governed intent" class="docs-hero-art" />
-    <figcaption class="docs-visual-caption">The Hatter hosts the tea party of governed intent. Six teacups. One audit trail. No riddles.</figcaption>
+    <figcaption class="docs-visual-caption">The Hatter hosts the tea party of governed intent. Six teacups. One signed chain. No riddles.</figcaption>
   </figure>
 </div>
 
@@ -504,6 +507,8 @@ Same self-critique pattern as the PRD stage — **different scoring inputs**. Th
 The instant the code-design merges, `design-bus.yml` (a workflow, **not** an agent) reads `target_code_repos[]` from the manifest and writes one issue per repo. Each issue lands **in that target code repo** with a canonical body: OKR context, the merged PRD reference, the slice of the code-design relevant to *this* repo, and HTML-comment markers that pin the cross-repo audit thread — `okr_id`, `intent_thread_uuid` (same value across the whole OKR), `parent_intent_thread` (the code-design's run thread), `design_pr_url`. The same `intent_thread_uuid` flows from the OKR Card all the way to each landing issue. The audit chain crosses repositories without breaking.
 
 From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take your pick) pick up the work. They're governed by **The Red Queen** on the code side: `validate_action` MCP calls, CALM flow constraints, security-critical path locks. Each agent's PR opens with its own Hatter's Tag whose `parent_intent_thread` points back to the code-design run — that's what makes the audit chain reconstruct end-to-end, from "the OKR an org leader set" to "the line of code that shipped because of it." That's a different story, told elsewhere. But it doesn't start cold. It starts with provenance.
+
+> 🔐 **Per-epoch signing closes the gap.** Each agent session along the tea-party path (research, product spec, code design, plus any revise round) is its own signer epoch with an ephemeral Ed25519 keypair. The public key is committed to the mesh as `<runId>.epoch-N.pub.pem`; the private key never leaves the session that created it. Every emitted event carries `signer_epoch: N`. Chain verification loads every epoch public key and picks the right one per event. **No credential is ever reissued between agents. The handoff is the signature itself.**
 
 <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
