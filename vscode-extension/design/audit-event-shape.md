@@ -85,6 +85,7 @@ Always merged flat (handler-declared via `result.auditMetadata` — per-skill ty
 |---|---|---|
 | `queries` | string[] | Queries submitted to the provider. |
 | `result_count` | number | Distinct results returned (after dedup at the skill level). |
+| `results_preview` | object[] | Bug-Q phase 3 — bounded preview of the actual hits (≤25 per skill_call). Lets a reviewer verify a citation like `S-3` resolves to a real paper / page, not a hallucinated source. Per-hit fields: `provider` (string), `query` (string — which submitted query surfaced this hit), `title` (string), `url` (string, canonical-ish), `snippet?` (string, truncated to ~200 chars), `score?` (number, 0..1 rounded to 2 decimals), `publishedDate?` (string ISO). Bounded so the audit JSONL stays compact even on broad searches. |
 
 ### `knowledge-code`
 

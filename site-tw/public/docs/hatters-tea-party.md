@@ -193,6 +193,8 @@ Most "AI research" is a single web search and a summary. That's not research —
 
 This stage does the opposite. It pulls from **four independent kinds of evidence** in parallel — what the web is saying about the topic right now, what academic researchers have proven, what's been patented (the incumbent IP landscape), and what working developers complain about — and adds a fifth lens that asks **what the customer is actually trying to get done**. Then it grades its own coverage and runs one more targeted sweep if anything looks thin.
 
+> 🔍 **Real evidence, not summary stats.** Every oracle hit (provider, query, title, URL, snippet) lands in the audit chain — up to 25 hits per skill_call. A reviewer who wants to verify that source citation `S-3` resolves to an actual arXiv paper or Tavily result can read the chain payload directly; there's no "trust the agent that it cited a real source" gap. The chain is the evidence.
+
 > 🍵 **A second research mode is on the roadmap — codebase archaeology.** When the team wants to model what their *actual code* does (not what the world says about a topic), an archaeology mode reads the impacted repositories with a polyglot parser and extracts an *observed architecture* — modules, layers, cross-module calls, exposed interfaces. The same chain-of-evidence rigor applies: every claim about the code traces back to a parser event, every gap surfaces a targeted follow-up. This is a future capability — today the WHY phase is web-evidence only — but the design is reserved so the planning layer can ground itself in *what is*, not just *what the world says about what could be*.
 
 <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
@@ -497,6 +499,8 @@ The code-design-agent runs **different prompt packs** in its two personas than i
 - **`design/security-review`** (Security persona): OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
 
 Same self-critique pattern as the PRD stage — **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point, and the workshop's pedagogical sweet spot.
+
+> 📁 **Real code, real reads — not paraphrased guesses.** For every brownfield target repo, the agent clones the repo (`knowledge-code`) AND reads the actual file contents of the entry points it plans to modify (`knowledge-code-read`). Every read auto-emits a `skill_call` event, so the audit chain records exactly which files the agent consulted while writing the design. The workflow then cross-checks every brownfield path the design cites against the cloned repo's file inventory — any path that doesn't exist fails the structural gate with `cited-path-not-in-inventory: <repo> <path>`. Hallucinated file paths land in the audit comment as a failure, not a `design-pass` label.
 
 > 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here it's a workflow (no LLM), then the coding agents in each target repo, on the Red Queen's side.
 

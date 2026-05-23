@@ -474,11 +474,11 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
   <div>
     <div class="docs-card-kicker" style="color:#a5b4fc">🎩 Plan · upstream of code</div>
     <div class="docs-heading">The Hatter's Tea Party</div>
-    <p class="docs-copy">Turn an OKR into a code-grounded design, with provenance every reviewer can verify. The Hatter takes a one-line intent, grounds it in evidence, runs it past mesh-anchored experts, and lands a cross-cutting design that's been reviewed against the actual repos it will change.</p>
+    <p class="docs-copy">Turn an OKR into a code-grounded design, with provenance every reviewer can verify. The Hatter takes a one-line intent, grounds it in evidence, runs it past mesh-anchored experts, and lands a cross-cutting design that's been reviewed against the actual repos it will change — including reading real file contents from each brownfield repo, so the design cites paths that exist and quotes code the agent actually saw.</p>
     <ul class="markdown-list list-disc">
-      <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens</li>
+      <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Every hit (title, URL, snippet) lands in the audit chain — a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
       <li class="docs-list-item">PRD refined by mesh-anchored clarifying questions; reviewers score it for mesh-grounding</li>
-      <li class="docs-list-item">Cross-cutting code design grounded against every indexed target repo (the heaviest gate in the pipeline)</li>
+      <li class="docs-list-item">Cross-cutting code design grounded against every indexed target repo (the heaviest gate in the pipeline). The agent reads actual file contents from each brownfield clone, and the workflow rejects the design if it cites any file path that does not exist in the repo's inventory.</li>
       <li class="docs-list-item"><strong>Audit Report Export</strong> bundles the whole thread for a CIO to read in one sitting <em>(coming in the next act — today, every artifact in the thread is already linkable and verifiable in place from the Looking Glass)</em></li>
     </ul>
     <p class="docs-copy"><a href="/docs/hatters-tea-party" class="docs-button-primary">Open the Tea Party →</a></p>

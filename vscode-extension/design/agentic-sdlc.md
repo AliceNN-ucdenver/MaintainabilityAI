@@ -201,6 +201,8 @@ Looking Glass — Portfolio
 │  Reads PRD + clones/indexes ALL target_code_repos at once.       │
 │   Skill calls: knowledge-prd (read merged Phase 2 doc)           │
 │                knowledge-code (one call per target repo)         │
+│                knowledge-code-read (≥1 per brownfield repo —     │
+│                  reads actual file content from cached clone)    │
 │                knowledge-reference-repos                         │
 │                context-architecture | context-security           │
 │                audit-emit-event                                  │
@@ -670,7 +672,7 @@ Each agent is a `.agent.md` file deployed by `provisionWorkflow` into the mesh's
 |---|---|---|---|
 | `market-research-agent` | `oraculum-research` label + `@copilot` mention | PR: `okrs/<id>/why/research-doc.md` | `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`, `dedupe-and-rank`, `format-research-issue-update`, `knowledge-okr`, `knowledge-mesh-*`, `audit-emit-event` |
 | `prd-agent` | `oraculum-prd` label + `@copilot` mention | PR: `okrs/<id>/how/prd.md` + `manifest.yaml` | `knowledge-research`, `knowledge-mesh-*`, `context-architecture`, `context-security`, `context-quality`, `audit-emit-event`. **Refines via `prd/ask-experts` Skill** (mesh-anchored clarifying questions). Does NOT clone code repos — that's the code-design-agent's job. |
-| `code-design-agent` | `oraculum-design` label + `@copilot` mention (one assignment, cross-cutting) | PR: `okrs/<id>/what/code-design.md` (ONE doc, cross-cutting) | `knowledge-prd`, `knowledge-code` (called once per target_code_repos[] entry), `knowledge-reference-repos`, `context-architecture`, `context-security`, `audit-emit-event`. **Last Looking-Glass-side agent.** |
+| `code-design-agent` | `oraculum-design` label + `@copilot` mention (one assignment, cross-cutting) | PR: `okrs/<id>/what/code-design.md` (ONE doc, cross-cutting) | `knowledge-prd`, `knowledge-code` (called once per target_code_repos[] entry), `knowledge-code-read` (≥1 per brownfield repo — Bug-Q phase 2; the agent reads actual file contents so cited paths are grounded in real code, not hallucinated), `knowledge-reference-repos`, `context-architecture`, `context-security`, `audit-emit-event`. **Last Looking-Glass-side agent.** Workflow cross-checks every brownfield path the artifact cites against `knowledge-code` inventory; any cited path not in the inventory fails STRUCT_OK. |
 | ~~`design-agent` (per-repo)~~ | _superseded by `code-design-agent` (one cross-cutting design) + `design-bus.yml` fan-out_ | — | The per-repo design-agent model in v3 conflated "produce a code-grounded design" with "execute the design in this repo." v4 separates them: code-design-agent produces one doc; coding agents (out of scope) execute per-repo against the merged slice. |
 
 ### 5.2 Reviewer agents

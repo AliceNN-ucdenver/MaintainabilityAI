@@ -77,6 +77,43 @@ LLM provider/model, token count, cost, grounding score, and audit chain hash.
 Auditors verify the artifact by re-running the chain against the recorded
 mesh sha.
 
+## Versioning + workflow-template pin scheme
+
+The mesh-deployed workflow templates pin this package with a **tilde range**:
+
+```
+npx -y @maintainabilityai/research-runner@~0.1.42 skill-<name>
+```
+
+`~0.1.42` allows patch releases (`0.1.43`, `0.1.44`, …) but not minor
+or major bumps. The reasons:
+
+1. **Auto-publish bumps patch on every merge.** The
+   `npm-publish-research-runner.yml` workflow runs `npm version patch`
+   when anything under `packages/research-runner/**` changes. A new
+   patch is published within minutes of merge.
+2. **Templates pinned exactly would force a follow-up edit on every
+   patch.** With `@0.1.42` (exact), every patch bump would leave the
+   templates stale until someone edited them. With `~0.1.42`, the
+   templates carry on transparently.
+3. **A minor bump is a deliberate review event.** When the runner ships
+   a contract change (new event field, new skill API shape, removed
+   field), bump `version` from `0.1.x` to `0.2.0` and update the
+   templates in the same PR. A `phaseSpec.test.ts` parity test fails
+   loudly when the templates' major.minor doesn't match `package.json`.
+
+**When you change anything under `packages/research-runner/**`:** you
+do NOT need to edit workflow templates. The auto-publish handles it.
+**When you ship a contract-breaking change:** bump the minor version
+in `packages/research-runner/package.json` AND update every
+`@maintainabilityai/research-runner@~0.X.Y` reference in
+`vscode-extension/code-templates/**` to match. Tests enforce this.
+
+The off-by-one risk the tilde range eliminates: a developer trying to
+mentally compute "what patch will the auto-publish produce" and pinning
+to the wrong value. With tilde, the patch resolves at run-time from
+npm, and the mental math goes away.
+
 ## License
 
 MIT
