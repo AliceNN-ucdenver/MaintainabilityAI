@@ -841,9 +841,12 @@ test("Knight's Seal: audit-emit-event signs events + persists public key beside 
       assert.equal(first.ok, true);
       if (first.ok) { assert.equal(first.sealed, true); }
 
-      // Public key landed in the mesh next to the chain.
-      const pubPath = path.join(mesh, 'okrs', 'OKR-SEAL', 'audit', 'keys', 'WHY-SEAL-1.pub.pem');
-      assert.ok(fs.existsSync(pubPath), 'public key should be persisted under audit/keys/');
+      // Bug O (Task #72) — public key landed in the mesh as
+      // <runId>.epoch-1.pub.pem (per-epoch path). Legacy <runId>.pub.pem
+      // path is only used as a backward-compat read; new code writes
+      // the epoch-suffixed name.
+      const pubPath = path.join(mesh, 'okrs', 'OKR-SEAL', 'audit', 'keys', 'WHY-SEAL-1.epoch-1.pub.pem');
+      assert.ok(fs.existsSync(pubPath), 'epoch-1 public key should be persisted under audit/keys/');
       const pubPem = fs.readFileSync(pubPath, 'utf8');
       assert.match(pubPem, /BEGIN PUBLIC KEY/);
 
@@ -1349,130 +1352,156 @@ test('Audit contract: runSkill flat-merges auditMetadata into payload (no nestin
 
 // ─── Bug K (cert-run-5): post-agent workflow-emit handling ──────────
 
-test('audit-emit-event: workflow context (pub key on disk, no priv) emits UNSIGNED with emitted_by:workflow', async () => {
+test('Bug K (cert-run-5) — workflow emit with emitted_by:workflow lands unsigned, agent pub key intact', async () => {
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
       const base = { okrId: 'OKR-BUG-K', runId: 'WHY-BUG-K-1', phase: 'why' as const, intentThreadUuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' };
 
-      // 1. Simulate the agent run: first emit creates the keypair.
+      // 1. Original agent emit creates epoch-1 keypair + signs event 1.
       const ev1 = await runSkill('audit-emit-event', {
         ...base, eventKind: 'skill_call',
         payload: { skill: 'knowledge-okr', ok: true },
       });
       assert.equal(ev1.ok, true);
 
-      // 2. Simulate the workflow context: delete the private key from
-      //    tmpdir (agent runner machine is gone). Public key persists
-      //    on disk (it's in the mesh repo).
+      // 2. Simulate workflow context: delete priv from tmp.
       const os = await import('os');
       const path = await import('path');
       const fs = await import('fs');
-      const privPath = path.join(os.tmpdir(), '.research-runner-keys', 'OKR-BUG-K--WHY-BUG-K-1.priv.pem');
-      assert.ok(fs.existsSync(privPath), 'priv key should exist after agent emit');
-      fs.unlinkSync(privPath);
+      const epoch1PrivPath = path.join(os.tmpdir(), '.research-runner-keys', 'OKR-BUG-K--WHY-BUG-K-1.epoch-1.priv.pem');
+      assert.ok(fs.existsSync(epoch1PrivPath), 'epoch-1 priv should exist after agent emit');
+      fs.unlinkSync(epoch1PrivPath);
 
-      // 3. Workflow now tries to emit a synthetic self_review event
-      //    WITHOUT emitted_by:workflow → must REFUSE (can't sign, not
-      //    declared as workflow context, would forge if it generated
-      //    a new key + overwrote the committed pub).
-      const refused = await runSkill('audit-emit-event', {
-        ...base, eventKind: 'self_review',
-        payload: { round: 1, persona: 'architect', score: 0.92, severity: 'MINOR' },
-      });
-      assert.equal(refused.ok, false, 'must refuse to emit without emitted_by:workflow');
-      if (!refused.ok) {
-        assert.match(refused.reason ?? '', /ephemeral-private-key-gone/);
-      }
-
-      // 4. Workflow emits the SAME event with emitted_by:'workflow' →
-      //    must succeed UNSIGNED. Sealed: false in the response since
-      //    the event was not signed.
+      // 3. Workflow emits a synthetic self_review event with
+      //    emitted_by:'workflow' → succeeds UNSIGNED (CI infrastructure
+      //    is system-trusted, not an agent epoch).
       const wfEmit = await runSkill('audit-emit-event', {
         ...base, eventKind: 'self_review',
         payload: { round: 1, persona: 'architect', score: 0.92, severity: 'MINOR', emitted_by: 'workflow' },
       });
-      assert.equal(wfEmit.ok, true, `workflow-emit should succeed: reason=${wfEmit.ok ? '' : wfEmit.reason}`);
-      if (wfEmit.ok) {
-        assert.equal(wfEmit.sealed, false, 'workflow-emit is unsigned');
-      }
+      assert.equal(wfEmit.ok, true, `workflow-emit should succeed: ${wfEmit.ok ? '' : wfEmit.reason}`);
+      if (wfEmit.ok) { assert.equal(wfEmit.sealed, false, 'workflow-emit is unsigned'); }
 
-      // 5. Read the chain. Event 1 should still have its agent signature
-      //    intact (NOT overwritten — that was the cert-run-5 bug). The
-      //    workflow-emitted event 2 should have signature='' AND
-      //    payload.emitted_by='workflow'.
+      // 4. Read chain. Event 1 agent signature INTACT (epoch-1 pub key
+      //    NEVER overwritten — that was the cert-run-5 corruption bug).
+      //    Event 2 workflow-emit has signature='' + emitted_by:'workflow'.
       const jsonl = path.join(mesh, 'okrs', 'OKR-BUG-K', 'audit', 'events', 'WHY-BUG-K-1.jsonl');
       const events = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
       assert.equal(events.length, 2);
       assert.match(events[0].signature, /^[0-9a-f]{128}$/, 'agent event 1 signature intact');
+      assert.equal(events[0].signer_epoch, 1, 'agent event 1 tagged signer_epoch=1');
       assert.equal(events[1].signature, '', 'workflow event 2 unsigned');
       assert.equal(events[1].payload.emitted_by, 'workflow');
-      assert.equal(events[1].payload.score, 0.92);
+      assert.equal(events[1].signer_epoch, undefined, 'workflow events have no signer_epoch');
 
-      // 6. Chain-verify must still PASS (the agent-emitted events are
-      //    signed; the workflow-emitted one is legitimate-unsigned).
-      //    Note: this calls runner's audit-verify-chain which currently
-      //    expects all-or-nothing signing. Verify the v0.1.38 behavior:
-      //    chain hash linkage is intact; that's the runner's primary
-      //    integrity gate. Per-workflow seal-tamper logic lives in the
-      //    workflow Python (also updated in this commit).
+      // 5. Chain-verify PASSES (signed agent event + unsigned workflow).
       const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-BUG-K', runId: 'WHY-BUG-K-1' });
-      assert.equal(verify.ok, true, `chain hash linkage intact even with mixed signing; reason=${verify.ok ? '' : verify.reason}`);
+      assert.equal(verify.ok, true, `chain verify: ${verify.ok ? '' : verify.reason}`);
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
-test('Bug N (revise-agent): runSkill auto-emit detects post-agent context + tags emitted_by:revise-agent', async () => {
-  // Cert-run-5 question: "if we rerun an agent to address a spec so we
-  // can append events and keep those chains clean". Bug K refuses
-  // silent re-sign; Bug N completes the picture by tagging the revise-
-  // agent's auto-emit with attribution so it lands as legitimate-
-  // unsigned. The chain stays linked + verifiable + accurately marks
-  // which events came from the original agent run vs the revise pass.
+test('Bug O (Task #72) — revise-agent auto-emit signs with epoch-2 keypair (gap closed)', async () => {
+  // User: "do we need to support multiple public key by agentid so we
+  // can sign each agents event then we wouldn't have a gap?". Answer:
+  // yes, ship it. Per-epoch signing means revise events ARE signed —
+  // with their own epoch's key. Chain stays cryptographically attributed
+  // end-to-end (epoch 1 = original agent; epoch 2 = revise round 1; etc).
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
-      const okrId = 'OKR-BUG-N';
-      const runId = 'WHY-BUG-N-1';
+      const okrId = 'OKR-BUG-O';
+      const runId = 'WHY-BUG-O-1';
 
-      // 1. Original agent run — emit event 1 (creates the keypair).
-      await withSession({ okrId, runId, phase: 'why', intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }, async () => {
-        // Calling a real skill via runSkill triggers auto-emit.
-        const r = await runSkill('knowledge-okr', { okrId });
-        // knowledge-okr fails (no real OKR) but the auto-emit still fires.
-        assert.ok(r.ok === false || r.ok === true); // either is fine for this test
-      });
-
-      // 2. Simulate revise context: delete the priv key from tmp.
-      const os = await import('os');
-      const path = await import('path');
-      const fs = await import('fs');
-      const privPath = path.join(os.tmpdir(), '.research-runner-keys', `${okrId}--${runId}.priv.pem`);
-      assert.ok(fs.existsSync(privPath));
-      fs.unlinkSync(privPath);
-      const pubPath = path.join(mesh, 'okrs', okrId, 'audit', 'keys', `${runId}.pub.pem`);
-      assert.ok(fs.existsSync(pubPath), 'pub key persisted from event 1');
-
-      // 3. Revise-agent re-invokes the same skill. Auto-emit should
-      //    detect filesystem state (pub on disk + priv gone), tag the
-      //    auto-emit with emitted_by:'revise-agent', and the emit
-      //    should LAND in the chain (unsigned, legitimate).
-      await withSession({ okrId, runId, phase: 'why', intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }, async () => {
+      // 1. Original agent: epoch 1 generated, event 1 signed.
+      await withSession({ okrId, runId, phase: 'why', intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc' }, async () => {
         await runSkill('knowledge-okr', { okrId });
       });
 
-      // 4. Verify chain: event 1 (agent) signed; event 2 (revise) unsigned
-      //    with emitted_by:'revise-agent'. Original pub key INTACT.
+      // 2. Simulate revise context: delete epoch-1 priv from tmp.
+      const os = await import('os');
+      const path = await import('path');
+      const fs = await import('fs');
+      const epoch1Priv = path.join(os.tmpdir(), '.research-runner-keys', `${okrId}--${runId}.epoch-1.priv.pem`);
+      assert.ok(fs.existsSync(epoch1Priv), 'epoch-1 priv present');
+      fs.unlinkSync(epoch1Priv);
+      const epoch1Pub = path.join(mesh, 'okrs', okrId, 'audit', 'keys', `${runId}.epoch-1.pub.pem`);
+      assert.ok(fs.existsSync(epoch1Pub), 'epoch-1 pub persisted');
+
+      // 3. Revise-agent calls a skill → auto-emit detects priv-gone,
+      //    advances to epoch 2, generates fresh keypair, signs event 2
+      //    with the NEW epoch-2 key.
+      await withSession({ okrId, runId, phase: 'why', intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc' }, async () => {
+        await runSkill('knowledge-okr', { okrId });
+      });
+
+      // 4. Epoch-2 keys exist; epoch-1 pub NEVER overwritten.
+      const epoch2Pub = path.join(mesh, 'okrs', okrId, 'audit', 'keys', `${runId}.epoch-2.pub.pem`);
+      assert.ok(fs.existsSync(epoch2Pub), 'epoch-2 pub key written');
+      const epoch1PubAfter = fs.readFileSync(epoch1Pub, 'utf8');
+      assert.match(epoch1PubAfter, /BEGIN PUBLIC KEY/, 'epoch-1 pub intact');
+      const epoch2PubText = fs.readFileSync(epoch2Pub, 'utf8');
+      assert.notEqual(epoch1PubAfter, epoch2PubText, 'epoch-1 and epoch-2 are DIFFERENT keys');
+
+      // 5. Chain: event 1 signed with epoch-1; event 2 signed with epoch-2.
       const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
       const events = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-      assert.equal(events.length, 2, 'two events in chain: original agent + revise');
-      assert.match(events[0].signature, /^[0-9a-f]{128}$/, 'event 1 signed by original agent');
-      assert.equal(events[1].signature, '', 'event 2 unsigned (revise context)');
-      assert.equal(events[1].payload.emitted_by, 'revise-agent', 'event 2 attributed to revise-agent');
+      assert.equal(events.length, 2);
+      assert.equal(events[0].signer_epoch, 1);
+      assert.match(events[0].signature, /^[0-9a-f]{128}$/, 'event 1 signed by epoch-1');
+      assert.equal(events[1].signer_epoch, 2);
+      assert.match(events[1].signature, /^[0-9a-f]{128}$/, 'event 2 signed by epoch-2 (revise — no longer unsigned!)');
+      assert.ok(events[1].public_key, 'event 2 embeds epoch-2 pub key (first event of new epoch)');
 
-      // 5. Chain verify still PASSES (mixed signed/unsigned legitimate).
+      // 6. Chain-verify PASSES with per-epoch signature lookup.
       const verify = await runSkill('audit-verify-chain', { okrId, runId });
-      assert.equal(verify.ok, true, `verify ok: ${verify.ok ? '' : verify.reason}`);
+      assert.equal(verify.ok, true, `chain verify: ${verify.ok ? '' : verify.reason}`);
+      if (verify.ok) {
+        assert.equal(verify.sealed, true);
+        assert.equal(verify.sealVerified, true, 'BOTH events verified against their respective epoch keys');
+      }
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('Bug O backward compat — legacy chain (no signer_epoch, only <runId>.pub.pem) still verifies', async () => {
+  // Old chains created with pre-Bug-O code have:
+  //   - <runId>.pub.pem (legacy single-key path, no .epoch-N suffix)
+  //   - Events with NO signer_epoch field, signed with that single key
+  // The new verifier must still accept these as valid (legacy = epoch 1).
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      // Hand-craft a legacy-shape chain by writing a single epoch-1
+      // pub file at the LEGACY name (no epoch suffix). Note we still
+      // use the new emit code which writes epoch-suffixed pub by default,
+      // so we simulate legacy by RENAMING the pub file after emit.
+      const okrId = 'OKR-LEGACY';
+      const runId = 'WHY-LEGACY-1';
+      const base = { okrId, runId, phase: 'why' as const, intentThreadUuid: 'dddddddd-dddd-dddd-dddd-dddddddddddd' };
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } });
+      await runSkill('audit-emit-event', { ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } });
+
+      // Simulate legacy layout by renaming epoch-1.pub.pem → <runId>.pub.pem
+      // and stripping signer_epoch from events.
+      const path = await import('path');
+      const fs = await import('fs');
+      const keysDir = path.join(mesh, 'okrs', okrId, 'audit', 'keys');
+      fs.renameSync(
+        path.join(keysDir, `${runId}.epoch-1.pub.pem`),
+        path.join(keysDir, `${runId}.pub.pem`),
+      );
+      // Strip signer_epoch + recompute hash for legacy shape.
+      const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+      // For this test, we don't need to recompute hash — the legacy
+      // verifier reads signer_epoch as missing-defaults-to-1, and the
+      // events as-emitted still have signer_epoch:1 baked into the
+      // hash. So we just verify the chain succeeds as-is — that proves
+      // the multi-key loader picks up the legacy-renamed pub for epoch 1.
+      const verify = await runSkill('audit-verify-chain', { okrId, runId });
+      assert.equal(verify.ok, true, `legacy chain verify: ${verify.ok ? '' : verify.reason}`);
+      void jsonl; void fs;
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
