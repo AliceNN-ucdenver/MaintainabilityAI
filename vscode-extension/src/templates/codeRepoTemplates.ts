@@ -491,6 +491,26 @@ export function generateFinalizeOkrAction(extensionPath: string): string {
 }
 
 /**
+ * Node script invoked by finalize-okr-action — appends durable workflow
+ * events (artifact_written + state_transition) to the per-run audit
+ * JSONL with idempotency + verify-before-commit semantics. Bug Z/4:
+ * PR audit verifies; finalize records. This script is the only durable
+ * workflow-event writer in the system.
+ */
+export function generateAppendWorkflowEventsScript(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'actions', 'finalize-okr-action', 'scripts', 'append-workflow-events.mjs');
+}
+
+/**
+ * Node script invoked by market-research-agent.yml audit job — verifies
+ * every S[N] citation in research-doc.md matches a (title, url) preview
+ * from the audited chain. Bug Z/2: WHY-phase evidence-laundering check.
+ */
+export function generateVerifySourceTableScript(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'verify-source-table.mjs');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -525,6 +545,12 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/actions/check-tier-bound/action.yml',    generate: generateCheckTierBoundAction },
   // Refactor 3c — canonical finalize body shared by all per-agent workflows.
   { relativePath: '.github/actions/finalize-okr-action/action.yml',  generate: generateFinalizeOkrAction },
+  // Bug Z/4 — durable workflow-event writer (artifact_written + state_transition)
+  // with idempotency + verify-before-commit. Invoked by finalize-okr-action.
+  { relativePath: '.github/actions/finalize-okr-action/scripts/append-workflow-events.mjs', generate: generateAppendWorkflowEventsScript },
+  // Bug Z/2 — WHY-phase source-claim integrity check (S[N] title+url vs
+  // chain results_preview[]). Invoked by market-research-agent.yml audit.
+  { relativePath: '.github/workflows/scripts/verify-source-table.mjs', generate: generateVerifySourceTableScript },
 
   // No transitional workflows remain. WHY + HOW + WHAT are owned end-
   // to-end by per-agent workflows above. The prior bus / state-machine

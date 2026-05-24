@@ -297,56 +297,54 @@ jobs:
                   print(f'::warning::skill-manifest missing: {m}')
           PYEOF
 
-      # forges artifact_written payload) — the path and sha256 come from
-      # the filesystem at PR head, not from the agent's claim.
-      - name: Auto-emit artifact_written from git diff (B28)
-        id: artifact-emit
+      # Bug Z (post-Codex round-10) — PR audit VERIFIES, finalize RECORDS.
+      # Previously emitted artifact_written into the workspace JSONL via
+      # `npx audit-emit-event`. That path was always disposable: this job
+      # runs under pull_request_target with persist-credentials:false, so
+      # the workflow has no write credentials to push the appended JSONL
+      # back to the PR branch. The emit landed in the runner workspace
+      # and was discarded. Merged main carried only skill_call events.
+      #
+      # The fix moves the durable write to finalize-okr-action (runs on
+      # main with write credentials, with idempotency + verify-before-
+      # commit). This step is reduced to a pure verifier: compute the
+      # expected payload, surface a forged existing event if one is
+      # hand-rolled into the chain, never mutate.
+      - name: Compute expected artifact_written + detect forged existing event (verify-only)
+        id: artifact-expect
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         env:
-          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
-          RUN_ID: ${{ steps.ctx.outputs.run_id }}
-          INTENT_THREAD_UUID: ${{ steps.ctx.outputs.intent_thread_uuid }}
-          PHASE: how
           JSONL: ${{ steps.audit.outputs.path }}
         run: |
-          ARTIFACT="okrs/$OKR_ID/how/prd.md"
+          ARTIFACT="okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md"
           if [ ! -f "$ARTIFACT" ]; then
-            echo "::warning::artifact $ARTIFACT not found at PR head — skipping artifact_written emit"
+            echo "artifact_present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::artifact $ARTIFACT not on PR head — finalize will not be able to record artifact_written on merge"
             exit 0
           fi
-          # Bug Y (Codex round-9) — workflow reproducibility check.
-          # Pre-Y the workflow silently skipped if an artifact_written
-          # entry already existed for this path. Codex showed the agent
-          # could pre-emit a forged artifact_written via audit-emit-event
-          # and the workflow's "skip if exists" path would never check.
-          # Post-Y: re-derive sha + bytes from current HEAD, compare to
-          # any existing entry's payload, mark forgery if mismatched.
-          # (Bug Y/1 also stripped user-supplied payload.emitted_by — the
-          # runner sets it from the kind→origin map — but defense in
-          # depth costs nothing.)
           CURRENT_SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
           CURRENT_BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
+          echo "artifact_present=true"   >> "$GITHUB_OUTPUT"
+          echo "expected_sha=$CURRENT_SHA"   >> "$GITHUB_OUTPUT"
+          echo "expected_bytes=$CURRENT_BYTES" >> "$GITHUB_OUTPUT"
+
+          # Forge detection: a hand-rolled artifact_written in the chain
+          # whose sha/bytes don't match the PR head is a tampering signal.
+          # Finalize will refuse to overwrite it; this step surfaces it
+          # to the reviewer pre-merge so the PR can be rejected.
           EXISTING_LINE=$(jq -rc --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path)' "$JSONL" 2>/dev/null | head -1)
           if [ -n "$EXISTING_LINE" ]; then
             EXISTING_SHA=$(echo "$EXISTING_LINE" | jq -r '.payload.sha256 // ""')
             EXISTING_BYTES=$(echo "$EXISTING_LINE" | jq -r '.payload.bytes // -1')
             EXISTING_ID=$(echo "$EXISTING_LINE" | jq -r '.event_id // -1')
             if [ "$EXISTING_SHA" != "$CURRENT_SHA" ] || [ "$EXISTING_BYTES" != "$CURRENT_BYTES" ]; then
-              echo "::error::FORGED artifact_written detected — chain event $EXISTING_ID has sha=${EXISTING_SHA:0:16}… bytes=$EXISTING_BYTES but current PR head has sha=${CURRENT_SHA:0:16}… bytes=$CURRENT_BYTES. Bug Y/round-9: workflow re-derives + compares; mismatch is forgery."
+              echo "::error::FORGED artifact_written detected — chain event $EXISTING_ID has sha=${EXISTING_SHA:0:16}… bytes=$EXISTING_BYTES but current PR head has sha=${CURRENT_SHA:0:16}… bytes=$CURRENT_BYTES."
               echo "artifact_forged=true" >> "$GITHUB_OUTPUT"
               echo "artifact_forged_reason=existing-event-${EXISTING_ID}-sha-${EXISTING_SHA:0:16}-vs-current-${CURRENT_SHA:0:16}" >> "$GITHUB_OUTPUT"
-              exit 0
+            else
+              echo "::notice::artifact_written event $EXISTING_ID found in chain and matches PR head (sha + bytes) — finalize will treat as idempotent no-op"
             fi
-            echo "::notice::artifact_written already in chain at event $EXISTING_ID — sha + bytes match current PR head ✓"
-            exit 0
           fi
-          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$CURRENT_SHA" --argjson bytes "$CURRENT_BYTES" \
-            '{path: $path, sha256: $sha, bytes: $bytes}')
-          jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg phase "$PHASE" --arg thread "$INTENT_THREAD_UUID" --argjson payload "$PAYLOAD" \
-            '{okrId: $okr, runId: $run, phase: $phase, intentThreadUuid: $thread, eventKind: "artifact_written", payload: $payload}' \
-            | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event \
-            && echo "::notice::artifact_written emitted (sha256=${CURRENT_SHA:0:16}…)" \
-            || echo "::warning::artifact_written emit failed (best-effort)"
 
       # Bug V (Codex round-6) — parser-only step. The agent now emits
       # signed `self_review` events directly from inside its persona-
@@ -995,13 +993,14 @@ jobs:
           fi
 
           # Bug Y (Codex round-9) — artifact_written reproducibility
-          # gate. The artifact-emit step re-derives sha + bytes from
-          # current PR HEAD and compares against any existing chain
-          # event for the same path. Mismatch = forgery (agent pre-
-          # emitted artifact_written via audit-emit-event with a fake
-          # sha). Fail-loud as degraded.
-          ARTIFACT_FORGED="${{ steps.artifact-emit.outputs.artifact_forged }}"
-          ARTIFACT_FORGED_REASON="${{ steps.artifact-emit.outputs.artifact_forged_reason }}"
+          # gate. Bug Z (round-10) — step renamed from artifact-emit to
+          # artifact-expect; the step no longer mutates the chain, but
+          # it still surfaces a forged existing artifact_written if one
+          # was hand-rolled into the JSONL. Finalize would refuse to
+          # overwrite it; this gate fails the PR pre-merge so the issue
+          # is visible to reviewers.
+          ARTIFACT_FORGED="${{ steps.artifact-expect.outputs.artifact_forged }}"
+          ARTIFACT_FORGED_REASON="${{ steps.artifact-expect.outputs.artifact_forged_reason }}"
           if [ "$VERDICT" = "ok" ] && [ "$ARTIFACT_FORGED" = "true" ]; then
             VERDICT="degraded"; REASON="forged artifact_written event detected — chain payload does not match current PR head (Bug Y round-9 reproducibility check). ${ARTIFACT_FORGED_REASON}"
             CHAIN_FAIL="true"
@@ -1292,3 +1291,7 @@ jobs:
           prior-phase: why
           pr-number: ${{ github.event.pull_request.number }}
           pr-merge-commit-sha: ${{ github.event.pull_request.merge_commit_sha }}
+          # Bug Z: finalize is the durable workflow-event writer. Pass
+          # the phase artifact path so finalize can hash + append
+          # artifact_written with idempotency + verify-before-commit.
+          artifact-path: okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md

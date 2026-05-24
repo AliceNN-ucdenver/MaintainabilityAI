@@ -1454,3 +1454,7 @@ jobs:
           prior-phase: how
           pr-number: ${{ github.event.pull_request.number }}
           pr-merge-commit-sha: ${{ github.event.pull_request.merge_commit_sha }}
+          # Bug Z: finalize is the durable workflow-event writer. Pass
+          # the phase artifact path so finalize can hash + append
+          # artifact_written with idempotency + verify-before-commit.
+          artifact-path: okrs/${{ steps.ctx.outputs.okr_id }}/what/code-design.md

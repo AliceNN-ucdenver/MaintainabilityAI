@@ -55,6 +55,15 @@ inputs:
   pr-merge-commit-sha:
     description: "github.event.pull_request.merge_commit_sha — recorded in chain-ladder for cross-ref."
     required: true
+  artifact-path:
+    description: |
+      Path to the phase artifact (research-doc.md / prd.md / code-design.md)
+      relative to repo root. Finalize hashes this file and appends a
+      durable artifact_written event to the per-run JSONL with idempotency
+      semantics (path + sha + bytes + merge_sha). Bug Z contract: PR audit
+      verifies; finalize records. Required for the cross-phase trust
+      contract.
+    required: true
 
 runs:
   using: "composite"
@@ -144,10 +153,43 @@ runs:
           "(.chain) += [{\"phase\": \"$PHASE\", \"run_id\": \"$RUN_ID\", \"intent_thread_uuid\": \"$ACTION_THREAD\", \"parent_intent_thread\": \"$PARENT_THREAD\", \"chain_root_hash\": \"$CHAIN_ROOT\", \"merge_commit_sha\": \"$MERGE_SHA\", \"merged_at\": \"$NOW\", \"pr_number\": ${{ inputs.pr-number }}}]" \
           "$LADDER"
 
+        # ── 3.5 Bug Z — durable workflow events with idempotency + verify-before-commit ──
+        # PR audit verifies; finalize records. This is the ONLY durable
+        # workflow-event writer in the system. Pre-merge audit jobs no
+        # longer mutate the chain (they ran on PR head with
+        # persist-credentials:false, so their workspace appends were
+        # always discarded). Finalize runs on main with write credentials,
+        # so durable events must land here.
+        #
+        # The append-workflow-events.mjs script:
+        #   1. Computes artifact_written payload (path, sha, bytes, merge_sha)
+        #   2. Idempotency: match → no-op, conflict → hard fail
+        #   3. Appends artifact_written via runner (signed/chained by runner)
+        #   4. Same idempotency + append for state_transition (if meta rolled)
+        #   5. Runs audit-verify-chain post-append
+        #   6. Non-zero exit on any failure → action aborts before commit
+        #
+        # The runner appends to the per-run JSONL, which we git-add below.
+        JSONL="okrs/${{ inputs.okr-id }}/audit/events/$RUN_ID.jsonl"
+        OKR_ID='${{ inputs.okr-id }}' \
+        RUN_ID="$RUN_ID" \
+        PHASE="$PHASE" \
+        ARTIFACT_PATH='${{ inputs.artifact-path }}' \
+        MERGE_SHA="$MERGE_SHA" \
+        PR_NUMBER='${{ inputs.pr-number }}' \
+        ACTION_THREAD="$ACTION_THREAD" \
+        FROM_STATUS='${{ inputs.current-meta-status }}' \
+        TO_STATUS='${{ inputs.next-meta-status }}' \
+        META_ROLLED="$([ "$META_ROLL_OUTCOME" = "rolled" ] && echo true || echo false)" \
+          node "$GITHUB_ACTION_PATH/scripts/append-workflow-events.mjs"
+
         # ── 4. Commit + push with retry. ────────────────────────────
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add "$OKR_FILE" "$LADDER"
+        # Include $JSONL — the script appended artifact_written + (optionally)
+        # state_transition events into it before exit 0. Verify-chain
+        # already ran in the script; the chain is post-append-clean.
+        git add "$OKR_FILE" "$LADDER" "$JSONL"
         PHASE_UPPER=$(echo "$PHASE" | tr '[:lower:]' '[:upper:]')
         # Cert-run bug B fix (Task #51): commit message + success notice
         # describe the actual meta.status outcome, not the intended one.

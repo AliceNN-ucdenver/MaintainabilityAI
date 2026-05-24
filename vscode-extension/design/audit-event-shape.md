@@ -1,10 +1,26 @@
 # Audit event shape — runner / workflow contract
 
-**Status:** canonical · **Last revised:** 2026-05-23 · **Owners:** runner package + workflow YAML
+**Status:** canonical · **Last revised:** 2026-05-24 (Bug Z) · **Owners:** runner package + workflow YAML
 
-## Trust model (post-Bug-V/W/Y)
+## Trust model (post-Bug-V/W/Y/Z)
 
 Deterministic skills gather facts, emit `skill_call`, verify chains, check structure, enforce manifests, pin paths, and apply workflow labels. The LLM does synthesis, gap-loop intent, and persona-critique judgment. The split is pinned by a single source of truth — the `EVENT_KIND_ORIGIN` map in [`packages/research-runner/src/runner/skills.ts`](../../packages/research-runner/src/runner/skills.ts) — which assigns every event kind to exactly one of three origin tiers: **runtime**, **agent**, or **workflow** (Bug Y / Codex round-9).
+
+### PR audit verifies, finalize records (Bug Z / Codex round-10)
+
+The cross-phase **trust contract** added in Bug Z fixes a structural gap the prior workflow code carried since Bug Y. The audit-and-drift jobs run under `pull_request_target` with `actions/checkout` configured `persist-credentials: false` for safety (the PR branch belongs to a contributor; the workflow has read-only access to it). Pre-Z those jobs attempted to emit `artifact_written` events into the workspace JSONL via `npx audit-emit-event`, but with no push credentials the appended JSONL was always discarded at runner shutdown. Merged main therefore carried `skill_call` events only — every workflow-owned event vanished, and the verifier had no durable workflow record to validate against.
+
+The lane assignment is now operational, not just nominal:
+
+- **PR audit jobs verify.** They re-derive expected payloads from the PR head (sha + bytes of the artifact), surface forged existing workflow events (a hand-rolled `artifact_written` whose sha/bytes disagree with the PR head fails the gate pre-merge), and fail the verdict when source claims do not match the audited chain (WHY-phase `verify-source-table.mjs` cross-checks every `S[N]` citation against the `results_preview[]` entries in `skill_call` events). PR audit **does not mutate the chain**.
+- **`finalize-okr-action` is the only durable workflow-event writer.** It runs on `main` (post-merge) with `contents: write`, calls `append-workflow-events.mjs`, which (a) idempotency-checks any existing `artifact_written` for the path — match no-ops, conflict (same path, different sha/bytes/merge_sha) hard-fails with a clear reason — then (b) appends a fresh `artifact_written` via the runner, then (c) does the same idempotency dance for `state_transition` keyed on `(phase, run_id, from, to, pr_number, merge_commit_sha)`, then (d) runs `audit-verify-chain` post-append and aborts before commit if verify fails. Only after verify passes does the action `git add` the JSONL alongside `okr.yaml` + `chain-ladder.yaml` and push.
+
+The two records together cover the workflow lane completely:
+
+- **`okrs/<id>/audit/chain-ladder.yaml`** = cross-phase ladder, one row per phase merge with `(phase, run_id, intent_thread_uuid, parent_intent_thread, chain_root_hash, merge_commit_sha, merged_at, pr_number)`. This is the canonical lineage record across WHY → HOW → WHAT.
+- **`okrs/<id>/audit/events/<runId>.jsonl`** = within-phase chain. After Bug Z finalize-time append, every sealed phase carries the runtime `skill_call` events + (for HOW/WHAT) agent-signed `self_review` events + workflow-emitted `artifact_written` + (when meta.status changed) `state_transition`.
+
+Both are workflow-owned; both are required evidence for a sealed phase. The verifier validates the JSONL after the finalize-time append, and the dashboard reads the same JSONL for badge state.
 
 ### The kind→origin map (single source of truth)
 
