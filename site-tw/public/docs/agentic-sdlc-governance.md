@@ -29,11 +29,13 @@ Imagine a world where you can ask "where did this design come from?" and get bac
 
 Now look at what most agentic systems actually deliver. Credentials reissued at every agent hop. Attribution dissolved. The chain of trust broken the moment a second agent touches the work. Audit becomes a guess. Compliance becomes a slide.
 
+By 2026, the market question is not whether agents can write code. It is whether hybrid human-agent teams can be governed without slowing to a crawl. [Microsoft's 2026 Work Trend Index](https://www.microsoft.com/en-us/worklab/work-trend-index/agents-human-agency-and-the-opportunity-for-every-organization) frames the winning organization as human-led and agent-operated. [DORA's 2025 AI-assisted software delivery research](https://dora.dev/research/2025/dora-report/) is blunter: AI amplifies the organizational system underneath it. [Forrester's AEGIS framework](https://www.forrester.com/blogs/introducing-aegis-the-guardrails-cisos-need-for-the-agentic-enterprise/) says security now has to secure intent, provenance, and agent behavior, not just infrastructure.
+
 The mesh you are about to see does not work that way.
 
 **One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. **Trust earned, not granted. Per agent, per session, per event.**
 
-<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="One signed chain from OKR to code. The Hatter signs each artifact in the top half, the Red Queen gates the merge in the bottom half, the Cheshire Cat watches per-repo health, and a chain seam runs between them with epoch-signed handoffs and zero credential reissuance.">
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="One signed chain from OKR to code. The Hatter signs each artifact in the top half, the Red Queen checks agent actions in the bottom half, the Cheshire Cat watches per-repo health, and a chain seam runs between them with epoch-signed handoffs and zero credential reissuance.">
   <defs>
     <linearGradient id="heroTopBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#1a1138"/>
@@ -114,7 +116,7 @@ The mesh you are about to see does not work that way.
   </g>
   <text x="400" y="290" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">EPOCH-SIGNED HANDOFF · ZERO CREDENTIAL REISSUANCE</text>
   <rect x="0" y="294" width="800" height="226" fill="url(#heroBotBg)"/>
-  <text x="400" y="320" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">ENFORCE · THE RED QUEEN (MERGE GATE) · THE CHESHIRE CAT (REPO HEALTH)</text>
+  <text x="400" y="320" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">ENFORCE · THE RED QUEEN (ACTION GATE) · THE CHESHIRE CAT (REPO HEALTH)</text>
   <g transform="translate(40,340)">
     <rect x="0" y="0" width="106" height="72" rx="9" fill="url(#heroRepo)" stroke="rgba(125,211,252,0.55)"/>
     <text x="53" y="20" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">api-auth</text>
@@ -155,15 +157,15 @@ The mesh you are about to see does not work that way.
   <text x="60" y="448" fill="#94a3b8" font-size="9.5" font-family="system-ui, sans-serif">Four pillars (architecture, security, risk, operations) scored from artifacts.</text>
   <g transform="translate(520,340)">
     <rect x="0" y="0" width="240" height="138" rx="11" fill="url(#heroGate)" stroke="rgba(248,113,113,0.55)"/>
-    <text x="120" y="22" text-anchor="middle" fill="#fda4af" font-size="10" font-weight="700" letter-spacing="2.5" font-family="system-ui, sans-serif">RED QUEEN · MERGE GATE</text>
+    <text x="120" y="22" text-anchor="middle" fill="#fda4af" font-size="10" font-weight="700" letter-spacing="2.5" font-family="system-ui, sans-serif">RED QUEEN · ACTION GATE</text>
     <rect x="42" y="42" width="8" height="60" rx="2" fill="rgba(248,113,113,0.65)"/>
     <rect x="190" y="42" width="8" height="60" rx="2" fill="rgba(248,113,113,0.65)"/>
     <rect x="42" y="42" width="156" height="8" rx="2" fill="rgba(248,113,113,0.65)"/>
     <rect x="68" y="64" width="104" height="24" rx="12" fill="rgba(74,222,128,0.18)" stroke="rgba(74,222,128,0.55)"/>
     <text x="120" y="80" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">chain verified</text>
-    <text x="120" y="118" text-anchor="middle" fill="#fda4af" font-size="9" font-family="system-ui, sans-serif">deny by default · six deterministic rails</text>
+    <text x="120" y="118" text-anchor="middle" fill="#fda4af" font-size="9" font-family="system-ui, sans-serif">deny by default · seven deterministic rails</text>
   </g>
-  <text x="640" y="498" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signature + drift + fitness checked before merge</text>
+  <text x="640" y="498" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Hatter signs · Red Queen blocks actions · CI hard gate next</text>
   <rect x="0" y="504" width="800" height="16" fill="rgba(165,180,252,0.10)"/>
   <text x="400" y="516" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700" letter-spacing="4" font-family="system-ui, sans-serif">ONE SIGNED CHAIN · OKR TO CODE</text>
 </svg>
@@ -190,6 +192,8 @@ The mesh you are about to see does not work that way.
 
 ### Seventy percent and thirty percent
 
+The frontier team is no longer one developer with a faster autocomplete. It is a human setting intent, a mesh turning that intent into repeatable constraints, and agents doing the parts that are cheap to scale.
+
 Agents do 70 percent of the work well. Drafting, searching, synthesizing, comparing sources, generating structured outputs, running in parallel.
 
 Humans do 30 percent of the work better. Setting intent. Deciding what good looks like. Modeling threats. Choosing fitness ratchets. Writing the architecture decision that says "we don't do that, here's why."
@@ -199,6 +203,8 @@ The trap most agentic systems fall into is asking humans to do the 30 percent li
 **The mesh inverts it.** Your team captures the 30 percent once, as code. Architecture as code. Threats as code. Fitness functions as code. Risk assessments as code. ADRs explaining why.
 
 **Thirty percent of human judgment, running at one hundred percent of agent speed.**
+
+That is the difference between a pile of coding assistants and a governed hybrid team. The LLM synthesizes. The deterministic skills prove. The human owns the judgment. The audit chain remembers which is which.
 
 <svg viewBox="0 0 800 230" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Seventy percent of work done well by agents, thirty percent done better by humans and captured as code so the mesh inherits human judgment.">
   <defs>
@@ -248,7 +254,7 @@ Tuesday morning, the mesh writes the product spec. It asks clarifying questions 
 
 Tuesday afternoon, the mesh writes the code design. It reads the actual repositories the work will touch. It checks the design against your architecture rules. It flags drift before it ships. Signed by a third agent, with a third key. You read it. You approve.
 
-The coding agents take over. Each tool call they make is checked against the architecture in milliseconds. The wrong action is blocked before it happens, not flagged at code review. The pull request opens carrying provenance, not surprises.
+The coding agents take over. Each tool call they make is checked against the architecture in milliseconds. The wrong action is blocked before it happens, not flagged at code review. Every hook decision writes a local audit line with the verdict and the rule ID. Approved overrides do not slip through as ordinary allows; they record which rule was bypassed and which approval source allowed it. The pull request opens carrying provenance, not surprises.
 
 By Wednesday morning, the work is in main. Behind it: one chain, three signatures, three human approvals, eleven minutes of agent runtime, drift score 0.74.[^cert5] If anyone asks where any of it came from, you don't have to guess.
 
@@ -325,7 +331,7 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <text x="80" y="266" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Hatter</text>
   <text x="80" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">chain signer</text>
   <text x="220" y="266" text-anchor="middle" fill="#fda4af" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Red Queen</text>
-  <text x="220" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">merge gate</text>
+  <text x="220" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">action gate</text>
   <text x="360" y="266" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Cheshire Cat</text>
   <text x="360" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">per-repo health</text>
   <text x="500" y="266" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Caterpillar</text>
@@ -365,7 +371,7 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   </g>
   <rect x="0" y="494" width="800" height="46" fill="rgba(165,180,252,0.10)"/>
   <text x="400" y="514" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">TEAMS SHRINK IN SIZE · GROW IN IMPACT</text>
-  <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Forrester 2026 calls this role the AI Orchestrator. The mesh is what the orchestrator orchestrates.</text>
+  <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2026 shift: humans set intent, agents execute, the mesh preserves accountability.</text>
 </svg>
 
 <div class="docs-grid docs-grid-wide">
@@ -386,7 +392,7 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   </div>
 </div>
 
-> 📈 **Forrester 2026** names "AI Orchestrator / Agentic Engineer" as the new pivotal role on engineering teams. Teams shrink in size and grow in impact. **Gartner 2026** forecasts 40 percent of enterprise applications will embed task-specific AI agents by end of the year. The mesh is what makes that shift governable instead of chaotic.
+> **2026 market signal.** Microsoft's Work Trend Index says the frontier shift is human-led, agent-operated work. DORA says AI amplifies the organizational system underneath it. Forrester AEGIS says security leaders now have to secure intent, provenance, and machine-speed agent behavior. The mesh is what makes that shift governable instead of chaotic.
 
 ---
 
@@ -448,7 +454,7 @@ Three things make it coherent. A **substrate** (Looking Glass) that everyone rea
   <text x="585" y="293" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">MCP validate_action · deterministic policy</text>
   <rect x="426" y="304" width="318" height="22" rx="6" fill="rgba(244,114,182,0.10)" stroke="rgba(244,114,182,0.25)"/>
   <text x="585" y="319" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">CI required status check (Queen&rsquo;s Next Act)</text>
-  <text x="585" y="343" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">"Allow · Conditional · Deny" — auditable</text>
+  <text x="585" y="343" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">allow · deny · override logged</text>
   <line x1="215" y1="178" x2="215" y2="198" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#frameArrowGrey)"/>
   <line x1="585" y1="178" x2="585" y2="198" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#frameArrowGrey)"/>
   <path d="M 390 280 L 408 280" stroke="#a5b4fc" stroke-width="2" marker-end="url(#frameArrow)"/>
@@ -493,7 +499,8 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
     <ul class="markdown-list list-disc">
       <li class="docs-list-item">PreToolUse hooks block in milliseconds before any agent tool fires</li>
       <li class="docs-list-item">MCP <code>validate_action</code> lets agents ask the deterministic policy engine before acting</li>
-      <li class="docs-list-item">Six rails today: CALM flow constraints, security-critical paths, restricted-tier locks, control adherence, platform impact, permission tiers</li>
+      <li class="docs-list-item">Seven rails today: CALM flow constraints, security-critical paths, restricted-tier locks, control adherence, platform impact, permission tiers, custom team rules</li>
+      <li class="docs-list-item">Every hook and <code>validate_action</code> decision writes a JSONL audit line with verdict, rule ID, tool, target path, and override attribution when an approval flips a deny into an allow</li>
       <li class="docs-list-item">Cross-repo semantic governance and a CI hard merge gate (<code>redqueen-action</code>) land in <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a></li>
     </ul>
     <p class="docs-copy"><a href="/docs/red-queens-court" class="docs-button-primary">Open the Court →</a></p>
@@ -1106,6 +1113,11 @@ Five actors the Hatter must withstand:
     <div class="docs-heading">Audit chain is tamper-evident</div>
     <div class="docs-copy">Every step the agent takes is hash-chained. Modifying any past entry breaks every entry after it, detectable offline. Before any PR can merge, an independent re-verification replays the chain end-to-end; mismatch blocks the merge. Goal drift is caught by a semantic-similarity check (Pocket Watch). Tier-creep is prevented by freezing the governance tier at run start.</div>
   </div>
+  <div class="docs-card docs-card-emerald">
+    <div class="docs-card-kicker">Tamper · evidence laundering · ✓</div>
+    <div class="docs-heading">Claims must trace to evidence</div>
+    <div class="docs-copy">Search skills keep a bounded preview of returned results, including title, URL, snippet, provider, and query. Brownfield code-design runs keep a file inventory and require at least one real file read per repo; the workflow rejects cited paths that are not in the inventory. The agent can synthesize, but it cannot pass cleanly by inventing sources or paths.</div>
+  </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Repudiate · ✓</div>
     <div class="docs-heading">Every decision is attributable</div>
@@ -1147,6 +1159,8 @@ Five actors the Hatter must withstand:
 | **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective; compares with semantic similarity ≥ 0.85 AND edit-distance ≤ 0.30; `goal-drift-detected` label blocks merge | ✓ |
 | **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes | ✓ |
 | **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow | ✓ |
+| **Tamper** | Agent cites fake sources or fake brownfield paths | Search-skill audit metadata includes `results_preview[]` with provider, query, title, URL, snippet, score, and published date where available. WHAT-phase brownfield runs record `inventory_paths` from `knowledge-code`, require `knowledge-code-read` per brownfield repo, and fail the path-citation gate if any cited path is missing from the inventory | ✓ |
+| **Tamper** | Dashboard shows a green seal or inflated metrics on a chain CI would reject | Looking Glass uses the shared `chainVerify.ts` contract: event kind must match origin, runtime/agent/workflow signing rules mirror the runner, malformed JSONL is treated as tampered, and forged events are excluded from metric extraction before CI finishes | ✓ |
 | **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted | ✓ |
 | **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal** (shipped) signs every event with the session's own ephemeral Ed25519 keypair — each agent session is its own signer epoch, so the agent's session is the only thing that could have produced the signature. The chain plus the per-epoch pub keys committed to the mesh are sufficient to reconstruct who signed what. Persistent third-party verifiability (cosign / sigstore) is the next act | ✓ |
 | **Info disclosure** | LLM provider retains our prompts indefinitely | Out of our trust boundary; the design captures cost + token counts only, not prompt bodies | ⚠ |
@@ -1167,7 +1181,7 @@ Five actors the Hatter must withstand:
 
 ### AEGIS overlay: where this design fits in the agentic-AI security landscape
 
-**Bottom line for an enterprise security leader.** The Hatter's Tea Party already satisfies most of the industry's published agentic-AI governance frameworks. We publish the specific controls we satisfy, the ones in flight, and the gaps that remain. No marketing claims. Every row is open in GitHub.
+**Bottom line for an enterprise security leader.** MaintainabilityAI now covers both sides of the agentic SDLC problem: the Hatter proves where intent, research, PRD, and code design came from; the Red Queen records what agents were allowed to do at the action boundary. We publish the specific controls we satisfy, the ones in flight, and the gaps that remain. No marketing claims. Every row is open in GitHub.
 
 STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidence laundering, or prompt injection from data-not-instructions confusion. Three industry frameworks sit on top of STRIDE for the agentic case. Each is summarized below with a one-line implementation status; the full row-by-row detail expands when you click.
 
@@ -1175,12 +1189,12 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">Executive map · ✓ 5 of 6 domains</div>
     <div class="docs-heading">Forrester AEGIS</div>
-    <div class="docs-copy"><strong>What an executive gets:</strong> a checklist for deciding whether an AI agent is governed like a real enterprise system. AEGIS asks six questions: Who authorized it? What data can it touch? How is it monitored? Can we explain the outcome? Does security review run continuously? Can the controls be proven? Hatter's Tea Party satisfies five today. The remaining gap is signed prompt-pack provenance, planned for the cosign / sigstore evolution of Knight's Seal.</div>
+    <div class="docs-copy"><strong>What an executive gets:</strong> a checklist for deciding whether an AI agent is governed like a real enterprise system. AEGIS asks six questions: Who authorized it? What data can it touch? How is it monitored? Can we explain the outcome? Does security review run continuously? Can the controls be proven? Hatter's Tea Party satisfies five today, and Red Queen now adds per-decision action evidence at the repo boundary. The remaining gap is signed prompt-pack provenance, planned for the cosign / sigstore evolution of Knight's Seal.</div>
   </div>
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Audit controls · ✓ 6 of 6</div>
     <div class="docs-heading">AEGIS Pre-Execution Firewall</div>
-    <div class="docs-copy"><strong>What it proves:</strong> the agent did not get to write its own receipt after the fact. Skill calls are recorded by the runtime, file changes are recorded by the workflow from Git, and review judgments are signed by the agent session that made them. Every event is hash-chained; every agent event is Ed25519-signed; workflow events must be unsigned and re-derivable. CI calls the runner's own verifier before merge, and the dashboard uses the same rules for the Sealed badge. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
+    <div class="docs-copy"><strong>What it proves:</strong> the agent did not get to write its own receipt after the fact. Skill calls are recorded by the runtime, file changes are recorded by the workflow from Git, and review judgments are signed by the agent session that made them. Red Queen adds the pre-side-effect layer: hook and MCP decisions log the verdict, rule ID, target, and override source before the action proceeds. Hatter events are hash-chained and signed today; Red Queen per-decision logs are durable JSONL today and join the signed chain in Queen's Next Act. CI calls the runner's own verifier before merge, and the dashboard uses the same rules for the Sealed badge. <br><span style="display:inline-block;margin-top:0.5rem;font-size:0.8125rem;opacity:0.75">📄 <a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></span></div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Scope control · 🛠 partial</div>
@@ -1197,14 +1211,14 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 <details>
 <summary><strong>Forrester AEGIS — row-by-row detail for security teams</strong> (click to expand)</summary>
 
-| Forrester domain | Forrester named control | Hatter's Tea Party implementation | Status |
+| Forrester domain | Forrester named control | MaintainabilityAI implementation | Status |
 |---|---|---|:-:|
-| Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Per-phase gate workflows (`market-research-agent.yml`, `prd-agent.yml`, audit-validate, drift-gate) enforce policy in CI, not just at PR review | ✓ |
+| Governance, Risk & Compliance | Machine-executable, context-aware policy enforcement | Hatter per-phase gate workflows (`market-research-agent.yml`, `prd-agent.yml`, audit-validate, drift-gate) enforce policy in CI; Red Queen policy files enforce repo-local action rules before tool execution | ✓ |
 | Identity & Access Management | Agents as hybrid identities with just-in-time privileges | Per-agent `.agent.md` declares minimum-necessary `tools:` list; deployment refuses to land an agent referencing an undeclared Skill | ✓ |
 | Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
 | Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped. **Pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
-| Threat Management & SecOps | Real-time monitoring + detection engineering | Hash-chained audit JSONL is queryable; `verify-chain` (Phase E) replays the full run from disk; gap-loop refinement events visible in audit trail | ✓ |
-| Zero Trust | "Least agency" — minimum permissions per goal | Each agent's `.agent.md` declares a minimum-per-task `tools:` list; skill backends are pure-data and can't mutate beyond their declared writes. There are no separate reviewer agents — the author agent's tool scope is bounded to what its persona-switch self-critique requires | ✓ |
+| Threat Management & SecOps | Real-time monitoring + detection engineering | Hatter hash-chained audit JSONL is queryable and replayable; Red Queen `.redqueen/audit-log.jsonl` records every hook and `validate_action` decision with verdict, rule ID, and override attribution. Signing Red Queen decisions under Knight's Seal is Queen's Next Act | ✓ / 🛠 |
+| Zero Trust | "Least agency" — minimum permissions per goal | Each agent's `.agent.md` declares a minimum-per-task `tools:` list; skill backends are pure-data and can't mutate beyond their declared writes. Red Queen enforces least agency at action time through pre-tool hooks, MCP `validate_action`, permission tiers, and custom team rules. There are no separate reviewer agents; the author agent's tool scope is bounded to what its persona-switch self-critique requires | ✓ |
 
 **Core principles satisfaction.** *Least Agency* ✓ (per-agent tool whitelists). *Continuous Assurance* ✓ (every PR re-runs the gate workflows, not point-in-time review). *Explainable Outcomes* ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
 
@@ -1213,7 +1227,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 <details>
 <summary><strong>AEGIS Pre-Execution Firewall — row-by-row detail for security teams</strong> (click to expand)</summary>
 
-| AEGIS Pre-Execution Firewall control | Hatter's Tea Party implementation | Status |
+| AEGIS Pre-Execution Firewall control | MaintainabilityAI implementation | Status |
 |---|---|:-:|
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash`; the runner's `audit-verify-chain` skill catches it both online (CI) and offline (auditor re-run) | ✓ |
@@ -1224,6 +1238,9 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | Pre-execution interception (log before side effect) | `runSkill()` wraps every handler: emit the audit event before the result returns to the caller. The window between "skill ran" and "audit recorded" doesn't exist — they're the same function | ✓ |
 | **Ed25519 per-event, per-epoch signing (Knight's Seal)** | Each agent session is its own signer epoch with its own ephemeral Ed25519 keypair. The original agent invocation is epoch 1; the first revise-agent is epoch 2; the second revise is epoch 3; etc. The private key never leaves the session that created it; the public key is committed to the mesh at `audit/keys/<runId>.epoch-N.pub.pem`. Every emitted event carries its signature plus the `signer_epoch` value. CI invokes the runner's `audit-verify-chain` skill — same code path the runner uses to write the chain — which loads all epoch pub keys and verifies each event against the right one. A green Sealed badge surfaces in the Looking Glass phase card + the PR audit comment. Cosign / sigstore-anchored persistent signing is the next act | ✓ |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
+| **Red Queen pre-side-effect decision log** | Claude Code and Copilot hooks validate Edit / Write / Bash before the action proceeds. Built-in rails emit stable rule IDs (`TIER-*`, `CTRL-*`, `SEC-*`, `CALM-*`, `PLAT-*`), and `customRules[]` lets teams add their own regex-scoped rule IDs. Every hook decision appends a fail-soft JSONL line with verdict, rule ID, tool, path, and session context | ✓ |
+| **Override attribution at action time** | When `REDQUEEN_TOOL_APPROVED`, `REDQUEEN_PLAN_APPROVED`, or `toolInput.redqueenApproved` flips a deny into an allow, the audit line records `override: true`, `bypassedRuleId`, and `approvalSource`. An override no longer looks like an ordinary allow | ✓ |
+| Signed Red Queen enforcement chain | Red Queen decisions are durable local JSONL today, but they are not yet hash-chained and Ed25519-signed under the Hatter trust contract. Queen's Next Act adds the signed Red Queen chain, the `redqueen-action` required status check, and cross-chain inclusion proofs tying planning intent to action enforcement | 🛠 |
 
 </details>
 
@@ -1303,6 +1320,11 @@ We publish this list publicly because honest design beats marketing claims, and 
     <div class="docs-card-kicker">Shipped</div>
     <div class="docs-heading">Knight's Seal — Ed25519 signing</div>
     <div class="docs-copy">Author identity is enforced via GitHub App installation ID + system-prompt SHA stamped on every Hatter Tag. <strong>Knight's Seal ships per-event, per-epoch ephemeral Ed25519 signing.</strong> Each agent session is its own signer epoch: original agent invocation = epoch 1, first revise-agent = epoch 2, and so on. The session's keypair is generated on first emit; the private key never leaves the session; the public key is committed to the mesh as <code>audit/keys/&lt;runId&gt;.epoch-N.pub.pem</code>. Every event carries its own signature plus the <code>signer_epoch</code> it was signed under. CI invokes the runner's <code>audit-verify-chain</code> skill — the same code path the runner uses to write the chain, so the verifier in CI and the verifier in the runtime are one implementation, no drift — and the workflow blocks merge if any per-epoch signature check fails. Looking Glass surfaces a green 🛡 Sealed badge on each phase card. <strong>Next act:</strong> cosign / sigstore-anchored persistent signing so a third-party auditor can verify a year-old artifact without trusting the public key embedded in its own audit log.</div>
+  </div>
+  <div class="docs-card docs-card-amber">
+    <div class="docs-card-kicker">Queen's Next Act</div>
+    <div class="docs-heading">Red Queen signed enforcement chain</div>
+    <div class="docs-copy">Today, Red Queen writes durable per-decision JSONL for hooks and <code>validate_action</code>: verdict, rule ID, target, session ID, and override attribution. That makes the action boundary reviewable now. The remaining gap is cryptographic: those action logs are not yet folded into the Hatter-style signed hash chain. Queen's Next Act adds signed Red Queen decision events, the <code>redqueen-action</code> required status check, and cross-chain inclusion proofs from OKR intent to repo action.</div>
   </div>
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Future — cosign era</div>
