@@ -647,7 +647,7 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   <line x1="97" y1="140" x2="97" y2="190" stroke="#fcd34d" stroke-width="1.6" marker-end="url(#calmArrow)"/>
   <text x="103" y="168" fill="#fcd34d" font-size="8" font-style="italic" font-family="system-ui, sans-serif">auth</text>
   <line x1="150" y1="120" x2="180" y2="120" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
-  <path d="M 150 130 L 165 130 L 165 210 L 180 210" fill="none" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
+  <path d="M 150 135 Q 215 155, 230 190" fill="none" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
   <line x1="280" y1="120" x2="305" y2="160" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
   <line x1="280" y1="210" x2="305" y2="170" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
   <!-- Column labels -->
