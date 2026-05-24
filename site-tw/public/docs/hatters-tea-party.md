@@ -669,13 +669,13 @@ The screen is **deliberately linear, not tabbed.** Tabs let a user open How with
 
 ---
 
-## What the CIO gets — coming in the next act: one zip, one answer
+## The Hatter's Next Act: one zip, one answer
 
-Compliance reviews are slow because the evidence is scattered. The CALM model lives in one place, the threat model in another, the PRD in a Confluence space, the design in a Notion doc, the PR in GitHub, the reviewer comments somewhere in a Slack thread. To answer "how was this built?" an auditor opens six tabs and asks four people for permissions.
+Compliance reviews are slow because the evidence is scattered. The CALM model lives in one place, the threat model in another, the PRD in a Confluence space, the design in a Notion doc, the PR in GitHub, the reviewer comments somewhere in a Slack thread. To answer "how was this built?" an auditor opens six tabs and asks four people for permissions. That is the gap the Hatter's Next Act closes.
 
-> 🪧 **Status note (honest).** The Audit Report Export bundle described below is **coming in the next act of the framework.** It is queued, scoped, and the chain ladder + per-phase artifacts that feed it are already in production today — every piece is linkable and verifiable in place from the Looking Glass right now. The work that remains is the single-bundle export + the redaction layer that ships at the same time. Until then, an internal auditor can already walk the chain artifact-by-artifact in the Looking Glass; the export consolidates that walk into one downloadable.
+> 🪧 **Status note (honest).** The Audit Report Export bundle described below is **the Hatter's Next Act of the framework.** It is queued, scoped, and the chain ladder + per-phase artifacts that feed it are already in production today; every piece is linkable and verifiable in place from the Looking Glass right now. The work that remains is the single-bundle export + the redaction layer that ships at the same time. Until then, an internal auditor can already walk the chain artifact-by-artifact in the Looking Glass; the export consolidates that walk into one downloadable.
 
-When it lands, the Audit Report Export will be a **single zip** generated from the OKR detail screen. It will be deterministic: the same OKR plus the same mesh state will produce a byte-identical bundle.
+When it lands, the Audit Report Export will be a **single zip** generated from the OKR detail screen. It will be deterministic: the same OKR plus the same mesh state will produce a byte-identical bundle. The audience is broader than any one role — a CIO running a portfolio review, a CIRO answering a regulator, a CISO walking an incident, an internal auditor before a SOC 2 cycle. One zip, one answer, same evidence for all four.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-cyan">
@@ -688,7 +688,7 @@ When it lands, the Audit Report Export will be a **single zip** generated from t
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">traceability.html / .csv</div>
-    <div class="docs-copy">The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The CIO's question ("show me from outcome to code") is one column-scroll.</div>
+    <div class="docs-copy">The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The outcome-to-code question ("show me from KR to commit") is one column-scroll.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-heading">Per-phase artifacts</div>
