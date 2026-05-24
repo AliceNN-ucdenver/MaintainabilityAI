@@ -91,11 +91,22 @@ export interface CalmRelationship {
  * `policy.json -> rules.customRules` to encode "we don't do it that way"
  * patterns the OWASP/STRIDE packs do not catch out of the box.
  *
- * The walker tests `denyPattern` (RE2-style regex) against the proposed
- * file content (Edit `new_string`, Write `content`) or shell command
- * (Bash `command`) when the target `appliesTo` glob matches. A match
- * fires a deny with the rule's `message` and the rule `id` is recorded
- * on the audit-log line.
+ * The walker tests `denyPattern` (compiled with JavaScript `RegExp`)
+ * against the proposed file content (Edit `new_string`, Write `content`)
+ * for Edit/Write rules whose `appliesTo` glob matches the target file
+ * path, OR against the shell command (Bash `command`) for Bash rules
+ * (a Bash rule opts in via empty `appliesTo` or `["**"]` catch-all;
+ * any other glob is treated as Edit/Write-only and skipped for Bash).
+ * A match fires a deny with the rule's `message`; the rule `id` is
+ * recorded on the audit-log line as `payload.ruleId`.
+ *
+ * `denyPattern` is a JavaScript regex. Compile errors are caught and
+ * the rule is skipped with a stderr warning. Runtime regex cost is
+ * NOT bounded — teams are responsible for avoiding catastrophic
+ * backtracking patterns (no nested unbounded quantifiers, no
+ * alternation overlap with quantifiers, prefer character classes
+ * over `.*`). A future product addition can swap to a safe-regex
+ * engine such as RE2.
  */
 export interface CustomRule {
   id: string;

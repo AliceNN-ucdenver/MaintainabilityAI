@@ -593,6 +593,127 @@ describe('Config Scaffold', () => {
       }
     });
 
+    it('hook walks customRules against Bash command text when appliesTo is catch-all', () => {
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, 'Test Bar Good', redQueen);
+      if ('error' in result) { return; }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-bashrule-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const meshDir = path.join(tmpDir, 'governance-mesh');
+        fs.mkdirSync(meshDir);
+        fs.copyFileSync(path.join(FIXTURES, 'mesh.yaml'), path.join(meshDir, 'mesh.yaml'));
+
+        // OPS-901 is a Bash rule (catch-all appliesTo). DATA-901 is an
+        // Edit/Write rule (path-scoped appliesTo) that must NOT fire on Bash.
+        const policyPath = path.join(tmpDir, '.redqueen', 'policy.json');
+        const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
+        policy.rules.customRules = [
+          {
+            id: 'OPS-901',
+            category: 'operations',
+            severity: 'error',
+            appliesTo: ['**'],
+            denyPattern: '^rm\\s+-rf',
+            message: 'rm -rf is denied at the boundary; use the cleanup script.',
+          },
+          {
+            id: 'DATA-901',
+            category: 'data',
+            severity: 'error',
+            appliesTo: ['src/**'],
+            denyPattern: 'DROP TABLE',
+            message: 'Edit/Write only; must never fire on Bash commands.',
+          },
+        ];
+        fs.writeFileSync(policyPath, JSON.stringify(policy, null, 2));
+
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        const env = { ...process.env, REDQUEEN_TOOL_APPROVED: 'true' };
+
+        // Bash hits the catch-all rule -> deny with OPS-901.
+        const denyPayload = JSON.stringify({
+          tool_name: 'Bash',
+          tool_input: { command: 'rm -rf /tmp/leftovers' },
+        });
+        const denied = spawnSync(wrapperPath, { input: denyPayload, encoding: 'utf8', cwd: tmpDir, env });
+        expect(denied.status).toBe(2);
+        expect(denied.stderr).toContain('OPS-901');
+
+        // Bash that does NOT match OPS-901's regex -> allow. DATA-901 is
+        // not catch-all and must not be considered for Bash, so the fact
+        // that the command literally contains 'DROP TABLE' inside an
+        // echo must not deny.
+        const allowPayload = JSON.stringify({
+          tool_name: 'Bash',
+          tool_input: { command: 'echo "DROP TABLE is just a string here"' },
+        });
+        const allowed = spawnSync(wrapperPath, { input: allowPayload, encoding: 'utf8', cwd: tmpDir, env });
+        expect(allowed.status).toBe(0);
+
+        // Audit-log shape: OPS-901 deny recorded; DATA-901 never fires.
+        const auditPath = path.join(tmpDir, '.redqueen', 'audit-log.jsonl');
+        const entries = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(l => JSON.parse(l));
+        const opsDeny = entries.find(e => e.payload?.ruleId === 'OPS-901' && e.payload?.verdict === 'deny');
+        expect(opsDeny).toBeDefined();
+        expect(opsDeny.payload.tool).toBe('Bash');
+        expect(entries.find(e => e.payload?.ruleId === 'DATA-901')).toBeUndefined();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('records override metadata when an approval env flips a TIER-003 deny into an allow', () => {
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, 'Test Bar Good', redQueen);
+      if ('error' in result) { return; }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-override-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const meshDir = path.join(tmpDir, 'governance-mesh');
+        fs.mkdirSync(meshDir);
+        fs.copyFileSync(path.join(FIXTURES, 'mesh.yaml'), path.join(meshDir, 'mesh.yaml'));
+
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        const bashPayload = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'npm test' } });
+
+        // Without approval: deny with TIER-003.
+        const denied = spawnSync(wrapperPath, { input: bashPayload, encoding: 'utf8', cwd: tmpDir });
+        expect(denied.status).toBe(2);
+        expect(denied.stderr).toContain('requires approval');
+
+        // With approval: allow, with override metadata in the audit line.
+        const approved = spawnSync(wrapperPath, {
+          input: bashPayload,
+          encoding: 'utf8',
+          cwd: tmpDir,
+          env: { ...process.env, REDQUEEN_TOOL_APPROVED: 'true' },
+        });
+        expect(approved.status).toBe(0);
+
+        const auditPath = path.join(tmpDir, '.redqueen', 'audit-log.jsonl');
+        const entries = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(l => JSON.parse(l));
+
+        const overrideAllow = entries.find(e =>
+          e.payload?.verdict === 'allow' && e.payload?.override === true,
+        );
+        expect(overrideAllow).toBeDefined();
+        expect(overrideAllow.payload.bypassedRuleId).toBe('TIER-003');
+        expect(overrideAllow.payload.approvalSource).toBe('REDQUEEN_TOOL_APPROVED');
+        expect(overrideAllow.payload.tool).toBe('Bash');
+
+        // A normal allow (e.g. the OPS-901 test fixture's allow path)
+        // should NOT carry override metadata; verify the shape contract.
+        const denyEntry = entries.find(e => e.payload?.verdict === 'deny');
+        expect(denyEntry.payload.override).toBe(false);
+        expect(denyEntry.payload.bypassedRuleId).toBeNull();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it('AGENTS.md references validate_action and get_constraints', () => {
       const result = scaffoldAgentConfig(reader, 'Test Bar Good');
       if ('error' in result) { return; }

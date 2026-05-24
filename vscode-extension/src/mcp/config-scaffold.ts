@@ -418,6 +418,14 @@ function appendAuditLine(input, decision, agent) {
       verdict: decision.allowed ? 'allow' : 'deny',
       reason: decision.reason || '',
       ruleId: decision.ruleId || null,
+      // Override metadata: when a would-be deny was flipped to an allow
+      // because the operator supplied REDQUEEN_TOOL_APPROVED or
+      // REDQUEEN_PLAN_APPROVED (or toolInput.redqueenApproved), the
+      // audit line records WHICH rule was bypassed and WHICH approval
+      // source granted it. A normal allow leaves these null/false.
+      override: decision.override === true,
+      bypassedRuleId: decision.bypassedRuleId || null,
+      approvalSource: decision.approvalSource || null,
       sessionId: sessionId,
     },
   };
@@ -509,29 +517,67 @@ function validate(input) {
     }
   }
 
-  if (tier === 'restricted' && toolName === 'Edit' &&
-      process.env.REDQUEEN_PLAN_APPROVED !== 'true' &&
-      toolInput.redqueenApproved !== true) {
-    return {
-      allowed: false,
-      ruleId: 'TIER-002',
-      reason:
-        '[Red Queen] Restricted-tier BARs are plan-first. Edit is blocked until ' +
-        'human approval is recorded (set REDQUEEN_PLAN_APPROVED=true for approved runs).',
+  // Track pending overrides so we can attribute the bypass on the audit
+  // line even though the final verdict is allow. If a later check denies,
+  // that deny is recorded as-is (no override claim) and pendingOverride
+  // is discarded.
+  let pendingOverride = null;
+
+  function approvalSourceLabel() {
+    if (process.env.REDQUEEN_PLAN_APPROVED === 'true') { return 'REDQUEEN_PLAN_APPROVED'; }
+    if (process.env.REDQUEEN_TOOL_APPROVED === 'true') { return 'REDQUEEN_TOOL_APPROVED'; }
+    if (toolInput.redqueenApproved === true) { return 'toolInput.redqueenApproved'; }
+    return null;
+  }
+
+  if (tier === 'restricted' && toolName === 'Edit') {
+    const planApproved = process.env.REDQUEEN_PLAN_APPROVED === 'true' ||
+      toolInput.redqueenApproved === true;
+    if (!planApproved) {
+      return {
+        allowed: false,
+        ruleId: 'TIER-002',
+        reason:
+          '[Red Queen] Restricted-tier BARs are plan-first. Edit is blocked until ' +
+          'human approval is recorded (set REDQUEEN_PLAN_APPROVED=true for approved runs).',
+      };
+    }
+    // Approval flipped a deny into an allow. Capture the override so the
+    // audit-log line records WHICH rule was bypassed and WHICH source
+    // granted it. Note: REDQUEEN_TOOL_APPROVED alone does NOT bypass
+    // TIER-002 (restricted plan-first); only PLAN_APPROVED or the
+    // per-call toolInput flag does.
+    pendingOverride = {
+      bypassedRuleId: 'TIER-002',
+      approvalSource: process.env.REDQUEEN_PLAN_APPROVED === 'true'
+        ? 'REDQUEEN_PLAN_APPROVED'
+        : 'toolInput.redqueenApproved',
     };
   }
 
   const hasApproval = process.env.REDQUEEN_TOOL_APPROVED === 'true' ||
     process.env.REDQUEEN_PLAN_APPROVED === 'true' ||
     toolInput.redqueenApproved === true;
-  if (tierRules && tierRules.requireApproval && tierRules.requireApproval.includes(toolName) && !hasApproval) {
-    return {
-      allowed: false,
-      ruleId: 'TIER-003',
-      reason:
-        '[Red Queen] Tool "' + toolName + '" requires approval for ' + tier +
-        '-tier BARs. Record approval with REDQUEEN_TOOL_APPROVED=true or toolInput.redqueenApproved=true.',
-    };
+  if (tierRules && tierRules.requireApproval && tierRules.requireApproval.includes(toolName)) {
+    if (!hasApproval) {
+      return {
+        allowed: false,
+        ruleId: 'TIER-003',
+        reason:
+          '[Red Queen] Tool "' + toolName + '" requires approval for ' + tier +
+          '-tier BARs. Record approval with REDQUEEN_TOOL_APPROVED=true or toolInput.redqueenApproved=true.',
+      };
+    }
+    // Approval flipped a would-be TIER-003 deny into an allow. Override
+    // the in-flight pendingOverride only if TIER-003 is the rule that
+    // actually got bypassed here (TIER-002 takes precedence when both
+    // apply, since plan-first is the stricter gate).
+    if (!pendingOverride) {
+      pendingOverride = {
+        bypassedRuleId: 'TIER-003',
+        approvalSource: approvalSourceLabel(),
+      };
+    }
   }
 
   // Check file path restrictions
@@ -582,35 +628,51 @@ function validate(input) {
     }
   }
 
-  // Custom team rules. Walk customRules[] and deny on first regex hit
-  // whose appliesTo glob matches the target path (for Edit/Write) or any
-  // pattern (for Bash). Pathological regex compile/test errors are
-  // logged to stderr and the rule is skipped — team's responsibility to
-  // write rules that actually compile.
+  // Custom team rules. Walk customRules and deny on first regex hit.
+  //
+  // Two distinct contracts because Edit/Write and Bash are different:
+  //
+  //   - Edit / Write: appliesTo is a list of file globs. The walker
+  //     globs the target file path against each entry; on a hit, it
+  //     regex-tests denyPattern against the proposed content
+  //     (new_string for Edit, content for Write).
+  //
+  //   - Bash: there is no file path; commands are strings. The walker
+  //     considers a rule applicable to Bash if appliesTo is empty or
+  //     contains '**' (the catch-all idioms). Anything else is treated
+  //     as Edit/Write-only and skipped for Bash. When applicable, the
+  //     walker regex-tests denyPattern against the command text.
+  //
+  // Pathological regex compile errors are caught and the rule is
+  // skipped with a stderr warning. Runtime regex cost is not bounded;
+  // teams are responsible for non-pathological patterns.
   const customRules = Array.isArray(rules.customRules) ? rules.customRules : [];
   if (customRules.length > 0) {
-    const content =
-      (toolName === 'Edit' && (toolInput.new_string || toolInput.newContent)) ||
-      (toolName === 'Write' && (toolInput.content || toolInput.new_string)) ||
+    // CustomRule walker uses its own path/content variables, separate
+    // from the read-only-paths filePath (which deliberately includes
+    // command-as-pseudo-path so Bash hitting .redqueen/** denies).
+    const customRulePath = toolInput.file_path || toolInput.filePath || toolInput.path || '';
+    const customRuleContent =
+      (toolName === 'Edit' && (toolInput.new_string || toolInput.newContent || '')) ||
+      (toolName === 'Write' && (toolInput.content || toolInput.new_string || '')) ||
       (toolName === 'Bash' && (toolInput.command || '')) ||
       '';
-    const targetPath = filePath || '';
 
     for (var i = 0; i < customRules.length; i++) {
       var rule = customRules[i];
       if (!rule || !rule.id || !rule.denyPattern) { continue; }
 
-      // appliesTo match: for Bash with no filePath, match any rule whose
-      // appliesTo includes the literal '**' or is empty; for Edit/Write,
-      // require a glob hit.
       var appliesTo = Array.isArray(rule.appliesTo) ? rule.appliesTo : [];
       var pathMatches = false;
-      if (targetPath) {
-        for (var j = 0; j < appliesTo.length; j++) {
-          if (matchGlob(targetPath, appliesTo[j])) { pathMatches = true; break; }
-        }
-      } else if (toolName === 'Bash') {
+      if (toolName === 'Bash') {
+        // Bash rules opt in via empty appliesTo or '**' catch-all. Any
+        // other glob is treated as Edit/Write-only.
         pathMatches = appliesTo.length === 0 || appliesTo.indexOf('**') !== -1;
+      } else if (customRulePath) {
+        // Edit / Write: glob-match the target file path.
+        for (var j = 0; j < appliesTo.length; j++) {
+          if (matchGlob(customRulePath, appliesTo[j])) { pathMatches = true; break; }
+        }
       }
       if (!pathMatches) { continue; }
 
@@ -620,7 +682,7 @@ function validate(input) {
         continue;
       }
 
-      if (re.test(content)) {
+      if (re.test(customRuleContent)) {
         return {
           allowed: false,
           ruleId: rule.id,
@@ -630,8 +692,18 @@ function validate(input) {
     }
   }
 
-  // Allow
-  return { allowed: true, reason: '[Red Queen] Policy checks passed.' };
+  // Allow. If an earlier check was approval-bypassed, the audit-log
+  // line records the override metadata (which rule was bypassed and
+  // which approval source granted it).
+  const finalAllow = { allowed: true, reason: '[Red Queen] Policy checks passed.' };
+  if (pendingOverride) {
+    finalAllow.override = true;
+    finalAllow.bypassedRuleId = pendingOverride.bypassedRuleId;
+    finalAllow.approvalSource = pendingOverride.approvalSource;
+    finalAllow.reason = '[Red Queen] Approved override: ' + pendingOverride.bypassedRuleId +
+      ' bypassed via ' + pendingOverride.approvalSource + '.';
+  }
+  return finalAllow;
 }
 
 function matchGlob(filePath, pattern) {
