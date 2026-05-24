@@ -1,6 +1,6 @@
 {
   "name": "@maintainabilityai/research-runner",
-  "version": "0.1.54",
+  "version": "0.1.55",
   "description": "Research + PRD agent runner — orchestrates the Archeologist and PRD pipelines for the MaintainabilityAI governance mesh",
   "license": "MIT",
   "author": "MaintainabilityAI",
