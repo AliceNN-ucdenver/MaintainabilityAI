@@ -374,12 +374,6 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2026 shift: smaller OKR-aligned capability teams, more of them, more experiments fixed capacity would never have prioritized.</text>
 </svg>
 
-<div class="docs-card docs-card-emerald">
-  <div class="docs-card-kicker">Your team in this world</div>
-  <div class="docs-heading">More OKRs in flight, the same bench</div>
-  <div class="docs-copy">Capacity stops being a tax on ambition. The same headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
-</div>
-
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">Human · always at the table</div>
@@ -396,6 +390,12 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
     <div class="docs-heading">Jr Agentic Architect</div>
     <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns architecture by writing it, not by reading old wiki pages. The mesh makes the apprenticeship legible: every ADR, every fitness function, every signed design is a teaching artifact. This is the bench that becomes tomorrow's senior architects.</div>
   </div>
+</div>
+
+<div class="docs-card docs-card-emerald">
+  <div class="docs-card-kicker">Capacity shift</div>
+  <div class="docs-heading">More OKRs in flight, the same bench</div>
+  <div class="docs-copy">The three roles above describe who sits on each team. The bigger shift is how many teams the same bench can run. Capacity stops being a tax on ambition. The headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
 </div>
 
 > **2026 market signal.** Microsoft's Work Trend Index says the frontier shift is human-led, agent-operated work. DORA says AI amplifies the organizational system underneath it. Forrester AEGIS says security leaders now have to secure intent, provenance, and machine-speed agent behavior. The mesh is what makes that shift governable instead of chaotic.
@@ -740,7 +740,7 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   <!-- /validate -->
   <rect x="436" y="146" width="156" height="46" rx="8" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.35)"/>
   <text x="448" y="165" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">/validate</text>
-  <text x="448" y="181" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM 1.2 schema + drift</text>
+  <text x="448" y="181" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM 1.2 schema check</text>
   <!-- /gap-analysis -->
   <rect x="600" y="146" width="156" height="46" rx="8" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.35)"/>
   <text x="612" y="165" fill="#e2e8f0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">/gap-analysis</text>
