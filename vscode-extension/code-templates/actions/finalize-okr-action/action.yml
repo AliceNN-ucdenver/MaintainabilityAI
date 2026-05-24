@@ -133,7 +133,22 @@ runs:
         # the OKR's master intent thread for WHY (no parent).
         LADDER="okrs/${{ inputs.okr-id }}/audit/chain-ladder.yaml"
         if [ ! -f "$LADDER" ]; then
-          printf '%s\n' '# Cross-phase audit chain ladder. Written by each agent workflow on PR merge.' 'chain: []' > "$LADDER"
+          printf '%s\n' '# Cross-phase audit chain ladder. Written by finalize-okr-action on PR merge (post-Refactor-3c).' 'chain: []' > "$LADDER"
+        else
+          # Self-heal the header comment for ledgers scaffolded by an
+          # older version of this action (pre-Refactor-3c the header
+          # said "Written by okr-bus.yml as each phase merges" — that
+          # workflow has been retired). The chain[] data underneath is
+          # untouched; only the first line gets rewritten if it still
+          # references the retired workflow. Idempotent: subsequent
+          # runs match the canonical text and no-op.
+          if head -1 "$LADDER" | grep -q "okr-bus.yml"; then
+            sed -i.bak '1c\
+# Cross-phase audit chain ladder. Written by finalize-okr-action on PR merge (post-Refactor-3c).
+' "$LADDER"
+            rm -f "${LADDER}.bak"
+            echo "::notice::chain-ladder.yaml header upgraded — stale 'Written by okr-bus.yml' reference removed"
+          fi
         fi
         OKR_THREAD=$(yq -r '.meta.intentThreadUuid // ""' "$OKR_FILE")
         ACTION_THREAD=$(yq -r ".actions[] | select(.runId == \"$RUN_ID\") | .intentThreadUuid // \"\"" "$OKR_FILE")
