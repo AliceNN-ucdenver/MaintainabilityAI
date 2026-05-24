@@ -129,17 +129,39 @@ runs:
         EVIDENCE_MODE=$(fm_extract 'evidence_mode')
         FRESH=$(fm_extract 'fresh_provider_search_performed')
         AUTHOR_DID=$(fm_extract 'author_did')
-        # chain_root_hash lives under nested `audit:` block:
+        # chain_root_hash is CANONICALLY nested under an `audit:` block:
         #   audit:
         #     chain_root_hash: <sha256>
+        # All three agent prompts (market-research-agent, prd-agent,
+        # code-design-agent) show this shape in their Hatter Tag examples.
         # fm_extract is a flat-grep, so it would match the top-level
         # `audit:` line (returning empty after the colon) and miss the
-        # nested value. Grep the indented child directly. Hex-only so we
-        # never grab the `audit:` parent line by accident.
+        # nested value — hence the dedicated grep below.
+        #
+        # Bug AA (2026-05) defense-in-depth: HOW-2026-05-24-b6nq18 (PR
+        # #138) shipped chain_root_hash at TOP LEVEL because the
+        # prd-agent prompt at the time only described the field in a
+        # bullet list and didn't show the nested YAML block (unlike WHY
+        # and WHAT). Audit failed for non-canonical placement even though
+        # the hash itself was correct. The agent prompt has since been
+        # fixed (canonical YAML example added), but this extractor also
+        # accepts top-level as a fallback so old artifacts + good-faith
+        # mistakes don't hard-fail. Hex-only match keeps us from grabbing
+        # the `audit:` parent line by accident.
         CHAIN_ROOT_HASH=""
         if [ -n "$FM" ]; then
+          # Prefer nested form (canonical).
           CHAIN_ROOT_HASH=$(printf '%s\n' "$FM" | grep -oE '^[[:space:]]+chain_root_hash:[[:space:]]*[0-9a-f]{64}' | head -1 \
             | sed -E 's|^[[:space:]]+chain_root_hash:[[:space:]]*||' || true)
+          # Defense-in-depth: fall back to top-level form. Surface a notice
+          # so the agent author sees the drift without a hard fail.
+          if [ -z "$CHAIN_ROOT_HASH" ]; then
+            CHAIN_ROOT_HASH=$(printf '%s\n' "$FM" | grep -oE '^chain_root_hash:[[:space:]]*[0-9a-f]{64}' | head -1 \
+              | sed -E 's|^chain_root_hash:[[:space:]]*||' || true)
+            if [ -n "$CHAIN_ROOT_HASH" ]; then
+              echo "::notice::chain_root_hash found at top-level — canonical shape nests it under \`audit:\`. The extractor accepted it as a defense-in-depth fallback (Bug AA). Future runs should match the prd-agent / market-research-agent / code-design-agent Hatter Tag examples."
+            fi
+          fi
         fi
 
         # If frontmatter also has okr_id/run_id/phase, prefer it when

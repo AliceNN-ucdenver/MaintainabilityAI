@@ -47,6 +47,7 @@ import type { OkrCard, OkrCreateInput, OkrUpdatePatch } from '../types/okr';
 import { OkrCreateInputSchema, OkrUpdatePatchSchema } from '../types/okr';
 import { isForwardStatusTransition } from '../services/OKRService';
 import { phaseSpec } from '../types/phaseSpec';
+import { collectAuditFailureReasons, parseAuditCommentReason } from './auditFailureLabels';
 import type { OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode } from '../types';
 import { promptPackService } from '../services/PromptPackService';
 import { ScaffoldPanel } from './ScaffoldPanel';
@@ -145,32 +146,10 @@ function extractWhatChainSignals(lines: string[]): WhatChainSignals {
 
 // extractWhatArtifactSignals lives in regexCounters.ts — see import above.
 
-/**
- * Task #66 — map PR labels to human-readable failure reasons for the
- * given phase. Pulls per-phase failure labels from phaseSpec so each
- * phase's degraded/drift labels are recognized (the WHAT workflow's
- * `design-degraded` was being missed by the old hardcoded map → UI
- * stuck at "audit in flight"). Returns an empty array when no failure
- * labels match.
- */
-function collectAuditFailureReasons(phase: 'why' | 'how' | 'what', labels: string[]): string[] {
-  const spec = phaseSpec(phase);
-  const labelToReason: Record<string, string> = {
-    [spec.degradedLabel]: phase === 'what'
-      ? 'Design-degraded (per-repo mode honesty / FR-SR addresses[] coverage / chain failure)'
-      : 'Evidence honesty (Hatter Tag declared `live` but audit shows no successful skill_calls)',
-    [spec.driftLabel]: phase === 'what'
-      ? 'Design drift detected (calibration-pending in D-PR1.MVP)'
-      : phase === 'how'
-      ? "Caterpillar's Challenge — cross-phase drift from prior phase artifact"
-      : 'Pocket Watch — objective drift (cosine below threshold)',
-    'structure-invalid': 'Structural correctness (missing required sections / FR-NN / SR-NN citations)',
-    'self-review-exhausted': 'Self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items',
-  };
-  return Object.entries(labelToReason)
-    .filter(([label]) => labels.includes(label))
-    .map(([, reason]) => reason);
-}
+// Bug BB — collectAuditFailureReasons + parseAuditCommentReason
+// extracted to ./auditFailureLabels.ts so the vitest harness can import
+// them without dragging in the vscode runtime. See that file for the
+// full rationale on the umbrella-label fix.
 
 /**
  * Task #64 — apply artifact-side self-review fallback onto a partially-
@@ -1053,28 +1032,23 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         result.prReviewRequested = pr.reviewRequested;
         result.auditLabelApplied = pr.labels.includes(auditLabel);
         result.passLabelApplied = pr.labels.includes(passLabel);
-        // Audit-failed signal — workflow applied at least one failure
-        // label. Task #66 (cert-run-5 forensic): pull per-phase labels
-        // from phaseSpec so each phase's degraded/drift labels are
-        // recognized. Extracted to a helper to keep fetchPhaseSignal
-        // under its complexity ratchet.
-        const failureReasons = collectAuditFailureReasons(phase, pr.labels);
-        if (failureReasons.length > 0) {
-          result.auditFailed = true;
-          result.auditFailureReasons = failureReasons;
-        }
 
-        // 4. Drift cosines — parsed from the audit-and-drift workflow's
-        //    upserted comment on the PR. The workflow writes a stable
-        //    `<!-- {agent}-audit -->` marker so we can find it without
-        //    polling the workflow's run logs. Gives the Why/How card a
-        //    visible "Pocket Watch ✓ 0.74" / "Caterpillar ✓ 0.81" line
-        //    rather than just "Drift checks passed" abstract.
+        // 4. Drift cosines + audit-comment reason — parsed from the
+        //    audit-and-drift workflow's upserted comment on the PR. The
+        //    workflow writes a stable `<!-- {agent}-audit -->` marker
+        //    so we can find it without polling the workflow's run logs.
+        //    Gives the Why/How card a visible "Pocket Watch ✓ 0.74" /
+        //    "Caterpillar ✓ 0.81" line rather than just "Drift checks
+        //    passed" abstract. Also extracts the workflow's `Reason:`
+        //    line so the audit-failed message reflects the actual
+        //    failure branch, not the umbrella label's stock text
+        //    (Bug BB).
         const commentMarker = phase === 'why'
           ? '<!-- market-research-agent-audit -->'
           : phase === 'how'
           ? '<!-- prd-agent-audit -->'
           : null;
+        let auditCommentReason: string | null = null;
         if (commentMarker) {
           const auditComment = await this.fetchPrCommentByMarker(owner, repo, pr.number, commentMarker);
           if (auditComment) {
@@ -1082,7 +1056,22 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             if (pw) { result.pocketWatch = pw; }
             const cat = parseDriftRow(auditComment, "Caterpillar");
             if (cat) { result.caterpillar = cat; }
+            auditCommentReason = parseAuditCommentReason(auditComment);
           }
+        }
+
+        // Audit-failed signal — workflow applied at least one failure
+        // label. Task #66 (cert-run-5 forensic): pull per-phase labels
+        // from phaseSpec so each phase's degraded/drift labels are
+        // recognized. Bug BB (2026-05): pass auditCommentReason so the
+        // umbrella `degraded-evidence` label gets a specific human
+        // message instead of the misleading "declared `live`" stock
+        // text. Extracted to a helper to keep fetchPhaseSignal under
+        // its complexity ratchet.
+        const failureReasons = collectAuditFailureReasons(phase, pr.labels, auditCommentReason);
+        if (failureReasons.length > 0) {
+          result.auditFailed = true;
+          result.auditFailureReasons = failureReasons;
         }
       }
     } catch { /* PR resolution is best-effort — don't block the rest of the signal */ }

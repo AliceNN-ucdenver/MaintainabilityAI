@@ -194,8 +194,33 @@ This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Re
     - `evidence_mode: mesh` — the canonical value for HOW phase. HOW grounds entirely on **mesh artifacts** (the merged research-doc, knowledge-mesh-bar snapshots, ADRs, threats, context-architecture/security/quality outputs) — there are NO external search providers in this phase. Do NOT use `live` (that means "external search providers returned results" — a WHY-phase concept that doesn't apply here). Do NOT use `cached` (that means "search providers failed, falling back to prior data"). Do NOT invent your own value (e.g. `mesh-grounded`, `internal`) — the audit-and-drift workflow checks for canonical values only.
     - `fresh_provider_search_performed: false` — HOW never calls search providers.
     - `author_did`
-    - `chain_root_hash` — the `event_hash` of event_id=1 in `okrs/<id>/audit/events/<runId>.jsonl`. Under B28 the runner auto-emits event_id=1 from your first `runSkill()` call (typically `knowledge-okr`), so the chain root exists BEFORE you ever call `audit-emit-event` explicitly. Read it from the file with `jq -r 'select(.event_id == 1) | .event_hash' <path>`. NOT the chainHead from any downstream event.
+    - `chain_root_hash` — the `event_hash` of event_id=1 in `okrs/<id>/audit/events/<runId>.jsonl`. Under B28 the runner auto-emits event_id=1 from your first `runSkill()` call (typically `knowledge-okr`), so the chain root exists BEFORE you ever call `audit-emit-event` explicitly. Read it from the file with `jq -r 'select(.event_id == 1) | .event_hash' <path>`. NOT the chainHead from any downstream event. **MUST be nested under an `audit:` key** — the workflow's `extract-okr-context` action grep-matches the indented child line; a flat top-level `chain_root_hash:` is invisible to the extractor and the verdict will land degraded with `chain_root_hash mismatch — agent did not paste a chain_root_hash`. Bug AA / 2026-05 forensic: HOW-2026-05-24-b6nq18 (PR #138) pasted the correct hash at top-level and failed for exactly this reason — the agent had the right hash, just in the wrong location.
     - a `self_review:` block summarizing rounds + final per-persona scores
+
+    Canonical Hatter Tag for HOW phase — mirror this shape exactly. The `audit:` block nesting is load-bearing (Bug AA). Symmetric with the WHY (market-research-agent §10) and WHAT (code-design-agent §17) Hatter Tags.
+
+    ```yaml
+    ---
+    okr_id: <id>                              # exact value from <!-- okr_id: ... --> in dispatch issue
+    run_id: HOW-...                           # exact value from <!-- run_id: ... --> in dispatch issue
+    phase: how
+    intent_thread_uuid: <intent_thread_uuid from Dispatch context>
+    parent_intent_thread: <why action's intent_thread_uuid from chain-ladder.yaml>
+    evidence_mode: mesh                       # canonical for HOW; never live/cached/custom
+    fresh_provider_search_performed: false    # HOW never calls search providers
+    author_did: did:gh:copilot/agent:prd-agent
+    audit:
+      chain_root_hash: <64-char hex from `jq -r 'select(.event_id == 1) | .event_hash' okrs/<id>/audit/events/<runId>.jsonl` — NEVER top-level, NEVER a placeholder>
+    self_review:
+      rounds: <N>
+      architect:
+        score: <0.0-1.0>
+        severity: <PASS|MINOR|MAJOR|BLOCKING>
+      security:
+        score: <0.0-1.0>
+        severity: <PASS|MINOR|MAJOR|BLOCKING>
+    ---
+    ```
 19. Open the PR with the changes. **Open it as ready-for-review (NOT draft)** — Looking Glass's Run Audit button only surfaces on ready-for-review PRs, and a draft PR confuses the human reviewer about whether you're done. Do NOT post issue comments and do NOT apply `prd-draft` from this agent run — repository automation handles that when the human clicks Run Audit. Include this line at the top of your PR description so the reviewer knows what to do:
 
     ```markdown
