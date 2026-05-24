@@ -9,7 +9,7 @@ This guide walks through testing the Red Queen governance pipeline using the **I
 4. Push to GitHub and create a PR
 5. Verify the governance review workflow triggers
 
-> **Enforcement boundary:** Today Red Queen ships two working control points: pre-tool hooks for fast local/agent feedback and MCP `validate_action` for deterministic architecture validation. The generated review workflow fails closed when reviewers do not produce verdicts, but hard merge blocking requires you to mark the workflow as a required status check. The standalone `redqueen-action` hard gate is planned for Phase 9.
+> **Enforcement boundary:** Today Red Queen ships two working control points: pre-tool hooks for fast local/agent feedback (every decision logged to `.redqueen/audit-log.jsonl` with `ruleId` + verdict + session ID) and MCP `validate_action` for deterministic architecture validation (also logged). The generated review workflow fails closed when reviewers do not produce verdicts, but hard merge blocking requires you to mark the workflow as a required status check via manual GitHub branch-protection setup. The standalone `redqueen-action` hard gate lands in **Queen's Next Act**.
 
 ---
 
@@ -447,7 +447,7 @@ Should trigger Red Queen restricted-tier review (security + architecture)."
 
 ## Step 8: Test the Implementation Workflow
 
-The implementation workflow triggers when an issue is labeled `implement` or `claude-code`:
+The implementation workflow triggers when an issue is labeled `implement`, `claude-code`, or `copilot`:
 
 ```bash
 # Create a test issue
@@ -523,7 +523,7 @@ Expected restricted-tier denials exit with `2` for Claude-style hooks and return
 
 ## Step 10: CALM Flow Validation Experiment
 
-This experiment demonstrates deterministic CALM validation through the MCP `validate_action` tool. Hooks provide fast static blocking; MCP validation provides richer architecture feedback. The Phase 9 CI gate will be the non-bypassable merge boundary.
+This experiment demonstrates deterministic CALM validation through the MCP `validate_action` tool. Hooks provide fast static blocking with per-decision audit-log lines; MCP validation provides richer architecture feedback (also logged). The Queen's Next Act CI gate (`redqueen-action`) will be the non-bypassable merge boundary.
 
 The IMDB Celebs CALM model declares these valid connections:
 
@@ -702,8 +702,10 @@ This contrast shows how Red Queen adapts governance pressure based on the maturi
 
 ---
 
-## What's Next (Phase 9)
+## What's Next (Queen's Next Act)
 
-- **Hard Enforcement Gate** — `redqueen-action` GitHub Action as required status check
-- **Break-Glass Override** — Controlled bypass with CODEOWNER approval
-- **Branch Protection** — Auto-configure required checks per governance tier
+- **Hard Enforcement Gate**: `redqueen-action` GitHub Action as required status check with AST semantic diff + machine-checkable contract diffs (oasdiff, buf, graphql-inspector)
+- **Signed Per-Decision Evidence**: hash-chained, Knight's Seal v1 signed audit lines over today's `.redqueen/audit-log.jsonl`, verifier-checked under the same three-lane trust contract the Hatter ships on the planning side
+- **Full Break-Glass UX**: scoped quarterly budgets, written reasons captured at override time, signed override events tying engineer identity to the bypass, CODEOWNER co-sign, escalating friction, follow-up SLAs
+- **Branch Protection**: auto-configure required checks per governance tier (today this is a manual GitHub setup step)
+- **Cross-chain Inclusion Proofs**: unified evidence chain across Hatter planning audit log + Red Queen enforcement audit log + CloudEvents export + SIEM integrations (Splunk, Sentinel, Datadog)

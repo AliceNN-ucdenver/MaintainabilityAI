@@ -39,7 +39,7 @@
 
 ## Recap from Part 7
 
-Part 7 installed the Red Queen. The CALM-layer rule from Part 4 (advisory in CI) became deterministic at the agent's tool-call boundary. A custom team rule (`SEC-101`: no unparameterized SQL in route handlers) was added and is now enforced before the agent's write lands. The repo crossed into Autonomous-tier readiness on score (~65). All six Golden Rules are operational.
+Part 7 installed the Red Queen. The CALM-layer rule from Part 4 (advisory in CI) became deterministic at the agent's tool-call boundary. A custom team rule (`SEC-101`: route handlers must validate input through a Zod schema before passing it to a Mongo selector, and `$where` / `$accumulator` / `$function` are denied outright) was added and is now enforced before the agent's write lands. Every PreToolUse decision and every `validate_action` call appends a JSONL line to `.redqueen/audit-log.jsonl` with the rule that fired, the file path, and the session ID. The repo crossed into Autonomous-tier readiness on score (~65). All six Golden Rules are operational.
 
 Today we do the thing the whole workshop has been preparing for: **ship a feature that exercises every layer at once** and produces a single coherent audit trail.
 
@@ -184,7 +184,7 @@ This is the heaviest review. Apply the discipline from Part 3 sharpened by every
 
 If any row is partial, comment on the specific line. Re-trigger the agent with `@claude please address the review comments.` New commits land on the same PR.
 
-**Watch the Part 7 audit log mid-review.** If the Red Queen denied any of the agent's earlier attempts (e.g., it tried to write `await celebrities.find(req.body)` and `SEC-101` blocked it), those denies are in `.redqueen/audit-log.jsonl` even though the final PR doesn't show the attempt. Mention this in the PR thread: *"Red Queen blocked 2 SEC-101 violations during implementation; the final diff is the result of the agent's retry path."* That is your evidence chain talking.
+**Watch the Part 7 audit log mid-review.** If the Red Queen denied any of the agent's earlier attempts (e.g., it tried to write `await celebrities.find(req.body)` and `SEC-101` blocked it), those denies are in `.redqueen/audit-log.jsonl` with `payload.ruleId == "SEC-101"`, even though the final PR diff does not show the attempt. One `jq` query (`jq 'select(.payload.ruleId == "SEC-101")' .redqueen/audit-log.jsonl`) returns every block. Mention this in the PR thread: *"Red Queen blocked 2 SEC-101 violations during implementation (audit-log timestamps 14:31Z and 14:33Z); the final diff is the result of the agent's retry path."* That is your evidence chain talking.
 
 ### Step 6. Review the smaller PRs
 

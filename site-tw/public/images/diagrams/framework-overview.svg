@@ -94,7 +94,7 @@
     <text x="20" y="110" class="pillarSub">PreToolUse hooks. MCP policy</text>
     <text x="20" y="130" class="pillarSub">validation. Multi-agent review.</text>
     <text x="20" y="150" class="pillarSub">Progressive autonomy by trust</text>
-    <text x="20" y="170" class="pillarSub">score. Phase 9 CI hard gate.</text>
+    <text x="20" y="170" class="pillarSub">score. Next: CI hard gate.</text>
   </g>
 
   <!-- capabilities → outcomes -->

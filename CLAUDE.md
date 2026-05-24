@@ -77,11 +77,15 @@ There is no `scripts/build-docs.mjs` step anymore — markdown rendering is clie
 
 ### Workshop Curriculum (`/docs/workshop/`)
 
-**8-part workshop** for teams (3 parts completed, rest planned):
+**8-part workshop** for teams (all 8 parts shipped):
 - **Part 1**: The Spectrum (Vibe → AI-Assisted → Agentic)
-- **Part 2**: Security-First Prompting (Context + Constraints + Validation + Tests)
-- **Part 3**: Live Remediation Exercise (A03 Injection fix walkthrough)
-- **Part 4-8**: Planned (CodeQL, Snyk, Prompt Library, Multi-Agent, Governance)
+- **Part 2**: Security-First Prompting (RCTRO + the three pack families)
+- **Part 3**: Live Remediation Exercise (A03 NoSQL Injection walkthrough on celeb-api)
+- **Part 4**: The Looking Glass Measures (CALM + fitness functions)
+- **Part 5**: Security Pipeline (CodeQL + Snyk + secrets scanning + dependency hygiene)
+- **Part 6**: The Team Prompt Library (versioned, code-reviewed packs)
+- **Part 7**: The Red Queen's Court (deterministic enforcement at the tool-call boundary; v0.13.3 scaffold ships customRules walker + per-decision audit logging)
+- **Part 8**: The Governance Capstone (cross-cutting feature shipped through the full chain)
 
 ### Governance Documentation (`/docs/governance/`)
 

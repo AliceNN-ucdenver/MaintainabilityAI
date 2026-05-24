@@ -141,7 +141,7 @@ In VS Code, click **Cheshire Cat → Issue Management → New Feature**. Paste t
 Cheshire scans the description and proposes packs to include. For this feature it should suggest:
 
 - `owasp/A01_broken_access_control` (per-user data, IDOR and ownership checks)
-- `owasp/A03_injection` (new DB writes, parameterised queries, validation)
+- `owasp/A03_injection` (new Mongo writes; Zod must reject `$`-prefixed keys before any selector is built)
 - `owasp/A09_logging_monitoring` (auth events, log who favorited what, when, no PII)
 - `maintainability/complexity-reduction` (keep new functions under CC 10)
 - `maintainability/dry-principle` (favorite/unfavorite share validation and ownership logic)
@@ -155,7 +155,7 @@ Look at the Requirements section Cheshire produced. Count the bullets. It will b
 What Cheshire added that you probably missed:
 
 - A01: ownership check on every endpoint, not just POST. Deny-by-default. Logging of denied attempts.
-- A03: parameterised inserts AND parameterised deletes. Zod schemas for path params, not just bodies. Tests with SQLi payloads in `:id`.
+- A03: Zod schemas for path params (the `:id` validator rejects anything that is not a 24-char ObjectId hex) **and** for request bodies (rejecting any object whose keys start with `$`, so an attacker cannot smuggle `{ celebrityId: { $ne: null } }` past the validator). Tests with operator-injection payloads in `:id` (`/favorites/[object]`) and in body (`{ "celebrityId": { "$ne": null } }`).
 - A09: structured log event names (`favorite.added`, `favorite.removed`), no celebrity name in the log line (PII risk), user ID hashed in the event ID.
 - Complexity: maximum cyclomatic complexity 10 per function, including the validator middleware.
 - DRY: shared `assertUserOwnsFavorite` helper, no copy-pasted ownership logic in three endpoints.
