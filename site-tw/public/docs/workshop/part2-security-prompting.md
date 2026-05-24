@@ -57,10 +57,10 @@ Every prompt that ships to an agent in this workshop has five sections. Memorise
 | Section | What it answers | Worked example: "add celebrity favorites" |
 |---|---|---|
 | **Role** | Who the agent is pretending to be, and why that frame matters | "Senior full-stack engineer adding a per-user persistence feature to a Restricted-tier BAR." |
-| **Context** | Where the work happens, the surrounding system, which packs apply | "Repos touched: `celeb-api` (new endpoint + table), `imdb-identity` (read user ID from JWT), `imdb-react-frontend` (favorite button + favorites page). CALM flow stays: `frontend → celeb-api → celeb-db`, `frontend → imdb-identity → identity-db`. Applicable packs: A01, A03, A09, complexity, DRY." |
-| **Task** | What concretely needs to happen, in one sentence | "Implement per-user favoriting of celebrities, persisted in `celeb-db.celebrity_favorites(user_id, celebrity_id)`, exposed through `POST/DELETE/GET /celebrities/:id/favorite` on celeb-api." |
+| **Context** | Where the work happens, the surrounding system, which packs apply | "Repos touched: `celeb-api` (new endpoint + Mongo collection), `imdb-react-frontend` (favorite button + favorites page). The signed-in user ID comes from the JWT verified by the existing middleware in celeb-api; no new identity service is involved. CALM flow stays: `frontend → celeb-api → celeb-db (MongoDB)`. Applicable packs: A01, A03, A09, complexity, DRY." |
+| **Task** | What concretely needs to happen, in one sentence | "Implement per-user favoriting of celebrities, persisted in a `celebrityFavorites` MongoDB collection with a compound unique index on `{ userId, celebrityId }`, exposed through `POST/DELETE/GET /celebrities/:id/favorite` on celeb-api." |
 | **Requirements** | The machine-checkable constraints. Most of these come from the packs. | (See below: the packs supply this section) |
-| **Output** | What files, what shape, what doesn't change | "New routes, new validator, new migration, new tests. No changes to `imdb-identity` beyond JWT verification middleware. Frontend uses existing API client. PR labelled `🤖 AI-assisted · A01 · A03 · A09`." |
+| **Output** | What files, what shape, what doesn't change | "New routes, new Zod validator, new collection-init script (compound unique index on `{ userId, celebrityId }`), new tests. Frontend uses existing API client. PR labelled `🤖 AI-assisted · A01 · A03 · A09`." |
 
 Every line is a guardrail. Skip Context and the agent invents an architecture. Skip Requirements and the agent invents acceptance criteria. Skip Output and you get five files where you wanted three.
 
@@ -220,7 +220,7 @@ Pick a feature the IMDB Lite app does not have yet. Below are three suggestions;
 
 - **A. Movie reviews need moderation.** Add an admin endpoint to soft-delete a review with a recorded reason.
 - **B. Celebrity image proxy needs caching.** Add a Redis-backed cache in front of the existing image proxy in celeb-api.
-- **C. User wants to download their data.** Add a `GET /me/export` endpoint to imdb-identity that returns all of the user's data as JSON.
+- **C. User wants to download their data.** Add a `GET /me/export` endpoint to celeb-api that joins the signed-in user's favorites (`celebrityFavorites` collection) with the underlying celebrity records and returns everything as JSON.
 
 ### What to write
 
@@ -269,7 +269,7 @@ A common miss: missing the legal sign-off question. GDPR Article 15 says you mus
 
 ## What you learned
 
-- **Generic prompts produce generic bugs.** "Add a search endpoint" yields concatenated SQL, no validation, leaky errors, and no tests, because the contract was missing.
+- **Generic prompts produce generic bugs.** "Add a search endpoint" yields a Mongo selector built directly from `req.query`, no validation, leaky driver errors, and no tests, because the contract was missing.
 - **RCTRO has five sections, each a guardrail.** Role frames the agent, Context anchors it in your system, Task says what to do, Requirements are the machine-checkable constraints, Output is the shape of the result. Skip any one and the agent invents the missing piece from training data.
 - **Three pack families, three different jobs.** OWASP is the *catalogue* of known attacks (reach for it during work). STRIDE is the *frame* for design-time threat surfacing (reach for it before code exists). Maintainability is the *erosion control* (reach for it on every feature). Either alone is a partial defense.
 - **Hand-drafted Requirements run 4 to 8 bullets. Cheshire-generated Requirements run 25 to 40.** The difference is institutional memory the pack carries; the gap is the value of the pack.
@@ -289,6 +289,6 @@ A common miss: missing the legal sign-off question. GDPR Article 15 says you mus
 
 ## What is next: Part 3. Alice Remediates
 
-You have the contract language and the library. Part 3 is the live class. We push the celeb-api to GitHub, CodeQL fires, four `codeql-finding` issues appear, and we walk through the full Cheshire enrich → assign agent → review PR → merge loop on the planted A03 SQL injection in `/search`. By the end of Part 3 the celeb-api has shipped its first AI-assisted PR and the scorecard moves from 5 to roughly 15.
+You have the contract language and the library. Part 3 is the live class. We push the celeb-api to GitHub, CodeQL fires, four `codeql-finding` issues appear, and we walk through the full Cheshire enrich → assign agent → review PR → merge loop on the planted A03 NoSQL injection in `/search` (Mongo operator injection — `$ne`, `$where`, unbounded regex, raw `req.query` selectors). By the end of Part 3 the celeb-api has shipped its first AI-assisted PR and the scorecard moves from 5 to roughly 15.
 
 [Continue to Part 3 →](/docs/workshop/part3-live-remediation)

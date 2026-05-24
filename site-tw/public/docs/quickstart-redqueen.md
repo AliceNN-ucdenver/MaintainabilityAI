@@ -30,7 +30,7 @@
 </div>
 
 <div class="docs-panel">
-  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). The generated review workflow fails closed when reviewers do not produce verdicts; hard merge blocking requires you to mark the workflow as a required status check. The standalone <code>redqueen-action</code> hard gate is planned for <a href="/docs/red-queens-court#the-road-ahead--phase-9-and-beyond" class="markdown-link">Phase 9</a>.</p>
+  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). The generated review workflow fails closed when reviewers do not produce verdicts; hard merge blocking requires you to mark the workflow as a required status check (manual GitHub branch-protection setup, not auto-configured by scaffold). The standalone <code>redqueen-action</code> hard gate and the Hatter-grade signed evidence chain for Red Queen decisions are planned for <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>.</p>
 </div>
 
 ---
@@ -485,13 +485,13 @@ Or via the UI: **Settings &rarr; Branches &rarr; Branch protection rules &rarr; 
 
 After this, any PR where the Red Queen Review workflow fails closed (missing verdicts, consensus rejection, governance violation) cannot be merged, even by admins. This is the boundary between "advisory" and "deterministic" enforcement.
 
-> **Reminder:** the hard `redqueen-action` standalone CI gate is still planned for [Phase 9](/docs/red-queens-court#the-road-ahead--phase-9-and-beyond). What you just configured is the strongest enforcement boundary available today.
+> **Reminder:** the hard `redqueen-action` standalone CI gate is still planned for [Queen's Next Act](/docs/red-queens-court#queens-next-act). What you just configured is the strongest enforcement boundary available today.
 
 ---
 
 ## Step 8: Test the Implementation Workflow
 
-The implementation workflow triggers when an issue is labeled `implement` or `claude-code`:
+The implementation workflow triggers when an issue is labeled `implement`, `claude-code`, or `copilot`:
 
 ```bash
 # Create a test issue
@@ -567,7 +567,7 @@ Expected restricted-tier denials exit with `2` for Claude-style hooks and return
 
 ## Step 10: CALM Flow Validation Experiment
 
-This experiment demonstrates deterministic CALM validation through the MCP `validate_action` tool. Hooks provide fast static blocking; MCP validation provides richer architecture feedback. The Phase 9 CI gate will be the non-bypassable merge boundary.
+This experiment demonstrates deterministic CALM validation through the MCP `validate_action` tool. Hooks provide fast static blocking; MCP validation provides richer architecture feedback. The Queen's Next Act CI gate (`redqueen-action`) will be the non-bypassable merge boundary.
 
 The IMDB Celebs CALM model declares these valid connections:
 
@@ -746,7 +746,7 @@ This contrast shows how Red Queen adapts governance pressure based on the maturi
 
 ---
 
-## What's Next (Phase 9)
+## What's Next (Queen's Next Act)
 
 - **Hard Enforcement Gate** — `redqueen-action` GitHub Action as required status check
 - **Break-Glass Override** — Controlled bypass with CODEOWNER approval

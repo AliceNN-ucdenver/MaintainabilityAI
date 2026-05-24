@@ -47,7 +47,7 @@ The workshop should feel like one journey, not a pile of disconnected lessons:
     <div class="docs-card-kicker">Part 3 &middot; ~90 min</div>
     <h3 class="docs-card-title docs-card-title-lg">Alice Remediates</h3>
     <div class="docs-card-subtitle">Live A03 Injection Remediation</div>
-    <p class="docs-card-body">Fix SQL injection in real TypeScript code, add validation, run tests, and prepare a reviewable AI-assisted change.</p>
+    <p class="docs-card-body">Fix NoSQL injection (Mongo operator injection — `$ne`, `$where`, unbounded regex) in real TypeScript code, add Zod validation that rejects `$`-prefixed keys, run tests, and prepare a reviewable AI-assisted change.</p>
   </a>
 
   <a href="/docs/workshop/part4-fitness-functions" class="docs-card docs-card-cyan">
@@ -104,7 +104,7 @@ The workshop should feel like one journey, not a pile of disconnected lessons:
 | Technical baseline | JavaScript or TypeScript basics, Git, command-line comfort |
 | Security baseline | Basic awareness of injection, authentication, authorization, and logging risks |
 | Tools | VS Code or similar IDE, Node.js 18+, Git, and access to at least one AI coding assistant |
-| Optional | GitHub Copilot, Claude Code, Docker, PostgreSQL for deeper local exercises |
+| Optional | GitHub Copilot, Claude Code, Docker, MongoDB for deeper local exercises |
 
 ## Resources Used Throughout
 

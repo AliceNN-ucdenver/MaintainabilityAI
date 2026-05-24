@@ -37,7 +37,7 @@
 
 ## Recap from Part 3
 
-Part 3 left you with one merged AI-assisted PR (the A03 fix), the reviewer skill exercised twice (A03 in class, A07 solo on `imdb-identity`), and a scorecard that moved 5 → ~15. The Code Security pillar is yellow, not green. Three planted issues remain. More importantly, **nothing yet stops the fix from regressing**. A future PR could reintroduce string-concatenated SQL and no gate would catch it. Today we add those gates.
+Part 3 left you with one merged AI-assisted PR (the A03 NoSQL-injection fix on `/search`), the reviewer skill exercised twice (A03 in class, A07 solo on the celeb-api JWT login), and a scorecard that moved 5 → ~15. The Code Security pillar is yellow, not green. Three planted issues remain. More importantly, **nothing yet stops the fix from regressing**. A future PR could reintroduce a raw `req.body` selector or a `$where` payload and no gate would catch it. Today we add those gates.
 
 ---
 

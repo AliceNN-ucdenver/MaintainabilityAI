@@ -81,16 +81,16 @@ PreToolUse hook fires. Runs in milliseconds.
 
 Same code, different position in time. The fitness function from Part 4 still runs in CI (catches anything the hook missed; useful for legacy code review). The Red Queen hook runs at the agent's tool-call boundary. The combination is **defense in depth at machine speed**.
 
-### The three Red Queen control points (today, with a Phase 9 preview)
+### The three Red Queen control points (today, with a Queen&rsquo;s Next Act preview)
 
 | Control point | When it fires | Latency | Bypassable? |
 |---|---|---|---|
-| **PreToolUse hook** | Before `Bash`, `Write`, `Edit` ever runs | <10 ms | Only via `REDQUEEN_PLAN_APPROVED` env var with recorded approval |
+| **PreToolUse hook** | Before `Bash`, `Write`, `Edit` ever runs | <10 ms | `REDQUEEN_TOOL_APPROVED` (per tool call) or `REDQUEEN_PLAN_APPROVED` (per Edit on restricted-tier) — both logged |
 | **MCP `validate_action`** | When the agent asks before acting (richer CALM/security checks) | <500 ms | The agent receives a structured verdict; ignoring it is itself an audited violation |
-| **Required CI status check** | After PR opens, before merge | 1-5 minutes (workflow run) | No, when configured as a branch-protection required check |
-| **CI hard gate** *(Phase 9 preview, not in v1)* | At the PR merge boundary, non-bypassable | Tree-sitter AST semantic diff + contract diffs | No |
+| **Required CI status check** | After PR opens, before merge | 1-5 minutes (workflow run) | No, when configured as a branch-protection required check (the branch-protection setup is a manual step) |
+| **`redqueen-action` standalone hard gate** *(<a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>)* | At the PR merge boundary, non-bypassable | AST semantic diff + contract diffs | No |
 
-Today we ship the first three. Phase 9 adds the standalone `redqueen-action` hard gate.
+Today we ship the first three. Queen&rsquo;s Next Act adds the standalone `redqueen-action` hard gate plus AST semantic diff and contract diffs.
 
 ---
 
@@ -122,6 +122,7 @@ Click **Scaffold**. Cheshire writes:
   policy.json              ← static tier + path + CALM rules, pre-computed from the mesh
   decision.json            ← orchestration decision (tier + permissions + active rules)
   governance-context.md    ← human-readable summary of governance posture
+  config-manifest.yaml     ← scaffold version + file fingerprints for the doctor
   mcp-runner.js            ← Node script that launches the Red Queen MCP server
   hooks/
     validate-tool.js       ← the fast-path policy evaluator (pure JavaScript)
@@ -130,9 +131,12 @@ Click **Scaffold**. Cheshire writes:
 .claude/
   settings.json            ← updated with the PreToolUse hook registration
 .mcp.json                  ← Claude Code MCP server config pointing at .redqueen/mcp-runner.js
-.github/workflows/
-  redqueen-review.yml      ← multi-agent review consensus workflow
-  redqueen-implement.yml   ← issue-to-PR implementation workflow
+.github/
+  hooks/redqueen.json      ← Copilot Coding Agent governance config (when agent_type = `both`)
+  copilot-governance-steps.yml  ← Copilot pre-run governance steps
+  workflows/
+    redqueen-review.yml    ← multi-agent review consensus workflow
+    redqueen-implement.yml ← issue-to-PR implementation workflow (triggers on `implement` / `claude-code` / `copilot` label)
 AGENTS.md                  ← updated to declare Red Queen is the governance authority
 ```
 
@@ -172,7 +176,7 @@ You should see something like:
 Three things to notice:
 
 1. **The tier is `supervised`**, pulled from the current scorecard. The policy auto-derives the tier; you do not configure it manually.
-2. **`allowedConnections`** lists every flow declared in the BAR's CALM model. **A code change that proposes an undeclared connection (frontend → db, anything → identity-db) is denied.**
+2. **`allowedConnections`** lists every flow declared in the BAR's CALM model. **A code change that proposes an undeclared connection (frontend → celeb-db directly, celeb-api → any node the CALM model has not authorised) is denied.**
 3. **`readOnlyPaths`** includes the Red Queen's own files. Agents cannot edit the policy that governs them. The governance is itself governed.
 
 ### Step 3. Read the hook
@@ -204,7 +208,9 @@ Decision: Plan first. Set REDQUEEN_TOOL_APPROVED=true after recording approval.
 Tool call cancelled.
 ```
 
-The Bash never ran. The deny is logged. Claude Code receives the structured reason and can plan around it (e.g., propose the Bash, ask you to confirm out-of-band, then re-attempt with approval recorded).
+The Bash never ran. The deny is logged to `.redqueen/audit-log.jsonl`. Claude Code receives the structured reason and can plan around it (e.g., propose the Bash, ask you to confirm out-of-band, then re-attempt with approval recorded).
+
+> Two different break-glass env vars. `REDQUEEN_TOOL_APPROVED=true` bypasses a single `requireApproval` verdict (the case above). `REDQUEEN_PLAN_APPROVED=true` is narrower: it permits a single Edit on a restricted-tier BAR after a written plan. Use the tighter one whenever it applies.
 
 ### Step 5. Trip the CALM connection rule
 
@@ -213,17 +219,18 @@ This is the demo that ties Parts 4 and 7 together. Try to make the AI write code
 In your editor, ask Claude Code:
 
 ```
-Please add a new endpoint to celeb-api that reads directly from identity-db
-to look up the user's display name without going through imdb-identity.
+Please add a new endpoint to celeb-api that pulls a real-time trending list
+straight from the analytics-warehouse so we can sort celebrities by
+yesterday's view count.
 ```
 
-The CALM model does **not** declare `celeb-api → identity-db`. The Red Queen will deny:
+The CALM model does **not** declare `celeb-api → analytics-warehouse`. The Red Queen will deny:
 
 ```
 [Red Queen] CALM-004: No declared CALM relationship permits
-celeb-api → identity-db.
-Route through a declared interface (frontend → identity → identity-db) or
-update bars/APP-IMDB-002/bar.arch.json to add the new flow first.
+celeb-api → analytics-warehouse.
+Update bars/APP-IMDB-002/bar.arch.json to add the new flow first, or route
+through a declared interface.
 
 Tool call cancelled. The change was never written to disk.
 ```
@@ -259,24 +266,26 @@ Claude calls `validate_action` over MCP. The runner reads the full CALM model, e
 
 The agent now has a structured signal. It knows the change is *allowed* but needs an ADR. It can ask you to write the ADR before proceeding, or propose the ADR itself for your review.
 
-### Step 7. Promote the CALM-layer fitness function to deterministic
+### Step 7. Promote the CALM-connection fitness function to deterministic
 
-The fitness function we wrote in Part 4 reads `bars/APP-IMDB-002/bar.arch.json` and asserts that route code does not import from data code directly. Today we move that rule into the policy so it fires at hook time.
+The fitness function we wrote in Part 4 reads `bars/APP-IMDB-002/bar.arch.json` and asserts that proposed connections match the declared CALM flows. Today the Red Queen runs the same check at hook time over `.redqueen/policy.json → allowedConnections`. Any code change that proposes an undeclared connection (frontend → db, anything → identity service that the BAR did not declare) fires `CALM-004` and is denied before the file is touched.
 
-The mesh's per-BAR `bar.arch.json` already has the layer declarations. Open `.redqueen/policy.json` and confirm the `allowedConnections` array reflects the same flows. Then update the hook (`.redqueen/hooks/validate-tool.js`) to walk the proposed change's imports against the layer rules. In v1 Cheshire does this for you when you run scaffold against a BAR that has a CALM model. Open the hook and read the import-checking block to see how it works.
-
-Re-test by asking the agent to introduce an import from `src/routes/celebrity.ts` to `src/db/celebrity-repository.ts`. The hook denies:
+Re-test by asking the agent to introduce a new route in `src/routes/celebrity.ts` that opens a connection to a node the CALM model does not declare. The hook denies:
 
 ```
-[Red Queen] LAYER-001: Route src/routes/celebrity.ts cannot import directly
-from data layer src/db/celebrity-repository.ts. Route through src/services/.
+[Red Queen] CALM-004: No declared CALM relationship permits
+celeb-api → analytics-warehouse.
+Update bars/APP-IMDB-002/bar.arch.json to add the new flow first, or route
+through a declared interface.
 ```
 
 **The Part 4 fitness function still runs in CI as a safety net** for legacy commits and for any code path the hook does not cover (e.g., direct file edits outside the agent). The hook is the primary gate; the fitness function is the secondary one. Defense in depth.
 
+> Per-file layer enforcement (route-must-not-import-data, semantic import graph walking) is part of <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>. The scaffold today writes the connection-level walker, not the per-file import walker.
+
 ### Step 8. Add a custom team rule
 
-Your team wants every new SQL query in route handlers to use parameterised placeholders. Today the OWASP A03 prompt pack requires it, the fitness function logs raw-string-SQL as a violation, but neither **blocks** the agent from writing it.
+Your team wants every Mongo query in route handlers to validate the request through a Zod schema before it touches the driver. Today the OWASP A03 prompt pack requires it, the fitness function flags raw selectors and `$where`/`$ne`/`$regex` operators built from user input as violations, but neither **blocks** the agent from writing them. NoSQL injection in Mongo happens when an attacker controls the *shape* of a selector ({ password: { $ne: null } }, { $where: "this.role == 'admin'" }, unbounded regex), not just its values.
 
 Open `.redqueen/policy.json`. Under `rules`, add:
 
@@ -287,17 +296,17 @@ Open `.redqueen/policy.json`. Under `rules`, add:
     "category": "security",
     "severity": "error",
     "appliesTo": ["src/routes/**/*.ts"],
-    "denyPattern": "(?i)(SELECT|INSERT|UPDATE|DELETE).{0,200}\\$\\{|\\+\\s*['\"]",
-    "message": "Route handlers must use pg parameterised queries ($1, $2 placeholders). Detected SQL with string interpolation or concatenation."
+    "denyPattern": "(?:\\$where|\\$accumulator|\\$function)|\\.find\\(\\s*req\\.(?:body|query|params)|\\.findOne\\(\\s*req\\.(?:body|query|params)",
+    "message": "Route handlers must validate request input with a Zod schema (rejecting keys starting with $) before passing it to a Mongo selector. Detected raw $where/$accumulator/$function or selector built directly from req.body/query/params."
   }
 ]
 ```
 
-Update the hook (`.redqueen/hooks/validate-tool.js`) to walk `customRules` on every Edit/Write and refuse if `denyPattern` matches the proposed content. Cheshire's scaffold writes the walker code by default; if your version doesn't, the change is ~10 lines.
+Update the hook (`.redqueen/hooks/validate-tool.js`) to walk `customRules` on every Edit/Write and refuse if `denyPattern` matches the proposed content. The scaffold today writes the per-tool walker that calls into `customRules`; if your version is older, the change is ~10 lines.
 
-Test by asking the agent to write code with `WHERE name = '${q}'`. Denied. Ask it with `WHERE name = $1`. Allowed.
+Test by asking the agent to write code with `await Celebrities.find(req.body)`. Denied. Ask it with `const input = celebQuerySchema.parse(req.body); await Celebrities.find(input.selector)`. Allowed.
 
-**Write the rule once. It fires at machine speed forever. Every fire is audited.** That is the deal.
+**Write the rule once. It fires at machine speed forever. Every fire is logged to `.redqueen/audit-log.jsonl`.** That is the deal.
 
 ### Step 9. Make the review workflow a required status check
 
@@ -354,13 +363,13 @@ The right pattern is **both**. Hook catches the agent before the change. Fitness
 
 Break-glass override. Three properties make it safe.
 
-**Scoped.** The override applies to a specific tool call (or a specific PR), not to the whole repo. Setting `REDQUEEN_TOOL_APPROVED=true` in the environment lets the next tool call through; it does not silence the hook forever.
+**Scoped.** Two different env vars cover two different cases. `REDQUEEN_TOOL_APPROVED=true` bypasses one `requireApproval` verdict (most tool calls). `REDQUEEN_PLAN_APPROVED=true` is narrower: it permits a single Edit on a restricted-tier BAR after a written plan. Neither silences the hook for future calls.
 
 **Time-limited.** The override is per-session. A new agent session re-reads policy.json from scratch.
 
-**Recorded.** Every override fires an audit event with the engineer's identity, the reason (free-text required), and the rule that was bypassed. The audit log is grep'able. *"Who bypassed CALM-004 last quarter and why?"* is one git query, not an archaeology session.
+**Recorded.** Every override the hook honors is recorded in `.redqueen/audit-log.jsonl` with the tool name, the rule that was bypassed, and the timestamp. The audit log is grep'able. *"How many CALM-004 overrides last quarter?"* is one git query, not an archaeology session.
 
-The full break-glass UX with scoped budgets, written reasons, and CODEOWNER co-signing is documented as Phase 9 work in the <a href="/docs/red-queens-court#the-road-ahead--phase-9-and-beyond" class="markdown-link">Red Queen's Court roadmap</a>. The v1 break-glass today is environment-variable + audit-event; that is enough discipline for most teams.
+> The full break-glass UX with scoped budgets, written reasons captured at override time, signed override events, and CODEOWNER co-signing is <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>. The v1 break-glass today is environment-variable plus a plain audit-log entry; that is enough discipline for most teams, but the audit-log entry does not yet capture the engineer's identity or a written reason without manual annotation.
 
 </details>
 
@@ -417,13 +426,13 @@ The chief-trainer test for any custom rule: *if I am on call at 2 AM and the rul
 ## What you learned
 
 - **Advisory vs deterministic enforcement** is a position in time. Advisory rules catch violations after they happen; deterministic rules prevent them from happening. Both have their place; combining them is defense in depth.
-- **The Red Queen ships three control points today:** PreToolUse hook (fast, binary, <10ms), MCP `validate_action` (richer, structured, <500ms), and `redqueen-review.yml` as a required status check (CI-time, multi-agent consensus). A Phase 9 standalone hard gate is planned.
+- **The Red Queen ships three control points today:** PreToolUse hook (fast, binary, <10ms), MCP `validate_action` (richer, structured, <500ms), and `redqueen-review.yml` as a required status check (CI-time, multi-agent consensus). A dedicated standalone hard gate (`redqueen-action`) is Queen's Next Act.
 - **The same CALM rule can run at multiple enforcement points.** The Part 4 fitness function and the Part 7 hook are the same rule expressed at different positions in the lifecycle. One policy.json is the source of truth.
-- **Break-glass is scoped, time-limited, and recorded.** Overrides are part of the audit chain, not a way around it. `REDQUEEN_TOOL_APPROVED=true` lets one tool call through; the audit captures the why.
+- **Break-glass is scoped, time-limited, and recorded.** `REDQUEEN_TOOL_APPROVED=true` lets one tool call through; `REDQUEEN_PLAN_APPROVED=true` permits one Edit on a restricted-tier BAR after a written plan. Both are logged to `.redqueen/audit-log.jsonl`. Signed override events with engineer identity and written reason are Queen's Next Act.
 - **The governance is itself governed.** `.redqueen/` files are in `readOnlyPaths`. Agents cannot edit the policy that governs them.
-- **Custom rules are how teams encode "we don't do it that way."** Written once, fired at machine speed, audited every time. The team's institutional memory becomes deterministic enforcement.
+- **Custom rules are how teams encode "we don't do it that way."** Written once, fired at machine speed, logged every time. The team's institutional memory becomes deterministic enforcement.
 - **The tier earns the autonomy.** A Restricted-tier repo's hooks block almost everything; an Autonomous-tier repo's hooks block almost nothing but log everything. The score is the lever. Improving the score (the work we have been doing across the whole workshop) is how the agent earns more freedom.
-- **Both Claude Code and Copilot Coding Agent are governed.** Different hook mechanisms, same `policy.json`, same audit chain. The agent's identity doesn't change the rules.
+- **Both Claude Code and Copilot Coding Agent are governed.** Different hook mechanisms (Claude reads `.claude/settings.json` PreToolUse; Copilot reads `.github/hooks/redqueen.json`), shared `policy.json`. Both agents' enforcement decisions write into the same `.redqueen/audit-log.jsonl` on the repo. Unifying that with the Hatter's planning-side hash-chained audit log is Queen's Next Act.
 
 ---
 
@@ -431,7 +440,7 @@ The chief-trainer test for any custom rule: *if I am on call at 2 AM and the rul
 
 > **Rule 6. Make governance deterministic. Advisory rules become hard gates with audit trails.**
 >
-> A rule that is only a suggestion is a rule that someone will skip under deadline pressure. A rule that fires at machine speed and refuses the action that would violate it is a rule that survives the team's worst Tuesday. The audit chain (every allow, every deny, every override with its reason) is what makes the enforcement defensible to an auditor and trustworthy to the engineers operating inside it. The agentic SDLC's leverage at the boundary between advisory and deterministic is what separates *"we wrote good rules"* from *"the rules are how the system actually works."*
+> A rule that is only a suggestion is a rule that someone will skip under deadline pressure. A rule that fires at machine speed and refuses the action that would violate it is a rule that survives the team's worst Tuesday. The audit log (every allow, every deny, every override) is what makes the enforcement defensible to an auditor and trustworthy to the engineers operating inside it. Today that log lives in `.redqueen/audit-log.jsonl`; the unified, signed, verifier-checked evidence chain across both Hatter and Red Queen sides is Queen's Next Act. The agentic SDLC's leverage at the boundary between advisory and deterministic is what separates *"we wrote good rules"* from *"the rules are how the system actually works."*
 
 This is the last Golden Rule. Part 8 does not introduce a new one; it shows how the six combine.
 

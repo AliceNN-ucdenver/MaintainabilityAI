@@ -87,7 +87,7 @@ Each step builds on the one before. Skip the early foundation work and later gat
 MaintainabilityAI implements a **6-layer security pipeline** that catches vulnerabilities at every stage of development:
 
 <figure class="docs-visual">
-  <img src="/images/diagrams/security-pipeline.svg" alt="Seven-stage security pipeline from developer prompt to production deployment." class="docs-visual-image" />
+  <img src="/images/diagrams/security-pipeline.svg" alt="Six-layer security pipeline from developer prompt to production deployment." class="docs-visual-image" />
   <figcaption class="docs-visual-caption">Defense in depth turns prompts, tests, scans, reviews, and production monitoring into one continuous control path.</figcaption>
 </figure>
 

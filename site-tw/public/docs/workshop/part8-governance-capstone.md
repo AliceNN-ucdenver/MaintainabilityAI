@@ -22,7 +22,7 @@
 ## What you will have built when you leave
 
 1. The **celebrity favorites feature** shipped end to end. A signed-in user can favorite a celebrity, see their favorites list, and unfavorite. The feature touches all four IMDB-lite repos.
-2. Four PRs merged, one per repo: `imdb-react-frontend`, `imdb-identity`, `celeb-api`, `movie-api` (the last only minimally, a JSON field rename). All AI-assisted via the Cheshire enrich → assign → review loop you learned in Part 3.
+2. Three PRs merged, one per touched repo: `celeb-api`, `imdb-react-frontend`, and `movie-api` (the last only minimally, a JSON field rename). All AI-assisted via the Cheshire enrich → assign → review loop you learned in Part 3.
 3. **A complete evidence chain** anchored at one `project_id`. Every PR, every issue, every audit log, every Hatter's Tag points back to the same project. One `gh search` query reveals the whole story.
 4. **Every Golden Rule visibly exercised:**
     - Rule 1 (stage selection): you chose AI-Assisted at Supervised tier; you did NOT pick Agentic because the cross-repo coordination work needs human checkpoints
@@ -100,11 +100,10 @@ This is **deliberately the same feature** you drafted an RCTRO for in Part 2's h
 | Repo | Change |
 |---|---|
 | `imdb-react-frontend` | New `<FavoriteButton>` component on celebrity detail page + new `/favorites` page; uses existing API client |
-| `imdb-identity` | No code change. The existing JWT middleware already passes user-id to downstream services. |
-| `celeb-api` | New `POST/DELETE/GET /celebrities/:id/favorite` and `GET /favorites` endpoints; new `celebrity_favorites(user_id, celebrity_id)` table |
+| `celeb-api` | New `POST/DELETE/GET /celebrities/:id/favorite` and `GET /favorites` endpoints; new `celebrityFavorites` MongoDB collection with a compound unique index on `{ userId, celebrityId }`. JWT middleware already lives here, so user-id flows straight from the verified token. |
 | `movie-api` | A small JSON field rename (`bio` → `biography`) the favorites UI needs for consistent display; touched only because we noticed it while reviewing the cross-cutting change |
 
-The bulk of the work lives in `celeb-api`. The other three repos take much smaller PRs. Cross-repo coordination is the new skill the capstone teaches.
+The bulk of the work lives in `celeb-api`. The other two repos take much smaller PRs. Cross-repo coordination is the new skill the capstone teaches.
 
 ### The mental model: one `project_id`, many PRs
 
@@ -154,20 +153,19 @@ Audit log every favorite/unfavorite with user-id + celebrity-id, no PII
 in log lines. Parent project: PRJ-IMDB-FAV-001.
 ```
 
-Cheshire detects the cross-repo nature, suggests **four** RCTRO issues (one per repo):
+Cheshire detects the cross-repo nature, suggests **three** RCTRO issues (one per touched repo):
 
 - `[PRJ-IMDB-FAV-001] celeb-api: implement /celebrities/:id/favorite and /favorites endpoints`. Packs: A01, A03, A09, complexity, DRY
 - `[PRJ-IMDB-FAV-001] imdb-react-frontend: add FavoriteButton + favorites page`. Packs: A03 (XSS on the displayed name), A05 (CSP for new pages), complexity
-- `[PRJ-IMDB-FAV-001] imdb-identity: confirm JWT middleware passes user-id`. Packs: (audit only; no code change expected)
 - `[PRJ-IMDB-FAV-001] movie-api: rename bio → biography for cross-service consistency`. Packs: (rename only; complexity)
 
-Confirm packs. Click **Generate**. Cheshire creates the four issues in their respective repos, each labelled `project:PRJ-IMDB-FAV-001` and `rctro-feature`. Read each issue body. Every one has the full RCTRO with the relevant Requirements expanded inline from the cited packs.
+Confirm packs. Click **Generate**. Cheshire creates the three issues in their respective repos, each labelled `project:PRJ-IMDB-FAV-001` and `rctro-feature`. Read each issue body. Every one has the full RCTRO with the relevant Requirements expanded inline from the cited packs.
 
 ### Step 4. Assign agents per repo
 
 Per repo, comment `@claude please remediate` on the RCTRO issue. The `alice-remediation` workflow fires. Within 3-5 minutes per repo, four draft PRs open.
 
-Tier check: the celeb-api is at Supervised (this is what Part 7's policy says). The Red Queen will allow `Edit` and most `Bash` for the agent, but will deny anything crossing the layer rules from Part 7 (route → data direct imports, unparameterized SQL, undeclared CALM flows). Watch the audit feed in Looking Glass during the runs. If you see a deny event, that is the Red Queen earning its keep mid-run.
+Tier check: the celeb-api is at Supervised (this is what Part 7's policy says). The Red Queen will allow `Edit` and most `Bash` for the agent, but will deny anything crossing the rules from Part 7 (raw `req.body` into Mongo selectors, `$where` / `$accumulator` / `$function` operators, undeclared CALM flows). Watch the audit feed in Looking Glass during the runs. If you see a deny event, that is the Red Queen earning its keep mid-run.
 
 ### Step 5. Review the celeb-api PR (the big one)
 
@@ -175,24 +173,22 @@ This is the heaviest review. Apply the discipline from Part 3 sharpened by every
 
 | Requirement section line | What you check |
 |---|---|
-| Parameterised queries (`pg $1` placeholders) | Grep the diff for any string concatenation in SQL. There should be zero. Custom rule `SEC-101` from Part 7 should have prevented it; verify. |
-| Zod validation on `:id` path param | Confirm the validator file exists. Confirm allowlist regex on the celebrity id. |
+| Zod schema rejects `$` keys, validates `:id` as a strict ObjectId-string | Grep the diff for `.find(req.` and `.findOne(req.`. There should be zero hits. The selector should be built from the parsed object; the `:id` validator rejects anything that isn't a 24-char hex string. Custom rule `SEC-101` from Part 7 should have prevented the bad shape; verify. |
+| Selector built from validated value, not raw req object | Confirm `await celebrityFavorites.findOne({ userId, celebrityId })` uses the validated `userId` from the JWT and the validated `celebrityId`, not anything pulled directly from `req.body`. |
 | Audit log with structured event names | Confirm log lines use `favorite.added` / `favorite.removed`. Confirm no celebrity name in log lines (only user_id + celebrity_id). |
 | Ownership check (A01) | Confirm GET `/favorites` only returns the calling user's favorites; reject any attempt to query another user's. |
-| Idempotency | POST twice → still one favorite. DELETE twice → no error on the second delete. |
-| Migration safe | The new `celebrity_favorites` table migration is non-destructive (CREATE IF NOT EXISTS); rolls back cleanly. |
-| Tests cover attack vectors | SQLi payload in `:id`, IDOR attempt, oversized payload, concurrent POST race. |
+| Idempotency | POST twice → still one favorite (the compound unique index on `{ userId, celebrityId }` enforces it; the handler converts the duplicate-key error into a 200 idempotent response). DELETE twice → no error on the second delete. |
+| Collection init safe | The new `celebrityFavorites` collection-init script is non-destructive (`createIndex` is idempotent); rolls back cleanly. |
+| Tests cover attack vectors | Operator-injection (`{ celebrityId: { $ne: null } }`), IDOR attempt (read another user's favorites), oversized payload, concurrent POST race (both should resolve to one favorite via the unique index). |
 | Hatter's Tag in PR description | Names the pack versions used, the model, the reviewer (will be you when you approve). |
 
 If any row is partial, comment on the specific line. Re-trigger the agent with `@claude please address the review comments.` New commits land on the same PR.
 
-**Watch the Part 7 audit log mid-review.** If the Red Queen denied any of the agent's earlier attempts (e.g., it tried to write `WHERE id = ${id}` and `SEC-101` blocked it), those denies are in the audit log even though the final PR doesn't show the attempt. Mention this in the PR thread: *"Red Queen blocked 2 SEC-101 violations during implementation; the final diff is the result of the agent's retry path."* That is your evidence chain talking.
+**Watch the Part 7 audit log mid-review.** If the Red Queen denied any of the agent's earlier attempts (e.g., it tried to write `await celebrities.find(req.body)` and `SEC-101` blocked it), those denies are in `.redqueen/audit-log.jsonl` even though the final PR doesn't show the attempt. Mention this in the PR thread: *"Red Queen blocked 2 SEC-101 violations during implementation; the final diff is the result of the agent's retry path."* That is your evidence chain talking.
 
 ### Step 6. Review the smaller PRs
 
 `imdb-react-frontend`. Review for XSS in any displayed text (use the existing safe-renderer, not `dangerouslySetInnerHTML`), CSP for the new favorites page (if your team has a CSP policy), correct API client usage.
-
-`imdb-identity`. Should be **no change** other than a confirming comment in the issue. The agent may have proposed a "small improvement" outside the RCTRO scope; reject it. Stay in scope.
 
 `movie-api`. Pure rename. The agent should also rename the test fixtures and any documentation. Confirm the OpenAPI spec is updated.
 
@@ -210,11 +206,10 @@ Every gate should be green. If any is red, the merge is blocked. **No exceptions
 Order matters because the cross-repo dependencies:
 
 1. **celeb-api** first (it owns the new endpoints; nothing else can call them until they exist)
-2. **imdb-identity** second (no-code-change confirmation; closes the issue)
-3. **movie-api** third (the field rename; depends on nothing)
-4. **imdb-react-frontend** last (calls the new celeb-api endpoints; needs them deployed)
+2. **movie-api** second (the field rename; depends on nothing)
+3. **imdb-react-frontend** last (calls the new celeb-api endpoints; needs them deployed)
 
-Each merge ships its own Hatter's Tag. Each merge updates the parent release issue's checklist. After the fourth merge, the parent issue auto-closes with a comment summarising the chain.
+Each merge ships its own Hatter's Tag. Each merge updates the parent release issue's checklist. After the third merge, the parent issue auto-closes with a comment summarising the chain.
 
 ### Step 9. Compose the auditor's view
 
@@ -229,15 +224,14 @@ CALM update: bars/APP-IMDB-002/bar.arch.json @ commit abcd1234
 
 Implementation PRs:
   - celeb-api#4187            (Hatter's Tag: v1.1.0 packs, reviewer @you, merged 14:48Z)
-  - imdb-identity#3201        (confirmation only, no code change, closed 14:51Z)
   - movie-api#1843            (rename, Hatter's Tag attached, merged 14:55Z)
   - imdb-react-frontend#5012  (Hatter's Tag, merged 15:08Z)
 
 Governance evidence:
   - 5 fitness functions green on every merge
   - CodeQL + Snyk green
-  - Red Queen Review: 4 PRs reviewed, 4 PASS verdicts
-  - Red Queen audit events: 87 allows, 2 denies (both SEC-101, both correctly blocked unparameterized SQL during implementation), 0 overrides
+  - Red Queen Review: 3 PRs reviewed, 3 PASS verdicts
+  - Red Queen audit events (.redqueen/audit-log.jsonl): 87 allows, 2 denies (both SEC-101, both correctly blocked `.find(req.body)` attempts during implementation), 0 overrides
   - Prompt packs used:
       .cheshire/prompts/owasp/A01_broken_access_control@v1.0.0
       .cheshire/prompts/owasp/A03_injection@v1.1.0

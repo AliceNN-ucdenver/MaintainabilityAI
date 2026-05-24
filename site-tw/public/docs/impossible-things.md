@@ -32,7 +32,7 @@
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-heading">♛ Red Queen's Court (enforce)</div>
-    <div class="docs-copy">Deterministic enforcement at the agent's tool-call boundary. PreToolUse hooks, MCP <code>validate_action</code>, CI hard gate (Phase 9). Cross-repo semantic governance.</div>
+    <div class="docs-copy">Deterministic enforcement at the agent's tool-call boundary today: PreToolUse hooks + MCP <code>validate_action</code>. CI hard gate (<code>redqueen-action</code>) and cross-repo semantic governance land in <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.</div>
     <div class="docs-copy"><a href="/docs/red-queens-court" class="docs-button-secondary">Open →</a></div>
   </div>
 </div>
@@ -43,7 +43,7 @@ The following anchor links from external content still resolve here. Each redire
 
 - `#the-looking-glass---see-everything` → [Looking Glass section on the vision page](/docs/agentic-sdlc-governance#looking-glass--the-substrate-everything-reads)
 - `#the-red-queen---governance-enforced-agent-intelligence` → [Red Queen's Court (dedicated page)](/docs/red-queens-court)
-- `#the-road-ahead` → [Red Queen's Court — The road ahead](/docs/red-queens-court#the-road-ahead--phase-9-and-beyond)
+- `#the-road-ahead` → [Red Queen's Court — Queen's Next Act](/docs/red-queens-court#queens-next-act)
 - `#six-impossible-things-before-breakfast` → at the bottom of the [vision page](/docs/agentic-sdlc-governance)
 
 > 📝 If you have content that linked to this page, update to one of the URLs above. This stub will remain as a forwarder for the foreseeable future.

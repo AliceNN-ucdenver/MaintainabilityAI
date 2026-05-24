@@ -336,12 +336,18 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
 - README with diagrams and walkthrough
 - Golden Rules governance documentation
 - Security workflow documentation
-- Workshop parts 1-3
+- Workshop parts 1-8 (Spectrum, Security-First Prompting, Live Remediation, CALM + Fitness Functions, Prompt Library, Multi-Agent Orchestration, Red Queen's Court, IMDB-lite capstone)
+- VS Code extension: Looking Glass governance panel + Cheshire Cat scaffold panel
+- Red Queen MCP server (25 tools, 13 calm:// resources, PreToolUse hooks, generated review workflows, scaffold doctor)
+- Knight's Seal v1 (per-event, per-epoch Ed25519 signing of the planning-side audit chain, verifier-enforced)
 - CI/CD with CodeQL + Snyk
 - Custom domain setup (CNAME)
 
-**Planned** 🚧:
-- Workshop parts 4-8 (CodeQL, Snyk, Prompt Library, Multi-Agent, Governance)
+**Planned** 🚧 (Queen's Next Act):
+- `redqueen-action` standalone hard gate
+- AST semantic diff + per-file import/layer graph enforcement
+- Contract diffs + break-glass budgets + signed override events
+- CloudEvents / SIEM export + cross-chain inclusion proofs (unified Hatter ↔ Red Queen evidence)
 - Additional test scenarios for complex attack vectors
 - Video walkthroughs of live remediation exercises
 

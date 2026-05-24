@@ -5,7 +5,7 @@
   <div>
     <div class="docs-card-kicker">Workshop Part 3 · Alice Remediates</div>
     <h2 class="docs-workshop-title">Alice Remediates</h2>
-    <p class="docs-workshop-subtitle">Live A03 SQL Injection Fix. CodeQL → Cheshire → Agent → Review → Merge.</p>
+    <p class="docs-workshop-subtitle">Live A03 NoSQL Injection Fix. CodeQL → Cheshire → Agent → Review → Merge.</p>
   </div>
   <div class="docs-workshop-meta">
     <strong class="docs-strong">Duration:</strong> 90 minutes<br/>
@@ -15,7 +15,7 @@
   </div>
 </div>
 
-> Part 3 is the live class. The celeb-api goes to GitHub. CodeQL fires. Cheshire enriches the A03 SQL injection issue. You comment `@claude please remediate`. The agent opens a draft PR. **The next 60 minutes are about being a good reviewer.** Reading the diff line-by-line against the RCTRO Requirements, running the tests, deciding whether to approve or request changes, then merging with the AI disclosure footer. By the end the celeb-api scorecard moves from 5 to roughly 15.
+> Part 3 is the live class. The celeb-api goes to GitHub. CodeQL fires. Cheshire enriches the A03 NoSQL injection issue (the celeb-api stack is MongoDB; A03 in 2026 is operator injection — `$ne`, `$where`, unbounded regex, request bodies fed straight into selectors). You comment `@claude please remediate`. The agent opens a draft PR. **The next 60 minutes are about being a good reviewer.** Reading the diff line-by-line against the RCTRO Requirements, running the tests, deciding whether to approve or request changes, then merging with the AI disclosure footer. By the end the celeb-api scorecard moves from 5 to roughly 15.
 
 ---
 
@@ -25,9 +25,9 @@
 2. The A03 issue enriched with Cheshire (Part 2 walked the *what*; today we run it).
 3. The `alice-remediation` workflow invoked. A draft PR open, with the agent's plan and diff.
 4. The diff **reviewed line-by-line against the RCTRO Requirements**. At least one request-for-changes round demonstrated.
-5. Tests run locally. The planted SQL injection regression test now passes against the fixed code. The same test still fails against the original.
+5. Tests run locally. The planted NoSQL injection regression tests (operator-injection `$ne`, server-side `$where`, unbounded regex DoS) now pass against the fixed code. The same tests still fail against the original.
 6. The PR merged with an AI disclosure footer naming the prompt pack version, the CodeQL finding ID, and the human reviewer.
-7. A second remediation run solo, on the A07 auth issue in imdb-identity, with the same workflow.
+7. A second remediation run solo, on the A07 auth issue in celeb-api (the JWT login endpoint), with the same workflow.
 8. Scorecard: **5 → ~15**. Code Security and Test Coverage both move.
 9. Golden Rule 3 internalised: **Trust but verify. Every line, every test, every Requirement.**
 
@@ -95,7 +95,7 @@ CodeQL takes 2 to 4 minutes on a TypeScript repo this size. The second workflow 
 After both workflows complete, go to the **Issues** tab. You should see four new issues:
 
 ```
-#1  [codeql-finding] [owasp/A03] SQL injection in src/routes/search.ts
+#1  [codeql-finding] [owasp/A03] NoSQL injection in src/routes/search.ts (user-controlled selector + raw $where)
 #2  [codeql-finding] [owasp/A01] Missing access control on src/routes/celebrity.ts
 #3  [codeql-finding] [owasp/A10] Server-side request forgery in src/routes/image-proxy.ts
 #4  [codeql-finding] [owasp/A06] Vulnerable dependency: lodash@4.17.15
@@ -105,7 +105,7 @@ Each issue body has the CodeQL finding: file, line numbers, rule ID, severity, t
 
 ### Step 4. Enrich the A03 issue with Cheshire
 
-In VS Code with the celeb-api workspace open, click the **Cheshire Cat** icon → **Issue Management**. The panel lists open issues in your repo. Find issue #1 (the SQL injection on `/search`).
+In VS Code with the celeb-api workspace open, click the **Cheshire Cat** icon → **Issue Management**. The panel lists open issues in your repo. Find issue #1 (the NoSQL injection on `/search`).
 
 Click **Enrich with RCTRO**. The panel does three things:
 
@@ -127,7 +127,7 @@ Click **Comment**. The `alice-remediation` workflow fires. It is gated on the co
 
 The workflow runs in two phases.
 
-**Phase 1: Analysis and Planning.** Claude reads the RCTRO, restates the Requirements, and posts a plan as a comment on the issue. The plan should name every Requirement section item and how the agent intends to satisfy it. If a Requirement is missing from the plan, **stop the run** (comment "do not proceed; the plan is missing the SQLi unicode payload test") and let it regenerate.
+**Phase 1: Analysis and Planning.** Claude reads the RCTRO, restates the Requirements, and posts a plan as a comment on the issue. The plan should name every Requirement section item and how the agent intends to satisfy it. If a Requirement is missing from the plan, **stop the run** (comment "do not proceed; the plan is missing the `$ne` operator-injection test") and let it regenerate.
 
 **Phase 2: Implementation.** Claude opens a draft PR with the diff. The PR description includes a checklist of every Requirement and how it was addressed.
 
@@ -137,15 +137,16 @@ Wait 2 to 4 minutes. The draft PR appears.
 
 This is the part of the class where you slow down. Open the PR and pull up the original issue RCTRO side by side. Walk through every Requirement in order.
 
-For the A03 SQL injection fix, the Requirements section listed at minimum:
+For the A03 NoSQL injection fix, the Requirements section listed at minimum:
 
 | Requirement from RCTRO | What you check in the PR |
 |---|---|
-| Parameterised queries (`pg` `$1` placeholders) | Grep the diff for any remaining string concatenation in SQL. There should be zero. The query should use `$1`, `$2` placeholders. |
-| Zod validation: allowlist regex, max 100 chars | Find the new validator file. Confirm the regex is `^[a-zA-Z0-9 .\-']+$` (or equivalent allowlist, not a blocklist). Confirm length limit. |
-| Hard-limit `LIMIT 20` in SQL itself, not just JS | Look at the SQL string. The `LIMIT` clause should be hardcoded in the SQL, not appended by application code. |
-| Generic error messages, no schema leakage | Check the catch block. Returns "search failed" or similar, not the pg error object. No stack trace in production. |
-| Tests: valid, empty, SQLi payload, oversized, unicode | Open the new test file. Count: there must be at least five test cases, including a SQLi payload like `'; DROP TABLE celebrities; --` and an oversized payload of 200+ chars. |
+| Zod schema rejects `$`-prefixed keys, restricts types | Find the new validator file. Confirm the schema parses `req.query.q` as `z.string()` (not `z.unknown()`), max length 100, allowlist regex (e.g. `^[a-zA-Z0-9 .\-']+$`), and **explicitly rejects any object whose keys start with `$`** so `?q[$ne]=` cannot bypass it. |
+| Selector built from validated value, not raw req object | Grep the diff for `Celebrities.find(req.` and `Celebrities.findOne(req.`. There should be zero hits. The selector should be built from the parsed value: `{ name: parsed.q }` (or `{ name: { $regex: escapeRegex(parsed.q), $options: 'i' } }` if substring matching is needed). |
+| No `$where`, `$accumulator`, `$function`; regex inputs are escaped | Search the diff for `$where`, `$accumulator`, `$function`. None should appear in route code. Any user-derived value passed to `$regex` must go through a regex-escape helper to block ReDoS / unanchored DoS. |
+| Hard `.limit(20)` on every find; projection allowlist | Look at the query call. The driver call should chain `.limit(20)` server-side, not slice the result client-side. A `.project({ password: 0, internalNotes: 0 })` (or an explicit allowlist projection) prevents schema leakage. |
+| Generic error messages, no driver error leakage | Check the catch block. Returns "search failed" or similar, not the Mongo driver error object (which can echo back the offending selector and the collection schema). No stack trace in production. |
+| Tests: valid, empty, operator-injection (`$ne`), `$where`, regex DoS, oversized | Open the new test file. Count: there must be at least six test cases, including `q[$ne]=` (operator-injection bypass), a `$where` payload, an unbounded regex like `.*.*.*.*.*x`, and an oversized payload of 200+ chars. |
 
 If any row is partial or missing, comment on the specific line in the PR. The agent will see the comment when you re-run it.
 
@@ -153,9 +154,10 @@ If any row is partial or missing, comment on the specific line in the PR. The ag
 
 To make the class real, *do not* approve the first PR. Find at least one Requirement that the agent under-delivered on. The most common misses are:
 
-- Unicode payload test missing (the agent often does ASCII SQLi only).
-- Error message includes the pg error code (still leaking schema info).
-- Validator is in the route file instead of `src/validators/`.
+- Operator-injection test missing (the agent validates *string* shape but never sends `q[$ne]=` to prove the object-shape attack is closed).
+- Error message includes the Mongo driver error (still leaking the collection name and the offending selector shape).
+- Validator is in the route file instead of `src/validators/`, so the `$`-key reject isn't reusable across routes.
+- `.limit()` applied to the JS array, not chained on the driver query — server still fetches every match.
 
 Comment on the specific line. Then post on the issue: `@claude please address the review comments.` The workflow fires again. New commits land on the same PR.
 
@@ -175,7 +177,7 @@ npm test -- search
 Confirm:
 
 - All new test cases in `src/routes/__tests__/search.test.ts` pass.
-- The SQLi payload test, run against the **original** code on `main`, **fails** (it returns rows or 500s). Run it against the new code, it passes (returns empty result with 400 or 200 and an empty array, per the RCTRO).
+- The `q[$ne]=` operator-injection test, run against the **original** code on `main`, **fails** (it returns the full collection because `{ name: { $ne: null } }` matches every document). Run it against the new code, it passes (the Zod `$`-key reject returns 400 before the selector ever reaches the driver, per the RCTRO).
 
 A test that passes against both the old and new code is not a regression test. It is decoration. Make the agent rewrite it.
 
@@ -186,11 +188,11 @@ When the review is complete and the tests pass:
 ```
 Merge commit message:
 
-fix(celeb-api): A03 SQL injection in /search endpoint
+fix(celeb-api): A03 NoSQL injection in /search endpoint
 
 🤖 AI-assisted with Claude Code Action via alice-remediation workflow
 Prompt pack: .cheshire/prompts/owasp/A03_injection.md @ v1.0.0
-CodeQL finding ID: js/sql-injection (rule)
+CodeQL finding ID: js/nosql-injection (rule)
 Issue: #1
 Reviewer: @your-handle
 ```
@@ -222,7 +224,7 @@ The score moved. Not all the way, but *visibly*. Three more remediation runs (A0
 
 No. Two things to do first.
 
-**Pull the branch and run the SQLi regression test against `main`.** A regression test that does not fail on the unfixed code is decoration, not a test. This is the most common miss in AI-generated security fixes: the test asserts that the *new* code returns the right thing, without proving the *old* code returned the wrong thing. If you skip this check, you have shipped a test that will pass forever, including if the bug regresses.
+**Pull the branch and run the operator-injection regression test (`q[$ne]=`) against `main`.** A regression test that does not fail on the unfixed code is decoration, not a test. This is the most common miss in AI-generated security fixes: the test asserts that the *new* code returns the right thing, without proving the *old* code returned the wrong thing. If you skip this check, you have shipped a test that will pass forever, including if the bug regresses.
 
 **Read the diff line-by-line against the Requirements section of the RCTRO**, not against the CodeQL finding. The CodeQL finding tells you what is broken. The Requirements tell you what *good looks like for your team*. An agent can fix the CodeQL finding without satisfying your Requirements (e.g., it parameterised the query but skipped Zod validation). Both things have to be true for you to merge.
 
@@ -257,18 +259,13 @@ Part 4's fitness functions enforce the most important style rules automatically.
 
 ---
 
-## Try it yourself: A07 auth failures on imdb-identity
+## Try it yourself: A07 auth failures on celeb-api's login endpoint
 
-You walked through A03 together. Now do A07 solo on imdb-identity. Same workflow, different repo, different pack.
+You walked through A03 together. Now do A07 solo on the celeb-api JWT login endpoint. Same workflow, same repo, different pack. (The sample app does not have a separate identity service; JWT issuance and verification live inside celeb-api.)
 
 ### Setup
 
-```bash
-cd repos/imdb-identity
-gh repo create imdb-identity --private --source=. --remote=origin --push
-```
-
-CodeQL fires. Three issues open. The A07 one (`Missing rate limit on POST /auth/login`) is the target.
+celeb-api is already pushed from Step 1. CodeQL has already produced the four findings. The A07 one (`Missing rate limit on POST /auth/login`) is the target this round.
 
 ### The workflow
 
@@ -305,7 +302,7 @@ If you caught at least two of these three in your review, you are reading like a
 - **Review the diff against the Requirements section of the RCTRO**, not against the CodeQL finding. The finding tells you what is broken. The Requirements tell you what *good looks like for your team*. Both have to be true to merge.
 - **A regression test that passes against both old and new code is decoration**, not a test. Pull the branch and confirm the test *fails* against `main` before approving.
 - **The AI disclosure footer is non-negotiable.** Every AI-assisted commit names the prompt pack and version, the CodeQL finding ID, the issue number, and the human reviewer. This is the start of the **Hatter's Tag** that Part 6 turns into a signed manifest.
-- **Common agent misses to catch in review:** unicode SQLi tests skipped (the agent does ASCII payloads only), error messages include pg error codes (still leaking schema), validator placed in the route file instead of `src/validators/`. Different domain, similar pattern: rate-limit-by-IP shipped without by-username (an attacker on rotating proxies bypasses it), "user not found" vs "wrong password" leaking user enumeration, logged failed usernames creating enumeration via logs.
+- **Common agent misses to catch in review:** operator-injection test skipped (the agent validates string shape but never sends `q[$ne]=` to prove the object-shape attack is closed), error messages include the Mongo driver object (still leaking the collection name and the offending selector), `.limit()` applied to the JS array instead of chained on the driver query, validator placed in the route file instead of `src/validators/` so the `$`-key reject is not reusable. Different domain, similar pattern: rate-limit-by-IP shipped without by-username (an attacker on rotating proxies bypasses it), "user not found" vs "wrong password" leaking user enumeration, logged failed usernames creating enumeration via logs.
 - **The agentic shift is now concrete.** Your contribution to the actual code was nine characters: `@claude please remediate`. Your contribution before that (Parts 1 and 2) and after that (this review) was where the human work actually lives.
 
 ---

@@ -221,7 +221,7 @@ Read the research doc. Look at the citation density, the confidence ratings, and
 Back in `Active Runs`. A second row appears for the PRD agent. The PRD pipeline is the multi-expert refinement loop — each iteration emits:
 
 - `synthesize_prd[iterN]`
-- `architect_expert_review[iterN]` + `security_expert_review[iterN]` (LLM judgments)
+- `self_review[iterN, persona=architect]` + `self_review[iterN, persona=security]` — the author agent runs a persona-switch self-critique and signs each persona's judgment under the per-epoch Knight's Seal v1 keypair (the runtime emits the events; the verifier rejects forged or out-of-chain entries)
 - `deterministic_architecture_review[iterN]` + `deterministic_security_review[iterN]` (citation-grep)
 - `verify_grounding[iterN]` (combines all four)
 - `iteration_summary[iterN]` — a structured event carrying the 4-column score row

@@ -286,7 +286,7 @@ The small number is the point. The celeb-api is a fresh, unsecured CRUD service 
 <details class="docs-details docs-card docs-card-muted">
 <summary class="docs-details-summary">▶ Question 1. The celeb-api scores 5/100 and lands in Restricted tier. Can a teammate flip it to Autonomous so the AI can move faster?</summary>
 
-No. The tier is computed from the scorecard, not selected from a dropdown. The Red Queen reads the score and applies the matching policy. The only way to move from Restricted to Supervised to Autonomous is to **change the artifacts that feed the score**. Add prompt packs (Part 2), raise test coverage (Part 3), add fitness gates (Part 4), close TODOs and refresh dependencies (Parts 4 and 5). That is the entire arc of this workshop. A documented break-glass override is planned for Phase 9, but it is scoped, time-limited, and requires CODEOWNER approval with a written reason. "The AI was being slow" is not on the allowed list.
+No. The tier is computed from the scorecard, not selected from a dropdown. The Red Queen reads the score and applies the matching policy. The only way to move from Restricted to Supervised to Autonomous is to **change the artifacts that feed the score**. Add prompt packs (Part 2), raise test coverage (Part 3), add fitness gates (Part 4), close TODOs and refresh dependencies (Parts 4 and 5). That is the entire arc of this workshop. Today a per-session break-glass exists via `REDQUEEN_TOOL_APPROVED` / `REDQUEEN_PLAN_APPROVED` and every use lands in `.redqueen/audit-log.jsonl`; the full UX (scoped budgets, written reasons captured at override time, signed override events, CODEOWNER co-signing) is <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>. "The AI was being slow" is not on the allowed list under either model.
 
 </details>
 
@@ -337,7 +337,7 @@ We will deep-dive on the RCTRO format in Part 2. For Part 1, just see the **shap
 Senior backend engineer adding a query endpoint to the celeb-api.
 
 ## Context
-- BAR: APP-IMDB-002 (celeb-api). Tier: Restricted (5/100). Stack: TypeScript / Express / PostgreSQL via `pg`.
+- BAR: APP-IMDB-002 (celeb-api). Tier: Restricted (5/100). Stack: TypeScript / Express / MongoDB (via the official `mongodb` driver).
 - Existing CALM flow: celeb-frontend → celeb-api → celeb-db (unchanged).
 - Applicable prompt packs: /docs/prompts/owasp/A03_injection, /docs/prompts/owasp/A01_broken_access_control.
 - Relevant fitness functions: complexity ≤10, coverage ≥80% on new code.
@@ -347,11 +347,12 @@ Implement `GET /search?q={query}` returning up to 20 celebrities whose name
 contains the query string.
 
 ## Requirements
-- Parameterised queries only (pg `$1` placeholders). Never string concatenation.
-- Validate `q` with Zod: max 100 chars, allowlist regex `/^[a-zA-Z0-9 .\-']+$/`.
-- Generic error response on failure. No SQL, schema, or stack-trace leakage.
-- Hard-limit `LIMIT 20` in the query itself, not just in code.
-- Tests: valid search, empty query, SQL-injection payload, oversized payload, unicode payload.
+- Validate `q` with a Zod schema that parses it as `z.string()` (not `z.unknown()`), max 100 chars, allowlist regex `/^[a-zA-Z0-9 .\-']+$/`, and **explicitly rejects any object whose keys start with `$`** so `?q[$ne]=` cannot bypass.
+- Build the Mongo selector from the parsed value, not the raw `req.query.q`. Never call `.find(req.body)` / `.find(req.query)`.
+- No `$where`, `$accumulator`, or `$function`; any value passed to `$regex` is escaped (RE2-style, no unbounded backtracking).
+- Chain `.limit(20)` server-side and apply a projection allowlist (`.project({ name: 1, bio: 1 })` or equivalent) so password / internalNotes never reach the wire.
+- Generic error response on failure. No driver error, collection schema, or stack-trace leakage.
+- Tests: valid search, empty query, operator-injection (`q[$ne]=`), `$where` payload, regex DoS (`.*.*.*.*x`), oversized payload, unicode payload.
 
 ## Output
 - `src/routes/search.ts` (new route)
@@ -368,7 +369,7 @@ contains the query string.
 <details class="docs-details docs-card docs-card-muted">
 <summary class="docs-details-summary">✓ Check your work. Feature A.</summary>
 
-**Stage 2 (AI-Assisted).** The RCTRO is specific, the constraints are real (parameterised queries, Zod allowlist, hard `LIMIT 20`), and the security categories are named. This is exactly the work AI-Assisted mode is for. A human writes the contract, the AI fills it in, the human reviews every line.
+**Stage 2 (AI-Assisted).** The RCTRO is specific, the constraints are real (Zod `$`-key reject, escaped regex, server-side `.limit(20)`, projection allowlist), and the security categories are named. This is exactly the work AI-Assisted mode is for. A human writes the contract, the AI fills it in, the human reviews every line.
 
 **Tier needed: Supervised (50–79) at minimum.** Search endpoints are an A03 injection surface. The Red Queen wants `validate_action` over MCP to confirm the new route respects the existing CALM flow before the PR can merge. Today the celeb-api is Restricted. We *cannot* ship this feature yet. The arc from Part 2 onward is what earns the score lift. **Do not ship until the tier matches the work.**
 
@@ -387,7 +388,7 @@ Now you do it. Open **Cheshire → Issue Management → New Feature**, paste the
 
 The RCTRO Cheshire generates will have **no OWASP categories** (it is a rename, not new attack surface), a strong **test-coverage requirement** on changed contracts, and an acceptance criterion around **interface contract diff** (no breaking change to API consumers).
 
-**Stage 3 (Agentic)** is the right call. The work is mechanical, the success criteria are machine-checkable, and the diff can be verified by tooling (oasdiff once available in Phase 9). **Tier needed: Autonomous (80–100).** An Agentic rename in a Restricted-tier repo with patchy tests is how you ship a silent breaking change to your frontend. Today's celeb-api cannot ship this yet, and that is the correct answer.
+**Stage 3 (Agentic)** is the right call. The work is mechanical, the success criteria are machine-checkable, and the diff can be verified by tooling (the OpenAPI/protobuf/GraphQL contract-diff gate lands in <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>). **Tier needed: Autonomous (80–100).** An Agentic rename in a Restricted-tier repo with patchy tests is how you ship a silent breaking change to your frontend. Today's celeb-api cannot ship this yet, and that is the correct answer.
 
 </details>
 

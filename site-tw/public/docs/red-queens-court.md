@@ -86,7 +86,7 @@ The Red Queen is a unified governance intelligence and enforcement system. It do
   <rect x="610" y="173" width="130" height="26" rx="6" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.25)"/>
   <text x="675" y="190" text-anchor="middle" fill="#c4b5fd" font-size="9" font-family="system-ui, sans-serif">Permission Tiers</text>
   <rect x="310" y="210" width="180" height="22" rx="11" fill="rgba(74,222,128,0.12)" stroke="rgba(74,222,128,0.3)"/>
-  <text x="400" y="225" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600" font-family="system-ui, sans-serif">DETERMINISTIC  ·  AUDITABLE</text>
+  <text x="400" y="225" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600" font-family="system-ui, sans-serif">DETERMINISTIC  ·  POLICY-DRIVEN</text>
 </svg>
 
 <div class="docs-card docs-card-muted">
@@ -97,16 +97,16 @@ The Red Queen is a unified governance intelligence and enforcement system. It do
 </div>
 <div class="docs-card docs-card-muted">
 <div class="docs-heading">Layer 2: The Grin (MCP Server) + The Red Queen's Court — Contextual Validation</div>
-<div class="docs-muted">14 calm:// resources and 25 MCP tools make your governance mesh queryable by AI agents. The Red Queen's Court policy engine evaluates constraints deterministically — not as LLM suggestions. Today it covers tier, path, security-critical files, CALM flows, platform impact, and control-aware warnings through TypeScript rule evaluation. The agent receives an auditable allow, conditional, or deny decision.</div>
+<div class="docs-muted">13 calm:// resources and 25 MCP tools make your governance mesh queryable by AI agents. The Red Queen's Court policy engine evaluates constraints deterministically, not as LLM suggestions. Today it covers tier, path, security-critical files, CALM flows, platform impact, and control-aware warnings through TypeScript rule evaluation. The agent receives an allow, conditional, or deny decision and a structured reason. Today's decisions land in a plain <code>.redqueen/audit-log.jsonl</code>; the Hatter-grade signed-and-verifier-checked evidence chain for those decisions is Queen's Next Act (see below).</div>
 </div>
 <div class="docs-card docs-card-indigo">
-<div class="docs-heading">Layer 3: CI Required Status Check — Hard Merge Gate <span class="docs-copy">(Phase 9)</span></div>
+<div class="docs-heading">Layer 3: CI Required Status Check — Hard Merge Gate <span class="docs-copy">(Queen&rsquo;s Next Act)</span></div>
 <div class="docs-muted">The <code>redqueen-action</code> GitHub Action will run independent PR diff analysis as a required status check. No PR merges without governance clearance. Tree-sitter AST semantic diff will classify every code change by risk tier — cosmetic edits get lightweight checks, auth logic changes trigger full validation plus mandatory human review. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
 </div>
 </div>
 </div>
 
-**Six rails** guide and enforce governance today: **Permission Tiers** (agent autonomy bounded by governance scores), **Path Controls** (generated governance files stay read-only), **Security-Critical Paths** (restricted-tier agents cannot modify sensitive areas), **CALM Flow Constraints** (declared relationships are checked), **Control Warnings** (security-control impact is surfaced), and **Platform Impact** (shared nodes trigger coordination warnings). Interface contract diffing and deeper STRIDE mitigation enforcement move into the Phase 9 hard gate.
+**Six rails** guide and enforce governance today: **Permission Tiers** (agent autonomy bounded by governance scores), **Path Controls** (generated governance files stay read-only), **Security-Critical Paths** (restricted-tier agents cannot modify sensitive areas), **CALM Flow Constraints** (declared relationships are checked), **Control Warnings** (security-control impact is surfaced), and **Platform Impact** (shared nodes trigger coordination warnings). Interface contract diffing and deeper STRIDE mitigation enforcement land in <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.
 
 ---
 
@@ -132,7 +132,7 @@ Modern applications span multiple repositories. A frontend. An API. A database. 
 
 **The Red Queen is moving governance across repository boundaries.**
 
-When your CALM model declares a flow from **checkout-ui** through **order-api** to **order-database**, Red Queen can already reason over the graph and warn on shared platform impact. Phase 9 extends this into machine-checkable interface contracts — OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff — so cross-repo contract violations can fail a required check and create coordination work in the owning repo.
+When your CALM model declares a flow from **checkout-ui** through **order-api** to **order-database**, Red Queen can already reason over the graph and warn on shared platform impact. <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a> extends this into machine-checkable interface contracts — OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff — so cross-repo contract violations can fail a required check and create coordination work in the owning repo.
 
 <svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -223,36 +223,48 @@ And when you genuinely need to bypass a constraint? A **break-glass procedure** 
 
 ## The feedback loop — agents that learn
 
-Every agent interaction is measured — governance scores before and after, guardrail actions counted, cross-repo violations tracked, every decision correlated to a specific PR, commit, and workflow run via SHA-256 audit trail.
+Every agent interaction is measured: governance scores before and after, guardrail actions counted, cross-repo violations tracked, and a per-decision record written to the local audit log. Today that log is plain `.redqueen/audit-log.jsonl` with a timestamp, the rule that fired, and the requested action; full signed, hash-chained correlation to a specific PR, commit, and workflow run is Queen's Next Act, modelled directly on the Hatter trust contract shipped on the planning side (see Queen's Next Act below).
 
-Governance scores aren't static — they behave like a **trust battery**. Scores decay over time based on review freshness, scan recency, and dependency age. Skip a security review? Your score drifts down. Let dependencies age? The trust battery drains. Active governance earns autonomy; neglect erodes it.
+Governance scores aren't static. They behave like a **trust battery**: scores decay over time based on review freshness, scan recency, and dependency age. Skip a security review? Your score drifts down. Let dependencies age? The trust battery drains. Active governance earns autonomy; neglect erodes it.
 
-In Phase 9, the Red Queen will build **agent memory**: which policy rules fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts. That memory will feed back into policy refinements. Agents get smarter. Policies get sharper. **Governance improves continuously.**
+In Queen's Next Act, the Red Queen will build **agent memory**: which policy rules fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts. That memory will feed back into policy refinements. Agents get smarter. Policies get sharper. **Governance improves continuously.**
 
 ---
 
 ## Where the Red Queen meets the Hatter
 
-The two modalities cross paths at exactly one point: the per-repo issue write that ends the Hatter's Tea Party pipeline. The Hatter's `design-bus.yml` workflow writes a landing issue in each target code repo, carrying the merged code-design slice and the OKR's `intent_thread_uuid`. The coding agent in that repo picks up the issue — and from the moment it reaches for a tool, the **Red Queen governs**. Same audit chain. Same governance scores. Same CALM model. Different governance modality.
+The two modalities cross paths at exactly one point: the per-repo issue write that ends the Hatter's Tea Party pipeline. The Hatter's `design-bus.yml` workflow writes a landing issue in each target code repo, carrying the merged code-design slice and the OKR's `intent_thread_uuid`. The coding agent in that repo picks up the issue, and from the moment it reaches for a tool, the **Red Queen governs**. Same governance scores. Same CALM model. Different governance modality.
 
-That seam is the single most-instrumented surface in the framework: every PR opened by a coding agent under a Hatter-issued landing issue carries the Hatter's Tag forward into the Red Queen's audit log, and every Red Queen `allow / conditional / deny` decision adds to that thread. Audit Report Export (from the OKR detail screen) reads both ends; the chain is unbroken.
+Today the Hatter's Tag can ride into the landing issue, and the Red Queen logs its own enforcement decisions to the repo-local `.redqueen/audit-log.jsonl`. The two records exist side by side, but the unified evidence chain (Hatter judgments and Red Queen decisions hash-chained and signed under the same trust model, verifier-checked end to end, mirrored in Looking Glass) is **Queen's Next Act**. Today the Hatter chain stops at the per-repo issue; the Red Queen chain starts at the next tool call; closing the seam is the work explicitly named below.
 
 ---
 
-## The road ahead — Phase 9 and beyond
+## Queen's Next Act
 
-The Red Queen ships eight phases today. Phase 9 — coming next — closes the loop with the CI hard merge gate and the audit-grade evidence chain that EU AI Act Article 12 and ISO/IEC 42001 ask for.
+Today the Red Queen makes deterministic policy decisions at the repo boundary. The decisions land in `.redqueen/audit-log.jsonl`. The Hatter, on the planning side, already runs a Hatter-grade trust contract: **runtime** records observed facts, **workflow** records recomputable GitHub state, the **agent** signs its judgments, each event kind has exactly one legitimate source, the verifier rejects mismatches, and the Looking Glass dashboard mirrors the verifier so the badge matches what CI accepts.
+
+Queen's Next Act adopts that same trust contract for enforcement decisions. The Hatter makes intent and design accountable; the Red Queen will make implementation action accountable under the same rules.
+
+- **Runtime** records what the agent actually attempted: the tool, the arguments, the timestamp. Observed at the hook boundary.
+- **Workflow** records what GitHub state shows: the PR diff, the labels, the reviewer state, the required-check result. Recomputable from the repo.
+- **Agent** signs its own judgments: the override approval, the break-glass declaration, the human-in-the-loop sign-off. Signed under the active session's key.
+- **Each enforcement event kind has exactly one legitimate source.** Allow, conditional, and deny decisions are runtime-emitted. Required-status outcomes are workflow-emitted. Overrides are agent-signed. The verifier rejects any line whose kind and source disagree.
+- **Looking Glass mirrors the verifier.** The Red Queen tile on the OKR detail screen shows the same sealed/tampered state CI would compute.
+
+That is the same architecture currently hardened across ten-plus adversarial audit rounds on the Hatter side. The Red Queen will adopt it as a single, coherent extension rather than a parallel mechanism.
+
+The supporting deliverables below carry the work.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">Red Queen Phase 9</div>
+    <div class="docs-card-kicker">Queen's Next Act</div>
     <div class="docs-heading">The hard gate</div>
-    <div class="docs-copy"><code>redqueen-action</code> CI hard gate with tree-sitter AST semantic diff, machine-checkable contract diffs, break-glass budgets, agent memory, and adaptive policy refinement.</div>
+    <div class="docs-copy"><code>redqueen-action</code> CI hard gate with tree-sitter AST semantic diff, machine-checkable contract diffs, import / layer graph enforcement, break-glass budgets, agent memory, and adaptive policy refinement.</div>
   </div>
   <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">Audit chain</div>
+    <div class="docs-card-kicker">Queen's Next Act</div>
     <div class="docs-heading">The Court Recorder</div>
-    <div class="docs-copy">Merkle-chained, append-only audit log of every Red Queen allow / deny / override. CloudEvents v1.0 envelopes. Inclusion-proof CLI. SIEM export to Splunk, Sentinel, Datadog. Built for EU AI Act Art. 12 retention.</div>
+    <div class="docs-copy">Hash-chained, signed, verifier-checked audit log of every Red Queen allow / conditional / deny / override, written under the same three-lane trust contract the Hatter ships today (runtime / workflow / agent). CloudEvents v1.0 envelopes, inclusion-proof CLI, SIEM export to Splunk, Sentinel, Datadog. Built for EU AI Act Art. 12 retention.</div>
   </div>
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Looking Glass pillar</div>
