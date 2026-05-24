@@ -1789,27 +1789,95 @@ const handleFormatResearchIssueUpdate: SkillHandler = async (input) => {
 const AuditEmitInput = z.object({
   okrId: z.string().min(1),
   runId: z.string().min(1),
-  // Bug K (cert-run-5) added `self_review` + `self_review_exhausted`
-  // to the enum so they could be emitted by the workflow's PR-body
-  // parser. Bug V (Codex round-6) keeps the kinds in the enum but
-  // flips ownership: the agent now emits `self_review` from inside
-  // its persona-prompt section (Architect / Security) while the
-  // per-epoch private key is still in scope, producing signed
-  // events. The workflow no longer emits self_review at all.
+  // Bug Y (Codex round-9) — CLI-callable kinds. Runtime-only kinds
+  // (`skill_call`, `llm_call`) are NOT in this enum: only the internal
+  // runSkill() auto-emit path can produce them, via the `internal:true`
+  // flag on emitAuditEvent. Agent-callable kinds (the agent's CLI
+  // invocation): `self_review`, `self_review_exhausted`, `gap_loop`,
+  // `review_received`, `review_emitted`. Workflow-callable kinds (the
+  // CI YAML's CLI invocation): `artifact_written`, `state_transition`,
+  // `human_gate`. The runner sets `payload.emitted_by` from the
+  // kind→origin map below (NOT from user input — round-9 closed the
+  // hole where an agent set `payload.emitted_by:workflow` to fake
+  // workflow attribution).
   eventKind: z.enum([
-    'skill_call', 'llm_call', 'artifact_written', 'review_received',
-    'self_review', 'self_review_exhausted',
-    'state_transition', 'human_gate',
+    // Agent-emitted (signed under per-epoch private key):
+    'self_review', 'self_review_exhausted', 'gap_loop',
+    'review_received', 'review_emitted',
+    // Workflow-emitted (unsigned, re-derivable from canonical sources):
+    'artifact_written', 'state_transition', 'human_gate',
   ]),
-  // Note: WORKFLOW_EMITTABLE_KINDS (defined below) constrains which of
-  // these event kinds may carry `payload.emitted_by: 'workflow'` in
-  // the chain verifier. Post-Bug-V only {artifact_written,
-  // state_transition, human_gate} are workflow-emittable; everything
-  // else MUST be agent-signed regardless of attribution.
   payload: z.record(z.string(), z.unknown()),
   phase: z.enum(['why', 'how', 'what']),
   intentThreadUuid: z.string().min(1),
 });
+
+/**
+ * Internal-path schema — superset of AuditEmitInput that ALSO accepts
+ * runtime-only kinds (`skill_call`, `llm_call`). Used by `runSkill()`'s
+ * auto-emit when it passes `{ internal: true }` to emitAuditEvent.
+ * The CLI dispatcher never passes this flag, so user-supplied input
+ * still hits the narrower AuditEmitInput schema and runtime kinds
+ * remain unreachable from outside the runner.
+ */
+const InternalAuditEmitInput = z.object({
+  okrId: z.string().min(1),
+  runId: z.string().min(1),
+  eventKind: z.enum([
+    // Runtime-only (only the internal auto-emit path):
+    'skill_call', 'llm_call',
+    // Agent (signed):
+    'self_review', 'self_review_exhausted', 'gap_loop',
+    'review_received', 'review_emitted',
+    // Workflow (unsigned, allowlisted):
+    'artifact_written', 'state_transition', 'human_gate',
+  ]),
+  payload: z.record(z.string(), z.unknown()),
+  phase: z.enum(['why', 'how', 'what']),
+  intentThreadUuid: z.string().min(1),
+});
+
+/**
+ * Bug Y (Codex round-9) — event_kind → origin map. Single source of
+ * truth for who can emit which kind + what `payload.emitted_by` value
+ * the runner stamps onto the event.
+ *
+ * `runtime` → only the internal `runSkill()` auto-emit path. The runner
+ *   observes the actual handler invocation; agents + workflows cannot
+ *   fake this from outside the runner process.
+ * `agent`   → CLI invocation of `skill-audit-emit-event` from inside
+ *   the agent's session. Signed under the active per-epoch private
+ *   key. Persona-critique judgment lives here (`self_review`).
+ * `workflow`→ CLI invocation from inside a GitHub Actions step.
+ *   Unsigned (no signing key in CI). Allowed only for kinds that are
+ *   re-derivable from canonical sources (git diff, PR labels, PR
+ *   reviewer state) so the workflow itself can fail-loud on payload
+ *   mismatch — the agent CAN call this path from its `execute` tool,
+ *   but a forged payload won't match what the workflow's verdict step
+ *   re-derives, producing a degraded verdict.
+ *
+ * The verifier (handleAuditVerifyChain) cross-checks every chain
+ * event's `payload.emitted_by` against this map. A hand-written
+ * line whose `event_kind` and `emitted_by` don't match the map is
+ * forgery and gets rejected with `origin-kind-mismatch`.
+ */
+const EVENT_KIND_ORIGIN: Record<string, 'runtime' | 'agent' | 'workflow'> = {
+  // Runtime — only the internal runSkill() auto-emit path can produce these.
+  skill_call: 'runtime',
+  llm_call: 'runtime',
+  // Agent — emitted via CLI from inside the agent's persona-prompt section,
+  // signed under the active per-epoch private key.
+  self_review: 'agent',
+  self_review_exhausted: 'agent',
+  gap_loop: 'agent',
+  review_received: 'agent',
+  review_emitted: 'agent',
+  // Workflow — emitted via CLI from inside a GitHub Actions step,
+  // unsigned, re-derivable from canonical sources.
+  artifact_written: 'workflow',
+  state_transition: 'workflow',
+  human_gate: 'workflow',
+};
 
 /**
  * Bug U (Codex round-5) + Bug V (Codex round-6) — workflow-emittable
@@ -2058,10 +2126,43 @@ function verifyEventSignature(pubKey: KeyObject, eventHashHex: string, signature
  * reason: 'audit-write-failed-after-retries'}` per the SKILL.md
  * contract — agents treat this as non-blocking.
  */
-const handleAuditEmitEvent: SkillHandler = async (input) => {
-  const parsed = AuditEmitInput.safeParse(input);
+/**
+ * Bug Y (Codex round-9) — single audit-emit code path with an
+ * internal-only flag. `internal: true` accepts runtime-only kinds
+ * (`skill_call`, `llm_call`) AND keeps the broader runtime input
+ * schema; `internal: false` is the public/CLI surface and rejects
+ * runtime kinds.
+ *
+ * Either way the runner DERIVES `payload.emitted_by` from the
+ * kind→origin map (`EVENT_KIND_ORIGIN`) — it does NOT trust a
+ * user-supplied `emitted_by`. That closes round-9 BLOCKING-1
+ * (agent could fake `skill_call` evidence) + BLOCKING-2 (agent
+ * could set `payload.emitted_by:workflow` on `artifact_written`
+ * to land an unsigned event that the verifier accepted).
+ */
+export async function emitAuditEvent(input: unknown, opts: { internal: boolean } = { internal: false }): Promise<SkillResult> {
+  const schema = opts.internal ? InternalAuditEmitInput : AuditEmitInput;
+  const parsed = schema.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
   const { okrId, runId, eventKind, payload, phase, intentThreadUuid } = parsed.data;
+  // Defense in depth: even when internal:true, only the runtime
+  // path should produce runtime kinds. (`internal:true` from CLI is
+  // unreachable today — readStdin → runSkill → handler with
+  // internal:false — but the check costs nothing.)
+  const expectedOrigin = EVENT_KIND_ORIGIN[eventKind];
+  if (expectedOrigin === 'runtime' && !opts.internal) {
+    return { ok: false, reason: `runtime-only-kind: '${eventKind}' may only be emitted by the runtime auto-emit path (runSkill); agent + workflow callers must invoke their respective kinds (self_review / artifact_written / etc).` };
+  }
+  // Strip user-supplied `payload.emitted_by` (NEVER trusted) and set
+  // it ourselves from the kind→origin map. This is the round-9 fix:
+  // pre-Y an agent could pass `payload.emitted_by:workflow` to skip
+  // the signing requirement on an `artifact_written` event; post-Y
+  // the runner overwrites that value, so the agent's only way to
+  // forge artifact_written is to live with workflow attribution +
+  // unsigned, which the workflow's own reproducibility check (compare
+  // payload sha to git diff) catches at verdict time.
+  const cleanPayload: Record<string, unknown> = { ...payload };
+  cleanPayload.emitted_by = expectedOrigin;
   const dir = path.join(meshPath(), 'okrs', okrId, 'audit', 'events');
   fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, `${runId}.jsonl`);
@@ -2094,21 +2195,13 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
           nextEventId = last.event_id + 1;
         }
       }
-      // Bug O (Task #72) — per-epoch signing.
-      //
-      // Workflow-emitted events stay unsigned-by-design (CI infrastructure,
-      // not an agent). Everything else (original agent + revise agent)
-      // gets a per-epoch signature; each agent session = one signer epoch.
-      //
-      // Post-Bug-T contract: every agent event MUST sign under the
-      // active per-epoch private key. The only legitimately-unsigned
-      // attribution is `emitted_by:'workflow'`, AND only for kinds
-      // in the WORKFLOW_EMITTABLE_KINDS allowlist (Bug V narrowed
-      // to {artifact_written, state_transition, human_gate}; Bug U
-      // added the enforcement, Bug V tightened the set). The legacy
-      // unsigned-revise-agent back-compat path was removed in Bug T.
-      const emittedBy = (payload as Record<string, unknown> | undefined)?.emitted_by;
-      const isWorkflowEmit = emittedBy === 'workflow';
+      // Bug Y (round-9) — `isWorkflowEmit` derived from the runner-set
+      // origin, NOT from user-supplied `payload.emitted_by`. Pre-Y the
+      // agent could set `payload.emitted_by:workflow` in its CLI input
+      // to skip the signing requirement; post-Y the runner overrode
+      // emitted_by from the kind→origin map above, so this branch is
+      // driven entirely by `expectedOrigin`.
+      const isWorkflowEmit = expectedOrigin === 'workflow';
 
       let privKey: KeyObject | null = null;
       let publicKeyPem: string | null = null;
@@ -2147,7 +2240,7 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
         intent_thread_uuid: intentThreadUuid,
         phase,
         event_kind: eventKind,
-        payload,
+        payload: cleanPayload,  // Bug Y — runner-controlled emitted_by; user input stripped
         prev_event_hash: prevHash,
         // Embed pub key on first event of each epoch (agent only).
         // Workflow events carry no public_key — they're system-trusted.
@@ -2172,7 +2265,16 @@ const handleAuditEmitEvent: SkillHandler = async (input) => {
     }
   }
   return { ok: false, reason: 'audit-write-failed-after-retries' };
-};
+}
+
+/**
+ * Public CLI surface for `audit-emit-event`. Always calls emitAuditEvent
+ * with `internal:false`, so the narrower AuditEmitInput schema applies
+ * (no `skill_call` / `llm_call`). Wrapped this way so the SkillHandler
+ * type stays clean while runSkill can call emitAuditEvent directly with
+ * `internal:true` for the runtime auto-emit path.
+ */
+const handleAuditEmitEvent: SkillHandler = async (input) => emitAuditEvent(input, { internal: false });
 
 // ─────────────────────────────────────────────────────────────────────
 // Audit verify-chain — CI defense against forged audit logs
@@ -2278,9 +2380,31 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
     const eventPayload = (event as { payload?: { emitted_by?: string } }).payload;
     const emittedBy = eventPayload?.emitted_by;
     const eventKind = (event as { event_kind?: string }).event_kind;
-    const claimsWorkflow = emittedBy === 'workflow';
     const hasSignature = recordedSignature !== null && recordedSignature !== '';
     const recordedEpoch = (event as { signer_epoch?: unknown }).signer_epoch;
+    // Bug Y (round-9) — origin↔kind consistency check. The runner sets
+    // `payload.emitted_by` from the kind→origin map (NEVER from user
+    // input). A hand-written line whose `event_kind` and `emitted_by`
+    // don't match the map is forgery — an attacker who can write to
+    // the mesh repo can no longer fake a "workflow-attested skill_call"
+    // or an "agent-attested artifact_written" because the verifier
+    // checks the pair. Closes round-9 BLOCKING-1 (agent forging
+    // skill_call) and BLOCKING-2 (agent forging workflow-attributed
+    // artifact_written via emitted_by payload control).
+    const expectedOriginFromKind = EVENT_KIND_ORIGIN[eventKind ?? ''];
+    if (!expectedOriginFromKind) {
+      return {
+        ok: false,
+        reason: `unknown-event-kind-line-${i + 1}: event_kind='${eventKind ?? '<missing>'}' is not in the runner's EVENT_KIND_ORIGIN map. Likely a hand-rolled JSONL line or a chain from a future runner version. Hand-rolling the JSONL is what B25 chain-forgery-detection is designed to catch.`,
+      };
+    }
+    if (emittedBy !== expectedOriginFromKind) {
+      return {
+        ok: false,
+        reason: `origin-kind-mismatch-line-${i + 1}: event_kind='${eventKind}' requires payload.emitted_by='${expectedOriginFromKind}' (Bug Y kind→origin map), got '${emittedBy ?? '<missing>'}'. The runner sets emitted_by from the kind; mismatch means the line was hand-written rather than emitted via runSkill / audit-emit-event.`,
+      };
+    }
+    const claimsWorkflow = emittedBy === 'workflow';
     if (claimsWorkflow) {
       // Bug V allowlist — kind must be one the workflow legitimately produces.
       if (!WORKFLOW_EMITTABLE_KINDS.has(eventKind ?? '')) {
@@ -2466,14 +2590,19 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
       // CI gate still catches gaps post-hoc; this stderr line catches
       // them at write time.
       try {
-        const emit = await handleAuditEmitEvent({
+        // Bug Y (round-9) — runtime auto-emit goes through the internal
+        // path (`internal:true`) which accepts runtime-only kinds
+        // (`skill_call`, `llm_call`). The CLI-facing handleAuditEmitEvent
+        // wrapper passes `internal:false` and rejects these kinds, so
+        // agents cannot fake `skill_call` evidence via the CLI surface.
+        const emit = await emitAuditEvent({
           okrId: ctx.okrId,
           runId: ctx.runId,
           phase: ctx.phase,
           intentThreadUuid: ctx.intentThreadUuid,
           eventKind: 'skill_call',
           payload,
-        });
+        }, { internal: true });
         if (!emit.ok) {
           process.stderr.write(`::warning::audit auto-emit failed for skill ${name}: ${emit.reason}\n`);
         }

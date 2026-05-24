@@ -35,12 +35,47 @@ export const WORKFLOW_EMITTABLE_KINDS = new Set<string>([
   'human_gate',        // workflow gate events (PR reviewer state)
 ]);
 
+/**
+ * Bug Y (Codex round-9) — event_kind → origin map. Mirror of the
+ * runner's EVENT_KIND_ORIGIN in packages/research-runner/src/runner/skills.ts.
+ * The runner sets `payload.emitted_by` from this map (NEVER from user
+ * input) on every emission, so the verifier (and this UI mirror) can
+ * cross-check `event_kind ↔ emitted_by` to catch hand-written
+ * forgeries. Edits on one side MUST be mirrored here.
+ */
+export const EVENT_KIND_ORIGIN: Record<string, 'runtime' | 'agent' | 'workflow'> = {
+  skill_call: 'runtime',
+  llm_call: 'runtime',
+  self_review: 'agent',
+  self_review_exhausted: 'agent',
+  gap_loop: 'agent',
+  review_received: 'agent',
+  review_emitted: 'agent',
+  artifact_written: 'workflow',
+  state_transition: 'workflow',
+  human_gate: 'workflow',
+};
+
 /** Shape the seal detector reads off each parsed JSONL line. */
 interface SealEvent {
   event_kind?: string;
   signature?: string;
   signer_epoch?: unknown;
   payload?: { emitted_by?: string };
+}
+
+/**
+ * Bug Y (round-9) — does the event pass the runner's origin-kind
+ * consistency check? Returns false for forgeries where the line's
+ * declared `event_kind` and `payload.emitted_by` don't match the
+ * runner-set EVENT_KIND_ORIGIN map (or where the kind is unknown
+ * entirely).
+ */
+function originKindMatches(event: SealEvent): boolean {
+  const kind = event.event_kind ?? '';
+  const expected = EVENT_KIND_ORIGIN[kind];
+  if (!expected) { return false; }  // unknown kind — runner rejects too
+  return event.payload?.emitted_by === expected;
 }
 
 /**
@@ -85,6 +120,11 @@ export function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampe
       forged = true;
       continue;
     }
+    // Bug Y (round-9) — origin-kind consistency. The runner sets
+    // payload.emitted_by from EVENT_KIND_ORIGIN; a hand-written line
+    // whose kind + emitted_by disagree is forgery. UI mirrors the
+    // runner check so badges agree with what CI would emit.
+    if (!originKindMatches(event)) { forged = true; continue; }
     const claimsWorkflow = event.payload?.emitted_by === 'workflow';
     const kind = event.event_kind ?? '';
     const hasSignature = typeof event.signature === 'string' && event.signature.length > 0;
@@ -123,6 +163,10 @@ export function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampe
  * signer_epoch and signed-workflow-event checks now match the runner.
  */
 export function isEventLegitimate(event: { event_kind?: string; signature?: string; signer_epoch?: unknown; payload?: { emitted_by?: string } }): boolean {
+  // Bug Y (round-9) — origin-kind consistency check first. If the
+  // line's kind + emitted_by don't agree with EVENT_KIND_ORIGIN, it
+  // can't have come from a legitimate emission path.
+  if (!originKindMatches(event)) { return false; }
   const claimsWorkflow = event.payload?.emitted_by === 'workflow';
   const kind = event.event_kind ?? '';
   const hasSignature = typeof event.signature === 'string' && event.signature.length > 0;

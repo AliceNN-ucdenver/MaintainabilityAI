@@ -18,27 +18,32 @@
  * there must be mirrored in `packages/research-runner/src/runner/skills.ts`.
  */
 import { describe, expect, it } from 'vitest';
-import { WORKFLOW_EMITTABLE_KINDS, detectKnightSeal, isEventLegitimate } from '../chainVerify';
+import { WORKFLOW_EMITTABLE_KINDS, EVENT_KIND_ORIGIN, detectKnightSeal, isEventLegitimate } from '../chainVerify';
 
 // Test-helper: build a minimal JSONL event line with the fields
 // detectKnightSeal cares about. Pads the rest with placeholders.
-// `epoch` defaults to 1 when a signature is provided so the line
-// satisfies the round-8 signer_epoch contract; pass `epoch: undefined`
-// to test the missing-epoch attack explicitly.
-function event(kind: string, opts: { signature?: string; emittedBy?: string; epoch?: number | undefined; omitEpoch?: boolean } = {}): string {
+// Bug X / round-8: `epoch` defaults to 1 when signed so the line
+// satisfies the signer_epoch contract; pass `omitEpoch:true` to test
+// the missing-epoch attack explicitly.
+// Bug Y / round-9: `emittedBy` defaults to the kind→origin map so the
+// happy-path helper produces lines the runner would emit. Pass an
+// explicit `emittedBy` to test forgeries (origin-kind mismatch).
+function event(kind: string, opts: { signature?: string; emittedBy?: string; epoch?: number | undefined; omitEpoch?: boolean; omitEmittedBy?: boolean } = {}): string {
+  const defaultEmittedBy = EVENT_KIND_ORIGIN[kind];
+  const emittedBy = opts.emittedBy ?? (opts.omitEmittedBy ? undefined : defaultEmittedBy);
   const out: Record<string, unknown> = {
     event_id: 1,
     event_kind: kind,
     signature: opts.signature ?? '',
-    payload: opts.emittedBy ? { emitted_by: opts.emittedBy } : {},
+    payload: emittedBy ? { emitted_by: emittedBy } : {},
   };
   // Include signer_epoch when signed unless explicitly omitted.
-  // Workflow events default to no epoch (omitEpoch true unless overridden).
+  // Workflow events default to no epoch (epochs are agent-session concept).
   if (!opts.omitEpoch) {
     if (opts.epoch !== undefined) {
       out.signer_epoch = opts.epoch;
-    } else if (opts.signature && !opts.emittedBy) {
-      out.signer_epoch = 1;  // default for signed agent events
+    } else if (opts.signature && emittedBy !== 'workflow') {
+      out.signer_epoch = 1;  // default for signed agent/runtime events
     }
   }
   return JSON.stringify(out);
@@ -152,8 +157,14 @@ describe('chainVerify — detectKnightSeal Bug W round-7 regression', () => {
 });
 
 describe('chainVerify — isEventLegitimate gate for UI metrics', () => {
-  it('signed agent event with numeric signer_epoch → legitimate', () => {
-    expect(isEventLegitimate({ event_kind: 'skill_call', signature: 'a'.repeat(128), signer_epoch: 1 })).toBe(true);
+  it('signed runtime event with numeric signer_epoch + emitted_by:runtime → legitimate', () => {
+    // Bug Y: skill_call expects emitted_by:'runtime' (kind→origin map).
+    // The legacy assertion was missing emitted_by and passed pre-Y
+    // because the verifier only required signature + epoch.
+    expect(isEventLegitimate({ event_kind: 'skill_call', signature: 'a'.repeat(128), signer_epoch: 1, payload: { emitted_by: 'runtime' } })).toBe(true);
+  });
+  it('signed agent event (self_review) with emitted_by:agent → legitimate', () => {
+    expect(isEventLegitimate({ event_kind: 'self_review', signature: 'a'.repeat(128), signer_epoch: 1, payload: { emitted_by: 'agent' } })).toBe(true);
   });
 
   it('workflow-emittable allowlisted kinds (unsigned, no signer_epoch, workflow-attributed) → legitimate', () => {
@@ -188,6 +199,75 @@ describe('chainVerify — isEventLegitimate gate for UI metrics', () => {
 
   it('workflow event carrying signer_epoch → illegitimate', () => {
     expect(isEventLegitimate({ event_kind: 'artifact_written', signer_epoch: 1, payload: { emitted_by: 'workflow' } })).toBe(false);
+  });
+});
+
+describe('chainVerify — Bug Y / round-9 origin-kind regressions', () => {
+  // Codex round-9: the runner now sets payload.emitted_by from the
+  // kind→origin map (NOT from user input), and the verifier rejects
+  // any line where the kind and emitted_by disagree. UI mirrors that.
+
+  it('EVENT_KIND_ORIGIN mirrors runner: runtime / agent / workflow tiers', () => {
+    expect(EVENT_KIND_ORIGIN.skill_call).toBe('runtime');
+    expect(EVENT_KIND_ORIGIN.llm_call).toBe('runtime');
+    expect(EVENT_KIND_ORIGIN.self_review).toBe('agent');
+    expect(EVENT_KIND_ORIGIN.gap_loop).toBe('agent');
+    expect(EVENT_KIND_ORIGIN.artifact_written).toBe('workflow');
+    expect(EVENT_KIND_ORIGIN.state_transition).toBe('workflow');
+  });
+
+  it('forged self_review with emitted_by:workflow (mismatch with runner expectation) → sealTampered', () => {
+    // Pre-round-7 this was caught by the WORKFLOW_EMITTABLE_KINDS check.
+    // Post-round-9 the origin-kind check catches it first — self_review
+    // expects emitted_by:agent, not workflow.
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128) }),  // legit runtime event
+      event('self_review', { emittedBy: 'workflow' }),       // forged
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('forged artifact_written with emitted_by:agent → sealTampered', () => {
+    // Agent-attribution on a workflow kind violates the kind→origin map.
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128) }),
+      event('artifact_written', { emittedBy: 'agent' }),
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('event with NO emitted_by at all → sealTampered (origin missing)', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128) }),
+      event('self_review', { signature: 'b'.repeat(128), omitEmittedBy: true }),
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('unknown event_kind → sealTampered', () => {
+    const lines = [
+      event('skill_call', { signature: 'a'.repeat(128) }),
+      event('definitely_not_a_real_kind', { signature: 'b'.repeat(128) }),
+    ];
+    expect(detectKnightSeal(lines)).toEqual({ sealed: false, sealTampered: true });
+  });
+
+  it('isEventLegitimate rejects mismatched origin/kind across the matrix', () => {
+    const forgedMatrix: [string, string][] = [
+      // [kind, wrong-emittedBy]
+      ['skill_call', 'agent'],
+      ['skill_call', 'workflow'],
+      ['llm_call', 'agent'],
+      ['self_review', 'runtime'],
+      ['self_review', 'workflow'],
+      ['gap_loop', 'workflow'],
+      ['artifact_written', 'runtime'],
+      ['artifact_written', 'agent'],
+      ['state_transition', 'agent'],
+    ];
+    for (const [kind, wrong] of forgedMatrix) {
+      expect(isEventLegitimate({ event_kind: kind, payload: { emitted_by: wrong } }), `${kind} + ${wrong}`).toBe(false);
+    }
   });
 });
 

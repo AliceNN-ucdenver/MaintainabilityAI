@@ -2,17 +2,33 @@
 
 **Status:** canonical · **Last revised:** 2026-05-23 · **Owners:** runner package + workflow YAML
 
-## Trust model (post-Bug-V/W)
+## Trust model (post-Bug-V/W/Y)
 
-Deterministic skills gather facts, emit `skill_call`, verify chains, check structure, enforce manifests, pin paths, and apply workflow labels. The LLM does synthesis, gap-loop intent, and persona-critique judgment. The split is:
+Deterministic skills gather facts, emit `skill_call`, verify chains, check structure, enforce manifests, pin paths, and apply workflow labels. The LLM does synthesis, gap-loop intent, and persona-critique judgment. The split is pinned by a single source of truth — the `EVENT_KIND_ORIGIN` map in [`packages/research-runner/src/runner/skills.ts`](../../packages/research-runner/src/runner/skills.ts) — which assigns every event kind to exactly one of three origin tiers: **runtime**, **agent**, or **workflow** (Bug Y / Codex round-9).
 
-| Event class | Emitter | Trust property |
-|---|---|---|
-| **`skill_call`, `llm_call`** | Runner runtime (auto-emit from `runSkill()`) | Deterministic evidence — code observed the call before the result returned to the agent. Signed under the active per-epoch private key. |
-| **`artifact_written`, `state_transition`, `human_gate`** | Workflow YAML (deterministic, from `git diff` / PR labels / reviewer state) | Re-derivable evidence — any third party with read access can recompute the canonical source and check the payload matches. Unsigned (no signing key available to the workflow), but the workflow allowlist `WORKFLOW_EMITTABLE_KINDS` constrains workflow-attribution to exactly these three kinds. |
-| **`self_review`, `self_review_exhausted`** | Agent, via `audit-emit-event` from inside the persona-prompt section | **Signed LLM judgment** — the agent inhabits the Architect / Security persona, applies the prompt-pack criteria, emits the scored verdict. The runner signs under the per-epoch private key. Cross-checked against PR-body structured blocks by the workflow for block-vs-chain parity, but the chain is authoritative. |
+### The kind→origin map (single source of truth)
 
-`self_review` is not deterministic evidence — it's signed LLM judgment, with deterministic cross-checking and gating around it. The runner rejects any workflow-attributed event whose kind is outside the narrow `WORKFLOW_EMITTABLE_KINDS` allowlist with `workflow-event-kind-not-allowed`; the Looking Glass UI mirrors the same allowlist in `vscode-extension/src/webview/chainVerify.ts` so the badge agrees with what CI will accept (Bug W / Codex round-7).
+| Event kind | Origin tier | Emitter | Trust property |
+|---|---|---|---|
+| `skill_call` | **runtime** | Runner auto-emit from `runSkill()` ONLY | Deterministic evidence — code observed the call before the result returned to the agent. Signed under the active per-epoch private key. **The public CLI Zod enum rejects this kind** (`bad-input`) — agents and workflows cannot emit it via the CLI; only the internal `emitAuditEvent(input, { internal: true })` path can. |
+| `llm_call` | **runtime** | Runner auto-emit (when wired) ONLY | Same trust property as `skill_call`. **Also CLI-rejected.** |
+| `self_review` | **agent** | Agent, via `audit-emit-event` from inside the persona-prompt section | **Signed LLM judgment** — the agent inhabits the Architect / Security persona, applies the prompt-pack criteria, emits the scored verdict. The runner signs under the per-epoch private key. Cross-checked against PR-body structured blocks by the workflow for block-vs-chain parity, but the chain is authoritative. |
+| `self_review_exhausted` | **agent** | Agent, via `audit-emit-event` | Signed LLM judgment — emitted when the auto-revise loop hits MAX_AUTO_ROUNDS without convergence. |
+| `gap_loop` | **agent** | Agent, via `audit-emit-event` | Signed LLM judgment — WHY-phase coverage-gap iteration semantic marker (market-research-agent). Pre-Bug-Y this rode on `skill_call` with `payload.skill: 'gap-loop'`; that path is closed because `skill_call` is now runtime-only. The `count-skill-calls` action counts both new + legacy shapes for backward compatibility. |
+| `review_received` / `review_emitted` | **agent** (reserved) | (currently unused) | Reserved for a future reviewer-agent dispatch revival; would be agent-signed. |
+| `artifact_written` | **workflow** | Workflow YAML (deterministic, from `git diff`) | Re-derivable evidence — any third party with read access can recompute the sha + bytes from the PR HEAD and check the payload matches. Unsigned (no signing key available to the workflow). **The workflow's emit step re-derives sha + bytes from the current PR HEAD and compares; mismatch is treated as a forged artifact_written and degrades the verdict** (Bug Y closes the pre-emit hole where an attacker could pre-write a forged event and have the workflow's "skip if exists" check pass it through). |
+| `state_transition` | **workflow** | Workflow YAML (from PR labels) | Re-derivable from canonical PR state. |
+| `human_gate` | **workflow** | Workflow YAML (from PR reviewer state) | Re-derivable from canonical PR state. |
+
+### Enforcement points
+
+The map is enforced in three places:
+
+1. **`payload.emitted_by` is set by the runner from the map, NOT from user input.** Pre-Bug-Y an agent could pass `payload.emitted_by: 'workflow'` to fake workflow attribution; post-Y the runner overrides whatever the caller supplies — even legitimate emitters can't accidentally misattribute the kind they're emitting.
+2. **`audit-verify-chain` rejects events where `event_kind` and `emitted_by` don't match the map** with `origin-kind-mismatch-line-N`. Hand-rolled or pre-Y JSONL with mismatched attribution fails verification and the run is marked degraded.
+3. **The public CLI Zod enum (`AuditEmitInput.eventKind`) excludes `skill_call` and `llm_call`.** Agents calling `runSkill('audit-emit-event', { eventKind: 'skill_call' })` get `{ok: false, reason: 'bad-input'}` at the parser level — they cannot reach the runtime path through the CLI.
+
+`self_review` is not deterministic evidence — it's signed LLM judgment, with deterministic cross-checking and gating around it. The runner additionally rejects any workflow-attributed event whose kind is outside `WORKFLOW_EMITTABLE_KINDS` (`artifact_written, state_transition, human_gate`) with `workflow-event-kind-not-allowed`; the Looking Glass UI mirrors the same allowlist in `vscode-extension/src/webview/chainVerify.ts` so the badge agrees with what CI will accept (Bug W / Codex round-7). Together: Bug V narrowed the workflow allowlist, Bug X added signed-workflow-event rejection, Bug Y pinned the kind→origin map on the input side + closed the artifact_written pre-emit hole.
 
 This document is the **single source of truth** for the shape of audit
 events emitted by `@maintainabilityai/research-runner`. Every workflow
@@ -65,7 +81,7 @@ Every event written to JSONL has this top-level shape:
 | Field | Type | Source | Notes |
 |---|---|---|---|
 | `event_id` | integer | runner | Monotonically increases from 1 per JSONL file. |
-| `event_kind` | string | runner | `skill_call` \| `llm_call` \| `artifact_written` \| `self_review` \| `self_review_exhausted` \| `review_received` \| `state_transition` \| `human_gate` |
+| `event_kind` | string | runner | `skill_call` \| `llm_call` \| `artifact_written` \| `self_review` \| `self_review_exhausted` \| `gap_loop` \| `review_received` \| `review_emitted` \| `state_transition` \| `human_gate` — each kind is pinned to exactly one origin tier (runtime / agent / workflow) by the `EVENT_KIND_ORIGIN` map. See Trust model above. |
 | `phase` | string | runner | `why` \| `how` \| `what` — from `PHASE` env var. |
 | `okr_id` | string | runner | From `OKR_ID` env var. |
 | `run_id` | string | runner | From `RUN_ID` env var — the per-run identity that names this JSONL file. |

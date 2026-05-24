@@ -314,21 +314,38 @@ jobs:
             echo "::warning::artifact $ARTIFACT not found at PR head — skipping artifact_written emit"
             exit 0
           fi
-          # Idempotency: if a prior agent run or workflow already emitted
-          # artifact_written for this path, don't double-log.
-          EXISTING=$(jq -r --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path) | .event_id' "$JSONL" 2>/dev/null | head -1)
-          if [ -n "$EXISTING" ]; then
-            echo "::notice::artifact_written already in chain at event $EXISTING — skip"
+          # Bug Y (Codex round-9) — workflow reproducibility check.
+          # Pre-Y the workflow silently skipped if an artifact_written
+          # entry already existed for this path. Codex showed the agent
+          # could pre-emit a forged artifact_written via audit-emit-event
+          # and the workflow's "skip if exists" path would never check.
+          # Post-Y: re-derive sha + bytes from current HEAD, compare to
+          # any existing entry's payload, mark forgery if mismatched.
+          # (Bug Y/1 also stripped user-supplied payload.emitted_by — the
+          # runner sets it from the kind→origin map — but defense in
+          # depth costs nothing.)
+          CURRENT_SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+          CURRENT_BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
+          EXISTING_LINE=$(jq -rc --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path)' "$JSONL" 2>/dev/null | head -1)
+          if [ -n "$EXISTING_LINE" ]; then
+            EXISTING_SHA=$(echo "$EXISTING_LINE" | jq -r '.payload.sha256 // ""')
+            EXISTING_BYTES=$(echo "$EXISTING_LINE" | jq -r '.payload.bytes // -1')
+            EXISTING_ID=$(echo "$EXISTING_LINE" | jq -r '.event_id // -1')
+            if [ "$EXISTING_SHA" != "$CURRENT_SHA" ] || [ "$EXISTING_BYTES" != "$CURRENT_BYTES" ]; then
+              echo "::error::FORGED artifact_written detected — chain event $EXISTING_ID has sha=${EXISTING_SHA:0:16}… bytes=$EXISTING_BYTES but current PR head has sha=${CURRENT_SHA:0:16}… bytes=$CURRENT_BYTES. Bug Y/round-9: workflow re-derives + compares; mismatch is forgery."
+              echo "artifact_forged=true" >> "$GITHUB_OUTPUT"
+              echo "artifact_forged_reason=existing-event-${EXISTING_ID}-sha-${EXISTING_SHA:0:16}-vs-current-${CURRENT_SHA:0:16}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::artifact_written already in chain at event $EXISTING_ID — sha + bytes match current PR head ✓"
             exit 0
           fi
-          SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
-          BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
-          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$SHA" --argjson bytes "$BYTES" \
-            '{path: $path, sha256: $sha, bytes: $bytes, emitted_by: "workflow"}')
+          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$CURRENT_SHA" --argjson bytes "$CURRENT_BYTES" \
+            '{path: $path, sha256: $sha, bytes: $bytes}')
           jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg phase "$PHASE" --arg thread "$INTENT_THREAD_UUID" --argjson payload "$PAYLOAD" \
             '{okrId: $okr, runId: $run, phase: $phase, intentThreadUuid: $thread, eventKind: "artifact_written", payload: $payload}' \
             | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event \
-            && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
+            && echo "::notice::artifact_written emitted (sha256=${CURRENT_SHA:0:16}…)" \
             || echo "::warning::artifact_written emit failed (best-effort)"
 
       # Bug V (Codex round-6) — parser-only step. The agent now emits
@@ -977,6 +994,20 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
+          # Bug Y (Codex round-9) — artifact_written reproducibility
+          # gate. The artifact-emit step re-derives sha + bytes from
+          # current PR HEAD and compares against any existing chain
+          # event for the same path. Mismatch = forgery (agent pre-
+          # emitted artifact_written via audit-emit-event with a fake
+          # sha). Fail-loud as degraded.
+          ARTIFACT_FORGED="${{ steps.artifact-emit.outputs.artifact_forged }}"
+          ARTIFACT_FORGED_REASON="${{ steps.artifact-emit.outputs.artifact_forged_reason }}"
+          if [ "$VERDICT" = "ok" ] && [ "$ARTIFACT_FORGED" = "true" ]; then
+            VERDICT="degraded"; REASON="forged artifact_written event detected — chain payload does not match current PR head (Bug Y round-9 reproducibility check). ${ARTIFACT_FORGED_REASON}"
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
           if [ "$VERDICT" = "ok" ] && [ -z "$EVIDENCE_MODE" ]; then
             VERDICT="degraded"; REASON="Hatter Tag missing evidence_mode (§11.1.7)"
             EVIDENCE_FAIL="true"
@@ -1145,9 +1176,11 @@ jobs:
             false) printf '| Required skill_call manifest | ✗ incomplete — missing: %s |\n' "$(echo "$MANIFEST_MISSING_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
             *)     printf '| Required skill_call manifest | — n/a (no chain) |\n' >> "$BODY" ;;
           esac
-          # Knight's Seal v1 (B27): per-run Ed25519 sealing. The chain
-          # check above already enforces partial-signature tampering;
-          # this row surfaces the sealed/legacy state for the reviewer.
+          # Knight's Seal v1 (B27 + Bug O): per-event, per-epoch
+          # Ed25519 signing. The chain check above already enforces
+          # partial-signature tampering; this row surfaces the sealed
+          # state for the reviewer (Bug T removed legacy tolerance —
+          # an unsealed chain with events is always degraded).
           SEALED='${{ steps.chain.outputs.sealed }}'
           case "$SEALED" in
             true)  printf "| Knight's Seal (Ed25519) | ✓ Sealed |\n\n" >> "$BODY" ;;

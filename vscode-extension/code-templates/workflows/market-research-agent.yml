@@ -306,19 +306,30 @@ jobs:
             echo "::warning::artifact $ARTIFACT not found at PR head — skipping artifact_written emit"
             exit 0
           fi
-          EXISTING=$(jq -r --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path) | .event_id' "$JSONL" 2>/dev/null | head -1)
-          if [ -n "$EXISTING" ]; then
-            echo "::notice::artifact_written already in chain at event $EXISTING — skip"
+          # Bug Y (Codex round-9) — workflow reproducibility check.
+          # See prd-agent.yml for the same rationale; mirror impl.
+          CURRENT_SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+          CURRENT_BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
+          EXISTING_LINE=$(jq -rc --arg path "$ARTIFACT" 'select(.event_kind == "artifact_written" and .payload.path == $path)' "$JSONL" 2>/dev/null | head -1)
+          if [ -n "$EXISTING_LINE" ]; then
+            EXISTING_SHA=$(echo "$EXISTING_LINE" | jq -r '.payload.sha256 // ""')
+            EXISTING_BYTES=$(echo "$EXISTING_LINE" | jq -r '.payload.bytes // -1')
+            EXISTING_ID=$(echo "$EXISTING_LINE" | jq -r '.event_id // -1')
+            if [ "$EXISTING_SHA" != "$CURRENT_SHA" ] || [ "$EXISTING_BYTES" != "$CURRENT_BYTES" ]; then
+              echo "::error::FORGED artifact_written detected — chain event $EXISTING_ID has sha=${EXISTING_SHA:0:16}… bytes=$EXISTING_BYTES but current PR head has sha=${CURRENT_SHA:0:16}… bytes=$CURRENT_BYTES."
+              echo "artifact_forged=true" >> "$GITHUB_OUTPUT"
+              echo "artifact_forged_reason=existing-event-${EXISTING_ID}-sha-${EXISTING_SHA:0:16}-vs-current-${CURRENT_SHA:0:16}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::artifact_written already in chain at event $EXISTING_ID — sha + bytes match current PR head ✓"
             exit 0
           fi
-          SHA=$(sha256sum "$ARTIFACT" | awk '{print $1}')
-          BYTES=$(wc -c < "$ARTIFACT" | tr -d ' ')
-          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$SHA" --argjson bytes "$BYTES" \
-            '{path: $path, sha256: $sha, bytes: $bytes, emitted_by: "workflow"}')
+          PAYLOAD=$(jq -nc --arg path "$ARTIFACT" --arg sha "$CURRENT_SHA" --argjson bytes "$CURRENT_BYTES" \
+            '{path: $path, sha256: $sha, bytes: $bytes}')
           jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg phase "$PHASE" --arg thread "$INTENT_THREAD_UUID" --argjson payload "$PAYLOAD" \
             '{okrId: $okr, runId: $run, phase: $phase, intentThreadUuid: $thread, eventKind: "artifact_written", payload: $payload}' \
             | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event \
-            && echo "::notice::artifact_written emitted (sha256=${SHA:0:16}…)" \
+            && echo "::notice::artifact_written emitted (sha256=${CURRENT_SHA:0:16}…)" \
             || echo "::warning::artifact_written emit failed (best-effort)"
 
       - name: Count successful skill_calls + distinct queries
@@ -646,8 +657,9 @@ jobs:
           # it to design-pass / prd-pass / research-pass. The runner
           # already fails verification at write-time for this case, but
           # we surface SEAL_VERIFIED here so the audit comment + label
-          # logic agree end to end. Unsealed legacy chains (SEALED=false)
-          # are NOT failed here — they fall through pre-Bug-O tolerance.
+          # logic agree end to end. Bug T (pre-release simplification)
+          # removed legacy unsigned-chain tolerance; the unsealed-chain
+          # case below this is the universal-rule rejection.
           if [ "$VERDICT" = "ok" ] && [ "$SEALED" = "true" ] && [ "$SEAL_VERIFIED" != "true" ]; then
             VERDICT="degraded"; REASON="Knight's Seal verification failed: chain has signatures but at least one did not verify against its epoch public key"
             CHAIN_FAIL="true"
@@ -678,6 +690,16 @@ jobs:
           # passed if TOTAL was 0 but the chain had any other events.
           if [ "$VERDICT" = "ok" ] && [ "${CHAIN_COUNT:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
             VERDICT="degraded"; REASON="chain has events but is unsealed — no agent-emitted signed events present. Every agent event MUST sign with its per-epoch keypair (Bug T contract)."
+            CHAIN_FAIL="true"
+            EVIDENCE_FAIL="true"
+          fi
+
+          # Bug Y (Codex round-9) — artifact_written reproducibility
+          # gate. See prd-agent.yml for the same rationale; mirror impl.
+          ARTIFACT_FORGED="${{ steps.artifact-emit.outputs.artifact_forged }}"
+          ARTIFACT_FORGED_REASON="${{ steps.artifact-emit.outputs.artifact_forged_reason }}"
+          if [ "$VERDICT" = "ok" ] && [ "$ARTIFACT_FORGED" = "true" ]; then
+            VERDICT="degraded"; REASON="forged artifact_written event detected — chain payload does not match current PR head (Bug Y round-9 reproducibility check). ${ARTIFACT_FORGED_REASON}"
             CHAIN_FAIL="true"
             EVIDENCE_FAIL="true"
           fi

@@ -81,9 +81,18 @@ runs:
         ARXIV=$(count_skill 'arxiv-search')
         USPTO=$(count_skill 'uspto-search')
         HN=$(count_skill 'hackernews-search')
-        GAP_LOOP=$(count_skill 'gap-loop')
+        # Bug Y / round-9: the gap-loop marker moved to its own
+        # event_kind:gap_loop (pre-Y it rode on skill_call with
+        # payload.skill='gap-loop', but skill_call is now runtime-only
+        # — agents can't emit it via the CLI). Count the new kind;
+        # fall back to the legacy shape for any in-flight chains.
+        GAP_LOOP_NEW=$(jq -rc 'select(.event_kind == "gap_loop")' "$JSONL_PATH" 2>/dev/null | jq -s 'length' 2>/dev/null || echo 0)
+        GAP_LOOP_LEGACY=$(count_skill 'gap-loop')
+        GAP_LOOP=$((GAP_LOOP_NEW + GAP_LOOP_LEGACY))
         TOTAL=$((TAVILY + ARXIV + USPTO + HN))
-        GAP_REASON=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" 2>/dev/null | head -1 || true)
+        GAP_REASON_NEW=$(jq -r 'select(.event_kind == "gap_loop") | .payload.reason' "$JSONL_PATH" 2>/dev/null | head -1 || true)
+        GAP_REASON_LEGACY=$(jq -r 'select(.event_kind == "skill_call" and .payload.skill == "gap-loop") | .payload.reason' "$JSONL_PATH" 2>/dev/null | head -1 || true)
+        GAP_REASON="${GAP_REASON_NEW:-$GAP_REASON_LEGACY}"
 
         TAVILY_Q=$(count_queries 'tavily-search')
         ARXIV_Q=$(count_queries 'arxiv-search')
