@@ -341,7 +341,7 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <text x="20" y="390" fill="#c4b5fd" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AGENTS · EXECUTE IN PARALLEL</text>
   <g transform="translate(28,402)">
     <rect x="0" y="0" width="174" height="74" rx="9" fill="url(#teamAgent)" stroke="rgba(196,181,253,0.5)"/>
-    <text x="87" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">research-agent</text>
+    <text x="87" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">market-research-agent</text>
     <text x="87" y="40" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="system-ui, sans-serif">epoch 1 · WHY</text>
     <text x="87" y="60" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">four oracles in parallel</text>
   </g>
@@ -1023,8 +1023,8 @@ Five actors the Hatter must withstand:
   <text x="83" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Author DID</text>
   <rect x="28" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="83" y="151" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Override fingerprint</text>
-  <rect x="28" y="164" width="110" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="83" y="179" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Knight's Seal (B+)</text>
+  <rect x="28" y="164" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="83" y="179" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Knight's Seal v1</text>
   <rect x="155" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="210" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Hash-chained JSONL</text>
   <rect x="155" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
@@ -1075,7 +1075,9 @@ Five actors the Hatter must withstand:
   <text x="494" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · Caterpillar's Challenge</text>
   <rect x="592" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="682" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.false-audit-fabrication</text>
-  <text x="682" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">verify-chain CI gate</text>
+  <text x="682" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">verify-chain + kind→source map</text>
+  <!-- Companion-threats annotation: A.audit-skip + A.audit-forge-payload close under the same defense -->
+  <text x="400" y="357" text-anchor="middle" fill="#86efac" font-size="9" font-style="italic" font-family="system-ui, sans-serif">↳ same defense closes A.audit-skip (omission) + A.audit-forge-payload (fabrication)</text>
   <!-- Status legend (relocated below the ASTRIDE row) -->
   <line x1="20" y1="368" x2="780" y2="368" stroke="rgba(148,163,184,0.15)" stroke-width="1" stroke-dasharray="4"/>
   <text x="400" y="388" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">STATUS LEGEND (applies to all cells above)</text>
