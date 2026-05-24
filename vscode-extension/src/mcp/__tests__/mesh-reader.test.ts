@@ -480,6 +480,114 @@ describe('Config Scaffold', () => {
         });
         expect(approved.status).toBe(0);
         expect(approved.stdout).toContain('"permissionDecision":"allow"');
+
+        // Per-decision audit logging: both the deny and the allow above
+        // should have appended JSONL entries to .redqueen/audit-log.jsonl.
+        const auditPath = path.join(tmpDir, '.redqueen', 'audit-log.jsonl');
+        expect(fs.existsSync(auditPath)).toBe(true);
+        const lines = fs.readFileSync(auditPath, 'utf8').trim().split('\n');
+        expect(lines.length).toBeGreaterThanOrEqual(2);
+        const entries = lines.map(l => JSON.parse(l));
+        const verdicts = entries.map(e => e.payload?.verdict);
+        expect(verdicts).toContain('deny');
+        expect(verdicts).toContain('allow');
+        for (const e of entries) {
+          expect(e.action).toBe('pre_tool_use');
+          expect(e.payload?.tool).toBe('Bash');
+          expect(typeof e.timestamp).toBe('string');
+        }
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('hook walks customRules and denies on regex match against file content', () => {
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, 'Test Bar Good', redQueen);
+      if ('error' in result) { return; }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-customrule-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const meshDir = path.join(tmpDir, 'governance-mesh');
+        fs.mkdirSync(meshDir);
+        fs.copyFileSync(path.join(FIXTURES, 'mesh.yaml'), path.join(meshDir, 'mesh.yaml'));
+
+        // Inject a custom rule into the generated policy.json. Real teams
+        // do this via the policy.json editor; here we patch the file
+        // directly to assert the walker fires.
+        const policyPath = path.join(tmpDir, '.redqueen', 'policy.json');
+        const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
+        policy.rules.customRules = [
+          {
+            id: 'SEC-101',
+            category: 'security',
+            severity: 'error',
+            appliesTo: ['src/routes/**'],
+            denyPattern: '\\.find\\(\\s*req\\.(body|query|params)',
+            message: 'Mongo selector built directly from req.body/query/params; validate with Zod first.',
+          },
+        ];
+        fs.writeFileSync(policyPath, JSON.stringify(policy, null, 2));
+
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+
+        // Bad write: matches denyPattern + appliesTo glob -> deny w/ ruleId.
+        const denyPayload = JSON.stringify({
+          tool_name: 'Write',
+          tool_input: {
+            file_path: 'src/routes/celebrity.ts',
+            content: 'await Celebrities.find(req.body);',
+          },
+        });
+        const denied = spawnSync(wrapperPath, {
+          input: denyPayload,
+          encoding: 'utf8',
+          cwd: tmpDir,
+          env: { ...process.env, REDQUEEN_TOOL_APPROVED: 'true' },
+        });
+        expect(denied.status).toBe(2);
+        expect(denied.stderr).toContain('SEC-101');
+
+        // Good write: validated input, no req.body -> allow.
+        const allowPayload = JSON.stringify({
+          tool_name: 'Write',
+          tool_input: {
+            file_path: 'src/routes/celebrity.ts',
+            content: 'const input = celebSchema.parse(req.body);\nawait Celebrities.find(input.selector);',
+          },
+        });
+        const allowed = spawnSync(wrapperPath, {
+          input: allowPayload,
+          encoding: 'utf8',
+          cwd: tmpDir,
+          env: { ...process.env, REDQUEEN_TOOL_APPROVED: 'true' },
+        });
+        expect(allowed.status).toBe(0);
+
+        // appliesTo scope: same bad content in a path the rule does not
+        // target should NOT trigger SEC-101.
+        const outOfScopePayload = JSON.stringify({
+          tool_name: 'Write',
+          tool_input: {
+            file_path: 'scripts/seed-fixtures.ts',
+            content: 'await Celebrities.find(req.body);',
+          },
+        });
+        const outOfScope = spawnSync(wrapperPath, {
+          input: outOfScopePayload,
+          encoding: 'utf8',
+          cwd: tmpDir,
+          env: { ...process.env, REDQUEEN_TOOL_APPROVED: 'true' },
+        });
+        expect(outOfScope.status).toBe(0);
+
+        // Audit log captured SEC-101 deny with the ruleId.
+        const auditPath = path.join(tmpDir, '.redqueen', 'audit-log.jsonl');
+        const entries = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(l => JSON.parse(l));
+        const sec101Deny = entries.find(e => e.payload?.ruleId === 'SEC-101' && e.payload?.verdict === 'deny');
+        expect(sec101Deny).toBeDefined();
+        expect(sec101Deny.payload.tool).toBe('Write');
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
@@ -707,6 +815,21 @@ describe("Red Queen's Court — Policy Engine", () => {
       expect(policy.tier).toBe('restricted');
       expect(policy.rules.toolRestrictions.restricted.deny).toContain('Bash');
       expect(policy.rules.toolRestrictions.restricted.deny).toContain('Write');
+    });
+
+    it('initializes customRules as empty array (team-extension point)', () => {
+      const bar = reader.getBar('test-bar-good')!;
+      const policy = generateStaticPolicy(bar);
+      expect(Array.isArray(policy.rules.customRules)).toBe(true);
+      expect(policy.rules.customRules).toHaveLength(0);
+    });
+
+    it('enables per-decision audit logging by default at the standard path', () => {
+      const bar = reader.getBar('test-bar-good')!;
+      const policy = generateStaticPolicy(bar);
+      expect(policy.auditLog).toBeDefined();
+      expect(policy.auditLog.enabled).toBe(true);
+      expect(policy.auditLog.path).toBe('.redqueen/audit-log.jsonl');
     });
   });
 

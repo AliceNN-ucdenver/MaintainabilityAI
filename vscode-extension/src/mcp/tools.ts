@@ -791,6 +791,30 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
 
       const decision = evaluate(ctx);
 
+      // Write per-call audit line. Fail-soft: validate_action is the agent's
+      // structured-check tool, and audit-log write failure must not break it.
+      try {
+        const auditEntry = createAuditEntry(
+          'validate_action',
+          bar.id,
+          bar.name,
+          {
+            verdict: decision.verdict,
+            allowed: decision.allowed,
+            actionType,
+            toolName,
+            filePath,
+            sourceNode,
+            targetNode,
+            violationCount: decision.violations.length,
+            primaryRuleId: decision.violations[0]?.ruleId || null,
+          },
+        );
+        appendAuditLog(reader.path, auditEntry);
+      } catch {
+        /* fail-soft */
+      }
+
       return {
         content: [{
           type: 'text' as const,

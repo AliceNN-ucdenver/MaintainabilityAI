@@ -355,6 +355,11 @@ function emitHookError(err) {
 function emitDecision(input, decision) {
   const agent = detectAgent(input);
 
+  // Write per-decision audit line BEFORE emitting so the record is durable
+  // even if the agent runtime kills us after stdout. Fail-soft: any error
+  // here is swallowed so the hook still enforces.
+  try { appendAuditLine(input, decision, agent); } catch (_) { /* fail-soft */ }
+
   if (agent === 'copilot') {
     process.stdout.write(JSON.stringify({
       permissionDecision: decision.allowed ? 'allow' : 'deny',
@@ -375,6 +380,51 @@ function emitDecision(input, decision) {
     },
   }));
   process.exit(0);
+}
+
+function appendAuditLine(input, decision, agent) {
+  const policyPath = path.join(process.cwd(), '.redqueen', 'policy.json');
+  if (!fs.existsSync(policyPath)) { return; }
+  let policy;
+  try { policy = JSON.parse(fs.readFileSync(policyPath, 'utf8')); } catch (_) { return; }
+
+  const auditCfg = (policy && policy.auditLog) || { enabled: true, path: '.redqueen/audit-log.jsonl' };
+  if (auditCfg.enabled === false) { return; }
+
+  const logPath = path.join(process.cwd(), auditCfg.path || '.redqueen/audit-log.jsonl');
+  const logDir = path.dirname(logPath);
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+
+  const toolName = canonicalToolName(input.tool_name || input.toolName || '');
+  const toolInput = parseToolInput(input.tool_input || input.toolArgs || {});
+  const filePath = toolInput.file_path || toolInput.filePath || toolInput.path || '';
+  const sessionId = process.env.CLAUDE_SESSION_ID ||
+    process.env.COPILOT_RUN_ID ||
+    process.env.GITHUB_RUN_ID ||
+    '';
+
+  const entry = {
+    timestamp: new Date().toISOString(),
+    action: 'pre_tool_use',
+    barId: policy.barId || '',
+    barName: policy.barName || '',
+    payload: {
+      tier: policy.tier || '',
+      agent: agent,
+      tool: toolName,
+      filePath: filePath,
+      verdict: decision.allowed ? 'allow' : 'deny',
+      reason: decision.reason || '',
+      ruleId: decision.ruleId || null,
+      sessionId: sessionId,
+    },
+  };
+
+  // JSONL append. Single line, single write — line-atomic on POSIX for
+  // payloads under PIPE_BUF (4096 bytes). Hook payload is well under that.
+  fs.appendFileSync(logPath, JSON.stringify(entry) + '\\n', 'utf8');
 }
 
 function detectAgent(input) {
@@ -450,6 +500,7 @@ function validate(input) {
     if (tierRules.deny && tierRules.deny.includes(toolName)) {
       return {
         allowed: false,
+        ruleId: 'TIER-001',
         reason:
           '[Red Queen] Tool "' + toolName + '" is denied for ' + tier +
           '-tier BARs (score: ' + policy.compositeScore + '/100). ' +
@@ -463,6 +514,7 @@ function validate(input) {
       toolInput.redqueenApproved !== true) {
     return {
       allowed: false,
+      ruleId: 'TIER-002',
       reason:
         '[Red Queen] Restricted-tier BARs are plan-first. Edit is blocked until ' +
         'human approval is recorded (set REDQUEEN_PLAN_APPROVED=true for approved runs).',
@@ -475,6 +527,7 @@ function validate(input) {
   if (tierRules && tierRules.requireApproval && tierRules.requireApproval.includes(toolName) && !hasApproval) {
     return {
       allowed: false,
+      ruleId: 'TIER-003',
       reason:
         '[Red Queen] Tool "' + toolName + '" requires approval for ' + tier +
         '-tier BARs. Record approval with REDQUEEN_TOOL_APPROVED=true or toolInput.redqueenApproved=true.',
@@ -488,6 +541,7 @@ function validate(input) {
       if (matchGlob(filePath, pattern)) {
         return {
           allowed: false,
+          ruleId: 'CTRL-001',
           reason:
             '[Red Queen] File "' + filePath + '" is governance-managed (read-only). ' +
             'Re-run scaffold_agent_config to update.',
@@ -502,6 +556,7 @@ function validate(input) {
       if (matchGlob(filePath, pattern)) {
         return {
           allowed: false,
+          ruleId: 'SEC-001',
           reason:
             '[Red Queen] File "' + filePath + '" is security-critical and cannot be ' +
             'modified by restricted-tier agents.',
@@ -519,10 +574,59 @@ function validate(input) {
     if (!allowed) {
       return {
         allowed: false,
+        ruleId: 'CALM-004',
         reason:
           '[Red Queen] CALM-004: No declared CALM relationship permits ' +
           sourceNode + ' -> ' + targetNode + '. Route through a declared interface or update the architecture first.',
       };
+    }
+  }
+
+  // Custom team rules. Walk customRules[] and deny on first regex hit
+  // whose appliesTo glob matches the target path (for Edit/Write) or any
+  // pattern (for Bash). Pathological regex compile/test errors are
+  // logged to stderr and the rule is skipped — team's responsibility to
+  // write rules that actually compile.
+  const customRules = Array.isArray(rules.customRules) ? rules.customRules : [];
+  if (customRules.length > 0) {
+    const content =
+      (toolName === 'Edit' && (toolInput.new_string || toolInput.newContent)) ||
+      (toolName === 'Write' && (toolInput.content || toolInput.new_string)) ||
+      (toolName === 'Bash' && (toolInput.command || '')) ||
+      '';
+    const targetPath = filePath || '';
+
+    for (var i = 0; i < customRules.length; i++) {
+      var rule = customRules[i];
+      if (!rule || !rule.id || !rule.denyPattern) { continue; }
+
+      // appliesTo match: for Bash with no filePath, match any rule whose
+      // appliesTo includes the literal '**' or is empty; for Edit/Write,
+      // require a glob hit.
+      var appliesTo = Array.isArray(rule.appliesTo) ? rule.appliesTo : [];
+      var pathMatches = false;
+      if (targetPath) {
+        for (var j = 0; j < appliesTo.length; j++) {
+          if (matchGlob(targetPath, appliesTo[j])) { pathMatches = true; break; }
+        }
+      } else if (toolName === 'Bash') {
+        pathMatches = appliesTo.length === 0 || appliesTo.indexOf('**') !== -1;
+      }
+      if (!pathMatches) { continue; }
+
+      var re;
+      try { re = new RegExp(rule.denyPattern); } catch (err) {
+        process.stderr.write('[Red Queen] customRule ' + rule.id + ' has invalid regex; skipping.\\n');
+        continue;
+      }
+
+      if (re.test(content)) {
+        return {
+          allowed: false,
+          ruleId: rule.id,
+          reason: '[Red Queen] ' + rule.id + ': ' + (rule.message || 'custom rule denial'),
+        };
+      }
     }
   }
 

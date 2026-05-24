@@ -86,6 +86,26 @@ export interface CalmRelationship {
   [key: string]: unknown;
 }
 
+/**
+ * Custom team rule for the Layer 1 hook walker. Teams add entries to
+ * `policy.json -> rules.customRules` to encode "we don't do it that way"
+ * patterns the OWASP/STRIDE packs do not catch out of the box.
+ *
+ * The walker tests `denyPattern` (RE2-style regex) against the proposed
+ * file content (Edit `new_string`, Write `content`) or shell command
+ * (Bash `command`) when the target `appliesTo` glob matches. A match
+ * fires a deny with the rule's `message` and the rule `id` is recorded
+ * on the audit-log line.
+ */
+export interface CustomRule {
+  id: string;
+  category: string;
+  severity: 'error' | 'warning';
+  appliesTo: string[];
+  denyPattern: string;
+  message: string;
+}
+
 /** Static policy rules pre-computed from the mesh (for Layer 1 hooks). */
 export interface StaticPolicy {
   barId: string;
@@ -104,6 +124,22 @@ export interface StaticPolicy {
       target: string;
       relationshipId: string;
     }>;
+    /**
+     * Team-extensible custom rules walked by the Layer 1 hook on every
+     * Edit / Write / Bash tool call. Starts empty; teams add rules over
+     * time as their institutional memory grows.
+     */
+    customRules: CustomRule[];
+  };
+  /**
+   * Per-decision audit logging configuration for the Layer 1 hook.
+   * When enabled, every PreToolUse decision (allow, deny, conditional)
+   * appends a JSONL line to `path`. Fail-soft: if the append fails the
+   * decision still emits — the hook never crashes on logging failure.
+   */
+  auditLog: {
+    enabled: boolean;
+    path: string;
   };
 }
 
@@ -575,6 +611,18 @@ export function generateStaticPolicy(
       securityCriticalPaths,
       readOnlyPaths,
       allowedConnections,
+      // Empty by default. Teams add entries as institutional memory grows;
+      // the hook walker walks this array on every Edit / Write / Bash call.
+      customRules: [],
+    },
+    // Per-decision audit logging is on by default. Disable per-repo by
+    // setting enabled:false; redirect by changing path. The hook writes
+    // one JSONL line per decision (allow / deny / conditional) into the
+    // same file that `score_snapshot` already writes to, so
+    // `readAuditLog()` returns both kinds without code changes.
+    auditLog: {
+      enabled: true,
+      path: '.redqueen/audit-log.jsonl',
     },
   };
 }
