@@ -362,8 +362,18 @@ jobs:
         run: |
           set -e
           if [ ! -f .github/workflows/scripts/verify-source-table.mjs ]; then
-            echo "::warning::verify-source-table.mjs not deployed — skipping source-table verification (mesh redeploy required)"
-            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            # Bug Z review fix — was previously a fail-OPEN skip ("warn +
+            # ok=true"). That meant a partial mesh deploy could ship a
+            # green WHY run with no source-claim verification at all,
+            # which is the exact "green but unchecked" class this gate
+            # exists to catch. Now fails closed as missing-verifier so
+            # the verdict step degrades the run with a clear reason.
+            echo "::error::verify-source-table.mjs not deployed — source-table verification cannot run. Open Looking Glass → Settings → Mesh Provisioning → Redeploy so the script lands on main, then re-trigger this audit."
+            echo "ok=false"          >> "$GITHUB_OUTPUT"
+            echo "missing=true"      >> "$GITHUB_OUTPUT"
+            echo "mismatches=0"      >> "$GITHUB_OUTPUT"
+            echo "unmatched=0"       >> "$GITHUB_OUTPUT"
+            echo "total=0"           >> "$GITHUB_OUTPUT"
             exit 0
           fi
           RESULT=$(node .github/workflows/scripts/verify-source-table.mjs)
@@ -759,13 +769,17 @@ jobs:
           # audited chain. Title-mismatches or URL-fabrications fail the
           # gate as evidence honesty failures. The WHY phase is where
           # this MUST be caught — downstream phases trust the source
-          # table to be honest.
+          # table to be honest. Bug Z review fix: missing verifier
+          # script now fails closed (was a fail-OPEN skip pre-fix).
           SRC_OK='${{ steps.source-verify.outputs.ok }}'
           SRC_MISMATCH='${{ steps.source-verify.outputs.mismatches }}'
           SRC_UNMATCHED='${{ steps.source-verify.outputs.unmatched }}'
           SRC_TOTAL='${{ steps.source-verify.outputs.total }}'
-          SRC_SKIPPED='${{ steps.source-verify.outputs.skipped }}'
-          if [ "$VERDICT" = "ok" ] && [ "$SRC_SKIPPED" != "true" ] && [ "$SRC_OK" != "true" ]; then
+          SRC_MISSING='${{ steps.source-verify.outputs.missing }}'
+          if [ "$VERDICT" = "ok" ] && [ "$SRC_MISSING" = "true" ]; then
+            VERDICT="degraded"; REASON="source-table verifier script missing from mesh — verify-source-table.mjs not deployed to .github/workflows/scripts/. Redeploy mesh workflows from Looking Glass and re-trigger this audit. WHY-phase evidence-laundering check cannot be skipped."
+            EVIDENCE_FAIL="true"
+          elif [ "$VERDICT" = "ok" ] && [ "$SRC_OK" != "true" ]; then
             VERDICT="degraded"; REASON="source-table mismatch: ${SRC_MISMATCH:-0} S[N] title(s) disagree with chain previews + ${SRC_UNMATCHED:-0} URL(s) not present in any audited provider result (across ${SRC_TOTAL:-0} cited sources). See ::error lines from the source-verify step for per-S detail. This is the evidence-laundering check the WHY phase exists to enforce."
             EVIDENCE_FAIL="true"
           fi

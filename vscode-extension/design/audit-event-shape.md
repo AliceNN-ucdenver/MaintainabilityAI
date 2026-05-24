@@ -22,6 +22,15 @@ The two records together cover the workflow lane completely:
 
 Both are workflow-owned; both are required evidence for a sealed phase. The verifier validates the JSONL after the finalize-time append, and the dashboard reads the same JSONL for badge state.
 
+#### Backfill semantics (correction-PR vs first-time finalize)
+
+For an OKR whose phase already merged before Bug Z landed (or any case where a correction-PR re-runs finalize against an already-advanced phase), the behavior is:
+
+- `artifact_written` **does** get appended on the correction-PR merge — finalize re-hashes the corrected artifact, idempotency-checks against any existing event (which won't be present on a pre-Z run), and appends.
+- `state_transition` **does not** get appended, because `META_ROLLED` is `false` — the OKR YAML's `meta.status` is already at the post-roll value from the original finalize, so the forward-roll guard skips the write, and the script (see `append-workflow-events.mjs`) only emits `state_transition` when `META_ROLLED=true`. This is the correct behavior: a correction-PR did not transition state, it corrected an artifact at a state that was already reached. Inventing a `state_transition` event for a transition that did not happen would be a fabricated workflow event.
+
+Net: a correction-PR closes the `artifact_written` gap for the corrected content but leaves the original phase's `state_transition` as missing. For an explicit retroactive backfill of `state_transition`, do not hand-emit — instead, treat the original phase as needing a phase-rollback + redo (the audit chain is supposed to record what actually happened, not what should have happened).
+
 ### The kind→origin map (single source of truth)
 
 | Event kind | Origin tier | Emitter | Trust property |

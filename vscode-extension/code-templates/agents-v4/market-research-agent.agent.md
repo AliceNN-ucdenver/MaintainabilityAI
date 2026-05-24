@@ -146,7 +146,7 @@ This is the ONLY invocation that emits an audit `skill_call` event (B28 Court Re
 13. **Audit events are emitted FOR you — you do NOT call `audit-emit-event` for `skill_call` or `artifact_written` events.** Per Court Recorder Auto-Logging (B28, design §11.6):
     - **`skill_call` events** — the runner auto-emits one per `runSkill()` invocation with payload `{skill, ok, duration_ms, reason?, queries?, result_count?}`. The search-skill handlers self-declare `queries` + `result_count` so the auto-emitted event carries everything `count-skill-calls` needs.
     - **Gap-loop marker** — the ONE place you still call `audit-emit-event` directly (step 8b). The gap-loop is a semantic declaration the runner can't infer.
-    - **`artifact_written` event** — the workflow detects the artifact path via `git diff` and emits the event after step 12. You do not call `audit-emit-event` for it.
+    - **`artifact_written` event** — emitted by **finalize-okr-action on PR merge** (post Bug Z, "PR audit verifies; finalize records"). The PR audit job computes the expected payload + detects forged existing events but does NOT mutate the chain — that job runs under `pull_request_target` with `persist-credentials: false` and has no write credentials to push back to the PR branch. The durable write lives in finalize, which runs on `main` with `contents: write`, hashes the merged artifact (sha + bytes), applies idempotency (match no-ops, conflict hard-fails), appends the event via the runner, then runs `audit-verify-chain` before committing. You do not call `audit-emit-event` for `artifact_written` at any point.
 
     Net: focus on **getting the data, getting the context, synthesizing the artifact**. The runner + workflow handle the audit log.
 
