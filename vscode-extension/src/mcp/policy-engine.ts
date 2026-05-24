@@ -144,9 +144,13 @@ export interface StaticPolicy {
   };
   /**
    * Per-decision audit logging configuration for the Layer 1 hook.
-   * When enabled, every PreToolUse decision (allow, deny, conditional)
-   * appends a JSONL line to `path`. Fail-soft: if the append fails the
-   * decision still emits — the hook never crashes on logging failure.
+   * When enabled, every PreToolUse decision (allow, deny, or override
+   * allow with `payload.override: true` + `bypassedRuleId` +
+   * `approvalSource`) appends a JSONL line to `path`. The hook itself
+   * emits only allow/deny; "conditional" is an MCP `validate_action`
+   * concept and is logged separately by that tool. Fail-soft: if the
+   * append fails the decision still emits; the hook never crashes on
+   * logging failure.
    */
   auditLog: {
     enabled: boolean;
@@ -628,9 +632,11 @@ export function generateStaticPolicy(
     },
     // Per-decision audit logging is on by default. Disable per-repo by
     // setting enabled:false; redirect by changing path. The hook writes
-    // one JSONL line per decision (allow / deny / conditional) into the
-    // same file that `score_snapshot` already writes to, so
-    // `readAuditLog()` returns both kinds without code changes.
+    // one JSONL line per decision (allow / deny / override-allow) into
+    // the same file that `score_snapshot` and the `validate_action` MCP
+    // tool already write to, so `readAuditLog()` returns all kinds
+    // without code changes. The "conditional" verdict only comes from
+    // `validate_action`; the PreToolUse hook is binary allow/deny.
     auditLog: {
       enabled: true,
       path: '.redqueen/audit-log.jsonl',
