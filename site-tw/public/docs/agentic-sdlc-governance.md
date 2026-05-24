@@ -676,7 +676,7 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
 
 ### Absolem: AI architecture advisor
 
-<svg viewBox="0 0 800 410" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Absolem — AI architecture advisor with seven specialized governance commands">
+<svg viewBox="0 0 800 410" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Absolem — AI architecture advisor with eight governance commands">
   <defs>
     <linearGradient id="absBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -713,9 +713,9 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   <text x="100" y="334" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">Mesh-grounded · cites 3 ADRs · 2 threats</text>
   <text x="100" y="354" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Sources: ADR-0004, ADR-0007, ADR-0011</text>
   <text x="100" y="367" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">STRIDE: THR-014 (tampering), THR-022</text>
-  <!-- RIGHT: 7 specialized commands -->
+  <!-- RIGHT: 8 governance commands -->
   <rect x="416" y="50" width="360" height="338" rx="10" fill="rgba(125,211,252,0.04)" stroke="rgba(125,211,252,0.25)"/>
-  <text x="436" y="74" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">SEVEN SPECIALIZED COMMANDS</text>
+  <text x="436" y="74" fill="#7dd3fc" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">EIGHT GOVERNANCE COMMANDS</text>
   <!-- 2-column grid: 7 commands -->
   <!-- /drift -->
   <rect x="436" y="90" width="156" height="46" rx="8" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
@@ -757,7 +757,7 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   <text x="400" y="402" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">"Who are you?" — the Caterpillar in Wonderland, after Alice landed on a mushroom. Same energy.</text>
 </svg>
 
-An AI governance assistant that doesn't just answer questions. It understands your architecture. Seven specialized commands: drift analysis, component addition, CALM validation, cross-pillar gap analysis, ADR suggestions, image-to-CALM conversion, freeform consultation. **Image-to-CALM** turns a whiteboard photo into a structured CALM 1.2 model. **Scan Repo** derives architecture bottom-up from running code.
+An AI governance assistant that doesn't just answer questions. It understands your architecture. Eight commands: drift analysis (`/drift`), component scaffolding (`/add-component`), CALM validation (`/validate`), cross-pillar gap analysis (`/gap-analysis`), ADR suggestions (`/adr`), whiteboard-to-CALM conversion (`/image-to-calm`), repo scan (`/scan-repo`), and freeform consultation (`/ask`). **Image-to-CALM** turns a whiteboard photo into a structured CALM 1.2 model. **Scan Repo** derives architecture bottom-up from running code.
 
 ### Oraculum: automated architecture review
 
