@@ -396,6 +396,18 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         ).toEqual([]);
       });
 
+      it('WHAT brownfield path-citation gate fails closed when inventory_paths is missing (Bug-Z)', () => {
+        // Final audit pass: with runtime-only skill_call evidence and
+        // no legacy unsigned-chain support, a brownfield knowledge-code
+        // call that lacks inventory_paths is no longer a compatibility
+        // case. Letting the path gate "skip" would reopen the substrate
+        // gap where the agent can cite invented `src/foo.ts` paths.
+        if (phase !== 'what') { return; }
+        expect(content).not.toMatch(/skipping gate \(knowledge-code skill_call may be pre-Bug-Q phase 2\)/);
+        expect(content).toContain('<missing inventory_paths>');
+        expect(content).toContain('all_violations = gate_errors + violations');
+      });
+
       it('workflow required[] manifest matches the agent prompt manifest BOTH WAYS (Bug-R / R1 — bidirectional parity)', () => {
         // Codex round-3 caught: round-2's parity test only checked
         // workflow→agent (every workflow-required skill must appear

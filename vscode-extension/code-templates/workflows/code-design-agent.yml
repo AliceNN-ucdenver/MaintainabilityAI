@@ -419,6 +419,7 @@ jobs:
           #    inventory_paths and key by repo slug.
           inventory = {}  # repo_slug -> set(paths)
           mode_by_repo = {}  # repo_slug -> 'brownfield' | 'greenfield'
+          gate_errors = []
           try:
               with open(jsonl, 'r', encoding='utf-8') as f:
                   for line in f:
@@ -438,6 +439,7 @@ jobs:
                           inventory[repo] = set(paths)
           except Exception as e:
               print(f"::warning::path-gate: failed to read JSONL: {e}")
+              gate_errors.append(f"jsonl-read-failed:{e}")
 
           # 2. Parse the artifact: walk per-repo subsections (### `owner/name`
           #    or `### owner/name`), collect backtick-quoted file paths in
@@ -504,21 +506,23 @@ jobs:
               if mode != 'brownfield': continue
               repo_inventory = inventory.get(repo, set())
               if not repo_inventory:
-                  print(f"::warning::path-gate: brownfield repo {repo} has no inventory_paths — skipping gate (knowledge-code skill_call may be pre-Bug-Q phase 2)")
+                  violations.append(f"{repo}:<missing inventory_paths>")
+                  print(f"::warning::path-gate: brownfield repo {repo} has no inventory_paths — failing gate (current knowledge-code runs must emit inventory_paths)")
                   continue
               for p in cited:
                   checked += 1
                   if p not in repo_inventory:
                       violations.append(f"{repo}:{p}")
-          ok = "true" if not violations else "false"
+          all_violations = gate_errors + violations
+          ok = "true" if not all_violations else "false"
           out = os.environ['GITHUB_OUTPUT']
           with open(out, 'a', encoding='utf-8') as f:
               f.write(f"ok={ok}\n")
               f.write(f"checked={checked}\n")
-              f.write(f"violation_count={len(violations)}\n")
-              f.write(f"violations={'; '.join(violations[:10])}\n")
-          if violations:
-              print(f"::warning::path-gate: {len(violations)} cited brownfield paths not in knowledge-code inventory: {'; '.join(violations[:5])}")
+              f.write(f"violation_count={len(all_violations)}\n")
+              f.write(f"violations={'; '.join(all_violations[:10])}\n")
+          if all_violations:
+              print(f"::warning::path-gate: {len(all_violations)} brownfield path/inventory violation(s): {'; '.join(all_violations[:5])}")
           else:
               print(f"::notice::path-gate: {checked} cited brownfield paths all verified against inventory")
           PYEOF

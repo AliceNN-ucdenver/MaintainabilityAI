@@ -26,7 +26,7 @@ Under Court Recorder Auto-Logging (design [agentic-sdlc.md](agentic-sdlc.md) §1
 | Ed25519 sealing | — | ✅ Runtime (B27) |
 | `state_transition` / `human_gate` events | — | ✅ Workflow |
 
-The agent literally **cannot** write to the audit log (except the declarative gap-loop marker, which is semantic and the runner can't infer). It produces content (the research doc, the query plan); deterministic code produces events. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written payloads).
+The agent cannot write runtime or workflow facts into the audit log. It produces content (the research doc, the query plan) and may sign the semantic `gap_loop` event because only the agent knows why it chose another search round. Runtime code records tool-call facts; workflow code records file-change facts. This closes T10 (agent skips emission to hide failures) and T11 (agent forges artifact_written payloads).
 
 ## Current state — validated end-to-end 2026-05-21 (PR #116)
 

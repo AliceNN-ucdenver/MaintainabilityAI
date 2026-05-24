@@ -90,7 +90,7 @@ The historical `docs/design/research-and-prd-agents.md` v0.1 design doc (retired
 - (a) → §1 of this document (archaeology mode).
 - (b) → [`agentic-sdlc.md`](agentic-sdlc.md) §11.5 (v1 spec) + §2 of this document (v2 cosign).
 - (c) → [`agentic-sdlc.md`](agentic-sdlc.md) §3.5 (hand-off canonical spec) and [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md).
-- (d) → [`agentic-sdlc.md`](agentic-sdlc.md) §13 B24 entry for why the multi-expert + 4-reviewer design was *replaced* by self-critique at PRD time (see also [`agentic-sdlc-prd.md`](agentic-sdlc-prd.md)), and §13 D8 / [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) for the open decision on whether to bring separate reviewers back for WHAT phase.
+- (d) → [`agentic-sdlc.md`](agentic-sdlc.md) §13 B24 entry for why the multi-expert + 4-reviewer design was *replaced* by self-critique at PRD time (see also [`agentic-sdlc-prd.md`](agentic-sdlc-prd.md)), and §13 D8 / [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) for the Bug V closure: WHAT keeps persona-switch self-critique, grounded on real code reads, rather than reviving separate reviewer agents.
 
 The v0.1 origin-story doc no longer has unique content. `agentic-sdlc.md` is the single canonical source.
 

@@ -392,11 +392,11 @@ If both critiques come back clean (`pass` or `minor` with no missing items), the
 
 Every critique becomes its own entry in the tamper-evident activity log — round 1 architecture, round 1 security, round 2 architecture, and so on. A reviewer walking the log later sees the full conversation the agent had with itself: what it caught, what it fixed, what it couldn't close.
 
-The next stage (the code design) starts the same way — persona-switch self-critique inside the code-design-agent — but the personas read **the actual code** in the target repositories, not just the spec. Because the code is genuinely a different evidence surface (the agent has to *look at it* to score it), if real-world runs show self-critique misses code-grounded findings a separately-dispatched reviewer would catch, we'll bring those reviewers back for the WHAT phase. The decision is data-driven, not designed-in.
+The next stage (the code design) starts the same way — persona-switch self-critique inside the code-design-agent — but the personas read **the actual code** in the target repositories, not just the spec. The old Tweedle reviewer-agent idea is retired as a dispatch model, but its useful contrarian logic lives on here: the author agent must switch hats, argue against its own design, and sign those review judgments into the audit chain. If future evidence shows this misses code-grounded findings, that becomes a new design review; it is not a current shipped path.
 
 ### How it's guarded
 
-The same merge gate pattern as Stage 2 — pull-request stays blocked until the system can independently confirm five things.
+The same merge gate pattern as Stage 2 — the pull request stays blocked until the system can independently confirm the evidence, structure, traceability, drift checks, and self-critique outcome.
 
 | Check | What it confirms |
 |---|---|

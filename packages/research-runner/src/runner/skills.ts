@@ -19,11 +19,12 @@
  * (set by `okr-bus.yml` when it shells out to the agent). Defaults to
  * `process.cwd()` for local dev.
  *
- * Audit event format: `skill-audit-emit-event` writes a new event taxonomy
- * (event_kind: skill_call | llm_call | artifact_written | review_received |
- * state_transition | human_gate) to `okrs/<id>/audit/events/<run>.jsonl`,
- * distinct from the pipeline runner's `node_kind` events. This is the
- * canonical agentic-SDLC audit format per design §11.1.6.
+ * Audit event format: `skill-audit-emit-event` writes the canonical
+ * agentic-SDLC event taxonomy to `okrs/<id>/audit/events/<run>.jsonl`,
+ * distinct from the pipeline runner's `node_kind` events. Runtime-only
+ * kinds (`skill_call`, `llm_call`) are module-private emissions from
+ * `runSkill()`; agent and workflow kinds enter through the public
+ * `audit-emit-event` skill.
  */
 import { createHash, generateKeyPairSync, sign as cryptoSign, verify as cryptoVerify, createPrivateKey, createPublicKey, type KeyObject } from 'node:crypto';
 import * as fs from 'node:fs';
@@ -1790,11 +1791,11 @@ const AuditEmitInput = z.object({
   okrId: z.string().min(1),
   runId: z.string().min(1),
   // Bug Y (Codex round-9) — CLI-callable kinds. Runtime-only kinds
-  // (`skill_call`, `llm_call`) are NOT in this enum: only the internal
-  // runSkill() auto-emit path can produce them, via the `internal:true`
-  // flag on emitAuditEvent. Agent-callable kinds (the agent's CLI
-  // invocation): `self_review`, `self_review_exhausted`, `gap_loop`,
-  // `review_received`, `review_emitted`. Workflow-callable kinds (the
+  // (`skill_call`, `llm_call`) are NOT in this enum: only runSkill()'s
+  // module-private auto-emit path can produce them. Agent-callable
+  // kinds (the agent's CLI invocation): `self_review`,
+  // `self_review_exhausted`, `gap_loop`, `review_received`,
+  // `review_emitted`. Workflow-callable kinds (the
   // CI YAML's CLI invocation): `artifact_written`, `state_transition`,
   // `human_gate`. The runner sets `payload.emitted_by` from the
   // kind→origin map below (NOT from user input — round-9 closed the
@@ -1815,10 +1816,9 @@ const AuditEmitInput = z.object({
 /**
  * Internal-path schema — superset of AuditEmitInput that ALSO accepts
  * runtime-only kinds (`skill_call`, `llm_call`). Used by `runSkill()`'s
- * auto-emit when it passes `{ internal: true }` to emitAuditEvent.
- * The CLI dispatcher never passes this flag, so user-supplied input
- * still hits the narrower AuditEmitInput schema and runtime kinds
- * remain unreachable from outside the runner.
+ * module-private auto-emit path. The CLI dispatcher still hits the
+ * narrower AuditEmitInput schema and runtime kinds remain unreachable
+ * from outside the runner.
  */
 const InternalAuditEmitInput = z.object({
   okrId: z.string().min(1),
@@ -2140,7 +2140,7 @@ function verifyEventSignature(pubKey: KeyObject, eventHashHex: string, signature
  * could set `payload.emitted_by:workflow` on `artifact_written`
  * to land an unsigned event that the verifier accepted).
  */
-export async function emitAuditEvent(input: unknown, opts: { internal: boolean } = { internal: false }): Promise<SkillResult> {
+async function emitAuditEvent(input: unknown, opts: { internal: boolean } = { internal: false }): Promise<SkillResult> {
   const schema = opts.internal ? InternalAuditEmitInput : AuditEmitInput;
   const parsed = schema.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
@@ -2271,8 +2271,8 @@ export async function emitAuditEvent(input: unknown, opts: { internal: boolean }
  * Public CLI surface for `audit-emit-event`. Always calls emitAuditEvent
  * with `internal:false`, so the narrower AuditEmitInput schema applies
  * (no `skill_call` / `llm_call`). Wrapped this way so the SkillHandler
- * type stays clean while runSkill can call emitAuditEvent directly with
- * `internal:true` for the runtime auto-emit path.
+ * type stays clean while runSkill can call the module-private emitter
+ * for the runtime auto-emit path.
  */
 const handleAuditEmitEvent: SkillHandler = async (input) => emitAuditEvent(input, { internal: false });
 
@@ -2590,11 +2590,11 @@ export async function runSkill(name: string, input: unknown): Promise<SkillResul
       // CI gate still catches gaps post-hoc; this stderr line catches
       // them at write time.
       try {
-        // Bug Y (round-9) — runtime auto-emit goes through the internal
-        // path (`internal:true`) which accepts runtime-only kinds
-        // (`skill_call`, `llm_call`). The CLI-facing handleAuditEmitEvent
-        // wrapper passes `internal:false` and rejects these kinds, so
-        // agents cannot fake `skill_call` evidence via the CLI surface.
+        // Bug Y/Z — runtime auto-emit goes through this module-private
+        // path, which accepts runtime-only kinds (`skill_call`,
+        // `llm_call`). The CLI-facing handleAuditEmitEvent wrapper
+        // rejects these kinds, so agents cannot fake `skill_call`
+        // evidence via the CLI surface.
         const emit = await emitAuditEvent({
           okrId: ctx.okrId,
           runId: ctx.runId,

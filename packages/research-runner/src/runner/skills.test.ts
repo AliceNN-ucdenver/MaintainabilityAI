@@ -14,7 +14,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { runSkill, SKILLS, isSkillName, emitAuditEvent } from './skills';
+import { runSkill, SKILLS, isSkillName } from './skills';
 
 function tmpMesh(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'skills-test-'));
@@ -31,6 +31,19 @@ function withMeshPath<T>(mesh: string, fn: () => Promise<T>): Promise<T> {
 function writeYaml(p: string, body: string): void {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, body, 'utf8');
+}
+
+async function emitRuntimeKnowledgeOkrForTest(vars: { okrId: string; runId: string; intentThreadUuid: string; phase: 'why' | 'how' | 'what' }): Promise<void> {
+  const mesh = process.env.MESH_PATH;
+  assert.ok(mesh, 'emitRuntimeKnowledgeOkrForTest requires withMeshPath()');
+  writeYaml(
+    path.join(mesh, 'okrs', vars.okrId, 'okr.yaml'),
+    `meta:\n  id: ${vars.okrId}\n  intentThreadUuid: ${vars.intentThreadUuid}\n`,
+  );
+  await withSession(vars, async () => {
+    const result = await runSkill('knowledge-okr', { okrId: vars.okrId });
+    assert.equal(result.ok, true, `knowledge-okr fixture should succeed for ${vars.okrId}`);
+  });
 }
 
 // ─── registry ────────────────────────────────────────────────────────
@@ -591,27 +604,19 @@ test('format-research-issue-update emits markdown + byte count', async () => {
 
 // ─── audit-emit-event ────────────────────────────────────────────────
 
-test('audit-emit-event (internal path) appends a hash-chained event the first time', async () => {
-  // Bug Y (round-9) — skill_call is a runtime-only kind; the public
-  // CLI rejects it. Tests that need to emit skill_call use the
-  // internal `emitAuditEvent(..., {internal:true})` path directly
-  // — the same path runSkill() uses for auto-emit.
+test('runSkill auto-emit appends a hash-chained runtime event the first time', async () => {
+  // Bug Z — tests must not reach into the privileged emitter. This
+  // exercises the real runtime path: session context + runSkill()
+  // auto-emits `skill_call` before the result returns to the agent.
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
-      const r = await emitAuditEvent({
+      await emitRuntimeKnowledgeOkrForTest({
         okrId: 'OKR-X',
         runId: 'RES-2026-05-19-abc',
-        eventKind: 'skill_call',
-        payload: { skill: 'tavily-search', duration_ms: 100 },
         phase: 'why',
         intentThreadUuid: '11111111-1111-1111-1111-111111111111',
-      }, { internal: true });
-      assert.equal(r.ok, true);
-      if (r.ok) {
-        assert.equal(r.eventId, 1);
-        assert.equal(typeof r.chainHead, 'string');
-      }
+      });
       const jsonl = fs.readFileSync(path.join(mesh, 'okrs', 'OKR-X', 'audit', 'events', 'RES-2026-05-19-abc.jsonl'), 'utf8');
       const lines = jsonl.split('\n').filter(Boolean);
       assert.equal(lines.length, 1);
@@ -619,6 +624,7 @@ test('audit-emit-event (internal path) appends a hash-chained event the first ti
       assert.equal(event.event_id, 1);
       assert.equal(event.prev_event_hash, null);
       assert.equal(event.event_kind, 'skill_call');
+      assert.equal(typeof event.event_hash, 'string');
       // Bug Y — runner sets payload.emitted_by from kind→origin map;
       // skill_call → runtime.
       assert.equal(event.payload.emitted_by, 'runtime');
@@ -626,40 +632,42 @@ test('audit-emit-event (internal path) appends a hash-chained event the first ti
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
-test('audit-emit-event (internal path) chains subsequent events with prev_event_hash', async () => {
+test('runSkill auto-emit chains subsequent runtime events with prev_event_hash', async () => {
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
-      const a = await emitAuditEvent({
-        okrId: 'OKR-Y', runId: 'RES-1', eventKind: 'skill_call',
-        payload: { skill: 'first' }, phase: 'why',
+      const vars = {
+        okrId: 'OKR-Y', runId: 'RES-1', phase: 'why' as const,
         intentThreadUuid: '22222222-2222-2222-2222-222222222222',
-      }, { internal: true });
-      const b = await emitAuditEvent({
-        okrId: 'OKR-Y', runId: 'RES-1', eventKind: 'llm_call',
-        payload: { model: 'claude-sonnet-4-6' }, phase: 'why',
-        intentThreadUuid: '22222222-2222-2222-2222-222222222222',
-      }, { internal: true });
-      assert.equal(a.ok, true);
-      assert.equal(b.ok, true);
-      if (a.ok && b.ok) {
-        assert.equal(b.eventId, 2);
-        assert.notEqual(a.chainHead, b.chainHead);
-        const jsonl = fs.readFileSync(path.join(mesh, 'okrs', 'OKR-Y', 'audit', 'events', 'RES-1.jsonl'), 'utf8');
-        const lines = jsonl.split('\n').filter(Boolean).map(l => JSON.parse(l));
-        assert.equal(lines[1].prev_event_hash, lines[0].event_hash);
-      }
+      };
+      await emitRuntimeKnowledgeOkrForTest(vars);
+      await emitRuntimeKnowledgeOkrForTest(vars);
+      const jsonl = fs.readFileSync(path.join(mesh, 'okrs', 'OKR-Y', 'audit', 'events', 'RES-1.jsonl'), 'utf8');
+      const lines = jsonl.split('\n').filter(Boolean).map(l => JSON.parse(l));
+      assert.equal(lines.length, 2);
+      assert.equal(lines[1].event_id, 2);
+      assert.equal(lines[1].prev_event_hash, lines[0].event_hash);
+      assert.notEqual(lines[0].event_hash, lines[1].event_hash);
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+test('Bug Z — privileged audit emitter is not exported from the package surface', async () => {
+  // Bug Y made runtime kinds unreachable through the public CLI, but
+  // leaving the privileged emitter exported from `skills.ts` made the
+  // internal flag a convention rather than a boundary. The module can
+  // keep using it internally; package consumers should not see it.
+  const skillsModule = await import('./skills') as Record<string, unknown>;
+  assert.equal(Object.prototype.hasOwnProperty.call(skillsModule, 'emitAuditEvent'), false);
 });
 
 test('Bug Y / round-9 — public CLI path rejects skill_call (runtime-only kind)', async () => {
   // Closes round-9 BLOCKING-1: agent could call runSkill('audit-emit-event')
   // with eventKind:skill_call to forge required-skill manifest evidence.
   // Post-Y the public AuditEmitInput enum excludes skill_call + llm_call;
-  // only the internal `emitAuditEvent(..., {internal:true})` path
-  // (used by runSkill auto-emit) can produce these kinds. This test
-  // MUST go through the public runSkill CLI surface to validate the gate.
+  // only runSkill's module-private auto-emit path can produce these
+  // kinds. This test MUST go through the public runSkill CLI surface
+  // to validate the gate.
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
@@ -747,11 +755,11 @@ test('audit-verify-chain accepts a runner-authored chain', async () => {
   try {
     await withMeshPath(mesh, async () => {
       const base = { okrId: 'OKR-V', runId: 'WHY-V-1', phase: 'why' as const, intentThreadUuid: '44444444-4444-4444-4444-444444444444' };
-      // Bug Y (round-9): skill_call is runtime-only; use the internal
-      // emitAuditEvent path. artifact_written stays on the public CLI
-      // surface (workflow kind, allowed).
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } }, { internal: true });
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true, result_count: 5, queries: ['q1'] } }, { internal: true });
+      // Bug Y/Z: skill_call is runtime-only. Generate it via the real
+      // runSkill() auto-emit path; artifact_written stays on the public
+      // CLI surface (workflow kind, allowed).
+      await emitRuntimeKnowledgeOkrForTest(base);
+      await emitRuntimeKnowledgeOkrForTest(base);
       const last = await runSkill('audit-emit-event', { ...base, eventKind: 'artifact_written', payload: { path: 'okrs/OKR-V/why/research-doc.md' } });
       const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-V', runId: 'WHY-V-1' });
       assert.equal(verify.ok, true);
@@ -918,15 +926,17 @@ test("Knight's Seal: audit-emit-event signs events + persists public key beside 
   const mesh = tmpMesh();
   try {
     await withMeshPath(mesh, async () => {
-      const base = { okrId: 'OKR-SEAL', runId: 'WHY-SEAL-1', phase: 'why' as const, intentThreadUuid: '66666666-6666-6666-6666-666666666666' };
-      const first = await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } }, { internal: true });
-      assert.equal(first.ok, true);
-      if (first.ok) { assert.equal(first.sealed, true); }
+      await emitRuntimeKnowledgeOkrForTest({
+        okrId: 'OKR-SEAL',
+        runId: 'WHY-SEAL-1',
+        phase: 'why',
+        intentThreadUuid: '66666666-6666-6666-6666-666666666666',
+      });
 
       // Bug O (Task #72) — public key landed in the mesh as
-      // <runId>.epoch-1.pub.pem (per-epoch path). Legacy <runId>.pub.pem
-      // path is only used as a backward-compat read; new code writes
-      // the epoch-suffixed name.
+      // <runId>.epoch-1.pub.pem (per-epoch path). Bug T removed the
+      // legacy <runId>.pub.pem fallback; new code only writes the
+      // epoch-suffixed name.
       const pubPath = path.join(mesh, 'okrs', 'OKR-SEAL', 'audit', 'keys', 'WHY-SEAL-1.epoch-1.pub.pem');
       assert.ok(fs.existsSync(pubPath), 'epoch-1 public key should be persisted under audit/keys/');
       const pubPem = fs.readFileSync(pubPath, 'utf8');
@@ -959,8 +969,8 @@ test("Knight's Seal: audit-verify-chain reports sealed:true sealVerified:true on
   try {
     await withMeshPath(mesh, async () => {
       const base = { okrId: 'OKR-SEAL2', runId: 'WHY-SEAL-2', phase: 'why' as const, intentThreadUuid: '77777777-7777-7777-7777-777777777777' };
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } }, { internal: true });
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } }, { internal: true });
+      await emitRuntimeKnowledgeOkrForTest(base);
+      await emitRuntimeKnowledgeOkrForTest(base);
       await runSkill('audit-emit-event', { ...base, eventKind: 'artifact_written', payload: { path: 'okrs/OKR-SEAL2/why/research-doc.md' } });
       const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-SEAL2', runId: 'WHY-SEAL-2' });
       assert.equal(verify.ok, true);
@@ -978,8 +988,8 @@ test("Knight's Seal: audit-verify-chain catches a tampered signature (Ed25519 mi
   try {
     await withMeshPath(mesh, async () => {
       const base = { okrId: 'OKR-TAMPER', runId: 'WHY-TAMPER-1', phase: 'why' as const, intentThreadUuid: '88888888-8888-8888-8888-888888888888' };
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } }, { internal: true });
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } }, { internal: true });
+      await emitRuntimeKnowledgeOkrForTest(base);
+      await emitRuntimeKnowledgeOkrForTest(base);
 
       // Flip one byte of the signature on event 2 (still a valid hex
       // string, still 128 chars, but won't verify against the hash).
@@ -1002,8 +1012,8 @@ test("Knight's Seal: audit-verify-chain catches partial-signature tampering", as
   try {
     await withMeshPath(mesh, async () => {
       const base = { okrId: 'OKR-PARTIAL', runId: 'WHY-PART-1', phase: 'why' as const, intentThreadUuid: '99999999-9999-9999-9999-999999999999' };
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'knowledge-okr', ok: true } }, { internal: true });
-      await emitAuditEvent({ ...base, eventKind: 'skill_call', payload: { skill: 'tavily-search', ok: true } }, { internal: true });
+      await emitRuntimeKnowledgeOkrForTest(base);
+      await emitRuntimeKnowledgeOkrForTest(base);
 
       // Attacker strips signature off event 2 hoping the verifier
       // treats partial chains as "legacy unsigned." It must NOT.
@@ -1410,8 +1420,9 @@ test('B28: runSkill does NOT auto-emit when session context is absent (legacy mo
       // No withSession wrapper — env vars stay undefined.
       const r = await runSkill('knowledge-okr', { okrId: 'OKR-B28-2' });
       assert.equal(r.ok, true);
-      // No JSONL was written — legacy chains rely on the agent calling
-      // audit-emit-event explicitly. This run wrote nothing.
+      // No JSONL was written because there is no run context. Modern
+      // chains rely on session-context auto-emission; this call wrote
+      // nothing.
       const events = readChain(mesh, 'OKR-B28-2', 'no-run-id');
       assert.equal(events.length, 0);
     });
@@ -1720,11 +1731,7 @@ test('Bug K (cert-run-5) — post-agent workflow emit lands unsigned, agent pub 
       const base = { okrId: 'OKR-BUG-K', runId: 'WHY-BUG-K-1', phase: 'why' as const, intentThreadUuid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' };
 
       // 1. Original agent emit creates epoch-1 keypair + signs event 1.
-      const ev1 = await emitAuditEvent({
-        ...base, eventKind: 'skill_call',
-        payload: { skill: 'knowledge-okr', ok: true },
-      }, { internal: true });
-      assert.equal(ev1.ok, true);
+      await emitRuntimeKnowledgeOkrForTest(base);
 
       // 2. Simulate workflow context: delete priv from tmp.
       const os = await import('os');
@@ -2089,13 +2096,11 @@ test('Bug-Q / Q5 — unsigned revise-agent on a per-epoch chain is rejected', as
     await withMeshPath(mesh, async () => {
       const okrId = 'OKR-Q5';
       const runId = 'WHY-Q5-1';
-      // Event 1: real signed agent emit. This sets chainUsesPerEpochSigning=true.
-      await emitAuditEvent({
+      // Event 1: real signed runtime auto-emit.
+      await emitRuntimeKnowledgeOkrForTest({
         okrId, runId, phase: 'why',
         intentThreadUuid: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
-        eventKind: 'skill_call',
-        payload: { skill: 'knowledge-okr', ok: true },
-      }, { internal: true });
+      });
       const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
       const event1 = JSON.parse(fs.readFileSync(jsonl, 'utf8').trim().split('\n')[0]) as Record<string, unknown>;
 
@@ -2134,9 +2139,8 @@ test('Bug-Q / Q5 — unsigned revise-agent on a per-epoch chain is rejected', as
       maliciousEvent2.event_hash = malHash;
       fs.appendFileSync(jsonl, JSON.stringify(maliciousEvent2) + '\n', 'utf8');
 
-      // Verifier must reject: chainUsesPerEpochSigning (from event 1's
-      // signer_epoch) combined with an unsigned revise-agent event 2
-      // trips the Q5/Bug-O contract.
+      // Verifier must reject: event 1 is a real signed runtime event,
+      // while event 2 claims an invalid origin and carries no signature.
       const verify = await runSkill('audit-verify-chain', { okrId, runId });
       assert.equal(verify.ok, false, 'malicious chain must be rejected');
       if (!verify.ok) {
@@ -2223,12 +2227,10 @@ test('Bug-P / P10 — emitted event top-level fields match the audit-event-shape
     await withMeshPath(mesh, async () => {
       const okrId = 'OKR-P10';
       const runId = 'WHY-P10-1';
-      await emitAuditEvent({
+      await emitRuntimeKnowledgeOkrForTest({
         okrId, runId, phase: 'why',
         intentThreadUuid: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
-        eventKind: 'skill_call',
-        payload: { skill: 'knowledge-okr', ok: true },
-      }, { internal: true });
+      });
       const jsonl = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
       const events = fs.readFileSync(jsonl, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
       assert.equal(events.length, 1, 'one event emitted');
