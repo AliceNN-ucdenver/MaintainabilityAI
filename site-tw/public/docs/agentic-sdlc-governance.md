@@ -370,9 +370,15 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
     <text x="93" y="60" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">deterministic rails per tool call</text>
   </g>
   <rect x="0" y="494" width="800" height="46" fill="rgba(165,180,252,0.10)"/>
-  <text x="400" y="514" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">TEAMS SHRINK IN SIZE · GROW IN IMPACT</text>
-  <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2026 shift: humans set intent, agents execute, the mesh preserves accountability.</text>
+  <text x="400" y="514" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">TEAMS CHANGE · OKRs MULTIPLY · IMPACT COMPOUNDS</text>
+  <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2026 shift: smaller OKR-aligned capability teams, more of them, more experiments fixed capacity would never have prioritized.</text>
 </svg>
+
+<div class="docs-card docs-card-emerald">
+  <div class="docs-card-kicker">Your team in this world</div>
+  <div class="docs-heading">More OKRs in flight, the same bench</div>
+  <div class="docs-copy">Capacity stops being a tax on ambition. The same headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
+</div>
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
@@ -641,7 +647,7 @@ Architecture diagrams built on ReactFlow and ELK.js. Not static pictures, but li
   <line x1="97" y1="140" x2="97" y2="190" stroke="#fcd34d" stroke-width="1.6" marker-end="url(#calmArrow)"/>
   <text x="103" y="168" fill="#fcd34d" font-size="8" font-style="italic" font-family="system-ui, sans-serif">auth</text>
   <line x1="150" y1="120" x2="180" y2="120" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
-  <line x1="150" y1="120" x2="180" y2="210" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
+  <path d="M 150 130 L 165 130 L 165 210 L 180 210" fill="none" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#calmArrow)"/>
   <line x1="280" y1="120" x2="305" y2="160" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
   <line x1="280" y1="210" x2="305" y2="170" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#calmArrow)"/>
   <!-- Column labels -->
@@ -763,7 +769,28 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
   <text x="400" y="402" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">"Who are you?" — the Caterpillar in Wonderland, after Alice landed on a mushroom. Same energy.</text>
 </svg>
 
-An AI governance assistant that doesn't just answer questions. It understands your architecture. Eight commands: drift analysis (`/drift`), component scaffolding (`/add-component`), CALM validation (`/validate`), cross-pillar gap analysis (`/gap-analysis`), ADR suggestions (`/adr`), whiteboard-to-CALM conversion (`/image-to-calm`), repo scan (`/scan-repo`), and freeform consultation (`/ask`). **Image-to-CALM** turns a whiteboard photo into a structured CALM 1.2 model. **Scan Repo** derives architecture bottom-up from running code.
+An AI governance assistant grounded in your mesh. You chat with it the way you chat with any LLM, but every answer is anchored to the CALM model, the ADRs, the threat catalog, and the NIST controls you have already curated. Citations are real. References do not hallucinate.
+
+Eight commands, grouped by the question the architect is actually asking.
+
+**"What does my architecture actually look like right now?"**
+
+- `/scan-repo` derives a CALM model from running code, bottom-up. The outcome is a draft CALM document the architect can review, edit, and adopt. Useful when the wiki and reality have drifted, or when you are adopting governance on a system that has been running for years.
+- `/validate` checks a CALM document against the FINOS CALM 1.2 schema. The outcome is a pass / fail with line-level errors. Answers "is this CALM document well-formed" before you commit it.
+- `/drift` compares the declared CALM model against the actual code. The outcome is a list of architectural deltas (interfaces present in code but missing from CALM, connections in CALM that no longer exist in code, layer crossings that violate declared flows). Answers "does what we wrote down still match what we shipped."
+
+The split between `/validate` and `/drift` is the one most architects need named: `/validate` says "this CALM document is well-formed"; `/drift` says "this CALM document still describes the running system." Both can be green, only one is a guarantee the model reflects reality.
+
+**"What should I decide next, and how do I explain it?"**
+
+- `/gap-analysis` walks the four governance pillars (architecture, security, risk, operations) and surfaces coverage holes. The outcome is a ranked list of missing artifacts ("no threat model for the payment flow," "no fitness function for the auth pillar"). Answers "where am I weakest, and what is the cheapest thing I could do to fix that."
+- `/adr` drafts an Architecture Decision Record for a choice you describe in plain English. The outcome is a structured ADR with the right Context section, Decision section, and Consequences section, ready for the team to amend and merge. Answers "I have made the call; now help me write it down so the next architect can read it."
+- `/ask` is freeform consultation. Paste a question, get a mesh-grounded answer with sources cited back to your CALM, your ADRs, and your STRIDE catalog. Answers anything that does not fit the other seven commands.
+
+**"How do I bring something new into the model?"**
+
+- `/add-component` scaffolds a new CALM node with the right schema, the right linkages, and the right placeholders for security controls and threat references. The outcome is a CALM patch the architect reviews before commit. Answers "I am adding a service; what does it need to look like in CALM."
+- `/image-to-calm` turns a whiteboard photo into a structured CALM 1.2 model. The outcome is a draft CALM document derived from the boxes and arrows the architect sketched. Useful after a workshop or a design session, when the room agreed but nobody wants to retype every box. Answers "we drew it; how do I make the mesh hold it."
 
 ### Oraculum: automated architecture review
 
