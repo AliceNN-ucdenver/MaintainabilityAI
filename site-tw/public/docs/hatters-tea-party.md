@@ -156,6 +156,8 @@ Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in 
 
 The five stages are the chapters of the audit story. Every chapter writes a **Hatter's Tag**: a structured provenance record carrying the author agent's DID, model version, prompt-pack SHA, threat-model reference, reviewer DIDs, CALM nodes touched, OWASP categories, fitness results, scores, rationale. The chain ladder is what an auditor reads.
 
+> 🍵 **How the audit chain gets built.** The chain that runs alongside this whole journey has three kinds of authors, and exactly three. The **runtime** records what the agent did (every skill call lands in the chain automatically, before the result returns to the agent). The **workflow** records what GitHub state shows (file changes, label flips, reviewer approvals; anything the workflow can recompute from the repo). The **agent** signs its own judgments (the review verdicts and gap-loop intent that only the agent can produce). Each kind of event has exactly one legitimate source. If the wrong author tries to emit something, the verifier rejects the chain. That separation is what makes the story a reviewer reads six months later trustworthy: the agent cannot get fabricated facts accepted, and the workflow cannot fake a judgment.
+
 ---
 
 ## Stage 1 · Intent: the OKR that started it all

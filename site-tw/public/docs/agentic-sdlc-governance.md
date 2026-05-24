@@ -1267,6 +1267,8 @@ No live system access. No proprietary tooling. Five checks land the story:
 
 > 🎯 **Validated end to end on a live run (May 2026).** All three planning agents shipped a real OKR on the open IMDB-Celebs sample, on Claude Sonnet 4.6, with every defense above firing on merged PRs. Each phase ended with a green Sealed badge in the dashboard, and the three phases link to each other through the audit chain.
 
+> 🛠 **This trust model is the result of ten-plus adversarial audit rounds.** Each round made the boundary more precise; the current model is what survived.
+
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">WHY · research phase</div>
