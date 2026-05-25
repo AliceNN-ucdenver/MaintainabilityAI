@@ -145,6 +145,38 @@ jobs:
           echo "::warning::PR has no okr_id/run_id Hatter Tag — skipping audit"
           echo "skip=true" >> "$GITHUB_OUTPUT"
 
+      - name: Detect OKR state tampering (Bug GG-followup)
+        id: state_guard
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Bug GG-followup (2026-05): agents are CONTRACTUALLY forbidden
+        # from mutating OKR state. The agent prompts carry the rule
+        # ("NEVER edit okrs/<id>/okr.yaml" — Bug GG), but that is advice;
+        # this step is the enforcement. See prd-agent.yml for the full
+        # forensic — PR #140 (HOW-2026-05-25-j2gpke) tripped this
+        # exact violation when the agent "fixed" a stale runId.
+        run: |
+          OKR_ID='${{ steps.ctx.outputs.okr_id }}'
+          PR='${{ github.event.pull_request.number }}'
+          TARGET="okrs/${OKR_ID}/okr.yaml"
+          CHANGED=$(gh pr view "$PR" --repo '${{ github.repository }}' --json files --jq '.files[].path' 2>/dev/null || true)
+          if [ -z "$CHANGED" ]; then
+            echo "::warning::Could not read PR file list via gh — state-guard cannot verify okr.yaml. Treating as state_fail=false; downstream chain/structure checks still apply."
+            echo "state_fail=false"   >> "$GITHUB_OUTPUT"
+            echo "state_reason="      >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if printf '%s\n' "$CHANGED" | grep -Fxq "$TARGET"; then
+            echo "::error::Agent PR modified $TARGET — OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action, not the agent. This is a Bug GG trust-boundary violation. Revert the okr.yaml change; raise a separate (non-agent-labeled) PR if okr.yaml legitimately needs correction."
+            echo "state_fail=true"    >> "$GITHUB_OUTPUT"
+            echo "state_reason=Agent PR modified $TARGET; OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action (Bug GG-followup). Revert the okr.yaml change and, if okr.yaml legitimately needs correction, raise a separate PR that does NOT carry the prd-draft / research-synthesis / design-draft label." >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::state-guard pass: okr.yaml unchanged in this PR"
+            echo "state_fail=false"   >> "$GITHUB_OUTPUT"
+            echo "state_reason="      >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Locate audit JSONL
         id: audit
         if: steps.gate.outputs.skip != 'true'
@@ -697,8 +729,22 @@ jobs:
           DRIFT_FAIL="false"
           CHAIN_FAIL="false"
 
-          # Chain verification is the HIGHEST-PRIORITY gate — a broken
-          # chain invalidates every other audit signal. Check it first.
+          # Bug GG-followup (2026-05) — OKR-state tampering is checked
+          # BEFORE chain integrity. See prd-agent.yml for full
+          # rationale. Net: a state-tampered PR is asking us to trust a
+          # card the agent edited; fail fast with the most specific
+          # reason.
+          STATE_FAIL_OUT="${{ steps.state_guard.outputs.state_fail }}"
+          STATE_FAIL_REASON_OUT="${{ steps.state_guard.outputs.state_reason }}"
+          STATE_FAIL="false"
+          if [ "$STATE_FAIL_OUT" = "true" ]; then
+            VERDICT="degraded"; REASON="$STATE_FAIL_REASON_OUT"
+            STATE_FAIL="true"
+          fi
+
+          # Chain verification is the HIGHEST-PRIORITY gate AFTER state
+          # tampering — a broken chain invalidates every other audit
+          # signal. Check it second.
           #
           # Bug CC (2026-05): chain-related branches now set CHAIN_FAIL
           # only, NOT EVIDENCE_FAIL. Pre-Bug-CC, every chain branch
@@ -838,7 +884,8 @@ jobs:
           echo "structure_fail=$STRUCTURE_FAIL" >> "$GITHUB_OUTPUT"
           echo "drift_fail=$DRIFT_FAIL"         >> "$GITHUB_OUTPUT"
           echo "chain_fail=$CHAIN_FAIL"         >> "$GITHUB_OUTPUT"
-          echo "::notice::verdict=$VERDICT reason=$REASON (chain_fail=$CHAIN_FAIL evidence_fail=$EVIDENCE_FAIL structure_fail=$STRUCTURE_FAIL drift_fail=$DRIFT_FAIL)"
+          echo "state_fail=$STATE_FAIL"         >> "$GITHUB_OUTPUT"
+          echo "::notice::verdict=$VERDICT reason=$REASON (state_fail=$STATE_FAIL chain_fail=$CHAIN_FAIL evidence_fail=$EVIDENCE_FAIL structure_fail=$STRUCTURE_FAIL drift_fail=$DRIFT_FAIL)"
 
       - name: Upsert correctness summary comment
         if: steps.gate.outputs.skip != 'true'
@@ -937,6 +984,12 @@ jobs:
           # labeled "Hatter Tag declared live but 0 skill_calls" even
           # when skill_calls were healthy. Now each label maps to its
           # actual cause.
+          # Bug GG-followup — state-integrity-failed applied FIRST so it
+          # surfaces as the primary label when the agent edited okr.yaml.
+          if [ "${{ steps.verdict.outputs.state_fail }}" = "true" ]; then
+            gh label create state-integrity-failed --repo ${{ github.repository }} --color AD1457 --description "Agent PR modified okrs/<id>/okr.yaml. OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action, not the agent (Bug GG-followup). Merge blocked." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label state-integrity-failed || true
+          fi
           if [ "${{ steps.verdict.outputs.chain_fail }}" = "true" ]; then
             # Bug CC — renamed from chain-forgery-detected. The
             # "forgery" framing falsely implied malicious intent for
@@ -969,6 +1022,9 @@ jobs:
         run: |
           # Bug CC — remove both new chain-integrity-failed AND legacy
           # chain-forgery-detected (old PRs may carry the old name).
+          # Bug GG-followup — also remove state-integrity-failed when
+          # the agent reverts the okr.yaml edit and verdict flips.
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label state-integrity-failed 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label chain-integrity-failed 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label chain-forgery-detected 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label degraded-evidence 2>/dev/null || true

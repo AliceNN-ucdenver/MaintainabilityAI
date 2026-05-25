@@ -90,6 +90,21 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // chain branches no longer set EVIDENCE_FAIL=true as a side
   // effect (Bug CC verdict-step de-spuriousing).
   { name: 'chain-integrity-failed',  description: 'Audit JSONL chain failed verification (hash chain / Knight\'s Seal / chain_root_hash / unsealed / forged artifact_written). See the audit comment Reason for the specific cause. Merge blocked.', color: 'B71C1C' },
+  // Bug GG-followup (2026-05) — agents are CONTRACTUALLY forbidden from
+  // mutating OKR state (okr.yaml: actions[], meta.status, runId,
+  // intentThreadUuid, hatterChainRoot, createdAt, completedAt, etc.).
+  // OKR state is owned by Looking Glass dispatch/reset and the finalize
+  // composite action; finalize-okr-action mutates okr.yaml in a SEPARATE
+  // post-merge job on main, never inside the agent's PR. Therefore ANY
+  // diff to okrs/<id>/okr.yaml inside a PR carrying research-synthesis /
+  // prd-draft / design-draft is a trust-boundary violation — Bug GG hard
+  // rule in the agent prompts, Bug GG-followup workflow enforcement.
+  // PR #140 (HOW-2026-05-25-j2gpke) tripped this exact violation: the
+  // prd-agent saw a stale runId mismatch in okr.yaml (caused upstream by
+  // the Bug EE reset-drift gap) and "fixed" it by editing the action's
+  // runId. Even with the upstream bug fixed, the agent prompt rule alone
+  // is advice; this label is the control.
+  { name: 'state-integrity-failed',  description: 'Agent PR modified okrs/<id>/okr.yaml. OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action, not the agent (Bug GG-followup). Merge blocked — the only legitimate okr.yaml diffs come from non-agent PRs.', color: 'AD1457' },
   { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log — e.g. declared `live` but no successful skill_calls, or JSONL absent (§11.1.7). Distinct from chain-integrity-failed. Blocks the pass label.', color: 'D32F2F' },
   { name: 'structure-invalid',       description: 'Artifact missing required sections / FR-NN / SR-NN citations. Blocks the pass label.',  color: 'D32F2F' },
   { name: 'self-review-exhausted',   description: 'B24 self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items. Human review required.', color: 'D32F2F' },

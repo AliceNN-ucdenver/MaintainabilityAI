@@ -78,6 +78,15 @@ export function collectAuditFailureReasons(
   const chainMessage = (auditCommentReason && auditCommentReason.trim())
     ? `Audit chain integrity failed — ${auditCommentReason.trim()}`
     : chainStock;
+  // Bug GG-followup (2026-05) — state-integrity-failed has its own
+  // distinct human message because it's a categorically different
+  // failure: the agent reached outside the artifact-authorship
+  // boundary and mutated OKR state. The audit-comment Reason for this
+  // label is the workflow's specific message naming the file path,
+  // so we surface it directly with the label-specific prefix.
+  const stateMessage = (auditCommentReason && auditCommentReason.trim() && /okr\.yaml/i.test(auditCommentReason))
+    ? `OKR state tampering — ${auditCommentReason.trim()}`
+    : 'OKR state tampering — agent PR modified okrs/<id>/okr.yaml. OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action, not the agent. Revert the okr.yaml change; raise a separate PR (without the agent labels) if okr.yaml legitimately needs correction.';
   const labelToReason: Record<string, string> = {
     [spec.degradedLabel]: degradedMessage,
     [spec.driftLabel]: phase === 'what'
@@ -85,6 +94,7 @@ export function collectAuditFailureReasons(
       : phase === 'how'
       ? "Caterpillar's Challenge — cross-phase drift from prior phase artifact"
       : 'Pocket Watch — objective drift (cosine below threshold)',
+    'state-integrity-failed': stateMessage,
     'chain-integrity-failed': chainMessage,
     // Legacy: pre-Bug-CC label name. Old PRs may still carry it.
     // Same message so the UI is consistent during the transition.

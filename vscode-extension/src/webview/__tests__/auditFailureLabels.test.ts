@@ -213,3 +213,55 @@ describe('Bug HH — WHAT design-degraded narrowed to mode-honesty + manifest', 
     expect(reasons.some(r => r.includes('mode-honesty') || r.includes('manifest'))).toBe(true);
   });
 });
+
+describe('Bug GG-followup — state-integrity-failed (agent touched okr.yaml)', () => {
+  const stateReason = 'Agent PR modified okrs/OKR-2026Q2-IMDB-001-celeb-api/okr.yaml; OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action (Bug GG-followup). Revert the okr.yaml change.';
+
+  it('renders the workflow Reason text when the state label is applied (HOW)', () => {
+    const reasons = collectAuditFailureReasons('how', ['prd-draft', 'state-integrity-failed'], stateReason);
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain('OKR state tampering');
+    expect(reasons[0]).toContain('okr.yaml');
+    // Must NOT bleed into chain or evidence messages.
+    expect(reasons[0]).not.toContain('chain integrity');
+    expect(reasons[0]).not.toContain('Hatter Tag');
+  });
+
+  it('falls back to a fixed stock state-tampering message when no comment available', () => {
+    const reasons = collectAuditFailureReasons('how', ['prd-draft', 'state-integrity-failed']);
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain('OKR state tampering');
+    expect(reasons[0]).toMatch(/okr\.yaml/);
+    expect(reasons[0]).toContain('Looking Glass');
+    expect(reasons[0]).toContain('finalize-okr-action');
+  });
+
+  it('works for WHY phase too (market-research-agent enforces the same boundary)', () => {
+    const reasons = collectAuditFailureReasons('why', ['research-synthesis', 'state-integrity-failed'], stateReason);
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain('OKR state tampering');
+  });
+
+  it('works for WHAT phase too (code-design-agent enforces the same boundary)', () => {
+    const reasons = collectAuditFailureReasons('what', ['design-draft', 'state-integrity-failed'], stateReason);
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain('OKR state tampering');
+  });
+
+  it('state + chain labels co-existing render BOTH messages distinctly', () => {
+    // If a regression in the workflow's verdict step sets both, the UI
+    // should still render two distinct messages — not collapse to one.
+    const reasons = collectAuditFailureReasons(
+      'how',
+      ['prd-draft', 'state-integrity-failed', 'chain-integrity-failed'],
+      'chain_root_hash mismatch: agent did not paste a chain_root_hash...',
+    );
+    expect(reasons).toHaveLength(2);
+    // The state message uses its dedicated stock string when the
+    // comment reason doesn't mention okr.yaml (the chain reason here
+    // mentions chain_root_hash, not okr.yaml), so we get the stock
+    // state message + the chain message with the workflow reason.
+    expect(reasons.some(r => r.includes('OKR state tampering'))).toBe(true);
+    expect(reasons.some(r => r.includes('chain integrity') && r.includes('chain_root_hash'))).toBe(true);
+  });
+});
