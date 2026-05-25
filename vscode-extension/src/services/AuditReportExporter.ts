@@ -1194,6 +1194,18 @@ export interface OkrRollupInput {
   artifactSource: AuditReportInputSources['artifact'];
   /** OKR-level source tag composed from all phase sources. */
   sourceTag: string;
+  /**
+   * Codex E4-r1 MAJOR fix: repoInfo threaded through so the per-phase
+   * Trust posture blocks can render a correct canonical source tag.
+   * Pre-fix renderPhaseTrustBlock called composeSourceTag(p.sources,
+   * null), which short-circuited to MIXED for canonical phases
+   * because composeSourceTag needs owner/repo to form the canonical
+   * headline. That produced reports where the top-level sourceTag
+   * said canonical but each per-phase block said MIXED — auditor
+   * confusion. With repoInfo here, the per-phase blocks render the
+   * same canonical headline as the top-level.
+   */
+  repoInfo: { owner: string; repo: string } | null;
 }
 
 export type OkrRollupVerdict = 'PASS' | 'PARTIAL' | 'FAIL';
@@ -1290,10 +1302,10 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
  * helper only collapses the per-phase results into one OKR-level string.
  */
 export function composeOkrRollupSourceTag(
-  perPhaseSources: AuditReportInputSources[],
+  perPhase: Array<{ phase: 'why' | 'how' | 'what'; sources: AuditReportInputSources }>,
   repoInfo: { owner: string; repo: string } | null | undefined,
 ): string {
-  if (perPhaseSources.length === 0) {
+  if (perPhase.length === 0) {
     // No phases started — nothing to compose. Caller shouldn't really hit
     // this (PARTIAL covers it), but we don't want to throw.
     return 'no phases started';
@@ -1302,22 +1314,22 @@ export function composeOkrRollupSourceTag(
   // when its tag matches the canonical GitHub headline; "local" when local
   // mesh checkout; else MIXED.
   const canonicalTag = repoInfo ? `GitHub ${repoInfo.owner}/${repoInfo.repo} (default branch)` : null;
-  const phaseTags = perPhaseSources.map(s => composeSourceTag(s, repoInfo));
-  const allCanonical = canonicalTag !== null && phaseTags.every(t => t === canonicalTag);
-  const allLocal = phaseTags.every(t => t === 'local mesh checkout');
+  const tagged = perPhase.map(p => ({ phase: p.phase, tag: composeSourceTag(p.sources, repoInfo) }));
+  const allCanonical = canonicalTag !== null && tagged.every(t => t.tag === canonicalTag);
+  const allLocal = tagged.every(t => t.tag === 'local mesh checkout');
   if (allCanonical && canonicalTag) { return canonicalTag; }
   if (allLocal) { return 'local mesh checkout'; }
   // MIXED — name which phase(s) are non-atomic (NOT canonical, NOT local).
-  // Use WHY/HOW/WHAT labels by position so the reviewer can find them
-  // immediately in the rollup body's per-phase blocks.
-  const phaseLabels: Array<'WHY' | 'HOW' | 'WHAT'> = ['WHY', 'HOW', 'WHAT'];
-  const brokenPhases: string[] = [];
-  for (let i = 0; i < perPhaseSources.length; i++) {
-    const tag = phaseTags[i];
-    if (tag !== canonicalTag && tag !== 'local mesh checkout') {
-      brokenPhases.push(phaseLabels[i] ?? `phase[${i}]`);
-    }
-  }
+  //
+  // Codex E4-r1 MINOR fix: use each digest's actual `phase` label
+  // rather than array position. Pre-fix used WHY/HOW/WHAT by index,
+  // which mislabelled failing phases on malformed/reset OKRs where
+  // the started-phases array doesn't start at WHY (e.g. an OKR where
+  // HOW was started without WHY would label the failing HOW phase as
+  // "WHY"). Sequential well-formed OKRs were unaffected.
+  const brokenPhases = tagged
+    .filter(t => t.tag !== canonicalTag && t.tag !== 'local mesh checkout')
+    .map(t => t.phase.toUpperCase());
   const brokenList = brokenPhases.length > 0 ? brokenPhases.join(', ') : 'one or more phases';
   return `MIXED — non-atomic in ${brokenList} (see per-phase Trust posture for details)`;
 }
@@ -1328,7 +1340,10 @@ export function composeOkrRollupSourceTag(
  * callout instead of the full trust posture (rollup verdict already
  * surfaces this as FAIL at the top).
  */
-function renderPhaseTrustBlock(p: PhaseRollupDigest): string {
+function renderPhaseTrustBlock(
+  p: PhaseRollupDigest,
+  repoInfo: { owner: string; repo: string } | null,
+): string {
   const heading = `### ${p.phase.toUpperCase()} · ${p.runId}`;
   if (!p.evidenceComplete) {
     const gaps = p.evidenceGaps.length > 0
@@ -1359,7 +1374,7 @@ Action: \`${p.actionId}\` · status: \`${p.status}\``;
     : '_no signed self_review events_';
   return `${heading}
 
-- **Sources**: ${composeSourceTag(p.sources, null)}
+- **Sources**: ${composeSourceTag(p.sources, repoInfo)}
 - **Runner verdict**: ${runnerLine}
 - **Final self-review scores**: ${finalScores}
 - **Agent events signed**: ${p.agentStats.signedAgent}/${p.agentStats.totalAgent}
@@ -1506,7 +1521,7 @@ export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
 ${phaseTableRows.join('\n')}`;
 
   // Per-phase trust posture blocks.
-  const trustBlocks = input.phases.map(renderPhaseTrustBlock).join('\n\n');
+  const trustBlocks = input.phases.map(p => renderPhaseTrustBlock(p, input.repoInfo)).join('\n\n');
 
   // Cross-phase ladder — reuse the same summarizeChainLadder + table
   // rendering as the per-action export so the format is recognizable.

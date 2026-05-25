@@ -3263,12 +3263,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     // Step 4: for each started phase, run the same per-phase flow the
     // per-action exporter uses. Produce a PhaseRollupDigest.
+    //
+    // Codex E4-r1 MINOR fix: collect {phase, sources} pairs (not bare
+    // sources[]) so composeOkrRollupSourceTag can label failing phases
+    // by their actual identity instead of array position. Sequential
+    // OKRs were unaffected pre-fix; malformed/reset OKRs where the
+    // started-phases array didn't start at WHY would mislabel.
     const phaseDigests: PhaseRollupDigest[] = [];
-    const phaseSources: AuditReportInputSources[] = [];
+    const phaseSources: Array<{ phase: 'why' | 'how' | 'what'; sources: AuditReportInputSources }> = [];
     for (const { phase, action } of startedActions) {
       const digest = await this.buildPhaseRollupDigest(okrId, phase, action, okrSource, repoInfo, meshPath);
       phaseDigests.push(digest);
-      phaseSources.push(digest.sources);
+      phaseSources.push({ phase: digest.phase, sources: digest.sources });
     }
 
     // Step 5: fetch chain-ladder.yaml ONCE for the whole OKR. Same
@@ -3349,6 +3355,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       prdSource,
       artifactSource,
       sourceTag,
+      // Codex E4-r1 MAJOR fix: thread repoInfo through so per-phase
+      // Trust posture blocks render the canonical headline (not MIXED)
+      // when a phase's sources match the OKR-level canonical state.
+      repoInfo: repoInfo ?? null,
     };
 
     const markdown = buildOkrRollupMarkdown(rollupInput);
@@ -3456,15 +3466,41 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       okrId, runId, okrSource, chainSource, chainText, jsonlRelPath, meshPath, repoInfo, signerEpochs,
     });
 
-    // Check artifact presence on disk OR canonical for evidenceComplete.
-    // Don't full-fetch to keep the rollup cheap — just verify the file
-    // exists on disk (it would have been written there by the merge
-    // or by local agent run).
+    // Check artifact presence for evidenceComplete.
+    //
+    // Codex E4-r1 BLOCKING fix: when okrSource === 'github' (canonical
+    // mode), check GitHub FIRST. Pre-fix used `fs.existsSync` only,
+    // which meant a clean canonical OKR whose merged artifact lived on
+    // origin/main but hadn't been pulled into the user's local mesh
+    // checkout would falsely report evidenceComplete=false → FAIL
+    // verdict on a perfectly valid OKR.
+    //
+    // Canonical mode: try GitHub fetch (truthy result = exists). On
+    // fetch failure (network/rate-limit), fall through to local — an
+    // innocent transient failure shouldn't downgrade the verdict if
+    // local has the file. Local-fallback mode: just check local disk
+    // (atomic by common source). When canonical fetch succeeds and
+    // local is missing, we accept canonical existence as sufficient.
     let artifactExists = false;
     if (artifactPath) {
-      artifactExists = fs.existsSync(path.join(meshPath, artifactPath));
+      if (repoInfo && okrSource === 'github') {
+        try {
+          const githubArtifact = await this.githubService.getRepoFileText(
+            repoInfo.owner, repoInfo.repo, artifactPath,
+          );
+          if (githubArtifact !== null && githubArtifact.length > 0) {
+            artifactExists = true;
+          }
+        } catch { /* fall through to local check */ }
+      }
       if (!artifactExists) {
-        evidenceGaps.push(`artifact missing at ${artifactPath} (local mesh checkout)`);
+        artifactExists = fs.existsSync(path.join(meshPath, artifactPath));
+      }
+      if (!artifactExists) {
+        const where = okrSource === 'github'
+          ? `${artifactPath} (tried canonical GitHub + local mesh)`
+          : `${artifactPath} (local mesh checkout)`;
+        evidenceGaps.push(`artifact missing at ${where}`);
       }
     } else {
       evidenceGaps.push('action has no artifact field');

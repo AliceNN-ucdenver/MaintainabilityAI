@@ -1099,6 +1099,7 @@ describe('buildOkrRollupMarkdown', () => {
       prdSource: 'github',
       artifactSource: 'github',
       sourceTag: 'GitHub x/y (default branch)',
+      repoInfo: null,
       ...over,
     };
   }
@@ -1199,6 +1200,24 @@ describe('buildOkrRollupMarkdown', () => {
     expect(md).toContain('Per-action report');
     expect(md).toContain('WHY-2026-05-25-aaa-report.md');
     expect(md).toContain('runner-verified · 28 events');
+  });
+
+  // Codex E4-r1 MAJOR fix regression test: pre-fix the per-phase block
+  // called composeSourceTag(sources, null) so canonical phases rendered
+  // as MIXED in the block. With repoInfo threaded through OkrRollupInput,
+  // canonical phases render the canonical headline like the top-level
+  // sourceTag.
+  it('per-phase trust posture renders canonical Sources line when repoInfo threaded (Codex E4-r1 MAJOR)', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      repoInfo: { owner: 'AliceNN-ucdenver', repo: 'mesh' },
+    }));
+    // Sources line for each canonical phase should be the canonical
+    // headline, NOT MIXED.
+    expect(md).toMatch(/- \*\*Sources\*\*: GitHub AliceNN-ucdenver\/mesh \(default branch\)/);
+    // Pre-fix this block emitted MIXED for canonical phases — guard against
+    // regression.
+    const trustPostureSection = md.slice(md.indexOf('## Per-phase trust posture'));
+    expect(trustPostureSection).not.toContain('- **Sources**: MIXED');
   });
 
   it('per-phase trust posture renders evidence-missing callout when evidenceComplete=false', () => {
@@ -1374,6 +1393,7 @@ describe('computeOkrRollupVerdict', () => {
       prdSource: 'github',
       artifactSource: 'github',
       sourceTag: 'GitHub canonical',
+      repoInfo: null,
       ...over,
     };
   }
@@ -1478,46 +1498,77 @@ describe('composeOkrRollupSourceTag', () => {
       ...over,
     };
   }
+  // Codex E4-r1 MINOR fix: signature changed from sources[] to
+  // {phase, sources}[] so labels use each digest's actual phase,
+  // not array position. Tests construct the pair shape explicitly.
+  function mkPair(phase: 'why' | 'how' | 'what', over: Partial<AuditReportInputSources> = {}) {
+    return { phase, sources: mkSources(over) };
+  }
+  const LOCAL_OVER: Partial<AuditReportInputSources> = {
+    okr: 'local-fallback', chain: 'local-fallback', ladder: 'local-fallback',
+    keys: 'local-only', prd: 'local-fallback', artifact: 'local-fallback',
+    runnerInput: 'local-only',
+  };
+  const BROKEN_OVER: Partial<AuditReportInputSources> = { keys: 'mismatch', runnerInput: 'not-applicable' };
 
   it('returns canonical headline only when ALL phases canonical', () => {
-    const tag = composeOkrRollupSourceTag([mkSources(), mkSources(), mkSources()], REPO);
+    const tag = composeOkrRollupSourceTag(
+      [mkPair('why'), mkPair('how'), mkPair('what')],
+      REPO,
+    );
     expect(tag).toBe('GitHub AliceNN-ucdenver/mesh (default branch)');
   });
 
   it('returns local mesh headline when ALL phases local-fallback', () => {
-    const local = mkSources({
-      okr: 'local-fallback', chain: 'local-fallback', ladder: 'local-fallback',
-      keys: 'local-only', prd: 'local-fallback', artifact: 'local-fallback',
-      runnerInput: 'local-only',
-    });
-    const tag = composeOkrRollupSourceTag([local, local, local], REPO);
+    const tag = composeOkrRollupSourceTag(
+      [mkPair('why', LOCAL_OVER), mkPair('how', LOCAL_OVER), mkPair('what', LOCAL_OVER)],
+      REPO,
+    );
     expect(tag).toBe('local mesh checkout');
   });
 
   it('returns MIXED + names broken phase when one phase non-atomic', () => {
-    const broken = mkSources({ keys: 'mismatch', runnerInput: 'not-applicable' });
-    const tag = composeOkrRollupSourceTag([mkSources(), broken, mkSources()], REPO);
+    const tag = composeOkrRollupSourceTag(
+      [mkPair('why'), mkPair('how', BROKEN_OVER), mkPair('what')],
+      REPO,
+    );
     expect(tag).toContain('MIXED');
-    // Broken phase is index 1 → HOW
+    // Broken phase is HOW.
     expect(tag).toContain('HOW');
     expect(tag).not.toBe('GitHub AliceNN-ucdenver/mesh (default branch)');
   });
 
   it('returns MIXED + names multiple broken phases when more than one non-atomic', () => {
-    const broken = mkSources({ keys: 'mismatch', runnerInput: 'not-applicable' });
-    const tag = composeOkrRollupSourceTag([mkSources(), broken, broken], REPO);
+    const tag = composeOkrRollupSourceTag(
+      [mkPair('why'), mkPair('how', BROKEN_OVER), mkPair('what', BROKEN_OVER)],
+      REPO,
+    );
     expect(tag).toContain('MIXED');
     expect(tag).toContain('HOW');
     expect(tag).toContain('WHAT');
   });
 
   it('returns MIXED when some phases canonical and others local (not all-canonical, not all-local)', () => {
-    const local = mkSources({
-      okr: 'local-fallback', chain: 'local-fallback', ladder: 'local-fallback',
-      keys: 'local-only', prd: 'local-fallback', artifact: 'local-fallback',
-      runnerInput: 'local-only',
-    });
-    const tag = composeOkrRollupSourceTag([mkSources(), local, mkSources()], REPO);
+    const tag = composeOkrRollupSourceTag(
+      [mkPair('why'), mkPair('how', LOCAL_OVER), mkPair('what')],
+      REPO,
+    );
     expect(tag).toContain('MIXED');
+  });
+
+  // Codex E4-r1 MINOR fix regression test: malformed/reset OKR where
+  // the started-phases array doesn't start at WHY. Pre-fix used array
+  // index to label, so a broken HOW phase at position 0 would be
+  // mislabelled as "WHY". Post-fix uses each digest's actual phase.
+  it('labels broken phase by its actual phase field, not array position (Codex E4-r1 MINOR)', () => {
+    // Only HOW started (no WHY). HOW is at array position 0 but its
+    // phase field says 'how'. Pre-fix would have labelled it "WHY".
+    const tag = composeOkrRollupSourceTag(
+      [mkPair('how', BROKEN_OVER)],
+      REPO,
+    );
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('HOW');
+    expect(tag).not.toContain('WHY');
   });
 });
