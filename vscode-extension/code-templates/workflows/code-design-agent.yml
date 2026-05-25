@@ -322,7 +322,13 @@ jobs:
           H2_PRESENT=0; MISSING_H2=""
           for name in "${REQUIRED_H2[@]}"; do
             # Tolerate optional numeric prefix ("## 1. Input Premises").
-            if grep -qE "^##[[:space:]]+(\\d+\\.[[:space:]]+)?${name}[[:space:]]*$" "$DOC"; then
+            # Bug NN (2026-05): `\d` is NOT supported in POSIX ERE on the
+            # GHA Ubuntu runner — grep -E treats it as literal `\d`,
+            # never matches the `1.` prefix, every H2 with a numeric
+            # prefix reports as missing. PR #150's WHAT audit logged
+            # `structure h2=0/10` even though all 10 H2s were present
+            # as "## 1. Project Structure" etc. Use [0-9]+ instead.
+            if grep -qE "^##[[:space:]]+([0-9]+\\.[[:space:]]+)?${name}[[:space:]]*$" "$DOC"; then
               H2_PRESENT=$((H2_PRESENT + 1))
             else
               MISSING_H2="${MISSING_H2}${name}; "
@@ -498,19 +504,46 @@ jobs:
           current_repo = None
           in_frontmatter = False
           frontmatter_buf = []
+          frontmatter_owner_repo = None  # who owns the frontmatter block we're inside
+
+          # Bug OO (2026-05) — frontmatter detection is now CONTEXT-AWARE.
+          # Pre-Bug-OO, the parser toggled in_frontmatter on EVERY `---`
+          # line, which broke on artifacts that use `---` as a markdown
+          # horizontal-rule section separator between H2 sections. PR #150
+          # had 9 such HR separators (between `## 3.` / `## 4.` / etc.);
+          # each one flipped the parser into fake-frontmatter mode and
+          # swallowed every subsequent line — INCLUDING the repo H3
+          # headings — until the next `---` closed it. End result:
+          # `0 cited brownfield paths` even though the artifact declared
+          # 4 in its repo frontmatter blocks.
+          #
+          # The fix: `---` only opens a frontmatter block when we're
+          # EXPECTING one — either at the very top of the file (top-of-
+          # doc Hatter Tag) or immediately after a repo H3 heading
+          # (where the per-repo frontmatter lives). All other `---`
+          # lines are treated as markdown HR and ignored.
+          expecting_frontmatter = True  # top-of-doc Hatter Tag is expected first
           for ln in lines:
-              # Track frontmatter (--- ... ---) so we can pull
-              # `cited_paths:` explicit declarations.
               if ln.strip() == '---':
-                  if in_frontmatter and current_repo:
-                      fm_text = '\n'.join(frontmatter_buf)
-                      fm_match = CITED_PATHS_FM_RE.search(fm_text)
-                      if fm_match:
-                          for raw in fm_match.group(1).split(','):
-                              p = raw.strip().strip('"').strip("'")
-                              if p: cited_by_repo.setdefault(current_repo, set()).add(p)
-                  in_frontmatter = not in_frontmatter
-                  frontmatter_buf = []
+                  if in_frontmatter:
+                      # Closing the active frontmatter block. If a
+                      # repo owns it, extract cited_paths.
+                      if frontmatter_owner_repo:
+                          fm_text = '\n'.join(frontmatter_buf)
+                          fm_match = CITED_PATHS_FM_RE.search(fm_text)
+                          if fm_match:
+                              for raw in fm_match.group(1).split(','):
+                                  p = raw.strip().strip('"').strip("'")
+                                  if p: cited_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
+                      in_frontmatter = False
+                      frontmatter_buf = []
+                      frontmatter_owner_repo = None
+                  elif expecting_frontmatter:
+                      # Opening a frontmatter block we were expecting.
+                      in_frontmatter = True
+                      frontmatter_owner_repo = current_repo
+                      expecting_frontmatter = False
+                  # else: stray `---` (markdown HR) — ignore entirely.
                   continue
               if in_frontmatter:
                   frontmatter_buf.append(ln)
@@ -519,12 +552,15 @@ jobs:
               if hm:
                   current_repo = hm.group(1)
                   cited_by_repo.setdefault(current_repo, set())
+                  # Next `---` line will be this repo's frontmatter.
+                  expecting_frontmatter = True
                   continue
               # H2 RESETS attribution. H3 does NOT — sub-sections of a
               # repo subsection (### 5.1 API Endpoints) keep the parent
               # repo. This was the round-3 fix.
               if ln.startswith('## '):
                   current_repo = None
+                  expecting_frontmatter = False
                   continue
               if not current_repo: continue
               for m in PATH_IN_BACKTICKS_RE.finditer(ln):
@@ -532,15 +568,25 @@ jobs:
 
           # 3. Cross-check per-repo. Only brownfield repos are gated —
           #    greenfield is by-definition not in any existing file tree.
+          # Bug OO (2026-05) also adds: a brownfield repo that cited
+          # ZERO paths must fail the gate. Pre-Bug-OO the parser would
+          # silently return 0 cited paths when its frontmatter state
+          # machine got confused by HR separators (see PR #150), and
+          # the loop here would just see an empty cited set and skip
+          # — turning a parser bug into a silent pass.
           violations = []
           checked = 0
-          for repo, cited in cited_by_repo.items():
-              mode = mode_by_repo.get(repo)
+          for repo, mode in mode_by_repo.items():
               if mode != 'brownfield': continue
+              cited = cited_by_repo.get(repo, set())
               repo_inventory = inventory.get(repo, set())
               if not repo_inventory:
                   violations.append(f"{repo}:<missing inventory_paths>")
                   print(f"::warning::path-gate: brownfield repo {repo} has no inventory_paths — failing gate (current knowledge-code runs must emit inventory_paths)")
+                  continue
+              if not cited:
+                  violations.append(f"{repo}:<zero-cited-paths>")
+                  print(f"::warning::path-gate: brownfield repo {repo} has ZERO cited paths in the artifact — either the agent skipped citing concrete files for this repo, or the parser failed to attribute paths. Either way, mode-honesty cannot be verified.")
                   continue
               for p in cited:
                   checked += 1
