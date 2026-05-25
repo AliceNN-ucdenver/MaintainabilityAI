@@ -2393,13 +2393,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Action ${actionId} not found on this OKR` });
       return;
     }
-    if (!action.artifact) {
-      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: 'No artifact path on this action yet — agent may still be running or pre-Phase B' });
-      return;
-    }
-    const artifactPath = path.join(meshPath, action.artifact);
+    // E2 polish (2026-05-25) — phaseSpec fallback for action.artifact.
+    // Bug SS populated action.artifact at dispatch time, but that's
+    // forward-only — actions dispatched BEFORE Bug SS landed (any
+    // ACT-N in an existing okr.yaml) have artifact = undefined.
+    // The artifact path is fully derivable from (phase, okrId) via
+    // phaseSpec so we can compute it instead of failing closed. This
+    // makes View Tag work on every existing OKR action without
+    // requiring a migration of okr.yaml files.
+    const artifactRel = action.artifact ?? phaseSpec(action.phase).artifactPath(okrId);
+    const artifactPath = path.join(meshPath, artifactRel);
     if (!fs.existsSync(artifactPath)) {
-      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Artifact file missing: ${action.artifact}` });
+      this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Artifact file missing locally: ${artifactRel}. The PR may not be merged yet (artifact lives on PR head ref), or you need to Pull Mesh.` });
       return;
     }
     try {
