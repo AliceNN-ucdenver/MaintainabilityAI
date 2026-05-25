@@ -2,7 +2,7 @@
   <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/">Home</a><span class="sep">/</span><a href="/docs/">Docs</a><span class="sep">/</span><span>Vision</span></div>
-    <div class="docs-eyebrow">Vision · The agentic SDLC governance framework <span class="docs-hero-meta">~25 min deep dive</span></div>
+    <div class="docs-eyebrow">Vision · The agentic SDLC governance framework <span class="docs-hero-meta">Executive read + technical deep dive</span></div>
     <h1 class="docs-hero-title">An agentic governed SDLC</h1>
     <p class="docs-hero-copy">
       <strong>One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.</strong> The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. Trust earned, not granted. Per agent, per session, per event.
@@ -241,6 +241,15 @@ That is the difference between a pile of coding assistants and a governed hybrid
   <rect x="100" y="196" width="600" height="22" rx="11" fill="rgba(165,180,252,0.18)" stroke="rgba(165,180,252,0.5)"/>
   <text x="400" y="211" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">MESH · 30% OF HUMAN JUDGMENT · 100% OF AGENT SPEED</text>
 </svg>
+
+---
+
+<div class="docs-center-block">
+<div class="docs-heading">This is the way: a governed evidence pipeline, not a loop</div>
+<div class="docs-copy">Five lifecycle stages × three parallel rails (judgment · proof · governance) × one signed audit chain underneath. <strong>OKR → WHY → HOW → WHAT ships today.</strong> BUILD fan-out is the next act. The full rail map sits in <a href="#how-we-keep-the-promises">How we keep the promises</a> below.</div>
+</div>
+
+<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="Compact teaser of the governed SDLC rail map — five lifecycle stages, three parallel rails (judgment, proof, governance), one signed audit chain." class="docs-svg" style="max-width: 680px; margin: 0 auto; display: block;" />
 
 ---
 
@@ -907,11 +916,31 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 
 **MaintainabilityAI is the only tool that starts from the architecture model and makes governance real in the developer's workflow *and* the agent's tool call.**
 
-**Court Recorder Auto-Logging — every audit event has one legitimate source, contract-pinned with a regression test.** Other "AI governance" products log what the agent *claims* it did — a self-report the LLM could fabricate, omit, or paraphrase. Hatter's Tea Party splits the record into three lanes. The runtime records factual tool use (`skill_call`) inside `runSkill()` before the result returns to the agent. The workflow records facts it can recompute from GitHub (`artifact_written`, `state_transition`, `human_gate`). The agent signs the judgments only it can make (`self_review`, `gap_loop`, future review handoffs) under its per-epoch key. If a caller claims the wrong source for an event, the verifier rejects the chain. The **emitted payload shape is documented in a canonical contract and pinned by an automated regression test** — any drift between the emitter and downstream audit consumers breaks the test before reaching production. This is the trust upgrade you can't buy — it's an architectural property, not a vendor feature.
+**Court Recorder Auto-Logging — every audit event has one legitimate source, contract-pinned with a regression test.**
 
-**The Tweedles, inside one agent. A bounded contrarian debate that makes the document better.** The PRD and the code design are not single-pass writeups. After the author agent drafts the artifact, it has to switch hats and argue against its own work from two angles that catch different things. First the **Architect persona** reads the draft and scores it on architecture fit. Does it stand on real CALM nodes, or did it invent dependencies? Does it respect the architectural decisions already on record? Are the cross-system interface contracts coherent? Anything fuzzy or ungrounded comes back as a finding. Then the **Security persona** scores it through a different lens. Are the threats in scope actually covered by security requirements? Are the OWASP categories triggered by those threats reflected in the spec? Are the NIST control families called out? Soft non-functional gaps (latency thresholds without justification, availability claims without budgets, threat coverage written as prose instead of structured requirements) are exactly what this lens catches. Each persona writes a structured `Self-review` block on the pull request and signs a `self_review` audit event under the session's key. If either flagged gaps, the author revises and the loop runs again, up to a ceiling the business system's risk tier (not the agent) decides: three rounds for Autonomous, two for Supervised, zero for Restricted (which goes straight to human review). This is not independence theatre. The point is pressure. Forcing the agent to argue against its own draft catches the kind of soft non-functional gaps any single-pass writeup glosses over. The convergence shows up on the audit chain as a ladder a reviewer can walk: Architect MINOR round 1, Security MINOR round 1, Architect PASS round 2, Security PASS round 2. The document got better, and the evidence proves it.
+**What it prevents:** Other "AI governance" products log what the agent *claims* it did — a self-report the LLM could fabricate, omit, or paraphrase. The Court Recorder removes that fabrication surface because the runtime records factual tool use directly, not the agent's self-report.
 
-**Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence. The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export (shipped today) turns the chain into a one-click markdown closeout per OKR action — runner crypto verdict at the top, control mapping in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
+**How it works:** Hatter's Tea Party splits the record into three lanes. The runtime records factual tool use (`skill_call`) inside `runSkill()` before the result returns to the agent. The workflow records facts it can recompute from GitHub (`artifact_written`, `state_transition`, `human_gate`). The agent signs the judgments only it can make (`self_review`, `gap_loop`, future review handoffs) under its per-epoch key. The emitted payload shape is documented in a canonical contract and pinned by an automated regression test — any drift between the emitter and downstream audit consumers breaks the test before reaching production.
+
+**What the auditor sees:** Every event in the chain has one and only one legitimate source. If a caller claims the wrong source — workflow-attribution on an agent kind, signed workflow event, missing signer epoch — the verifier rejects the chain. This is the trust upgrade you can't buy. It's an architectural property, not a vendor feature.
+
+---
+
+**The Tweedles, inside one agent — a bounded contrarian debate that makes the document better.**
+
+**What it prevents:** The PRD and the code design are not single-pass writeups. A single-pass artifact glosses over soft non-functional gaps (latency thresholds without justification, availability claims without budgets, threat coverage written as prose instead of structured requirements). The Tweedles loop catches those because the author has to argue against its own draft from two different angles before the loop converges.
+
+**How it works:** After the author agent drafts the artifact, it switches hats. The **Architect persona** scores it on architecture fit — does it stand on real CALM nodes, respect the architectural decisions already on record, and have coherent cross-system interface contracts? The **Security persona** scores it through a different lens — are the threats in scope actually covered by security requirements, the OWASP categories triggered by those threats reflected in the spec, the NIST control families called out? Each persona writes a structured Self-review block on the PR and signs a `self_review` event under the session's key. If either flagged gaps, the author revises and the loop runs again, up to a ceiling the **business system's risk tier** (not the agent) decides: three rounds for Autonomous, two for Supervised, zero for Restricted (which goes straight to human review).
+
+**What the auditor sees:** A walkable convergence ladder on the audit chain. Architect MINOR round 1 → Security MINOR round 1 → Architect PASS round 2 → Security PASS round 2. The document got better, and the evidence proves it. This is not independence theatre — the point is pressure that makes the artifact better, with a signed trail showing exactly which round closed which gap.
+
+---
+
+**Court Recorder records. Knight's Seal proves. Audit Report explains. — three primitives, one sequence.**
+
+**What each does:** The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export turns the chain into a one-click markdown closeout per OKR action — runner crypto verdict at the top, control mapping in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL.
+
+**What the auditor sees:** A single self-contained markdown closeout per merged action, plus the two source files (`<artifact>.md` + `<runId>.jsonl`) it cites. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
 
 <div class="docs-center-block">
 <div class="docs-heading">Every event has one legitimate author. Anything else is forgery.</div>
@@ -1089,11 +1118,6 @@ Backstage catalogs services without understanding their architecture. Port.io tr
   </g>
 </svg>
 
-<div class="docs-center-block">
-<div class="docs-heading">Free. Open Source. Forever.</div>
-<div class="docs-copy">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
-</div>
-
 ---
 
 ## How we keep the promises
@@ -1254,7 +1278,7 @@ Five actors the Hatter must withstand:
   <rect x="282" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="337" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Override audit YAML</text>
   <rect x="282" y="136" width="110" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="337" y="151" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">author_did + chain</text>
+  <text x="337" y="151" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">cosign anchoring (v2)</text>
   <rect x="408" y="108" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
   <text x="463" y="123" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">LLM provider audit</text>
   <rect x="408" y="136" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
@@ -1282,12 +1306,12 @@ Five actors the Hatter must withstand:
   <text x="55" y="275" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">From ASTRIDE (arXiv 2512.04785) — categories STRIDE alone does not cover</text>
   <text x="55" y="288" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Each cell below names the agent-side threat and its control in the design</text>
   <!-- 4 A-category cells -->
-  <rect x="28" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
-  <text x="118" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.prompt-injection</text>
-  <text x="118" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">Hatter Tag pins mesh_sha</text>
-  <rect x="216" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
-  <text x="306" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.memory-poisoning</text>
-  <text x="306" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">mesh_sha verify across runs</text>
+  <rect x="28" y="300" width="180" height="42" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="118" y="316" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.prompt-injection</text>
+  <text x="118" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · sanitization queued</text>
+  <rect x="216" y="300" width="180" height="42" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="306" y="316" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.memory-poisoning</text>
+  <text x="306" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · mesh_sha detects, no rejection</text>
   <rect x="404" y="300" width="180" height="42" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
   <text x="494" y="316" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.inter-agent-influence</text>
   <text x="494" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · Caterpillar's Challenge</text>
@@ -1301,10 +1325,10 @@ Five actors the Hatter must withstand:
   <text x="400" y="388" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">STATUS LEGEND (applies to all cells above)</text>
   <rect x="120" y="404" width="22" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="131" y="419" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">✓</text>
-  <text x="152" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">in design / shipped</text>
+  <text x="152" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">shipped / enforced today</text>
   <rect x="320" y="404" width="22" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
   <text x="331" y="419" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">🛠</text>
-  <text x="352" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">partial — strong variant later</text>
+  <text x="352" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">designed but not fully enforced</text>
   <rect x="552" y="404" width="22" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
   <text x="563" y="419" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">⚠</text>
   <text x="584" y="419" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">honest gap (named below)</text>
@@ -1408,8 +1432,8 @@ Five actors the Hatter must withstand:
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference — the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
-| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; sanitization layer + data-vs-instructions partitioning is a research item | ✓ |
-| **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` detect poisoned state across runs | ✓ |
+| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; **sanitization layer + data-vs-instructions partitioning is queued research** — `mesh_sha` does not sanitize hostile content | 🛠 |
+| **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` **detect** poisoned state across runs; **deterministic rejection of poisoned mesh artifacts is queued** — detection only today | 🛠 |
 | **ASTRIDE: A.inter-agent-influence** | Upstream agent's output steers a downstream agent | Partial coverage via Caterpillar's Challenge cross-phase semantic-drift check (PRD vs research; design vs PRD); full coverage requires agent-to-agent provenance signing | 🛠 |
 | **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge CI step invokes the runner's `audit-verify-chain` skill — same code path the runner uses to write the chain — which replays the SHA-256 hash chain AND cryptographically verifies every per-epoch Ed25519 signature; mismatch applies `chain-integrity-failed` and blocks merge (shipped) | ✓ |
 
@@ -1423,7 +1447,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 
 <div class="docs-proof-list docs-proof-list-compact">
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-shipped">✓ 5 of 6</span>
+    <span class="docs-proof-status docs-proof-status-shipped">✓ 5 of 6 domains</span>
     <div>
       <p class="docs-proof-title">Forrester AEGIS</p>
       <p class="docs-proof-body"><strong>Executive question:</strong> can this agent be governed like a real enterprise system? Hatter proves intent, provenance, monitoring, explainability, continuous review, and control evidence across the planning chain. Red Queen now adds per-decision action evidence at the repo boundary.</p>
@@ -1431,7 +1455,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <div class="docs-proof-evidence"><strong>Remaining gap:</strong> signed prompt-pack provenance via cosign / sigstore. <br><a href="https://www.forrester.com/blogs/introducing-aegis-the-guardrails-cisos-need-for-the-agentic-enterprise/">Forrester AEGIS</a></div>
   </div>
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-shipped">✓ 6 of 6</span>
+    <span class="docs-proof-status docs-proof-status-shipped">✓ 6 of 6 controls</span>
     <div>
       <p class="docs-proof-title">AEGIS Pre-Execution Firewall</p>
       <p class="docs-proof-body"><strong>Executive question:</strong> can the agent act before policy sees it? Skill calls are recorded by the runtime, file changes are re-derived by the workflow, review judgments are signed by the agent, and Red Queen records hook / MCP decisions before the side effect proceeds.</p>
@@ -1447,12 +1471,12 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <div class="docs-proof-evidence"><strong>Not claimed:</strong> decentralized identity, post-quantum channels, or zero-knowledge policy proofs. <br><a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></div>
   </div>
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-shipped">✓ 4 of 4</span>
+    <span class="docs-proof-status docs-proof-status-partial">🛠 4 of 4 named (2 partial)</span>
     <div>
       <p class="docs-proof-title">ASTRIDE</p>
-      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? Prompt manipulation, poisoned memory, inter-agent influence, and fake audit trails are explicit rows in the threat model.</p>
+      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes — prompt manipulation, poisoned memory, inter-agent influence, fake audit trails — are explicit rows in the threat model. Audit-fabrication is closed by the three-class ownership contract; inter-agent influence, prompt injection, and memory poisoning are partially controlled today (named gaps, not silent gaps).</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Proof:</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery. <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
+    <div class="docs-proof-evidence"><strong>Shipped:</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery — closes A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>Partial:</strong> A.prompt-injection (mesh_sha pinning is verifiable provenance, sanitization queued); A.memory-poisoning (mesh_sha detects, deterministic rejection queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
   </div>
 </div>
 
@@ -1504,10 +1528,11 @@ Looking Glass now ships an **internal auditor closeout report** per OKR action �
 - SR-NN → STRIDE/OWASP → PRD anchor → design § control mapping
 - cross-phase ladder summary linking WHY → HOW → WHAT
 
-Below the closeout, the **two source files** that prove every claim sit on disk for any reviewer with mesh access — internal auditor, security architect, incident-response team at 3 AM — to walk independently:
+Below the closeout, the **core source files** that prove every claim sit on disk for any reviewer with mesh access — internal auditor, security architect, incident-response team at 3 AM — to walk independently:
 
 - `okrs/<id>/<phase>/<artifact>.md` (the merged research-doc, PRD, or code-design)
 - `okrs/<id>/audit/events/<run>.jsonl` (the hash-chained activity log)
+- supporting evidence the closeout report cites: `audit/chain-ladder.yaml` (cross-phase), `audit/keys/<run>.epoch-*.pub.pem` (per-session signing keys), `prd.md` (control-mapping anchor)
 
 External-facing audiences (regulators, downstream consumers, third-party auditors) consume the **redacted external bundle** — the next-act zip that wraps the same closeout + source files after an automated PII / IP / secrets scrubbing pass, so prompt internals and proprietary code references don't leak verbatim. Until that ships, external sharing requires a manual review pass.
 
@@ -1543,24 +1568,26 @@ No live system access. No proprietary tooling. Five checks land the story:
 
 > 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record — facts produced by deterministic code, judgments signed by the agent.
 
-> 🎯 **Validated end to end on a live run (May 2026).** All three planning agents shipped a real OKR on the open IMDB-Celebs sample, on Claude Sonnet 4.6, with every defense above firing on merged PRs. Each phase ended with a green Sealed badge in the dashboard, and the three phases link to each other through the audit chain.
+> 🎯 **May 2026 live cert run.** All three planning agents shipped a real OKR on the open IMDB-Celebs sample, with every defense above firing on merged PRs. Each phase ended with a green Sealed badge in the dashboard, and the three phases linked to each other through the audit chain.
 
-> 🛠 **This trust model is the result of ten-plus adversarial audit rounds.** Each round made the boundary more precise; the current model is what survived.
+> 🛠 **This trust model is the result of multiple adversarial audit rounds** with both LLM-based code review and human chief-auditor passes. Each round made the boundary more precise; the current model is what survived.
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">WHY · research phase</div>
-    <div class="docs-copy">19 signed events. Evidence mode logged honestly when sources failed (rate-limited APIs, zero-result searches). No fabrication of coverage the agent did not actually have.</div>
+    <div class="docs-copy">Signed chain end-to-end. Evidence mode logged honestly when sources failed (rate-limited APIs, zero-result searches). No fabrication of coverage the agent did not actually have.</div>
   </div>
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">HOW · product spec phase</div>
-    <div class="docs-copy">13 signed events. Reviewer personas converged from MINOR to PASS in two bounded rounds. The tier the agent declared matched the tier the runtime measured. No tier hallucination.</div>
+    <div class="docs-copy">Signed chain end-to-end. Reviewer personas converged from MINOR to PASS in bounded rounds. The tier the agent declared matched the tier the runtime measured. No tier hallucination.</div>
   </div>
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">WHAT · code design phase</div>
-    <div class="docs-copy">31 signed events across two PRs. One run grounded against an existing repo (77 files walked at a specific commit), one run returned a scaffolding spec for a repo that did not exist yet. Both modes recorded in the audit so a reviewer can see the agent did not hallucinate either side.</div>
+    <div class="docs-copy">Signed chain end-to-end across multiple PRs covering both modes: one grounded against an existing repo (cited file inventory at a specific commit), one returning a scaffolding spec for a repo that did not exist yet. Both modes recorded in the audit so a reviewer can see the agent did not hallucinate either side.</div>
   </div>
 </div>
+
+<p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-top:1rem;">The full exported closeout report — runner crypto verdict, control map, event timeline — is in the mesh repo under <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code>.</p>
 
 The "the agent cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion. The audit-event shape is regression-locked across the runtime, the workflow that reads the chain, and the dashboard that displays it. Drift between any two layers breaks at test time.
 
@@ -1667,6 +1694,11 @@ The shift is not "AI will do more of the work." That part is settled. The shift 
 Three human gates per OKR. Per-epoch signatures on every agent event. A chain anyone can verify. A control plane your architect, your compliance lead, and your CISO can all read from the same screen. **One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** Trust earned, not granted.
 
 Manage intent. Quality follows.
+
+<div class="docs-center-block">
+<div class="docs-heading">Free. Open Source. Forever.</div>
+<div class="docs-copy">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
+</div>
 
 <div class="docs-actions docs-actions-center">
   <a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" class="docs-button-primary">Install the Extension</a>
