@@ -831,8 +831,8 @@ The split between `/validate` and `/drift` is the one most architects need named
   <rect x="238" y="134" width="142" height="28" rx="6" fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.4)"/>
   <text x="248" y="152" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">🤖 Copilot Coding</text>
   <text x="238" y="180" fill="#e2e8f0" font-size="10" font-weight="700" font-family="system-ui, sans-serif">Target repos</text>
-  <text x="238" y="194" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">celeb-api · imdb-frontend</text>
-  <text x="238" y="207" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">imdb-identity</text>
+  <text x="238" y="194" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">celeb-api (greenfield)</text>
+  <text x="238" y="207" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">imdb-react-frontend (brownfield)</text>
   <line x1="394" y1="142" x2="422" y2="142" stroke="#a5b4fc" stroke-width="1.6" marker-end="url(#oraArrow)"/>
   <!-- Stage 3: CI runs -->
   <rect x="424" y="68" width="170" height="148" rx="8" fill="rgba(252,211,77,0.08)" stroke="rgba(252,211,77,0.35)"/>
@@ -1331,51 +1331,69 @@ No live system access. No proprietary tooling. Five checks land the story:
 
 The "the agent cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion. The audit-event shape is regression-locked across the runtime, the workflow that reads the chain, and the dashboard that displays it. Drift between any two layers breaks at test time.
 
-### Honest gaps — what we will address
+### What we're still closing
 
-Every framework claim above has a status badge. This section names the **gaps that remain** — the ones we have not closed yet, with the named phase that will close each, and a clear distinction between "queued for a specific phase" and "research item, no committed date."
+We publish this list because honest design beats marketing claims. Every status badge in the tables above maps to one of the items below — what's shipped, what's queued for a named phase, what's open research with no committed date, and what's explicitly out of scope. Reviewers can scan it left to right.
 
-We publish this list publicly because honest design beats marketing claims, and because an executive reviewer reading the AEGIS / ASTRIDE tables above deserves to know exactly where each `🛠` or `⚠` lands on the roadmap.
-
-<div class="docs-grid docs-grid-wide">
-  <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">Highest impact</div>
-    <div class="docs-heading">Prompt injection from external research</div>
-    <div class="docs-copy">A Tavily / arXiv / HN result containing crafted prompt-injection text can manipulate the market-research-agent into following attacker-supplied instructions. Mitigation requires a sanitization layer on Skill outputs and an agent-prompt structure that explicitly partitions data from instructions. Research item; not on the current roadmap.</div>
+<div class="docs-gap-list">
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-gap-title">Knight's Seal — per-event signing</p>
+      <p class="docs-gap-body">Every audit event is signed by a per-session ephemeral key. The key lives only in the agent's session and never leaves it; the public half is committed to the mesh so any reviewer can verify offline. CI re-runs the same verification the runtime uses — one implementation, no drift — and blocks merge on any check failure. Looking Glass shows a 🛡 Sealed badge on each phase card.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> persistent signing anchored in cosign / sigstore so an external auditor can verify a year-old artifact without trusting the key embedded in its own audit log.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-emerald">
-    <div class="docs-card-kicker">Shipped</div>
-    <div class="docs-heading">Knight's Seal — Ed25519 signing</div>
-    <div class="docs-copy">Author identity is enforced via GitHub App installation ID + system-prompt SHA stamped on every Hatter Tag. <strong>Knight's Seal ships per-event, per-epoch ephemeral Ed25519 signing.</strong> Each agent session is its own signer epoch: original agent invocation = epoch 1, first revise-agent = epoch 2, and so on. The session's keypair is generated on first emit; the private key never leaves the session; the public key is committed to the mesh as <code>audit/keys/&lt;runId&gt;.epoch-N.pub.pem</code>. Every event carries its own signature plus the <code>signer_epoch</code> it was signed under. CI invokes the runner's <code>audit-verify-chain</code> skill — the same code path the runner uses to write the chain, so the verifier in CI and the verifier in the runtime are one implementation, no drift — and the workflow blocks merge if any per-epoch signature check fails. Looking Glass surfaces a green 🛡 Sealed badge on each phase card. <strong>Next act:</strong> cosign / sigstore-anchored persistent signing so a third-party auditor can verify a year-old artifact without trusting the public key embedded in its own audit log.</div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
+    <div>
+      <p class="docs-gap-title">Red Queen signed enforcement chain</p>
+      <p class="docs-gap-body">Red Queen already writes a per-decision JSON log for every hook + <code>validate_action</code> call: verdict, rule ID, target, override attribution. Reviewable today. The remaining gap is cryptographic — those decision logs aren't yet folded into the same signed chain the Hatter side uses.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> signed <code>redqueen-action</code> events + a required status check + cross-chain inclusion proofs from OKR intent down to per-repo action.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-amber">
-    <div class="docs-card-kicker">Queen's Next Act</div>
-    <div class="docs-heading">Red Queen signed enforcement chain</div>
-    <div class="docs-copy">Today, Red Queen writes durable per-decision JSONL for hooks and <code>validate_action</code>: verdict, rule ID, target, session ID, and override attribution. That makes the action boundary reviewable now. The remaining gap is cryptographic: those action logs are not yet folded into the Hatter-style signed hash chain. Queen's Next Act adds signed Red Queen decision events, the <code>redqueen-action</code> required status check, and cross-chain inclusion proofs from OKR intent to repo action.</div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
+    <div>
+      <p class="docs-gap-title">Audit Report Export — one CIO-readable bundle</p>
+      <p class="docs-gap-body">Every artifact in an OKR thread — research, PRD, code-design, audit chain — is already linkable and verifiable from Looking Glass. The queued addition is a one-bundle export a CIO can download, plus a redaction layer (PII / IP / secrets scrubbing) so the same bundle is safe to share with external auditors and regulators.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Future — cosign era</div>
-    <div class="docs-heading">Prompt-pack signature verification</div>
-    <div class="docs-copy">Packs deploy from the mesh template. Hatter Tag records the pack version and SHA on each run, so post-hoc auditing works — but a compromised template-repo committer can ship a malicious pack and we won't refuse to load it. <strong>Signed-pack-only deployment</strong> pairs with the cosign-anchored Knight's Seal evolution: both prompt packs and Hatter Tag signatures land in the same persistent-signing root of trust.</div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
+    <div>
+      <p class="docs-gap-title">Org-separation on dual-signature override</p>
+      <p class="docs-gap-body">Today's override gate requires Signer 2 ≠ Signer 1, both human, both authorized by the org's override policy. What it doesn't catch: two engineers on the same team coordinating an override between themselves.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> org-graph-aware enforcement — different team and different cost-center required for the second signature.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-card-kicker">Trust boundary</div>
-    <div class="docs-heading">LLM-provider audit blind spot</div>
-    <div class="docs-copy">Anthropic and GitHub Copilot store our prompts + outputs under their retention policies. Our audit chain stops at the request boundary; we record token counts and costs, not prompt bodies. This will not change until self-hosted inference is in scope, which is not on the current roadmap.</div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
+    <div>
+      <p class="docs-gap-title">Prompt-pack signature verification</p>
+      <p class="docs-gap-body">Prompt packs deploy from the mesh template. The Hatter Tag records the pack version and SHA on every run, so post-hoc auditing works today. What's open: a malicious commit to the template repo could ship a poisoned pack and the runtime won't refuse to load it.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> signed-pack-only deployment, anchored in the same cosign-based root of trust as the Knight's Seal evolution above.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-indigo">
-    <div class="docs-card-kicker">Policy gap</div>
-    <div class="docs-heading">Org-separation on dual-signature override</div>
-    <div class="docs-copy">Today: Signer 2 ≠ Signer 1, both must be human, both must have authority per the org's documented override policy. Not enforced: same-team coordination. Two engineers on the same team can pre-arrange overrides and the workflow won't catch it. Org-graph-based enforcement (different team, different cost-center) is queued for a future release.</div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-research">🔬 Research</span>
+    <div>
+      <p class="docs-gap-title">Prompt injection from external research</p>
+      <p class="docs-gap-body">A Tavily / arXiv / Hacker News result containing crafted prompt-injection text can manipulate the market-research-agent into following attacker-supplied instructions. Mitigating it requires a sanitization layer on Skill outputs plus an agent-prompt structure that explicitly partitions data from instructions.</p>
+      <p class="docs-gap-next"><strong>Status:</strong> open research item, not on the committed roadmap. Highest-impact item we have not yet scheduled.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-emerald">
-    <div class="docs-card-kicker">Compliance</div>
-    <div class="docs-heading">Audit Report Export — coming in the next act</div>
-    <div class="docs-copy">A one-bundle CIO-readable Audit Report Export is queued for the next act of the framework. When it ships, the bundle will include merged research, PRD, and code-design verbatim — and a redaction layer (PII / IP / secrets scrubbing) lands at the same time so the export is safe to share with external auditors and regulators. Today: every artifact in the thread is already linkable and verifiable in place from the Looking Glass; the one-bundle CIO export consolidates that view into a single downloadable.</div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-scope">— Out of scope</span>
+    <div>
+      <p class="docs-gap-title">LLM-provider audit blind spot</p>
+      <p class="docs-gap-body">Anthropic and GitHub Copilot retain our prompts and outputs under their own retention policies. Our audit chain stops at the request boundary — we record token counts and costs, not prompt bodies.</p>
+      <p class="docs-gap-next"><strong>Status:</strong> only changes if self-hosted inference is in scope, which it isn't on the current roadmap.</p>
+    </div>
   </div>
 </div>
 
-We treat this list as **living**. As the design ships and we learn from real OKR runs, the gaps will move (some will close into the controls table; new ones will surface). The threat model lives in [the design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md) and tracks alongside the deliverables map.
+We treat this list as **living**. As the design ships and we learn from real OKR runs, items move (some close into the controls tables above, new ones surface). The threat model lives in [the design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md) and tracks alongside the deliverables map.
 
 > 💬 **Responsible disclosure.** Found a threat we haven't named? Open an issue at [github.com/AliceNN-ucdenver/MaintainabilityAI](https://github.com/AliceNN-ucdenver/MaintainabilityAI) or contact [chiefarcheologist.com/contact](https://chiefarcheologist.com/contact). We treat security threats as design feedback, not as criticism.
 

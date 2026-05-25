@@ -431,7 +431,7 @@ The audit comment posted on the pull request shows exactly what each check found
 
 This is where the planning agents meet reality. The **code-design-agent** is the last agent on the Looking Glass side, and it produces the artifact that gets the **heaviest scoring** in the pipeline: a cross-cutting code design grounded on the **actual code in every impacted repository**.
 
-Why one cross-cutting design, not per-repo? Because real features cross repo boundaries. An "add the celebrity API" OKR touches `celeb-api` (the new endpoint) **and** `imdb-react-frontend` (the consumer) **and** `imdb-identity` (the auth flow). A per-repo design loses the interface contracts that span them. The cross-cutting design lives in the mesh; **fan-out is automatic after merge** (Stage 5).
+Why one cross-cutting design, not per-repo? Because real features cross repo boundaries. An "add the celebrity API" OKR touches `celeb-api` (the new endpoint, greenfield) **and** `imdb-react-frontend` (the consumer, brownfield) **and the existing auth/RBAC contracts** they both inherit (no separate repo PR — the design just has to honor the contract). A per-repo design loses the interface story that spans them. The cross-cutting design lives in the mesh; **fan-out is automatic after merge** (Stage 5).
 
 <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -452,8 +452,8 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
   <text x="120" y="120" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">repo: celeb-api</text>
   <rect x="30" y="142" width="180" height="30" rx="6" fill="rgba(125,211,252,0.12)" stroke="rgba(125,211,252,0.35)"/>
   <text x="120" y="162" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">repo: imdb-react-frontend</text>
-  <rect x="30" y="184" width="180" height="30" rx="6" fill="rgba(125,211,252,0.12)" stroke="rgba(125,211,252,0.35)"/>
-  <text x="120" y="204" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">repo: imdb-identity</text>
+  <rect x="30" y="184" width="180" height="30" rx="6" fill="rgba(148,163,184,0.10)" stroke="rgba(148,163,184,0.30)" stroke-dasharray="3 3"/>
+  <text x="120" y="204" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="600" font-family="system-ui, sans-serif">inherited auth contract</text>
   <rect x="30" y="226" width="180" height="30" rx="6" fill="rgba(196,181,253,0.12)" stroke="rgba(196,181,253,0.35)"/>
   <text x="120" y="246" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600" font-family="system-ui, sans-serif">reference-repos (curated)</text>
   <rect x="30" y="268" width="180" height="30" rx="6" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.35)"/>
@@ -550,9 +550,9 @@ From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take yo
   <rect x="480" y="138" width="280" height="50" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
   <text x="620" y="158" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">issue → imdb-react-frontend repo</text>
   <text x="620" y="174" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">slice: §2.3 SWR cache, §5 consumer</text>
-  <rect x="480" y="218" width="280" height="50" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
-  <text x="620" y="238" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">issue → imdb-identity repo</text>
-  <text x="620" y="254" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">slice: §2.1 token scope additions</text>
+  <rect x="480" y="218" width="280" height="50" rx="8" fill="rgba(148,163,184,0.08)" stroke="rgba(148,163,184,0.30)" stroke-dasharray="3 3"/>
+  <text x="620" y="238" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="700" font-family="system-ui, sans-serif">no PR — honors existing auth contract</text>
+  <text x="620" y="254" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design references JWT scope already in place</text>
   <!-- Bottom: red queen takes over -->
   <rect x="160" y="280" width="480" height="28" rx="14" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.4)"/>
   <text x="400" y="298" text-anchor="middle" fill="#f9a8d4" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">↳ coding agents pick up · Red Queen governs from here</text>
