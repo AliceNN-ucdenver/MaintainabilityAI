@@ -1439,13 +1439,22 @@ function renderStartButton(
 
 function renderFooter(okr: OkrCard, mode: OkrDetailMode): string {
   if (mode === 'view') {
+    // Phase E E4 (2026-05-25) — closes the long-standing UX bug where
+    // this footer's `Export Audit Report` button was disabled with
+    // title="Phase E feature" ever since Phase E shipped the per-action
+    // export. The wired button now dispatches `exportOkrRollup` which
+    // generates a whole-OKR rollup combining all 3 phases (WHY + HOW +
+    // WHAT) into one auditor-grade markdown at
+    // okrs/<id>/audit/exports/<okrId>-rollup.md.
+    //
+    // The footer-level `Verify Chain` placeholder is removed entirely —
+    // per-action Verify Chain ↗ buttons inside each phase card already
+    // cover the shipped flow; an OKR-level verify-all is a separate
+    // future feature.
     return `
       <div class="okr-detail-footer">
-        <button class="okr-button-primary okr-button-disabled" disabled title="Phase E feature">
-          📦 Export Audit Report <span class="okr-button-locked-icon">🔒</span>
-        </button>
-        <button class="okr-button-secondary okr-button-disabled" disabled title="Phase E feature">
-          🔍 Verify Chain
+        <button class="okr-button-primary" data-action="export-okr-rollup" data-okr-id="${escapeAttr(okr.meta.id)}" title="Generate a whole-OKR audit rollup combining WHY + HOW + WHAT into one auditor-grade markdown document">
+          📦 Export Full OKR Audit Rollup
         </button>
         <button class="okr-button-secondary" data-action="open-okr-yaml" data-okr-id="${escapeAttr(okr.meta.id)}">
           📂 Open okr.yaml
@@ -1749,6 +1758,19 @@ export function attachOkrDetailEvents(
       const actionId = (el as HTMLElement).dataset.actionId;
       if (okrId && actionId) {
         vscode.postMessage({ type: 'exportAuditReport', okrId, actionId });
+      }
+    });
+  });
+  // Phase E E4 — Export Full OKR Audit Rollup (footer button). Generates
+  // a whole-OKR rollup combining all 3 phases into one auditor-grade
+  // markdown at okrs/<id>/audit/exports/<okrId>-rollup.md. Distinct from
+  // per-action `export-audit` above which generates one closeout per
+  // phase run.
+  document.querySelectorAll('[data-action="export-okr-rollup"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const okrId = (el as HTMLElement).dataset.okrId;
+      if (okrId) {
+        vscode.postMessage({ type: 'exportOkrRollup', okrId });
       }
     });
   });

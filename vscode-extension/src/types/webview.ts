@@ -546,6 +546,16 @@ export type LookingGlassWebviewMessage =
    */
   | { type: 'exportAuditReport'; okrId: string; actionId: string }
   /**
+   * Phase E E4 — OKR-level rollup export. Generates a whole-OKR audit
+   * rollup combining all 3 phases (WHY/HOW/WHAT) into one auditor-grade
+   * markdown document at okrs/<id>/audit/exports/<okrId>-rollup.md.
+   * Distinct from `exportAuditReport` which is per-action. Reuses the
+   * exact same decideRunnerInvocation / verifyKeysAtomicity /
+   * fetchPrdAndArtifact code paths the per-action exporter uses — no
+   * parallel verifier logic.
+   */
+  | { type: 'exportOkrRollup'; okrId: string }
+  /**
    * Phase C-PR3 — HumanGate controls on the OKR detail Action card.
    * Fire when the latest action's status is `human_gate` (auto-revision
    * cycle exhausted per §6.1). The extension handles the actual GitHub

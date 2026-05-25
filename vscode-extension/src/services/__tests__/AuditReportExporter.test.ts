@@ -6,7 +6,20 @@
  * surfaces immediately.
  */
 import { describe, it, expect } from 'vitest';
-import { buildAuditReportMarkdown, composeSourceTag, parseRunnerVerdictFromStdout, type AuditReportInput, type AuditReportInputSources, type ChainVerifyVerdictLite, type RunnerVerifyVerdict } from '../AuditReportExporter';
+import {
+  buildAuditReportMarkdown,
+  buildOkrRollupMarkdown,
+  composeOkrRollupSourceTag,
+  composeSourceTag,
+  computeOkrRollupVerdict,
+  parseRunnerVerdictFromStdout,
+  type AuditReportInput,
+  type AuditReportInputSources,
+  type ChainVerifyVerdictLite,
+  type OkrRollupInput,
+  type PhaseRollupDigest,
+  type RunnerVerifyVerdict,
+} from '../AuditReportExporter';
 
 function makeVerdict(over: Partial<ChainVerifyVerdictLite> = {}): ChainVerifyVerdictLite {
   return {
@@ -990,5 +1003,521 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
     expect(tag).toContain('MIXED');
     expect(tag).toContain('local-fallback');
     expect(tag).not.toContain('canonical');
+  });
+});
+
+// ============================================================================
+// E4 (2026-05-25) — Whole-OKR audit rollup
+//
+// Pure-function tests for buildOkrRollupMarkdown, computeOkrRollupVerdict, and
+// composeOkrRollupSourceTag. The caller (LookingGlassPanel.onExportOkrRollup)
+// assembles the input by looping canonical okr.yaml actions; these tests pin
+// the contract for what the renderer + verdict precedence produce given that
+// input. The handler-side flow is covered by the existing per-action
+// integration via decideRunnerInvocation/fetchPrdAndArtifact/verifyKeysAtomicity
+// which the rollup handler reuses unchanged.
+// ============================================================================
+
+describe('buildOkrRollupMarkdown', () => {
+  function makeCanonicalSources(over: Partial<AuditReportInputSources> = {}): AuditReportInputSources {
+    return {
+      okr: 'github',
+      chain: 'github',
+      ladder: 'github',
+      keys: 'github-verified',
+      prd: 'github',
+      artifact: 'github',
+      runnerInput: 'github-verified',
+      ...over,
+    };
+  }
+
+  function makeRunnerPassVerdict(): RunnerVerifyVerdict {
+    return { invoked: true, ok: true, chainHead: 'a'.repeat(64), eventCount: 28 };
+  }
+
+  function makePhaseDigest(over: Partial<PhaseRollupDigest> = {}): PhaseRollupDigest {
+    const phase = over.phase ?? 'why';
+    return {
+      phase,
+      runId: `${phase.toUpperCase()}-2026-05-25-aaa`,
+      actionId: phase === 'why' ? 'ACT-1' : phase === 'how' ? 'ACT-2' : 'ACT-3',
+      status: 'complete',
+      completedAt: '2026-05-25T10:00:00Z',
+      artifactPath: `okrs/OKR-X/${phase}/artifact.md`,
+      prUrl: 'https://github.com/x/y/pull/100',
+      evidenceComplete: true,
+      evidenceGaps: [],
+      verdict: {
+        seal: { sealed: true },
+        totalEvents: 28,
+        malformedLines: 0,
+        unsignedAgentEvents: 0,
+        signedWorkflowEvents: 0,
+        originKindMismatches: 0,
+        firstFailure: null,
+        shapeOk: true,
+      },
+      runnerVerdict: makeRunnerPassVerdict(),
+      sources: makeCanonicalSources(),
+      agentStats: { signedAgent: 4, totalAgent: 4 },
+      reviewSummary: [
+        {
+          persona: phase === 'why' ? 'market-research' : phase === 'how' ? 'prd-architect' : 'code-architect',
+          rounds: [
+            { round: 1, score: 0.85, severity: 'MINOR', eventId: 10 },
+            { round: 2, score: 0.96, severity: 'PASS', eventId: 12 },
+          ],
+        },
+      ],
+      chainHead: 'a'.repeat(64),
+      eventCount: 28,
+      perActionReportPath: `${phase.toUpperCase()}-2026-05-25-aaa-report.md`,
+      ...over,
+    };
+  }
+
+  function makeOkrRollupInput(over: Partial<OkrRollupInput> = {}): OkrRollupInput {
+    const phases = over.phases ?? [
+      makePhaseDigest({ phase: 'why' }),
+      makePhaseDigest({ phase: 'how' }),
+      makePhaseDigest({ phase: 'what' }),
+    ];
+    return {
+      okrId: 'OKR-2026Q2-IMDB-001-celeb-api',
+      objective: 'Ship celeb-api enrichment with auditable provenance',
+      owner: 'shawnmccarthy',
+      tier: 'supervised',
+      barId: 'APP-IMDB-002',
+      createdAt: '2026-05-20T09:00:00Z',
+      completedAt: '2026-05-25T16:00:00Z',
+      phases,
+      missingPhases: [],
+      chainLadderText: null,
+      ladderSource: 'github',
+      controlRows: [],
+      prdSource: 'github',
+      artifactSource: 'github',
+      sourceTag: 'GitHub x/y (default branch)',
+      ...over,
+    };
+  }
+
+  it('renders the correct H1 title (OKR Audit Rollup, NOT Audit report)', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toMatch(/^# OKR Audit Rollup — OKR-2026Q2-IMDB-001-celeb-api/);
+    // Must not be confused with the per-action exporter's header shape.
+    expect(md).not.toMatch(/^# Audit report —/m);
+  });
+
+  it('executive summary VERDICT=PASS when all 3 phases present + runner-verified + canonical', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toContain('VERDICT:  ✅ PASS');
+    expect(md).toContain('All 3 phases present, runner-verified, and source-atomic');
+    expect(md).toContain('ACTION:   APPROVE OKR closeout');
+    expect(md).toContain('RISK:     LOW');
+  });
+
+  it('executive summary VERDICT=PARTIAL when OKR has only WHY+HOW done, WHAT missing', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [makePhaseDigest({ phase: 'why' }), makePhaseDigest({ phase: 'how' })],
+      missingPhases: ['what'],
+    }));
+    expect(md).toContain('VERDICT:  ⚠ PARTIAL');
+    expect(md).toContain('WHAT phase(s) not started');
+    expect(md).toContain('ACTION:   CONTINUE');
+  });
+
+  it('executive summary VERDICT=FAIL when any phase has runner FAIL', () => {
+    const failing = makePhaseDigest({
+      phase: 'how',
+      runnerVerdict: { invoked: true, ok: false, reason: 'prev-hash-mismatch-line-7' },
+    });
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [makePhaseDigest({ phase: 'why' }), failing, makePhaseDigest({ phase: 'what' })],
+    }));
+    expect(md).toContain('VERDICT:  ❌ FAIL');
+    expect(md).toContain('HOW phase runner verdict FAIL: prev-hash-mismatch-line-7');
+    expect(md).toContain('ACTION:   REJECT');
+    expect(md).toContain('RISK:     CRITICAL');
+  });
+
+  it('executive summary VERDICT=FAIL when any phase has source atomicity broken (keys=mismatch)', () => {
+    const failing = makePhaseDigest({
+      phase: 'what',
+      sources: makeCanonicalSources({ keys: 'mismatch', runnerInput: 'not-applicable' }),
+      runnerVerdict: { invoked: false, reason: 'keys atomicity broken' },
+    });
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [makePhaseDigest({ phase: 'why' }), makePhaseDigest({ phase: 'how' }), failing],
+    }));
+    expect(md).toContain('VERDICT:  ❌ FAIL');
+    expect(md).toContain('WHAT phase source atomicity broken');
+    expect(md).toContain('runner bytes');
+  });
+
+  it('executive summary VERDICT=FAIL when any completed phase has evidenceComplete=false', () => {
+    const failing = makePhaseDigest({
+      phase: 'how',
+      evidenceComplete: false,
+      evidenceGaps: ['chain JSONL missing', 'no finalize state_transition'],
+    });
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [makePhaseDigest({ phase: 'why' }), failing, makePhaseDigest({ phase: 'what' })],
+    }));
+    expect(md).toContain('VERDICT:  ❌ FAIL');
+    expect(md).toContain('HOW phase has incomplete evidence');
+    expect(md).toContain('chain JSONL missing');
+    expect(md).toContain('no finalize state_transition');
+  });
+
+  it('renders one row per phase in the rollup table', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toContain('## Phase rollup');
+    expect(md).toContain('| Phase | Run ID | Status | Sealed | Runner | Chain head | PR |');
+    expect(md).toContain('| WHY | `WHY-2026-05-25-aaa` |');
+    expect(md).toContain('| HOW | `HOW-2026-05-25-aaa` |');
+    expect(md).toContain('| WHAT | `WHAT-2026-05-25-aaa` |');
+  });
+
+  it('renders missing-phase rows in the rollup table (PARTIAL OKR)', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [makePhaseDigest({ phase: 'why' })],
+      missingPhases: ['how', 'what'],
+    }));
+    expect(md).toContain('| WHY | `WHY-2026-05-25-aaa` |');
+    expect(md).toContain('| HOW | _not started_ |');
+    expect(md).toContain('| WHAT | _not started_ |');
+  });
+
+  it('renders per-phase trust posture blocks with links to per-action reports', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toContain('## Per-phase trust posture');
+    expect(md).toContain('### WHY · WHY-2026-05-25-aaa');
+    expect(md).toContain('### HOW · HOW-2026-05-25-aaa');
+    expect(md).toContain('### WHAT · WHAT-2026-05-25-aaa');
+    expect(md).toContain('Per-action report');
+    expect(md).toContain('WHY-2026-05-25-aaa-report.md');
+    expect(md).toContain('runner-verified · 28 events');
+  });
+
+  it('per-phase trust posture renders evidence-missing callout when evidenceComplete=false', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [
+        makePhaseDigest({
+          phase: 'why',
+          evidenceComplete: false,
+          evidenceGaps: ['chain JSONL not on disk', 'no artifact at canonical path'],
+        }),
+      ],
+      missingPhases: ['how', 'what'],
+    }));
+    expect(md).toContain('⚠ **Evidence missing');
+    expect(md).toContain('chain JSONL not on disk');
+    expect(md).toContain('no artifact at canonical path');
+  });
+
+  it('renders unioned control coverage table when controlRows present', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      controlRows: [
+        { sr: 'SR-01', stride: ['THR-003'], owasp: ['A01'], prdAnchor: 'prd.md §Security Requirements (SR-01)', designCited: true },
+        { sr: 'SR-02', stride: ['THR-006'], owasp: ['A03'], prdAnchor: 'prd.md §Security Requirements (SR-02)', designCited: false },
+      ],
+    }));
+    expect(md).toContain('## Unioned control coverage');
+    expect(md).toContain('| `SR-01` | `THR-003` | `A01` |');
+    expect(md).toContain('| `SR-02` | `THR-006` | `A03` |');
+    // designCited=false renders as ✗
+    expect(md).toMatch(/SR-02.*✗/);
+  });
+
+  it('renders honest "not available" note when prdSource=suppressed-non-canonical', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      controlRows: [],
+      prdSource: 'suppressed-non-canonical',
+    }));
+    expect(md).toContain('## Unioned control coverage');
+    expect(md).toContain('Control mapping not rendered');
+    expect(md).toContain('PRD suppressed');
+    expect(md).toContain('preserve atomicity');
+  });
+
+  it('renders honest "not available" note when prdSource=missing', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      controlRows: [],
+      prdSource: 'missing',
+    }));
+    expect(md).toContain('Control mapping not rendered');
+    expect(md).toContain('PRD missing');
+  });
+
+  it('outstanding gaps section lists per-phase issues honestly', () => {
+    const failing = makePhaseDigest({
+      phase: 'how',
+      runnerVerdict: { invoked: true, ok: false, reason: 'prev-hash-mismatch-line-7' },
+    });
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      phases: [makePhaseDigest({ phase: 'why' }), failing],
+      missingPhases: ['what'],
+    }));
+    expect(md).toContain('## Outstanding gaps');
+    expect(md).toContain('**HOW**: runner verdict FAIL');
+    expect(md).toContain('prev-hash-mismatch-line-7');
+    expect(md).toContain('**WHAT**: phase not started');
+  });
+
+  it('outstanding gaps shows "no outstanding gaps" sentinel when everything green', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toContain('## Outstanding gaps');
+    expect(md).toContain('✓ No outstanding gaps across the OKR.');
+  });
+
+  it('verifier notes renders one runner command per started phase', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toContain('## Verifier notes');
+    expect(md).toContain('**WHY · WHY-2026-05-25-aaa**');
+    expect(md).toContain('**HOW · HOW-2026-05-25-aaa**');
+    expect(md).toContain('**WHAT · WHAT-2026-05-25-aaa**');
+    // Each block uses the same skill-audit-verify-chain command shape.
+    expect(md).toContain('skill-audit-verify-chain');
+    expect(md).toContain('"okrId":"OKR-2026Q2-IMDB-001-celeb-api"');
+    expect(md).toContain('"runId":"WHY-2026-05-25-aaa"');
+    expect(md).toContain('"runId":"HOW-2026-05-25-aaa"');
+    expect(md).toContain('"runId":"WHAT-2026-05-25-aaa"');
+  });
+
+  it('renders sourceTag in the header', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      sourceTag: 'GitHub AliceNN-ucdenver/mesh (default branch)',
+    }));
+    expect(md).toContain('Sources: GitHub AliceNN-ucdenver/mesh (default branch)');
+  });
+
+  it('OKR identity table renders objective + owner + tier + BAR', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput());
+    expect(md).toContain('## OKR identity');
+    expect(md).toContain('| Objective | Ship celeb-api enrichment with auditable provenance |');
+    expect(md).toContain('| Owner | shawnmccarthy |');
+    expect(md).toContain('| Tier | supervised |');
+    expect(md).toContain('| BAR | `APP-IMDB-002` |');
+  });
+
+  it('renders cross-phase ladder when chainLadderText provided', () => {
+    const ladder = `chain:
+  - phase: why
+    action_id: ACT-1
+    run_id: WHY-2026-05-25-aaa
+    status: complete
+    merged_at: '2026-05-25T10:00:00Z'
+    chain_root_hash: ${'a'.repeat(64)}`;
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({ chainLadderText: ladder }));
+    expect(md).toContain('## Cross-phase ladder');
+    expect(md).toContain('| `why` | `ACT-1` | `WHY-2026-05-25-aaa` |');
+  });
+
+  it('cross-phase ladder section honors suppressed-non-canonical ladder source', () => {
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      chainLadderText: null,
+      ladderSource: 'suppressed-non-canonical',
+    }));
+    expect(md).toContain('## Cross-phase ladder');
+    expect(md).toContain('suppressed');
+    expect(md).toContain('preserve atomicity');
+  });
+});
+
+describe('computeOkrRollupVerdict', () => {
+  function makeCanonicalSources(over: Partial<AuditReportInputSources> = {}): AuditReportInputSources {
+    return {
+      okr: 'github', chain: 'github', ladder: 'github',
+      keys: 'github-verified', prd: 'github', artifact: 'github',
+      runnerInput: 'github-verified',
+      ...over,
+    };
+  }
+  function makeDigest(over: Partial<PhaseRollupDigest> = {}): PhaseRollupDigest {
+    return {
+      phase: 'why',
+      runId: 'WHY-x',
+      actionId: 'ACT-1',
+      status: 'complete',
+      completedAt: '2026-05-25T10:00:00Z',
+      artifactPath: 'okrs/X/why/research-doc.md',
+      prUrl: null,
+      evidenceComplete: true,
+      evidenceGaps: [],
+      verdict: { seal: { sealed: true }, totalEvents: 0, malformedLines: 0, unsignedAgentEvents: 0, signedWorkflowEvents: 0, originKindMismatches: 0, firstFailure: null, shapeOk: true },
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'a'.repeat(64), eventCount: 5 },
+      sources: makeCanonicalSources(),
+      agentStats: { signedAgent: 4, totalAgent: 4 },
+      reviewSummary: [],
+      chainHead: 'a'.repeat(64),
+      eventCount: 5,
+      perActionReportPath: 'WHY-x-report.md',
+      ...over,
+    };
+  }
+  function makeInput(over: Partial<OkrRollupInput> = {}): OkrRollupInput {
+    return {
+      okrId: 'OKR-X',
+      objective: null,
+      owner: null,
+      tier: null,
+      barId: null,
+      createdAt: null,
+      completedAt: null,
+      phases: [makeDigest({ phase: 'why' }), makeDigest({ phase: 'how' }), makeDigest({ phase: 'what' })],
+      missingPhases: [],
+      chainLadderText: null,
+      ladderSource: 'missing',
+      controlRows: [],
+      prdSource: 'github',
+      artifactSource: 'github',
+      sourceTag: 'GitHub canonical',
+      ...over,
+    };
+  }
+
+  it('FAIL > PARTIAL > PASS precedence: FAIL wins when both present', () => {
+    // All 3 phases but one has runner FAIL → FAIL (not PARTIAL or PASS)
+    const out = computeOkrRollupVerdict(makeInput({
+      phases: [
+        makeDigest({ phase: 'why' }),
+        makeDigest({ phase: 'how', runnerVerdict: { invoked: true, ok: false, reason: 'tamper' } }),
+        makeDigest({ phase: 'what' }),
+      ],
+    }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('HOW');
+    expect(out.reason).toContain('tamper');
+  });
+
+  it('FAIL > PARTIAL: FAIL wins when one phase fails AND another phase missing', () => {
+    const out = computeOkrRollupVerdict(makeInput({
+      phases: [
+        makeDigest({ phase: 'why' }),
+        makeDigest({ phase: 'how', evidenceComplete: false, evidenceGaps: ['chain missing'] }),
+      ],
+      missingPhases: ['what'],
+    }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('HOW');
+  });
+
+  it('PARTIAL when OKR missing phases AND all present phases pass', () => {
+    const out = computeOkrRollupVerdict(makeInput({
+      phases: [makeDigest({ phase: 'why' })],
+      missingPhases: ['how', 'what'],
+    }));
+    expect(out.verdict).toBe('PARTIAL');
+    expect(out.reason).toContain('HOW, WHAT');
+  });
+
+  it('PARTIAL when all 3 phases present but one phase runner not invoked (innocent reason)', () => {
+    const out = computeOkrRollupVerdict(makeInput({
+      phases: [
+        makeDigest({ phase: 'why' }),
+        makeDigest({ phase: 'how' }),
+        makeDigest({
+          phase: 'what',
+          runnerVerdict: { invoked: false, reason: 'npx not found on PATH' },
+        }),
+      ],
+    }));
+    expect(out.verdict).toBe('PARTIAL');
+    expect(out.reason).toContain('WHAT phase runner NOT INVOKED');
+  });
+
+  it('PASS when all 3 phases present + runner-verified + source-atomic + evidence complete', () => {
+    const out = computeOkrRollupVerdict(makeInput());
+    expect(out.verdict).toBe('PASS');
+    expect(out.reason).toContain('source-atomic');
+  });
+
+  it('FAIL when keys=mismatch breaks atomicity even if runner not invoked', () => {
+    const out = computeOkrRollupVerdict(makeInput({
+      phases: [
+        makeDigest({ phase: 'why' }),
+        makeDigest({ phase: 'how' }),
+        makeDigest({
+          phase: 'what',
+          sources: makeCanonicalSources({ keys: 'mismatch', runnerInput: 'not-applicable' }),
+          runnerVerdict: { invoked: false, reason: 'keys mismatch' },
+        }),
+      ],
+    }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('WHAT');
+    expect(out.reason).toContain('atomicity');
+  });
+
+  it('FAIL when runnerInput=jsonl-mismatch breaks atomicity', () => {
+    const out = computeOkrRollupVerdict(makeInput({
+      phases: [
+        makeDigest({
+          phase: 'why',
+          sources: makeCanonicalSources({ runnerInput: 'jsonl-mismatch' }),
+          runnerVerdict: { invoked: false, reason: 'jsonl drift' },
+        }),
+        makeDigest({ phase: 'how' }),
+        makeDigest({ phase: 'what' }),
+      ],
+    }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('WHY');
+  });
+});
+
+describe('composeOkrRollupSourceTag', () => {
+  const REPO = { owner: 'AliceNN-ucdenver', repo: 'mesh' };
+  function mkSources(over: Partial<AuditReportInputSources> = {}): AuditReportInputSources {
+    return {
+      okr: 'github', chain: 'github', ladder: 'github',
+      keys: 'github-verified', prd: 'github', artifact: 'github',
+      runnerInput: 'github-verified',
+      ...over,
+    };
+  }
+
+  it('returns canonical headline only when ALL phases canonical', () => {
+    const tag = composeOkrRollupSourceTag([mkSources(), mkSources(), mkSources()], REPO);
+    expect(tag).toBe('GitHub AliceNN-ucdenver/mesh (default branch)');
+  });
+
+  it('returns local mesh headline when ALL phases local-fallback', () => {
+    const local = mkSources({
+      okr: 'local-fallback', chain: 'local-fallback', ladder: 'local-fallback',
+      keys: 'local-only', prd: 'local-fallback', artifact: 'local-fallback',
+      runnerInput: 'local-only',
+    });
+    const tag = composeOkrRollupSourceTag([local, local, local], REPO);
+    expect(tag).toBe('local mesh checkout');
+  });
+
+  it('returns MIXED + names broken phase when one phase non-atomic', () => {
+    const broken = mkSources({ keys: 'mismatch', runnerInput: 'not-applicable' });
+    const tag = composeOkrRollupSourceTag([mkSources(), broken, mkSources()], REPO);
+    expect(tag).toContain('MIXED');
+    // Broken phase is index 1 → HOW
+    expect(tag).toContain('HOW');
+    expect(tag).not.toBe('GitHub AliceNN-ucdenver/mesh (default branch)');
+  });
+
+  it('returns MIXED + names multiple broken phases when more than one non-atomic', () => {
+    const broken = mkSources({ keys: 'mismatch', runnerInput: 'not-applicable' });
+    const tag = composeOkrRollupSourceTag([mkSources(), broken, broken], REPO);
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('HOW');
+    expect(tag).toContain('WHAT');
+  });
+
+  it('returns MIXED when some phases canonical and others local (not all-canonical, not all-local)', () => {
+    const local = mkSources({
+      okr: 'local-fallback', chain: 'local-fallback', ladder: 'local-fallback',
+      keys: 'local-only', prd: 'local-fallback', artifact: 'local-fallback',
+      runnerInput: 'local-only',
+    });
+    const tag = composeOkrRollupSourceTag([mkSources(), local, mkSources()], REPO);
+    expect(tag).toContain('MIXED');
   });
 });

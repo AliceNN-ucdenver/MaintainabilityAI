@@ -344,10 +344,17 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('data-action="back-to-okr-list"');
   });
 
-  it('Export Audit Report + Verify Chain footer buttons are disabled (Phase E)', () => {
+  it('Export Full OKR Audit Rollup footer button is wired (E4)', () => {
+    // Phase E E4 (2026-05-25) — the disabled `Export Audit Report` +
+    // `Verify Chain` footer placeholders were replaced by a single wired
+    // `Export Full OKR Audit Rollup` button dispatching `exportOkrRollup`.
+    // Per-action Verify Chain ↗ buttons inside each phase card still
+    // cover the shipped per-action verify flow; the OKR-level verify-all
+    // is a separate future feature.
     const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [] });
-    expect(html).toContain('Export Audit Report');
-    expect(html).toContain('Verify Chain');
+    expect(html).toContain('Export Full OKR Audit Rollup');
+    expect(html).toContain('data-action="export-okr-rollup"');
+    expect(html).not.toContain('title="Phase E feature"');
   });
 
   it('renders gracefully with null okr', () => {

@@ -321,7 +321,13 @@ function shortHash(s: string | null | undefined, n = 16): string {
   return s.length > n + 1 ? `${s.slice(0, n)}…` : s;
 }
 
-function parseChain(lines: string[]): ChainEvent[] {
+/**
+ * E4 (2026-05-25) — exported so the OKR rollup handler can parse chain
+ * JSONL once per phase and reuse the result across summarizeSelfReview /
+ * countAgentEventStats. Tolerates malformed lines silently (the shape
+ * verdict surfaces them).
+ */
+export function parseChain(lines: string[]): ChainEvent[] {
   const out: ChainEvent[] = [];
   for (const line of lines) {
     if (!line.trim()) { continue; }
@@ -372,7 +378,12 @@ function isSelfReviewLegitimate(e: ChainEvent): boolean {
   return true;
 }
 
-function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: { round: number; score: number | null; severity: string | null; eventId: number | null }[] }[] {
+/**
+ * E4 (2026-05-25) — exported so the OKR rollup handler can populate
+ * PhaseRollupDigest.reviewSummary using the same legitimacy gate as the
+ * per-action exporter. Internal-name only — not a stability promise.
+ */
+export function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: { round: number; score: number | null; severity: string | null; eventId: number | null }[] }[] {
   const byPersona = new Map<string, Map<number, { score: number | null; severity: string | null; eventId: number | null }>>();
   for (const e of events) {
     if (!isSelfReviewLegitimate(e)) { continue; }
@@ -403,8 +414,12 @@ function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: {
  * the runner (Ed25519 signature math). The pair (signed/total) tells
  * an auditor immediately whether the chain CLAIMS to be sealed
  * (signatures + epochs present) and whether anything's missing.
+ *
+ * E4 (2026-05-25) — exported so the OKR rollup handler can populate
+ * PhaseRollupDigest.agentStats reusing the same gate. Internal-name
+ * only — not a stability promise.
  */
-function countAgentEventStats(events: ChainEvent[]): { signedAgent: number; totalAgent: number } {
+export function countAgentEventStats(events: ChainEvent[]): { signedAgent: number; totalAgent: number } {
   let signedAgent = 0;
   let totalAgent = 0;
   for (const e of events) {
@@ -670,7 +685,7 @@ interface ControlRow {
   prdAnchor: string;
   designCited: boolean;
 }
-function extractControlMapping(prdText: string | null | undefined, artifactText: string | null | undefined): ControlRow[] {
+export function extractControlMapping(prdText: string | null | undefined, artifactText: string | null | undefined): ControlRow[] {
   if (!prdText) { return []; }
   // Codex E3-gold review fix: the synthesis prompt allows SR-NN as
   // heading shape (`### SR-01`), numbered-list shape (`- SR-01: ...`),
@@ -1077,3 +1092,509 @@ printf '{"okrId":"${input.okrId}","runId":"${input.runId}"}' \\
 \`\`\`
 `;
 }
+
+// ============================================================================
+// E4 (2026-05-25) — Whole-OKR audit rollup
+//
+// Per-action exports (buildAuditReportMarkdown above) already ship one closeout
+// per WHY/HOW/WHAT run. E4 adds a whole-OKR rollup that summarizes ALL three
+// phases in one auditor-grade document at
+// okrs/<id>/audit/exports/<okrId>-rollup.md.
+//
+// Architecture: same trust discipline as the per-action flow — the caller
+// (LookingGlassPanel.onExportOkrRollup) reuses decideRunnerInvocation,
+// verifyKeysAtomicity, fetchPrdAndArtifact, and composeSourceTag for every
+// phase that has a runId. Verdict precedence:
+//
+//   PASS    — all 3 phases present AND runner-verified AND source-atomic
+//   PARTIAL — OKR isn't fully complete (one or more of WHY/HOW/WHAT missing)
+//   FAIL    — any completed phase missing chain/artifact/finalize evidence,
+//             runner FAILED, OR source atomicity broken
+//
+// Rendered sections reuse the same helpers as the per-action report so a
+// reviewer who's already trained on per-action output recognizes everything
+// in the rollup. The two reports are deliberately not interchangeable: the
+// rollup's H1 is "OKR Audit Rollup — <okrId>" so an auditor never confuses
+// it with the per-action "Audit report —" closeouts.
+// ============================================================================
+
+/**
+ * Per-phase digest the caller produces (one per WHY/HOW/WHAT phase that has
+ * a runId). Aggregated into OkrRollupInput before rendering.
+ *
+ * The caller MUST set `evidenceComplete` honestly: if chain JSONL is
+ * missing OR artifact text is missing OR (for HOW/WHAT) the chain has no
+ * signed self_review events, set false and list what's missing in
+ * `evidenceGaps`. The rollup verdict precedence treats `evidenceComplete
+ * === false` as FAIL just like a runner failure.
+ */
+export interface PhaseRollupDigest {
+  phase: 'why' | 'how' | 'what';
+  runId: string;
+  actionId: string;
+  status: string;
+  completedAt: string | null;
+  artifactPath: string | null;
+  prUrl: string | null;
+  /**
+   * Whether the phase's evidence is complete enough to evaluate. false
+   * when chain JSONL missing, artifact missing, or no finalize. Caller
+   * sets this; rollup verdict treats false as FAIL.
+   */
+  evidenceComplete: boolean;
+  /** Human-readable list of what's missing when evidenceComplete=false. */
+  evidenceGaps: string[];
+  /** Shape verdict from verifyChainForUI (same code path as per-action). */
+  verdict: ChainVerifyVerdictLite;
+  /** Runner verdict from decideRunnerInvocation (same code path). */
+  runnerVerdict: RunnerVerifyVerdict;
+  /** Per-input source provenance from the same flow. */
+  sources: AuditReportInputSources;
+  agentStats: { signedAgent: number; totalAgent: number };
+  reviewSummary: ReturnType<typeof summarizeSelfReview>;
+  /** Runner's chainHead if invoked + ok, else null. */
+  chainHead: string | null;
+  /** Number of events in the chain (from parsed chainLines). */
+  eventCount: number;
+  /** Relative path under audit/exports/ to the per-action report. */
+  perActionReportPath: string;
+}
+
+/**
+ * Top-level input for buildOkrRollupMarkdown. Caller assembles phases[]
+ * by looping the canonical okr.yaml's actions[] (WHY → HOW → WHAT order)
+ * and producing a PhaseRollupDigest for each entry that has a runId.
+ * Phases the OKR design expects but doesn't have started yet go in
+ * `missingPhases` so the rollup can render PARTIAL honestly.
+ */
+export interface OkrRollupInput {
+  okrId: string;
+  objective: string | null;
+  owner: string | null;
+  tier: string | null;
+  barId: string | null;
+  createdAt: string | null;
+  /** Last-completed-phase's completedAt, or null if OKR ongoing. */
+  completedAt: string | null;
+  /** Phases that have at least been started; sorted WHY → HOW → WHAT. */
+  phases: PhaseRollupDigest[];
+  /** Phases the OKR design expects but doesn't have started yet. */
+  missingPhases: Array<'why' | 'how' | 'what'>;
+  chainLadderText: string | null;
+  ladderSource: AuditReportInputSources['ladder'];
+  /**
+   * Unioned SR → STRIDE/OWASP/design mapping across all phases. Caller
+   * computes via extractControlMapping(prdText, artifactText) where
+   * prdText is from HOW phase and artifactText is from WHAT phase. When
+   * the caller couldn't fetch one canonically (suppressed or missing),
+   * pass an empty array and set the corresponding {prd,artifact}Source.
+   */
+  controlRows: ReturnType<typeof extractControlMapping>;
+  prdSource: AuditReportInputSources['prd'];
+  artifactSource: AuditReportInputSources['artifact'];
+  /** OKR-level source tag composed from all phase sources. */
+  sourceTag: string;
+}
+
+export type OkrRollupVerdict = 'PASS' | 'PARTIAL' | 'FAIL';
+
+/**
+ * Predicate that mirrors the per-input atomicity logic in
+ * buildExecutiveSummary's atomicityBroken check. Kept inline (no new
+ * shared helper) because the per-action exec summary already names the
+ * same precedence rules — keeping them in sync via duplication-by-
+ * mirror is the lesser evil than threading the predicate through both.
+ */
+function isPhaseSourceAtomic(s: AuditReportInputSources): boolean {
+  // Any of these conditions breaks atomicity (matches buildExecutiveSummary).
+  if (s.okr === 'github' && s.chain === 'local-fallback') { return false; }
+  if (s.keys === 'mismatch' || s.keys === 'missing') { return false; }
+  if (s.runnerInput === 'jsonl-mismatch' || s.runnerInput === 'jsonl-missing') { return false; }
+  return true;
+}
+
+/**
+ * Compute the OKR-level verdict from the per-phase digests with strict
+ * precedence: FAIL > PARTIAL > PASS.
+ *
+ *   FAIL — any phase digest has runnerVerdict.invoked && !ok, or has
+ *          evidenceComplete=false, or has source atomicity broken.
+ *   PARTIAL — fewer than 3 phases present (one or more of WHY/HOW/WHAT
+ *             not started yet), AND no FAIL signal among present phases.
+ *   PASS — all 3 phases present + each runner-verified (invoked && ok) +
+ *          each source-atomic + each evidenceComplete.
+ *
+ * The reason string names the FIRST failing condition encountered in
+ * deterministic order (phases array order) so two runs against the same
+ * inputs always produce the same reason text.
+ */
+export function computeOkrRollupVerdict(input: OkrRollupInput): {
+  verdict: OkrRollupVerdict;
+  reason: string;
+} {
+  // FAIL precedence — check every present phase for any failure signal.
+  for (const p of input.phases) {
+    if (!p.evidenceComplete) {
+      return {
+        verdict: 'FAIL',
+        reason: `${p.phase.toUpperCase()} phase has incomplete evidence: ${p.evidenceGaps.join('; ') || 'unspecified gap'}`,
+      };
+    }
+    if (p.runnerVerdict.invoked && !p.runnerVerdict.ok) {
+      return {
+        verdict: 'FAIL',
+        reason: `${p.phase.toUpperCase()} phase runner verdict FAIL: ${p.runnerVerdict.reason}`,
+      };
+    }
+    if (!isPhaseSourceAtomic(p.sources)) {
+      return {
+        verdict: 'FAIL',
+        reason: `${p.phase.toUpperCase()} phase source atomicity broken — report bytes ≠ runner bytes`,
+      };
+    }
+  }
+  // PARTIAL — at least one expected phase not started yet (or runner not
+  // invoked for innocent reasons, e.g. shape-only path). The OKR cannot
+  // be PASS because the gold step is missing somewhere.
+  if (input.missingPhases.length > 0) {
+    return {
+      verdict: 'PARTIAL',
+      reason: `OKR incomplete — ${input.missingPhases.map(p => p.toUpperCase()).join(', ')} phase(s) not started yet`,
+    };
+  }
+  // All 3 phases present and no FAIL — but each phase's runner must have
+  // actually run and passed for PASS. Anything else (runner not invoked
+  // on a present phase) downgrades to PARTIAL.
+  for (const p of input.phases) {
+    if (!p.runnerVerdict.invoked) {
+      return {
+        verdict: 'PARTIAL',
+        reason: `${p.phase.toUpperCase()} phase runner NOT INVOKED: ${p.runnerVerdict.reason}`,
+      };
+    }
+  }
+  return { verdict: 'PASS', reason: 'All 3 phases present, runner-verified, and source-atomic' };
+}
+
+/**
+ * Compose the OKR-level headline sourceTag from per-phase sources.
+ *
+ * - If every phase composes to canonical GitHub: same canonical headline
+ *   as the per-action export.
+ * - If every phase is local-fallback (all phases ran against local mesh):
+ *   `local mesh checkout`.
+ * - Otherwise: MIXED, naming the specific phase(s) that broke atomicity
+ *   so a reviewer reading just the headline knows where to look.
+ *
+ * Reuses composeSourceTag per-phase to make the per-phase decision; this
+ * helper only collapses the per-phase results into one OKR-level string.
+ */
+export function composeOkrRollupSourceTag(
+  perPhaseSources: AuditReportInputSources[],
+  repoInfo: { owner: string; repo: string } | null | undefined,
+): string {
+  if (perPhaseSources.length === 0) {
+    // No phases started — nothing to compose. Caller shouldn't really hit
+    // this (PARTIAL covers it), but we don't want to throw.
+    return 'no phases started';
+  }
+  // Reuse per-phase composeSourceTag to classify each. A phase is "canonical"
+  // when its tag matches the canonical GitHub headline; "local" when local
+  // mesh checkout; else MIXED.
+  const canonicalTag = repoInfo ? `GitHub ${repoInfo.owner}/${repoInfo.repo} (default branch)` : null;
+  const phaseTags = perPhaseSources.map(s => composeSourceTag(s, repoInfo));
+  const allCanonical = canonicalTag !== null && phaseTags.every(t => t === canonicalTag);
+  const allLocal = phaseTags.every(t => t === 'local mesh checkout');
+  if (allCanonical && canonicalTag) { return canonicalTag; }
+  if (allLocal) { return 'local mesh checkout'; }
+  // MIXED — name which phase(s) are non-atomic (NOT canonical, NOT local).
+  // Use WHY/HOW/WHAT labels by position so the reviewer can find them
+  // immediately in the rollup body's per-phase blocks.
+  const phaseLabels: Array<'WHY' | 'HOW' | 'WHAT'> = ['WHY', 'HOW', 'WHAT'];
+  const brokenPhases: string[] = [];
+  for (let i = 0; i < perPhaseSources.length; i++) {
+    const tag = phaseTags[i];
+    if (tag !== canonicalTag && tag !== 'local mesh checkout') {
+      brokenPhases.push(phaseLabels[i] ?? `phase[${i}]`);
+    }
+  }
+  const brokenList = brokenPhases.length > 0 ? brokenPhases.join(', ') : 'one or more phases';
+  return `MIXED — non-atomic in ${brokenList} (see per-phase Trust posture for details)`;
+}
+
+/**
+ * Render the per-phase trust block for one PhaseRollupDigest. When the
+ * phase has evidenceComplete=false, renders an honest "evidence missing"
+ * callout instead of the full trust posture (rollup verdict already
+ * surfaces this as FAIL at the top).
+ */
+function renderPhaseTrustBlock(p: PhaseRollupDigest): string {
+  const heading = `### ${p.phase.toUpperCase()} · ${p.runId}`;
+  if (!p.evidenceComplete) {
+    const gaps = p.evidenceGaps.length > 0
+      ? p.evidenceGaps.map(g => `  - ${g}`).join('\n')
+      : '  - (no gaps named)';
+    return `${heading}
+
+⚠ **Evidence missing — cannot evaluate trust posture for this phase.** Specific gaps:
+
+${gaps}
+
+Action: \`${p.actionId}\` · status: \`${p.status}\``;
+  }
+  const rv = p.runnerVerdict;
+  let runnerLine: string;
+  if (rv.invoked && rv.ok) {
+    runnerLine = `✅ runner-verified · ${rv.eventCount} events · chain head \`${rv.chainHead.slice(0, 16)}…\``;
+  } else if (rv.invoked && !rv.ok) {
+    runnerLine = `❌ runner rejected chain · \`${rv.reason}\``;
+  } else {
+    runnerLine = `⚠ runner NOT INVOKED · ${rv.reason}`;
+  }
+  const finalScores = p.reviewSummary.length > 0
+    ? p.reviewSummary.map(r => {
+        const last = r.rounds[r.rounds.length - 1];
+        return `${r.persona}: ${last.score?.toFixed(2) ?? '—'} (${last.severity ?? '?'})`;
+      }).join(' · ')
+    : '_no signed self_review events_';
+  return `${heading}
+
+- **Sources**: ${composeSourceTag(p.sources, null)}
+- **Runner verdict**: ${runnerLine}
+- **Final self-review scores**: ${finalScores}
+- **Agent events signed**: ${p.agentStats.signedAgent}/${p.agentStats.totalAgent}
+- **Artifact**: ${p.artifactPath ? `\`${p.artifactPath}\`` : '—'}
+- **PR**: ${p.prUrl ? `[${p.prUrl}](${p.prUrl})` : '—'}
+- **Per-action report**: \`${p.perActionReportPath}\` (full closeout for this phase)`;
+}
+
+/**
+ * Render the outstanding-gaps section — a bullet list of per-phase issues
+ * + cross-cutting issues (suppressed PRD, non-canonical sources, missing
+ * phases). Empty list shows the "no outstanding gaps" sentinel.
+ */
+function renderOutstandingGaps(input: OkrRollupInput): string {
+  const gaps: string[] = [];
+  for (const p of input.phases) {
+    if (!p.evidenceComplete) {
+      gaps.push(`**${p.phase.toUpperCase()}**: evidence missing — ${p.evidenceGaps.join('; ') || 'unspecified'}`);
+    }
+    if (p.runnerVerdict.invoked && !p.runnerVerdict.ok) {
+      gaps.push(`**${p.phase.toUpperCase()}**: runner verdict FAIL — \`${p.runnerVerdict.reason}\``);
+    } else if (!p.runnerVerdict.invoked) {
+      gaps.push(`**${p.phase.toUpperCase()}**: runner NOT INVOKED — ${p.runnerVerdict.reason}`);
+    }
+    if (!isPhaseSourceAtomic(p.sources)) {
+      gaps.push(`**${p.phase.toUpperCase()}**: source atomicity broken — runner bytes would differ from report bytes`);
+    }
+  }
+  for (const m of input.missingPhases) {
+    gaps.push(`**${m.toUpperCase()}**: phase not started — OKR incomplete`);
+  }
+  if (input.prdSource === 'suppressed-non-canonical') {
+    gaps.push(`**Control mapping**: PRD suppressed (canonical fetch failed; local exists but withheld to preserve atomicity) — SR coverage cannot be verified from this rollup`);
+  } else if (input.prdSource === 'missing') {
+    gaps.push(`**Control mapping**: PRD missing — no SR definitions to cross-reference against design`);
+  }
+  if (input.artifactSource === 'suppressed-non-canonical') {
+    gaps.push(`**Control mapping**: WHAT artifact suppressed — cannot verify SR citations in design`);
+  }
+  if (gaps.length === 0) {
+    return '✓ No outstanding gaps across the OKR.';
+  }
+  return gaps.map(g => `- ${g}`).join('\n');
+}
+
+/**
+ * Render verifier notes — one runner command per phase, so an auditor
+ * can re-verify any phase independently from a fresh shell.
+ */
+function renderVerifierNotesPerPhase(input: OkrRollupInput): string {
+  if (input.phases.length === 0) {
+    return '_No phases started — nothing to re-verify._';
+  }
+  return input.phases.map(p => `**${p.phase.toUpperCase()} · ${p.runId}**
+
+\`\`\`sh
+printf '{"okrId":"${input.okrId}","runId":"${p.runId}"}' \\
+  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+\`\`\``).join('\n\n');
+}
+
+/**
+ * Build the OKR audit rollup markdown body. Pure function — input in,
+ * string out. Caller (LookingGlassPanel.onExportOkrRollup) writes to
+ * disk and opens the file in VS Code.
+ *
+ * Section order:
+ *   1. Header — `# OKR Audit Rollup — <okrId>` + timestamp + sourceTag
+ *   2. Executive summary — verdict / risk / action / scope
+ *   3. OKR identity table
+ *   4. Phase rollup table (one row per phase)
+ *   5. Per-phase trust posture (one block per phase)
+ *   6. Cross-phase ladder (reuses summarizeChainLadder)
+ *   7. Unioned control coverage (reuses extractControlMapping rendering)
+ *   8. Outstanding gaps (per-phase + cross-cutting)
+ *   9. Verifier notes (one runner cmd per phase)
+ */
+export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
+  const { verdict, reason } = computeOkrRollupVerdict(input);
+  const verdictBadge = verdict === 'PASS'
+    ? '✅ PASS'
+    : verdict === 'PARTIAL' ? '⚠ PARTIAL' : '❌ FAIL';
+
+  // Executive summary — same VERDICT/RISK/ACTION/SCOPE shape as per-action
+  // exec summary so reviewers trained on per-action recognize it.
+  const riskLine = verdict === 'FAIL'
+    ? 'CRITICAL — see Outstanding gaps for the specific failing phase'
+    : verdict === 'PARTIAL'
+      ? 'MEDIUM — OKR is not fully complete; rollup is informational only'
+      : 'LOW — all 3 phases runner-verified + source-atomic';
+  const actionLine = verdict === 'PASS'
+    ? 'APPROVE OKR closeout for downstream use. All phases verified end-to-end with the same runner CI uses.'
+    : verdict === 'PARTIAL'
+      ? 'CONTINUE — complete the missing phase(s) listed below before treating this rollup as a final closeout.'
+      : 'REJECT — fix the failing phase(s) listed below and re-export the rollup before treating any phase as closeout-ready.';
+  const scopeLine = `OKR \`${input.okrId}\` · ${input.phases.length}/3 phases started · ${input.missingPhases.length} missing`;
+  const execSummary = [
+    '```',
+    `VERDICT:  ${verdictBadge} — ${reason}`,
+    `RISK:     ${riskLine}`,
+    `ACTION:   ${actionLine}`,
+    `SCOPE:    ${scopeLine}`,
+    '```',
+  ].join('\n');
+
+  // OKR identity table.
+  const identityTable = `| Field | Value |
+|---|---|
+| OKR | \`${input.okrId}\` |
+| Objective | ${input.objective ?? '—'} |
+| Owner | ${input.owner ?? '—'} |
+| Tier | ${input.tier ?? '—'} |
+| BAR | ${input.barId ? `\`${input.barId}\`` : '—'} |
+| Created | ${input.createdAt ?? '—'} |
+| Completed | ${input.completedAt ?? '_(in progress)_'} |`;
+
+  // Phase rollup table — one row per phase, plus rows for missing phases
+  // so the table always shows 3 rows for a fully-spec'd OKR.
+  const phaseRow = (p: PhaseRollupDigest): string => {
+    const sealed = p.verdict.seal.sealed ? '🛡 sealed' : p.verdict.seal.sealTampered ? '⚠ tampered' : '—';
+    const rv = p.runnerVerdict;
+    const runnerCell = rv.invoked
+      ? (rv.ok ? `✅ PASS` : `❌ FAIL`)
+      : '⚠ NOT INVOKED';
+    const chainHeadCell = p.chainHead ? `\`${p.chainHead.slice(0, 12)}…\`` : '—';
+    const prCell = p.prUrl ? `[#${p.prUrl.split('/').pop() ?? '?'}](${p.prUrl})` : '—';
+    return `| ${p.phase.toUpperCase()} | \`${p.runId}\` | ${p.status} | ${sealed} | ${runnerCell} | ${chainHeadCell} | ${prCell} |`;
+  };
+  const missingRow = (m: 'why' | 'how' | 'what'): string =>
+    `| ${m.toUpperCase()} | _not started_ | — | — | — | — | — |`;
+  const phaseTableRows: string[] = [];
+  // Render in WHY → HOW → WHAT order regardless of array ordering, so
+  // the rollup table always reads phase-naturally.
+  for (const ph of ['why', 'how', 'what'] as const) {
+    const present = input.phases.find(p => p.phase === ph);
+    if (present) {
+      phaseTableRows.push(phaseRow(present));
+    } else if (input.missingPhases.includes(ph)) {
+      phaseTableRows.push(missingRow(ph));
+    }
+  }
+  const phaseTable = `| Phase | Run ID | Status | Sealed | Runner | Chain head | PR |
+|---|---|---|---|---|---|---|
+${phaseTableRows.join('\n')}`;
+
+  // Per-phase trust posture blocks.
+  const trustBlocks = input.phases.map(renderPhaseTrustBlock).join('\n\n');
+
+  // Cross-phase ladder — reuse the same summarizeChainLadder + table
+  // rendering as the per-action export so the format is recognizable.
+  const ladderRows = summarizeChainLadder(input.chainLadderText);
+  const ladderBlock = input.chainLadderText
+    ? (ladderRows.length > 0
+        ? `| Phase | Action | Run ID | Status | Merged | Chain head |
+|---|---|---|---|---|---|
+${ladderRows.map(r => `| \`${r.phase}\` | \`${r.actionId}\` | \`${r.runId}\` | ${r.status} | ${r.mergedAt} | \`${r.chainHead}\` |`).join('\n')}
+
+<details>
+<summary>Raw <code>chain-ladder.yaml</code></summary>
+
+\`\`\`yaml
+${input.chainLadderText.trim()}
+\`\`\`
+
+</details>`
+        : `_chain-ladder.yaml present but failed to parse OR has no entries._`)
+    : input.ladderSource === 'suppressed-non-canonical'
+      ? '_chain-ladder.yaml suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)._'
+      : '_chain-ladder.yaml not present — single-phase OKR or finalize did not write one yet._';
+
+  // Unioned control coverage. When PRD or artifact is suppressed/missing,
+  // honor the suppression with an explicit "not rendered" note.
+  let controlBlock: string;
+  if (input.controlRows.length > 0) {
+    controlBlock = `| SR | STRIDE | OWASP | PRD anchor | Design references SR? |
+|---|---|---|---|:---:|
+${input.controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '—'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '—'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
+
+_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. That belongs in PR review._`;
+  } else if (input.prdSource === 'suppressed-non-canonical') {
+    controlBlock = '_Control mapping not rendered — PRD suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)._';
+  } else if (input.prdSource === 'missing') {
+    controlBlock = '_Control mapping not rendered — PRD missing (no SR definitions to cross-reference)._';
+  } else if (input.artifactSource === 'suppressed-non-canonical') {
+    controlBlock = '_Control mapping not rendered — WHAT artifact suppressed (cannot verify SR citations in design)._';
+  } else {
+    controlBlock = '_Control mapping not rendered — no SR-NN sections found in the PRD._';
+  }
+
+  const outstandingGaps = renderOutstandingGaps(input);
+  const verifierNotes = renderVerifierNotesPerPhase(input);
+
+  return `# OKR Audit Rollup — ${input.okrId}
+
+> Generated by Looking Glass · ${new Date().toISOString()}
+> Sources: ${input.sourceTag}
+> Whole-OKR rollup — for per-action closeouts, see \`okrs/${input.okrId}/audit/exports/<runId>-report.md\`.
+
+## Executive summary
+
+${execSummary}
+
+## OKR identity
+
+${identityTable}
+
+## Phase rollup
+
+${phaseTable}
+
+## Per-phase trust posture
+
+${trustBlocks || '_No phases started — nothing to summarize._'}
+
+## Cross-phase ladder
+
+${ladderBlock}
+
+## Unioned control coverage
+
+_Did each PRD-declared security requirement land in the design? Unioned across all phases._
+
+${controlBlock}
+
+## Outstanding gaps
+
+${outstandingGaps}
+
+## Verifier notes
+
+**UI shape check is convenience. Runner verifier is source of truth.**
+
+The rollup verdict reflects per-phase runner verdicts the same way the per-action exports do. To re-verify any phase independently from a fresh shell:
+
+${verifierNotes}
+`;
+}
+

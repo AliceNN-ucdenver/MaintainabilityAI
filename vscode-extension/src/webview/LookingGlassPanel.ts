@@ -73,7 +73,22 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
-import { buildAuditReportMarkdown, composeSourceTag, parseRunnerVerdictFromStdout, type AuditReportInputSources, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
+import {
+  buildAuditReportMarkdown,
+  buildOkrRollupMarkdown,
+  composeOkrRollupSourceTag,
+  composeSourceTag,
+  computeOkrRollupVerdict,
+  countAgentEventStats,
+  extractControlMapping,
+  parseChain,
+  parseRunnerVerdictFromStdout,
+  summarizeSelfReview,
+  type AuditReportInputSources,
+  type OkrRollupInput,
+  type PhaseRollupDigest,
+  type RunnerVerifyVerdict,
+} from '../services/AuditReportExporter';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -538,6 +553,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'loadHatterTag':               (m) => this.onLoadHatterTag(m.okrId, m.actionId),
     'verifyChain':                 (m) => this.onVerifyChain(m.okrId, m.actionId),
     'exportAuditReport':           (m) => this.onExportAuditReport(m.okrId, m.actionId),
+    'exportOkrRollup':             (m) => this.onExportOkrRollup(m.okrId),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -3153,6 +3169,354 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         finish({ invoked: false, reason: `Failed to write to runner stdin: ${toErrorMessage(err)}` });
       }
     });
+  }
+
+  /**
+   * Phase E E4 (2026-05-25) — Whole-OKR audit rollup export handler.
+   *
+   * Closes a long-standing UX bug: the OKR-detail footer's `📦 Export
+   * Audit Report` button was disabled with `title="Phase E feature"`
+   * ever since Phase E shipped the per-action export. This handler is
+   * what that button was always meant to do — generate a single
+   * auditor-grade markdown document combining ALL 3 phases (WHY + HOW +
+   * WHAT) of an OKR into a whole-OKR rollup at
+   * `okrs/<id>/audit/exports/<okrId>-rollup.md`.
+   *
+   * Architecture: every phase digest comes from the SAME code paths the
+   * per-action exporter uses (decideRunnerInvocation, verifyKeysAtomicity,
+   * fetchPrdAndArtifact, composeSourceTag). No parallel verifier logic —
+   * the rollup is a loop over the per-phase trust posture machinery.
+   *
+   * Trust precedence (see buildOkrRollupMarkdown):
+   *   FAIL    — any completed phase: missing evidence, runner FAILED, or
+   *             source atomicity broken
+   *   PARTIAL — OKR isn't complete (one or more of WHY/HOW/WHAT missing)
+   *   PASS    — all 3 phases present, runner-verified, source-atomic
+   */
+  private async onExportOkrRollup(okrId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+
+    // Step 1: fetch canonical okr.yaml — same source-discipline pattern
+    // as onExportAuditReport. Canonical-first; local-fallback on failure.
+    let repoInfo = this.meshRepoInfo;
+    if (!repoInfo) {
+      const url = await getRemoteOriginUrl(meshPath);
+      const parsed = url ? parseGitHubUrl(url) : null;
+      if (parsed) { repoInfo = { owner: parsed.owner, repo: parsed.repo }; }
+    }
+    const okrYamlRelPath = `okrs/${okrId}/okr.yaml`;
+    let okrYamlText: string | null = null;
+    let okrSource: 'github' | 'local-fallback' = 'local-fallback';
+    if (repoInfo) {
+      try {
+        okrYamlText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, okrYamlRelPath);
+        if (okrYamlText) { okrSource = 'github'; }
+      } catch { /* fall through to local */ }
+    }
+    if (!okrYamlText) {
+      const okrPath = path.join(meshPath, okrYamlRelPath);
+      if (!fs.existsSync(okrPath)) {
+        this.postMessage({ type: 'error', message: `okr.yaml missing on GitHub main AND local mesh: ${okrYamlRelPath}.` });
+        return;
+      }
+      try { okrYamlText = fs.readFileSync(okrPath, 'utf8'); }
+      catch (err) {
+        this.postMessage({ type: 'error', message: `Failed to read local okr.yaml fallback: ${toErrorMessage(err)}` });
+        return;
+      }
+      okrSource = 'local-fallback';
+    }
+
+    // Step 2: parse okr.yaml to extract identity + actions list.
+    let okrParsed: {
+      meta?: { id?: string; owner?: string };
+      objective?: { name?: string };
+      objectiveAlignment?: { affectedBarIds?: string[] };
+      actions?: Array<Record<string, unknown>>;
+    };
+    try {
+      okrParsed = YAML.parse(okrYamlText) as typeof okrParsed;
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to parse okr.yaml (source: ${okrSource}): ${toErrorMessage(err)}` });
+      return;
+    }
+    const actions = okrParsed.actions ?? [];
+
+    // Step 3: identify which phases are started (have runId) and which
+    // are missing. Sort started phases WHY → HOW → WHAT regardless of
+    // append order in okr.yaml.
+    const phaseOrder: Array<'why' | 'how' | 'what'> = ['why', 'how', 'what'];
+    const startedActions: Array<{ phase: 'why' | 'how' | 'what'; action: Record<string, unknown> }> = [];
+    const seenPhases = new Set<'why' | 'how' | 'what'>();
+    for (const ph of phaseOrder) {
+      const found = actions.find(a => a['phase'] === ph && typeof a['runId'] === 'string' && (a['runId'] as string).length > 0);
+      if (found) {
+        startedActions.push({ phase: ph, action: found });
+        seenPhases.add(ph);
+      }
+    }
+    const missingPhases = phaseOrder.filter(ph => !seenPhases.has(ph));
+
+    // Step 4: for each started phase, run the same per-phase flow the
+    // per-action exporter uses. Produce a PhaseRollupDigest.
+    const phaseDigests: PhaseRollupDigest[] = [];
+    const phaseSources: AuditReportInputSources[] = [];
+    for (const { phase, action } of startedActions) {
+      const digest = await this.buildPhaseRollupDigest(okrId, phase, action, okrSource, repoInfo, meshPath);
+      phaseDigests.push(digest);
+      phaseSources.push(digest.sources);
+    }
+
+    // Step 5: fetch chain-ladder.yaml ONCE for the whole OKR. Same
+    // suppress-non-canonical discipline as per-action.
+    const ladderRelPath = `okrs/${okrId}/audit/chain-ladder.yaml`;
+    let chainLadderText: string | null = null;
+    let ladderSource: AuditReportInputSources['ladder'] = 'missing';
+    if (repoInfo && okrSource === 'github') {
+      try {
+        chainLadderText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, ladderRelPath);
+        if (chainLadderText) { ladderSource = 'github'; }
+      } catch { /* optional */ }
+      if (!chainLadderText && fs.existsSync(path.join(meshPath, ladderRelPath))) {
+        ladderSource = 'suppressed-non-canonical';
+      }
+    } else if (okrSource === 'local-fallback') {
+      const ladderPath = path.join(meshPath, ladderRelPath);
+      if (fs.existsSync(ladderPath)) {
+        try {
+          chainLadderText = fs.readFileSync(ladderPath, 'utf8');
+          ladderSource = 'local-fallback';
+        } catch { /* keep missing */ }
+      }
+    }
+
+    // Step 6: unioned control coverage — find HOW phase's PRD + WHAT
+    // phase's artifact, fetch each (suppress-non-canonical discipline),
+    // call extractControlMapping. If either is suppressed/missing, the
+    // renderer honors the suppression with a "not rendered" note.
+    const howAction = startedActions.find(s => s.phase === 'how')?.action;
+    const whatAction = startedActions.find(s => s.phase === 'what')?.action;
+    const prdRel = `okrs/${okrId}/how/prd.md`;
+    const whatArtifactRel = (whatAction?.['artifact'] as string | undefined) ?? `okrs/${okrId}/what/code-design.md`;
+    // fetchPrdAndArtifact only fires when we have at least one of the
+    // two phases to look at — otherwise control mapping is trivially
+    // missing.
+    let controlRows: ReturnType<typeof extractControlMapping> = [];
+    let prdSource: AuditReportInputSources['prd'] = 'missing';
+    let artifactSource: AuditReportInputSources['artifact'] = 'missing';
+    if (howAction || whatAction) {
+      const fetched = await this.fetchPrdAndArtifact({ okrSource, repoInfo, prdRel, artifactRel: whatArtifactRel, meshPath });
+      prdSource = fetched.prdSource;
+      artifactSource = fetched.artifactSource;
+      controlRows = extractControlMapping(fetched.prdText, fetched.artifactText);
+    }
+
+    // Step 7: compose OKR-level sourceTag from per-phase sources.
+    const sourceTag = composeOkrRollupSourceTag(phaseSources, repoInfo);
+
+    // Step 8: assemble identity fields + completedAt heuristic. The
+    // OKR's completedAt is the latest completedAt across all phases
+    // (last-completed-phase wins); null if any started phase is still
+    // in progress.
+    const lastCompletedAt = phaseDigests
+      .map(d => d.completedAt)
+      .filter((c): c is string => !!c)
+      .sort()
+      .pop() ?? null;
+    const allStartedComplete = phaseDigests.length > 0 && phaseDigests.every(d => d.completedAt);
+    const okrCompletedAt = allStartedComplete && missingPhases.length === 0 ? lastCompletedAt : null;
+
+    const rollupInput: OkrRollupInput = {
+      okrId,
+      objective: okrParsed.objective?.name ?? null,
+      owner: okrParsed.meta?.owner ?? null,
+      tier: (phaseDigests[0]?.status === undefined
+        ? null
+        : (startedActions[0]?.action['governanceTier'] as string | undefined) ?? null),
+      barId: okrParsed.objectiveAlignment?.affectedBarIds?.[0] ?? null,
+      // okr.yaml meta block has createdAt at meta.createdAt — parse loosely.
+      createdAt: ((okrParsed.meta as { createdAt?: string } | undefined)?.createdAt) ?? null,
+      completedAt: okrCompletedAt,
+      phases: phaseDigests,
+      missingPhases,
+      chainLadderText,
+      ladderSource,
+      controlRows,
+      prdSource,
+      artifactSource,
+      sourceTag,
+    };
+
+    const markdown = buildOkrRollupMarkdown(rollupInput);
+    const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
+    const exportPath = path.join(exportDir, `${okrId}-rollup.md`);
+    try {
+      fs.mkdirSync(exportDir, { recursive: true });
+      fs.writeFileSync(exportPath, markdown, 'utf8');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to write OKR rollup: ${toErrorMessage(err)}` });
+      return;
+    }
+    try {
+      const uri = vscode.Uri.file(exportPath);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch { /* non-fatal — file's still on disk */ }
+    const { verdict } = computeOkrRollupVerdict(rollupInput);
+    void vscode.window.showInformationMessage(`OKR rollup exported · verdict: ${verdict}: okrs/${okrId}/audit/exports/${okrId}-rollup.md`);
+  }
+
+  /**
+   * E4 (2026-05-25) — build one PhaseRollupDigest from a canonical
+   * okr.yaml action entry. Extracted out of onExportOkrRollup to keep
+   * that handler under the architecture-fitness budget AND to make the
+   * per-phase assembly testable in isolation if/when needed.
+   *
+   * Reuses the SAME per-phase trust machinery the per-action exporter
+   * uses (decideRunnerInvocation → verifyKeysAtomicity → invokeRunner).
+   * The only thing this helper adds on top is the `evidenceComplete`
+   * boolean + evidenceGaps list: was chain JSONL fetched, did the
+   * artifact exist, did the chain hit a finalize state_transition?
+   */
+  private async buildPhaseRollupDigest(
+    okrId: string,
+    phase: 'why' | 'how' | 'what',
+    actionYaml: Record<string, unknown>,
+    okrSource: 'github' | 'local-fallback',
+    repoInfo: { owner: string; repo: string } | undefined | null,
+    meshPath: string,
+  ): Promise<PhaseRollupDigest> {
+    const runId = actionYaml['runId'] as string;
+    const actionId = actionYaml['id'] as string;
+    const status = (actionYaml['status'] as string | undefined) ?? 'unknown';
+    const completedAt = (actionYaml['completedAt'] as string | undefined) ?? null;
+    const prUrl = (actionYaml['pr'] as string | undefined) ?? null;
+    const artifactPath = (actionYaml['artifact'] as string | undefined) ?? null;
+
+    const evidenceGaps: string[] = [];
+
+    // Fetch chain JSONL — canonical, fallback to local.
+    const jsonlRelPath = `okrs/${okrId}/audit/events/${runId}.jsonl`;
+    let chainText: string | null = null;
+    let chainSource: 'github' | 'local-fallback' = 'local-fallback';
+    if (repoInfo && okrSource === 'github') {
+      try {
+        chainText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath);
+        if (chainText) { chainSource = 'github'; }
+      } catch { /* fall through */ }
+    }
+    if (!chainText) {
+      const jsonlPath = path.join(meshPath, jsonlRelPath);
+      if (fs.existsSync(jsonlPath)) {
+        try {
+          chainText = fs.readFileSync(jsonlPath, 'utf8');
+          chainSource = 'local-fallback';
+        } catch { /* fall through */ }
+      }
+    }
+    if (!chainText) {
+      evidenceGaps.push(`chain JSONL missing at ${jsonlRelPath} (tried GitHub + local)`);
+      // Cannot do any further trust analysis without a chain — return a
+      // minimal digest flagged evidenceComplete=false.
+      return {
+        phase, runId, actionId, status, completedAt, artifactPath, prUrl,
+        evidenceComplete: false, evidenceGaps,
+        verdict: { seal: {}, totalEvents: 0, malformedLines: 0, unsignedAgentEvents: 0, signedWorkflowEvents: 0, originKindMismatches: 0, firstFailure: null, shapeOk: false },
+        runnerVerdict: { invoked: false, reason: 'chain JSONL missing — cannot invoke runner' },
+        sources: {
+          okr: okrSource,
+          chain: 'local-fallback',
+          ladder: 'missing',
+          keys: 'missing',
+          prd: 'missing',
+          artifact: artifactPath ? 'missing' : 'missing',
+          runnerInput: 'not-applicable',
+        },
+        agentStats: { signedAgent: 0, totalAgent: 0 },
+        reviewSummary: [],
+        chainHead: null,
+        eventCount: 0,
+        perActionReportPath: `${runId}-report.md`,
+      };
+    }
+
+    const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
+    const verdict = verifyChainForUI(chainLines);
+    const events = parseChain(chainLines);
+    const reviewSummary = summarizeSelfReview(events);
+    const agentStats = countAgentEventStats(events);
+
+    // Run the SAME decideRunnerInvocation flow as the per-action exporter.
+    const signerEpochs = extractSignerEpochs(chainLines);
+    const decision = await this.decideRunnerInvocation({
+      okrId, runId, okrSource, chainSource, chainText, jsonlRelPath, meshPath, repoInfo, signerEpochs,
+    });
+
+    // Check artifact presence on disk OR canonical for evidenceComplete.
+    // Don't full-fetch to keep the rollup cheap — just verify the file
+    // exists on disk (it would have been written there by the merge
+    // or by local agent run).
+    let artifactExists = false;
+    if (artifactPath) {
+      artifactExists = fs.existsSync(path.join(meshPath, artifactPath));
+      if (!artifactExists) {
+        evidenceGaps.push(`artifact missing at ${artifactPath} (local mesh checkout)`);
+      }
+    } else {
+      evidenceGaps.push('action has no artifact field');
+    }
+
+    // Check finalize evidence — chain should have at least one
+    // state_transition workflow event when the phase is complete.
+    const hasFinalize = events.some(e => e.event_kind === 'state_transition');
+    if (status === 'complete' && !hasFinalize) {
+      evidenceGaps.push('phase status=complete but no state_transition event found in chain');
+    }
+
+    // For HOW + WHAT, the chain should also carry signed self_review
+    // events (Bug V/W contract). WHY phase doesn't.
+    if (phase !== 'why' && reviewSummary.length === 0 && status === 'complete') {
+      evidenceGaps.push('phase status=complete but no signed self_review events found in chain');
+    }
+
+    const evidenceComplete = evidenceGaps.length === 0;
+
+    const sources: AuditReportInputSources = {
+      okr: okrSource,
+      chain: chainSource,
+      // Per-phase ladder source is N/A here — the rollup fetches ladder
+      // once at the OKR level. Mark as missing so the per-phase Trust
+      // posture block doesn't misclaim ladder provenance.
+      ladder: 'missing',
+      keys: decision.keysSource,
+      // Per-phase PRD/artifact are similarly N/A — the rollup fetches
+      // these once for the unioned control mapping. Per-phase trust
+      // block doesn't render them.
+      prd: 'missing',
+      artifact: artifactExists ? 'local-fallback' : 'missing',
+      runnerInput: decision.runnerInputSource,
+    };
+
+    const chainHead = decision.runnerVerdict.invoked && decision.runnerVerdict.ok
+      ? decision.runnerVerdict.chainHead
+      : null;
+
+    return {
+      phase, runId, actionId, status, completedAt, artifactPath, prUrl,
+      evidenceComplete, evidenceGaps,
+      verdict,
+      runnerVerdict: decision.runnerVerdict,
+      sources,
+      agentStats,
+      reviewSummary,
+      chainHead,
+      eventCount: events.length,
+      perActionReportPath: `${runId}-report.md`,
+    };
   }
 
   /**
