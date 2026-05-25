@@ -491,7 +491,7 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
       <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Every hit (title, URL, snippet) lands in the audit chain — a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
       <li class="docs-list-item">PRD refined by mesh-anchored clarifying questions; reviewers score it for mesh-grounding</li>
       <li class="docs-list-item">Cross-cutting code design grounded against every indexed target repo (the heaviest gate in the pipeline). The agent reads actual file contents from each brownfield clone, and the workflow rejects the design if it cites any file path that does not exist in the repo's inventory.</li>
-      <li class="docs-list-item"><strong>Audit Report Export</strong> bundles the whole thread for a CIO to read in one sitting <em>(coming in the next act — today, every artifact in the thread is already linkable and verifiable in place from the Looking Glass)</em></li>
+      <li class="docs-list-item"><strong>Audit Report Export</strong> — internal auditor closeout report ships now (one-click export of a markdown closeout per OKR action with runner crypto verdict, control mapping, event timeline). <em>The redacted external one-zip regulator bundle is the next act.</em></li>
     </ul>
     <p class="docs-copy"><a href="/docs/hatters-tea-party" class="docs-button-primary">Open the Tea Party →</a></p>
   </div>
@@ -911,6 +911,8 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 
 **The Tweedles, inside one agent. A bounded contrarian debate that makes the document better.** The PRD and the code design are not single-pass writeups. After the author agent drafts the artifact, it has to switch hats and argue against its own work from two angles that catch different things. First the **Architect persona** reads the draft and scores it on architecture fit. Does it stand on real CALM nodes, or did it invent dependencies? Does it respect the architectural decisions already on record? Are the cross-system interface contracts coherent? Anything fuzzy or ungrounded comes back as a finding. Then the **Security persona** scores it through a different lens. Are the threats in scope actually covered by security requirements? Are the OWASP categories triggered by those threats reflected in the spec? Are the NIST control families called out? Soft non-functional gaps (latency thresholds without justification, availability claims without budgets, threat coverage written as prose instead of structured requirements) are exactly what this lens catches. Each persona writes a structured `Self-review` block on the pull request and signs a `self_review` audit event under the session's key. If either flagged gaps, the author revises and the loop runs again, up to a ceiling the business system's risk tier (not the agent) decides: three rounds for Autonomous, two for Supervised, zero for Restricted (which goes straight to human review). This is not independence theatre. The point is pressure. Forcing the agent to argue against its own draft catches the kind of soft non-functional gaps any single-pass writeup glosses over. The convergence shows up on the audit chain as a ladder a reviewer can walk: Architect MINOR round 1, Security MINOR round 1, Architect PASS round 2, Security PASS round 2. The document got better, and the evidence proves it.
 
+**Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence. The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export (shipped today) turns the chain into a one-click markdown closeout per OKR action — runner crypto verdict at the top, control mapping in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
+
 <div class="docs-center-block">
 <div class="docs-heading">Free. Open Source. Forever.</div>
 <div class="docs-copy">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
@@ -1165,8 +1167,8 @@ Five actors the Hatter must withstand:
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-queued">🛠 Queued</span>
     <div>
-      <p class="docs-proof-title">Sensitive audit export needs a redaction layer</p>
-      <p class="docs-proof-body">Audit-export bundles include research, PRD, and design verbatim. That is powerful for internal audit, but external sharing needs automated PII / IP / secrets scrubbing.</p>
+      <p class="docs-proof-title">External-shareable audit bundle needs a redaction layer</p>
+      <p class="docs-proof-body">The internal auditor closeout report ships today (markdown export, runner crypto verdict, control mapping). It includes research, PRD, and design references verbatim — powerful for internal audit and incident response, but external sharing with regulators or downstream consumers needs an automated PII / IP / secrets scrubbing pass first. That redaction layer plus the one-zip packaging is what's queued for the next act.</p>
     </div>
     <div class="docs-proof-evidence"><strong>Current state:</strong> token and cost counts are captured; prompt bodies are not stored. Redacted export is queued with Audit Report Export.</div>
   </div>
@@ -1307,9 +1309,19 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 
 </details>
 
-#### Two files. Any auditor. Full story.
+#### One closeout report, source files underneath.
 
-Anyone reviewing a merged artifact — internal auditor, regulator, downstream consumer, an incident-response team at 3 AM — takes **two files** off disk and reconstructs the whole run:
+Looking Glass now ships an **internal auditor closeout report** per OKR action — one markdown file under `okrs/<id>/audit/exports/<runId>-report.md` with:
+
+- runner crypto verdict (Ed25519 + hash replay) + chain head + event count
+- shape-level seal verdict for at-a-glance trust
+- per-skill evidence + per-persona self-review trail with `event_id` citations
+- workflow facts (`artifact_written` + `state_transition`)
+- collapsible event timeline
+- SR-NN → STRIDE/OWASP → PRD anchor → design § control mapping
+- cross-phase ladder summary linking WHY → HOW → WHAT
+
+Below the closeout, the **two source files** that prove every claim sit on disk for any reviewer — internal auditor, regulator, downstream consumer, incident-response team at 3 AM — to walk independently:
 
 - `okrs/<id>/<phase>/<artifact>.md` (the merged research-doc, PRD, or code-design)
 - `okrs/<id>/audit/events/<run>.jsonl` (the hash-chained activity log)
@@ -1373,11 +1385,10 @@ We publish this list because honest design beats marketing claims. Every status 
 
 <div class="docs-gap-list">
   <div class="docs-gap-row">
-    <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
+    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
     <div>
-      <p class="docs-gap-title">Knight's Seal — per-event signing</p>
-      <p class="docs-gap-body">Every agent-emitted audit event is signed by a per-session ephemeral key. The key lives only in the agent's session and never leaves it; the public half is committed to the mesh so any reviewer can verify offline. Runtime and workflow facts (artifact_written, state_transition) ride the same hash chain under their own ownership rules — re-derived from GitHub state rather than signed, and the verifier rejects any signed workflow event as suspicious. CI re-runs the same verification the runtime uses — one implementation, no drift — and blocks merge on any check failure. Looking Glass shows a 🛡 Sealed badge on each phase card.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> persistent signing anchored in cosign / sigstore so an external auditor can verify a year-old artifact without trusting the key embedded in its own audit log.</p>
+      <p class="docs-gap-title">Knight's Seal v2 — persistent external verification (cosign / sigstore)</p>
+      <p class="docs-gap-body">Knight's Seal v1 ships today (per-event, per-epoch Ed25519 signing — see hero promise + Court Recorder above) and is sufficient for internal replay: any reviewer with the mesh repo can verify any chain in place via the runner's <code>audit-verify-chain</code> skill. v2 anchors the same chain to cosign / sigstore so an external auditor a year out can verify a year-old artifact without trusting the key material embedded in its own audit log. Same signing primitive, durable external root of trust.</p>
     </div>
   </div>
   <div class="docs-gap-row">
@@ -1389,10 +1400,17 @@ We publish this list because honest design beats marketing claims. Every status 
     </div>
   </div>
   <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-gap-title">Internal Audit Report Export — auditor closeout per OKR action</p>
+      <p class="docs-gap-body">One-click markdown export from Looking Glass produces a closeout report per merged action containing the runner crypto verdict (Ed25519 + hash-chain replay), shape-level seal verdict, per-skill evidence table, per-persona self-review trail with <code>event_id</code> citations, workflow facts (<code>artifact_written</code> + <code>state_transition</code>), collapsible event timeline, SR-NN → STRIDE/OWASP → PRD anchor → design § control mapping, and the cross-phase WHY→HOW→WHAT ladder. Saved to <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code> for durable record.</p>
+    </div>
+  </div>
+  <div class="docs-gap-row">
     <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
     <div>
-      <p class="docs-gap-title">Audit Report Export — one CIO-readable bundle</p>
-      <p class="docs-gap-body">Every artifact in an OKR thread — research, PRD, code-design, audit chain — is already linkable and verifiable from Looking Glass. The queued addition is a one-bundle export a CIO can download, plus a redaction layer (PII / IP / secrets scrubbing) so the same bundle is safe to share with external auditors and regulators.</p>
+      <p class="docs-gap-title">Redacted external bundle — one zip for regulators</p>
+      <p class="docs-gap-body">The internal closeout ships now. The next act packages it plus its source files (artifact, JSONL chain, ladder, pub keys) into a single downloadable zip, after running an automated PII / IP / secrets scrubbing pass so the bundle is safe to share with external auditors, regulators, or downstream consumers without exposing prompt internals or proprietary code references verbatim.</p>
     </div>
   </div>
   <div class="docs-gap-row">
