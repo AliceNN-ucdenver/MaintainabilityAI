@@ -1113,6 +1113,23 @@ function renderWhatMetrics(s: OkrPhaseSignal | undefined, loading: boolean | und
   }
   lines.push(renderCoverageLine(s, 'what'));
   lines.push(renderDriftLine(s, 'what'));
+  // Bug SS — per-persona scores. Mirrors renderHowMetrics; pre-fix the
+  // WHAT card extracted selfReviewArchitect/selfReviewSecurity in the
+  // backend (LookingGlassPanel.ts:822-826) but never rendered them, so
+  // the "Refine: 2 rounds" line had no companion scores even when the
+  // chain had `0.96 / 0.95` from the Code-Architect + Code-Security
+  // personas. PRD card showed scores; WHAT card didn't — pure UI drift.
+  const arch = s?.selfReviewArchitect;
+  const sec = s?.selfReviewSecurity;
+  if (arch?.score != null || sec?.score != null) {
+    const archCell = arch?.score != null
+      ? `${arch.score.toFixed(2)} (${arch.severity ?? '?'})${arch.severity && ['PASS','MINOR'].includes(arch.severity) ? ' ✓' : ' ✗'}`
+      : '—';
+    const secCell = sec?.score != null
+      ? `${sec.score.toFixed(2)} (${sec.severity ?? '?'})${sec.severity && ['PASS','MINOR'].includes(sec.severity) ? ' ✓' : ' ✗'}`
+      : '—';
+    lines.push(`<div><strong>Self-review:</strong> Code-Arch ${archCell} · Code-Sec ${secCell}</div>`);
+  }
   return lines;
 }
 

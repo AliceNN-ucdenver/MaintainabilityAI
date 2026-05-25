@@ -2206,6 +2206,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           : phase === 'how' ? 'PRD synthesis (How)' : 'Code-design synthesis (What)',
         agent,
         runId,
+        // Bug SS — set the canonical artifact path at dispatch time so
+        // View Tag (onLoadHatterTag, line ~2370) can resolve the YAML
+        // frontmatter without waiting for finalize. Pre-fix this was
+        // never set, and View Tag always rendered "No artifact path on
+        // this action yet — agent may still be running" for every OKR
+        // every phase, even after merge + finalize. The phase-spec
+        // already declares the canonical mesh-relative path so dispatch
+        // and the agent landing both honor the same contract.
+        artifact: spec.artifactPath(okrId),
         intentThreadUuid: card.meta.intentThreadUuid,
         parentIntentThread,
         reviewerScores: {},
