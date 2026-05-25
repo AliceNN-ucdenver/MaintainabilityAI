@@ -272,6 +272,28 @@ describe('AgentDeploymentService.deployAgents', () => {
     svc.deployAgents(tmpMesh);
     expect(svc.listDeployedAgents(tmpMesh).every(a => a.deployed)).toBe(true);
   });
+
+  // Copilot's custom-agent runtime rejects agent .md files whose body
+  // exceeds 30,000 characters with "Invalid config: prompt exceeds max
+  // length of 30000". Bug AA + GG + GG-followup grew prd-agent.agent.md
+  // past the limit; redeploys succeeded silently locally, then the
+  // first Coding Agent dispatch cancelled with the config-invalid error
+  // (no rollback, no PR — just a wasted dispatch and a confused user).
+  // Catch it at test time so it can't ship.
+  it('every agent .md body fits Copilot custom-agent 30,000-char limit', () => {
+    const MAX = 30_000;
+    const overflow: Array<{ name: string; bodyLength: number }> = [];
+    for (const agent of MESH_AGENTS) {
+      const body = agent.generate(EXTENSION_PATH);
+      if (body.length > MAX) {
+        overflow.push({ name: agent.name, bodyLength: body.length });
+      }
+    }
+    expect(
+      overflow,
+      `Copilot custom-agent runtime rejects agent .md bodies > ${MAX} chars. Trim verbose prose / move forensic context into design docs. Offenders:\n  ${overflow.map(o => `${o.name}: ${o.bodyLength} chars (over by ${o.bodyLength - MAX})`).join('\n  ')}`,
+    ).toEqual([]);
+  });
 });
 
 describe('AgentDeploymentService.getCopilotEnvStatus', () => {
