@@ -531,14 +531,21 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
     expect(md).toContain('RISK:     CRITICAL');
   });
 
-  it('exec summary falls back to SHAPE-CLEARED only when runner NOT INVOKED', () => {
+  it('exec summary falls back to SHAPE-CLEARED only when runner NOT INVOKED for innocent reasons (npx unavailable, network) — NOT for atomicity breaks', () => {
+    // Codex E3-gold-r5: this test pre-r5 fed in a JSONL-mismatch reason
+    // and asserted SHAPE-CLEARED. That was the BLOCKING regression
+    // Codex caught — atomicity breaks must surface as FAIL, not
+    // SHAPE-CLEARED. Innocent shell-out failures (npx not on PATH,
+    // runner crashed pre-output) still legitimately produce
+    // SHAPE-CLEARED. No `sources` object → sources-aware atomicity
+    // gate is bypassed.
     const md = buildAuditReportMarkdown(makeInput({
-      runnerVerdict: { invoked: false, reason: 'Local mesh JSONL does not match canonical GitHub source' },
+      runnerVerdict: { invoked: false, reason: 'npx not found on PATH' },
       verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true }),
     }));
     expect(md).toContain('VERDICT:  SHAPE-CLEARED — runner verification NOT INVOKED');
     expect(md).toContain('RUN RUNNER VERIFY before fan-out');
-    expect(md).toContain('Local mesh JSONL does not match');
+    expect(md).toContain('npx not found on PATH');
   });
 
   it('exec summary RISK=LOW only when runner+shape both pass', () => {
@@ -661,6 +668,7 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'github-verified',
         prd: 'github',
         artifact: 'github',
+        runnerInput: 'github-verified',
       },
     }));
     expect(md).toContain('**Source breakdown**');
@@ -684,6 +692,7 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'github-verified',
         prd: 'suppressed-non-canonical',
         artifact: 'github',
+        runnerInput: 'github-verified',
       },
     }));
     expect(md).toContain('suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)');
@@ -698,6 +707,7 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'mismatch',
         prd: 'github',
         artifact: 'github',
+        runnerInput: 'not-applicable',
       },
     }));
     expect(md).toContain('⚠ LOCAL FALLBACK');
@@ -714,6 +724,7 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'not-checked',
         prd: 'github',
         artifact: 'github',
+        runnerInput: 'not-applicable',
       },
       runnerVerdict: { invoked: false, reason: 'Source atomicity broken' },
     }));
@@ -733,6 +744,7 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'mismatch',  // ← local key bytes don't match GitHub
         prd: 'github',
         artifact: 'github',
+        runnerInput: 'not-applicable',
       },
       runnerVerdict: { invoked: false, reason: 'Local public key for epoch 1 does NOT match canonical GitHub bytes' },
     }));
@@ -750,6 +762,7 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'missing',
         prd: 'github',
         artifact: 'github',
+        runnerInput: 'not-applicable',
       },
       runnerVerdict: { invoked: false, reason: 'Public key for epoch 1 missing locally' },
     }));
@@ -766,9 +779,119 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
         keys: 'github-verified',
         prd: 'github',
         artifact: 'github',
+        runnerInput: 'github-verified',
       },
       runnerVerdict: { invoked: true, ok: true, chainHead: 'a'.repeat(64), eventCount: 28 },
     }));
     expect(md).toContain('PASS (runner-verified');
+  });
+
+  // ── Codex E3-gold-r5 — runnerInput atomicity-broken FAIL paths ──
+  // r5 BLOCKING regression: pre-r5, when chain+keys looked canonical
+  // but local JSONL drifted, exec summary said SHAPE-CLEARED instead of
+  // FAIL. Now runnerInput=jsonl-mismatch or jsonl-missing produces FAIL.
+  it('exec summary VERDICT=FAIL when chain+keys canonical but runnerInput=jsonl-mismatch (Codex r5 regression)', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'github-verified',  // ← chain + keys all atomic
+        prd: 'github',
+        artifact: 'github',
+        runnerInput: 'jsonl-mismatch',  // ← but local JSONL on disk differs
+      },
+      runnerVerdict: { invoked: false, reason: 'Local mesh JSONL does not match canonical GitHub source' },
+    }));
+    expect(md).toContain('FAIL (source atomicity broken — report bytes ≠ runner bytes)');
+    expect(md).toContain('CRITICAL — source atomicity broken');
+    expect(md).toContain('local JSONL on disk does NOT match the canonical GitHub bytes');
+    // The exact pre-r5 regression Codex caught: SHAPE-CLEARED must NOT appear.
+    expect(md).not.toContain('SHAPE-CLEARED');
+  });
+
+  it('exec summary VERDICT=FAIL when runnerInput=jsonl-missing in canonical mode', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'github-verified',
+        prd: 'github',
+        artifact: 'github',
+        runnerInput: 'jsonl-missing',
+      },
+      runnerVerdict: { invoked: false, reason: 'Local mesh does not have a JSONL at the canonical path' },
+    }));
+    expect(md).toContain('FAIL (source atomicity broken');
+    expect(md).toContain('local JSONL is missing at the canonical path');
+    expect(md).not.toContain('SHAPE-CLEARED');
+  });
+
+  it('Source breakdown renders runner input row distinctly from chain', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'github-verified',
+        prd: 'github',
+        artifact: 'github',
+        runnerInput: 'jsonl-mismatch',
+      },
+    }));
+    expect(md).toContain('| runner input (local-disk bytes seen by verifier) |');
+    expect(md).toContain('🚫 LOCAL JSONL DRIFTED FROM CANONICAL');
+  });
+
+  it('Source breakdown labels ladder=suppressed-non-canonical honestly', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'suppressed-non-canonical',  // ← ladder fell back path, now suppressed
+        keys: 'github-verified',
+        prd: 'github',
+        artifact: 'github',
+        runnerInput: 'github-verified',
+      },
+    }));
+    // The ladder row picks up the suppression label.
+    expect(md).toMatch(/\| chain-ladder\.yaml \| ⚠ suppressed/);
+  });
+
+  // ── Codex E3-gold-r5 — parser walks past unrelated trailing JSON ──
+  it('parseRunnerVerdictFromStdout: continues past trailing JSON without ok field (Codex r5)', () => {
+    // The exact regression: a wrapper logs a JSON object AFTER the runner
+    // verdict, but without an `ok` field. Pre-r5 the parser stopped at
+    // that wrapper line and returned NOT INVOKED (unexpected shape).
+    // r5 walks upward until finding JSON with `ok=true|false`.
+    const stdout = [
+      '[runner] init',
+      JSON.stringify({ ok: true, chainHead: 'a'.repeat(64), eventCount: 28 }),
+      JSON.stringify({ step: 'cleanup', took: 12 }),  // ← unrelated wrapper JSON
+      'Done.',
+    ].join('\n');
+    const verdict = parseRunnerVerdictFromStdout(stdout, '', 0);
+    expect(verdict.invoked).toBe(true);
+    if (verdict.invoked) {
+      expect(verdict.ok).toBe(true);
+      if (verdict.ok) {
+        expect(verdict.eventCount).toBe(28);
+      }
+    }
+  });
+
+  it('parseRunnerVerdictFromStdout: returns "unexpected shape" only when no verdict JSON anywhere', () => {
+    // Only non-verdict JSON in the stream → NOT INVOKED with shape reason.
+    const verdict = parseRunnerVerdictFromStdout(
+      JSON.stringify({ step: 'cleanup', took: 12 }),
+      '',
+      0,
+    );
+    expect(verdict.invoked).toBe(false);
+    if (!verdict.invoked) {
+      expect(verdict.reason).toContain('unexpected shape');
+    }
   });
 });

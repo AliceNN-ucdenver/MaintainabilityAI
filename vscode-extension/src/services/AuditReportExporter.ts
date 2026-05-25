@@ -70,10 +70,42 @@ export interface ChainVerifyVerdictLite {
 export interface AuditReportInputSources {
   okr: 'github' | 'local-fallback';
   chain: 'github' | 'local-fallback';
-  ladder: 'github' | 'local-fallback' | 'missing';
+  ladder: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
   keys: 'github-verified' | 'local-only' | 'mismatch' | 'missing' | 'not-checked';
   prd: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
   artifact: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
+  /**
+   * Codex E3-gold-r5 (2026-05-25) — structurally encode whether the
+   * bytes the runner WOULD verify match the bytes the report cites.
+   *
+   * The chain field says where the report's chainText came from.
+   * The runnerInput field says what the runner would actually read
+   * from local disk when invoked. These are different: even when
+   * chain=github and keys=github-verified, the local JSONL on disk
+   * may have drifted (a `git pull` away from canonical). Pre-r5 we
+   * relied on the handler stuffing the mismatch into runnerVerdict's
+   * reason text, then the executive summary falling through to
+   * SHAPE-CLEARED because no source field flagged the problem. That
+   * was the r5 BLOCKING regression Codex caught — `localJsonl !==
+   * chainText` was correctly detected by the handler but produced a
+   * SHAPE-CLEARED headline instead of a FAIL.
+   *
+   * Values:
+   *   - 'github-verified': okr+chain+keys are GitHub canonical AND
+   *     local JSONL bytes byte-equal chainText. Runner can be
+   *     invoked atomically.
+   *   - 'local-only': okr+chain are local-fallback; runner verifies
+   *     local against local. Atomic by common source.
+   *   - 'jsonl-missing': canonical mode but local JSONL file is
+   *     missing on disk; runner cannot be invoked atomically.
+   *   - 'jsonl-mismatch': canonical mode but local JSONL bytes do
+   *     NOT match canonical chainText; runner would verify drifted
+   *     bytes. Atomicity broken.
+   *   - 'not-applicable': either keys=missing/mismatch already broke
+   *     atomicity (caller need not check JSONL byte alignment) OR
+   *     the chain has no signed agent events to verify.
+   */
+  runnerInput: 'github-verified' | 'local-only' | 'jsonl-missing' | 'jsonl-mismatch' | 'not-applicable';
 }
 
 export interface AuditReportInput {
@@ -204,33 +236,54 @@ export function parseRunnerVerdictFromStdout(
   stderr: string,
   exitCode: number,
 ): RunnerVerifyVerdict {
-  let parsed: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string } | null = null;
+  // Codex E3-gold-r5 (2026-05-25) — walk upward looking for the
+  // FIRST JSON object that has an `ok` field (true or false). Pre-r5
+  // we stopped at the first parseable JSON object, which meant a
+  // wrapper that logged unrelated JSON ({"step":"cleanup","took":12})
+  // AFTER the verdict could shadow the real verdict and force
+  // NOT INVOKED. The runner contract is "the verdict JSON has an
+  // `ok` field"; only that shape counts. We track the most-recent
+  // JSON-shaped-but-unexpected line separately so the NOT INVOKED
+  // reason can name what we saw if no verdict exists at all.
+  let verdictParsed: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string } | null = null;
+  let lastUnexpectedShape: string | null = null;
   const lines = stdout.split('\n').map(s => s.trim()).filter(Boolean);
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
-    if (line.startsWith('{') && line.endsWith('}')) {
-      try {
-        parsed = JSON.parse(line);
-        break;
-      } catch {
-        // Malformed JSON-shaped line — keep walking upward in case the
-        // real verdict line is above.
-        continue;
-      }
+    if (!line.startsWith('{') || !line.endsWith('}')) { continue; }
+    let parsed: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string };
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      // Malformed JSON-shaped line — keep walking upward.
+      continue;
     }
+    if (typeof parsed.ok === 'boolean') {
+      // Found the verdict.
+      verdictParsed = parsed;
+      break;
+    }
+    // Valid JSON but no `ok` field — remember it (use the closest-to-
+    // verdict line for the diagnostic) and keep walking upward in
+    // case the real verdict is above this wrapper log line.
+    if (lastUnexpectedShape === null) { lastUnexpectedShape = line; }
   }
-  if (parsed) {
-    if (parsed.ok === true && typeof parsed.chainHead === 'string' && typeof parsed.eventCount === 'number') {
-      return { invoked: true, ok: true, chainHead: parsed.chainHead, eventCount: parsed.eventCount };
+  if (verdictParsed) {
+    if (verdictParsed.ok === true && typeof verdictParsed.chainHead === 'string' && typeof verdictParsed.eventCount === 'number') {
+      return { invoked: true, ok: true, chainHead: verdictParsed.chainHead, eventCount: verdictParsed.eventCount };
     }
-    if (parsed.ok === false) {
+    if (verdictParsed.ok === false) {
       // Real tamper verdict — was being misreported as NOT INVOKED
       // pre-Codex-E3-gold-r2. Now correctly carried through as FAIL
       // regardless of exit code (runner exits 1 on ok:false per
       // packages/research-runner/src/cli.ts).
-      return { invoked: true, ok: false, reason: parsed.reason ?? 'runner returned ok:false without a reason' };
+      return { invoked: true, ok: false, reason: verdictParsed.reason ?? 'runner returned ok:false without a reason' };
     }
-    return { invoked: false, reason: `Runner stdout JSON has unexpected shape (no ok field): ${stdout.slice(0, 200)}` };
+    // ok=true but missing chainHead/eventCount — runner contract drift.
+    return { invoked: false, reason: `Runner stdout verdict ok=true but missing chainHead/eventCount: ${JSON.stringify(verdictParsed)}` };
+  }
+  if (lastUnexpectedShape !== null) {
+    return { invoked: false, reason: `Runner stdout JSON has unexpected shape (no ok field): ${lastUnexpectedShape.slice(0, 200)}` };
   }
   return {
     invoked: false,
@@ -370,6 +423,31 @@ function countAgentEventStats(events: ChainEvent[]): { signedAgent: number; tota
 }
 
 /**
+ * Codex E3-gold-r5 (2026-05-25) — extracted out of
+ * buildExecutiveSummary to keep its cyclomatic complexity under the
+ * architecture-fitness budget. Given a sources object where
+ * atomicityBroken is already known true, names the specific input that
+ * broke atomicity. Precedence matches buildExecutiveSummary's
+ * detection order: keys atomicity > runnerInput byte-mismatch >
+ * chain-fallback under canonical headline.
+ */
+function atomicityBreakDetail(sources: AuditReportInputSources): string {
+  if (sources.keys === 'mismatch') {
+    return 'local public-key files do not match canonical GitHub bytes — runner would verify against different cryptographic material than this report references';
+  }
+  if (sources.keys === 'missing') {
+    return 'public-key files needed by the runner are missing or unfetchable';
+  }
+  if (sources.runnerInput === 'jsonl-mismatch') {
+    return 'local JSONL on disk does NOT match the canonical GitHub bytes this report cites — the runner reads local-disk JSONL by convention, so its verdict would describe drifted bytes';
+  }
+  if (sources.runnerInput === 'jsonl-missing') {
+    return 'local JSONL is missing at the canonical path — the runner reads from local disk and cannot verify the canonical GitHub bytes shown in this report';
+  }
+  return 'chain JSONL fell back to local while okr.yaml is canonical GitHub — runner cannot atomically prove the canonical bytes';
+}
+
+/**
  * E3-polish — derive an executive verdict block from the verdict +
  * self-review trail. Goal: an auditor reads the first five lines and
  * knows VERDICT / RISK / ACTION / SCOPE without parsing the body.
@@ -391,27 +469,31 @@ function buildExecutiveSummary(
   let verdictLabel: string;
   let actionLine: string;
 
-  // Codex E3-gold-r4 — source-atomicity gate. If the per-input
+  // Codex E3-gold-r4 + r5 — source-atomicity gate. If the per-input
   // breakdown shows the report's claimed canonical source doesn't
   // match what the runner would verify, name that explicitly in the
   // executive summary BEFORE evaluating shape/runner verdicts. The
   // handler already passes runnerVerdict={invoked:false, reason: ...}
   // in this case, so without this branch the auditor would only see
   // SHAPE-CLEARED — which understates the trust violation.
+  //
+  // r5 BLOCKING regression fix: the runnerInput field structurally
+  // encodes whether local JSONL bytes match what the runner would
+  // read. Pre-r5, `chain=github + keys=github-verified` already left
+  // atomicityBroken=false even when local JSONL bytes differed from
+  // chainText, so the summary said SHAPE-CLEARED. Now `runnerInput=
+  // jsonl-mismatch` (or `jsonl-missing`) flips the verdict to FAIL.
   const atomicityBroken = sources && (
     // okr came from canonical but chain or keys did not
     (sources.okr === 'github' && sources.chain === 'local-fallback')
     || sources.keys === 'mismatch'
     || sources.keys === 'missing'
+    || sources.runnerInput === 'jsonl-mismatch'
+    || sources.runnerInput === 'jsonl-missing'
   );
   if (atomicityBroken) {
     verdictLabel = 'FAIL (source atomicity broken — report bytes ≠ runner bytes)';
-    const detail = sources.keys === 'mismatch'
-      ? 'local public-key files do not match canonical GitHub bytes — runner would verify against different cryptographic material than this report references'
-      : sources.keys === 'missing'
-        ? 'public-key files needed by the runner are missing or unfetchable'
-        : 'chain JSONL fell back to local while okr.yaml is canonical GitHub — runner cannot atomically prove the canonical bytes';
-    actionLine = `REJECT — ${detail}. The runner was NOT invoked because doing so would produce a verdict that doesn't describe the bytes shown in this report. Run \`git pull\` in your mesh checkout to sync, then retry the export. Do NOT promote to fan-out from this report.`;
+    actionLine = `REJECT — ${atomicityBreakDetail(sources)}. The runner was NOT invoked because doing so would produce a verdict that doesn't describe the bytes shown in this report. Run \`git pull\` in your mesh checkout to sync, then retry the export. Do NOT promote to fan-out from this report.`;
   } else
   // Runner verdict (when invoked) is ground truth and leads the
   // summary. Shape verdict only drives the summary when the runner
@@ -660,6 +742,9 @@ function renderSourceBreakdownBlock(sources: AuditReportInputSources | undefined
       case 'missing':           return '— missing';
       case 'mismatch':          return '🚫 LOCAL DOES NOT MATCH GITHUB (atomicity broken)';
       case 'not-checked':       return 'ℹ not checked (no signed agent events to verify)';
+      case 'not-applicable':    return 'ℹ not applicable';
+      case 'jsonl-missing':     return '🚫 LOCAL JSONL MISSING (runner cannot verify canonical bytes)';
+      case 'jsonl-mismatch':    return '🚫 LOCAL JSONL DRIFTED FROM CANONICAL (atomicity broken)';
       case 'suppressed-non-canonical':
         return '⚠ suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)';
       default:                  return origin;
@@ -675,8 +760,9 @@ function renderSourceBreakdownBlock(sources: AuditReportInputSources | undefined
 | \`audit/keys/<runId>.epoch-*.pub.pem\` | ${label(sources.keys)} |
 | \`prd.md\` | ${label(sources.prd)} |
 | artifact | ${label(sources.artifact)} |
+| runner input (local-disk bytes seen by verifier) | ${label(sources.runnerInput)} |
 
-_The runner verifier shells out against local-disk bytes. If \`chain\` or \`keys\` are not \`canonical\` or \`local-only\` (atomic), this export refuses to invoke the runner — its verdict would describe bytes the report cannot vouch for._`;
+_The runner verifier shells out against local-disk bytes. If \`chain\`, \`keys\`, or \`runner input\` are not canonical (or \`local-only\`), this export refuses to invoke the runner — its verdict would describe bytes the report cannot vouch for._`;
 }
 
 /**
