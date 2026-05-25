@@ -1489,12 +1489,12 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <div class="docs-proof-evidence"><strong>Not claimed:</strong> decentralized identity, post-quantum channels, or zero-knowledge policy proofs. <br><a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></div>
   </div>
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-partial">🛠 4 of 4 named (2 partial)</span>
+    <span class="docs-proof-status docs-proof-status-partial">🛠 1 of 4 shipped</span>
     <div>
       <p class="docs-proof-title">ASTRIDE</p>
-      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes — prompt manipulation, poisoned memory, inter-agent influence, fake audit trails — are explicit rows in the threat model. Audit-fabrication is closed by the three-class ownership contract; inter-agent influence, prompt injection, and memory poisoning are partially controlled today (named gaps, not silent gaps).</p>
+      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes — prompt manipulation, poisoned memory, inter-agent influence, fake audit trails — are explicit rows in the threat model. Audit-fabrication is closed by the three-class ownership contract; prompt injection, memory poisoning, and inter-agent influence are partially controlled today (named gaps, not silent gaps).</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Shipped:</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery — closes A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>Partial:</strong> A.prompt-injection (mesh_sha pinning is verifiable provenance, sanitization queued); A.memory-poisoning (mesh_sha detects, deterministic rejection queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
+    <div class="docs-proof-evidence"><strong>Shipped (1 of 4):</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery — closes A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>Partial (3 of 4):</strong> A.prompt-injection (mesh_sha pinning is verifiable provenance, sanitization queued); A.memory-poisoning (mesh_sha detects, deterministic rejection queued); A.inter-agent-influence (Caterpillar's Challenge catches cross-phase semantic drift; full agent-to-agent provenance signing queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
   </div>
 </div>
 
@@ -1534,25 +1534,26 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 
 </details>
 
-#### One closeout report, source files underneath.
+#### One closeout report. Source files underneath.
 
-Looking Glass now ships an **internal auditor closeout report** per OKR action — one markdown file under `okrs/<id>/audit/exports/<runId>-report.md` with:
+**What it prevents:** Most audit "trails" are a folder full of JSON nobody reads. An auditor opens it, can't tell signed from unsigned, can't tell what is a fact from what is a claim, gives up, and asks a person — at which point the audit has become a conversation, not a record. The closeout report removes that friction. Every merged action ships a single self-contained document an auditor can actually read.
 
-- runner crypto verdict (Ed25519 + hash replay) + chain head + event count
-- shape-level seal verdict for at-a-glance trust
-- per-skill evidence + per-persona self-review trail with `event_id` citations
-- workflow facts (`artifact_written` + `state_transition`)
-- collapsible event timeline
-- SR-NN → STRIDE/OWASP → PRD anchor → design § control mapping
-- cross-phase ladder summary linking WHY → HOW → WHAT
+**How it works:** When an OKR action completes, Looking Glass exports one markdown document — one click in the dashboard — and writes it next to the artifact at `okrs/<id>/audit/exports/<runId>-report.md`. The document is laid out the way an auditor reads, top to bottom:
 
-Below the closeout, the **core source files** that prove every claim sit on disk for any reviewer with mesh access — internal auditor, security architect, incident-response team at 3 AM — to walk independently:
+- **The verdict, first.** Did the cryptographic verifier accept every signature and replay every hash, end to end? Pass or fail in the first line, with the chain head and event count next to it. This is the same verifier CI runs before merge — same code path, same result.
+- **The trust posture next.** A shape-level seal at a glance, plus a source-breakdown table naming where each input came from (canonical GitHub or local mesh) and whether the bytes the report displays match the bytes the verifier read.
+- **Evidence.** Which deterministic skills the agent called, how many times each, which failed. The fact record, not the agent's self-report.
+- **The self-review trail.** Each reviewer persona (Architect, Security) round by round, with the chain event ID that backs each score, so an auditor can jump to the source-of-record event in the JSONL without grep.
+- **Workflow facts.** What got written. What state changed. Which PR closed it. All re-derivable from git, all cross-checked.
+- **The event timeline.** Every event in the chain, collapsible, with who emitted it and whether it was signed.
+- **Control mapping.** Every declared security requirement traced back to the STRIDE category, the OWASP category, the PRD section that named it, and the design section that cites it.
+- **Cross-phase ladder.** How this action's chain links to the WHY, HOW, and WHAT chains around it.
 
-- `okrs/<id>/<phase>/<artifact>.md` (the merged research-doc, PRD, or code-design)
-- `okrs/<id>/audit/events/<run>.jsonl` (the hash-chained activity log)
-- supporting evidence the closeout report cites: `audit/chain-ladder.yaml` (cross-phase), `audit/keys/<run>.epoch-*.pub.pem` (per-session signing keys), `prd.md` (control-mapping anchor)
+Underneath the closeout, the source files it cites sit on disk for any reviewer to walk independently — the merged artifact (`okrs/<id>/<phase>/<artifact>.md`), the hash-chained activity log (`okrs/<id>/audit/events/<run>.jsonl`), the cross-phase ladder (`audit/chain-ladder.yaml`), the per-session public signing keys (`audit/keys/<run>.epoch-*.pub.pem`), and the PRD the control mapping anchors to.
 
-External-facing audiences (regulators, downstream consumers, third-party auditors) consume the **redacted external bundle** — the next-act zip that wraps the same closeout + source files after an automated PII / IP / secrets scrubbing pass, so prompt internals and proprietary code references don't leak verbatim. Until that ships, external sharing requires a manual review pass.
+**What the auditor sees:** One self-contained document at the top. The source files below it. Nothing to grep, nothing to install, nothing to wait for. An internal auditor, a security architect, or an incident-response team at 3 AM walks the same evidence the runner verified, in the same order CI walked it.
+
+**What external audiences get next.** The closeout is internal-grade today: it cites research, PRD, and design references verbatim, which is powerful inside the org but not safe to hand to a regulator without review. External sharing currently requires a manual review pass. The next act bundles the closeout plus the source files into one downloadable zip after an automated PII / IP / secrets scrubbing pass, so the same evidence can land with regulators, downstream consumers, and third-party auditors without leaking prompt internals or proprietary code references.
 
 No live system access. No proprietary tooling. Five checks land the story:
 
