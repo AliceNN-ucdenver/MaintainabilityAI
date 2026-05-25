@@ -21,7 +21,6 @@
   </figure>
 </div>
 
----
 
 ## Imagine a world
 
@@ -242,7 +241,6 @@ That is the difference between a pile of coding assistants and a governed hybrid
   <text x="400" y="211" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">MESH · 30% OF HUMAN JUDGMENT · 100% OF AGENT SPEED</text>
 </svg>
 
----
 
 <div class="docs-center-block">
 <div class="docs-heading">This is the way: a governed evidence pipeline, not a loop</div>
@@ -267,7 +265,6 @@ By Wednesday morning, the work is in main. Behind it: one chain, three signature
 
 [^cert5]: Numbers from cert run 5, May 2026, on the IMDB-Lite sample. Your numbers will vary as the mesh scales to more agents and bigger repos.
 
----
 
 ## Your team in this world
 
@@ -405,7 +402,6 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
 
 > **2026 market signal.** Microsoft's Work Trend Index says the frontier shift is human-led, agent-operated work. DORA says AI amplifies the organizational system underneath it. Forrester AEGIS says security leaders now have to secure intent, provenance, and machine-speed agent behavior. The mesh is what makes that shift governable instead of chaotic.
 
----
 
 ## The framework, end to end
 
@@ -480,7 +476,6 @@ Three things make it coherent. A **substrate** (Looking Glass) that everyone rea
 
 The Hatter governs what should be built and how it should be designed. The Red Queen governs what an agent is allowed to do while it builds. They are complementary, not competing. Both read the same Looking Glass substrate, so an OKR-anchored design and a runtime enforcement decision reference the same CALM nodes, the same threat IDs, the same governance scores.
 
----
 
 ## Meet the two modalities
 
@@ -521,7 +516,6 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
 
 If the Hatter does the planning work well, the Red Queen rarely has to deny. If the Red Queen catches what the Hatter missed, the system stays safe. The two together are the agentic governed SDLC.
 
----
 
 ## Looking Glass: the substrate everything reads
 
@@ -899,7 +893,6 @@ Create a review. Select prompt packs. Assign Claude Code or Copilot Coding Agent
 
 We built on **FINOS CALM**, the Common Architecture Language Model. It is an open standard from the Linux Foundation backed by Morgan Stanley, JPMorgan, and ThoughtWorks. JSON-based. Git-native. Machine-readable. The architecture standard built for the agentic age. MaintainabilityAI is one of the earliest production implementations of CALM 1.2, already shipping what the ThoughtWorks Technology Radar is moving from "Trial" to "Adopt."
 
----
 
 ## What no one else has
 
@@ -946,7 +939,6 @@ That is the claim: not "one more portal," not "one more reviewer bot," and not "
 
 **What the auditor sees:** Every event has one allowed source. If the wrong source tries to emit it, the verifier rejects the chain. That is the trust upgrade: the audit log is not a polished story about the run; it is the run's source-of-record.
 
----
 
 **The Tweedles, inside one agent: a bounded contrarian debate that improves the artifact.**
 
@@ -958,7 +950,6 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
 
 **What the auditor sees:** A convergence ladder on the audit chain. Architect MINOR round 1, Security MINOR round 1, Architect PASS round 2, Security PASS round 2. The artifact got better, and the evidence shows which round closed which gap. This is not independence theatre; the point is disciplined pressure, not extra agents.
 
----
 
 **Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence.
 
@@ -1217,7 +1208,6 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
 
 The threat model section below names the gaps we have not yet closed. We publish them openly because honest design beats marketing claims.
 
----
 
 ## Threat model: the Hatter feature
 
@@ -1595,11 +1585,15 @@ No live system access. No proprietary tooling. Five checks land the story:
   </div>
 </div>
 
-> 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record: facts produced by deterministic code, judgments signed by the agent.
-
-> 🎯 **May 2026 live cert run.** All three planning agents shipped a real OKR on the open IMDB-Celebs sample, with every defense above firing on merged PRs. Each phase ended with a green Sealed badge in the dashboard, and the three phases linked to each other through the audit chain.
-
-> 🛠 **This trust model is the result of multiple adversarial audit rounds** with both LLM-based code review and human chief-auditor passes. Each round made the boundary more precise; the current model is what survived.
+<div class="docs-card docs-card-cyan">
+  <div class="docs-card-kicker">Auditor proof</div>
+  <div class="docs-heading">One record that survives replay</div>
+  <div class="docs-copy">
+    <p><strong>Compliance proof:</strong> the same chain supports EU AI Act Article 12 evidence (retention, model, inputs, operator, timestamps) and SOC 2 CC8.1 change-control review. The offline auditor check matches the pre-merge CI check: facts produced by deterministic code, judgments signed by the agent.</p>
+    <p><strong>Live-run proof:</strong> in the May 2026 cert run, all three planning agents shipped a real OKR on the open IMDB-Celebs sample. Every defense above fired on merged PRs, every phase ended with a green Sealed badge, and WHY, HOW, and WHAT linked through the audit chain.</p>
+    <p><strong>Hardening proof:</strong> this trust model is the result of multiple adversarial audit rounds with both LLM-based code review and human chief-auditor passes. Each round made the boundary more precise. The current model is what survived.</p>
+  </div>
+</div>
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
@@ -1692,7 +1686,6 @@ We treat this list as **living**. As the design ships and we learn from real OKR
 
 > 💬 **Responsible disclosure.** Found a threat we haven't named? Open an issue at [github.com/AliceNN-ucdenver/MaintainabilityAI](https://github.com/AliceNN-ucdenver/MaintainabilityAI) or contact [chiefarcheologist.com/contact](https://chiefarcheologist.com/contact). We treat security threats as design feedback, not as criticism.
 
----
 
 ## Where to start
 
@@ -1714,7 +1707,6 @@ We treat this list as **living**. As the design ships and we learn from real OKR
   </div>
 </div>
 
----
 
 ## Manage intent. Quality follows.
 
@@ -1735,7 +1727,6 @@ Manage intent. Quality follows.
   <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" class="docs-button-secondary">View on GitHub</a>
 </div>
 
----
 
 <div class="docs-hero-flourish">
   <em>"Why, sometimes I've believed as many as six impossible things before breakfast."</em>
