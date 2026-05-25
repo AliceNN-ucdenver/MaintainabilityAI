@@ -9,7 +9,7 @@ command: npx @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
 
 # Audit Verify Chain Skill
 
-CI defense against forged audit logs. Called by `prd-agent.yml` and `market-research-agent.yml` after the agent's JSONL is committed; verdict fails + `chain-forgery-detected` label applied on `ok: false`.
+CI defense against forged audit logs. Called by `prd-agent.yml` and `market-research-agent.yml` after the agent's JSONL is committed; verdict fails + `chain-integrity-failed` label applied on `ok: false`.
 
 This skill is NOT called by agents. Agents use `audit-emit-event` (which produces valid chains); `audit-verify-chain` is the post-hoc check that catches any agent that ignored the rule and wrote events by hand.
 
@@ -47,4 +47,4 @@ echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","runId":"HOW-2026-05-21-728gdt"}'
 
 ## Error contract
 
-The skill returns `{ok: false, reason}` for any verification failure; the calling workflow treats `ok: false` as blocking and labels the PR `chain-forgery-detected`. There is no "partial success" — even one tampered event invalidates the chain.
+The skill returns `{ok: false, reason}` for any verification failure; the calling workflow treats `ok: false` as blocking and labels the PR `chain-integrity-failed`. There is no "partial success" — even one tampered event invalidates the chain.

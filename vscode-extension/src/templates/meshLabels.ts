@@ -75,7 +75,22 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // right reason on the "Audit failed" line. Prior catch-all behavior
   // (always applying degraded-evidence on any degraded verdict) is
   // gone — drift-only failures don't get tagged "evidence" anymore.
-  { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log (§11.1.7). Blocks the pass label.',  color: 'D32F2F' },
+  //
+  // Bug CC (2026-05) — chain-integrity-failed replaces the older
+  // `chain-forgery-detected` label. The "forgery" framing was
+  // misleading: it implied malicious intent for failure modes that
+  // are usually honest mistakes (e.g. Bug AA's chain_root_hash
+  // pasted at the wrong YAML indent). The new label covers chain-
+  // verification, Knight's-Seal, chain_root_hash, unsealed-gate, and
+  // forged-artifact_written failures uniformly. The audit comment's
+  // `**Reason:**` line carries the specific cause; the UI surfaces
+  // it via parseAuditCommentReason. Also: degraded-evidence is now
+  // ONLY applied for genuine evidence-honesty causes (missing
+  // evidence_mode, JSONL absent, 0 mesh-skill_calls, manifest gap) —
+  // chain branches no longer set EVIDENCE_FAIL=true as a side
+  // effect (Bug CC verdict-step de-spuriousing).
+  { name: 'chain-integrity-failed',  description: 'Audit JSONL chain failed verification (hash chain / Knight\'s Seal / chain_root_hash / unsealed / forged artifact_written). See the audit comment Reason for the specific cause. Merge blocked.', color: 'B71C1C' },
+  { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log — e.g. declared `live` but no successful skill_calls, or JSONL absent (§11.1.7). Distinct from chain-integrity-failed. Blocks the pass label.', color: 'D32F2F' },
   { name: 'structure-invalid',       description: 'Artifact missing required sections / FR-NN / SR-NN citations. Blocks the pass label.',  color: 'D32F2F' },
   { name: 'self-review-exhausted',   description: 'B24 self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items. Human review required.', color: 'D32F2F' },
 

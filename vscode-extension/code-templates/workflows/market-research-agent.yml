@@ -697,12 +697,21 @@ jobs:
           DRIFT_FAIL="false"
           CHAIN_FAIL="false"
 
-          # Chain verification is the HIGHEST-PRIORITY gate — a forged
+          # Chain verification is the HIGHEST-PRIORITY gate — a broken
           # chain invalidates every other audit signal. Check it first.
+          #
+          # Bug CC (2026-05): chain-related branches now set CHAIN_FAIL
+          # only, NOT EVIDENCE_FAIL. Pre-Bug-CC, every chain branch
+          # also flipped EVIDENCE_FAIL=true as a side effect, which
+          # caused the UI to apply the `degraded-evidence` label
+          # alongside the chain label and then surface the stock
+          # "Hatter Tag declared `live` but no skill_calls" message —
+          # actively misleading because the artifact's evidence_mode
+          # was usually correct (Bug AA / PR #138 hit this exact
+          # mis-attribution on HOW).
           if [ "$FOUND" = "true" ] && [ "$CHAIN_OK" = "false" ]; then
             VERDICT="degraded"; REASON="Audit chain verification failed: $CHAIN_REASON"
             CHAIN_FAIL="true"
-            EVIDENCE_FAIL="true"
           fi
 
           # Q4 (Bug-Q / Codex audit round 2) — seal-verification is a
@@ -718,7 +727,6 @@ jobs:
           if [ "$VERDICT" = "ok" ] && [ "$SEALED" = "true" ] && [ "$SEAL_VERIFIED" != "true" ]; then
             VERDICT="degraded"; REASON="Knight's Seal verification failed: chain has signatures but at least one did not verify against its epoch public key"
             CHAIN_FAIL="true"
-            EVIDENCE_FAIL="true"
           fi
 
           # Bug-S / S1 (Codex round-4 closeout) — chain_root_hash
@@ -727,12 +735,15 @@ jobs:
           # chain_root_ok=false when the agent's pasted artifact-
           # frontmatter value disagrees. The artifact frontmatter is
           # the agent's claim, the JSONL is ground truth; disagreement
-          # means the agent pasted a stale or fabricated hash.
+          # means the agent pasted a stale or fabricated hash — OR (Bug
+          # AA) put the right hash at the wrong YAML indent. The
+          # extract-okr-context fallback accepts top-level now (with a
+          # ::notice::) so honest placement errors don't hard-fail, but
+          # a real mismatch still lands here as CHAIN_FAIL.
           CHAIN_ROOT_OK_OUT="${{ steps.ctx.outputs.chain_root_ok }}"
           if [ "$VERDICT" = "ok" ] && [ "$CHAIN_ROOT_OK_OUT" = "false" ]; then
             VERDICT="degraded"; REASON="chain_root_hash mismatch: ${{ steps.ctx.outputs.chain_root_reason }}"
             CHAIN_FAIL="true"
-            EVIDENCE_FAIL="true"
           fi
 
           # Bug-U / U2 (Codex round-5) + Bug V (Codex round-6) — an
@@ -746,7 +757,6 @@ jobs:
           if [ "$VERDICT" = "ok" ] && [ "${CHAIN_COUNT:-0}" -gt 0 ] && [ "$SEALED" != "true" ]; then
             VERDICT="degraded"; REASON="chain has events but is unsealed — no agent-emitted signed events present. Every agent event MUST sign with its per-epoch keypair (Bug T contract)."
             CHAIN_FAIL="true"
-            EVIDENCE_FAIL="true"
           fi
 
           # Bug Y (Codex round-9) — artifact_written reproducibility
@@ -761,7 +771,6 @@ jobs:
           if [ "$VERDICT" = "ok" ] && [ "$ARTIFACT_FORGED" = "true" ]; then
             VERDICT="degraded"; REASON="forged artifact_written event detected — chain payload does not match current PR head (Bug Y round-9 reproducibility check). ${ARTIFACT_FORGED_REASON}"
             CHAIN_FAIL="true"
-            EVIDENCE_FAIL="true"
           fi
 
           # Bug Z/2 — source-claim integrity. Every S[N] citation in
@@ -929,8 +938,16 @@ jobs:
           # when skill_calls were healthy. Now each label maps to its
           # actual cause.
           if [ "${{ steps.verdict.outputs.chain_fail }}" = "true" ]; then
-            gh label create chain-forgery-detected --repo ${{ github.repository }} --color B71C1C --description "Audit JSONL hash chain failed verification — agent may have written events directly instead of via audit-emit-event. Merge blocked." 2>/dev/null || true
-            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label chain-forgery-detected || true
+            # Bug CC — renamed from chain-forgery-detected. The
+            # "forgery" framing falsely implied malicious intent for
+            # honest mistakes (Bug AA's chain_root_hash YAML-placement
+            # error). chain-integrity-failed covers the same set of
+            # causes (chain verification / Knight's Seal / chain_root_
+            # hash / unsealed-gate / forged artifact_written) without
+            # the accusation. The audit comment carries the specific
+            # reason via parseAuditCommentReason.
+            gh label create chain-integrity-failed --repo ${{ github.repository }} --color B71C1C --description "Audit JSONL chain failed verification (hash chain / Knight's Seal / chain_root_hash / unsealed / forged artifact_written). See audit comment Reason. Merge blocked." 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-label chain-integrity-failed || true
           fi
           if [ "${{ steps.verdict.outputs.evidence_fail }}" = "true" ]; then
             gh label create degraded-evidence --repo ${{ github.repository }} --color D32F2F --description "Hatter Tag evidence_mode contradicts the audit log. Blocks the pass label." 2>/dev/null || true
@@ -950,6 +967,9 @@ jobs:
           steps.gate.outputs.skip != 'true' &&
           steps.verdict.outputs.verdict == 'ok'
         run: |
+          # Bug CC — remove both new chain-integrity-failed AND legacy
+          # chain-forgery-detected (old PRs may carry the old name).
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label chain-integrity-failed 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label chain-forgery-detected 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label degraded-evidence 2>/dev/null || true
           gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label structure-invalid 2>/dev/null || true

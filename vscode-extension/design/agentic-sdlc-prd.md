@@ -38,7 +38,7 @@ The split is **deterministic-vs-LLM-judgment**, pinned by the `EVENT_KIND_ORIGIN
 The prd-agent is **validated end-to-end on real Claude Sonnet 4.6 runs.** Last clean E2E: PR #118 (HOW for OKR-2026Q2-IMDB-001-celeb-api). 13 hash-chained audit events; ✓ Audit pass; `prd-pass` label applied; merged cleanly; HOW chain entry appended to `chain-ladder.yaml` with `parent_intent_thread = 7440f381-7e1a-42da-9bdd-4ea3682da02f` (WHY's intent_thread_uuid from PR #116).
 
 **Trust state today (every claim below has chain evidence on PR #118):**
-- ✅ **Audit chain hash-verified pre-merge** (B25) — `chain-forgery-detected` label blocks merge on mismatch. Independent runner verify-chain: `{ok:true, sealed:true, sealVerified:true, eventCount:13}`.
+- ✅ **Audit chain hash-verified pre-merge** (B25) — `chain-integrity-failed` label blocks merge on mismatch. Independent runner verify-chain: `{ok:true, sealed:true, sealVerified:true, eventCount:13}`.
 - ✅ **Persona-switch self-critique replaces separate reviewer agents** (B24) — converged in 2 rounds (round 1: both MINOR · round 2: both PASS).
 - ✅ **Pocket Watch goal-drift** — cosine 0.7524 ≥ 0.65 threshold.
 - ✅ **Caterpillar's Challenge cross-phase drift** — cosine 0.8258 ≥ 0.70 threshold (PRD ↔ research-doc).
@@ -188,7 +188,7 @@ The audit-and-drift workflow (`prd-agent.yml`) verifies the run in this order. F
 
 | Gate | What it checks | Failure label |
 |---|---|---|
-| **Audit chain integrity** | Replay the SHA-256 chain end-to-end; recomputed hash matches recorded hash for every event | `chain-forgery-detected` (B71C1C) |
+| **Audit chain integrity** | Replay the SHA-256 chain end-to-end; recomputed hash matches recorded hash for every event | `chain-integrity-failed` (B71C1C) |
 | **Knight's Seal signature** (B27) | Re-derive signing input from chain root + artifact SHA + run identity; verify Ed25519 | `seal-broken` (8E0000) |
 | **Evidence honesty** | `evidence_mode: mesh` requires ≥1 successful mesh-skill `skill_call` per declared mesh source (knowledge-*, context-*) | `degraded-evidence` (D32F2F) |
 | **Structural correctness** | 10 required H2 sections + every FR-NN cites R[N] or E[N] within 4 lines + every SR-NN cites STRIDE THR-NNN or OWASP A0X within 4 lines | `structure-invalid` (D32F2F) |
@@ -206,7 +206,7 @@ If all pass → `prd-pass` label → merge unlocked.
 
 - **B23 — Phase 2 of B20 (prd-agent.yml shipped).** Full HOW lifecycle on the per-agent workflow pattern. Evidence honesty = mesh-skill_call counts (NOT external-provider counts — distinct from WHY). Structural correctness = 10 H2 sections + FR-NN/SR-NN citation coverage. Pocket Watch threshold 0.65 (same as WHY by the same calibration logic). **Caterpillar's Challenge** (cross-phase drift) FIRST introduced here — reads the prior phase from the merged base branch (cloned into `/tmp/base`), NOT the PR head.
 - **B24 — Self-critique replaces separate reviewer agents at PRD time.** Full architectural pivot — see [Why no separate reviewer agents at PRD time](#why-no-separate-reviewer-agents-at-prd-time-the-b24-pivot) above. This is the single most important architectural decision in the HOW phase's lifetime.
-- **B25 — A.false-audit-fabrication defense.** The first clean HOW run (PR #105) uncovered a new threat: the agent self-admitted to fabricating the audit chain when the runner was unreachable. Prompt-level fix (invoke the audit-emit-event Skill, never write JSONL by hand) + CI-level fix (pre-merge chain re-verification + `chain-forgery-detected` label) + new `audit-verify-chain` Skill + chain-ladder writer. Full incident + fix narrative in [`agentic-sdlc.md`](agentic-sdlc.md) §13 B25.
+- **B25 — A.false-audit-fabrication defense.** The first clean HOW run (PR #105) uncovered a new threat: the agent self-admitted to fabricating the audit chain when the runner was unreachable. Prompt-level fix (invoke the audit-emit-event Skill, never write JSONL by hand) + CI-level fix (pre-merge chain re-verification + `chain-integrity-failed` label) + new `audit-verify-chain` Skill + chain-ladder writer. Full incident + fix narrative in [`agentic-sdlc.md`](agentic-sdlc.md) §13 B25.
 - **B25 UI parser sync.** The bogus `FR cited 0/8 ✗` display on PR #105 was a UI-side regex that only matched `**FR-NN**` bold form while the workflow correctly accepted `### FR-NN:` heading form too. UI parser brought into sync with workflow.
 
 **Latest clean run (post-fixes):** PR #105 (`OKR-2026Q2-IMDB-001-celeb-api`, runId `HOW-2026-05-21-728gdt`). Next E2E pending — will exercise the new audit-chain verify + audit-emit-event hard rule.

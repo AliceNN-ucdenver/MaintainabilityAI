@@ -33,7 +33,7 @@ The agent cannot write runtime or workflow facts into the audit log. It produces
 The market-research-agent is **validated end-to-end on real Claude Sonnet 4.6 runs**. Last clean E2E: PR #116 (WHY for OKR-2026Q2-IMDB-001-celeb-api). 19 hash-chained audit events; ✓ Audit pass; `research-pass` label applied; merged cleanly; chain-ladder WHY entry auto-written with `chain_root_hash: 152d1aca7d36339c000a3bad0bcb106b3e03acdc0cf80190846d197bbd40e5a2`.
 
 **Trust state today (every claim below has chain evidence on PR #116):**
-- ✅ **Audit chain hash-verified pre-merge** (B25) — `chain-forgery-detected` label blocks merge on mismatch. Independent runner verify-chain: `{ok:true, sealed:true, sealVerified:true, eventCount:19}`.
+- ✅ **Audit chain hash-verified pre-merge** (B25) — `chain-integrity-failed` label blocks merge on mismatch. Independent runner verify-chain: `{ok:true, sealed:true, sealVerified:true, eventCount:19}`.
 - ✅ **Chain-ladder auto-written on merge** (B25 + B27.v1.2) — `okrs/<id>/audit/chain-ladder.yaml` entry includes `chain_root_hash` auto-populated by the finalize step (no more manual backfill — PR #110 needed one; PR #116 didn't).
 - ✅ **Pocket Watch goal-drift** — cosine 0.7289 ≥ 0.65 threshold (PR #116) · 0.8034 (earlier PR #110).
 - ✅ **Evidence-honesty gate with `mixed` mode** — PR #116 carried `evidence_mode: mixed` + `degraded_reason: "arxiv-rate-limited-429-both-passes, uspto-404-no-matching-patents, hackernews-zero-results-both-passes"`. The gate accepted `mixed` as a canonical value (was strict `live` only previously) — the agent honestly logged each provider failure as an `ok:false` skill_call event rather than fabricating results. tavily-search succeeded (50 raw results); arxiv + uspto + hackernews-first-pass returned failures; gap-loop triggered; second-pass hackernews succeeded; final dedupe-and-rank + format ran cleanly. **3 successful provider events across 2 of 4 providers — and the chain says exactly that.**
@@ -129,7 +129,7 @@ The audit-and-drift workflow (`market-research-agent.yml`) verifies the run in t
 
 | Gate | What it checks | Failure label |
 |---|---|---|
-| **Audit chain integrity** | Replay the SHA-256 chain end-to-end; recomputed hash matches recorded hash for every event | `chain-forgery-detected` (B71C1C) |
+| **Audit chain integrity** | Replay the SHA-256 chain end-to-end; recomputed hash matches recorded hash for every event | `chain-integrity-failed` (B71C1C) |
 | **Knight's Seal signature** (B27) | Re-derive signing input from chain root + artifact SHA + run identity; verify Ed25519 | `seal-broken` (8E0000) |
 | **Evidence honesty** | `evidence_mode: live` requires ≥1 successful provider `skill_call` per declared provider | `degraded-evidence` (D32F2F) |
 | **Structural correctness** | 10 required H2 sections + 4 required H3 sub-sections + every C[N] cites ≥1 S[N] | `structure-invalid` (D32F2F) |
@@ -147,7 +147,7 @@ If all pass → `research-pass` label → merge unlocked (subject to branch prot
 - **B18 — audit-validate.yml post-run validator.** Cross-checks declared `evidence_mode` against the audit JSONL. Applies `research-pass` on clean runs.
 - **B19 → B19c — research-doc structural correctness + gap-loop verifiability + bot-PR approval bypass + live-evidence forensics.** Iterative hardening landed across a string of PRs after the first end-to-end runs surfaced specific failure modes.
 - **B22 — Pocket Watch calibration.** Threshold lowered 0.85 → 0.65 after empirical data showed OBJECTIVE-vs-EXECUTIVE-SUMMARY cosine lands at ~0.70 even when the agent stays on topic (synthesis adds findings/citations that dilute cosine). Full reasoning in [`agentic-sdlc.md`](agentic-sdlc.md) §13 B22.
-- **B25 — A.false-audit-fabrication defense.** Both agents (this one and prd-agent) got the new audit-chain verify CI step + chain-forgery-detected label + chain-ladder writer + `audit-verify-chain` Skill. WHY-phase chain root + per-event hashes are now re-verified pre-merge.
+- **B25 — A.false-audit-fabrication defense.** Both agents (this one and prd-agent) got the new audit-chain verify CI step + chain-integrity-failed label + chain-ladder writer + `audit-verify-chain` Skill. WHY-phase chain root + per-event hashes are now re-verified pre-merge.
 
 **Latest clean run:** PR #103 (`OKR-2026Q2-IMDB-001-celeb-api`, runId `WHY-2026-05-21-slkfsk`). 9 hash-chained audit events. Pocket Watch cosine 0.7420. 30 sources cited (S1–S59 nonconsecutive). 7 formal conclusions. 4/4 brief topics covered. Audit verdict `ok` on first try.
 
