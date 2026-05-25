@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
+import AuditReportPreviewModal from './AuditReportPreviewModal';
 import { markdownPathForRoute } from '../lib/docsRouting';
 import PageLoading from './PageLoading';
 
@@ -20,6 +21,7 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
   const [markdown, setMarkdown] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [auditReportPreviewOpen, setAuditReportPreviewOpen] = useState(false);
 
   useEffect(() => {
     const loadMarkdown = async () => {
@@ -136,6 +138,20 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
       }
       resetTimeouts.forEach(timeout => clearTimeout(timeout));
     };
+  }, [markdown, loading]);
+
+  useEffect(() => {
+    if (loading || !markdown) return;
+    const onClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element
+        ? event.target.closest('[data-audit-report-preview]')
+        : null;
+      if (!target) return;
+      event.preventDefault();
+      setAuditReportPreviewOpen(true);
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
   }, [markdown, loading]);
 
   if (loading) {
@@ -272,6 +288,10 @@ export default function MarkdownPage({ path }: MarkdownPageProps) {
           {markdown}
         </ReactMarkdown>
       </article>
+      <AuditReportPreviewModal
+        open={auditReportPreviewOpen}
+        onClose={() => setAuditReportPreviewOpen(false)}
+      />
     </main>
   );
 }

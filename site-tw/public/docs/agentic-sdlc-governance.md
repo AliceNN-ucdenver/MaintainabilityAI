@@ -1553,6 +1553,15 @@ Underneath the closeout, the source files it cites sit on disk for any reviewer 
 
 **What the auditor sees:** One self-contained document at the top. The source files below it. Nothing to grep, nothing to install, nothing to wait for. An internal auditor, a security architect, or an incident-response team at 3 AM walks the same evidence the runner verified, in the same order CI walked it.
 
+<div class="docs-report-preview-callout">
+  <div>
+    <div class="docs-card-kicker">Proof, rendered</div>
+    <div class="docs-heading">Open the sample audit report</div>
+    <div class="docs-copy">See the OKR closeout the way an auditor would read it: verdict first, then phase rollup, chain ladder, control coverage, and verifier command.</div>
+  </div>
+  <button type="button" class="docs-button-primary" data-audit-report-preview>View sample audit report</button>
+</div>
+
 **What external audiences get next.** The closeout is internal-grade today: it cites research, PRD, and design references verbatim, which is powerful inside the org but not safe to hand to a regulator without review. External sharing currently requires a manual review pass. The next act bundles the closeout plus the source files into one downloadable zip after an automated PII / IP / secrets scrubbing pass, so the same evidence can land with regulators, downstream consumers, and third-party auditors without leaking prompt internals or proprietary code references.
 
 No live system access. No proprietary tooling. Five checks land the story:

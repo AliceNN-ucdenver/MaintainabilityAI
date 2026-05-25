@@ -1291,6 +1291,349 @@
     font-weight: 600;
   }
 
+  .docs-report-preview-callout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.25rem;
+    align-items: center;
+    margin: 1.75rem 0;
+    border: 1px solid rgba(103, 232, 249, 0.28);
+    border-radius: 0.75rem;
+    background:
+      linear-gradient(135deg, rgba(8, 145, 178, 0.18), rgba(30, 41, 59, 0.62)),
+      rgba(15, 23, 42, 0.82);
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 20px 60px rgba(2, 6, 23, 0.28);
+  }
+
+  .docs-report-preview-callout .docs-heading {
+    margin: 0.2rem 0 0.25rem;
+    font-size: 1.1rem;
+  }
+
+  .docs-report-preview-callout .docs-copy {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .docs-report-preview-callout .docs-button-primary {
+    border: 0;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .audit-report-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: clamp(1rem, 2.5vw, 2rem);
+  }
+
+  .audit-report-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgba(2, 6, 23, 0.76);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+  }
+
+  .audit-report-sheet {
+    position: relative;
+    width: min(1120px, 100%);
+    max-height: min(88vh, 940px);
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 0.75rem;
+    background:
+      radial-gradient(circle at top left, rgba(34, 211, 238, 0.16), transparent 34rem),
+      linear-gradient(135deg, #020617 0%, #0f172a 54%, #111827 100%);
+    box-shadow: 0 32px 100px rgba(0, 0, 0, 0.5);
+    color: #dbeafe;
+  }
+
+  .audit-report-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    padding: clamp(1.1rem, 2vw, 1.6rem);
+  }
+
+  .audit-report-kicker {
+    color: #67e8f9;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .audit-report-header h2 {
+    margin: 0.35rem 0 0.25rem;
+    color: #f8fafc;
+    font-size: clamp(1.35rem, 3vw, 2.15rem);
+    line-height: 1.08;
+  }
+
+  .audit-report-header p {
+    margin: 0;
+    color: #94a3b8;
+  }
+
+  .audit-report-close {
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.78);
+    color: #e2e8f0;
+    font-size: 1.55rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .audit-report-verdict {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+    align-items: center;
+    margin: 1.25rem clamp(1.1rem, 2vw, 1.6rem);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 0.75rem;
+    background: rgba(22, 101, 52, 0.16);
+    padding: 1rem;
+  }
+
+  .audit-report-pass {
+    border-radius: 999px;
+    background: rgba(74, 222, 128, 0.18);
+    color: #86efac;
+    padding: 0.42rem 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+
+  .audit-report-verdict strong,
+  .audit-report-verdict span {
+    display: block;
+  }
+
+  .audit-report-verdict strong {
+    color: #f8fafc;
+  }
+
+  .audit-report-verdict span {
+    margin-top: 0.2rem;
+    color: #bbf7d0;
+    font-size: 0.92rem;
+  }
+
+  .audit-report-meta {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem;
+    padding: 0 clamp(1.1rem, 2vw, 1.6rem) 1rem;
+  }
+
+  .audit-report-meta span,
+  .audit-phase-card,
+  .audit-report-section {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0.7rem;
+    background: rgba(15, 23, 42, 0.64);
+  }
+
+  .audit-report-meta span {
+    padding: 0.7rem 0.85rem;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+  }
+
+  .audit-report-meta strong {
+    display: block;
+    color: #94a3b8;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .audit-report-section {
+    margin: 1rem clamp(1.1rem, 2vw, 1.6rem);
+    padding: 1rem;
+  }
+
+  .audit-report-section-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .audit-report-section-title span {
+    color: #f8fafc;
+    font-weight: 800;
+  }
+
+  .audit-report-section-title em,
+  .audit-report-note {
+    color: #94a3b8;
+    font-size: 0.86rem;
+    font-style: normal;
+  }
+
+  .audit-phase-grid,
+  .audit-report-two-col {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .audit-phase-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .audit-report-two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 clamp(1.1rem, 2vw, 1.6rem);
+  }
+
+  .audit-report-two-col .audit-report-section {
+    margin-inline: 0;
+  }
+
+  .audit-phase-card {
+    padding: 0.9rem;
+  }
+
+  .audit-phase-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    color: #f8fafc;
+  }
+
+  .audit-phase-topline span {
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.14);
+    color: #86efac;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .audit-phase-run {
+    margin: 0.35rem 0 0.7rem;
+    color: #a5b4fc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+  }
+
+  .audit-phase-card dl {
+    margin: 0;
+  }
+
+  .audit-phase-card dl div {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    padding: 0.42rem 0;
+  }
+
+  .audit-phase-card dt {
+    color: #94a3b8;
+    font-size: 0.76rem;
+  }
+
+  .audit-phase-card dd {
+    margin: 0;
+    color: #dbeafe;
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+  }
+
+  .audit-report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+  }
+
+  .audit-report-table th,
+  .audit-report-table td {
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    padding: 0.55rem 0.65rem;
+    text-align: left;
+  }
+
+  .audit-report-table th {
+    background: rgba(14, 165, 233, 0.12);
+    color: #f8fafc;
+  }
+
+  .audit-report-table td {
+    color: #cbd5e1;
+  }
+
+  .audit-report-table code,
+  .audit-report-command code {
+    color: #c7d2fe;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+
+  .audit-report-table a,
+  .audit-phase-card a {
+    color: #67e8f9;
+    font-weight: 700;
+  }
+
+  .audit-report-command {
+    margin: 0 0 0.8rem;
+    border: 1px solid rgba(103, 232, 249, 0.18);
+    border-radius: 0.6rem;
+    background: #020617;
+    padding: 0.9rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+
+  .audit-report-copy {
+    border: 1px solid rgba(103, 232, 249, 0.36);
+    border-radius: 999px;
+    background: rgba(8, 145, 178, 0.14);
+    color: #a5f3fc;
+    padding: 0.55rem 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  @media (max-width: 820px) {
+    .docs-report-preview-callout,
+    .audit-report-verdict,
+    .audit-report-meta,
+    .audit-phase-grid,
+    .audit-report-two-col {
+      grid-template-columns: 1fr;
+    }
+
+    .docs-report-preview-callout .docs-button-primary {
+      width: 100%;
+      text-align: center;
+    }
+
+    .audit-report-section-title {
+      display: block;
+    }
+
+    .audit-phase-card dl div {
+      grid-template-columns: 1fr;
+      gap: 0.15rem;
+    }
+  }
+
   /* Horizontal proof rows for executive/security evidence summaries.
      Same scan rhythm as the gap list, but framed as "question -> proof
      -> status" rather than roadmap backlog. */
