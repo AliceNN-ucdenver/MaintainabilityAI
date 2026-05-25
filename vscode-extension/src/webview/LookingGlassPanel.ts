@@ -1688,6 +1688,30 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
+    // Bug EE (2026-05) — commit + push the okr.yaml change AND any
+    // deleted phase files immediately. Pre-Bug-EE, resetPhase wrote
+    // the cleaned okr.yaml locally but never pushed. If the user then
+    // clicked Start <phase>, the local guard at line 1856 saw a clean
+    // card (no in_progress action) and let dispatch through — but
+    // remote main still had the stale `runId: HOW-<old>, status:
+    // in_progress` action. The new dispatch's appendAction + push
+    // landed alongside the (also-still-uncommitted) action removal in
+    // ONE commit, so remote ended up correct in theory — UNLESS the
+    // user hadn't called Reset at all and just deleted the PR
+    // manually. PR #138 → PR #140 (forensic): user deleted PR #138
+    // via GitHub UI, never clicked Reset, then dispatched a new HOW
+    // and got a card with both the stale + new actions, then the
+    // agent edited okr.yaml to "fix" the mismatch (governance
+    // violation flagged separately as Bug GG).
+    //
+    // Net: ANY reset of state that's already on remote main MUST
+    // commit+push immediately, not wait for the next "Commit All"
+    // click. Otherwise we have a window where local + remote
+    // disagree about whether the phase is active.
+    const resetCommitResult = await this.commitAndPushReset(
+      meshPath, okrId, phase, result,
+    );
+
     // Best-effort: close associated GitHub issues + draft PRs for the
     // phase's runIds so the next Start <phase> dispatch doesn't collide
     // with a stale open issue / branch. Soft-fail — local mesh state is
@@ -1715,10 +1739,65 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     this.postMessage({
       type: 'info',
-      message: `${phaseLabel} reset complete: removed ${result.removedActionIds.length} action(s), ${result.deletedEventFiles.length} audit file(s)${result.deletedPhaseDir ? ', phase directory cleared' : ''}.`,
+      message: `${phaseLabel} reset complete: removed ${result.removedActionIds.length} action(s), ${result.deletedEventFiles.length} audit file(s)${result.deletedPhaseDir ? ', phase directory cleared' : ''}. ${resetCommitResult}`,
     });
     await this.onDrillIntoOkr(okrId, 'view');
     await this.onLoadOkrPhaseSignals(okrId);
+  }
+
+  /**
+   * Bug EE — commit + push the okr.yaml change + phase-dir + audit-file
+   * deletions that `resetPhase` made locally. Mirrors `commitAndPushOkr
+   * Yaml` (the dispatch-time analog) so reset and dispatch use the same
+   * pattern. Best-effort; returns a human-readable status fragment for
+   * the toast.
+   *
+   * Why this is critical: without an immediate push, the local mesh
+   * disagrees with remote main about whether the phase is active.
+   * Next dispatch reads local (clean) + appends + pushes. If anything
+   * goes wrong in that window (push fails, user closes the editor,
+   * the agent grabs main before the commit lands), remote main keeps
+   * the stale action and the agent has to "fix" it — which is a
+   * governance violation (Bug GG).
+   */
+  private async commitAndPushReset(
+    meshPath: string,
+    okrId: string,
+    phase: 'why' | 'how' | 'what',
+    result: { removedActionIds: string[]; deletedEventFiles: string[]; deletedPhaseDir: boolean },
+  ): Promise<string> {
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (!gitRoot) { return ''; }
+    try {
+      // Stage everything under the OKR's directory — captures okr.yaml,
+      // the cleared phase dir's .gitkeep, and the deleted audit JSONLs.
+      await execFileAsync('git', ['add', '-A', path.join('okrs', okrId)], { cwd: gitRoot });
+      const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+      if (!staged.trim()) { return 'No git changes to commit (already in sync).'; }
+      const phaseLabel = phase.toUpperCase();
+      const summary = [
+        `Removed ${result.removedActionIds.length} action(s): ${result.removedActionIds.join(', ') || '(none)'}`,
+        `Deleted ${result.deletedEventFiles.length} audit file(s)`,
+        result.deletedPhaseDir ? 'Cleared phase directory' : null,
+      ].filter(Boolean).join('\n');
+      const commitMsg = `chore(okr): ${okrId} ${phaseLabel} phase reset (unsealed)\n\n${summary}\n\nReset by Looking Glass; auto-committed so the next Start ${phaseLabel}\ndispatch sees a clean card. Without this auto-commit, remote main\nwould retain the stale action and the next agent run would see\na mismatched okr.yaml (Bug EE).`;
+      await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
+      try {
+        const { stdout: upstreamCheck } = await execFileAsync(
+          'git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+          { cwd: gitRoot },
+        );
+        if (upstreamCheck.trim()) {
+          await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          return 'Reset committed + pushed.';
+        }
+        return 'Reset committed locally (no upstream branch — push manually).';
+      } catch (pushErr) {
+        return `Reset committed locally — push failed (${toErrorMessage(pushErr)}). Push before next Start ${phase.toUpperCase()}.`;
+      }
+    } catch (err) {
+      return `Reset applied to file but git commit failed (${toErrorMessage(err)}). Commit + push before next Start ${phase.toUpperCase()}.`;
+    }
   }
 
   /**
@@ -1853,8 +1932,36 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
     const tier = okrService.tierForCard(meshPath, card);
+
+    // Bug FF (2026-05) — pull-rebase before checking the in-progress
+    // guard so we detect actions added by another path (e.g. CI
+    // commit, another collaborator, or the user's PR-delete that
+    // didn't trigger Reset). Pre-Bug-FF this guard read the LOCAL
+    // card, which could disagree with remote main if the user
+    // deleted a PR via GitHub UI without clicking Reset (Bug EE
+    // forensic — PR #138 → #140). The local card was clean but
+    // remote main had the stale `status: in_progress` action, so
+    // dispatch went through and the agent inherited a mismatched
+    // okr.yaml.
+    try {
+      const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+      if (gitRoot) {
+        const pullResult = await this.gitSyncService.pullFromRemote(gitRoot);
+        if (pullResult.success) {
+          // Re-read after pull so the guard sees the merged remote state.
+          const refreshed = okrService.read(meshPath, okrId);
+          if (refreshed) { card.actions = refreshed.actions; card.meta = refreshed.meta; }
+        }
+      }
+    } catch { /* best-effort — guard still runs on local-only state */ }
+
     if (card.actions.some(a => a.phase === phase && (a.status === 'in_progress' || a.status === 'under_review'))) {
-      this.postMessage({ type: 'error', message: `${phase.toUpperCase()} phase already running for ${okrId}.` });
+      const stale = card.actions.filter(a => a.phase === phase && (a.status === 'in_progress' || a.status === 'under_review'));
+      const staleIds = stale.map(a => `${a.id}/${a.runId}`).join(', ');
+      this.postMessage({
+        type: 'error',
+        message: `${phase.toUpperCase()} phase already running for ${okrId} (action${stale.length === 1 ? '' : 's'}: ${staleIds}). Click "Reset ${phase.toUpperCase()}" first to clear the stale action — that path commits + pushes the cleanup so dispatch sees a clean card on remote main.`,
+      });
       return;
     }
 
@@ -5664,6 +5771,26 @@ Policy file: ${filename}
       if (pruned.length > 0) {
         console.log(`[provision-workflow] Pruned ${pruned.length} deprecated file(s): ${pruned.join(', ')}`);
       }
+
+      // Bug DD (2026-05) — also deploy agents + skills as part of "Redeploy
+      // mesh workflows". Pre-Bug-DD, this handler only wrote workflow YAML
+      // + composite actions + prompts; the .agent.md files were owned by a
+      // SEPARATE onProvisionAgentic handler. Result: a workflow contract
+      // change paired with an agent prompt change (e.g. Bug AA: extractor
+      // accepts top-level fallback + agent prompt shows canonical YAML
+      // block) shipped the workflow side on Redeploy but not the agent
+      // side, so the next agent run kept emitting the old shape and
+      // tripping the old extractor. Forensic: PR #140 (2026-05-25) shipped
+      // chain_root_hash at top level despite Bug AA being merged to main
+      // 15 min earlier — user clicked "Redeploy workflows" (the only
+      // button labeled "Redeploy") and got everything EXCEPT the new
+      // agent prompt. Now this handler also deploys skills + agents in
+      // the same git commit. The standalone onProvisionAgentic still
+      // exists for any caller that needs agents-only (no current callers).
+      const agentSvc = new AgentDeploymentService(this.context.extensionPath);
+      const skillsResult = agentSvc.deploySkills(meshPath);
+      const agentsResult = agentSvc.deployAgents(meshPath);
+
       // Provision the canonical OKR label catalog idempotently via
       // GitHubService — labels-on-create REQUIRE the label to exist,
       // so Start Why / How / What would otherwise fail with
@@ -5677,12 +5804,20 @@ Policy file: ${filename}
       const changedFiles = diffCheck.trim().split('\n').filter(Boolean);
       let toastMessage: string;
       if (changedFiles.length > 0) {
-        const commitMsg = `chore: redeploy mesh workflows + caterpillar prompts\n\n${written.map(w => `- ${w}`).join('\n')}\n\nGenerated by MaintainabilityAI VS Code Extension`;
+        const commitMsg = [
+          'chore: redeploy mesh workflows + composite actions + agents + skills + prompts',
+          '',
+          `Workflows + actions: ${written.length} (re)written`,
+          `Skills: ${skillsResult.written} written, ${skillsResult.unchanged} unchanged`,
+          `Agents: ${agentsResult.written} written, ${agentsResult.unchanged} unchanged`,
+          '',
+          'Generated by MaintainabilityAI VS Code Extension',
+        ].join('\n');
         await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: meshPath });
         await execFileAsync('git', ['push'], { cwd: meshPath, timeout: 60_000 });
-        toastMessage = `Redeployed ${written.length} workflow file(s) and ${changedFiles.length - written.length >= 0 ? changedFiles.length - written.length : 0} prompt file(s); labels: ${labelResult.created} created, ${labelResult.updated} updated, ${labelResult.unchanged} unchanged${labelResult.failed > 0 ? `, ${labelResult.failed} failed` : ''}.`;
+        toastMessage = `Redeployed ${written.length} workflow file(s), ${agentsResult.written} agent + ${skillsResult.written} skill file(s); labels: ${labelResult.created} created, ${labelResult.updated} updated, ${labelResult.unchanged} unchanged${labelResult.failed > 0 ? `, ${labelResult.failed} failed` : ''}.`;
       } else {
-        toastMessage = `Workflows already up-to-date${touched > 0 ? ` (${touched} label(s) ${labelResult.created > 0 ? 'created' : 'updated'})` : ''} — nothing to commit.`;
+        toastMessage = `Mesh already up-to-date${touched > 0 ? ` (${touched} label(s) ${labelResult.created > 0 ? 'created' : 'updated'})` : ''} — nothing to commit.`;
       }
 
       this.postMessage({ type: 'workflowProvisioned' });
@@ -5701,15 +5836,15 @@ Policy file: ${filename}
   }
 
   /**
-   * Single-button "Deploy All" — provisions workflows + composite actions,
-   * AND agents + skills, in one click. Calls the existing two handlers
-   * sequentially (workflows first, then agents) so the underlying git
-   * commits stay distinct and reviewable. Avoids the prior two-button
-   * confusion where users clicked the wrong one.
+   * Single-button "Deploy All" — kept for back-compat with any UI surface
+   * still wired to it. Post-Bug-DD, onProvisionWorkflow itself deploys
+   * workflows + composite actions + agents + skills + prompts + labels
+   * in one commit, so this just delegates. The onProvisionAgentic flow
+   * is no longer called from here (avoids double-commit) but stays on
+   * the message bus for any direct caller that needs agents-only.
    */
   private async onProvisionAll() {
     await this.onProvisionWorkflow();
-    await this.onProvisionAgentic();
   }
 
   /**

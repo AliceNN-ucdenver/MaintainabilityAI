@@ -94,10 +94,16 @@ describe('collectAuditFailureReasons — Bug BB umbrella-label fix', () => {
     expect(collectAuditFailureReasons('how', ['prd-draft', 'prd-pass'])).toHaveLength(0);
   });
 
-  it('WHAT phase still uses its specific design-degraded message (untouched by Bug BB)', () => {
+  it('WHAT phase has a phase-specific design-degraded message (post-Bug-HH narrowed scope)', () => {
     const reasons = collectAuditFailureReasons('what', ['design-draft', 'design-degraded']);
     expect(reasons).toHaveLength(1);
-    expect(reasons[0]).toContain('Design-degraded');
+    // Post-Bug-HH the message is scoped to mode-honesty + manifest (the
+    // WHAT-specific causes). Pre-Bug-HH it was "Design-degraded (per-
+    // repo mode honesty / FR-SR addresses[] coverage / chain failure)"
+    // — the chain-failure framing was misleading since chain failures
+    // now use chain-integrity-failed.
+    expect(reasons[0]).toContain('Design degraded');
+    expect(reasons[0]).toMatch(/mode.honesty|manifest/i);
   });
 });
 
@@ -160,5 +166,50 @@ describe('Bug CC — chain-integrity-failed label is distinct from degraded-evid
     );
     expect(reasons).toHaveLength(1);
     expect(reasons[0]).toContain('Knight');
+  });
+
+  it('works for WHAT phase — chain failures now apply chain-integrity-failed, not design-degraded (Bug HH)', () => {
+    const reasons = collectAuditFailureReasons(
+      'what',
+      ['design-draft', 'chain-integrity-failed'],
+      'chain_root_hash mismatch: ...',
+    );
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain('Audit chain integrity failed');
+    // Must NOT mention "Design-degraded" — Bug HH split says chain
+    // failures are NOT design issues.
+    expect(reasons[0]).not.toContain('Design-degraded');
+    expect(reasons[0]).not.toContain('Design degraded');
+  });
+});
+
+describe('Bug HH — WHAT design-degraded narrowed to mode-honesty + manifest', () => {
+  it('design-degraded stock message reflects the new narrow scope (mode-honesty / manifest)', () => {
+    const reasons = collectAuditFailureReasons('what', ['design-draft', 'design-degraded']);
+    expect(reasons).toHaveLength(1);
+    // The new stock message must call out mode-honesty + manifest
+    // specifically — those are the WHAT-only causes that remain under
+    // design-degraded after Bug HH.
+    expect(reasons[0]).toMatch(/mode.honesty|manifest/i);
+    // Must NOT use the old umbrella phrasing that included chain failures.
+    expect(reasons[0]).not.toMatch(/chain failure/i);
+  });
+
+  it('WHAT structure-invalid renders the shared structural message', () => {
+    const reasons = collectAuditFailureReasons('what', ['design-draft', 'structure-invalid']);
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain('Structural correctness');
+  });
+
+  it('WHAT can stack chain-integrity-failed + design-degraded if both fire (post-Bug-HH should be rare)', () => {
+    const reasons = collectAuditFailureReasons(
+      'what',
+      ['design-draft', 'chain-integrity-failed', 'design-degraded'],
+      'chain_root_hash mismatch: ...',
+    );
+    expect(reasons).toHaveLength(2);
+    // Both reasons reference distinct concerns now, not a duplicated umbrella.
+    expect(reasons.some(r => r.includes('chain integrity'))).toBe(true);
+    expect(reasons.some(r => r.includes('mode-honesty') || r.includes('manifest'))).toBe(true);
   });
 });

@@ -34,10 +34,36 @@ export function collectAuditFailureReasons(
   // Umbrella stock message — used only when no audit-comment reason is
   // available. Phrased to describe the LABEL's actual umbrella scope,
   // not just one branch under it.
+  //
+  // Bug HH (2026-05) — WHAT's design-degraded is now scoped to mode-
+  // honesty + manifest gaps. Chain failures now apply the shared
+  // chain-integrity-failed label; structure failures now apply
+  // structure-invalid. Pre-Bug-HH, design-degraded was the catch-all
+  // and this stock string lied for chain/structure causes.
   const degradedStock = phase === 'what'
-    ? 'Design-degraded (per-repo mode honesty / FR-SR addresses[] coverage / chain failure)'
+    ? 'Design degraded — per-repo mode-honesty contradiction (knowledge-code mode mismatch) or manifest gap (target_code_repos[] incomplete). See the audit comment for the specific cause.'
     : 'Audit degraded — could be chain integrity, chain_root_hash mismatch, evidence-mode mismatch, missing JSONL, or sealed-gate failure. See the audit comment for the specific reason.';
-  const degradedMessage = (auditCommentReason && auditCommentReason.trim())
+  // Bug HH refinement (2026-05): when multiple degraded labels co-
+  // exist on a PR, the audit-comment Reason describes ONE of them
+  // (the highest-priority branch the workflow's verdict picked). Pre-
+  // fix, every degraded label rendered the same reason, which
+  // cross-contaminated unrelated causes (e.g. a chain failure made
+  // design-degraded ALSO render "chain_root_hash mismatch" even
+  // though design-degraded is about mode-honesty/manifest).
+  //
+  // Rule: the chain-integrity-failed label takes priority for the
+  // comment reason; the umbrella degraded-evidence/design-degraded
+  // labels only use the comment reason when chain-integrity-failed
+  // is NOT also applied. Other labels (structure-invalid, self-
+  // review-exhausted) always use their stock string since the
+  // workflow's verdict step writes a focused message for those
+  // causes that doesn't generalize.
+  const chainLabelPresent = labels.includes('chain-integrity-failed') || labels.includes('chain-forgery-detected');
+  const degradedMessage = (
+    !chainLabelPresent &&
+    auditCommentReason &&
+    auditCommentReason.trim()
+  )
     ? `Audit degraded — ${auditCommentReason.trim()}`
     : degradedStock;
   // Bug CC — chain-integrity-failed gets the audit-comment Reason

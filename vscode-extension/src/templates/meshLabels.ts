@@ -126,6 +126,11 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // `|| true` swallows). PR #122 hit this exact failure mode — clean
   // audit, no pass label applied, UI stuck at "audit in flight".
   { name: 'design-pass',             description: 'WHAT-phase code-design passed the audit gate (chain + mode honesty + drift). Reviewers can score.',   color: '43A047' },
-  { name: 'design-degraded',         description: 'WHAT-phase audit found degraded evidence or mode-honesty findings. Merge blocked until revised.',   color: 'D32F2F' },
+  // Bug HH (2026-05) — design-degraded is now SCOPED to per-repo mode-
+  // honesty + manifest gaps (the WHAT-specific causes). Pre-Bug-HH it
+  // was the catch-all for every degraded verdict including chain +
+  // structure; those now apply the shared chain-integrity-failed +
+  // structure-invalid labels (declared above) for parity with WHY+HOW.
+  { name: 'design-degraded',         description: 'WHAT-phase per-repo mode-honesty contradiction (knowledge-code mode mismatch) or manifest gap (target_code_repos[] incomplete). Distinct from chain-integrity-failed + structure-invalid. Merge blocked until revised.',   color: 'D32F2F' },
   { name: 'design-drift-detected',   description: 'WHAT-phase Pocket Watch or Caterpillar drift gate failed (§11.5). Merge blocked.',                 color: 'D32F2F' },
 ];

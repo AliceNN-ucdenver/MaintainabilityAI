@@ -1196,28 +1196,52 @@ jobs:
           if [ "$SEALED" != "true" ] || [ "$SEAL_VERIFIED" != "true" ]; then
             SEAL_OK="false"
           fi
+          # Bug HH (2026-05) — WHAT label-apply now uses discrete per-
+          # cause labels (mirrors Bug CC's WHY+HOW pattern). Pre-Bug-HH,
+          # every degraded branch applied the single `design-degraded`
+          # umbrella, so the UI's failure-reason text was the same stock
+          # string regardless of cause (chain failure, structure failure,
+          # manifest gap, mode-honesty all rendered as one message). The
+          # discrete labels now used:
+          #   - chain-integrity-failed: chain_root_hash / seal / chain
+          #     verification failures (shared with WHY + HOW, defined in
+          #     MESH_LABELS via Bug CC)
+          #   - structure-invalid: 10-H2 / FR-NN / SR-NN coverage gaps
+          #     (shared with WHY + HOW, defined in MESH_LABELS)
+          #   - design-degraded: scoped now to WHAT-specific causes —
+          #     per-repo mode-honesty (knowledge-code mode contradiction)
+          #     and manifest-incomplete (target_code_repos[] missing)
+          # The remove-stale-labels step below clears all four when the
+          # verdict flips to ok.
           if [ "$CHAIN_OK" = "true" ] && [ "$MODE_OK" = "true" ] && [ "$STRUCT_OK" = "true" ] && [ "$MANIFEST_OK" = "true" ] && [ "$SEAL_OK" = "true" ] && [ "$CHAIN_ROOT_OK" != "false" ]; then
-            if apply_label --add-label design-pass --remove-label design-degraded,design-drift-detected; then
+            if apply_label --add-label design-pass --remove-label design-degraded,design-drift-detected,chain-integrity-failed,structure-invalid; then
               echo "::notice::Applied design-pass label to PR #$PR (chain+mode+structure+manifest+seal+chain-root all clean)"
             fi
           elif [ "$CHAIN_ROOT_OK" = "false" ]; then
-            apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — chain_root_hash mismatch: $CHAIN_ROOT_REASON"
+            apply_label --add-label chain-integrity-failed || true
+            echo "::warning::Applied chain-integrity-failed — chain_root_hash mismatch: $CHAIN_ROOT_REASON"
           elif [ "$SEAL_OK" = "false" ]; then
-            apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — Knight's Seal not verified (sealed=$SEALED, seal_verified=$SEAL_VERIFIED). Agent runs MUST land sealed (every agent event signed)."
+            apply_label --add-label chain-integrity-failed || true
+            echo "::warning::Applied chain-integrity-failed — Knight's Seal not verified (sealed=$SEALED, seal_verified=$SEAL_VERIFIED). Agent runs MUST land sealed (every agent event signed)."
+          elif [ "$CHAIN_OK" = "false" ]; then
+            apply_label --add-label chain-integrity-failed || true
+            echo "::warning::Applied chain-integrity-failed — chain reason: ${{ steps.chain.outputs.reason }}"
+          elif [ "$STRUCT_OK" = "false" ]; then
+            apply_label --add-label structure-invalid || true
+            echo "::warning::Applied structure-invalid — structure: ${{ steps.verdict.outputs.struct_reason }}"
           elif [ "$MODE_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"
-          elif [ "$STRUCT_OK" = "false" ]; then
-            apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — structure: ${{ steps.verdict.outputs.struct_reason }}"
           elif [ "$MANIFEST_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
             echo "::warning::Applied design-degraded — manifest: ${{ steps.verdict.outputs.manifest_missing }}"
           else
+            # Fallback — shouldn't reach here given the discrete checks
+            # above, but keep design-degraded as the safety net so a
+            # regression in the verdict step doesn't silently no-op the
+            # label.
             apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — chain reason: ${{ steps.chain.outputs.reason }}"
+            echo "::warning::Applied design-degraded — unclassified degraded verdict; review audit comment for cause."
           fi
           rm -f "$ERRLOG"
 
