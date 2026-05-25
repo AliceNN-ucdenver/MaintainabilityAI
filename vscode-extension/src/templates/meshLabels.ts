@@ -89,7 +89,11 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // evidence_mode, JSONL absent, 0 mesh-skill_calls, manifest gap) —
   // chain branches no longer set EVIDENCE_FAIL=true as a side
   // effect (Bug CC verdict-step de-spuriousing).
-  { name: 'chain-integrity-failed',  description: 'Audit JSONL chain failed verification (hash chain / Knight\'s Seal / chain_root_hash / unsealed / forged artifact_written). See the audit comment Reason for the specific cause. Merge blocked.', color: 'B71C1C' },
+  // chain-integrity-failed scope: hash-chain verification, Knight's Seal,
+  // chain_root_hash, unsealed gate, forged artifact_written. Specific
+  // cause is in the PR audit comment's Reason line. GitHub caps label
+  // descriptions at 100 chars; the long-form rationale lives here.
+  { name: 'chain-integrity-failed',  description: 'Audit JSONL chain failed verification. See PR audit comment Reason. Merge blocked.', color: 'B71C1C' },
   // Bug GG-followup (2026-05) — agents are CONTRACTUALLY forbidden from
   // mutating OKR state (okr.yaml: actions[], meta.status, runId,
   // intentThreadUuid, hatterChainRoot, createdAt, completedAt, etc.).
@@ -104,8 +108,15 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // the Bug EE reset-drift gap) and "fixed" it by editing the action's
   // runId. Even with the upstream bug fixed, the agent prompt rule alone
   // is advice; this label is the control.
-  { name: 'state-integrity-failed',  description: 'Agent PR modified okrs/<id>/okr.yaml. OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action, not the agent (Bug GG-followup). Merge blocked — the only legitimate okr.yaml diffs come from non-agent PRs.', color: 'AD1457' },
-  { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log — e.g. declared `live` but no successful skill_calls, or JSONL absent (§11.1.7). Distinct from chain-integrity-failed. Blocks the pass label.', color: 'D32F2F' },
+  // state-integrity-failed scope: agent PR modified okrs/<id>/okr.yaml.
+  // OKR state is owned by Looking Glass dispatch/reset + finalize-okr-
+  // action, not the agent. Legitimate okr.yaml diffs go in non-agent
+  // PRs (without research-synthesis / prd-draft / design-draft labels).
+  { name: 'state-integrity-failed',  description: 'Agent PR modified okr.yaml; OKR state is not agent-owned. Merge blocked.', color: 'AD1457' },
+  // degraded-evidence scope (post-Bug-CC narrowing): evidence-honesty
+  // failures only — Hatter Tag declared live but no skill_calls, JSONL
+  // absent, manifest gap. Chain failures use chain-integrity-failed.
+  { name: 'degraded-evidence',       description: 'Hatter Tag evidence_mode contradicts the audit log (§11.1.7). Merge blocked.', color: 'D32F2F' },
   { name: 'structure-invalid',       description: 'Artifact missing required sections / FR-NN / SR-NN citations. Blocks the pass label.',  color: 'D32F2F' },
   { name: 'self-review-exhausted',   description: 'B24 self-review hit MAX_AUTO_ROUNDS with unresolved MISSING items. Human review required.', color: 'D32F2F' },
 
@@ -115,7 +126,9 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // set when evidence-honesty + structural + Pocket Watch checks all
   // pass. Branch protection on the mesh repo should require this on
   // PRs labeled `research-synthesis`.
-  { name: 'research-pass',           description: 'WHY-phase research doc passed the evidence-honesty gate. Merge unlocked (subject to branch protection).', color: '43A047' },
+  // research-pass: WHY merge gate. Branch protection should require it
+  // on research-synthesis PRs. Set by market-research-agent.yml verdict.
+  { name: 'research-pass',           description: 'WHY research doc passed the audit gate. Merge unlocked.', color: '43A047' },
 
   // ── HOW-phase audit gate labels (prd-agent.yml — B20 Phase 2) ──────
   // Applied by prd-agent.yml's audit-and-drift job on `prd-draft` PRs.
@@ -146,6 +159,9 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // was the catch-all for every degraded verdict including chain +
   // structure; those now apply the shared chain-integrity-failed +
   // structure-invalid labels (declared above) for parity with WHY+HOW.
-  { name: 'design-degraded',         description: 'WHAT-phase per-repo mode-honesty contradiction (knowledge-code mode mismatch) or manifest gap (target_code_repos[] incomplete). Distinct from chain-integrity-failed + structure-invalid. Merge blocked until revised.',   color: 'D32F2F' },
+  // design-degraded scope (post-Bug-HH narrowing): mode-honesty or
+  // manifest gap only. Chain → chain-integrity-failed; structure →
+  // structure-invalid. Per-cause distinction is in the audit comment.
+  { name: 'design-degraded',         description: 'WHAT mode-honesty or manifest gap. Merge blocked.',   color: 'D32F2F' },
   { name: 'design-drift-detected',   description: 'WHAT-phase Pocket Watch or Caterpillar drift gate failed (§11.5). Merge blocked.',                 color: 'D32F2F' },
 ];

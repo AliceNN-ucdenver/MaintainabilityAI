@@ -71,6 +71,21 @@ describe('phaseSpec ↔ MESH_LABELS consistency', () => {
       ).toBe(true);
     }
   });
+
+  // GitHub's labels API rejects descriptions longer than 100 characters
+  // with HTTP 422 on POST + PATCH. Bug GG-followup's first deploy hit
+  // this: 4 labels (chain-integrity-failed, degraded-evidence, research-
+  // pass, design-degraded) failed silently with "0 created, 0 updated,
+  // 4 failed" because their long-form descriptions ran 100-220 chars.
+  // The long-form rationale belongs in comments above the entry, not in
+  // the description string itself.
+  it('every label description fits GitHub\'s 100-char API limit', () => {
+    const overflow = MESH_LABELS.filter(l => l.description.length > 100);
+    expect(
+      overflow.map(l => `${l.name} (${l.description.length} chars)`),
+      `Label descriptions exceeding GitHub's 100-char limit will fail with HTTP 422 on every Deploy all. Move long-form rationale into comments. Offenders:\n  ${overflow.map(l => `${l.name}: ${l.description.length} chars`).join('\n  ')}`,
+    ).toEqual([]);
+  });
 });
 
 describe('phaseSpec ↔ MESH_AGENTS consistency', () => {
