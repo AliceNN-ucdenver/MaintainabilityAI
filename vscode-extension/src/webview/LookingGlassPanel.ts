@@ -74,6 +74,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
 import { buildAuditReportMarkdown } from '../services/AuditReportExporter';
+import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
 // allowlist live in chainVerify.ts (see import above). Lifted out
@@ -2459,14 +2460,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
     // Resolve owner/repo for the Contents API call. Same pattern as
-    // fetchPhaseSignal (line ~720); the runId-based JSONL path is
-    // canonical so we don't need PR ref awareness here — the JSONL
-    // lives at the same path on main once finalize lands.
-    const repoInfo = this.meshRepoInfo
-      ?? (() => {
-        const url = getRemoteOriginUrl(meshPath);
-        return null;  // best-effort; bail to local-file fallback below
-      })();
+    // onConfirmStartOkrPhase (line ~2110) — meshRepoInfo is populated
+    // on panel open but cold-start paths need a fresh git-remote
+    // parse. Pre-fix this used an IIFE that called getRemoteOriginUrl
+    // WITHOUT await + discarded the result, so a cold-started panel
+    // always fell to the local-file fallback and never hit GitHub
+    // (Codex E3 review finding, 2026-05-25).
+    let repoInfo = this.meshRepoInfo;
+    if (!repoInfo) {
+      const url = await getRemoteOriginUrl(meshPath);
+      const parsed = url ? parseGitHubUrl(url) : null;
+      if (parsed) { repoInfo = { owner: parsed.owner, repo: parsed.repo }; }
+    }
     const jsonlRelPath = `okrs/${okrId}/audit/events/${action.runId}.jsonl`;
     let jsonlText: string | null = null;
     if (repoInfo) {
@@ -2496,13 +2501,23 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   }
 
   /**
-   * E3 (2026-05-25) — Export Audit Report handler. Reads the action's
-   * chain JSONL + chain-ladder.yaml + okr.yaml fields, runs the pure
-   * AuditReportExporter helper to produce a reviewer-facing markdown
-   * report, writes it to okrs/<id>/audit/exports/<runId>-report.md,
-   * and opens the file in a VS Code editor. The export folder is
-   * intentionally inside the mesh so the user can commit it alongside
-   * the artifact for durable record.
+   * E3 (2026-05-25, post-Codex-review) — Export Audit Report handler.
+   *
+   * Reads okr.yaml + chain JSONL + chain-ladder.yaml from CANONICAL
+   * GITHUB MAIN via Contents API (not local mesh disk). Pre-fix the
+   * handler read all three from local mesh, which reintroduces the
+   * stale-branch class of failure Bug QQ/A-plus closed for writes:
+   * a closeout artifact for fan-out MUST source from the same place
+   * CI reads from, not whatever happens to be on the user's local
+   * checkout. The exported file is still written locally (under
+   * okrs/<id>/audit/exports/) so the user can commit it; only the
+   * inputs are reads-from-main.
+   *
+   * Local fallback (used only when GitHub API call fails — offline /
+   * rate-limited / token missing) keeps dev-loop usable but the
+   * resulting report names which source it used in the prose so a
+   * reviewer can tell whether they're looking at a canonical or a
+   * local-state export.
    */
   private async onExportAuditReport(okrId: string, actionId: string): Promise<void> {
     const meshPath = MeshService.getMeshPath();
@@ -2511,61 +2526,110 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
     const okrService = this.meshService.getOkrService();
-    const card = okrService.read(meshPath, okrId);
-    if (!card) {
-      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+    const localCard = okrService.read(meshPath, okrId);
+    if (!localCard) {
+      this.postMessage({ type: 'error', message: `OKR not found locally: ${okrId}. Pull mesh first.` });
       return;
     }
-    const action = card.actions.find(a => a.id === actionId);
-    if (!action) {
-      this.postMessage({ type: 'error', message: `Action ${actionId} not found on this OKR` });
+    const localAction = localCard.actions.find(a => a.id === actionId);
+    if (!localAction || !localAction.runId) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} not found or missing runId on this OKR` });
       return;
     }
-    if (!action.runId) {
-      this.postMessage({ type: 'error', message: 'No runId on this action — cannot export report' });
-      return;
+    const runId = localAction.runId;
+
+    // Resolve owner/repo for the Contents API call. Same pattern as
+    // onConfirmStartOkrPhase + onVerifyChain.
+    let repoInfo = this.meshRepoInfo;
+    if (!repoInfo) {
+      const url = await getRemoteOriginUrl(meshPath);
+      const parsed = url ? parseGitHubUrl(url) : null;
+      if (parsed) { repoInfo = { owner: parsed.owner, repo: parsed.repo }; }
     }
-    const jsonlRelPath = `okrs/${okrId}/audit/events/${action.runId}.jsonl`;
-    const jsonlPath = path.join(meshPath, jsonlRelPath);
-    if (!fs.existsSync(jsonlPath)) {
-      this.postMessage({ type: 'error', message: `Audit JSONL not found locally at ${jsonlRelPath}. Pull mesh first, or wait for finalize to land workflow events.` });
-      return;
-    }
-    let chainText: string;
-    try {
-      chainText = fs.readFileSync(jsonlPath, 'utf8');
-    } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to read chain: ${toErrorMessage(err)}` });
-      return;
-    }
-    const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
-    const ladderPath = path.join(meshPath, `okrs/${okrId}/audit/chain-ladder.yaml`);
+
+    // Canonical-source reads from GitHub main. Local-disk fallback only
+    // when the remote call fails — and the source used is tracked so
+    // the export header can name it honestly.
+    const okrYamlRelPath = `okrs/${okrId}/okr.yaml`;
+    const jsonlRelPath = `okrs/${okrId}/audit/events/${runId}.jsonl`;
+    const ladderRelPath = `okrs/${okrId}/audit/chain-ladder.yaml`;
+    let okrYamlText: string | null = null;
+    let chainText: string | null = null;
     let chainLadderText: string | null = null;
-    if (fs.existsSync(ladderPath)) {
-      try { chainLadderText = fs.readFileSync(ladderPath, 'utf8'); } catch { /* optional */ }
+    let sourceTag = 'local mesh checkout';
+    if (repoInfo) {
+      try {
+        const [a, b, c] = await Promise.all([
+          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, okrYamlRelPath),
+          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath),
+          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, ladderRelPath),
+        ]);
+        if (a && b) {
+          okrYamlText = a;
+          chainText = b;
+          chainLadderText = c;
+          sourceTag = `GitHub ${repoInfo.owner}/${repoInfo.repo} (default branch)`;
+        }
+      } catch { /* fall through to local */ }
     }
-    // Architectural rule: services/ MUST NOT depend on webview/. The
-    // exporter takes the verdict as input; we compute it here (in the
-    // webview layer that already imports chainVerify) and pass it.
+    if (!okrYamlText || !chainText) {
+      // Local fallback.
+      try {
+        const okrPath = path.join(meshPath, okrYamlRelPath);
+        const jsonlPath = path.join(meshPath, jsonlRelPath);
+        const ladderPath = path.join(meshPath, ladderRelPath);
+        if (!fs.existsSync(okrPath) || !fs.existsSync(jsonlPath)) {
+          this.postMessage({ type: 'error', message: `Required inputs missing both on GitHub main and local mesh: ${okrYamlRelPath} or ${jsonlRelPath}. Wait for finalize to push, or re-pull.` });
+          return;
+        }
+        okrYamlText = fs.readFileSync(okrPath, 'utf8');
+        chainText = fs.readFileSync(jsonlPath, 'utf8');
+        if (fs.existsSync(ladderPath)) {
+          chainLadderText = fs.readFileSync(ladderPath, 'utf8');
+        }
+      } catch (err) {
+        this.postMessage({ type: 'error', message: `Failed to read fallback inputs: ${toErrorMessage(err)}` });
+        return;
+      }
+    }
+
+    // Parse okr.yaml + locate action — using the canonical YAML text
+    // (whether from GitHub or local). Keeps the report's identity
+    // table sourced from the same bytes the chain was sourced from.
+    let actionYaml: Record<string, unknown> | null = null;
+    try {
+      const parsed = YAML.parse(okrYamlText) as { actions?: Array<Record<string, unknown>> };
+      actionYaml = (parsed.actions ?? []).find(a => a['id'] === actionId) ?? null;
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to parse okr.yaml: ${toErrorMessage(err)}` });
+      return;
+    }
+    if (!actionYaml) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} not in canonical okr.yaml (sourced from: ${sourceTag}). May not be pushed yet.` });
+      return;
+    }
+
+    const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
     const verdict = verifyChainForUI(chainLines);
     const markdown = buildAuditReportMarkdown({
       okrId,
-      runId: action.runId,
-      phase: action.phase,
-      actionId: action.id,
-      agent: action.agent,
-      intentThreadUuid: action.intentThreadUuid,
-      parentIntentThread: action.parentIntentThread ?? null,
-      governanceTier: action.governanceTier,
-      status: action.status,
-      createdAt: action.createdAt ?? null,
-      completedAt: action.completedAt ?? null,
-      hatterChainRoot: action.hatterChainRoot ?? null,
-      prUrl: action.pr ?? null,
-      artifactPath: action.artifact ?? null,
+      runId,
+      phase: (actionYaml['phase'] as 'why' | 'how' | 'what') ?? localAction.phase,
+      actionId,
+      agent: (actionYaml['agent'] as string) ?? localAction.agent,
+      intentThreadUuid: (actionYaml['intentThreadUuid'] as string) ?? localAction.intentThreadUuid,
+      parentIntentThread: (actionYaml['parentIntentThread'] as string | null) ?? localAction.parentIntentThread ?? null,
+      governanceTier: (actionYaml['governanceTier'] as string) ?? localAction.governanceTier,
+      status: (actionYaml['status'] as string) ?? localAction.status,
+      createdAt: (actionYaml['createdAt'] as string) ?? localAction.createdAt ?? null,
+      completedAt: (actionYaml['completedAt'] as string) ?? localAction.completedAt ?? null,
+      hatterChainRoot: (actionYaml['hatterChainRoot'] as string) ?? localAction.hatterChainRoot ?? null,
+      prUrl: (actionYaml['pr'] as string) ?? localAction.pr ?? null,
+      artifactPath: (actionYaml['artifact'] as string) ?? localAction.artifact ?? null,
       chainLines,
       chainLadderText,
       verdict,
+      sourceTag,
     });
     const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
     const exportPath = path.join(exportDir, `${action.runId}-report.md`);

@@ -50,6 +50,15 @@ export interface AuditReportInput {
   chainLadderText: string | null;
   /** Verdict produced by the caller via verifyChainForUI(chainLines). */
   verdict: ChainVerifyVerdictLite;
+  /**
+   * Codex E3 review finding (2026-05-25) — names where the okr.yaml +
+   * chain bytes were sourced from (e.g. "GitHub owner/repo (default
+   * branch)" vs "local mesh checkout"). The report header renders
+   * this so a reviewer can tell whether they're looking at canonical
+   * post-finalize state OR a possibly-stale local export. Required
+   * input — caller MUST set it explicitly (no default).
+   */
+  sourceTag: string;
 }
 
 interface ChainEvent {
@@ -107,11 +116,36 @@ function summarizeSkillCalls(events: ChainEvent[]): { name: string; count: numbe
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
+/**
+ * Codex E3 review finding (2026-05-25) — replicate the runner's full
+ * self_review legitimacy contract here, NOT just the signature-presence
+ * check. Pre-fix the aggregator gated on `!e.signature`, which would
+ * have admitted a forged event whose payload.emitted_by lied about
+ * origin OR whose signer_epoch was missing or non-numeric. Trust
+ * posture would correctly flag the chain as tampered, but the report
+ * could still print "scored 0.96 PASS" off a forged event. Now mirror
+ * the runner's checks: agent-origin attribution + signature presence
+ * + numeric signer_epoch. Matches isEventLegitimate's agent-event
+ * branch in src/webview/chainVerify.ts (kept inline here because the
+ * architecture rule forbids services/ → webview/).
+ */
+function isSelfReviewLegitimate(e: ChainEvent): boolean {
+  if (e.event_kind !== 'self_review') { return false; }
+  // Bug Y origin-kind: self_review MUST come from the agent. A forged
+  // event mis-attributing origin is rejected by the runner; the
+  // report MUST drop it before aggregation.
+  if (e.payload?.emitted_by !== 'agent') { return false; }
+  // Bug V: agent events MUST carry a signature.
+  if (typeof e.signature !== 'string' || e.signature.length === 0) { return false; }
+  // Bug X round-8: agent events MUST carry numeric signer_epoch.
+  if (typeof e.signer_epoch !== 'number') { return false; }
+  return true;
+}
+
 function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: { round: number; score: number | null; severity: string | null; eventId: number | null }[] }[] {
   const byPersona = new Map<string, Map<number, { score: number | null; severity: string | null; eventId: number | null }>>();
   for (const e of events) {
-    if (e.event_kind !== 'self_review') { continue; }
-    if (!e.signature) { continue; } // Bug W legitimacy gate
+    if (!isSelfReviewLegitimate(e)) { continue; }
     const p = e.payload?.persona;
     const r = e.payload?.round;
     if (!p || r === undefined) { continue; }
@@ -171,14 +205,21 @@ function buildExecutiveSummary(
 ): string {
   const v = input.verdict;
   // VERDICT — three states the runner verifier also uses.
+  // CAVEAT: this verdict is SHAPE-ONLY. Even PASS here does NOT prove
+  // Ed25519 signatures verify against the per-epoch pub keys, NOR
+  // does it prove the chain's hash continuity is intact. The runner's
+  // `skill-audit-verify-chain` is the only path to a sign-off verdict
+  // for fan-out / coding-agent handoff. The ACTION line below names
+  // that explicitly — it never says "approve for fan-out" from
+  // shape alone (Codex E3 review, 2026-05-25).
   let verdictLabel: string;
   let actionLine: string;
   if (!v.shapeOk) {
     verdictLabel = 'FAIL (shape-verification failed)';
-    actionLine = `REJECT — investigate first failure at line ${v.firstFailure?.line ?? '?'} (${v.firstFailure?.reason ?? 'unknown'}) before any downstream handoff.`;
+    actionLine = `REJECT — investigate first failure at line ${v.firstFailure?.line ?? '?'} (${v.firstFailure?.reason ?? 'unknown'}). Do NOT promote to fan-out.`;
   } else if (v.seal.sealed) {
-    verdictLabel = 'PASS (shape-verified)';
-    actionLine = 'APPROVE for downstream coding handoff · or escalate via gh PR review if scope-of-change concerns exist.';
+    verdictLabel = 'SHAPE-CLEARED — crypto + hash verification still required';
+    actionLine = 'RUN RUNNER VERIFY before fan-out. Shape checks pass + every agent event claims a signature, but Ed25519 math + per-event hash replay (prev_event_hash → this_event_hash) live in the runner — see Verifier notes for the command. Only after that verdict is green: approve for downstream coding handoff.';
   } else if (agentStats.totalAgent === 0) {
     verdictLabel = 'REVIEW (workflow-only chain, no agent events)';
     actionLine = 'MANUAL REVIEW — chain has no agent events to seal. Expected for WHY phase, unusual elsewhere.';
@@ -305,6 +346,7 @@ Total events: ${verdict.totalEvents} · Malformed lines: ${verdict.malformedLine
   return `# Audit report — ${input.okrId} · ${input.phase.toUpperCase()} · ${input.actionId}
 
 > Generated by Looking Glass · ${new Date().toISOString()}
+> Sources: ${input.sourceTag}
 
 ## Executive summary
 
@@ -350,20 +392,26 @@ ${ladderBlock}
 
 ## Verifier notes
 
-This report is a SHAPE-level audit summary, generated client-side
+This report is a **SHAPE-level audit summary**, generated client-side
 from the per-run audit JSONL chain + okr.yaml + chain-ladder.yaml.
-For cryptographic gold (Ed25519 signature verification against the
-per-epoch public keys committed under \`audit/keys/\`), re-run via
-the runner:
+**It does NOT perform** (these all require the runner):
+  - Ed25519 signature verification against \`audit/keys/\` pub keys
+  - Per-event hash-chain replay (\`prev_event_hash\` → \`this_event_hash\`)
+  - Cross-check of \`chain_root_hash\` against recomputed leaf hash
+
+**Before fan-out / handoff to a coding agent, run the canonical
+verifier:**
 
 \`\`\`sh
-npx @maintainabilityai/research-runner audit-verify-chain \\
-  --okrId ${input.okrId} --runId ${input.runId}
+printf '{"okrId":"${input.okrId}","runId":"${input.runId}"}' \\
+  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
 \`\`\`
 
 Same code path CI uses; same allowlist + origin-kind contract
-(Bug V/W/X/Y). The runner's verdict is the source of truth; this
-report's shape verdict matches every check that doesn't require
-key material.
+(Bug V/W/X/Y). The runner's verdict is the source of truth. This
+report's verdict only certifies what's checkable without key
+material AND without hash recomputation — a clean shape verdict
+here does NOT prove the chain hasn't been tampered with at the
+signature or hash-continuity layer.
 `;
 }

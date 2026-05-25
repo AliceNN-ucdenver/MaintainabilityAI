@@ -622,12 +622,20 @@ describe('OKRService', () => {
     });
   });
 
-  describe('exportAuditReport (stub)', () => {
-    it('returns a not-implemented sentinel until Phase E', () => {
+  describe('exportAuditReport (deprecated placeholder)', () => {
+    // Phase E shipped the real export via AuditReportExporter +
+    // LookingGlassPanel.onExportAuditReport. This method remains as a
+    // typed dead-letter so external callers (if any) get a clear
+    // "use the new path" reason. Test pins that contract.
+    it('points callers at the Phase E export path', () => {
       const card = svc.create(tmpRoot, freshDraft())!;
       const r = svc.exportAuditReport(tmpRoot, card.meta.id);
       expect(r.ok).toBe(false);
-      if (!r.ok) { expect(r.reason).toMatch(/not-implemented/); }
+      if (!r.ok) {
+        expect(r.reason).toMatch(/deprecated/);
+        expect(r.reason).toMatch(/AuditReportExporter/);
+        expect(r.reason).toMatch(/onExportAuditReport/);
+      }
     });
   });
 

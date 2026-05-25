@@ -41,6 +41,7 @@ function makeInput(over: Partial<AuditReportInput> = {}): AuditReportInput {
     chainLines: [],
     chainLadderText: null,
     verdict: makeVerdict(),
+    sourceTag: 'GitHub AliceNN-ucdenver/alicenn-ucdenver-governance-mesh (default branch)',
     ...over,
   };
 }
@@ -76,7 +77,7 @@ describe('buildAuditReportMarkdown', () => {
     // the crypto-vs-shape caveat in the lede, NOT bare "Sealed".
     expect(md).toContain('🛡 **Sealed (shape-verified)**');
     expect(md).toContain('Cryptographic verification');
-    expect(md).toContain('✅ All shape checks pass');
+    expect(md).toContain('All shape checks pass');
   });
 
   it('seal headline names signed-vs-total agent event count', () => {
@@ -101,10 +102,12 @@ describe('buildAuditReportMarkdown', () => {
       ],
     }));
     expect(md).toContain('## Executive summary');
-    expect(md).toContain('VERDICT:  PASS (shape-verified)');
+    // Codex E3 review — VERDICT must NOT claim "PASS" on shape-only
+    // verification. Phrasing now warns crypto + hash check still needed.
+    expect(md).toContain('SHAPE-CLEARED');
     expect(md).toContain('RISK:     LOW');
     expect(md).toContain('converged on round 2');
-    expect(md).toContain('ACTION:   APPROVE');
+    expect(md).toContain('RUN RUNNER VERIFY before fan-out');
     expect(md).toContain('SCOPE:    WHAT phase');
     // Summary appears BEFORE Run identity in document order.
     const summaryIdx = md.indexOf('## Executive summary');
@@ -234,10 +237,76 @@ describe('buildAuditReportMarkdown', () => {
     expect(md).not.toContain('Cross-phase ladder');
   });
 
-  it('includes runner CLI fallback for cryptographic gold', () => {
+  it('includes correct runner CLI invocation (skill-audit-verify-chain via stdin JSON)', () => {
+    // Codex E3 review fixed: the runner ONLY dispatches skill-*
+    // subcommands and reads JSON from stdin. Pre-fix the report named
+    // `audit-verify-chain` (no skill- prefix, no stdin contract) —
+    // dead command an auditor would copy-paste and find broken.
     const md = buildAuditReportMarkdown(makeInput());
-    expect(md).toContain('npx @maintainabilityai/research-runner audit-verify-chain');
-    expect(md).toContain('--okrId OKR-2026Q2-IMDB-001-celeb-api');
-    expect(md).toContain('--runId WHAT-2026-05-25-1d8h04');
+    expect(md).toContain('skill-audit-verify-chain');
+    expect(md).toContain('"okrId":"OKR-2026Q2-IMDB-001-celeb-api"');
+    expect(md).toContain('"runId":"WHAT-2026-05-25-1d8h04"');
+    expect(md).toContain('| npx -y @maintainabilityai/research-runner');
+    expect(md).toContain('printf');
+    // Must NOT have the old broken command shape.
+    expect(md).not.toMatch(/[^-]audit-verify-chain --okrId/);
+  });
+
+  it('seal headline frames PASS as SHAPE-CLEARED, not approval (Codex E3 fix)', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 28 }),
+    }));
+    expect(md).toContain('SHAPE-CLEARED');
+    expect(md).toContain('crypto + hash verification still required');
+    expect(md).toContain('RUN RUNNER VERIFY before fan-out');
+    // Must NOT say plain "APPROVE for downstream coding handoff" on its own —
+    // the new phrasing wraps that promise in a precondition ("Only after
+    // that verdict is green").
+    expect(md).not.toContain('VERDICT:  PASS (shape-verified)');
+  });
+
+  it('verifier notes block names the runner-only checks explicitly', () => {
+    const md = buildAuditReportMarkdown(makeInput());
+    // Both omitted checks should be called out in the Verifier notes
+    // block so a reviewer sees the limit, not just the green badge.
+    expect(md).toContain('Ed25519 signature verification');
+    expect(md).toContain('hash-chain replay');
+    expect(md).toContain('chain_root_hash');
+  });
+
+  it('renders sourceTag in the report header', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sourceTag: 'GitHub foo/bar (default branch)',
+    }));
+    expect(md).toContain('Sources: GitHub foo/bar (default branch)');
+  });
+
+  it('ignores self_review events that lack agent origin (Codex E3 fix)', () => {
+    // Pre-fix the aggregator gated only on signature presence — a
+    // forged event with payload.emitted_by='workflow' (origin lie)
+    // would have been counted toward the score. Now it must be
+    // dropped before reaching the report.
+    const md = buildAuditReportMarkdown(makeInput({
+      chainLines: [
+        // Forged: signature present but origin lies (workflow on an
+        // agent-only kind). Runner rejects; report must too.
+        JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'architect', round: 1, score: 0.01, severity: 'CRITICAL', emitted_by: 'workflow' } }),
+      ],
+    }));
+    expect(md).not.toContain('CRITICAL');
+    expect(md).not.toContain('**architect**');
+    expect(md).toContain('No signed `self_review` events');
+  });
+
+  it('ignores self_review events missing numeric signer_epoch (Codex E3 fix)', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      chainLines: [
+        // Signature + agent origin but signer_epoch is missing — runner
+        // rejects per Bug X round-8. Report must agree.
+        JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', payload: { persona: 'architect', round: 1, score: 0.01, severity: 'CRITICAL', emitted_by: 'agent' } }),
+      ],
+    }));
+    expect(md).not.toContain('CRITICAL');
+    expect(md).not.toContain('**architect**');
   });
 });

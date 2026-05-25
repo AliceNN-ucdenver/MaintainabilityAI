@@ -31,7 +31,13 @@
  *
  * Phase A scope (this PR): readAll, read, create, appendAction,
  * updateAction, updateStatus, setPaused, targetCodeReposFor, tierFor.
- * exportAuditReport ships in Phase E (stub here returns 'not implemented').
+ *
+ * Phase E (2026-05-25): the Export Audit Report user-facing feature
+ * landed in `services/AuditReportExporter.ts` (pure function) +
+ * `webview/LookingGlassPanel.ts.onExportAuditReport` (handler). The
+ * legacy `exportAuditReport(meshPath, okrId)` method below is a
+ * pre-Phase-E placeholder that nobody calls — kept only so external
+ * consumers (if any) get a useful error. New code MUST NOT call it.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -457,14 +463,21 @@ export class OKRService {
   }
 
   /**
-   * Phase E feature — bundles every artifact from the OKR's lifetime
-   * into a zip with traceability + chain verification. Stubbed in Phase A.
-   * See vscode-extension/design/agentic-sdlc.md §11.6 for the bundle
-   * structure spec.
+   * DEPRECATED placeholder — see class docstring. The Phase E export
+   * feature lives in `services/AuditReportExporter.ts` (pure builder)
+   * + `webview/LookingGlassPanel.ts.onExportAuditReport` (handler
+   * that fetches canonical inputs from GitHub main, calls the
+   * builder, writes the markdown to okrs/<id>/audit/exports/, and
+   * opens it in VS Code).
+   *
+   * This method has no callers in current code and returns a clear
+   * "use the new path" error if anything external still hits it.
+   * Safe to delete in a future cleanup pass once we're sure nothing
+   * downstream refers to it.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   exportAuditReport(meshPath: string, okrId: string): { ok: false; reason: string } {
-    return { ok: false, reason: 'not-implemented-yet (Phase E)' };
+    return { ok: false, reason: 'OKRService.exportAuditReport is a deprecated placeholder. Use AuditReportExporter.buildAuditReportMarkdown + LookingGlassPanel.onExportAuditReport for the Phase E export flow.' };
   }
 
   /**
