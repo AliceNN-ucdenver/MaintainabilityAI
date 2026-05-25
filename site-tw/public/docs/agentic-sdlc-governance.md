@@ -1321,10 +1321,12 @@ Looking Glass now ships an **internal auditor closeout report** per OKR action �
 - SR-NN → STRIDE/OWASP → PRD anchor → design § control mapping
 - cross-phase ladder summary linking WHY → HOW → WHAT
 
-Below the closeout, the **two source files** that prove every claim sit on disk for any reviewer — internal auditor, regulator, downstream consumer, incident-response team at 3 AM — to walk independently:
+Below the closeout, the **two source files** that prove every claim sit on disk for any reviewer with mesh access — internal auditor, security architect, incident-response team at 3 AM — to walk independently:
 
 - `okrs/<id>/<phase>/<artifact>.md` (the merged research-doc, PRD, or code-design)
 - `okrs/<id>/audit/events/<run>.jsonl` (the hash-chained activity log)
+
+External-facing audiences (regulators, downstream consumers, third-party auditors) consume the **redacted external bundle** — the next-act zip that wraps the same closeout + source files after an automated PII / IP / secrets scrubbing pass, so prompt internals and proprietary code references don't leak verbatim. Until that ships, external sharing requires a manual review pass.
 
 No live system access. No proprietary tooling. Five checks land the story:
 

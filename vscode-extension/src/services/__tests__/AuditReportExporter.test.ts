@@ -409,6 +409,8 @@ Mitigates THR-003 (spoofing). Maps to OWASP A01 + A09.
 ### SR-02: Input validation
 
 Mitigates THR-006. OWASP A03 / A05.
+
+## Next Section
 `;
     const artifact = `## 5. Security Control Implementations
 
@@ -418,8 +420,8 @@ Per-SR implementation:
 `;
     const md = buildAuditReportMarkdown(makeInput({ prdText: prd, artifactText: artifact }));
     expect(md).toContain('## Control mapping');
-    expect(md).toContain('| `SR-01` | `THR-003` | `A01`, `A09` | prd.md (SR-01 section) | ✓ |');
-    expect(md).toContain('| `SR-02` | `THR-006` | `A03`, `A05` | prd.md (SR-02 section) | ✓ |');
+    expect(md).toContain('| `SR-01` | `THR-003` | `A01`, `A09` | prd.md §Security Requirements (SR-01) | ✓ |');
+    expect(md).toContain('| `SR-02` | `THR-006` | `A03`, `A05` | prd.md §Security Requirements (SR-02) | ✓ |');
   });
 
   it('omits control mapping when PRD text not provided', () => {
@@ -428,9 +430,74 @@ Per-SR implementation:
   });
 
   it('marks SR as not cited in design when artifact text omits the SR-NN reference', () => {
-    const prd = `### SR-99: Some control\nMitigates THR-099. A10.`;
+    const prd = `## Security Requirements\n\n### SR-99: Some control\nMitigates THR-099. A10.\n`;
     const artifact = `## 5. Security Control Implementations\n\nDoes not mention the SR.`;
     const md = buildAuditReportMarkdown(makeInput({ prdText: prd, artifactText: artifact }));
-    expect(md).toContain('| `SR-99` | `THR-099` | `A10` | prd.md (SR-99 section) | ✗ |');
+    expect(md).toContain('| `SR-99` | `THR-099` | `A10` | prd.md §Security Requirements (SR-99) | ✗ |');
+  });
+
+  it('parses real PRD output shape (Codex E3-gold regression fixture from celeb-api WHAT run)', () => {
+    // This is the exact section shape the prd-agent produces today,
+    // verbatim from okrs/OKR-2026Q2-IMDB-001-celeb-api/how/prd.md.
+    // Confirms the parser tolerates the live emission format.
+    const prd = `## Functional Requirements
+
+### FR-01
+Some FR body.
+
+## Security Requirements
+
+### SR-01
+Enforce least-privilege access for enrichment provider credentials and internal admin override actions; require RBAC and auditable use of privileged identity-resolution operations (A01 Broken Access Control, A09 Security Logging and Monitoring Failures).
+
+### SR-02
+Validate and sanitize all upstream and cached profile attributes before persistence/response to prevent injection and unsafe output rendering in frontend profile views (A03 Injection, A05 Security Misconfiguration).
+
+### SR-03
+Protect licensing/publicity-right-sensitive metadata against tampering in transit and at rest, with integrity checks on ingestion and response serialization (A02 Cryptographic Failures, A08 Software and Data Integrity Failures).
+
+### SR-04
+Require explicit audit logging for identity-confidence overrides, manual merge decisions, and compliance gate approvals (A09 Security Logging and Monitoring Failures, A10 Server-Side Request Forgery prevention for external feed fetch policy).
+
+## Coverage Analysis
+
+| SR | Mapping |
+|---|---|
+| SR-01 | C4 + OWASP A01/A09 |
+| SR-02 | C4 + OWASP A03/A05 |
+`;
+    const artifact = `# Code Design\n\n## 5. Security Control Implementations\n\nSR-01 RBAC. SR-02 validation. SR-03 integrity. SR-04 audit.`;
+    const md = buildAuditReportMarkdown(makeInput({ prdText: prd, artifactText: artifact }));
+    expect(md).toContain('## Control mapping');
+    // All 4 SRs from the Security Requirements section show up — and
+    // critically, parser does NOT match FR-01 (different section) NOR
+    // double-count from Coverage Analysis (different section).
+    expect(md).toContain('| `SR-01` |');
+    expect(md).toContain('| `SR-02` |');
+    expect(md).toContain('| `SR-03` |');
+    expect(md).toContain('| `SR-04` |');
+    // OWASP refs scoped to each SR's chunk — SR-01 sees A01+A09, not A03.
+    expect(md).toContain('| `SR-01` | — | `A01`, `A09`');
+    expect(md).toContain('| `SR-02` | — | `A03`, `A05`');
+    expect(md).toContain('| `SR-03` | — | `A02`, `A08`');
+    expect(md).toContain('| `SR-04` | — | `A09`, `A10`');
+    // All four are cited in §5 of the artifact.
+    expect(md).toMatch(/SR-01.*✓/);
+    expect(md).toMatch(/SR-04.*✓/);
+  });
+
+  it('runner FAIL is rendered as FAIL — NOT NOT-INVOKED (Codex E3-gold fix)', () => {
+    // The runner CLI exits nonzero when ok:false but writes the
+    // verdict JSON to stdout. Pre-fix the handler ignored stdout when
+    // exit code != 0 and labelled the run as NOT INVOKED. This test
+    // is for the exporter only; the handler fix lives in
+    // LookingGlassPanel.invokeRunnerVerifyChain. Here we assert the
+    // exporter renders the FAIL verdict correctly when given it.
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: true, ok: false, reason: 'prev-hash-mismatch-line-7' },
+    }));
+    expect(md).toContain('❌ **RUNNER CRYPTO VERDICT: FAIL**');
+    expect(md).toContain('prev-hash-mismatch-line-7');
+    expect(md).not.toContain('NOT INVOKED');
   });
 });

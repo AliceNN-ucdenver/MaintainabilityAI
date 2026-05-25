@@ -2525,21 +2525,25 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'No mesh configured' });
       return;
     }
-    const okrService = this.meshService.getOkrService();
-    const localCard = okrService.read(meshPath, okrId);
-    if (!localCard) {
-      this.postMessage({ type: 'error', message: `OKR not found locally: ${okrId}. Pull mesh first.` });
-      return;
-    }
-    const localAction = localCard.actions.find(a => a.id === actionId);
-    if (!localAction || !localAction.runId) {
-      this.postMessage({ type: 'error', message: `Action ${actionId} not found or missing runId on this OKR` });
-      return;
-    }
-    const runId = localAction.runId;
 
-    // Resolve owner/repo for the Contents API call. Same pattern as
-    // onConfirmStartOkrPhase + onVerifyChain.
+    // Codex E3-gold review (2026-05-25): fetch canonical okr.yaml
+    // FIRST, derive runId from the canonical action, THEN fetch
+    // chain/ladder/PRD/artifact keyed by the canonical runId.
+    //
+    // Pre-fix the handler read the LOCAL action's runId before any
+    // GitHub call, then used that local runId to fetch the remote
+    // JSONL. If local state was stale (e.g. user dispatched a new
+    // run, local push hasn't reached origin yet, or main has a
+    // newer action than local), the report could combine canonical
+    // action metadata with the wrong chain — silent corruption a
+    // reviewer wouldn't notice until they hit a mismatch.
+    //
+    // Now: GitHub okr.yaml is the source of truth for both metadata
+    // AND the runId used to key downstream fetches. Local card is
+    // ONLY used as fallback when remote fetch fails entirely.
+    const okrService = this.meshService.getOkrService();
+
+    // Resolve owner/repo for Contents API. Same pattern as elsewhere.
     let repoInfo = this.meshRepoInfo;
     if (!repoInfo) {
       const url = await getRemoteOriginUrl(meshPath);
@@ -2547,66 +2551,89 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       if (parsed) { repoInfo = { owner: parsed.owner, repo: parsed.repo }; }
     }
 
-    // Canonical-source reads from GitHub main. Local-disk fallback only
-    // when the remote call fails — and the source used is tracked so
-    // the export header can name it honestly.
+    // Step 1: fetch canonical okr.yaml from GitHub main. Local fallback
+    // only on failure.
     const okrYamlRelPath = `okrs/${okrId}/okr.yaml`;
-    const jsonlRelPath = `okrs/${okrId}/audit/events/${runId}.jsonl`;
-    const ladderRelPath = `okrs/${okrId}/audit/chain-ladder.yaml`;
     let okrYamlText: string | null = null;
-    let chainText: string | null = null;
-    let chainLadderText: string | null = null;
     let sourceTag = 'local mesh checkout';
     if (repoInfo) {
       try {
-        const [a, b, c] = await Promise.all([
-          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, okrYamlRelPath),
-          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath),
-          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, ladderRelPath),
-        ]);
-        if (a && b) {
-          okrYamlText = a;
-          chainText = b;
-          chainLadderText = c;
+        okrYamlText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, okrYamlRelPath);
+        if (okrYamlText) {
           sourceTag = `GitHub ${repoInfo.owner}/${repoInfo.repo} (default branch)`;
         }
       } catch { /* fall through to local */ }
     }
-    if (!okrYamlText || !chainText) {
-      // Local fallback.
-      try {
-        const okrPath = path.join(meshPath, okrYamlRelPath);
-        const jsonlPath = path.join(meshPath, jsonlRelPath);
-        const ladderPath = path.join(meshPath, ladderRelPath);
-        if (!fs.existsSync(okrPath) || !fs.existsSync(jsonlPath)) {
-          this.postMessage({ type: 'error', message: `Required inputs missing both on GitHub main and local mesh: ${okrYamlRelPath} or ${jsonlRelPath}. Wait for finalize to push, or re-pull.` });
-          return;
-        }
-        okrYamlText = fs.readFileSync(okrPath, 'utf8');
-        chainText = fs.readFileSync(jsonlPath, 'utf8');
-        if (fs.existsSync(ladderPath)) {
-          chainLadderText = fs.readFileSync(ladderPath, 'utf8');
-        }
-      } catch (err) {
-        this.postMessage({ type: 'error', message: `Failed to read fallback inputs: ${toErrorMessage(err)}` });
+    if (!okrYamlText) {
+      const okrPath = path.join(meshPath, okrYamlRelPath);
+      if (!fs.existsSync(okrPath)) {
+        this.postMessage({ type: 'error', message: `okr.yaml missing on GitHub main AND local mesh: ${okrYamlRelPath}. Pull mesh + wait for finalize push, then retry.` });
+        return;
+      }
+      try { okrYamlText = fs.readFileSync(okrPath, 'utf8'); }
+      catch (err) {
+        this.postMessage({ type: 'error', message: `Failed to read local okr.yaml fallback: ${toErrorMessage(err)}` });
         return;
       }
     }
 
-    // Parse okr.yaml + locate action — using the canonical YAML text
-    // (whether from GitHub or local). Keeps the report's identity
-    // table sourced from the same bytes the chain was sourced from.
+    // Step 2: parse canonical okr.yaml + find the action by id. The
+    // runId comes from CANONICAL state, NOT local — this is the
+    // Codex E3-gold blocking fix.
     let actionYaml: Record<string, unknown> | null = null;
     try {
       const parsed = YAML.parse(okrYamlText) as { actions?: Array<Record<string, unknown>> };
       actionYaml = (parsed.actions ?? []).find(a => a['id'] === actionId) ?? null;
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to parse okr.yaml: ${toErrorMessage(err)}` });
+      this.postMessage({ type: 'error', message: `Failed to parse okr.yaml (source: ${sourceTag}): ${toErrorMessage(err)}` });
       return;
     }
     if (!actionYaml) {
-      this.postMessage({ type: 'error', message: `Action ${actionId} not in canonical okr.yaml (sourced from: ${sourceTag}). May not be pushed yet.` });
+      this.postMessage({ type: 'error', message: `Action ${actionId} not in canonical okr.yaml (source: ${sourceTag}). May not be pushed yet — wait for finalize to land, then retry.` });
       return;
+    }
+    const runId = actionYaml['runId'] as string | undefined;
+    if (!runId) {
+      this.postMessage({ type: 'error', message: `Canonical action ${actionId} has no runId (source: ${sourceTag}). Cannot derive chain path.` });
+      return;
+    }
+
+    // Local card is now ONLY used as a fallback source for fields
+    // missing from the canonical action object (rare; defensive).
+    const localCard = okrService.read(meshPath, okrId);
+    const localAction = localCard?.actions.find(a => a.id === actionId);
+
+    // Step 3: fetch chain + ladder keyed by CANONICAL runId. Same
+    // sourceTag applies — they all came from the same place.
+    const jsonlRelPath = `okrs/${okrId}/audit/events/${runId}.jsonl`;
+    const ladderRelPath = `okrs/${okrId}/audit/chain-ladder.yaml`;
+    let chainText: string | null = null;
+    let chainLadderText: string | null = null;
+    if (repoInfo && sourceTag.startsWith('GitHub')) {
+      try {
+        const [b, c] = await Promise.all([
+          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath),
+          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, ladderRelPath),
+        ]);
+        chainText = b;
+        chainLadderText = c;
+      } catch { /* fall through to local for chain */ }
+    }
+    if (!chainText) {
+      const jsonlPath = path.join(meshPath, jsonlRelPath);
+      const ladderPath = path.join(meshPath, ladderRelPath);
+      if (!fs.existsSync(jsonlPath)) {
+        this.postMessage({ type: 'error', message: `Audit JSONL not found on ${sourceTag} OR locally: ${jsonlRelPath}. Chain may not exist yet — finalize writes workflow events after PR merge.` });
+        return;
+      }
+      try { chainText = fs.readFileSync(jsonlPath, 'utf8'); }
+      catch (err) {
+        this.postMessage({ type: 'error', message: `Failed to read chain JSONL: ${toErrorMessage(err)}` });
+        return;
+      }
+      if (!chainLadderText && fs.existsSync(ladderPath)) {
+        try { chainLadderText = fs.readFileSync(ladderPath, 'utf8'); } catch { /* optional */ }
+      }
     }
 
     const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
@@ -2622,8 +2649,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // E3-gold — fetch PRD + artifact (when available) so the report
     // can render the SR-NN → STRIDE/OWASP → design § control mapping.
     // Best-effort: missing inputs just mean the section is skipped.
-    const phase = (actionYaml['phase'] as 'why' | 'how' | 'what') ?? localAction.phase;
-    const artifactRel = ((actionYaml['artifact'] as string) ?? localAction.artifact) ?? phaseSpec(phase).artifactPath(okrId);
+    // Read phase + artifact path from CANONICAL action first (Codex
+    // E3-gold fix); only fall back to localAction.* if the canonical
+    // field is absent (rare; defensive).
+    const phase = ((actionYaml['phase'] as 'why' | 'how' | 'what' | undefined) ?? localAction?.phase) as 'why' | 'how' | 'what';
+    if (!phase) {
+      this.postMessage({ type: 'error', message: `Canonical action ${actionId} has no phase field.` });
+      return;
+    }
+    const artifactRel = ((actionYaml['artifact'] as string | undefined) ?? localAction?.artifact) ?? phaseSpec(phase).artifactPath(okrId);
     const prdRel = `okrs/${okrId}/how/prd.md`;
     let prdText: string | null = null;
     let artifactText: string | null = null;
@@ -2649,15 +2683,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       runId,
       phase,
       actionId,
-      agent: (actionYaml['agent'] as string) ?? localAction.agent,
-      intentThreadUuid: (actionYaml['intentThreadUuid'] as string) ?? localAction.intentThreadUuid,
-      parentIntentThread: (actionYaml['parentIntentThread'] as string | null) ?? localAction.parentIntentThread ?? null,
-      governanceTier: (actionYaml['governanceTier'] as string) ?? localAction.governanceTier,
-      status: (actionYaml['status'] as string) ?? localAction.status,
-      createdAt: (actionYaml['createdAt'] as string) ?? localAction.createdAt ?? null,
-      completedAt: (actionYaml['completedAt'] as string) ?? localAction.completedAt ?? null,
-      hatterChainRoot: (actionYaml['hatterChainRoot'] as string) ?? localAction.hatterChainRoot ?? null,
-      prUrl: (actionYaml['pr'] as string) ?? localAction.pr ?? null,
+      agent: (actionYaml['agent'] as string | undefined) ?? localAction?.agent ?? '',
+      intentThreadUuid: (actionYaml['intentThreadUuid'] as string | undefined) ?? localAction?.intentThreadUuid ?? '',
+      parentIntentThread: (actionYaml['parentIntentThread'] as string | null | undefined) ?? localAction?.parentIntentThread ?? null,
+      governanceTier: (actionYaml['governanceTier'] as string | undefined) ?? localAction?.governanceTier ?? '',
+      status: (actionYaml['status'] as string | undefined) ?? localAction?.status ?? '',
+      createdAt: (actionYaml['createdAt'] as string | undefined) ?? localAction?.createdAt ?? null,
+      completedAt: (actionYaml['completedAt'] as string | undefined) ?? localAction?.completedAt ?? null,
+      hatterChainRoot: (actionYaml['hatterChainRoot'] as string | undefined) ?? localAction?.hatterChainRoot ?? null,
+      prUrl: (actionYaml['pr'] as string | undefined) ?? localAction?.pr ?? null,
       artifactPath: artifactRel,
       chainLines,
       chainLadderText,
@@ -2736,27 +2770,48 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         finish({ invoked: false, reason: `Shell-out failed: ${msg}` });
       });
       child.on('close', (code) => {
-        if (code !== 0) {
-          finish({ invoked: false, reason: `Runner exited with code ${code}. stderr: ${stderr.slice(0, 200)}` });
-          return;
-        }
+        // Codex E3-gold fix: parse stdout JSON BEFORE checking the exit
+        // code. The runner exits nonzero on ok:false (chain tampered),
+        // but its stdout still contains the canonical verdict JSON.
+        // Pre-fix any nonzero exit became `{invoked:false, reason}` and
+        // a real FAIL verdict was misreported as NOT INVOKED — exactly
+        // the bug Codex caught. Now: parse JSON first; only fall back
+        // to NOT INVOKED when no parseable verdict line exists in
+        // stdout (e.g. npx download error, runner crashed mid-startup
+        // before writing JSON).
+        let parsedVerdict: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string } | null = null;
         try {
-          // Runner may emit log lines before the JSON verdict; take the
-          // LAST non-empty line as the canonical output per SKILL.md.
           const lastLine = stdout.split('\n').map(s => s.trim()).filter(Boolean).pop() ?? '';
-          const verdict = JSON.parse(lastLine) as { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string };
+          if (lastLine.startsWith('{') && lastLine.endsWith('}')) {
+            parsedVerdict = JSON.parse(lastLine);
+          }
+        } catch { /* stdout has no JSON verdict — fall through */ }
+        if (parsedVerdict) {
+          const verdict = parsedVerdict;
           if (verdict.ok === true && typeof verdict.chainHead === 'string' && typeof verdict.eventCount === 'number') {
             finish({ invoked: true, ok: true, chainHead: verdict.chainHead, eventCount: verdict.eventCount });
             return;
           }
           if (verdict.ok === false) {
+            // Real tamper verdict — was being misreported as NOT INVOKED
+            // pre-Codex-E3-gold-fix. Now correctly carried through as FAIL
+            // regardless of exit code.
             finish({ invoked: true, ok: false, reason: verdict.reason ?? 'runner returned ok:false without a reason' });
             return;
           }
-          finish({ invoked: false, reason: `runner returned unexpected JSON shape: ${stdout.slice(0, 200)}` });
-        } catch (parseErr) {
-          finish({ invoked: false, reason: `runner output failed to parse as JSON: ${toErrorMessage(parseErr)}. Raw stdout (first 200): ${stdout.slice(0, 200)}` });
+          // JSON parsed but neither shape (no ok field, etc.) — treat as
+          // unusable; report can't trust the output.
+          finish({ invoked: false, reason: `Runner stdout JSON has unexpected shape (no ok field): ${stdout.slice(0, 200)}` });
+          return;
         }
+        // No parseable JSON anywhere in stdout — this is the genuine
+        // NOT INVOKED case (npx download failure, runner crashed before
+        // writing output, etc.). Surface exit code + stderr so the
+        // reviewer can diagnose.
+        finish({
+          invoked: false,
+          reason: `Runner produced no parseable verdict JSON. Exit code: ${code}. stderr (first 200): ${stderr.slice(0, 200).trim() || '(empty)'}. stdout (first 200): ${stdout.slice(0, 200).trim() || '(empty)'}.`,
+        });
       });
       try {
         child.stdin?.write(stdinJson);

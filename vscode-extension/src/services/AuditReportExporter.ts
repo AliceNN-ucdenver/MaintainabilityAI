@@ -412,25 +412,45 @@ interface ControlRow {
 }
 function extractControlMapping(prdText: string | null | undefined, artifactText: string | null | undefined): ControlRow[] {
   if (!prdText) { return []; }
+  // Codex E3-gold review fix: the synthesis prompt allows SR-NN as
+  // heading shape (`### SR-01`), numbered-list shape (`- SR-01: ...`),
+  // bare-line shape (`SR-01: ...`), or table-row shape. Real PRD output
+  // observed today uses headings, but the parser must tolerate all the
+  // shapes the prompt accepts — otherwise a future PRD that follows
+  // the prompt's letter ships with an empty Control Mapping section.
+  //
+  // Strategy: scope the search to the `## Security Requirements`
+  // section body (next H2 marks the boundary), then within that section
+  // find every distinct SR-NN occurrence — regardless of containing
+  // shape — and scan a per-SR chunk (from this SR's index to the next
+  // SR's index OR section end) for THR-NNN + OWASP refs. This handles
+  // all four shapes uniformly.
+  const sectionMatch = prdText.match(/(?:^|\n)##[ \t]+Security[ \t]+Requirements\b([\s\S]*?)(?=\n##[ \t]+|\n---\n|$)/i);
+  if (!sectionMatch) { return []; }
+  const section = sectionMatch[1];
+  // Find unique SR-NN markers + their positions in document order.
+  const srPositions: { sr: string; index: number }[] = [];
+  const seenSrs = new Set<string>();
+  for (const m of section.matchAll(/\bSR-(\d+)\b/g)) {
+    const sr = `SR-${m[1]}`;
+    if (seenSrs.has(sr)) { continue; }
+    seenSrs.add(sr);
+    srPositions.push({ sr, index: m.index ?? 0 });
+  }
+  if (srPositions.length === 0) { return []; }
   const rows: ControlRow[] = [];
-  // Match SR sections: `### SR-NN:` or `## SR-NN ...` or list-shaped
-  // SR-NN declarations. Capture body up to next H2/H3 boundary so we
-  // can scan for STRIDE/OWASP refs inside the SR's own scope.
-  const sectionRe = /(?:^|\n)#{2,4}[ \t]+SR-(\d+)[\s\S]*?(?=\n#{2,4}[ \t]|\n---\n|$)/g;
-  let match: RegExpExecArray | null;
-  while ((match = sectionRe.exec(prdText)) !== null) {
-    const sr = `SR-${match[1]}`;
-    const body = match[0];
-    // STRIDE refs: `THR-NNN` (3+ digit threat IDs).
-    const stride = Array.from(new Set(Array.from(body.matchAll(/\bTHR-(\d+)\b/g)).map(m => `THR-${m[1]}`)));
-    // OWASP refs: `A0X` or `A10`.
-    const owasp = Array.from(new Set(Array.from(body.matchAll(/\b(A0?[1-9]|A10)\b/g)).map(m => m[1])));
+  for (let i = 0; i < srPositions.length; i++) {
+    const { sr, index } = srPositions[i];
+    const nextIndex = i + 1 < srPositions.length ? srPositions[i + 1].index : section.length;
+    const chunk = section.slice(index, nextIndex);
+    const stride = Array.from(new Set(Array.from(chunk.matchAll(/\bTHR-(\d+)\b/g)).map(m => `THR-${m[1]}`)));
+    const owasp = Array.from(new Set(Array.from(chunk.matchAll(/\b(A0?[1-9]|A10)\b/g)).map(m => m[1])));
     const designCited = artifactText ? new RegExp(`\\b${sr}\\b`).test(artifactText) : false;
     rows.push({
       sr,
       stride,
       owasp,
-      prdAnchor: `prd.md (${sr} section)`,
+      prdAnchor: `prd.md §Security Requirements (${sr})`,
       designCited,
     });
   }
@@ -530,7 +550,7 @@ export function buildAuditReportMarkdown(input: AuditReportInput): string {
   ].join('\n');
 
   const trustBlock = verdict.shapeOk && verdict.seal.sealed
-    ? '✅ All shape checks pass. Re-run `audit-verify-chain` via runner for cryptographic gold (signature math runs there, not in this exporter).'
+    ? '✅ All shape checks pass. See the Runner crypto verdict above (or Verifier notes below) for the ground-truth verdict from `skill-audit-verify-chain`.'
     : verdict.firstFailure
       ? `⚠ Shape check failed at event line ${verdict.firstFailure.line} (\`${verdict.firstFailure.kind}\`): **${verdict.firstFailure.reason}**.
 

@@ -414,7 +414,7 @@ The same merge gate pattern as Stage 2 — the pull request stays blocked until 
 When all checks pass, the system applies the green-flag label that unlocks merge. When any check fails, it applies a specific failure label naming exactly which check failed — one label per cause, so a reviewer reads the label and immediately knows where to look:
 
 - **`prd-pass`** — clean, merge unlocked
-- **`chain-forgery-detected`** — the activity-log chain didn't replay; an agent's claimed history doesn't match the math
+- **`chain-integrity-failed`** — the activity-log chain didn't replay; an agent's claimed history doesn't match the math
 - **`degraded-evidence`** — the agent didn't actually consult the records it claimed to
 - **`structure-invalid`** — sections missing, or feature/security requirements missing their source tags
 - **`goal-drift-detected`** — the spec drifted off the original objective
@@ -558,7 +558,7 @@ From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take yo
   <text x="400" y="298" text-anchor="middle" fill="#f9a8d4" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">↳ coding agents pick up · Red Queen governs from here</text>
 </svg>
 
-What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes. The audit chain has reached the point where one zip captures everything from Org-level intent to per-repo design decisions, with every reviewer, every prompt SHA, every threat model snapshot, every chain root hash documented inside.
+What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes with an **internal auditor closeout report** — one markdown file per OKR action exported on demand from Looking Glass, containing the runner crypto verdict, control mapping (SR → STRIDE/OWASP → design §), event timeline, and cross-phase ladder. The **redacted one-zip regulator bundle** that wraps the closeout + source files for external sharing (after automated PII / IP / secrets scrubbing) is the **next act** — same evidence, packaged for the audience without mesh access.
 
 What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
 
