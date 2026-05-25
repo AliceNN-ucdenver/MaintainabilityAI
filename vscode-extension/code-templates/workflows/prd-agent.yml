@@ -778,6 +778,75 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "::notice::structure h2=$H2_PRESENT/10 FR=$FR_WITH_CITES/$FR_COUNT cited SR=$SR_WITH_ANCHORS/$SR_COUNT anchored"
 
+      # Bug LL (2026-05) — citation-integrity gate. The structure step
+      # above counts FRs that cite SOME [SCRE]-N tag, but it never
+      # checks whether the tag actually exists. Forensic: HOW-2026-05-
+      # 25-9jdv6f (PR #144) shipped with E1-E5 cited 4-8 times each,
+      # all undefined (no **E1** marker anywhere in research-doc or
+      # prd), plus R109 false-matched inside a law.com citation URL.
+      # The audit passed because the regex matched the shape `\bE\d+\b`
+      # without verifying the referent. This is citation hallucination
+      # — same audit-evasion shape as a fabricated S-N source URL.
+      #
+      # Fix: build a defined-anchor set from `**X1**` markers in
+      # research-doc.md + prd.md (the agent CAN introduce new R-N / E-N
+      # in prd's Input Premises by defining `**R1**` / `**E1**`), then
+      # verify every cited [SCRE]-N in prd body (after stripping
+      # markdown links + bare URLs to dodge R109-class false positives)
+      # is in the defined set. Fail with `structure-invalid` on any
+      # undefined cite.
+      - name: Verify citation integrity (Bug LL)
+        id: citations
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        env:
+          PRD: okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md
+          RESEARCH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
+        run: |
+          PRD="$PRD" RESEARCH="$RESEARCH" python3 <<'PYEOF'
+          import re, os
+          prd = open(os.environ['PRD'], encoding='utf-8').read()
+          research = ''
+          if os.path.exists(os.environ['RESEARCH']):
+              research = open(os.environ['RESEARCH'], encoding='utf-8').read()
+
+          # Defined-anchor extraction: **S1**, **C2**, **R3**, **E4**
+          # markers in either research-doc.md (canonical for S-N + C-N)
+          # or prd.md's Input Premises section (where the agent MAY
+          # introduce R-N / E-N if it normalises them with a bold-
+          # wrapped marker first). Dash optional (S-1 == S1).
+          def defined_anchors(text):
+              return set(t.replace('-', '') for t in re.findall(r'\*\*([SCRE]-?\d+)\*\*', text))
+          defined_set = defined_anchors(research) | defined_anchors(prd)
+
+          # Cited-anchor extraction from prd body. Strip:
+          #   - markdown links [text](url) → contents may have [SCRE]-N
+          #     in the URL slug (PR #144 hit this with R109 inside
+          #     law.com/article/almID/53GC-JG61-JBM3-R109-00000-00)
+          #   - bare URLs https://...
+          #   - inline code `...` (type names, identifiers)
+          #   - the bold-marker defs themselves (so a **S1** definition
+          #     in prd's Input Premises doesn't double-count as a cite)
+          body = re.sub(r'\[[^\]]*\]\([^)]*\)', ' ', prd)
+          body = re.sub(r'https?://\S+', ' ', body)
+          body = re.sub(r'`[^`]+`', ' ', body)
+          body = re.sub(r'\*\*[SCRE]-?\d+\*\*', ' ', body)
+          cited_set = set(t.replace('-', '') for t in re.findall(r'\b([SCRE]-?\d+)\b', body))
+
+          undefined = sorted(cited_set - defined_set, key=lambda s: (s[0], int(s[1:])))
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              if undefined:
+                  f.write('ok=false\n')
+                  f.write(f'undefined={",".join(undefined)}\n')
+              else:
+                  f.write('ok=true\n')
+                  f.write('undefined=\n')
+          if undefined:
+              print(f'::warning::PRD cites {len(undefined)} undefined anchor(s): {", ".join(undefined)}. Define each in research-doc.md (S-N / C-N) or in the PRD Input Premises section with a **R1**/**E1** bold marker before citing.')
+          else:
+              print(f'::notice::citation integrity OK ({len(cited_set)} cited, all defined)')
+          PYEOF
+
       - name: Pocket Watch goal-drift (OKR objective vs PRD Problem Statement)
         id: pocket
         if: steps.gate.outputs.skip != 'true'
@@ -1107,6 +1176,9 @@ jobs:
             elif [ "$FR_COUNT" -gt 0 ] && [ "$FR_CITED" -lt "$FR_COUNT" ]; then
               VERDICT="degraded"; REASON="FR citation gap — $FR_CITED/$FR_COUNT cite R-N or E-N source"
               STRUCTURE_FAIL="true"
+            elif [ "${{ steps.citations.outputs.ok }}" = "false" ]; then
+              VERDICT="degraded"; REASON="Citation integrity (Bug LL) — PRD cites undefined anchors: ${{ steps.citations.outputs.undefined }}. Define each in research-doc.md (S-N / C-N) or in the PRD Input Premises section with a **R1**/**E1** bold marker before citing."
+              STRUCTURE_FAIL="true"
             elif [ "$SR_COUNT" -gt 0 ] && [ "$SR_ANCHORED" -lt "$SR_COUNT" ]; then
               VERDICT="degraded"; REASON="SR anchor gap — $SR_ANCHORED/$SR_COUNT cite STRIDE THR-NNN or OWASP A0X"
               STRUCTURE_FAIL="true"
@@ -1174,6 +1246,14 @@ jobs:
           printf '| 10 H2 sections | %s/10 |\n' '${{ steps.structure.outputs.h2_present }}' >> "$BODY"
           printf '| FR-NN cited (R-N / E-N) | %s/%s |\n' '${{ steps.structure.outputs.fr_with_cites }}' '${{ steps.structure.outputs.fr_count }}' >> "$BODY"
           printf '| SR-NN anchored (STRIDE / OWASP) | %s/%s |\n' '${{ steps.structure.outputs.sr_with_anchors }}' '${{ steps.structure.outputs.sr_count }}' >> "$BODY"
+          # Bug LL — citation integrity row.
+          CITATION_OK_DISPLAY='${{ steps.citations.outputs.ok }}'
+          CITATION_UNDEFINED_DISPLAY='${{ steps.citations.outputs.undefined }}'
+          case "$CITATION_OK_DISPLAY" in
+            true)  printf '| Citation integrity (Bug LL) | ✓ all cited anchors defined |\n' >> "$BODY" ;;
+            false) printf '| Citation integrity (Bug LL) | ✗ undefined: %s |\n' "$CITATION_UNDEFINED_DISPLAY" >> "$BODY" ;;
+            *)     printf '| Citation integrity (Bug LL) | — n/a (prd.md missing) |\n' >> "$BODY" ;;
+          esac
           # B24: self-critique convergence
           REVIEW_ROUNDS='${{ steps.review.outputs.rounds }}'; REVIEW_ROUNDS="${REVIEW_ROUNDS:-0}"
           REVIEW_SOURCE='${{ steps.review.outputs.source }}'; REVIEW_SOURCE="${REVIEW_SOURCE:-parser}"
