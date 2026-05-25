@@ -1340,7 +1340,7 @@ We publish this list because honest design beats marketing claims. Every status 
     <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
     <div>
       <p class="docs-gap-title">Knight's Seal — per-event signing</p>
-      <p class="docs-gap-body">Every audit event is signed by a per-session ephemeral key. The key lives only in the agent's session and never leaves it; the public half is committed to the mesh so any reviewer can verify offline. CI re-runs the same verification the runtime uses — one implementation, no drift — and blocks merge on any check failure. Looking Glass shows a 🛡 Sealed badge on each phase card.</p>
+      <p class="docs-gap-body">Every agent-emitted audit event is signed by a per-session ephemeral key. The key lives only in the agent's session and never leaves it; the public half is committed to the mesh so any reviewer can verify offline. Runtime and workflow facts (artifact_written, state_transition) ride the same hash chain under their own ownership rules — re-derived from GitHub state rather than signed, and the verifier rejects any signed workflow event as suspicious. CI re-runs the same verification the runtime uses — one implementation, no drift — and blocks merge on any check failure. Looking Glass shows a 🛡 Sealed badge on each phase card.</p>
       <p class="docs-gap-next"><strong>Next:</strong> persistent signing anchored in cosign / sigstore so an external auditor can verify a year-old artifact without trusting the key embedded in its own audit log.</p>
     </div>
   </div>

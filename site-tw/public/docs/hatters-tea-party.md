@@ -642,7 +642,7 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <text x="548" y="279" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Will score: Arch · Sec (code-grnd)</text>
   <text x="548" y="292" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">          CALM drift · contracts · OWASP</text>
   <text x="548" y="305" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Gated on: How merged</text>
-  <text x="548" y="318" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Fan-out → celeb-api · react · identity</text>
+  <text x="548" y="318" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Fan-out → celeb-api · react · auth contract</text>
   <text x="548" y="335" fill="#fcd34d" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Last Looking-Glass agent step</text>
   <!-- Footer action bar -->
   <rect x="20" y="370" width="760" height="50" rx="8" fill="rgba(30,41,59,0.7)" stroke="rgba(148,163,184,0.2)"/>
