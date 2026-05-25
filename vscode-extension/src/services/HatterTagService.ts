@@ -83,16 +83,38 @@ export interface ChainVerificationResult {
 
 export class HatterTagService {
   /**
-   * Extract + parse the `## Hatter's Tag` fenced YAML block from a markdown
-   * artifact (PR body, research-doc.md, prd.md, etc.). Returns null if no
-   * Tag is present OR the embedded YAML fails to parse.
+   * Extract + parse the Hatter's Tag from a markdown artifact. Supports
+   * two emission shapes:
    *
-   * The emitter ALWAYS wraps the YAML in a ```yaml fenced block under a
-   * `## Hatter's Tag` heading (curly apostrophe per the emitter source).
-   * We match both straight + curly apostrophe variants so hand-edited
-   * artifacts aren't accidentally rejected.
+   *   1. **Top-of-file YAML frontmatter** (post-Bug-AA, current agents):
+   *      Document starts with `---\n<yaml>\n---\n…body…`. The YAML
+   *      contains okr_id, run_id, phase, intent_thread_uuid, audit:{...},
+   *      etc. The first --- block is the tag; later --- blocks in the
+   *      body (per-repo subsection frontmatter in code-design.md) are
+   *      ignored because we only match the FIRST one anchored at index 0.
+   *
+   *   2. **Legacy `## Hatter's Tag` + fenced YAML block** (pre-Bug-AA):
+   *      Document body contains `## Hatter's Tag\n…\n```yaml\n<yaml>\n```.
+   *      Older artifacts still in the mesh use this; we keep the parser
+   *      backwards-compatible so historical OKR detail views render.
+   *
+   * Returns null if neither shape parses.
    */
   parseHatterTag(markdown: string): ParsedHatterTag | null {
+    // Shape 1: top-of-file YAML frontmatter (anchor on the very first
+    // character — `---` must be at offset 0, otherwise we'd match
+    // intra-body `---` separators in per-repo subsections).
+    const frontmatterMatch = markdown.match(/^---\n([\s\S]*?)\n---/);
+    if (frontmatterMatch) {
+      try {
+        const parsed = parseYaml(frontmatterMatch[1]);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as ParsedHatterTag;
+        }
+      } catch { /* fall through to shape 2 */ }
+    }
+    // Shape 2: legacy `## Hatter's Tag` heading + fenced yaml block.
+    // Both straight + curly apostrophe variants for hand-edited artifacts.
     const headingMatch = markdown.match(/##\s+Hatter[’']s\s+Tag[\s\S]*?```yaml\n([\s\S]*?)\n```/);
     if (!headingMatch) { return null; }
     try {
