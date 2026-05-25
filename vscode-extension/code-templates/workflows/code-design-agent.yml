@@ -1124,6 +1124,19 @@ jobs:
           # agent skipped emitting; the verdict's sealed gate fails the
           # run as degraded in that case.
           existing = set()
+          # E4: persona-name normalization. WHAT phaseSpec declares
+          # personaNames as `code-architect` / `code-security` (per-
+          # phase distinction from HOW's plain `architect` / `security`).
+          # Older WHAT chains pre-date the alignment and have short
+          # names; new chains have long names. Block parser produces
+          # short names regardless of header form. Normalize both sides
+          # by stripping a leading `code-` so the comparison works for
+          # any chain vintage. Forward-only validation (allowlist) is
+          # the Persona-name rule in code-design-agent.agent.md; this
+          # parser block only does normalization for parity comparison.
+          def _norm_persona(name):
+              n = (name or '').lower()
+              return n[5:] if n.startswith('code-') else n
           try:
               with open(jsonl, 'r', encoding='utf-8') as f:
                   for line in f:
@@ -1134,7 +1147,7 @@ jobs:
                           p = e.get('payload', {})
                           if p.get('persona') and p.get('round') is not None:
                               if p.get('score') is not None:
-                                  existing.add((p['persona'].lower(), int(p['round'])))
+                                  existing.add((_norm_persona(p['persona']), int(p['round'])))
           except Exception:
               pass
 

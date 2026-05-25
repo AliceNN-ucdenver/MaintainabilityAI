@@ -196,12 +196,16 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
     **Then immediately call `audit-emit-event` to put a signed `self_review` event on the chain.** The block is the human-readable surface; the audit event is the cryptographic record. They must agree.
 
     ```sh
+    # E4: persona MUST be "code-architect" (NOT "architect"). The WHAT
+    # phase's phaseSpec.what.personaNames declares the code-* prefix to
+    # distinguish from HOW's plain "architect"/"security" personas; UI
+    # extraction + workflow audit both expect this exact string.
     OKR_ID="$OKR_ID" RUN_ID="$RUN_ID" INTENT_THREAD_UUID="$INTENT_THREAD_UUID" PHASE="what" \
       jq -nc --arg okr "$OKR_ID" --arg run "$RUN_ID" --arg thread "$INTENT_THREAD_UUID" \
         --argjson round <N> --arg score <SCORE> --arg severity <SEVERITY> \
         '{okrId: $okr, runId: $run, phase: "what", intentThreadUuid: $thread,
           eventKind: "self_review",
-          payload: { round: $round, persona: "architect",
+          payload: { round: $round, persona: "code-architect",
                      score: ($score | tonumber), severity: $severity,
                      prompt_pack: "code-design/architecture-review.md" }}' \
       | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event
@@ -217,7 +221,7 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
 
 15. **Code-Security persona self-review.** Call `self-review-code-security` with `{okrId, runId, round}` to get the authoritative tier echo + `.caterpillar/prompts/code-design/security-review.md` prompt pack. Apply the criteria. Same five-anchor structured output. STRIDE THR-NNN and OWASP A0X anchors MUST be cited in COVERED / MISSING entries. Append another block with header `### Self-review — Code-Security (round <N>)`.
 
-    Then call `audit-emit-event` with `persona: "security"` and `prompt_pack: "code-design/security-review.md"` using the same payload shape.
+    Then call `audit-emit-event` with `persona: "code-security"` (E4: MUST be the code-* prefixed name, NOT plain "security" — matches phaseSpec.what.personaNames) and `prompt_pack: "code-design/security-review.md"` using the same payload shape.
 
     Per round, per persona, the chain MUST contain one `self-review-code-{architect|security}` skill_call and one signed `self_review` event.
 
@@ -277,6 +281,7 @@ The user clicks `design-pass` in Looking Glass Run Audit after reviewing your PR
 - **Business-state-as-error rule (Bug RR).** A status code that the caller routes on as a normal flow branch (e.g. `202 manual-review-required`, `409 pending-resolution`, `206 partial-content`) is NOT an error and MUST NOT be modeled as `extends ApiError` / thrown. Use a typed response body with a discriminant field (e.g. `{ identity_status: 'manual_review_required' | 'resolved' | 'ambiguous', ... }`). The helper returns it normally and callers branch on the field. Throwing for non-error business states forces every caller into `try/catch` for normal flow, and §2/§7 will drift apart (§2 shows the success body, §7 declares it as a thrown error, downstream coder picks one at random).
 - **NFR-from-PRD coverage rule (Bug RR).** Every NFR listed in the PRD (uptime SLO, fallback behavior under dependency failure, telemetry fields, rate limits) MUST appear as concrete implementation tasks in the design: §6 (env vars + metric names for telemetry), §9 (failure-mode behavior — what does the service do when license provider / DB / external API is down), §10 (SLO targets mapped to alert thresholds). Quality-gate aliases like `p95 < 200ms` / `coverage >= 80` do NOT satisfy NFR coverage — those are gates, not implementation tasks. If the PRD lists telemetry fields like `confidence_distribution` or `false_merge_rate`, name them explicitly in §6 as metric+env-var pairs.
 - **Final-write hygiene rule (Bug RR).** On the LAST write (after the final revise round converges to PASS), strip every `<!-- Rev N: change M -->`, `<!-- TODO: ... -->`, `<!-- agent: ... -->` HTML-comment marker from the artifact. These are round-tracking bookkeeping notes the revise-agent uses between rounds; they are process residue and MUST NOT ship in the merged artifact. The audit doesn't fail on them today, but they leak prompt-process internals into the customer-facing design and look like incomplete work.
+- **Persona-name rule (E4).** Every `self_review` `audit-emit-event` call MUST set `persona` to one of the strings declared in `phaseSpec.what.personaNames` for the WHAT phase. That's exactly `"code-architect"` or `"code-security"` — NOT plain `"architect"` / `"security"` (those belong to the HOW phase). The workflow audit rejects self_review events whose persona isn't in the allowlist, and the Looking Glass UI's WHAT card extracts scores by these exact names. Drift here surfaces as "rounds: 2 reported but scores show as —" in the OKR detail view.
 - **References section — reviewer-replayable only.** Every entry in `code-design.md`'s `## References` MUST point at something a reviewer can open AFTER the run ends. Allowed: target-repo paths (the brownfield/greenfield repo URLs from the OKR card), mesh paths (`okrs/<id>/how/prd.md`, BAR / ADR / threat IDs), or audit-event references (`see skill_call event_id=N in okrs/<id>/audit/events/<runId>.jsonl`). **FORBIDDEN: `/tmp/...`, `/home/runner/...`, `knowledge-code` clone tmpdirs, or any other runner-sandbox path.** The runner's temp dir is wiped at run end. If you want to point at what a `context-*` or `knowledge-code` skill returned, cite its `skill_call` event_id — that's the durable record. (Codex polish note from HOW-2026-05-25-x2is24.)
 - **Audit-event ownership:** runner auto-emits `skill_call` for every `runSkill()`; finalize emits `artifact_written` on PR merge; YOU call `audit-emit-event` for each `self_review` block. Never hand-write JSONL.
 - **NEVER edit `okrs/<id>/okr.yaml`.** You author artifacts, not OKR state. `actions[]`, `meta.status`, `runId`, `intentThreadUuid`, and related identity fields are owned by Looking Glass dispatch/reset and finalize. If you see a mismatch, post a PR comment; do not fix it in the file. The audit workflow fails with `state-integrity-failed` if `okr.yaml` appears in the PR diff.

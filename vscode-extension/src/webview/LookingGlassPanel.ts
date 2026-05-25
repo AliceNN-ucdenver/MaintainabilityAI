@@ -153,6 +153,37 @@ function extractWhatChainSignals(lines: string[]): WhatChainSignals {
 // full rationale on the umbrella-label fix.
 
 /**
+ * E4 (2026-05-25) — apply per-persona self_review scores from the chain's
+ * finalReview map onto the result, using phaseSpec.personaNames for the
+ * given phase. Falls back to the short names (`architect`/`security`)
+ * so older chains pre-dating the agent-prompt alignment still render.
+ *
+ * Extracted from fetchPhaseSignal to keep that function under its
+ * cyclomatic-complexity ratchet — adding an `??` per branch inline
+ * pushed complexity past budget.
+ *
+ * Mutates `result.selfReviewArchitect` / `result.selfReviewSecurity`
+ * only when the corresponding entry exists; leaves them untouched
+ * otherwise so existing extraction paths (artifact-fallback at line
+ * ~164) can still populate from the artifact YAML.
+ */
+function applyPersonaScores(
+  result: Record<string, unknown>,
+  finalReview: Record<string, { score?: number; severity?: string }>,
+  phase: 'how' | 'what',
+): void {
+  const names = phaseSpec(phase).personaNames;
+  const archEntry = finalReview[names.architect] ?? finalReview.architect;
+  const secEntry  = finalReview[names.security]  ?? finalReview.security;
+  if (archEntry) {
+    result.selfReviewArchitect = { score: archEntry.score, severity: archEntry.severity };
+  }
+  if (secEntry) {
+    result.selfReviewSecurity = { score: secEntry.score, severity: secEntry.severity };
+  }
+}
+
+/**
  * Task #64 — apply artifact-side self-review fallback onto a partially-
  * populated signal result. Chain wins when it has real (non-null) scores.
  * Artifact is the fallback (3 sub-sources via extractSelfReviewFromArtifact).
@@ -796,36 +827,22 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           if (name.startsWith('knowledge-') || name.startsWith('context-')) { mesh += n; }
         }
         result.meshSkillCalls = mesh;
-        // B24 — surface self-review trail on the HOW card.
+        // B24 + E4 — surface self-review trail via shared helper so
+        // fetchPhaseSignal complexity stays under its ratcheted budget.
         if (maxRound > 0) {
           result.selfReviewRounds = maxRound;
         }
-        if (finalReview.architect) {
-          result.selfReviewArchitect = { score: finalReview.architect.score, severity: finalReview.architect.severity };
-        }
-        if (finalReview.security) {
-          result.selfReviewSecurity = { score: finalReview.security.score, severity: finalReview.security.severity };
-        }
+        applyPersonaScores(result, finalReview, 'how');
         if (exhausted) {
           result.selfReviewExhausted = true;
         }
       } else if (phase === 'what') {
         Object.assign(result, extractWhatChainSignals(lines));
-        // Bug V/W (post-2026-05-23) — WHAT branch surfaces per-persona
-        // scores from signed `self_review` chain events the code-design-
-        // agent emits via audit-emit-event from inside its Code-Architect
-        // / Code-Security persona-prompt sections. The shared event loop
-        // above populated `finalReview` after isEventLegitimate() gating
-        // (Bug W round-7) — forged or unsigned self_review entries are
-        // dropped before reaching this branch, so the scores rendered
-        // here are guaranteed to be ones a runner re-verification would
-        // also accept.
-        if (finalReview.architect) {
-          result.selfReviewArchitect = { score: finalReview.architect.score, severity: finalReview.architect.severity };
-        }
-        if (finalReview.security) {
-          result.selfReviewSecurity = { score: finalReview.security.score, severity: finalReview.security.severity };
-        }
+        // Bug V/W + E4 — WHAT branch surfaces per-persona scores from
+        // signed `self_review` chain events; persona-aware lookup with
+        // fallback handled in the pickPersonaScores helper to keep
+        // fetchPhaseSignal complexity under its ratcheted budget.
+        applyPersonaScores(result, finalReview, 'what');
         if (exhausted) {
           result.selfReviewExhausted = true;
         }
