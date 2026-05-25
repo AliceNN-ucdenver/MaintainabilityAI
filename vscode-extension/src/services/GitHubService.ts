@@ -854,6 +854,64 @@ export class GitHubService {
     }
   }
 
+  /**
+   * Codex E4-r1-followup (2026-05-25) — same as getRepoFileText but
+   * returns a discriminated union that distinguishes the three failure
+   * classes the rollup evidence check needs to tell apart:
+   *
+   *   - `ok`         — file exists on the canonical branch; here are
+   *                    its bytes.
+   *   - `not-found`  — GitHub returned 404. The file legitimately does
+   *                    NOT exist canonically. Callers that gate
+   *                    evidence on canonical existence MUST treat this
+   *                    as definitive missing — a local file with the
+   *                    same name is by definition uncommitted /
+   *                    never-pushed and does not count as evidence.
+   *   - `fetch-error` — non-404 failure (auth, rate-limit, network,
+   *                    timeout, dir-not-file). True existence is
+   *                    unknown. Callers MAY fall back to local
+   *                    existence as a conservative move so an
+   *                    innocent transient failure doesn't punish.
+   *
+   * getRepoFileText keeps its current `string | null` contract — the
+   * 11 other call sites either don't care about the distinction
+   * (they only read bytes) or already have their own atomicity logic
+   * around the result. Only the rollup's artifact-existence check
+   * needs to discriminate.
+   */
+  async getRepoFileStatus(owner: string, repo: string, path: string, ref?: string): Promise<
+    | { status: 'ok'; text: string }
+    | { status: 'not-found' }
+    | { status: 'fetch-error'; reason: string }
+  > {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.rest.repos.getContent({ owner, repo, path, ref });
+      if (Array.isArray(data)) {
+        // The path resolved to a directory. For our use case
+        // (file-existence check) this is a "not-found" for the
+        // expected file path. Treat as not-found rather than
+        // fetch-error to avoid letting a wrong-shape local path
+        // silently count as evidence.
+        return { status: 'not-found' };
+      }
+      if (data.type !== 'file' || typeof data.content !== 'string') {
+        return { status: 'not-found' };
+      }
+      const text = Buffer.from(data.content, data.encoding === 'base64' ? 'base64' : 'utf8').toString('utf8');
+      return { status: 'ok', text };
+    } catch (err) {
+      // Octokit decorates errors with HTTP `.status`. 404 = legitimate
+      // missing-on-canonical. Anything else (401, 403, 422, 5xx,
+      // network timeout, etc.) is a true fetch-error where existence
+      // is unknown.
+      const status = (err as { status?: number })?.status;
+      if (status === 404) { return { status: 'not-found' }; }
+      const reason = err instanceof Error ? err.message : String(err);
+      return { status: 'fetch-error', reason };
+    }
+  }
+
   async createRepo(name: string, description: string, isPrivate: boolean): Promise<RepoInfo> {
     const client = await this.getClient();
 

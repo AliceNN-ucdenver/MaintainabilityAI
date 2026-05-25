@@ -3469,38 +3469,62 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // Check artifact presence for evidenceComplete.
     //
     // Codex E4-r1 BLOCKING fix: when okrSource === 'github' (canonical
-    // mode), check GitHub FIRST. Pre-fix used `fs.existsSync` only,
-    // which meant a clean canonical OKR whose merged artifact lived on
-    // origin/main but hadn't been pulled into the user's local mesh
-    // checkout would falsely report evidenceComplete=false → FAIL
-    // verdict on a perfectly valid OKR.
+    // mode), check GitHub FIRST so a clean canonical OKR whose merged
+    // artifact hadn't been pulled into local mesh doesn't falsely fail.
     //
-    // Canonical mode: try GitHub fetch (truthy result = exists). On
-    // fetch failure (network/rate-limit), fall through to local — an
-    // innocent transient failure shouldn't downgrade the verdict if
-    // local has the file. Local-fallback mode: just check local disk
-    // (atomic by common source). When canonical fetch succeeds and
-    // local is missing, we accept canonical existence as sufficient.
+    // Codex E4-r1-followup MAJOR fix: use getRepoFileStatus instead of
+    // getRepoFileText so we can distinguish "not on GitHub" (404 —
+    // legitimately missing canonically; local file is irrelevant
+    // because it was never pushed) from "couldn't fetch" (auth,
+    // rate-limit, 5xx — true existence unknown; local fallback is
+    // the conservative move). Pre-fix used the binary null/string
+    // return and fell back to local in BOTH cases, which let an
+    // uncommitted local artifact silently count as canonical evidence.
+    //
+    // Decision tree for okrSource === 'github':
+    //   ok          → artifactExists=true. Done.
+    //   not-found   → DO NOT fall back. Local file is never-pushed,
+    //                 cannot count as canonical evidence.
+    //                 evidenceGaps gets a clear "missing on canonical"
+    //                 message.
+    //   fetch-error → fall back to local existsSync. Surface the
+    //                 fetch-error reason in the gap message if local
+    //                 also missing, so the auditor can tell whether
+    //                 the gap is "really missing" vs "couldn't check".
+    //
+    // For okrSource === 'local-fallback', behavior is unchanged: just
+    // existsSync (atomic by common source).
     let artifactExists = false;
     if (artifactPath) {
       if (repoInfo && okrSource === 'github') {
-        try {
-          const githubArtifact = await this.githubService.getRepoFileText(
-            repoInfo.owner, repoInfo.repo, artifactPath,
-          );
-          if (githubArtifact !== null && githubArtifact.length > 0) {
+        const result = await this.githubService.getRepoFileStatus(
+          repoInfo.owner, repoInfo.repo, artifactPath,
+        );
+        if (result.status === 'ok') {
+          // text.length > 0 not required — an empty canonical file is
+          // still a present canonical file. (Truncation/empty content
+          // is an artifact-quality concern, not a presence concern.)
+          artifactExists = true;
+        } else if (result.status === 'not-found') {
+          // Definitive: artifact not on canonical. Local cannot rescue.
+          evidenceGaps.push(`artifact missing at ${artifactPath} on canonical GitHub (local file, if any, was never pushed and does not count as evidence)`);
+        } else {
+          // fetch-error — true existence is unknown. Fall back to
+          // local existsSync; transient failure shouldn't punish if
+          // local has the file.
+          if (fs.existsSync(path.join(meshPath, artifactPath))) {
             artifactExists = true;
+          } else {
+            evidenceGaps.push(`artifact missing at ${artifactPath} (GitHub fetch failed: ${result.reason}; not on local either)`);
           }
-        } catch { /* fall through to local check */ }
-      }
-      if (!artifactExists) {
-        artifactExists = fs.existsSync(path.join(meshPath, artifactPath));
-      }
-      if (!artifactExists) {
-        const where = okrSource === 'github'
-          ? `${artifactPath} (tried canonical GitHub + local mesh)`
-          : `${artifactPath} (local mesh checkout)`;
-        evidenceGaps.push(`artifact missing at ${where}`);
+        }
+      } else {
+        // local-fallback mode — atomic by common source.
+        if (fs.existsSync(path.join(meshPath, artifactPath))) {
+          artifactExists = true;
+        } else {
+          evidenceGaps.push(`artifact missing at ${artifactPath} (local mesh checkout)`);
+        }
       }
     } else {
       evidenceGaps.push('action has no artifact field');
