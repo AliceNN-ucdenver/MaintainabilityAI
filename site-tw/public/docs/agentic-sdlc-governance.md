@@ -1599,7 +1599,7 @@ No live system access. No proprietary tooling. Five checks land the story:
   <div class="docs-heading">One record that survives replay</div>
   <div class="docs-copy">
     <p><strong>Compliance proof:</strong> the same chain supports EU AI Act Article 12 evidence (retention, model, inputs, operator, timestamps) and SOC 2 CC8.1 change-control review. The offline auditor check matches the pre-merge CI check: facts produced by deterministic code, judgments signed by the agent.</p>
-    <p><strong>Live-run proof:</strong> in the May 2026 cert run, all three planning agents shipped a real OKR on the open IMDB-Celebs sample. Every defense above fired on merged PRs, every phase ended with a green Sealed badge, and WHY, HOW, and WHAT linked through the audit chain.</p>
+    <p><strong>Live-run proof:</strong> in the May 2026 cert run, all three planning agents shipped a real OKR on the open IMDB-Celebs sample end-to-end. The exported whole-OKR rollup verdict reads <strong><code>✅ PASS — All 3 phases present, runner-verified, and source-atomic</code></strong>. WHY, HOW, and WHAT each landed signed (every agent event under a per-session Ed25519 key), source-atomic (canonical GitHub on every input the report cites), and threaded through one <code>intent_thread_uuid</code> in the cross-phase ladder. The control-mapping section traced every PRD-declared security requirement back to its STRIDE / OWASP roots and forward to the design citation. Outstanding gaps: <em>none</em>. Click the <em>View sample audit report</em> button above to see the full rollup the way an auditor would read it.</p>
     <p><strong>Hardening proof:</strong> this trust model is the result of multiple adversarial audit rounds with both LLM-based code review and human chief-auditor passes. Each round made the boundary more precise. The current model is what survived.</p>
   </div>
 </div>
@@ -1732,6 +1732,7 @@ Manage intent. Quality follows.
 
 <div class="docs-actions docs-actions-center">
   <a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" class="docs-button-primary">Install the Extension</a>
+  <a href="/docs/onboarding/" class="docs-button-secondary">Onboarding pack &rarr; first OKR this week</a>
   <a href="/docs/hatters-tea-party" class="docs-button-secondary">Read the Hatter's Tea Party</a>
   <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI" class="docs-button-secondary">View on GitHub</a>
 </div>

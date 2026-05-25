@@ -2,6 +2,7 @@ const DOC_INDEX_DIRECTORIES = new Set([
   'agents',
   'governance',
   'maintainability',
+  'onboarding',
   'owasp',
   'sdlc',
   'threat-modeling',

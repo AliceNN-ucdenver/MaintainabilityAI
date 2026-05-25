@@ -40,6 +40,13 @@ Pick the lens you bring to AI engineering. Each persona has a focused two-page o
     <p class="docs-card-body">The 70/30 gap between what AI accelerates and what governs whether systems survive. The market position, the operating model, the adoption path. Branches into the Hatter's Tea Party and Red Queen's Court.</p>
     <p class="docs-muted">Agentic governed SDLC &middot; Two modalities &middot; Audit chain &rarr;</p>
   </a>
+
+  <a href="./onboarding/" class="docs-card docs-card-violet">
+    <div class="docs-card-kicker">For your team on Monday</div>
+    <h3 class="docs-card-title">Onboarding pack &mdash; ship your first signed OKR this week</h3>
+    <p class="docs-card-body">Four short chapters: install &amp; seed the mesh, learn to read an audit report, run your first real OKR, triage when something fails. By the end you'll have a real signed audit rollup for a real OKR your team actually wanted to ship.</p>
+    <p class="docs-muted">Install &middot; Read &middot; Run &middot; Recover &rarr;</p>
+  </a>
 </div>
 
 ## Prompt Pack Libraries
