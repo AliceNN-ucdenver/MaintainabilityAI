@@ -62,13 +62,13 @@ The Red Queen is a unified governance intelligence and enforcement system. It do
   <text x="80" y="108" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Proposes action</text>
   <line x1="140" y1="90" x2="172" y2="90" stroke="#818cf8" stroke-width="2" marker-end="url(#enfArrow)"/>
   <rect x="175" y="55" width="140" height="70" rx="8" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)"/>
-  <text x="245" y="82" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="monospace">validate_action</text>
-  <text x="245" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">MCP Tool Call</text>
-  <text x="245" y="116" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">via The Grin</text>
+  <text x="245" y="82" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Governance check</text>
+  <text x="245" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Agent asks before</text>
+  <text x="245" y="116" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">acting</text>
   <line x1="315" y1="90" x2="347" y2="90" stroke="#818cf8" stroke-width="2" marker-end="url(#enfArrow)"/>
   <rect x="350" y="55" width="140" height="70" rx="8" fill="rgba(139,92,246,0.15)" stroke="rgba(139,92,246,0.4)"/>
   <text x="420" y="82" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Policy Engine</text>
-  <text x="420" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">TypeScript Rules</text>
+  <text x="420" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Policy rules</text>
   <text x="420" y="116" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Deterministic</text>
   <line x1="490" y1="90" x2="522" y2="90" stroke="#818cf8" stroke-width="2" marker-end="url(#enfArrow)"/>
   <rect x="525" y="55" width="120" height="70" rx="8" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)"/>
@@ -173,9 +173,9 @@ When your CALM model declares a flow from **checkout-ui** through **order-api** 
   <rect x="290" y="78" width="220" height="32" rx="6" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)"/>
   <text x="400" y="99" text-anchor="middle" fill="#a5b4fc" font-size="10" font-weight="600" font-family="system-ui, sans-serif">CALM Flow Resolution</text>
   <rect x="290" y="120" width="220" height="32" rx="6" fill="rgba(139,92,246,0.15)" stroke="rgba(139,92,246,0.4)"/>
-  <text x="400" y="141" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600" font-family="monospace">validate_action</text>
+  <text x="400" y="141" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">flow check</text>
   <rect x="290" y="162" width="220" height="32" rx="6" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.4)"/>
-  <text x="400" y="183" text-anchor="middle" fill="#d8b4fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Contract Diff (Next Act)</text>
+  <text x="400" y="183" text-anchor="middle" fill="#d8b4fe" font-size="10" font-weight="600" font-family="system-ui, sans-serif">Contract check (Next Act)</text>
   <rect x="325" y="204" width="150" height="24" rx="12" fill="rgba(248,113,113,0.15)" stroke="rgba(248,113,113,0.4)"/>
   <text x="400" y="220" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700" font-family="system-ui, sans-serif">NEXT ACT GATE</text>
   <rect x="570" y="48" width="200" height="110" rx="10" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.3)" stroke-dasharray="4"/>
@@ -249,15 +249,15 @@ In Queen's Next Act, the Red Queen will build **agent memory**: which policy rul
 
 ## Where the Red Queen meets the Hatter
 
-The two modalities cross paths at exactly one point: the per-repo issue write that ends the Hatter's Tea Party pipeline. The Hatter's `design-bus.yml` workflow writes a landing issue in each target code repo, carrying the merged code-design slice and the OKR's `intent_thread_uuid`. The coding agent in that repo picks up the issue, and from the moment it reaches for a tool, the **Red Queen governs**. Same governance scores. Same CALM model. Different governance modality.
+The two modalities cross paths at the hand-off from design to implementation. The Hatter finishes the planning work and creates a landing issue in each target code repo. Each issue carries the approved design slice and the shared audit thread. The coding agent picks it up, and from the moment it reaches for a tool, the **Red Queen governs**. Same governance scores. Same CALM model. Different governance modality.
 
-Today the Hatter's Tag can ride into the landing issue, and the Red Queen logs its own enforcement decisions to the repo-local `.redqueen/audit-log.jsonl`. The two records exist side by side, but the unified evidence chain (Hatter judgments and Red Queen decisions hash-chained and signed under the same trust model, verifier-checked end to end, mirrored in Looking Glass) is **Queen's Next Act**. Today the Hatter chain stops at the per-repo issue; the Red Queen chain starts at the next tool call; closing the seam is the work explicitly named below.
+Today the Hatter evidence chain and the Red Queen decision log sit side by side. That is honest and useful, but not yet one unified enforcement chain. Closing that seam is Queen's Next Act.
 
 
 
 ## Queen's Next Act
 
-Today the Red Queen makes deterministic policy decisions at the repo boundary, and those decisions land in `.redqueen/audit-log.jsonl`. The Hatter, on the planning side, already has the stronger trust story: observed facts come from the runtime, GitHub state comes from the workflow, agent judgments are signed by the agent, and the verifier rejects any event whose author does not match its kind.
+Today the Red Queen makes deterministic policy decisions at the repo boundary and records them locally. The Hatter, on the planning side, already has the stronger trust story: observed facts come from the runtime, GitHub state comes from the workflow, agent judgments are signed by the agent, and the verifier rejects any event whose author does not match its kind.
 
 Queen's Next Act brings that same trust model to implementation. The Hatter makes intent and design accountable. The Red Queen will make tool use, overrides, and merge enforcement accountable under the same rules.
 

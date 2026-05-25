@@ -197,7 +197,7 @@ This stage does the opposite. It pulls from **four independent kinds of evidence
 
 > 🔍 **Real evidence, not summary stats.** Every oracle hit (provider, query, title, URL, snippet) lands in the audit chain — up to 25 hits per skill_call. A reviewer who wants to verify that source citation `S-3` resolves to an actual arXiv paper or Tavily result can read the chain payload directly; there's no "trust the agent that it cited a real source" gap. The chain is the evidence.
 
-> 🍵 **A second research mode is on the roadmap — codebase archaeology.** When the team wants to model what their *actual code* does (not what the world says about a topic), an archaeology mode reads the impacted repositories with a polyglot parser and extracts an *observed architecture* — modules, layers, cross-module calls, exposed interfaces. The same chain-of-evidence rigor applies: every claim about the code traces back to a parser event, every gap surfaces a targeted follow-up. This is a future capability — today the WHY phase is web-evidence only — but the design is reserved so the planning layer can ground itself in *what is*, not just *what the world says about what could be*.
+**A second research mode is on the roadmap: codebase archaeology.** When the team wants to model what their actual code does, not what the world says about a topic, archaeology mode will read impacted repositories and extract the observed architecture: modules, layers, cross-module calls, exposed interfaces. Today the WHY phase is web-evidence only. The design is reserved so the planning layer can eventually ground itself in *what is*, not just *what the world says could be*.
 
 <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -429,9 +429,7 @@ The audit comment posted on the pull request shows exactly what each check found
 
 ## Stage 4 · What: the code design, grounded in the real repos
 
-This is where the plan stops being theoretical. The agent opens the impacted repositories, reads the files it expects to change, and writes a design that answers a harder question:
-
-> **Can this be built in our actual system without breaking what already exists?**
+This is where the plan stops being theoretical. The agent opens the impacted repositories, reads the files it expects to change, and writes a design that answers a harder question: **can this be built in our actual system without breaking what already exists?**
 
 That is different from a product spec. A PRD can be coherent and still be impossible to absorb safely. The code design has to name the repos touched, the files and interfaces that matter, the security controls that must survive, and the rollback path if the change goes wrong.
 
@@ -461,8 +459,8 @@ Why one cross-cutting design, not one design per repo? Because real features cro
   <rect x="30" y="226" width="180" height="30" rx="6" fill="rgba(196,181,253,0.12)" stroke="rgba(196,181,253,0.35)"/>
   <text x="120" y="246" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600" font-family="system-ui, sans-serif">reference-repos (curated)</text>
   <rect x="30" y="268" width="180" height="30" rx="6" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.35)"/>
-  <text x="120" y="288" text-anchor="middle" fill="#d8b4fe" font-size="11" font-weight="600" font-family="system-ui, sans-serif">CALM model · threats · ADRs</text>
-  <text x="120" y="316" text-anchor="middle" fill="#64748b" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">CLONED · INDEXED · READ</text>
+  <text x="120" y="288" text-anchor="middle" fill="#d8b4fe" font-size="11" font-weight="600" font-family="system-ui, sans-serif">architecture · threats · decisions</text>
+  <text x="120" y="316" text-anchor="middle" fill="#64748b" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">READ FROM REAL REPOS</text>
   <!-- Center: code-design-agent -->
   <line x1="210" y1="75" x2="252" y2="135" stroke="#a5b4fc" stroke-width="1.2" marker-end="url(#cdArrow)"/>
   <line x1="210" y1="115" x2="252" y2="160" stroke="#a5b4fc" stroke-width="1.2" marker-end="url(#cdArrow)"/>
@@ -477,17 +475,17 @@ Why one cross-cutting design, not one design per repo? Because real features cro
   <text x="355" y="200" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Interface contracts</text>
   <text x="355" y="213" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Per-repo change list</text>
   <text x="355" y="226" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Migration · rollback</text>
-  <text x="355" y="239" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">addresses: [FR-X, SR-Y]</text>
+  <text x="355" y="239" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">maps back to requirements</text>
   <!-- Arrow to reviewers -->
   <line x1="455" y1="185" x2="497" y2="185" stroke="#a5b4fc" stroke-width="2" marker-end="url(#cdArrow)"/>
   <!-- Self-critique personas (right column) — same agent, two persona-switched rounds -->
   <rect x="500" y="98" width="270" height="70" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
   <text x="635" y="121" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Architect persona</text>
-  <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">code-design/architecture-review prompt pack</text>
+  <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">checks system fit</text>
   <text x="635" y="154" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">architecture fit · interface impact</text>
   <rect x="500" y="180" width="270" height="70" rx="10" fill="rgba(248,113,113,0.10)" stroke="rgba(248,113,113,0.4)"/>
   <text x="635" y="203" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Security persona</text>
-  <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">code-design/security-review prompt pack</text>
+  <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">checks control fit</text>
   <text x="635" y="236" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">security controls · threat model</text>
   <text x="635" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">checked against actual repos</text>
   <!-- Code-grounded gate label -->
@@ -524,7 +522,7 @@ Same self-critique pattern as the PRD stage, different evidence. The PRD review 
 
 > 📁 **Real code, real reads — not paraphrased guesses.** For every brownfield repo, the agent must read the actual files it plans to touch. The audit chain records those reads, and the workflow checks every cited file path against the repo inventory. If the design names a file that does not exist, the PR fails instead of receiving a design-pass label.
 
-> 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here it's a workflow (no LLM), then the coding agents in each target repo, on the Red Queen's side.
+When the code design merges, the Looking Glass-side governance is done. From here it is a workflow handoff, then coding agents in each target repo, governed by the Red Queen.
 
 
 
@@ -560,8 +558,8 @@ From here, coding agents in the target repos pick up the work. The Red Queen gov
   <line x1="200" y1="160" x2="232" y2="160" stroke="#a5b4fc" stroke-width="2" marker-end="url(#handoffArrow)"/>
   <rect x="235" y="130" width="160" height="60" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
   <text x="315" y="155" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">fan-out workflow</text>
-  <text x="315" y="172" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">workflow (no LLM)</text>
-  <text x="315" y="184" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">no LLM</text>
+  <text x="315" y="172" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">workflow only</text>
+  <text x="315" y="184" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">deterministic fan-out</text>
   <!-- Per-repo issues (right column) -->
   <line x1="395" y1="135" x2="475" y2="80" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
   <line x1="395" y1="160" x2="475" y2="160" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
@@ -660,8 +658,8 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <line x1="548" y1="226" x2="766" y2="226" stroke="rgba(252,211,77,0.25)"/>
   <text x="548" y="240" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:    code-design-agent</text>
   <text x="548" y="253" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Inputs:   PRD + 3 repos (indexed)</text>
-  <text x="548" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Personas: code-design/arch · code-design/sec</text>
-  <text x="548" y="279" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Will score: Arch · Sec (code-grnd)</text>
+  <text x="548" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Reviews: Architect · Security</text>
+  <text x="548" y="279" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Will score: Arch · Sec</text>
   <text x="548" y="292" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">          repo fit · contracts · controls</text>
   <text x="548" y="305" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Gated on: How merged</text>
   <text x="548" y="318" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Fan-out → celeb-api · react · auth contract</text>
