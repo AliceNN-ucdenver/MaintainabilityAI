@@ -405,18 +405,20 @@ describe('buildAuditReportMarkdown', () => {
     run_id: WHY-2026-05-25-aaa
     status: complete
     merged_at: '2026-05-25T10:00:00Z'
+    pr_number: 136
     chain_root_hash: ${'a'.repeat(64)}
   - phase: how
     action_id: ACT-2
     run_id: HOW-2026-05-25-bbb
     status: complete
     merged_at: '2026-05-25T11:00:00Z'
+    pr_number: 148
     chain_root_hash: ${'b'.repeat(64)}`;
     const md = buildAuditReportMarkdown(makeInput({ chainLadderText: ladder }));
     expect(md).toContain('## Cross-phase ladder');
-    expect(md).toContain('| Phase | Action | Run ID | Status | Merged | Chain head |');
-    expect(md).toContain('| `why` | `ACT-1` | `WHY-2026-05-25-aaa` |');
-    expect(md).toContain('| `how` | `ACT-2` | `HOW-2026-05-25-bbb` |');
+    expect(md).toContain('| Phase | Run ID | Merged | PR | Chain root |');
+    expect(md).toContain('| `why` | `WHY-2026-05-25-aaa` | 2026-05-25T10:00:00Z | #136 |');
+    expect(md).toContain('| `how` | `HOW-2026-05-25-bbb` | 2026-05-25T11:00:00Z | #148 |');
     expect(md).toContain('<summary>Raw <code>chain-ladder.yaml</code></summary>');
   });
 
@@ -498,10 +500,10 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
     expect(md).toContain('| `SR-03` |');
     expect(md).toContain('| `SR-04` |');
     // OWASP refs scoped to each SR's chunk — SR-01 sees A01+A09, not A03.
-    expect(md).toContain('| `SR-01` | — | `A01`, `A09`');
-    expect(md).toContain('| `SR-02` | — | `A03`, `A05`');
-    expect(md).toContain('| `SR-03` | — | `A02`, `A08`');
-    expect(md).toContain('| `SR-04` | — | `A09`, `A10`');
+    expect(md).toContain('| `SR-01` | _not declared_ | `A01`, `A09`');
+    expect(md).toContain('| `SR-02` | _not declared_ | `A03`, `A05`');
+    expect(md).toContain('| `SR-03` | _not declared_ | `A02`, `A08`');
+    expect(md).toContain('| `SR-04` | _not declared_ | `A09`, `A10`');
     // All four are cited in §5 of the artifact.
     expect(md).toMatch(/SR-01.*✓/);
     expect(md).toMatch(/SR-04.*✓/);
@@ -1328,10 +1330,35 @@ describe('buildOkrRollupMarkdown', () => {
     run_id: WHY-2026-05-25-aaa
     status: complete
     merged_at: '2026-05-25T10:00:00Z'
+    pr_number: 136
     chain_root_hash: ${'a'.repeat(64)}`;
-    const md = buildOkrRollupMarkdown(makeOkrRollupInput({ chainLadderText: ladder }));
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      chainLadderText: ladder,
+      repoInfo: { owner: 'x', repo: 'y' },
+    }));
     expect(md).toContain('## Cross-phase ladder');
-    expect(md).toContain('| `why` | `ACT-1` | `WHY-2026-05-25-aaa` |');
+    expect(md).toContain('| `why` | `WHY-2026-05-25-aaa` | 2026-05-25T10:00:00Z | [#136](https://github.com/x/y/pull/136) |');
+    expect(md).toContain('| WHY | `WHY-2026-05-25-aaa` | complete | 🛡 sealed | ✅ PASS | `aaaaaaaaaaaa…` | [#100](https://github.com/x/y/pull/100) |');
+  });
+
+  it('uses ladder PR numbers when phase actions do not carry PR URLs', () => {
+    const ladder = `chain:
+  - phase: why
+    run_id: WHY-2026-05-25-aaa
+    merged_at: '2026-05-25T10:00:00Z'
+    pr_number: 136
+    chain_root_hash: ${'a'.repeat(64)}`;
+    const md = buildOkrRollupMarkdown(makeOkrRollupInput({
+      chainLadderText: ladder,
+      repoInfo: { owner: 'x', repo: 'y' },
+      phases: [
+        makePhaseDigest({ phase: 'why', prUrl: null }),
+        makePhaseDigest({ phase: 'how' }),
+        makePhaseDigest({ phase: 'what' }),
+      ],
+    }));
+    expect(md).toContain('| WHY | `WHY-2026-05-25-aaa` | complete | 🛡 sealed | ✅ PASS | `aaaaaaaaaaaa…` | [#136](https://github.com/x/y/pull/136) |');
+    expect(md).toContain('- **PR**: [#136](https://github.com/x/y/pull/136)');
   });
 
   it('cross-phase ladder section honors suppressed-non-canonical ladder source', () => {

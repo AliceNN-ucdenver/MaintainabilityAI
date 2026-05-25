@@ -649,6 +649,7 @@ interface LadderRow {
   status: string;
   mergedAt: string;
   chainHead: string;
+  prNumber: string | null;
 }
 function summarizeChainLadder(ladderText: string | null): LadderRow[] {
   if (!ladderText) { return []; }
@@ -662,10 +663,25 @@ function summarizeChainLadder(ladderText: string | null): LadderRow[] {
       status: String(e['status'] ?? '?'),
       mergedAt: String(e['merged_at'] ?? e['mergedAt'] ?? e['completed_at'] ?? e['completedAt'] ?? '—'),
       chainHead: shortHash(String(e['chain_root_hash'] ?? e['chainRootHash'] ?? e['chain_head'] ?? '')),
+      prNumber: e['pr_number'] != null || e['prNumber'] != null
+        ? String(e['pr_number'] ?? e['prNumber'])
+        : null,
     }));
   } catch {
     return [];
   }
+}
+
+function formatPrCell(prUrl: string | null | undefined, prNumber: string | null | undefined, repoInfo?: { owner: string; repo: string } | null): string {
+  if (prUrl) {
+    return `[#${prUrl.split('/').pop() ?? '?'}](${prUrl})`;
+  }
+  if (prNumber) {
+    return repoInfo
+      ? `[#${prNumber}](https://github.com/${repoInfo.owner}/${repoInfo.repo}/pull/${prNumber})`
+      : `#${prNumber}`;
+  }
+  return '—';
 }
 
 /**
@@ -923,7 +939,9 @@ export function buildAuditReportMarkdown(input: AuditReportInput): string {
         const finalCite = lastRound.eventId != null ? ` (event_id=${lastRound.eventId})` : '';
         return `- **${r.persona}** — final: ${lastRound.score?.toFixed(2) ?? '—'} (${lastRound.severity ?? '?'})${finalCite} · trail: ${trail}`;
       }).join('\n')
-    : '_No signed `self_review` events. WHY phase has none by design; HOW + WHAT chains should._';
+    : input.phase === 'why'
+      ? '_Not required for WHY. Research phases are evidence-gathering runs and do not emit persona self-review events._'
+      : '_No signed `self_review` events found. HOW and WHAT chains should include persona review events._';
 
   const aw = workflowEvents.artifactWritten?.payload;
   const st = workflowEvents.stateTransition?.payload;
@@ -980,9 +998,9 @@ ${timelineRows}
     ? (ladderRows.length > 0
         ? `## Cross-phase ladder
 
-| Phase | Action | Run ID | Status | Merged | Chain head |
-|---|---|---|---|---|---|
-${ladderRows.map(r => `| \`${r.phase}\` | \`${r.actionId}\` | \`${r.runId}\` | ${r.status} | ${r.mergedAt} | \`${r.chainHead}\` |`).join('\n')}
+| Phase | Run ID | Merged | PR | Chain root |
+|---|---|---|---|---|
+${ladderRows.map(r => `| \`${r.phase}\` | \`${r.runId}\` | ${r.mergedAt} | ${formatPrCell(null, r.prNumber)} | \`${r.chainHead}\` |`).join('\n')}
 
 <details>
 <summary>Raw <code>chain-ladder.yaml</code></summary>
@@ -1011,9 +1029,9 @@ _Did each PRD-declared security requirement land in the design?_
 
 | SR | STRIDE | OWASP | PRD anchor | Design references SR? |
 |---|---|---|---|:---:|
-${controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '—'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '—'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
+${controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '_not declared_'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '_not declared_'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
 
-_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. That belongs in PR review._`
+_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. not declared means the PRD did not explicitly name that taxonomy for the SR. That belongs in PR review._`
     : '';
 
   return `# Audit report — ${input.okrId} · ${input.phase.toUpperCase()} · ${input.actionId}
@@ -1343,6 +1361,7 @@ export function composeOkrRollupSourceTag(
 function renderPhaseTrustBlock(
   p: PhaseRollupDigest,
   repoInfo: { owner: string; repo: string } | null,
+  ladderRow?: LadderRow,
 ): string {
   const heading = `### ${p.phase.toUpperCase()} · ${p.runId}`;
   if (!p.evidenceComplete) {
@@ -1371,7 +1390,10 @@ Action: \`${p.actionId}\` · status: \`${p.status}\``;
         const last = r.rounds[r.rounds.length - 1];
         return `${r.persona}: ${last.score?.toFixed(2) ?? '—'} (${last.severity ?? '?'})`;
       }).join(' · ')
-    : '_no signed self_review events_';
+    : p.phase === 'why'
+      ? '_not required for WHY_'
+      : '_no signed self_review events_';
+  const prCell = formatPrCell(p.prUrl, ladderRow?.prNumber, repoInfo);
   return `${heading}
 
 - **Sources**: ${composeSourceTag(p.sources, repoInfo)}
@@ -1379,7 +1401,7 @@ Action: \`${p.actionId}\` · status: \`${p.status}\``;
 - **Final self-review scores**: ${finalScores}
 - **Agent events signed**: ${p.agentStats.signedAgent}/${p.agentStats.totalAgent}
 - **Artifact**: ${p.artifactPath ? `\`${p.artifactPath}\`` : '—'}
-- **PR**: ${p.prUrl ? `[${p.prUrl}](${p.prUrl})` : '—'}
+- **PR**: ${prCell}
 - **Per-action report**: \`${p.perActionReportPath}\` (full closeout for this phase)`;
 }
 
@@ -1491,6 +1513,14 @@ export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
 | Created | ${input.createdAt ?? '—'} |
 | Completed | ${input.completedAt ?? '_(in progress)_'} |`;
 
+  // Cross-phase ladder is useful in multiple sections: the ladder table
+  // itself, PR links in the phase rollup, and PR lines in the per-phase
+  // trust blocks. Parse once and index by run ID / phase.
+  const ladderRows = summarizeChainLadder(input.chainLadderText);
+  const ladderForPhase = (p: PhaseRollupDigest): LadderRow | undefined =>
+    ladderRows.find(r => r.runId === p.runId)
+    ?? ladderRows.find(r => r.phase.toLowerCase() === p.phase);
+
   // Phase rollup table — one row per phase, plus rows for missing phases
   // so the table always shows 3 rows for a fully-spec'd OKR.
   const phaseRow = (p: PhaseRollupDigest): string => {
@@ -1500,7 +1530,7 @@ export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
       ? (rv.ok ? `✅ PASS` : `❌ FAIL`)
       : '⚠ NOT INVOKED';
     const chainHeadCell = p.chainHead ? `\`${p.chainHead.slice(0, 12)}…\`` : '—';
-    const prCell = p.prUrl ? `[#${p.prUrl.split('/').pop() ?? '?'}](${p.prUrl})` : '—';
+    const prCell = formatPrCell(p.prUrl, ladderForPhase(p)?.prNumber, input.repoInfo);
     return `| ${p.phase.toUpperCase()} | \`${p.runId}\` | ${p.status} | ${sealed} | ${runnerCell} | ${chainHeadCell} | ${prCell} |`;
   };
   const missingRow = (m: 'why' | 'how' | 'what'): string =>
@@ -1521,16 +1551,15 @@ export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
 ${phaseTableRows.join('\n')}`;
 
   // Per-phase trust posture blocks.
-  const trustBlocks = input.phases.map(p => renderPhaseTrustBlock(p, input.repoInfo)).join('\n\n');
+  const trustBlocks = input.phases.map(p => renderPhaseTrustBlock(p, input.repoInfo, ladderForPhase(p))).join('\n\n');
 
   // Cross-phase ladder — reuse the same summarizeChainLadder + table
   // rendering as the per-action export so the format is recognizable.
-  const ladderRows = summarizeChainLadder(input.chainLadderText);
   const ladderBlock = input.chainLadderText
     ? (ladderRows.length > 0
-        ? `| Phase | Action | Run ID | Status | Merged | Chain head |
-|---|---|---|---|---|---|
-${ladderRows.map(r => `| \`${r.phase}\` | \`${r.actionId}\` | \`${r.runId}\` | ${r.status} | ${r.mergedAt} | \`${r.chainHead}\` |`).join('\n')}
+        ? `| Phase | Run ID | Merged | PR | Chain root |
+|---|---|---|---|---|
+${ladderRows.map(r => `| \`${r.phase}\` | \`${r.runId}\` | ${r.mergedAt} | ${formatPrCell(null, r.prNumber, input.repoInfo)} | \`${r.chainHead}\` |`).join('\n')}
 
 <details>
 <summary>Raw <code>chain-ladder.yaml</code></summary>
@@ -1551,9 +1580,9 @@ ${input.chainLadderText.trim()}
   if (input.controlRows.length > 0) {
     controlBlock = `| SR | STRIDE | OWASP | PRD anchor | Design references SR? |
 |---|---|---|---|:---:|
-${input.controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '—'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '—'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
+${input.controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '_not declared_'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '_not declared_'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
 
-_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. That belongs in PR review._`;
+_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. not declared means the PRD did not explicitly name that taxonomy for the SR. That belongs in PR review._`;
   } else if (input.prdSource === 'suppressed-non-canonical') {
     controlBlock = '_Control mapping not rendered — PRD suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)._';
   } else if (input.prdSource === 'missing') {
@@ -1612,4 +1641,3 @@ The rollup verdict reflects per-phase runner verdicts the same way the per-actio
 ${verifierNotes}
 `;
 }
-
