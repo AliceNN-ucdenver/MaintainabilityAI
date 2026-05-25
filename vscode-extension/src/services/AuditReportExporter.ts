@@ -107,8 +107,8 @@ function summarizeSkillCalls(events: ChainEvent[]): { name: string; count: numbe
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: { round: number; score: number | null; severity: string | null }[] }[] {
-  const byPersona = new Map<string, Map<number, { score: number | null; severity: string | null }>>();
+function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: { round: number; score: number | null; severity: string | null; eventId: number | null }[] }[] {
+  const byPersona = new Map<string, Map<number, { score: number | null; severity: string | null; eventId: number | null }>>();
   for (const e of events) {
     if (e.event_kind !== 'self_review') { continue; }
     if (!e.signature) { continue; } // Bug W legitimacy gate
@@ -119,6 +119,9 @@ function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: {
     rounds.set(r, {
       score: typeof e.payload?.score === 'number' ? e.payload.score : null,
       severity: typeof e.payload?.severity === 'string' ? e.payload.severity : null,
+      // event_id citation per E3-polish — lets auditor jump straight
+      // to the chain event that supports the score claim.
+      eventId: typeof e.event_id === 'number' ? e.event_id : null,
     });
     byPersona.set(p, rounds);
   }
@@ -128,6 +131,97 @@ function summarizeSelfReview(events: ChainEvent[]): { persona: string; rounds: {
       persona,
       rounds: [...rounds.entries()].sort(([a], [b]) => a - b).map(([round, v]) => ({ round, ...v })),
     }));
+}
+
+/**
+ * E3-polish — count signed vs total agent events so the seal headline
+ * can name what's actually verified (shape-only) vs what would require
+ * the runner (Ed25519 signature math). The pair (signed/total) tells
+ * an auditor immediately whether the chain CLAIMS to be sealed
+ * (signatures + epochs present) and whether anything's missing.
+ */
+function countAgentEventStats(events: ChainEvent[]): { signedAgent: number; totalAgent: number } {
+  let signedAgent = 0;
+  let totalAgent = 0;
+  for (const e of events) {
+    const claimsWorkflow = e.payload?.emitted_by === 'workflow';
+    if (claimsWorkflow) { continue; }
+    // Anything not workflow-attributed is agent-emitted (per Bug Y
+    // origin-kind contract). skill_call origin='runtime' is signed
+    // by the runtime, which uses the agent's per-session key, so it
+    // counts as a signed agent event for trust purposes.
+    totalAgent++;
+    if (typeof e.signature === 'string' && e.signature.length > 0) {
+      signedAgent++;
+    }
+  }
+  return { signedAgent, totalAgent };
+}
+
+/**
+ * E3-polish — derive an executive verdict block from the verdict +
+ * self-review trail. Goal: an auditor reads the first five lines and
+ * knows VERDICT / RISK / ACTION / SCOPE without parsing the body.
+ */
+function buildExecutiveSummary(
+  input: AuditReportInput,
+  events: ChainEvent[],
+  reviewSummary: ReturnType<typeof summarizeSelfReview>,
+  agentStats: { signedAgent: number; totalAgent: number },
+): string {
+  const v = input.verdict;
+  // VERDICT — three states the runner verifier also uses.
+  let verdictLabel: string;
+  let actionLine: string;
+  if (!v.shapeOk) {
+    verdictLabel = 'FAIL (shape-verification failed)';
+    actionLine = `REJECT — investigate first failure at line ${v.firstFailure?.line ?? '?'} (${v.firstFailure?.reason ?? 'unknown'}) before any downstream handoff.`;
+  } else if (v.seal.sealed) {
+    verdictLabel = 'PASS (shape-verified)';
+    actionLine = 'APPROVE for downstream coding handoff · or escalate via gh PR review if scope-of-change concerns exist.';
+  } else if (agentStats.totalAgent === 0) {
+    verdictLabel = 'REVIEW (workflow-only chain, no agent events)';
+    actionLine = 'MANUAL REVIEW — chain has no agent events to seal. Expected for WHY phase, unusual elsewhere.';
+  } else {
+    verdictLabel = 'REVIEW (mixed signal — shape ok but not sealed)';
+    actionLine = 'MANUAL REVIEW — shape checks pass but Knight\'s Seal did not light. Re-run runner verify for crypto verdict.';
+  }
+  // RISK — driven by final-round severities + forgery counters.
+  const allConverged = reviewSummary.length > 0 && reviewSummary.every(r => {
+    const last = r.rounds[r.rounds.length - 1];
+    return last.severity === 'PASS';
+  });
+  const anyMinor = reviewSummary.some(r => {
+    const last = r.rounds[r.rounds.length - 1];
+    return last.severity === 'MINOR';
+  });
+  let riskLine: string;
+  if (!v.shapeOk || v.malformedLines > 0 || v.unsignedAgentEvents > 0 || v.signedWorkflowEvents > 0 || v.originKindMismatches > 0) {
+    riskLine = `HIGH — chain has integrity issues (${[
+      v.malformedLines > 0 ? `${v.malformedLines} malformed` : '',
+      v.unsignedAgentEvents > 0 ? `${v.unsignedAgentEvents} unsigned agent` : '',
+      v.signedWorkflowEvents > 0 ? `${v.signedWorkflowEvents} signed-workflow forgery` : '',
+      v.originKindMismatches > 0 ? `${v.originKindMismatches} origin-kind mismatch` : '',
+    ].filter(Boolean).join(', ')})`;
+  } else if (allConverged && reviewSummary.length >= 2) {
+    const rounds = Math.max(...reviewSummary.map(r => r.rounds[r.rounds.length - 1].round));
+    riskLine = `LOW — clean chain · ${reviewSummary.length} personas converged on round ${rounds}`;
+  } else if (anyMinor) {
+    riskLine = 'MEDIUM — final-round severity includes MINOR; review CHANGES blocks in self-review trail';
+  } else if (reviewSummary.length === 0 && input.phase !== 'why') {
+    riskLine = `MEDIUM — no signed self-review events for ${input.phase.toUpperCase()} (expected at least 2)`;
+  } else {
+    riskLine = 'LOW';
+  }
+  const scopeLine = `${input.phase.toUpperCase()} phase · ${input.actionId} · ${input.runId} · ${events.length} events`;
+  return [
+    '```',
+    `VERDICT:  ${verdictLabel}`,
+    `RISK:     ${riskLine}`,
+    `ACTION:   ${actionLine}`,
+    `SCOPE:    ${scopeLine}`,
+    '```',
+  ].join('\n');
 }
 
 function summarizeWorkflowEvents(events: ChainEvent[]): { artifactWritten: ChainEvent | null; stateTransition: ChainEvent | null } {
@@ -147,9 +241,17 @@ export function buildAuditReportMarkdown(input: AuditReportInput): string {
   const skillSummary = summarizeSkillCalls(events);
   const reviewSummary = summarizeSelfReview(events);
   const workflowEvents = summarizeWorkflowEvents(events);
+  const agentStats = countAgentEventStats(events);
+  const executiveSummary = buildExecutiveSummary(input, events, reviewSummary, agentStats);
 
+  // E3-polish — seal headline now carries the shape-vs-crypto caveat
+  // in the lede. Pre-polish read "every agent event signed under
+  // per-session Ed25519 keypair" which is a CRYPTO claim disguised
+  // as a SHAPE claim. Honest framing names what the verifier
+  // actually checked (signature + epoch presence) and what would
+  // require the runner (Ed25519 math against pub keys).
   const sealLine = verdict.seal.sealed
-    ? '🛡 **Sealed** — every agent event signed under per-session Ed25519 keypair'
+    ? `🛡 **Sealed (shape-verified)** — ${agentStats.signedAgent}/${agentStats.totalAgent} agent events carry signature + numeric signer_epoch. Cryptographic verification (Ed25519 math against \`audit/keys/\` pub keys) requires the runner — see Verifier notes.`
     : verdict.seal.sealTampered
       ? '⚠ **Tampered** — chain has forgery indicators (see Trust posture below)'
       : 'ℹ **No agent events** — chain has workflow events only';
@@ -162,11 +264,18 @@ export function buildAuditReportMarkdown(input: AuditReportInput): string {
       ].join('\n')
     : '_No `skill_call` events in chain._';
 
+  // E3-polish — self-review trail entries now cite the chain event_id
+  // that supports each round's score so an auditor can jump straight
+  // to the source-of-record event in the JSONL without grep.
   const reviewBlock = reviewSummary.length > 0
     ? reviewSummary.map(r => {
         const lastRound = r.rounds[r.rounds.length - 1];
-        const trail = r.rounds.map(rd => `r${rd.round}: ${rd.score?.toFixed(2) ?? '—'} (${rd.severity ?? '?'})`).join(' → ');
-        return `- **${r.persona}** — final: ${lastRound.score?.toFixed(2) ?? '—'} (${lastRound.severity ?? '?'}) · trail: ${trail}`;
+        const trail = r.rounds.map(rd => {
+          const cite = rd.eventId != null ? ` [event_id=${rd.eventId}]` : '';
+          return `r${rd.round}: ${rd.score?.toFixed(2) ?? '—'} (${rd.severity ?? '?'})${cite}`;
+        }).join(' → ');
+        const finalCite = lastRound.eventId != null ? ` (event_id=${lastRound.eventId})` : '';
+        return `- **${r.persona}** — final: ${lastRound.score?.toFixed(2) ?? '—'} (${lastRound.severity ?? '?'})${finalCite} · trail: ${trail}`;
       }).join('\n')
     : '_No signed `self_review` events. WHY phase has none by design; HOW + WHAT chains should._';
 
@@ -196,6 +305,10 @@ Total events: ${verdict.totalEvents} · Malformed lines: ${verdict.malformedLine
   return `# Audit report — ${input.okrId} · ${input.phase.toUpperCase()} · ${input.actionId}
 
 > Generated by Looking Glass · ${new Date().toISOString()}
+
+## Executive summary
+
+${executiveSummary}
 
 ## Run identity
 

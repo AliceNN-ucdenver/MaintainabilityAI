@@ -72,8 +72,72 @@ describe('buildAuditReportMarkdown', () => {
     const md = buildAuditReportMarkdown(makeInput({
       verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 28 }),
     }));
-    expect(md).toContain('🛡 **Sealed**');
+    // E3-polish: seal headline now says "Sealed (shape-verified)" with
+    // the crypto-vs-shape caveat in the lede, NOT bare "Sealed".
+    expect(md).toContain('🛡 **Sealed (shape-verified)**');
+    expect(md).toContain('Cryptographic verification');
     expect(md).toContain('✅ All shape checks pass');
+  });
+
+  it('seal headline names signed-vs-total agent event count', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 4 }),
+      chainLines: [
+        JSON.stringify({ event_id: 1, event_kind: 'skill_call', signature: 'sig', signer_epoch: 1, payload: { skill: 'x', ok: true, emitted_by: 'runtime' } }),
+        JSON.stringify({ event_id: 2, event_kind: 'skill_call', signature: 'sig', signer_epoch: 1, payload: { skill: 'y', ok: true, emitted_by: 'runtime' } }),
+        // Workflow event (not counted as agent).
+        JSON.stringify({ event_id: 3, event_kind: 'artifact_written', payload: { emitted_by: 'workflow', path: 'p', sha256: 'a', bytes: 1, merge_commit_sha: 'b' } }),
+      ],
+    }));
+    expect(md).toContain('2/2 agent events carry signature');
+  });
+
+  it('renders executive summary block at top with VERDICT/RISK/ACTION/SCOPE', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 28 }),
+      chainLines: [
+        JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 2, score: 0.96, severity: 'PASS', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 2, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-security', round: 2, score: 0.95, severity: 'PASS', emitted_by: 'agent' } }),
+      ],
+    }));
+    expect(md).toContain('## Executive summary');
+    expect(md).toContain('VERDICT:  PASS (shape-verified)');
+    expect(md).toContain('RISK:     LOW');
+    expect(md).toContain('converged on round 2');
+    expect(md).toContain('ACTION:   APPROVE');
+    expect(md).toContain('SCOPE:    WHAT phase');
+    // Summary appears BEFORE Run identity in document order.
+    const summaryIdx = md.indexOf('## Executive summary');
+    const identityIdx = md.indexOf('## Run identity');
+    expect(summaryIdx).toBeGreaterThan(-1);
+    expect(summaryIdx).toBeLessThan(identityIdx);
+  });
+
+  it('executive summary VERDICT=FAIL with reject action when shapeOk=false', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      verdict: makeVerdict({
+        seal: { sealed: false, sealTampered: true },
+        shapeOk: false,
+        totalEvents: 12,
+        unsignedAgentEvents: 1,
+        firstFailure: { line: 7, kind: 'self_review', reason: 'unsigned-agent-event' },
+      }),
+    }));
+    expect(md).toContain('VERDICT:  FAIL');
+    expect(md).toContain('ACTION:   REJECT');
+    expect(md).toContain('first failure at line 7');
+    expect(md).toContain('RISK:     HIGH');
+  });
+
+  it('executive summary RISK=MEDIUM when final-round severity is MINOR', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 4 }),
+      chainLines: [
+        JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 1, score: 0.78, severity: 'MINOR', emitted_by: 'agent' } }),
+      ],
+    }));
+    expect(md).toContain('RISK:     MEDIUM');
+    expect(md).toContain('MINOR');
   });
 
   it('renders tampered verdict + first-failure block when shape failed', () => {
@@ -108,17 +172,22 @@ describe('buildAuditReportMarkdown', () => {
   it('shows self-review trail per persona with round-by-round scores', () => {
     const md = buildAuditReportMarkdown(makeInput({
       chainLines: [
-        JSON.stringify({ event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 1, score: 0.85, severity: 'MINOR', emitted_by: 'agent' } }),
-        JSON.stringify({ event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 2, score: 0.96, severity: 'PASS', emitted_by: 'agent' } }),
-        JSON.stringify({ event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-security', round: 1, score: 0.89, severity: 'MINOR', emitted_by: 'agent' } }),
-        JSON.stringify({ event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-security', round: 2, score: 0.95, severity: 'PASS', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 25, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 1, score: 0.85, severity: 'MINOR', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 27, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 2, score: 0.96, severity: 'PASS', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 26, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-security', round: 1, score: 0.89, severity: 'MINOR', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 28, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-security', round: 2, score: 0.95, severity: 'PASS', emitted_by: 'agent' } }),
       ],
     }));
     expect(md).toContain('**code-architect**');
     expect(md).toContain('final: 0.96 (PASS)');
-    expect(md).toContain('r1: 0.85 (MINOR) → r2: 0.96 (PASS)');
     expect(md).toContain('**code-security**');
     expect(md).toContain('final: 0.95 (PASS)');
+    // E3-polish citations — each round entry + final score names the
+    // exact chain event_id that supports it.
+    expect(md).toContain('(event_id=27)');  // final architect citation
+    expect(md).toContain('(event_id=28)');  // final security citation
+    expect(md).toContain('r1: 0.85 (MINOR) [event_id=25] → r2: 0.96 (PASS) [event_id=27]');
+    expect(md).toContain('r1: 0.89 (MINOR) [event_id=26] → r2: 0.95 (PASS) [event_id=28]');
   });
 
   it('ignores unsigned self_review events (Bug W legitimacy gate)', () => {
