@@ -582,8 +582,15 @@ jobs:
           fi
           JSONL="$JSONL" OKR_YAML="$OKR_YAML" python3 <<'PYEOF'
           import json, os, yaml
+          # Bug MM (2026-05) — bind JSONL once at the top so the
+          # second open() below doesn't NameError on an unbound
+          # `jsonl` local. The first loop used os.environ['JSONL']
+          # inline; the per-brownfield-repo loop added later assumed
+          # a local `jsonl` that was never defined, crashing the step
+          # with "NameError: name 'jsonl' is not defined" mid-audit.
+          jsonl = os.environ['JSONL']
           counts = {}
-          with open(os.environ['JSONL'], 'r', encoding='utf-8') as f:
+          with open(jsonl, 'r', encoding='utf-8') as f:
               for line in f:
                   line = line.strip()
                   if not line: continue
