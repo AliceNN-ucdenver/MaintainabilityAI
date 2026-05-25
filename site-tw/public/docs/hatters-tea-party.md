@@ -55,7 +55,7 @@ That's the **Hatter's Tea Party.** Six guests around the table (the OKR, the fou
   <rect x="50" y="138" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
   <text x="190" y="153" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">PRD (ask-experts — mesh-grounded gate)</text>
   <rect x="50" y="166" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
-  <text x="190" y="181" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Code Design (code-grounded — the heavy gate)</text>
+  <text x="190" y="181" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Code Design (implementation readiness)</text>
   <rect x="50" y="194" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
   <text x="190" y="209" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Per-repo issue fan-out (hand-off)</text>
   <text x="190" y="228" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Every step writes a Hatter's Tag</text>
@@ -68,7 +68,7 @@ That's the **Hatter's Tea Party.** Six guests around the table (the OKR, the fou
   <text x="610" y="76" text-anchor="middle" fill="#f9a8d4" font-size="13" font-weight="700" font-family="system-ui, sans-serif">The Red Queen</text>
   <text x="610" y="94" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Enforces in code — governs action downstream</text>
   <rect x="470" y="110" width="280" height="22" rx="6" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.3)"/>
-  <text x="610" y="125" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">validate_action (MCP, deterministic)</text>
+  <text x="610" y="125" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">deterministic tool checks</text>
   <rect x="470" y="138" width="280" height="22" rx="6" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.3)"/>
   <text x="610" y="153" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">CALM flow constraints</text>
   <rect x="470" y="166" width="280" height="22" rx="6" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.3)"/>
@@ -131,9 +131,9 @@ Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in 
   <text x="564" y="80" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">4 · WHAT</text>
   <text x="564" y="105" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700" font-family="system-ui, sans-serif">Code Design</text>
   <text x="564" y="125" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">PRD + cloned repos</text>
-  <text x="564" y="138" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM drift · OWASP</text>
+  <text x="564" y="138" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">repo fit · security controls</text>
   <text x="564" y="151" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Contract diffs</text>
-  <text x="564" y="166" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">HEAVY GATE</text>
+  <text x="564" y="166" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">READINESS CHECK</text>
   <!-- 5. Fan-out -->
   <rect x="652" y="60" width="140" height="120" rx="10" fill="rgba(244,114,182,0.10)" stroke="rgba(244,114,182,0.4)"/>
   <text x="722" y="80" text-anchor="middle" fill="#f9a8d4" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">5 · HAND-OFF</text>
@@ -149,7 +149,7 @@ Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in 
   <line x1="634" y1="120" x2="652" y2="120" stroke="#a5b4fc" stroke-width="2" marker-end="url(#journeyArrow)"/>
   <!-- Audit chain band -->
   <rect x="20" y="208" width="772" height="32" rx="6" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.3)"/>
-  <text x="406" y="228" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Hatter's Tag chain — intent_thread_uuid links every artifact, every reviewer, every prompt SHA</text>
+  <text x="406" y="228" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Hatter's Tag chain — shared audit thread links every artifact and reviewer</text>
   <!-- Bottom callout -->
   <text x="406" y="262" text-anchor="middle" fill="#64748b" font-size="9" font-family="system-ui, sans-serif">Audit Report Export — one markdown closeout per action (verifier result + traceability)</text>
 </svg>
@@ -302,7 +302,7 @@ Three things happen automatically during every run, and together they make the r
 
 **2. The activity log is tamper-evident — and we re-verify it before every merge.** Every search the agent ran, every analysis step it took, is recorded as a sequence of entries chained together by cryptographic hashes — each entry references the hash of the one before it. The same trick that secures a blockchain. You can't quietly edit an earlier entry without breaking every entry that follows, and the break is detectable. We don't just *trust* the chain exists — before any pull request can merge, an independent verification step replays the chain end-to-end and recomputes every hash. If the math doesn't balance — including the case where an agent tries to bypass the proper logging tool and hand-writes entries to look compliant — the merge refuses with a `chain-integrity-failed` label. The record proves itself, and the proof runs automatically on every audit.
 
-**Knight's Seal — per-event, per-epoch cryptographic signatures on the chain (shipped).** Each agent session generates its own ephemeral Ed25519 signing key (one keypair per "signer epoch": the original agent invocation is epoch 1, the first revise-agent is epoch 2, and so on). Every event the agent emits is signed with that session's key; the public key is committed to the mesh as `audit/keys/<runId>.epoch-N.pub.pem`; the private key is destroyed when the session ends. The audit-and-drift workflow invokes the runner's own `audit-verify-chain` skill on every PR — same code path the runner uses to write the chain — which loads all epoch public keys and cryptographically verifies each agent event against the right one. Looking Glass shows a *"🛡 Sealed"* badge on each phase card when verification passes; if anyone tampers with the artifact or the chain after the run finishes, the badge flips and the merge refuses. **The next act:** cosign / sigstore-anchored persistent signing so a third-party auditor can verify a year-old artifact without trusting the public keys embedded in the audit log itself.
+**Knight's Seal proves which agent signed which event.** Each agent session gets its own short-lived signing key. The private key stays inside that session and disappears when the session ends. Every agent judgment is signed by the session that produced it, and the verifier checks those signatures before merge. Looking Glass shows a *"🛡 Sealed"* badge when the chain verifies. If someone edits the artifact or the chain after the run, the badge flips and the merge refuses. **The next act:** external anchoring with cosign / sigstore so a third-party auditor can verify an old artifact without trusting keys stored in the mesh.
 
 **3. The audit IS the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request — what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic, **whether the activity-log chain still verifies**, **whether the Knight's Seal signature is intact**. Pass everything → green-flag label → merge unlocks. Fail anything → specific failure label naming the cause + the same comment showing where to look.
 
@@ -429,9 +429,13 @@ The audit comment posted on the pull request shows exactly what each check found
 
 ## Stage 4 · What: the code design, grounded in the real repos
 
-This is where the planning agents meet reality. The **code-design-agent** is the last agent on the Looking Glass side, and it produces the artifact that gets the **heaviest scoring** in the pipeline: a cross-cutting code design grounded on the **actual code in every impacted repository**.
+This is where the plan stops being theoretical. The agent opens the impacted repositories, reads the files it expects to change, and writes a design that answers a harder question:
 
-Why one cross-cutting design, not per-repo? Because real features cross repo boundaries. An "add the celebrity API" OKR touches `celeb-api` (the new endpoint, greenfield) **and** `imdb-react-frontend` (the consumer, brownfield) **and the existing auth/RBAC contracts** they both inherit (no separate repo PR — the design just has to honor the contract). A per-repo design loses the interface story that spans them. The cross-cutting design lives in the mesh; **fan-out is automatic after merge** (Stage 5).
+> **Can this be built in our actual system without breaking what already exists?**
+
+That is different from a product spec. A PRD can be coherent and still be impossible to absorb safely. The code design has to name the repos touched, the files and interfaces that matter, the security controls that must survive, and the rollback path if the change goes wrong.
+
+Why one cross-cutting design, not one design per repo? Because real features cross boundaries. An "add the celebrity API" OKR touches `celeb-api` (the new endpoint, greenfield), `imdb-react-frontend` (the consumer, brownfield), and the existing auth/RBAC contracts they both inherit. Split that too early and the interface story disappears. The cross-cutting design lives in the mesh; **fan-out is automatic after merge** (Stage 5).
 
 <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -444,7 +448,7 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
     </marker>
   </defs>
   <rect width="800" height="360" rx="12" fill="url(#codeDesignBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">CODE DESIGN — GROUNDED IN ACTUAL CODE — THE HEAVY GATE</text>
+  <text x="400" y="28" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">CODE DESIGN — GROUNDED IN ACTUAL REPOS</text>
   <!-- Inputs (left column) -->
   <rect x="30" y="58" width="180" height="30" rx="6" fill="rgba(110,231,183,0.12)" stroke="rgba(110,231,183,0.35)"/>
   <text x="120" y="78" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Merged PRD (FR · SR)</text>
@@ -480,41 +484,59 @@ Why one cross-cutting design, not per-repo? Because real features cross repo bou
   <rect x="500" y="98" width="270" height="70" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
   <text x="635" y="121" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Architect persona</text>
   <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">code-design/architecture-review prompt pack</text>
-  <text x="635" y="154" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">CALM drift · interface contract diffs</text>
+  <text x="635" y="154" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">architecture fit · interface impact</text>
   <rect x="500" y="180" width="270" height="70" rx="10" fill="rgba(248,113,113,0.10)" stroke="rgba(248,113,113,0.4)"/>
   <text x="635" y="203" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Security persona</text>
   <text x="635" y="221" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">code-design/security-review prompt pack</text>
-  <text x="635" y="236" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">OWASP scan · threat-model compliance</text>
-  <text x="635" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">against actual repos · code-grounded</text>
+  <text x="635" y="236" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">security controls · threat model</text>
+  <text x="635" y="248" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">checked against actual repos</text>
   <!-- Code-grounded gate label -->
   <rect x="495" y="262" width="280" height="28" rx="14" fill="rgba(252,211,77,0.15)" stroke="rgba(252,211,77,0.4)" stroke-width="1.5"/>
-  <text x="635" y="280" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">CODE-GROUNDED — implementation gate</text>
+  <text x="635" y="280" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">IMPLEMENTATION-READINESS CHECK</text>
   <!-- Outcome -->
   <rect x="200" y="305" width="400" height="38" rx="8" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.3)"/>
   <text x="400" y="323" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">okrs/&lt;id&gt;/what/code-design.md merged · Hatter's Tag chain root</text>
   <text x="400" y="338" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Last agent step on the Looking Glass side</text>
 </svg>
 
-The code-design-agent runs **different prompt packs** in its two personas than it did at PRD time:
+The same author agent then changes hats twice and argues against its own design:
 
-- **`code-design/architecture-review`** (Code-Architect persona-switch inside `code-design-agent`): CALM drift analysis against the indexed code (does the proposed design respect the existing flow graph?), interface contract diffs (`oasdiff` for OpenAPI, `buf` for protobuf, `graphql-inspector` for GraphQL; a contract break in one repo that breaks a consumer in another is caught here, not at a Red Queen gate later), module-boundary respect.
-- **`code-design/security-review`** (Code-Security persona-switch inside `code-design-agent`): OWASP pattern scan against the actual code, threat-model compliance check applied to "the code as it will exist after this design." If the design proposes calling a service the threat model doesn't authorize, this is where it dies.
+<div class="docs-proof-list docs-proof-list-compact">
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">Architect review: will this fit the system?</div>
+      <p class="docs-proof-body">The architect pass checks whether the proposed change respects the existing architecture, module boundaries, service relationships, and producer / consumer contracts.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> the persona verdict, score, missing items, and the chain event that signed the judgment.</div>
+  </div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">Security review: will this preserve the controls?</div>
+      <p class="docs-proof-body">The security pass checks the design against the threat model and the security requirements from the PRD. If the design proposes an unauthorized call path or weakens a control, this is where it should stop.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> each review round, whether it passed, and what the agent changed before trying again.</div>
+  </div>
+</div>
 
-Same self-critique pattern as the PRD stage — **different scoring inputs**. The PRD review asked: *is the intent coherent?* The code-design review asks: *is the intent implementable here, without violating governance?* Both gates use the **bounded recycle loop** (`MAX_AUTO_ROUNDS` per tier). Restricted-tier BAR with a code-grounded security failure here is the most common stopping point, and the workshop's pedagogical sweet spot.
+Same self-critique pattern as the PRD stage, different evidence. The PRD review asks: *is the intent coherent?* The code-design review asks: *can this intent be implemented here without violating governance?* Restricted-tier work often stops here, and that is the point. This is the last chance to catch a bad design before the coding agents pick it up.
 
-> 📁 **Real code, real reads — not paraphrased guesses.** For every brownfield target repo, the agent clones the repo (`knowledge-code`) AND reads the actual file contents of the entry points it plans to modify (`knowledge-code-read`). Every read auto-emits a `skill_call` event, so the audit chain records exactly which files the agent consulted while writing the design. The workflow then cross-checks every brownfield path the design cites against the cloned repo's file inventory — any path that doesn't exist fails the structural gate with `cited-path-not-in-inventory: <repo> <path>`. Hallucinated file paths land in the audit comment as a failure, not a `design-pass` label.
+> 📁 **Real code, real reads — not paraphrased guesses.** For every brownfield repo, the agent must read the actual files it plans to touch. The audit chain records those reads, and the workflow checks every cited file path against the repo inventory. If the design names a file that does not exist, the PR fails instead of receiving a design-pass label.
 
 > 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here it's a workflow (no LLM), then the coding agents in each target repo, on the Red Queen's side.
 
 
 
-## Stage 5 · The hand-off: per-repo issue fan-out, coding agents take over
+## Stage 5 · The hand-off: one design becomes repo work
 
-The instant the code-design merges, `design-bus.yml` (a workflow, **not** an agent) reads `target_code_repos[]` from the manifest and writes one issue per repo. Each issue lands **in that target code repo** with a canonical body: OKR context, the merged PRD reference, the slice of the code-design relevant to *this* repo, and HTML-comment markers that pin the cross-repo audit thread — `okr_id`, `intent_thread_uuid` (same value across the whole OKR), `parent_intent_thread` (the code-design's run thread), `design_pr_url`. The same `intent_thread_uuid` flows from the OKR Card all the way to each landing issue. The audit chain crosses repositories without breaking.
+When the code design merges, the Hatter's Tea Party is done. A workflow, not another agent, turns the approved design into one landing issue per target repo.
 
-From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take your pick) pick up the work. They're governed by **The Red Queen** on the code side: `validate_action` MCP calls, CALM flow constraints, security-critical path locks. Each agent's PR opens with its own Hatter's Tag whose `parent_intent_thread` points back to the code-design run — that's what makes the audit chain reconstruct end-to-end, from "the OKR an org leader set" to "the line of code that shipped because of it." That's a different story, told elsewhere. But it doesn't start cold. It starts with provenance.
+Each issue carries the same essentials: the OKR context, the merged PRD, the slice of the design that belongs to that repo, and the shared audit thread. The `celeb-api` issue gets the API work. The `imdb-react-frontend` issue gets the consumer work. The inherited auth contract gets honored without pretending there is a third repo PR.
 
-> 🔐 **Per-epoch signing closes the gap.** Each agent session along the tea-party path (research, product spec, code design, plus any revise round) is its own signer epoch with an ephemeral Ed25519 keypair. The public key is committed to the mesh as `<runId>.epoch-N.pub.pem`; the private key never leaves the session that created it. Every emitted event carries `signer_epoch: N`. Chain verification loads every epoch public key and picks the right one per event. **No credential is ever reissued between agents. The handoff is the signature itself.**
+From here, coding agents in the target repos pick up the work. The Red Queen governs them on the code side: tool checks, architecture-flow checks, security-sensitive path locks, and repo-local audit logs. The work changes rooms, but it does not lose its provenance.
+
+> 🔐 **The hand-off is the signature.** Each agent session signs its own events with a session-only key. No credential is reissued between agents. The research agent signs research judgments, the PRD agent signs product judgments, the code-design agent signs design judgments, and downstream implementation work can point back to the same OKR thread.
 
 <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -527,19 +549,19 @@ From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take yo
     </marker>
   </defs>
   <rect width="800" height="320" rx="12" fill="url(#handoffBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">HAND-OFF — INTENT BECOMES IMPLEMENTATION</text>
+  <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">HAND-OFF — DESIGN BECOMES REPO WORK</text>
   <!-- Source: code-design.md -->
   <rect x="30" y="120" width="170" height="80" rx="10" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
   <text x="115" y="143" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">code-design.md</text>
   <text x="115" y="160" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">merged · scored</text>
   <text x="115" y="175" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Hatter's Tag stamped</text>
-  <text x="115" y="190" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">intent_thread_uuid</text>
-  <!-- design-bus.yml -->
+  <text x="115" y="190" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">shared audit thread</text>
+  <!-- fan-out workflow -->
   <line x1="200" y1="160" x2="232" y2="160" stroke="#a5b4fc" stroke-width="2" marker-end="url(#handoffArrow)"/>
   <rect x="235" y="130" width="160" height="60" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
-  <text x="315" y="155" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">design-bus.yml</text>
+  <text x="315" y="155" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">fan-out workflow</text>
   <text x="315" y="172" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">workflow (no LLM)</text>
-  <text x="315" y="184" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">pure fan-out</text>
+  <text x="315" y="184" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">no LLM</text>
   <!-- Per-repo issues (right column) -->
   <line x1="395" y1="135" x2="475" y2="80" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
   <line x1="395" y1="160" x2="475" y2="160" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
@@ -558,9 +580,9 @@ From here, the coding agents in each repo (Copilot, Claude Code, Cursor, take yo
   <text x="400" y="298" text-anchor="middle" fill="#f9a8d4" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">↳ coding agents pick up · Red Queen governs from here</text>
 </svg>
 
-What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes with an **internal auditor closeout report** — one markdown file per OKR action exported on demand from Looking Glass, containing the cryptographic pass/fail verdict, requirement traceability, event timeline, and cross-phase ladder. The **redacted one-zip regulator bundle** that wraps the closeout + source files for external sharing (after automated PII / IP / secrets scrubbing) is the **next act** — same evidence, packaged for the audience without mesh access.
+What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes with an internal auditor closeout report: one readable report per action, plus the whole-OKR rollup. The report gives the verdict first, then the evidence, traceability, event timeline, and cross-phase ladder. The external redacted bundle is next-act work: same evidence, packaged for people who should not receive raw mesh internals.
 
-What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
+What begins next: the **coding agents** working in each target repo, governed by the Red Queen. That's the other story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
 
 
 
@@ -634,13 +656,13 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <!-- What card (gated) — code-design signals: code-grounded reviewers, this is where Arch/Sec scoring lives -->
   <rect x="534" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(252,211,77,0.4)"/>
   <text x="548" y="216" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">☐ What · Code Design</text>
-  <text x="766" y="216" text-anchor="end" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">heavy gate</text>
+  <text x="766" y="216" text-anchor="end" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">readiness gate</text>
   <line x1="548" y1="226" x2="766" y2="226" stroke="rgba(252,211,77,0.25)"/>
   <text x="548" y="240" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Agent:    code-design-agent</text>
   <text x="548" y="253" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Inputs:   PRD + 3 repos (indexed)</text>
   <text x="548" y="266" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Personas: code-design/arch · code-design/sec</text>
   <text x="548" y="279" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Will score: Arch · Sec (code-grnd)</text>
-  <text x="548" y="292" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">          CALM drift · contracts · OWASP</text>
+  <text x="548" y="292" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">          repo fit · contracts · controls</text>
   <text x="548" y="305" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Gated on: How merged</text>
   <text x="548" y="318" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Fan-out → celeb-api · react · auth contract</text>
   <text x="548" y="335" fill="#fcd34d" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Last Looking-Glass agent step</text>
@@ -665,7 +687,7 @@ The screen is **deliberately linear, not tabbed.** Tabs let a user open How with
 
 - **Why (Research)** shows what the research pipeline actually produced: sources count, refinement loops, findings cited, JTBD/brief-topic coverage. Reviewer scores exist (every PR gets reviewed) but the headline is the evidence base.
 - **How (PRD)** shows PRD-specific signals: ask-experts Q&A count, FR/NFR/SR counts, and **mesh-grounding scores** (the PRD-pack reviewers score against CALM/ADRs and STRIDE/OWASP, not against code yet). MISSING items from the reviewers are inline.
-- **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. The `code-design-agent` persona-switches through `code-design/architecture-review` + `code-design/security-review` against the actual indexed code repos: CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
+- **What (Code Design)** is where the Architecture and Security scores are grounded in the actual repositories. The agent reads the code it plans to touch, checks whether the design fits the existing architecture, checks whether the security requirements still hold, and signs both review judgments into the chain. This is the implementation-readiness gate, and it is where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
 
 
 
@@ -673,34 +695,40 @@ The screen is **deliberately linear, not tabbed.** Tabs let a user open How with
 
 Compliance reviews are slow because the evidence is scattered. The CALM model lives in one place, the threat model in another, the PRD in a Confluence space, the design in a Notion doc, the PR in GitHub, the reviewer comments somewhere in a Slack thread. To answer "how was this built?" an auditor opens six tabs and asks four people for permissions. That is the gap the audit closeout closes.
 
-> 🪧 **Status note (honest).** The **internal auditor closeout report** ships today as a one-click export from Looking Glass. It produces a markdown report under `okrs/<id>/audit/exports/<runId>-report.md` containing the cryptographic pass/fail verdict, shape-level seal verdict, per-skill evidence table, per-persona self-review trail with `event_id` citations, workflow facts, a collapsible event timeline, a requirement traceability table tying security requirements to STRIDE, OWASP, the PRD, and the design, and the cross-phase WHY→HOW→WHAT ladder. The **external-shareable redacted one-zip bundle** described below is the **next act** — same evidence, packaged for regulators or downstream consumers after an automated PII / IP / secrets scrubbing pass.
+The shipped closeout has two levels.
 
-The shipped internal report is for the audience that already has read access to the mesh — an internal auditor, a CISO walking an incident, an internal review board before a SOC 2 cycle. One markdown file, one answer, every claim cited back to a chain `event_id` or a source artifact path. The next-act zip wraps the same closeout plus its source files (artifact, JSONL chain, ladder, pub keys) for the audience that doesn't have mesh access: an external auditor, a regulator, a downstream consumer.
-
-<div class="docs-grid docs-grid-wide">
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">README.md</div>
-    <div class="docs-copy">The auditor starts here. Quotes the master question, points to every sub-answer's location in the bundle, summarizes chain integrity, tier history, persona-switch convergence (Architect + Security personas in the author agent both PASS), goal-drift, and prompt-pack versions used.</div>
+<div class="docs-proof-list docs-proof-list-compact">
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">Full OKR rollup</div>
+      <p class="docs-proof-body">One report answers the executive question: did the whole OKR make it from Why to How to What with verified evidence? It opens with PASS / FAIL, then shows the phase rollup, trust posture, chain ladder, control coverage, outstanding gaps, and verifier commands.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Best for:</strong> internal audit, CISO review, incident review, and OKR closeout before downstream implementation.</div>
   </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">okr-card.pdf</div>
-    <div class="docs-copy">The BTABoK 9-section card rendered as a PDF. The Org → Role → Developer → User intent cascade is right there on page one.</div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">Per-action closeout</div>
+      <p class="docs-proof-body">Each phase also has its own detailed report. The phase report shows the runner verdict, evidence source breakdown, skill calls, self-review trail, workflow facts, event timeline, control mapping, and the exact command to verify the chain again.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Best for:</strong> reviewers who need to inspect one phase deeply without reading the whole OKR.</div>
   </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">traceability.html / .csv</div>
-    <div class="docs-copy">The headline table: <strong>KR → Research Finding S[N] → PRD FR/SR → Code Design element → Code Repo + PR → Hatter Tag chain root</strong>. Sortable, filterable, deep-linked to GitHub PRs. The outcome-to-code question ("show me from KR to commit") is one column-scroll.</div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">Rendered sample for the story</div>
+      <p class="docs-proof-body">The governance page now includes a lightweight rendered sample, so a buyer or auditor can see the closeout as a readable report instead of a markdown wall.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Best for:</strong> demos, walkthroughs, and first-reader comprehension.</div>
   </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">Per-phase artifacts</div>
-    <div class="docs-copy">For each of Why / How / What: the merged markdown, the Hatter's Tag YAML, the CloudEvents JSONL audit log, the chain-verification output, a snapshot of the PR description, the reviewer scores. Frozen at export time.</div>
-  </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">Frozen prompt packs</div>
-    <div class="docs-copy">Every prompt pack version cited by any Hatter's Tag in the bundle, copied byte-exact. The auditor can reconstruct what the agent was told, not just what it did.</div>
-  </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-heading">Threat model + CALM snapshots</div>
-    <div class="docs-copy">Per-phase snapshots: what the threat model and architecture model looked like at the moment each phase ran. Catches model drift that would otherwise hide between phases.</div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-queued">Next act</div>
+    <div>
+      <div class="docs-proof-title">External redacted bundle</div>
+      <p class="docs-proof-body">The reports are internal-grade today because they cite raw mesh artifacts. External sharing still needs a redaction pass. The next act packages the same evidence for regulators, downstream consumers, and third-party auditors without leaking prompt internals or proprietary references.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What changes:</strong> automated PII, IP, and secrets scrubbing before export.</div>
   </div>
 </div>
 
@@ -714,11 +742,11 @@ Three claims, each falsifiable.
 
 **Claim 1: Governance upstream is cheaper than governance at the gate.** If the Hatter's Tea Party catches a missing threat model on a Restricted-tier BAR during PRD review, the cost is one revision round. If the Red Queen catches the same issue when a coding agent tries to call an unauthorized service, the cost is a half-implemented PR, a rollback, and an incident retrospective. The earlier the gate, the smaller the blast radius.
 
-**Claim 2: Audit chains across repository boundaries are a feature, not a footnote.** Every artifact this pipeline produces carries the same `intent_thread_uuid`. The mesh repo's research doc, the same mesh's PRD, the same mesh's code-design, each target repo's landing issue, each target repo's code PR are all readable as one chain. Microsoft's Agent Governance Toolkit calls this the "reasoning-trace correlation gap." We close it from the OKR forward.
+**Claim 2: Audit chains across repository boundaries are a feature, not a footnote.** Every artifact this pipeline produces carries the same audit thread. The mesh repo's research doc, the same mesh's PRD, the same mesh's code design, each target repo's landing issue, and each target repo's code PR are all readable as one chain. Microsoft's Agent Governance Toolkit calls this the "reasoning-trace correlation gap." We close it from the OKR forward.
 
-**Claim 3: The right place to put the heavy gate is the code design.** A PRD that's mesh-grounded can still be code-impossible. A design that's code-grounded but mesh-misaligned was already caught by the PRD gate. Only the code-design has both inputs in scope, and only there can the Architect and Security personas (running code-grounded prompt packs against the actual repos) tell you whether what intent demanded is what code can deliver, without breaking what's already there.
+**Claim 3: The right place to test implementation readiness is the code design.** A PRD can be well grounded and still be hard to build safely. The code design is the first artifact with both sides in view: what the business asked for and what the repositories can absorb. That is where the Architect and Security personas can say whether the work is buildable without breaking what is already there.
 
-> 🎩 **Where this runs.** Every agent in the Hatter's Tea Party runs in **GitHub's hosted Coding Cloud agent** runtime — no agent-orchestration stack to deploy, no inference infra to operate, no third-party model platform required. The mesh is a GitHub repo, the agents are `.github/agents/*.agent.md` files, the gates are GitHub Actions workflows, and the LLM is reached through the Coding Agent's built-in MCP routes. Cost ceiling: a few dollars per OKR pipeline. Onboarding ceiling: one GitHub App install. We considered enterprise inference targets (Azure AI Foundry, self-hosted) and chose not to — the audit chain + threat model are the differentiators, not the runtime, and the value of one-click adoption beats the value of running our own stack.
+> 🎩 **Where this runs.** The Hatter's Tea Party runs on GitHub's hosted coding-agent runtime. There is no separate agent platform to deploy, no inference infrastructure to operate, and no model gateway to stand up before a team can try it. The mesh is a GitHub repo. The agents are committed as repo files. The gates are GitHub Actions. The value is the audit chain and threat model, not a bespoke runtime. Cost ceiling: a few dollars per OKR pipeline. Onboarding ceiling: one GitHub App install.
 
 
 

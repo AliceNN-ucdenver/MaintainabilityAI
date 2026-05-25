@@ -95,24 +95,34 @@ The Red Queen is a unified governance intelligence and enforcement system. It do
   <text x="400" y="225" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600" font-family="system-ui, sans-serif">DETERMINISTIC  ·  POLICY-DRIVEN</text>
 </svg>
 
-<div class="docs-card docs-card-muted">
-<div class="docs-grid">
-<div class="docs-card docs-card-cyan">
-<div class="docs-heading">Layer 1: PreToolUse Hooks, Millisecond Inline Blocking</div>
-<div class="docs-muted">Before an agent tool runs, lightweight hooks evaluate static governance rules and block tool, path, restricted-tier, and declared CALM connection violations inline. Every decision (allow, deny, override) appends a JSONL line to the repo-local audit log with the tool, the file path, the rule that fired (<code>TIER-001</code>, <code>TIER-002</code>, <code>TIER-003</code>, <code>CTRL-001</code>, <code>SEC-001</code>, <code>CALM-004</code>, or a team-extension <code>customRule</code>), and the session ID. When an approval env var (<code>REDQUEEN_TOOL_APPROVED</code> or <code>REDQUEEN_PLAN_APPROVED</code>) flips a would-be deny into an allow, the audit line records <code>override: true</code>, <code>bypassedRuleId</code>, and <code>approvalSource</code> so the override is attributable, not invisible. Claude Code (<code>.claude/settings.json</code>) and Copilot Coding Agent (<code>.github/hooks/</code>) use agent-specific adapters that call the same validator, with no MCP round-trip required for the fast path.</div>
-</div>
-<div class="docs-card docs-card-muted">
-<div class="docs-heading">Layer 2: The Grin (MCP Server) plus The Red Queen&rsquo;s Court, Contextual Validation</div>
-<div class="docs-muted">13 calm:// resources and 25 MCP tools make your governance mesh queryable by AI agents. The Red Queen&rsquo;s Court policy engine evaluates constraints deterministically, not as LLM suggestions. Today it covers tier, path, security-critical files, CALM flows, platform impact, and control-aware warnings through TypeScript rule evaluation. The agent receives an allow, conditional, or deny decision and a structured reason. <code>validate_action</code> calls write their own audit-log line per call, so the structured deliberation an agent did before acting is durable. The Hatter-grade signed-and-verifier-checked evidence chain over those audit lines is <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.</div>
-</div>
-<div class="docs-card docs-card-indigo">
-<div class="docs-heading">Layer 3: CI Required Status Check, Hard Merge Gate <span class="docs-copy">(Queen&rsquo;s Next Act)</span></div>
-<div class="docs-muted">The <code>redqueen-action</code> GitHub Action will run independent PR diff analysis as a required status check. No PR merges without governance clearance. Tree-sitter AST semantic diff will classify every code change by risk tier: cosmetic edits get lightweight checks, auth logic changes trigger full validation plus mandatory human review. Machine-checkable contract diffs powered by proven engines (oasdiff, buf, graphql-inspector).</div>
-</div>
-</div>
+<div class="docs-proof-list docs-proof-list-compact">
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Ships today</div>
+    <div>
+      <div class="docs-proof-title">Stop unsafe tool calls before they run</div>
+      <p class="docs-proof-body">PreToolUse hooks sit in front of the agent&rsquo;s edit, write, and shell tools. They check the file path, the action being attempted, the repo&rsquo;s risk tier, protected governance files, security-sensitive paths, declared architecture flows, and team-defined rules. If the action violates a rule, it is blocked inline.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> the tool, path, rule ID, session, and whether a human-approved override changed a deny into an allow.</div>
+  </div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Ships today</div>
+    <div>
+      <div class="docs-proof-title">Let agents ask for a governance ruling</div>
+      <p class="docs-proof-body">The MCP layer gives agents a deliberate way to ask, &ldquo;Is this action allowed?&rdquo; before they make a structural change. The Red Queen answers from the same policy model every time, not from another prompt. The result is a clear allow, warning, or deny with the reason attached.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> every <code>validate_action</code> call, the decision returned, and the rule or warning that produced it.</div>
+  </div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-queued">Next act</div>
+    <div>
+      <div class="docs-proof-title">Make governance a required merge gate</div>
+      <p class="docs-proof-body">The CI hard gate moves Red Queen enforcement from &ldquo;the agent should ask&rdquo; to &ldquo;the PR cannot merge until the repo-level check passes.&rdquo; It will classify what changed, run the right checks for that risk, and require human review when the change touches sensitive architecture or security paths.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What changes:</strong> Red Queen becomes a required GitHub status check, not just an inline guardrail.</div>
+  </div>
 </div>
 
-**Seven rails** guide and enforce governance today: **Permission Tiers** (agent autonomy bounded by governance scores), **Path Controls** (generated governance files stay read-only), **Security-Critical Paths** (restricted-tier agents cannot modify sensitive areas), **CALM Flow Constraints** (declared relationships are checked), **Control Warnings** (security-control impact is surfaced), **Platform Impact** (shared nodes trigger coordination warnings), and **Custom Team Rules** (the <code>customRules</code> walker in <code>policy.json</code> tests each Edit / Write / Bash against team-extension regex deny patterns scoped by glob, so the team&rsquo;s institutional memory becomes deterministic enforcement). Interface contract diffing and deeper STRIDE mitigation enforcement land in <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.
+Today the rails answer seven plain questions: is this agent allowed to act at this autonomy level, is the file protected, is the path security-sensitive, does the change respect the declared architecture flow, does it touch a control, does it affect a shared platform node, and has the team banned this pattern before? Contract checks across OpenAPI, protobuf, GraphQL, and deeper threat-model enforcement land in <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.
 
 
 
@@ -138,7 +148,7 @@ Modern applications span multiple repositories. A frontend. An API. A database. 
 
 **The Red Queen is moving governance across repository boundaries.**
 
-When your CALM model declares a flow from **checkout-ui** through **order-api** to **order-database**, Red Queen can already reason over the graph and warn on shared platform impact. <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a> extends this into machine-checkable interface contracts (OpenAPI specs diffed by oasdiff, protobuf by buf, GraphQL by graphql-inspector, AsyncAPI by asyncapi-diff) so cross-repo contract violations can fail a required check and create coordination work in the owning repo.
+When your CALM model declares a flow from **checkout-ui** through **order-api** to **order-database**, Red Queen can already reason over the graph and warn on shared platform impact. <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a> extends that warning into contract enforcement: if the frontend calls an endpoint the API does not declare, or the API changes a response the frontend depends on, the required check can fail and create coordination work in the owning repo.
 
 <svg viewBox="0 0 800 280" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
@@ -211,7 +221,7 @@ Three permission tiers, driven by governance scores:
 <div class="docs-card docs-card-muted">
 <div class="docs-card-kicker">Supervised</div>
 <div class="docs-heading">50-79%</div>
-<div class="docs-muted">Agents need human checkpoints. OWASP and STRIDE packs are injected for weak pillars. Structural changes are routed through <code>validate_action</code>; machine-checkable interface contract gates arrive in Phase 9.</div>
+<div class="docs-muted">Agents need human checkpoints. Security and threat-model guidance is injected where the repo is weak. Structural changes are routed through <code>validate_action</code>; cross-repo contract gates arrive in Queen&rsquo;s Next Act.</div>
 </div>
 <div class="docs-card docs-card-muted">
 <div class="docs-card-kicker">Restricted</div>
@@ -223,13 +233,13 @@ Three permission tiers, driven by governance scores:
 
 **Improve your governance scores, and your agents earn more autonomy.** Governance becomes a force multiplier, not a bureaucratic tax. This is the same tier system the [Hatter&rsquo;s Tea Party](/docs/hatters-tea-party) uses to bound the planning-side recycle loop: one tier definition, two enforcement points (planning gates upstream, action gates inside code).
 
-And when you genuinely need to bypass a constraint? A scoped, per-session break-glass ships today via `REDQUEEN_TOOL_APPROVED` and `REDQUEEN_PLAN_APPROVED`, and every use lands in the audit log with the tool, the rule that was bypassed, and the session ID. The full break-glass UX (scoped quarterly budgets, written reasons captured at override time, signed override events, CODEOWNER co-signing, escalating friction, follow-up SLAs) is <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>. The anti-normalisation principle is the same: the exception never becomes the rule.
+And when you genuinely need to bypass a constraint? A scoped, per-session override ships today, and every use lands in the audit log with the tool, the rule that was bypassed, and the session ID. Queen&rsquo;s Next Act makes that override process harder to abuse: written reasons, co-signing for sensitive areas, budgets, follow-up deadlines, and signed override records. The anti-normalisation principle is the same: the exception never becomes the rule.
 
 
 
 ## The feedback loop: agents that learn
 
-Every agent interaction is measured. Governance scores before and after, guardrail actions counted, cross-repo violations tracked, and a per-decision record written to the local audit log. Today that log is plain `.redqueen/audit-log.jsonl`: every PreToolUse hook decision (allow, deny, or override-allow with `bypassedRuleId` and `approvalSource`) and every `validate_action` call (approved, conditional, or denied) appends a JSONL line with the tool, the file path, the rule that fired, and the session ID. Full signed, hash-chained correlation to a specific PR, commit, and workflow run is <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>, modelled directly on the Hatter trust contract shipped on the planning side.
+Every agent interaction is measured. Governance scores before and after, guardrail actions counted, cross-repo violations tracked, and a per-decision record written to the local audit log. Today that log tells you what the agent tried, which rule fired, and whether the action was allowed, warned, denied, or approved by override. Queen&rsquo;s Next Act connects those decision records to the same signed evidence chain the Hatter already uses on the planning side.
 
 Governance scores aren't static. They behave like a **trust battery**: scores decay over time based on review freshness, scan recency, and dependency age. Skip a security review? Your score drifts down. Let dependencies age? The trust battery drains. Active governance earns autonomy; neglect erodes it.
 
@@ -247,51 +257,58 @@ Today the Hatter's Tag can ride into the landing issue, and the Red Queen logs i
 
 ## Queen's Next Act
 
-Today the Red Queen makes deterministic policy decisions at the repo boundary. The decisions land in `.redqueen/audit-log.jsonl`. The Hatter, on the planning side, already runs a Hatter-grade trust contract: **runtime** records observed facts, **workflow** records recomputable GitHub state, the **agent** signs its judgments, each event kind has exactly one legitimate source, the verifier rejects mismatches, and the Looking Glass dashboard mirrors the verifier so the badge matches what CI accepts.
+Today the Red Queen makes deterministic policy decisions at the repo boundary, and those decisions land in `.redqueen/audit-log.jsonl`. The Hatter, on the planning side, already has the stronger trust story: observed facts come from the runtime, GitHub state comes from the workflow, agent judgments are signed by the agent, and the verifier rejects any event whose author does not match its kind.
 
-Queen's Next Act adopts that same trust contract for enforcement decisions. The Hatter makes intent and design accountable; the Red Queen will make implementation action accountable under the same rules.
+Queen's Next Act brings that same trust model to implementation. The Hatter makes intent and design accountable. The Red Queen will make tool use, overrides, and merge enforcement accountable under the same rules.
 
-- **Runtime** records what the agent actually attempted: the tool, the arguments, the timestamp. Observed at the hook boundary.
-- **Workflow** records what GitHub state shows: the PR diff, the labels, the reviewer state, the required-check result. Recomputable from the repo.
-- **Agent** signs its own judgments: the override approval, the break-glass declaration, the human-in-the-loop sign-off. Signed under the active session's key.
-- **Each enforcement event kind has exactly one legitimate source.** Allow, conditional, and deny decisions are runtime-emitted. Required-status outcomes are workflow-emitted. Overrides are agent-signed. The verifier rejects any line whose kind and source disagree.
-- **Looking Glass mirrors the verifier.** The Red Queen tile on the OKR detail screen shows the same sealed/tampered state CI would compute.
-
-That is the same architecture currently hardened across ten-plus adversarial audit rounds on the Hatter side. The Red Queen will adopt it as a single, coherent extension rather than a parallel mechanism.
-
-The supporting deliverables below carry the work.
-
-<div class="docs-grid docs-grid-wide">
-  <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">Queen's Next Act</div>
-    <div class="docs-heading">The hard gate</div>
-    <div class="docs-copy"><code>redqueen-action</code> CI hard gate with tree-sitter AST semantic diff, machine-checkable contract diffs, import / layer graph enforcement, break-glass budgets, agent memory, and adaptive policy refinement.</div>
+<div class="docs-gap-list">
+  <div class="docs-gap-row">
+    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div>
+      <div class="docs-gap-title">The hard merge gate</div>
+      <p class="docs-gap-body">A Red Queen required status check blocks PRs that violate architecture, security, or team policy. Low-risk changes get lightweight checks. Sensitive changes require the deeper review path.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> make the Red Queen verdict a required GitHub check before merge.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">Queen's Next Act</div>
-    <div class="docs-heading">The Court Recorder</div>
-    <div class="docs-copy">Hash-chained, signed, verifier-checked audit log of every Red Queen allow / conditional / deny / override, written under the same three-lane trust contract the Hatter ships today (runtime / workflow / agent). CloudEvents v1.0 envelopes, inclusion-proof CLI, SIEM export to Splunk, Sentinel, Datadog. Built for EU AI Act Art. 12 retention.</div>
+  <div class="docs-gap-row">
+    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div>
+      <div class="docs-gap-title">Signed enforcement chain</div>
+      <p class="docs-gap-body">Red Queen allow, warning, deny, and override decisions move from a local decision log into the same verifier-checked evidence model the Hatter uses today.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> sign enforcement events by their legitimate author: runtime for observed tool attempts, workflow for GitHub state, agent or human session for judgments and overrides.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-card-kicker">Looking Glass pillar</div>
-    <div class="docs-heading">Agent Roster</div>
-    <div class="docs-copy">Live AI-BOM of every deployed agent: identity, model version, system-prompt hash, scope of access, owner, governance tier. ISO 42001 A.6.2.7 evidence in one place.</div>
+  <div class="docs-gap-row">
+    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div>
+      <div class="docs-gap-title">Cross-repo contract checks</div>
+      <p class="docs-gap-body">If a frontend calls an API route that does not exist, or an API response changes in a way a consumer cannot handle, the governance check should see that before merge.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> compare declared interfaces across repos and fail the check when a producer and consumer no longer agree.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-amber">
-    <div class="docs-card-kicker">Fitness function</div>
-    <div class="docs-heading">The Caterpillar's Challenge</div>
-    <div class="docs-copy">CALM-derived architecture conformance tests: declared-flow checks, trust-zone crossings, interface-contract diffs (oasdiff, buf, graphql-inspector). Fitness functions that test <em>architecture behaviour</em>, not just code metrics.</div>
+  <div class="docs-gap-row">
+    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div>
+      <div class="docs-gap-title">Break-glass accountability</div>
+      <p class="docs-gap-body">Overrides should be rare, scoped, and reviewable. The next version records who approved the bypass, why it was needed, how long it lasts, and which follow-up work it creates.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> add override budgets, written reasons, co-signing for sensitive areas, and follow-up SLAs.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-indigo">
-    <div class="docs-card-kicker">Compliance</div>
-    <div class="docs-heading">Regulatory evidence (expanded)</div>
-    <div class="docs-copy">Beyond the existing SOC 2, ISO 27001, NIST 800-53, and PCI DSS crosswalks, add <strong>EU AI Act</strong>, <strong>ISO/IEC 42001</strong>, and <strong>NIST AI RMF + Generative AI Profile</strong>: the three standards specific to AI engineering that enterprise auditors are asking about in 2026.</div>
+  <div class="docs-gap-row">
+    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div>
+      <div class="docs-gap-title">Agent roster and policy learning</div>
+      <p class="docs-gap-body">Auditors need to know which agents exist, what they are allowed to touch, and which rules they keep hitting. Teams need that same memory to improve prompts and policies.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> show agent identity, owner, model, prompt hash, access scope, and repeated policy failures in Looking Glass.</p>
+    </div>
   </div>
-  <div class="docs-card docs-card-emerald">
-    <div class="docs-card-kicker">Hands-on</div>
-    <div class="docs-heading">Quickstart on a real repo</div>
-    <div class="docs-copy">Install hooks, MCP runner, and review workflows on the IMDB-Celebs BAR end-to-end. Watch a deny fire on a real action.</div>
-    <div class="docs-copy"><a href="/docs/quickstart-redqueen" class="docs-button-secondary">Open quickstart →</a></div>
+  <div class="docs-gap-row">
+    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div>
+      <div class="docs-gap-title">Architecture fitness tests</div>
+      <p class="docs-gap-body">Code quality metrics are not enough. The architecture itself needs tests: declared flows, trust-zone crossings, interface compatibility, and whether repo changes still match the CALM model.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> turn architecture rules into repeatable checks teams can run like any other fitness function.</p>
+    </div>
   </div>
 </div>
 
