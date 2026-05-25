@@ -15,7 +15,8 @@ Surfaces non-functional grounding (latency, availability, observability) so the 
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `scope` | `{ platformId, barIds: string[] }` | yes | — | Which platform + BARs to aggregate over. |
+| `platformId` | `string` | yes | — | Platform to aggregate over. |
+| `barIds` | `string[]` | yes | — | BARs to aggregate over. |
 
 ## Outputs (stdout JSON)
 
@@ -29,7 +30,7 @@ Surfaces non-functional grounding (latency, availability, observability) so the 
 ## Invocation
 
 ```sh
-echo '{"scope":{"platformId":"PLT-IMDB","barIds":["APP-IMDB-001","APP-IMDB-002"]}}' \
+echo '{"platformId":"PLT-IMDB","barIds":["APP-IMDB-001","APP-IMDB-002"]}' \
   | npx @maintainabilityai/research-runner@~0.1.42 skill-context-quality
 ```
 

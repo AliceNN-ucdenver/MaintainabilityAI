@@ -13,12 +13,15 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as YAML from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { PHASE_SPEC, allPhaseLabels, phaseSpec } from '../phaseSpec';
 import { MESH_LABELS } from '../../templates/meshLabels';
 import { MESH_AGENTS } from '../../templates/meshSkills';
 import { MESH_WORKFLOWS } from '../../templates/codeRepoTemplates';
 import { isForwardStatusTransition } from '../../services/OKRService';
+
+const EXTENSION_PATH = path.resolve(__dirname, '..', '..', '..');
 
 describe('phaseSpec single source of truth', () => {
   it('phaseSpec(phase) returns the entry for each canonical phase', () => {
@@ -871,6 +874,68 @@ describe('runner-pin parity across all code-templates (Bug-S / S3)', () => {
     expect(
       violations,
       `Found ${violations.length} runner-pin violation(s) under code-templates/. Either pin to @~${pkgMajor}.${pkgMinor}.x or remove the reference.\n  ${violations.join('\n  ')}`,
+    ).toEqual([]);
+  });
+});
+
+/**
+ * Bug II (2026-05) regression guard — every MESH_WORKFLOWS entry's
+ * generated body must parse as YAML.
+ *
+ * Forensic: the Bug-c0db03c chain-ladder self-heal used a `sed '1c\`
+ * multi-line continuation inside a composite action `run: |` block.
+ * That continuation lands at column 1, which breaks the YAML literal-
+ * block indentation rule. The local Python yaml.safe_load AND the
+ * GitHub Actions runner manifest parser both rejected it with
+ * "could not find expected ':'" at the closing-quote line. The
+ * finalize-okr-action job failed to load entirely; the audit passed
+ * + PR merged but okr.yaml.meta.status never advanced.
+ *
+ * This test would have caught it at commit time. From now on, ANY
+ * mesh-deployable workflow / composite action that doesn't parse as
+ * valid YAML fails CI before it ever reaches Deploy all.
+ *
+ * Note on tooling: the `yaml` package (eemeli/yaml) is more strict
+ * than js-yaml about this exact failure mode, matching the GHA
+ * runner's behaviour. Use it deliberately here, not js-yaml.
+ */
+describe('Bug II — every deployable MESH_WORKFLOWS body parses as valid YAML', () => {
+  it('every spec.generate(extensionPath) output parses without error', () => {
+    const failures: Array<{ path: string; error: string }> = [];
+    for (const spec of MESH_WORKFLOWS) {
+      // MESH_WORKFLOWS carries both YAML manifests (workflows + composite
+      // action.yml) and Node scripts shipped alongside them (.mjs / .js
+      // helpers). Only the YAML ones need to parse as YAML; the scripts
+      // are validated by their own unit tests.
+      if (!/\.ya?ml$/i.test(spec.relativePath)) { continue; }
+      const body = spec.generate(EXTENSION_PATH);
+      if (!body) {
+        // Empty body means the template file didn't exist on disk —
+        // separate concern caught by other tests / by the deploy step
+        // skipping the write. Don't fail YAML-parse on missing source.
+        continue;
+      }
+      try {
+        const parsed = YAML.parse(body);
+        // Composite actions + reusable workflows must produce a mapping
+        // at the root. A null parse means the body is comments-only or
+        // malformed in a way YAML.parse didn't catch — still a problem.
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          failures.push({
+            path: spec.relativePath,
+            error: `root parsed as ${parsed === null ? 'null' : Array.isArray(parsed) ? 'array' : typeof parsed}; expected mapping`,
+          });
+        }
+      } catch (err) {
+        failures.push({
+          path: spec.relativePath,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    expect(
+      failures,
+      `${failures.length} MESH_WORKFLOWS entr${failures.length === 1 ? 'y' : 'ies'} produced invalid YAML. GitHub Actions runner will refuse to load these on deploy:\n  ${failures.map(f => `${f.path}: ${f.error}`).join('\n  ')}`,
     ).toEqual([]);
   });
 });

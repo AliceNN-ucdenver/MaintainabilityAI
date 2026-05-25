@@ -15,7 +15,8 @@ The security-side companion to `context-architecture`. Walks the mesh and assemb
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `scope` | `{ platformId, barIds: string[] }` | yes | — | Which platform + BARs to aggregate over. |
+| `platformId` | `string` | yes | — | Platform to aggregate over. |
+| `barIds` | `string[]` | yes | — | BARs to aggregate over. |
 
 ## Outputs (stdout JSON)
 
@@ -31,7 +32,7 @@ The security-side companion to `context-architecture`. Walks the mesh and assemb
 ## Invocation
 
 ```sh
-echo '{"scope":{"platformId":"PLT-IMDB","barIds":["APP-IMDB-002"]}}' \
+echo '{"platformId":"PLT-IMDB","barIds":["APP-IMDB-002"]}' \
   | npx @maintainabilityai/research-runner@~0.1.42 skill-context-security
 ```
 

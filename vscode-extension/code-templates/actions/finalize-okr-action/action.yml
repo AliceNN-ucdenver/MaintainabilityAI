@@ -143,9 +143,16 @@ runs:
           # references the retired workflow. Idempotent: subsequent
           # runs match the canonical text and no-op.
           if head -1 "$LADDER" | grep -q "okr-bus.yml"; then
-            sed -i.bak '1c\
-# Cross-phase audit chain ladder. Written by finalize-okr-action on PR merge (post-Refactor-3c).
-' "$LADDER"
+            # Bug II (2026-05) — the earlier self-heal used `sed '1c\`
+            # with a multi-line continuation; the continuation lines
+            # started at column 1 inside this `run: |` YAML block and
+            # broke the GHA action-manifest parser at deploy time
+            # ("could not find expected ':'" at line 150 col 72). The
+            # whole finalize job was skipped, so okr.yaml.meta.status
+            # never rolled forward post-merge. Refactored to single-
+            # line `sed 1s|.*|...|` so the YAML block stays valid.
+            NEW_HEADER='# Cross-phase audit chain ladder. Written by finalize-okr-action on PR merge (post-Refactor-3c).'
+            sed -i.bak "1s|.*|${NEW_HEADER}|" "$LADDER"
             rm -f "${LADDER}.bak"
             echo "::notice::chain-ladder.yaml header upgraded — stale 'Written by okr-bus.yml' reference removed"
           fi

@@ -15,7 +15,8 @@ Walks the mesh and assembles the structured-data input the Architect persona rea
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `scope` | `{ platformId, barIds: string[] }` | yes | — | Which platform + BARs to aggregate over. |
+| `platformId` | `string` | yes | — | Platform to aggregate over. |
+| `barIds` | `string[]` | yes | — | BARs to aggregate over. |
 
 ## Outputs (stdout JSON)
 
@@ -31,7 +32,7 @@ Walks the mesh and assembles the structured-data input the Architect persona rea
 ## Invocation
 
 ```sh
-echo '{"scope":{"platformId":"PLT-IMDB","barIds":["APP-IMDB-001","APP-IMDB-002"]}}' \
+echo '{"platformId":"PLT-IMDB","barIds":["APP-IMDB-001","APP-IMDB-002"]}' \
   | npx @maintainabilityai/research-runner@~0.1.42 skill-context-architecture
 ```
 
