@@ -108,6 +108,57 @@ export type RunnerVerifyVerdict =
   | { invoked: true; ok: false; reason: string }
   | { invoked: false; reason: string };
 
+/**
+ * Codex E3-gold-r3 review (2026-05-25) — extracted from
+ * LookingGlassPanel.invokeRunnerVerifyChain so the runner-output
+ * parsing rules can be tested in isolation. The previous bug class
+ * (FAIL verdict mislabelled as NOT INVOKED when exit code != 0) needs
+ * a direct regression test on this pure function — testing the
+ * handler end-to-end would require mocking child_process.spawn.
+ *
+ * Contract — parse runner stdout regardless of exit code:
+ *   - Last non-empty stdout line that looks like JSON ({...}) is
+ *     the canonical verdict per SKILL.md.
+ *   - {ok:true, chainHead, eventCount} → invoked PASS.
+ *   - {ok:false, reason} → invoked FAIL (real tamper verdict;
+ *     do NOT downgrade to NOT INVOKED just because the runner
+ *     exited nonzero on ok:false).
+ *   - JSON parses but lacks required fields → NOT INVOKED with
+ *     "unexpected shape" reason.
+ *   - No parseable JSON in stdout → NOT INVOKED with exit code +
+ *     stderr context so reviewer can diagnose.
+ */
+export function parseRunnerVerdictFromStdout(
+  stdout: string,
+  stderr: string,
+  exitCode: number,
+): RunnerVerifyVerdict {
+  let parsed: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string } | null = null;
+  try {
+    const lastLine = stdout.split('\n').map(s => s.trim()).filter(Boolean).pop() ?? '';
+    if (lastLine.startsWith('{') && lastLine.endsWith('}')) {
+      parsed = JSON.parse(lastLine);
+    }
+  } catch { /* fall through */ }
+  if (parsed) {
+    if (parsed.ok === true && typeof parsed.chainHead === 'string' && typeof parsed.eventCount === 'number') {
+      return { invoked: true, ok: true, chainHead: parsed.chainHead, eventCount: parsed.eventCount };
+    }
+    if (parsed.ok === false) {
+      // Real tamper verdict — was being misreported as NOT INVOKED
+      // pre-Codex-E3-gold-r2. Now correctly carried through as FAIL
+      // regardless of exit code (runner exits 1 on ok:false per
+      // packages/research-runner/src/cli.ts).
+      return { invoked: true, ok: false, reason: parsed.reason ?? 'runner returned ok:false without a reason' };
+    }
+    return { invoked: false, reason: `Runner stdout JSON has unexpected shape (no ok field): ${stdout.slice(0, 200)}` };
+  }
+  return {
+    invoked: false,
+    reason: `Runner produced no parseable verdict JSON. Exit code: ${exitCode}. stderr (first 200): ${stderr.slice(0, 200).trim() || '(empty)'}. stdout (first 200): ${stdout.slice(0, 200).trim() || '(empty)'}.`,
+  };
+}
+
 interface ChainEvent {
   event_id?: number;
   event_kind?: string;
@@ -243,6 +294,11 @@ function countAgentEventStats(events: ChainEvent[]): { signedAgent: number; tota
  * E3-polish — derive an executive verdict block from the verdict +
  * self-review trail. Goal: an auditor reads the first five lines and
  * knows VERDICT / RISK / ACTION / SCOPE without parsing the body.
+ *
+ * Codex E3-gold-r3 (2026-05-25): when runnerVerdict is invoked, the
+ * VERDICT/ACTION lines lead with the runner result — the runner is
+ * the source of truth, so the summary must reflect it. Shape verdict
+ * is the fallback only when the runner wasn't invoked.
  */
 function buildExecutiveSummary(
   input: AuditReportInput,
@@ -251,22 +307,30 @@ function buildExecutiveSummary(
   agentStats: { signedAgent: number; totalAgent: number },
 ): string {
   const v = input.verdict;
-  // VERDICT — three states the runner verifier also uses.
-  // CAVEAT: this verdict is SHAPE-ONLY. Even PASS here does NOT prove
-  // Ed25519 signatures verify against the per-epoch pub keys, NOR
-  // does it prove the chain's hash continuity is intact. The runner's
-  // `skill-audit-verify-chain` is the only path to a sign-off verdict
-  // for fan-out / coding-agent handoff. The ACTION line below names
-  // that explicitly — it never says "approve for fan-out" from
-  // shape alone (Codex E3 review, 2026-05-25).
+  const rv = input.runnerVerdict;
   let verdictLabel: string;
   let actionLine: string;
-  if (!v.shapeOk) {
-    verdictLabel = 'FAIL (shape-verification failed)';
-    actionLine = `REJECT — investigate first failure at line ${v.firstFailure?.line ?? '?'} (${v.firstFailure?.reason ?? 'unknown'}). Do NOT promote to fan-out.`;
+
+  // Runner verdict (when invoked) is ground truth and leads the
+  // summary. Shape verdict only drives the summary when the runner
+  // couldn't be invoked (offline, npx unavailable, source-atomicity
+  // mismatch).
+  if (rv.invoked && rv.ok) {
+    verdictLabel = `PASS (runner-verified · ${rv.eventCount} events · chain head ${rv.chainHead.slice(0, 12)}…)`;
+    actionLine = 'APPROVE for downstream coding handoff. Runner verified Ed25519 signatures + per-event hash replay + chain_root_hash recomputation. Same code path CI uses.';
+  } else if (rv.invoked && !rv.ok) {
+    verdictLabel = 'FAIL (runner rejected chain)';
+    actionLine = `REJECT — runner found cryptographic or hash-chain integrity failure: \`${rv.reason}\`. Do NOT promote to fan-out. Investigate the named event and re-verify before retrying.`;
+  } else if (!v.shapeOk) {
+    // Runner wasn't invoked, AND even the shape check failed. Worst
+    // case for the report — both layers say something's wrong.
+    verdictLabel = 'FAIL (shape-verification failed; runner NOT invoked)';
+    actionLine = `REJECT — investigate first failure at line ${v.firstFailure?.line ?? '?'} (${v.firstFailure?.reason ?? 'unknown'}). Runner was not invoked (see Trust posture); both layers fail. Do NOT promote to fan-out.`;
   } else if (v.seal.sealed) {
-    verdictLabel = 'SHAPE-CLEARED — crypto + hash verification still required';
-    actionLine = 'RUN RUNNER VERIFY before fan-out. Shape checks pass + every agent event claims a signature, but Ed25519 math + per-event hash replay (prev_event_hash → this_event_hash) live in the runner — see Verifier notes for the command. Only after that verdict is green: approve for downstream coding handoff.';
+    // Runner wasn't invoked but shape checks passed. Cannot grant PASS
+    // because the gold step is missing.
+    verdictLabel = 'SHAPE-CLEARED — runner verification NOT INVOKED';
+    actionLine = `RUN RUNNER VERIFY before fan-out. Shape checks pass + every agent event claims a signature, but the runner did not run (reason: ${rv.reason}). Re-run the verifier (see Verifier notes) and only approve when its verdict is green.`;
   } else if (agentStats.totalAgent === 0) {
     verdictLabel = 'REVIEW (workflow-only chain, no agent events)';
     actionLine = 'MANUAL REVIEW — chain has no agent events to seal. Expected for WHY phase, unusual elsewhere.';
@@ -284,13 +348,20 @@ function buildExecutiveSummary(
     return last.severity === 'MINOR';
   });
   let riskLine: string;
-  if (!v.shapeOk || v.malformedLines > 0 || v.unsignedAgentEvents > 0 || v.signedWorkflowEvents > 0 || v.originKindMismatches > 0) {
+  if (rv.invoked && !rv.ok) {
+    // Codex E3-gold-r3 — runner FAIL escalates risk above all shape
+    // signals. Runner is ground truth.
+    riskLine = `CRITICAL — runner rejected the chain (\`${rv.reason}\`). Cryptographic / hash-chain integrity failure.`;
+  } else if (!v.shapeOk || v.malformedLines > 0 || v.unsignedAgentEvents > 0 || v.signedWorkflowEvents > 0 || v.originKindMismatches > 0) {
     riskLine = `HIGH — chain has integrity issues (${[
       v.malformedLines > 0 ? `${v.malformedLines} malformed` : '',
       v.unsignedAgentEvents > 0 ? `${v.unsignedAgentEvents} unsigned agent` : '',
       v.signedWorkflowEvents > 0 ? `${v.signedWorkflowEvents} signed-workflow forgery` : '',
       v.originKindMismatches > 0 ? `${v.originKindMismatches} origin-kind mismatch` : '',
     ].filter(Boolean).join(', ')})`;
+  } else if (rv.invoked && rv.ok && allConverged && reviewSummary.length >= 2) {
+    const rounds = Math.max(...reviewSummary.map(r => r.rounds[r.rounds.length - 1].round));
+    riskLine = `LOW — runner verified · ${reviewSummary.length} personas converged on round ${rounds}`;
   } else if (allConverged && reviewSummary.length >= 2) {
     const rounds = Math.max(...reviewSummary.map(r => r.rounds[r.rounds.length - 1].round));
     riskLine = `LOW — clean chain · ${reviewSummary.length} personas converged on round ${rounds}`;
@@ -465,14 +536,14 @@ function extractControlMapping(prdText: string | null | undefined, artifactText:
  */
 function renderRunnerVerdictBlock(rv: RunnerVerifyVerdict, okrId: string, runId: string): string {
   if (rv.invoked && rv.ok) {
-    return `✅ **RUNNER CRYPTO VERDICT: PASS** — \`audit-verify-chain\` verified ${rv.eventCount} event(s) end-to-end.
+    return `✅ **RUNNER CRYPTO VERDICT: PASS** — the runner verifier (\`skill-audit-verify-chain\`) verified ${rv.eventCount} event(s) end-to-end.
 
 Chain head: \`${shortHash(rv.chainHead, 32)}\`
 
 The runner replayed every event's signature against the per-epoch public keys committed to \`audit/keys/\`, recomputed each event hash, and walked the \`prev_event_hash\` → \`event_hash\` chain. No tampering detected. This is the source-of-truth verdict CI also uses.`;
   }
   if (rv.invoked && !rv.ok) {
-    return `❌ **RUNNER CRYPTO VERDICT: FAIL** — \`audit-verify-chain\` rejected the chain.
+    return `❌ **RUNNER CRYPTO VERDICT: FAIL** — the runner verifier (\`skill-audit-verify-chain\`) rejected the chain.
 
 Reason: **\`${rv.reason}\`**
 

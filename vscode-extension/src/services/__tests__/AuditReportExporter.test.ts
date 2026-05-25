@@ -6,7 +6,7 @@
  * surfaces immediately.
  */
 import { describe, it, expect } from 'vitest';
-import { buildAuditReportMarkdown, type AuditReportInput, type ChainVerifyVerdictLite, type RunnerVerifyVerdict } from '../AuditReportExporter';
+import { buildAuditReportMarkdown, parseRunnerVerdictFromStdout, type AuditReportInput, type ChainVerifyVerdictLite, type RunnerVerifyVerdict } from '../AuditReportExporter';
 
 function makeVerdict(over: Partial<ChainVerifyVerdictLite> = {}): ChainVerifyVerdictLite {
   return {
@@ -105,8 +105,12 @@ describe('buildAuditReportMarkdown', () => {
     expect(md).toContain('2/2 agent events carry signature');
   });
 
-  it('renders executive summary block at top with VERDICT/RISK/ACTION/SCOPE', () => {
+  it('renders executive summary block at top with VERDICT/RISK/ACTION/SCOPE (runner NOT INVOKED)', () => {
     const md = buildAuditReportMarkdown(makeInput({
+      // Explicitly mark runner as not-invoked so the fallback shape-
+      // driven exec summary fires (Codex E3-gold-r3: runner verdict
+      // now leads when invoked).
+      runnerVerdict: { invoked: false, reason: 'test fixture — runner not invoked' },
       verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 28 }),
       chainLines: [
         JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 2, score: 0.96, severity: 'PASS', emitted_by: 'agent' } }),
@@ -114,8 +118,6 @@ describe('buildAuditReportMarkdown', () => {
       ],
     }));
     expect(md).toContain('## Executive summary');
-    // Codex E3 review — VERDICT must NOT claim "PASS" on shape-only
-    // verification. Phrasing now warns crypto + hash check still needed.
     expect(md).toContain('SHAPE-CLEARED');
     expect(md).toContain('RISK:     LOW');
     expect(md).toContain('converged on round 2');
@@ -128,8 +130,12 @@ describe('buildAuditReportMarkdown', () => {
     expect(summaryIdx).toBeLessThan(identityIdx);
   });
 
-  it('executive summary VERDICT=FAIL with reject action when shapeOk=false', () => {
+  it('executive summary VERDICT=FAIL with reject action when shapeOk=false (runner NOT INVOKED)', () => {
     const md = buildAuditReportMarkdown(makeInput({
+      // Force runner not-invoked so shape failure drives the verdict.
+      // When runner is invoked + FAIL, that takes precedence (tested
+      // separately in the runner-driven exec summary tests below).
+      runnerVerdict: { invoked: false, reason: 'test fixture — runner not invoked' },
       verdict: makeVerdict({
         seal: { sealed: false, sealTampered: true },
         shapeOk: false,
@@ -139,6 +145,7 @@ describe('buildAuditReportMarkdown', () => {
       }),
     }));
     expect(md).toContain('VERDICT:  FAIL');
+    expect(md).toContain('shape-verification failed; runner NOT invoked');
     expect(md).toContain('ACTION:   REJECT');
     expect(md).toContain('first failure at line 7');
     expect(md).toContain('RISK:     HIGH');
@@ -272,17 +279,18 @@ describe('buildAuditReportMarkdown', () => {
     expect(md).not.toMatch(/[^-]audit-verify-chain --okrId/);
   });
 
-  it('seal headline frames PASS as SHAPE-CLEARED, not approval (Codex E3 fix)', () => {
+  it('seal headline frames PASS as SHAPE-CLEARED when runner NOT INVOKED (Codex E3 fix)', () => {
     const md = buildAuditReportMarkdown(makeInput({
+      // Codex E3-gold-r3: SHAPE-CLEARED phrasing only fires when runner
+      // didn't run. When runner is invoked + PASS, summary says
+      // "PASS (runner-verified)" instead (tested separately).
+      runnerVerdict: { invoked: false, reason: 'test fixture — runner not invoked' },
       verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 28 }),
     }));
     expect(md).toContain('SHAPE-CLEARED');
-    expect(md).toContain('crypto + hash verification still required');
     expect(md).toContain('RUN RUNNER VERIFY before fan-out');
-    // Must NOT say plain "APPROVE for downstream coding handoff" on its own —
-    // the new phrasing wraps that promise in a precondition ("Only after
-    // that verdict is green").
-    expect(md).not.toContain('VERDICT:  PASS (shape-verified)');
+    // Must NOT claim the runner-verified PASS unless runner actually ran.
+    expect(md).not.toContain('VERDICT:  PASS (runner-verified');
   });
 
   it('verifier notes block names the runner-only checks explicitly', () => {
@@ -499,5 +507,124 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
     expect(md).toContain('❌ **RUNNER CRYPTO VERDICT: FAIL**');
     expect(md).toContain('prev-hash-mismatch-line-7');
     expect(md).not.toContain('NOT INVOKED');
+  });
+
+  // ── Codex E3-gold-r3 — executive summary driven by runner verdict ──
+
+  it('exec summary VERDICT=PASS (runner-verified) when runner invoked + ok', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'a'.repeat(64), eventCount: 28 },
+      verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true, totalEvents: 28 }),
+    }));
+    expect(md).toContain('VERDICT:  PASS (runner-verified · 28 events · chain head aaaaaaaaaaaa…)');
+    expect(md).toContain('ACTION:   APPROVE for downstream coding handoff');
+    expect(md).not.toContain('SHAPE-CLEARED');
+  });
+
+  it('exec summary VERDICT=FAIL when runner rejected the chain', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: true, ok: false, reason: 'prev-hash-mismatch-line-7' },
+    }));
+    expect(md).toContain('VERDICT:  FAIL (runner rejected chain)');
+    expect(md).toContain('ACTION:   REJECT');
+    expect(md).toContain('prev-hash-mismatch-line-7');
+    expect(md).toContain('RISK:     CRITICAL');
+  });
+
+  it('exec summary falls back to SHAPE-CLEARED only when runner NOT INVOKED', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: false, reason: 'Local mesh JSONL does not match canonical GitHub source' },
+      verdict: makeVerdict({ seal: { sealed: true }, shapeOk: true }),
+    }));
+    expect(md).toContain('VERDICT:  SHAPE-CLEARED — runner verification NOT INVOKED');
+    expect(md).toContain('RUN RUNNER VERIFY before fan-out');
+    expect(md).toContain('Local mesh JSONL does not match');
+  });
+
+  it('exec summary RISK=LOW only when runner+shape both pass', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'b'.repeat(64), eventCount: 28 },
+      chainLines: [
+        JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-architect', round: 2, score: 0.96, severity: 'PASS', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 2, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'code-security', round: 2, score: 0.95, severity: 'PASS', emitted_by: 'agent' } }),
+      ],
+    }));
+    expect(md).toContain('RISK:     LOW — runner verified');
+  });
+
+  // ── Codex E3-gold-r3 — direct parseRunnerVerdictFromStdout tests ──
+
+  it('parseRunnerVerdictFromStdout: exit 0 + ok:true JSON → invoked PASS', () => {
+    const verdict = parseRunnerVerdictFromStdout(
+      JSON.stringify({ ok: true, chainHead: 'abc'.repeat(20), eventCount: 5 }),
+      '',
+      0,
+    );
+    expect(verdict).toEqual({
+      invoked: true,
+      ok: true,
+      chainHead: 'abc'.repeat(20),
+      eventCount: 5,
+    });
+  });
+
+  it('parseRunnerVerdictFromStdout: exit 1 + ok:false JSON → invoked FAIL (not NOT-INVOKED)', () => {
+    // This is the exact regression Codex caught: pre-fix the handler
+    // treated nonzero exit as NOT INVOKED and ignored stdout. Now the
+    // FAIL verdict carries through regardless of exit code.
+    const verdict = parseRunnerVerdictFromStdout(
+      JSON.stringify({ ok: false, reason: 'prev-hash-mismatch-line-7' }),
+      '',
+      1,
+    );
+    expect(verdict).toEqual({
+      invoked: true,
+      ok: false,
+      reason: 'prev-hash-mismatch-line-7',
+    });
+  });
+
+  it('parseRunnerVerdictFromStdout: parses verdict line even when stdout has logs before it', () => {
+    // Runner may emit info/warning lines before the canonical JSON;
+    // helper takes the LAST non-empty line.
+    const stdout = [
+      '[runner] loading chain okrs/X/audit/events/Y.jsonl',
+      '[runner] 28 events parsed',
+      '[runner] verifying signatures...',
+      JSON.stringify({ ok: true, chainHead: 'd'.repeat(64), eventCount: 28 }),
+    ].join('\n');
+    const verdict = parseRunnerVerdictFromStdout(stdout, '', 0);
+    expect(verdict.invoked).toBe(true);
+    if (verdict.invoked) {
+      expect(verdict.ok).toBe(true);
+      if (verdict.ok) {
+        expect(verdict.eventCount).toBe(28);
+      }
+    }
+  });
+
+  it('parseRunnerVerdictFromStdout: no parseable JSON → NOT INVOKED with exit code + stderr context', () => {
+    const verdict = parseRunnerVerdictFromStdout(
+      '',
+      'npm ERR! 404 Not Found',
+      127,
+    );
+    expect(verdict.invoked).toBe(false);
+    if (!verdict.invoked) {
+      expect(verdict.reason).toContain('Exit code: 127');
+      expect(verdict.reason).toContain('npm ERR! 404 Not Found');
+    }
+  });
+
+  it('parseRunnerVerdictFromStdout: JSON parses but missing fields → NOT INVOKED with shape reason', () => {
+    const verdict = parseRunnerVerdictFromStdout(
+      '{"foo":"bar"}',  // valid JSON but no `ok` field
+      '',
+      0,
+    );
+    expect(verdict.invoked).toBe(false);
+    if (!verdict.invoked) {
+      expect(verdict.reason).toContain('unexpected shape');
+    }
   });
 });

@@ -73,7 +73,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
-import { buildAuditReportMarkdown, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
+import { buildAuditReportMarkdown, parseRunnerVerdictFromStdout, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -2639,12 +2639,53 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
     const verdict = verifyChainForUI(chainLines);
 
-    // E3-gold (Codex review) — also invoke the runner's crypto verifier
-    // so the report carries ground-truth signature + hash-replay
-    // verdict, not just the shape preview. Best-effort: if npx fails,
-    // shell-out times out, or runner crashes, mark as NOT INVOKED with
-    // a reason so the reviewer knows the gold step is missing.
-    const runnerVerdict = await this.invokeRunnerVerifyChain(okrId, runId);
+    // Codex E3-gold-r3 BLOCKING fix — source atomicity.
+    //
+    // The runner is invoked via shell-out with `cwd: meshPath` and
+    // reads the JSONL by convention: `okrs/<id>/audit/events/
+    // <runId>.jsonl`. That means the runner verifies WHATEVER IS ON
+    // LOCAL DISK — not the GitHub-fetched bytes we used to build the
+    // rest of the report.
+    //
+    // If sourceTag says "GitHub …" but local mesh has a different
+    // JSONL (stale pull, in-flight push, accidental edit), the report
+    // would show GitHub metadata + GitHub chain prose + a runner
+    // verdict that actually verified the LOCAL chain. A reviewer would
+    // believe the whole report reflects canonical state. That's a
+    // chief-auditor trust violation.
+    //
+    // Fix: when sourceTag is GitHub, verify local JSONL bytes EQUAL
+    // GitHub-fetched bytes BEFORE invoking the runner. If they don't
+    // match (or local is missing entirely), mark runner verdict as
+    // NOT INVOKED with reason naming the mismatch — the report stays
+    // honest about which bytes were actually verified.
+    let runnerVerdict: RunnerVerifyVerdict;
+    if (sourceTag.startsWith('GitHub')) {
+      const localJsonlPath = path.join(meshPath, jsonlRelPath);
+      const localJsonl = fs.existsSync(localJsonlPath)
+        ? (() => { try { return fs.readFileSync(localJsonlPath, 'utf8'); } catch { return null; } })()
+        : null;
+      if (localJsonl === null) {
+        runnerVerdict = {
+          invoked: false,
+          reason: 'Local mesh does not have a JSONL at the canonical path; runner shells out against local disk and cannot verify the GitHub-fetched bytes shown in this report. Run `git pull` in your mesh checkout and retry the export.',
+        };
+      } else if (localJsonl !== chainText) {
+        runnerVerdict = {
+          invoked: false,
+          reason: 'Local mesh JSONL does not match canonical GitHub source — runner would have verified different bytes than this report displays. Run `git pull` in your mesh checkout to sync, then retry the export.',
+        };
+      } else {
+        // Local matches GitHub — safe to invoke runner against local
+        // disk because both source-of-truth and runner-input agree.
+        runnerVerdict = await this.invokeRunnerVerifyChain(okrId, runId);
+      }
+    } else {
+      // sourceTag is local mesh checkout (GitHub fetch failed earlier).
+      // Runner verifies local, report shows local. Source-atomic by
+      // virtue of using the same source for both.
+      runnerVerdict = await this.invokeRunnerVerifyChain(okrId, runId);
+    }
 
     // E3-gold — fetch PRD + artifact (when available) so the report
     // can render the SR-NN → STRIDE/OWASP → design § control mapping.
@@ -2770,48 +2811,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         finish({ invoked: false, reason: `Shell-out failed: ${msg}` });
       });
       child.on('close', (code) => {
-        // Codex E3-gold fix: parse stdout JSON BEFORE checking the exit
-        // code. The runner exits nonzero on ok:false (chain tampered),
-        // but its stdout still contains the canonical verdict JSON.
-        // Pre-fix any nonzero exit became `{invoked:false, reason}` and
-        // a real FAIL verdict was misreported as NOT INVOKED — exactly
-        // the bug Codex caught. Now: parse JSON first; only fall back
-        // to NOT INVOKED when no parseable verdict line exists in
-        // stdout (e.g. npx download error, runner crashed mid-startup
-        // before writing JSON).
-        let parsedVerdict: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string } | null = null;
-        try {
-          const lastLine = stdout.split('\n').map(s => s.trim()).filter(Boolean).pop() ?? '';
-          if (lastLine.startsWith('{') && lastLine.endsWith('}')) {
-            parsedVerdict = JSON.parse(lastLine);
-          }
-        } catch { /* stdout has no JSON verdict — fall through */ }
-        if (parsedVerdict) {
-          const verdict = parsedVerdict;
-          if (verdict.ok === true && typeof verdict.chainHead === 'string' && typeof verdict.eventCount === 'number') {
-            finish({ invoked: true, ok: true, chainHead: verdict.chainHead, eventCount: verdict.eventCount });
-            return;
-          }
-          if (verdict.ok === false) {
-            // Real tamper verdict — was being misreported as NOT INVOKED
-            // pre-Codex-E3-gold-fix. Now correctly carried through as FAIL
-            // regardless of exit code.
-            finish({ invoked: true, ok: false, reason: verdict.reason ?? 'runner returned ok:false without a reason' });
-            return;
-          }
-          // JSON parsed but neither shape (no ok field, etc.) — treat as
-          // unusable; report can't trust the output.
-          finish({ invoked: false, reason: `Runner stdout JSON has unexpected shape (no ok field): ${stdout.slice(0, 200)}` });
-          return;
-        }
-        // No parseable JSON anywhere in stdout — this is the genuine
-        // NOT INVOKED case (npx download failure, runner crashed before
-        // writing output, etc.). Surface exit code + stderr so the
-        // reviewer can diagnose.
-        finish({
-          invoked: false,
-          reason: `Runner produced no parseable verdict JSON. Exit code: ${code}. stderr (first 200): ${stderr.slice(0, 200).trim() || '(empty)'}. stdout (first 200): ${stdout.slice(0, 200).trim() || '(empty)'}.`,
-        });
+        // Codex E3-gold-r3: parsing logic extracted to
+        // `parseRunnerVerdictFromStdout` (services/AuditReportExporter.ts)
+        // so it has direct unit-test coverage. Handler is now a thin
+        // shim over the pure helper.
+        finish(parseRunnerVerdictFromStdout(stdout, stderr, code ?? -1));
       });
       try {
         child.stdin?.write(stdinJson);
