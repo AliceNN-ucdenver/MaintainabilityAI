@@ -73,6 +73,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
+import { buildAuditReportMarkdown } from '../services/AuditReportExporter';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
 // allowlist live in chainVerify.ts (see import above). Lifted out
@@ -511,6 +512,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'confirmStartOkrPhase':        (m) => this.onConfirmStartOkrPhase(m.okrId, m.phase, m.additionalContext ?? ''),
     'loadHatterTag':               (m) => this.onLoadHatterTag(m.okrId, m.actionId),
     'verifyChain':                 (m) => this.onVerifyChain(m.okrId, m.actionId),
+    'exportAuditReport':           (m) => this.onExportAuditReport(m.okrId, m.actionId),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -2486,6 +2488,96 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
     const verdict = verifyChainForUI(lines);
     this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: action.runId, verdict });
+  }
+
+  /**
+   * E3 (2026-05-25) — Export Audit Report handler. Reads the action's
+   * chain JSONL + chain-ladder.yaml + okr.yaml fields, runs the pure
+   * AuditReportExporter helper to produce a reviewer-facing markdown
+   * report, writes it to okrs/<id>/audit/exports/<runId>-report.md,
+   * and opens the file in a VS Code editor. The export folder is
+   * intentionally inside the mesh so the user can commit it alongside
+   * the artifact for durable record.
+   */
+  private async onExportAuditReport(okrId: string, actionId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
+      return;
+    }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action) {
+      this.postMessage({ type: 'error', message: `Action ${actionId} not found on this OKR` });
+      return;
+    }
+    if (!action.runId) {
+      this.postMessage({ type: 'error', message: 'No runId on this action — cannot export report' });
+      return;
+    }
+    const jsonlRelPath = `okrs/${okrId}/audit/events/${action.runId}.jsonl`;
+    const jsonlPath = path.join(meshPath, jsonlRelPath);
+    if (!fs.existsSync(jsonlPath)) {
+      this.postMessage({ type: 'error', message: `Audit JSONL not found locally at ${jsonlRelPath}. Pull mesh first, or wait for finalize to land workflow events.` });
+      return;
+    }
+    let chainText: string;
+    try {
+      chainText = fs.readFileSync(jsonlPath, 'utf8');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to read chain: ${toErrorMessage(err)}` });
+      return;
+    }
+    const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
+    const ladderPath = path.join(meshPath, `okrs/${okrId}/audit/chain-ladder.yaml`);
+    let chainLadderText: string | null = null;
+    if (fs.existsSync(ladderPath)) {
+      try { chainLadderText = fs.readFileSync(ladderPath, 'utf8'); } catch { /* optional */ }
+    }
+    // Architectural rule: services/ MUST NOT depend on webview/. The
+    // exporter takes the verdict as input; we compute it here (in the
+    // webview layer that already imports chainVerify) and pass it.
+    const verdict = verifyChainForUI(chainLines);
+    const markdown = buildAuditReportMarkdown({
+      okrId,
+      runId: action.runId,
+      phase: action.phase,
+      actionId: action.id,
+      agent: action.agent,
+      intentThreadUuid: action.intentThreadUuid,
+      parentIntentThread: action.parentIntentThread ?? null,
+      governanceTier: action.governanceTier,
+      status: action.status,
+      createdAt: action.createdAt ?? null,
+      completedAt: action.completedAt ?? null,
+      hatterChainRoot: action.hatterChainRoot ?? null,
+      prUrl: action.pr ?? null,
+      artifactPath: action.artifact ?? null,
+      chainLines,
+      chainLadderText,
+      verdict,
+    });
+    const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
+    const exportPath = path.join(exportDir, `${action.runId}-report.md`);
+    try {
+      fs.mkdirSync(exportDir, { recursive: true });
+      fs.writeFileSync(exportPath, markdown, 'utf8');
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to write audit report: ${toErrorMessage(err)}` });
+      return;
+    }
+    // Open the new file in VS Code so the user sees it immediately.
+    try {
+      const uri = vscode.Uri.file(exportPath);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch { /* non-fatal — file's still on disk */ }
+    void vscode.window.showInformationMessage(`Audit report exported: okrs/${okrId}/audit/exports/${action.runId}-report.md`);
   }
 
   /**

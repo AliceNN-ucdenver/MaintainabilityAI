@@ -1367,6 +1367,8 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, sign
           data-action-id="${escapeAttr(action.id)}" data-run-id="${escapeAttr(action.runId)}">View Tag ↗</button>
         <button class="okr-link-button okr-signal-chain-btn" data-action="verify-chain"
           data-action-id="${escapeAttr(action.id)}" data-run-id="${escapeAttr(action.runId)}">Verify Chain ↗</button>
+        <button class="okr-link-button okr-signal-chain-btn" data-action="export-audit"
+          data-action-id="${escapeAttr(action.id)}" data-run-id="${escapeAttr(action.runId)}">Export Report ↗</button>
       </div>
     `);
   }
@@ -1733,6 +1735,20 @@ export function attachOkrDetailEvents(
       const actionId = (el as HTMLElement).dataset.actionId;
       if (okrId && actionId) {
         vscode.postMessage({ type: 'verifyChain', okrId, actionId });
+      }
+    });
+  });
+  // Phase E E3 — Export Audit Report — generates a reviewer-facing
+  // markdown report from the run's signed chain + chain-ladder +
+  // okr.yaml fields. Saves under okrs/<id>/audit/exports/<runId>-
+  // report.md and opens the file in VS Code.
+  document.querySelectorAll('[data-action="export-audit"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const container = el.closest('[data-okr-id]') as HTMLElement | null;
+      const okrId = container?.dataset.okrId;
+      const actionId = (el as HTMLElement).dataset.actionId;
+      if (okrId && actionId) {
+        vscode.postMessage({ type: 'exportAuditReport', okrId, actionId });
       }
     });
   });
