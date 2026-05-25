@@ -5,7 +5,13 @@
     <div class="docs-eyebrow">Vision · Enforcement modality <span class="docs-hero-meta">~12 min read</span></div>
     <h1 class="docs-hero-title">The Red Queen's Court</h1>
     <p class="docs-hero-copy">
-      Deterministic governance enforcement at the moment an AI agent proposes a structural change. Two enforcement layers ship today (PreToolUse hooks plus MCP <code>validate_action</code>), built on a CALM-aware policy engine; the CI hard gate lands in <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>. Hook decisions are allow / deny / override; MCP <code>validate_action</code> decisions are approved / conditional / denied; both layers write a JSONL line to the repo-local audit log with the rule that fired. <strong>Not "please follow the architecture." A board with rules of movement, and a queen who keeps them.</strong>
+      Prompts ask agents to follow the architecture. The Red Queen makes the architecture enforceable.
+    </p>
+    <p class="docs-hero-copy">
+      When an AI agent reaches for a tool, Red Queen checks the proposed action against the repo&rsquo;s CALM model, policy tiers, path controls, security rules, and team-defined constraints. Two layers ship today: PreToolUse hooks that block unsafe actions inline, and MCP <code>validate_action</code> for deliberate governance checks. Both write repo-local audit lines with the rule that fired.
+    </p>
+    <p class="docs-hero-copy">
+      <strong>This is not "please follow the architecture." It is a board with rules of movement, and a queen who keeps them.</strong>
     </p>
     <div class="docs-actions">
       <a href="/docs/quickstart-redqueen" class="docs-button-primary">Install on a repo (quickstart)</a>
