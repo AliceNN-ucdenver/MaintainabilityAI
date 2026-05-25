@@ -1897,21 +1897,93 @@ function renderStartPhaseModal(): string {
   `;
 }
 
+/**
+ * E2 (2026-05-25) — renderHatterTagField + helpers. Replaces the
+ * earlier raw-JSON dump with a structured panel grouped by concern
+ * (identity, threading, authorship, chain). Reviewers reading the
+ * tag get semantic structure + cross-links to Verify Chain instead
+ * of having to parse YAML by eye.
+ */
+function htField(label: string, value: string | number | undefined | null, opts: { mono?: boolean; full?: string } = {}): string {
+  if (value === undefined || value === null || value === '') { return ''; }
+  const displayed = opts.mono ? `<code>${escapeHtml(String(value))}</code>` : escapeHtml(String(value));
+  const copyBtn = opts.full
+    ? `<button class="btn-ghost" data-action="copy-text" data-copy="${escapeAttr(opts.full)}" title="Copy full value" style="font-size: 0.7em; padding: 0 4px;">📋</button>`
+    : '';
+  return `<div class="ht-row"><span class="ht-label">${escapeHtml(label)}</span><span class="ht-value">${displayed} ${copyBtn}</span></div>`;
+}
+
+function htSection(title: string, rows: string): string {
+  const inner = rows.trim();
+  if (!inner) { return ''; }
+  return `<div class="ht-section"><h4 class="ht-section-title">${escapeHtml(title)}</h4>${inner}</div>`;
+}
+
 function renderHatterTagSheet(): string {
   const data = state.hatterTagSheetData;
   if (!data) { return ''; }
-  const body = data.tag
-    ? `<pre class="hatter-tag-body">${escapeHtml(JSON.stringify(data.tag, null, 2))}</pre>`
-    : `<p class="hatter-tag-empty">${escapeHtml(data.reason ?? 'No tag available.')}</p>`;
+
+  // E2 — structured panel. Defensive: tag fields are all optional;
+  // older artifacts may lack some. parseHatterTag returns a plain
+  // object; we read by string key without type assertions.
+  let body: string;
+  if (!data.tag) {
+    body = `<p class="hatter-tag-empty">${escapeHtml(data.reason ?? 'No tag available.')}</p>`;
+  } else {
+    const t = data.tag as Record<string, unknown>;
+    const audit = (t['audit'] as Record<string, unknown> | undefined) ?? {};
+    const chainRoot = (audit['chain_root_hash'] as string | undefined) ?? (t['chain_root_hash'] as string | undefined);
+    const chainRootShort = chainRoot ? `${chainRoot.slice(0, 16)}…` : '';
+    const reviewerDids = t['reviewer_dids'] as unknown[] | undefined;
+    const identity = [
+      htField('OKR', t['okr_id'] as string, { mono: true }),
+      htField('Phase', t['phase'] as string, { mono: true }),
+      htField('Run ID', t['run_id'] as string, { mono: true }),
+      htField('Governance tier', t['governance_tier'] as string),
+      htField('Evidence mode', t['evidence_mode'] as string),
+    ].join('');
+    const threading = [
+      htField('Intent thread', t['intent_thread_uuid'] as string, { mono: true }),
+      htField('Parent thread', t['parent_intent_thread'] as string, { mono: true }),
+    ].join('');
+    const authorship = [
+      htField('Author DID', t['author_did'] as string, { mono: true }),
+      reviewerDids && reviewerDids.length > 0
+        ? htField('Reviewer DIDs', reviewerDids.map(d => String(d)).join(', '), { mono: true })
+        : '',
+      htField('GitHub App install', t['github_app_installation_id'] as string),
+      htField('Prompt SHA', t['system_prompt_sha'] as string, { mono: true, full: t['system_prompt_sha'] as string ?? '' }),
+    ].join('');
+    const chain = [
+      chainRoot
+        ? `<div class="ht-row"><span class="ht-label">Chain root</span>
+            <span class="ht-value">
+              <code>${escapeHtml(chainRootShort)}</code>
+              <button class="btn-ghost" data-action="copy-text" data-copy="${escapeAttr(chainRoot)}" title="Copy full hash" style="font-size: 0.7em; padding: 0 4px;">📋</button>
+              <button class="btn-link" data-action="verify-chain-from-tag" data-okr-id="${escapeAttr(data.okrId)}" data-action-id="${escapeAttr(data.actionId)}" style="margin-left: 8px; font-size: 0.85em;">🔍 Verify Chain →</button>
+            </span>
+          </div>`
+        : `<div class="ht-row"><span class="ht-label">Chain root</span><span class="ht-value" style="color: var(--text-dim, #94a3b8);">(missing — finalize may not have populated yet)</span></div>`,
+      htField('Event count', audit['event_count'] as number),
+      htField('Signer epoch', audit['signer_epoch'] as number),
+    ].join('');
+    body = `
+      ${htSection('Identity', identity)}
+      ${htSection('Threading', threading)}
+      ${htSection('Authorship', authorship)}
+      ${htSection('Audit chain', chain)}
+      <details style="margin-top: 12px;">
+        <summary style="cursor: pointer; font-size: 0.85em; color: var(--text-dim, #94a3b8);">Raw YAML (advanced)</summary>
+        <pre class="hatter-tag-body" style="margin-top: 6px; font-size: 0.8em;">${escapeHtml(JSON.stringify(data.tag, null, 2))}</pre>
+      </details>
+    `;
+  }
   return `
     <div class="hatter-tag-overlay" data-action="close-hatter-tag-overlay">
       <div class="hatter-tag-sheet" role="dialog" aria-modal="true" aria-label="Hatter's Tag for ${escapeHtml(data.actionId)}">
         <div class="hatter-tag-header">
-          <h3>Hatter’s Tag · ${escapeHtml(data.actionId)}</h3>
+          <h3>🏷 Hatter’s Tag · ${escapeHtml(data.actionId)}</h3>
           <button class="btn-ghost" data-action="close-hatter-tag">✕ Close</button>
-        </div>
-        <div class="hatter-tag-meta">
-          OKR: <code>${escapeHtml(data.okrId)}</code>
         </div>
         ${body}
       </div>
@@ -3972,6 +4044,30 @@ function attachEventHandlers() {
         state.chainVerifySheetData = null;
         render();
       }
+    });
+  });
+
+  // Phase E E2: Hatter Tag panel — Copy field button (clipboard)
+  document.querySelectorAll('[data-action="copy-text"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const txt = (el as HTMLElement).dataset.copy;
+      if (!txt) { return; }
+      // VS Code webviews have clipboard write access via navigator.clipboard.
+      navigator.clipboard?.writeText(txt).catch(() => { /* swallow */ });
+    });
+  });
+
+  // Phase E E2: Hatter Tag panel — Verify Chain cross-link.
+  // Closes the Hatter Tag modal + opens the Verify Chain modal for the
+  // same action. Backend handler is the same as the OKR card button.
+  document.querySelectorAll('[data-action="verify-chain-from-tag"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const okrId = (el as HTMLElement).dataset.okrId;
+      const actionId = (el as HTMLElement).dataset.actionId;
+      if (!okrId || !actionId) { return; }
+      state.hatterTagSheetOpen = false;
+      state.hatterTagSheetData = null;
+      vscode.postMessage({ type: 'verifyChain', okrId, actionId });
     });
   });
 

@@ -1612,6 +1612,15 @@ export function getOkrDetailStyles(): string {
     .hatter-tag-body { background: var(--vscode-textCodeBlock-background, rgba(148, 163, 184, 0.1)); padding: 0.75rem; border-radius: 0.375rem; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.8125rem; max-height: 50vh; overflow: auto; margin: 0 0 1rem; white-space: pre; }
     .hatter-tag-empty { color: var(--vscode-descriptionForeground); padding: 1rem; text-align: center; }
     .hatter-tag-note { font-size: 0.75rem; color: var(--vscode-descriptionForeground); opacity: 0.8; margin: 0; }
+    /* Phase E E2 — structured Hatter Tag panel */
+    .ht-section { margin: 0 0 1rem; padding: 0.5rem 0.75rem; background: var(--vscode-textCodeBlock-background, rgba(148, 163, 184, 0.06)); border-radius: 0.375rem; border-left: 3px solid var(--vscode-textLink-foreground, #60a5fa); }
+    .ht-section-title { margin: 0 0 0.5rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--vscode-descriptionForeground); }
+    .ht-row { display: flex; align-items: baseline; gap: 0.75rem; padding: 0.125rem 0; font-size: 0.8125rem; }
+    .ht-label { flex: 0 0 9rem; color: var(--vscode-descriptionForeground); font-size: 0.75rem; }
+    .ht-value { flex: 1; word-break: break-all; }
+    .ht-value code { font-size: 0.75rem; }
+    .btn-link { background: none; border: none; color: var(--vscode-textLink-foreground, #60a5fa); cursor: pointer; padding: 0; text-decoration: underline; }
+    .btn-link:hover { color: var(--vscode-textLink-activeForeground, #93c5fd); }
     .okr-human-gate { margin-top: 0.75rem; padding: 0.75rem 1rem; border: 1px solid rgba(248, 113, 113, 0.4); border-radius: 0.375rem; background: rgba(248, 113, 113, 0.06); }
     .okr-human-gate-header { font-weight: 700; color: #fca5a5; margin-bottom: 0.5rem; font-size: 0.875rem; }
     .okr-human-gate-warn { margin: 0 0 0.5rem; font-size: 0.8125rem; color: #fcd34d; }
