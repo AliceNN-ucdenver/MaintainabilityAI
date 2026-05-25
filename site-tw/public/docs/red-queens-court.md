@@ -19,7 +19,7 @@
   </figure>
 </div>
 
----
+
 
 ## The problem with prompts
 
@@ -33,7 +33,7 @@ The Red Queen is what stops that. She is the **enforcement modality** of the fra
 
 That Red Queen quote captures the discipline of enforcement: every piece on the board must obey the rules of movement, or the game is no longer chess. Every tool call by an agent must obey the rules of governance, or the architecture is no longer governed.
 
----
+
 
 ## Three layers of governance intelligence
 
@@ -108,7 +108,7 @@ The Red Queen is a unified governance intelligence and enforcement system. It do
 
 **Seven rails** guide and enforce governance today: **Permission Tiers** (agent autonomy bounded by governance scores), **Path Controls** (generated governance files stay read-only), **Security-Critical Paths** (restricted-tier agents cannot modify sensitive areas), **CALM Flow Constraints** (declared relationships are checked), **Control Warnings** (security-control impact is surfaced), **Platform Impact** (shared nodes trigger coordination warnings), and **Custom Team Rules** (the <code>customRules</code> walker in <code>policy.json</code> tests each Edit / Write / Bash against team-extension regex deny patterns scoped by glob, so the team&rsquo;s institutional memory becomes deterministic enforcement). Interface contract diffing and deeper STRIDE mitigation enforcement land in <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.
 
----
+
 
 ## Deterministic governance: prompts advise, policy decides
 
@@ -122,7 +122,7 @@ An AI agent implementing a feature decides: "I'll save time by querying the data
 
 This isn't an LLM judging whether the change is okay. It's a deterministic policy engine evaluating the CALM model. Condition → decision. Auditable. Unfoolable.
 
----
+
 
 ## Cross-repo semantic governance: the breakthrough we are building
 
@@ -181,7 +181,7 @@ When your CALM model declares a flow from **checkout-ui** through **order-api** 
 | Database drops a column | **Next Act deny**: blast radius is 4 nodes, 2 BARs, 1 flow. Requires migration ADR. |
 | New service touches shared platform node | **Available now**: `validate_action` surfaces platform-impact coordination warnings and logs the verdict |
 
----
+
 
 ## Agent-agnostic: one control plane, every agent
 
@@ -189,7 +189,7 @@ Organizations use Claude Code *and* Copilot Coding Agent. Different config files
 
 **The Red Queen doesn't care which agent is holding the keyboard.** Claude Code and Copilot Coding Agent get their own hook configuration, both adapters invoke the same validator, and both can call the same MCP tools against the same CALM model. A repo-local MCP runner resolves the live mesh from env, CI checkout, or manifest defaults; configuration fingerprints and the scaffold doctor catch drift before the setup quietly rots.
 
----
+
 
 ## Progressive autonomy: governance earns trust
 
@@ -219,7 +219,7 @@ Three permission tiers, driven by governance scores:
 
 And when you genuinely need to bypass a constraint? A scoped, per-session break-glass ships today via `REDQUEEN_TOOL_APPROVED` and `REDQUEEN_PLAN_APPROVED`, and every use lands in the audit log with the tool, the rule that was bypassed, and the session ID. The full break-glass UX (scoped quarterly budgets, written reasons captured at override time, signed override events, CODEOWNER co-signing, escalating friction, follow-up SLAs) is <a href="#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>. The anti-normalisation principle is the same: the exception never becomes the rule.
 
----
+
 
 ## The feedback loop: agents that learn
 
@@ -229,7 +229,7 @@ Governance scores aren't static. They behave like a **trust battery**: scores de
 
 In Queen's Next Act, the Red Queen will build **agent memory**: which policy rules fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts. That memory will feed back into policy refinements. Agents get smarter. Policies get sharper. **Governance improves continuously.**
 
----
+
 
 ## Where the Red Queen meets the Hatter
 
@@ -237,7 +237,7 @@ The two modalities cross paths at exactly one point: the per-repo issue write th
 
 Today the Hatter's Tag can ride into the landing issue, and the Red Queen logs its own enforcement decisions to the repo-local `.redqueen/audit-log.jsonl`. The two records exist side by side, but the unified evidence chain (Hatter judgments and Red Queen decisions hash-chained and signed under the same trust model, verifier-checked end to end, mirrored in Looking Glass) is **Queen's Next Act**. Today the Hatter chain stops at the per-repo issue; the Red Queen chain starts at the next tool call; closing the seam is the work explicitly named below.
 
----
+
 
 ## Queen's Next Act
 
@@ -291,7 +291,7 @@ The supporting deliverables below carry the work.
 
 For the full landscape (what Microsoft, GitHub, Snyk, and the EU AI Act are pulling forward in 2026) read the [agentic governance research](/docs/research/agentic-governance-landscape).
 
----
+
 
 ## Where to go next
 
@@ -318,7 +318,7 @@ For the full landscape (what Microsoft, GitHub, Snyk, and the EU AI Act are pull
   </div>
 </div>
 
----
+
 
 <div class="docs-hero-flourish">
   <em>"Speak when you're spoken to."</em>

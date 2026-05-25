@@ -21,7 +21,7 @@
   </figure>
 </div>
 
----
+
 
 ## Two visions, one governed pipeline
 
@@ -83,7 +83,7 @@ That's the **Hatter's Tea Party.** Six guests around the table (the OKR, the fou
 
 The two are **complementary, not competing.** The Hatter governs intent (the planning agents, on the Looking Glass side). The Red Queen governs action (the coding agents, in each code repo). The hand-off between them is the per-repo issue write that ends the Looking-Glass-side pipeline. That's the moment intent becomes implementation work.
 
----
+
 
 ## The journey: one OKR, five stages, one audit chain
 
@@ -158,7 +158,7 @@ The five stages are the chapters of the audit story. Every chapter writes a **Ha
 
 > 🍵 **How the audit chain gets built.** The chain that runs alongside this whole journey has three kinds of authors, and exactly three. The **runtime** records what the agent did (every skill call lands in the chain automatically, before the result returns to the agent). The **workflow** records what GitHub state shows (file changes, label flips, reviewer approvals; anything the workflow can recompute from the repo). The **agent** signs its own judgments (the review verdicts and gap-loop intent that only the agent can produce). Each kind of event has exactly one legitimate source. If the wrong author tries to emit something, the verifier rejects the chain. That separation is what makes the story a reviewer reads six months later trustworthy: the agent cannot get fabricated facts accepted, and the workflow cannot fake a judgment.
 
----
+
 
 ## Stage 1 · Intent: the OKR that started it all
 
@@ -187,7 +187,7 @@ The intent cascade (**Org → Role → Developer → User**) is the Court Hierar
 
 This is also where the **two-tier example** becomes concrete. IMDB-Lite ships with two BARs: **`APP-IMDB-001` (Lite App, Supervised)** and **`APP-IMDB-002` (Celebs, Restricted)**. Any OKR that touches Celebs runs into the harder governance gates. The workshop's central learning moment is feeling that wall, building the missing governance, and watching the gates unlock.
 
----
+
 
 ## Stage 2 · Why: four independent sources of evidence, checked against itself
 
@@ -308,7 +308,7 @@ Three things happen automatically during every run, and together they make the r
 
 For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the sources those queries returned, and a tamper-evident log of the whole run — all without anyone having to remember to take minutes.
 
----
+
 
 ## Stage 3 · How: the product spec, with every requirement tied to a real constraint
 
@@ -425,7 +425,7 @@ The audit comment posted on the pull request shows exactly what each check found
 
 > 🍵 **This stage is the intent gate, not the implementation gate.** A perfectly grounded spec can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
 
----
+
 
 ## Stage 4 · What: the code design, grounded in the real repos
 
@@ -506,7 +506,7 @@ Same self-critique pattern as the PRD stage — **different scoring inputs**. Th
 
 > 🍵 **This is the final agent step on the Looking Glass side.** When the code-design merges, the Looking Glass-side governance is done. From here it's a workflow (no LLM), then the coding agents in each target repo, on the Red Queen's side.
 
----
+
 
 ## Stage 5 · The hand-off: per-repo issue fan-out, coding agents take over
 
@@ -562,7 +562,7 @@ What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party conc
 
 What begins next: the **coding agents** working in each target repo, governed by the Red Queen's `validate_action` MCP gates. That's the *other* story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
 
----
+
 
 ## Inside the Looking Glass: the OKR detail screen
 
@@ -667,7 +667,7 @@ The screen is **deliberately linear, not tabbed.** Tabs let a user open How with
 - **How (PRD)** shows PRD-specific signals: ask-experts Q&A count, FR/NFR/SR counts, and **mesh-grounding scores** (the PRD-pack reviewers score against CALM/ADRs and STRIDE/OWASP, not against code yet). MISSING items from the reviewers are inline.
 - **What (Code Design)** is where the **code-grounded** Architecture and Security scores live. The `code-design-agent` persona-switches through `code-design/architecture-review` + `code-design/security-review` against the actual indexed code repos: CALM drift analysis, interface contract diffs (`oasdiff` / `buf` / `graphql-inspector`), OWASP pattern scan in real code, threat-model compliance applied to code-as-it-will-exist. **This is the heaviest gate** and where "Arch 88 ✓ · Sec 84 ✓" earns its weight.
 
----
+
 
 ## The audit closeout: one report, one answer
 
@@ -706,7 +706,7 @@ The shipped internal report is for the audience that already has read access to 
 
 This is what closes the **EU AI Act Article 12** requirement (automatic logging, ≥6-month retention, model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** ("prompt as design evidence") demonstrable. It is also what makes incident review survivable. When something ships wrong, the question is no longer "who approved this?" It's "click the OKR. Export the audit. Open the chain ladder."
 
----
+
 
 ## Why this is the right way to govern AI engineering
 
@@ -720,7 +720,7 @@ Three claims, each falsifiable.
 
 > 🎩 **Where this runs.** Every agent in the Hatter's Tea Party runs in **GitHub's hosted Coding Cloud agent** runtime — no agent-orchestration stack to deploy, no inference infra to operate, no third-party model platform required. The mesh is a GitHub repo, the agents are `.github/agents/*.agent.md` files, the gates are GitHub Actions workflows, and the LLM is reached through the Coding Agent's built-in MCP routes. Cost ceiling: a few dollars per OKR pipeline. Onboarding ceiling: one GitHub App install. We considered enterprise inference targets (Azure AI Foundry, self-hosted) and chose not to — the audit chain + threat model are the differentiators, not the runtime, and the value of one-click adoption beats the value of running our own stack.
 
----
+
 
 ## Where this lives, and where to read next
 
@@ -749,7 +749,7 @@ Everything here is **design**. Implementation is phased; you can track progress 
   </div>
 </div>
 
----
+
 
 <div class="docs-hero-flourish">
   <em>"Have I gone mad?"</em> · <em>"I'm afraid so. You're entirely bonkers. But I'll tell you a secret. All the best people are."</em>
