@@ -265,7 +265,7 @@ Tuesday afternoon, the mesh writes the code design. It reads the actual reposito
 
 The coding agents take over. Each tool call they make is checked against the architecture in milliseconds. The wrong action is blocked before it happens, not flagged at code review. Every hook decision writes a local audit line with the verdict and the rule ID. Approved overrides do not slip through as ordinary allows; they record which rule was bypassed and which approval source allowed it. The pull request opens carrying provenance, not surprises.
 
-By Wednesday morning, the work is in main. Behind it: one chain, three signatures, three human approvals, eleven minutes of agent runtime, drift score 0.74.[^cert5] If anyone asks where any of it came from, you don't have to guess.
+By Wednesday morning, the work is in main. Behind it: one chain, three signatures, three human approvals, and a drift check that stayed inside the approved objective.[^cert5] If anyone asks where any of it came from, you don't have to guess.
 
 **The work happened. You read the receipts.**
 
@@ -897,50 +897,68 @@ We built on **FINOS CALM**, the Common Architecture Language Model — an open s
 
 ## What no one else has
 
-We reviewed the leading vendors across Internal Developer Portals, Enterprise Architecture Management, and AI-Assisted Software Engineering. Each has real strengths. Every one is missing the same thing: **architecture governance that reaches the developer and the agent simultaneously.**
+We reviewed the landscape across internal developer portals, enterprise architecture tools, event catalogs, service scorecards, and AI-assisted coding platforms. Each category is useful. Each category also stops at a different boundary.
 
-| Capability | MaintainabilityAI | Backstage | Port.io | LeanIX | EventCatalog | OpsLevel |
-|:-----------|:-:|:-:|:-:|:-:|:-:|:-:|
-| **CALM Architecture Modeling** | **Native** | — | — | ArchiMate | EDA only | — |
-| **Four-Pillar Governance** | **Yes** | Plugin | Scorecards | Fact sheets | Linter | Maturity |
-| **STRIDE Threat Modeling** | **AI-Generated** | — | — | — | — | — |
-| **OWASP Prompt Packs** | **Embedded** | — | — | — | — | — |
-| **Agentic Architecture Review** | **Oraculum** | — | — | — | Chat Q&A | AI assist |
-| **Interactive Diagram Editor** | **ReactFlow + ELK** | — | — | Lucid-style | Auto-gen | — |
-| **Image & Repo to Architecture** | **Both** | — | — | — | Photo (beta) | — |
-| **Upstream intent governance** | **Hatter's Tea Party** | — | — | — | — | — |
-| **Deterministic enforcement at agent action** | **Red Queen's Court** | — | — | — | — | — |
-| **Cross-repo audit chain** | **intent_thread_uuid** | — | — | — | — | — |
+Developer portals and service scorecards tell teams what exists and whether it is healthy. Enterprise architecture tools help leaders reason about portfolios and dependencies. Event catalogs document message flows. Coding agents accelerate implementation. Governance dashboards collect evidence after the fact.
 
-Backstage catalogs services without understanding their architecture. Port.io tracks scorecards focused on operational health, not architecture governance. LeanIX models architecture from the CIO's dashboard, disconnected from code. EventCatalog documents event-driven systems with zero security features. OpsLevel measures service maturity, not architectural quality.
+The missing layer is the one in the middle: **architecture governance that reaches the developer, the agent, and the governance system at the same time.**
 
-**MaintainabilityAI is the only tool that starts from the architecture model and makes governance real in the developer's workflow *and* the agent's tool call.**
+<div class="docs-proof-list docs-proof-list-compact">
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">Developer</span>
+    <div>
+      <p class="docs-proof-title">Constraints show up where work happens</p>
+      <p class="docs-proof-body">Developers see the CALM model, BAR score, threats, ADRs, and fitness expectations inside Looking Glass before the code design lands. The design is not a detached architecture artifact; it is the map the work has to follow.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Different from:</strong> catalog-only tools that know a service exists but cannot prove a new PRD or code design respected its architecture.</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">Agent</span>
+    <div>
+      <p class="docs-proof-title">Agent actions hit deterministic rails</p>
+      <p class="docs-proof-body">Planning agents must cite mesh evidence, source tags, and real code paths. Coding agents face Red Queen action checks before side effects. The agent can synthesize, but deterministic skills prove what it saw and deterministic gates decide what it may do.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Different from:</strong> coding assistants that move fast but leave provenance, tool use, and policy enforcement to screenshots, logs, or human memory.</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">Governance</span>
+    <div>
+      <p class="docs-proof-title">Audit evidence is born with the work</p>
+      <p class="docs-proof-body">Every WHY, HOW, and WHAT action produces a signed chain, a human gate, and an internal closeout report. The same evidence a reviewer sees before merge is what the auditor can replay later.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Different from:</strong> governance dashboards that collect artifacts after the fact, when the chain of causality is already blurry.</div>
+  </div>
+</div>
 
-**Court Recorder Auto-Logging — every audit event has one legitimate source, contract-pinned with a regression test.**
+That is the claim: not "one more portal," not "one more reviewer bot," and not "AI governance as a spreadsheet." MaintainabilityAI starts from the architecture model and makes it executable across intent, developer workflow, and agent tool calls.
 
-**What it prevents:** Other "AI governance" products log what the agent *claims* it did — a self-report the LLM could fabricate, omit, or paraphrase. The Court Recorder removes that fabrication surface because the runtime records factual tool use directly, not the agent's self-report.
+**Court Recorder Auto-Logging — the agent cannot write its own alibi.**
 
-**How it works:** Hatter's Tea Party splits the record into three lanes. The runtime records factual tool use (`skill_call`) inside `runSkill()` before the result returns to the agent. The workflow records facts it can recompute from GitHub (`artifact_written`, `state_transition`, `human_gate`). The agent signs the judgments only it can make (`self_review`, `gap_loop`, future review handoffs) under its per-epoch key. The emitted payload shape is documented in a canonical contract and pinned by an automated regression test — any drift between the emitter and downstream audit consumers breaks the test before reaching production.
+**What it prevents:** Most AI governance logs are still self-reports: the agent says what it did, the platform stores the claim, and a reviewer has to trust the narrator. The Court Recorder removes that weak spot. Facts are recorded by the system that observes them, not by the model that benefits from looking compliant.
 
-**What the auditor sees:** Every event in the chain has one and only one legitimate source. If a caller claims the wrong source — workflow-attribution on an agent kind, signed workflow event, missing signer epoch — the verifier rejects the chain. This is the trust upgrade you can't buy. It's an architectural property, not a vendor feature.
+**How it works:** The audit chain has three legitimate authors. The runtime records tool use before the tool result returns to the agent. The workflow records facts it can recompute from GitHub, such as which artifact was written and which state changed. The agent signs only the judgments that actually require judgment, such as self-review scores and gap-loop intent. The event shape is documented in a canonical contract and pinned by a regression test, so emitter drift breaks before production.
+
+**What the auditor sees:** Every event has one allowed source. If the wrong source tries to emit it, the verifier rejects the chain. That is the trust upgrade: the audit log is not a polished story about the run; it is the run's source-of-record.
 
 ---
 
-**The Tweedles, inside one agent — a bounded contrarian debate that makes the document better.**
+**The Tweedles, inside one agent — a bounded contrarian debate that improves the artifact.**
 
-**What it prevents:** The PRD and the code design are not single-pass writeups. A single-pass artifact glosses over soft non-functional gaps (latency thresholds without justification, availability claims without budgets, threat coverage written as prose instead of structured requirements). The Tweedles loop catches those because the author has to argue against its own draft from two different angles before the loop converges.
+**What it prevents:** A single-pass PRD or code design usually looks confident before it is complete. It may list functional requirements without acceptance boundaries, name a latency target without a budget, or describe threat coverage in prose without turning it into security requirements. The Tweedles loop forces the draft to survive pressure before a human approves it.
 
-**How it works:** After the author agent drafts the artifact, it switches hats. The **Architect persona** scores it on architecture fit — does it stand on real CALM nodes, respect the architectural decisions already on record, and have coherent cross-system interface contracts? The **Security persona** scores it through a different lens — are the threats in scope actually covered by security requirements, the OWASP categories triggered by those threats reflected in the spec, the NIST control families called out? Each persona writes a structured Self-review block on the PR and signs a `self_review` event under the session's key. If either flagged gaps, the author revises and the loop runs again, up to a ceiling the **business system's risk tier** (not the agent) decides: three rounds for Autonomous, two for Supervised, zero for Restricted (which goes straight to human review).
+**How it works:** After the author agent drafts the artifact, it switches hats. The **Architect persona** checks whether functional requirements map to real CALM nodes, ADRs, interface contracts, and brownfield code paths. The **Security persona** checks whether security requirements map to actual threats, OWASP categories, and control families instead of vague assurance language. Both personas also look for non-functional gaps: p95 targets without evidence, availability claims without failure budgets, rollout plans without rollback rules.
 
-**What the auditor sees:** A walkable convergence ladder on the audit chain. Architect MINOR round 1 → Security MINOR round 1 → Architect PASS round 2 → Security PASS round 2. The document got better, and the evidence proves it. This is not independence theatre — the point is pressure that makes the artifact better, with a signed trail showing exactly which round closed which gap.
+Each persona writes a structured self-review block on the PR and signs a `self_review` event under the session's key. If either persona finds gaps, the author revises and the loop runs again, up to a ceiling set by the business system's risk tier: three rounds for Autonomous, two for Supervised, zero for Restricted, which goes straight to human review.
+
+**What the auditor sees:** A convergence ladder on the audit chain. Architect MINOR round 1, Security MINOR round 1, Architect PASS round 2, Security PASS round 2. The artifact got better, and the evidence shows which round closed which gap. This is not independence theatre; the point is disciplined pressure, not extra agents.
 
 ---
 
-**Court Recorder records. Knight's Seal proves. Audit Report explains. — three primitives, one sequence.**
+**Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence.
 
 **What each does:** The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export turns the chain into a one-click markdown closeout per OKR action — runner crypto verdict at the top, control mapping in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL.
 
-**What the auditor sees:** A single self-contained markdown closeout per merged action, plus the two source files (`<artifact>.md` + `<runId>.jsonl`) it cites. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
+**What the auditor sees:** A single self-contained markdown closeout per merged action, plus the core source files it cites: the artifact, JSONL chain, ladder, and public keys. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
 
 <div class="docs-center-block">
 <div class="docs-heading">Every event has one legitimate author. Anything else is forgery.</div>
@@ -1294,7 +1312,7 @@ Five actors the Hatter must withstand:
   <rect x="662" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="717" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Tier deterministic</text>
   <rect x="662" y="136" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="717" y="151" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Prompt injection</text>
+  <text x="717" y="151" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">EoP via injection</text>
   <rect x="662" y="164" width="110" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
   <text x="717" y="179" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Pack signing (B+)</text>
   <!-- ASTRIDE row — AI-agent-specific threats (the "A" category that STRIDE alone doesn't cover) -->
@@ -1583,7 +1601,7 @@ No live system access. No proprietary tooling. Five checks land the story:
   </div>
   <div class="docs-card docs-card-indigo">
     <div class="docs-card-kicker">WHAT · code design phase</div>
-    <div class="docs-copy">Signed chain end-to-end across multiple PRs covering both modes: one grounded against an existing repo (cited file inventory at a specific commit), one returning a scaffolding spec for a repo that did not exist yet. Both modes recorded in the audit so a reviewer can see the agent did not hallucinate either side.</div>
+    <div class="docs-copy">Signed chain end-to-end across multiple PRs covering both modes: one grounded against an existing repo (cited file inventory at a specific commit), one returning a scaffolding spec for a repo that did not exist yet. Both modes recorded so a reviewer can verify the agent grounded each correctly.</div>
   </div>
 </div>
 
