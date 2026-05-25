@@ -186,10 +186,20 @@ runs:
         # The append-workflow-events.mjs script:
         #   1. Computes artifact_written payload (path, sha, bytes, merge_sha)
         #   2. Idempotency: match → no-op, conflict → hard fail
-        #   3. Appends artifact_written via runner (signed/chained by runner)
+        #   3. Appends artifact_written via runner (chained, unsigned, re-derivable)
         #   4. Same idempotency + append for state_transition (if meta rolled)
         #   5. Runs audit-verify-chain post-append
         #   6. Non-zero exit on any failure → action aborts before commit
+        #
+        # Codex polish note (2026-05): workflow-emitted events here are
+        # CHAINED (prev_event_hash linkage) and AUDIT-VERIFIED (the
+        # verify step at step 5 walks the chain), but NOT SIGNED — the
+        # per-epoch ephemeral private key was generated in the agent's
+        # session and is out of scope by the time finalize runs on main
+        # post-merge. They're in the Bug V workflow-allowlist and are
+        # re-derivable from canonical sources (git diff for
+        # artifact_written, okr.yaml diff for state_transition), so
+        # absence of signature is by-design, not a trust gap.
         #
         # The runner appends to the per-run JSONL, which we git-add below.
         JSONL="okrs/${{ inputs.okr-id }}/audit/events/$RUN_ID.jsonl"
