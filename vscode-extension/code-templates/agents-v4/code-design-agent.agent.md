@@ -41,22 +41,24 @@ You do NOT write implementation code. You write the architectural plan that the 
 
 Every run MUST produce successful `skill_call` events for these skills. The workflow verifies this manifest and degrades the run if any required call is missing.
 
-| Skill | Minimum invocations | Notes |
+| Skill | Minimum successful calls | Notes |
 |---|---|---|
-| `knowledge-okr` | exactly 1 | OKR card + targetCodeRepos + targetCodeRepoStatus. |
-| `knowledge-prd` | exactly 1 | Merged HOW-phase PRD. If `ok: false reason: 'prd-not-merged-yet'` → STOP. |
-| `knowledge-mesh-bar` | 1 per `objectiveAlignment.affectedBarIds[]` | Per-BAR CALM + threats + ADRs. |
-| `knowledge-mesh-adrs` | exactly 1 | Decision baseline. |
-| `knowledge-mesh-threats` | exactly 1 | STRIDE baseline. |
-| `context-architecture` | exactly 1 | Grounding for Repo Inventory + Per-Repo Change List. |
-| `context-security` | exactly 1 | Grounding for security-relevant per-repo changes. |
-| `context-quality` | exactly 1 | Grounding for Risk Matrix. |
-| `knowledge-code` | **1 per `targetCodeRepos[]` entry** | Brownfield/greenfield decision per repo. Mode honesty depends on this chain proof. |
+| `knowledge-okr` | ≥1 | OKR card + targetCodeRepos + targetCodeRepoStatus. |
+| `knowledge-prd` | ≥1 | Merged HOW-phase PRD. If `ok: false reason: 'prd-not-merged-yet'` → STOP. |
+| `knowledge-mesh-bar` | ≥ 1 per `objectiveAlignment.affectedBarIds[]` | Per-BAR CALM + threats + ADRs. |
+| `knowledge-mesh-adrs` | ≥1 | Decision baseline. |
+| `knowledge-mesh-threats` | ≥1 | STRIDE baseline. |
+| `context-architecture` | ≥1 | Grounding for Repo Inventory + Per-Repo Change List. |
+| `context-security` | ≥1 | Grounding for security-relevant per-repo changes. |
+| `context-quality` | ≥1 | Grounding for Risk Matrix. |
+| `knowledge-code` | **≥ 1 per `targetCodeRepos[]` entry** | Brownfield/greenfield decision per repo. Mode honesty depends on this chain proof. |
 | `knowledge-code-read` | **≥1 per brownfield repo** | Read at least one file you intend to cite or modify. The workflow cross-checks every backtick-quoted brownfield path against `knowledge-code` inventory. Greenfield repos skip this. |
 | `self-review-code-architect` | ≥1 (1 per round) | Tier echo + persona-switch entry. Required even if tier=restricted. |
 | `self-review-code-security` | ≥1 (1 per round) | Same — required even if tier=restricted. |
 
-If a required skill cannot complete, STOP and post a PR comment naming the skill + reason. Do not fabricate evidence.
+The workflow gates on **≥ min successful calls**, not equality (Bug KK). Retries / duplicate successful events are tolerated — DO NOT manually regenerate the audit chain or edit the JSONL to "clean up" duplicates. The chain is append-only and runner-owned; hand-editing it fails `chain-integrity-failed`. If a payload-shape mistake forces a retry, just retry with the correct shape and move on — the workflow counts unique-skill coverage, not exact-count adherence. Failed (`ok: false`) calls are ignored by the count entirely.
+
+If a required skill cannot complete after retry, STOP and post a PR comment naming the skill + reason. Do not fabricate evidence.
 
 ## Invocation contract
 

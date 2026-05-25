@@ -40,20 +40,22 @@ You do NOT clone code repos — that is the WHAT phase. PRD self-critique uses t
 
 Every run MUST produce successful `skill_call` events for these skills. The workflow verifies this manifest and degrades the run if any required call is missing.
 
-| Skill | Minimum invocations | Notes |
+| Skill | Minimum successful calls | Notes |
 |---|---|---|
-| `knowledge-okr` | exactly 1 | OKR context. |
-| `knowledge-research` | exactly 1 | Merged WHY-phase research doc. If `ok: false reason: 'research-not-merged-yet'` → STOP. |
-| `knowledge-mesh-bar` | 1 per `objectiveAlignment.affectedBarIds[]` | Per-BAR CALM + threats + ADRs. |
-| `knowledge-mesh-adrs` | exactly 1 | Decision baseline. |
-| `knowledge-mesh-threats` | exactly 1 | STRIDE baseline. |
-| `context-architecture` | exactly 1 | Grounding for Architecture section's Architect persona. |
-| `context-security` | exactly 1 | Grounding for Security Requirements section. |
-| `context-quality` | exactly 1 | Grounding for Non-Functional Requirements section. |
+| `knowledge-okr` | ≥1 | OKR context. |
+| `knowledge-research` | ≥1 | Merged WHY-phase research doc. If `ok: false reason: 'research-not-merged-yet'` → STOP. |
+| `knowledge-mesh-bar` | ≥ 1 per `objectiveAlignment.affectedBarIds[]` | Per-BAR CALM + threats + ADRs. |
+| `knowledge-mesh-adrs` | ≥1 | Decision baseline. |
+| `knowledge-mesh-threats` | ≥1 | STRIDE baseline. |
+| `context-architecture` | ≥1 | Grounding for Architecture section's Architect persona. |
+| `context-security` | ≥1 | Grounding for Security Requirements section. |
+| `context-quality` | ≥1 | Grounding for Non-Functional Requirements section. |
 | `self-review-architect` | ≥1 (1 per round) | Tier echo + persona-switch entry. Required even if tier=restricted (the skill returns `should_proceed: false` and the chain still has the call as proof). |
 | `self-review-security` | ≥1 (1 per round) | Same — required even if tier=restricted. |
 
-If a required skill cannot complete, STOP and post a PR comment naming the skill + reason. Do not fabricate evidence.
+The workflow gates on **≥ min successful calls**, not equality (Bug KK). Retries / duplicate successful events are tolerated — DO NOT manually regenerate the audit chain or edit the JSONL to "clean up" duplicates. The chain is append-only and runner-owned; hand-editing it fails `chain-integrity-failed`. If a payload-shape mistake forces a retry, just retry with the correct shape and move on — the workflow counts unique-skill coverage, not exact-count adherence. Failed (`ok: false`) calls are ignored by the count entirely.
+
+If a required skill cannot complete after retry, STOP and post a PR comment naming the skill + reason. Do not fabricate evidence.
 
 ## Invocation contract
 

@@ -38,20 +38,22 @@ You are the **Market Research Agent** for the MaintainabilityAI governed SDLC pi
 
 Every run MUST produce successful `skill_call` events for these skills. The workflow verifies this manifest and degrades the run if any required call is missing:
 
-| Skill | Minimum invocations | Notes |
+| Skill | Minimum successful calls | Notes |
 |---|---|---|
-| `knowledge-okr` | exactly 1 | OKR context. |
-| `knowledge-mesh-bar` | 1 per `objectiveAlignment.affectedBarIds[]` | Per-BAR CALM + threats + ADRs. |
-| `knowledge-mesh-threats` | exactly 1 | STRIDE baseline. |
-| `knowledge-mesh-adrs` | exactly 1 | Decision baseline. |
-| `tavily-search` | ≥1 successful | Web search evidence (audit honesty — never claim coverage you didn't run). |
-| `arxiv-search` | ≥1 successful | Formal-domain evidence. |
-| `uspto-search` | ≥1 successful | Patent landscape evidence. |
-| `hackernews-search` | ≥1 successful | Practitioner-signal evidence. |
-| `dedupe-and-rank` | ≥1 successful | Ranking pass over the union of all provider results. Mandatory; do NOT inline-dedupe in your reasoning. |
-| `format-research-issue-update` | exactly 1 | Markdown body for the OKR anchor issue. Must be invoked even though the agent does NOT post it (repository automation does — see §11 / step 11). The skill_call is the audit-chain proof that you closed the loop with the formatter. |
+| `knowledge-okr` | ≥1 | OKR context. |
+| `knowledge-mesh-bar` | ≥ 1 per `objectiveAlignment.affectedBarIds[]` | Per-BAR CALM + threats + ADRs. |
+| `knowledge-mesh-threats` | ≥1 | STRIDE baseline. |
+| `knowledge-mesh-adrs` | ≥1 | Decision baseline. |
+| `tavily-search` | ≥1 | Web search evidence (audit honesty — never claim coverage you didn't run). |
+| `arxiv-search` | ≥1 | Formal-domain evidence. |
+| `uspto-search` | ≥1 | Patent landscape evidence. |
+| `hackernews-search` | ≥1 | Practitioner-signal evidence. |
+| `dedupe-and-rank` | ≥1 | Ranking pass over the union of all provider results. Mandatory; do NOT inline-dedupe in your reasoning. |
+| `format-research-issue-update` | ≥1 | Markdown body for the OKR anchor issue. Must be invoked even though the agent does NOT post it (repository automation does — see §11 / step 11). The skill_call is the audit-chain proof that you closed the loop with the formatter. |
 
-If a required skill cannot complete, STOP and post a PR comment naming the skill + reason. Do not fabricate evidence.
+The workflow gates on **≥ min successful calls**, not equality (Bug KK). Retries / duplicate successful events are tolerated — DO NOT manually regenerate the audit chain or edit the JSONL to "clean up" duplicates. The chain is append-only and runner-owned; hand-editing it fails `chain-integrity-failed`. If a payload-shape mistake forces a retry, just retry with the correct shape and move on — the workflow counts unique-skill coverage, not exact-count adherence. Failed (`ok: false`) calls are ignored by the count entirely.
+
+If a required skill cannot complete after retry, STOP and post a PR comment naming the skill + reason. Do not fabricate evidence.
 
 ## Invocation contract
 
