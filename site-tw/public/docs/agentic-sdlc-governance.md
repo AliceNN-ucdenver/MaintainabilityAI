@@ -249,10 +249,6 @@ That is the difference between a pile of coding assistants and a governed hybrid
 <div class="docs-copy">Five lifecycle stages × three parallel rails (judgment · proof · governance) × one signed audit chain underneath. <strong>OKR → WHY → HOW → WHAT ships today.</strong> BUILD fan-out is the next act. The full rail map sits in <a href="#how-we-keep-the-promises">How we keep the promises</a> below.</div>
 </div>
 
-<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="Compact teaser of the governed SDLC rail map — five lifecycle stages, three parallel rails (judgment, proof, governance), one signed audit chain." class="docs-svg" style="max-width: 680px; margin: 0 auto; display: block;" />
-
----
-
 ## A Monday morning
 
 It is Monday morning. A product leader writes one sentence into the mesh. "Let customers see their order status in one click, without exposing other accounts."
@@ -491,16 +487,16 @@ The Hatter governs what should be built and how it should be designed. The Red Q
 Two roles, one control plane, every artifact audit-chained from intent to shipped code. The Hatter governs **before** code is written: the human leading the agentic SDLC sees what their initiative will touch, and the agents executing see the same map. The Red Queen governs **while** code is written: each agent action checked against the architecture deterministically. **For a CIO, this is spending control on what gets built. For a CIRO, it's explainability of every regulated decision. For a CISO, it's threat-model coverage that doesn't collapse the moment agents accelerate.**
 
 <div class="docs-flex-block">
-  <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of the planning modality" class="docs-inline-image" />
+  <img src="/images/tea-party.png" alt="The Hatter's Tea Party, host of the planning modality" class="docs-inline-image" />
   <div>
     <div class="docs-card-kicker" style="color:#a5b4fc">🎩 Plan · upstream of code</div>
     <div class="docs-heading">The Hatter's Tea Party</div>
-    <p class="docs-copy">Turn an OKR into a code-grounded design, with provenance every reviewer can verify. The Hatter takes a one-line intent, grounds it in evidence, runs it past mesh-anchored experts, and lands a cross-cutting design that's been reviewed against the actual repos it will change — including reading real file contents from each brownfield repo, so the design cites paths that exist and quotes code the agent actually saw.</p>
+    <p class="docs-copy">Turn an OKR into a code-grounded design, with provenance every reviewer can verify. The Hatter takes a one-line intent, grounds it in evidence, runs it past mesh-anchored experts, and lands a cross-cutting design that's been reviewed against the actual repos it will change. It reads real file contents from each brownfield repo, so the design cites paths that exist and quotes code the agent actually saw.</p>
     <ul class="markdown-list list-disc">
-      <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Every hit (title, URL, snippet) lands in the audit chain — a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
+      <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Every hit (title, URL, snippet) lands in the audit chain, so a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
       <li class="docs-list-item">PRD refined by mesh-anchored clarifying questions; reviewers score it for mesh-grounding</li>
       <li class="docs-list-item">Cross-cutting code design grounded against every indexed target repo (the heaviest gate in the pipeline). The agent reads actual file contents from each brownfield clone, and the workflow rejects the design if it cites any file path that does not exist in the repo's inventory.</li>
-      <li class="docs-list-item"><strong>Audit Report Export</strong> — internal auditor closeout report ships now (one-click export of a markdown closeout per OKR action with a cryptographic pass/fail verdict, requirement traceability, and an event timeline). <em>The redacted external one-zip regulator bundle is the next act.</em></li>
+      <li class="docs-list-item"><strong>Audit Report Export:</strong> internal auditor closeout report ships now (one-click export of a markdown closeout per OKR action with a cryptographic pass/fail verdict, requirement traceability, and an event timeline). <em>The redacted external one-zip regulator bundle is the next act.</em></li>
     </ul>
     <p class="docs-copy"><a href="/docs/hatters-tea-party" class="docs-button-primary">Open the Tea Party →</a></p>
   </div>
@@ -520,7 +516,7 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
     </ul>
     <p class="docs-copy"><a href="/docs/red-queens-court" class="docs-button-primary">Open the Court →</a></p>
   </div>
-  <img src="/images/redqueen.png" alt="The Red Queen — chess-piece queen, host of the enforcement modality" class="docs-inline-image" />
+  <img src="/images/redqueen.png" alt="The Red Queen, chess-piece queen and host of the enforcement modality" class="docs-inline-image" />
 </div>
 
 If the Hatter does the planning work well, the Red Queen rarely has to deny. If the Red Queen catches what the Hatter missed, the system stays safe. The two together are the agentic governed SDLC.
@@ -891,7 +887,7 @@ Create a review. Select prompt packs. Assign Claude Code or Copilot Coding Agent
 
 ### CALM 1.2: architecture as code
 
-We built on **FINOS CALM**, the Common Architecture Language Model — an open standard from the Linux Foundation backed by Morgan Stanley, JPMorgan, and ThoughtWorks. JSON-based. Git-native. Machine-readable. The architecture standard built for the agentic age. MaintainabilityAI is one of the earliest production implementations of CALM 1.2, already shipping what the ThoughtWorks Technology Radar is moving from "Trial" to "Adopt."
+We built on **FINOS CALM**, the Common Architecture Language Model. It is an open standard from the Linux Foundation backed by Morgan Stanley, JPMorgan, and ThoughtWorks. JSON-based. Git-native. Machine-readable. The architecture standard built for the agentic age. MaintainabilityAI is one of the earliest production implementations of CALM 1.2, already shipping what the ThoughtWorks Technology Radar is moving from "Trial" to "Adopt."
 
 ---
 
@@ -932,7 +928,7 @@ The missing layer is the one in the middle: **architecture governance that reach
 
 That is the claim: not "one more portal," not "one more reviewer bot," and not "AI governance as a spreadsheet." MaintainabilityAI starts from the architecture model and makes it executable across intent, developer workflow, and agent tool calls.
 
-**Court Recorder Auto-Logging — the agent cannot write its own alibi.**
+**Court Recorder Auto-Logging: the agent cannot write its own alibi.**
 
 **What it prevents:** Most AI governance logs are still self-reports: the agent says what it did, the platform stores the claim, and a reviewer has to trust the narrator. The Court Recorder removes that weak spot. Facts are recorded by the system that observes them, not by the model that benefits from looking compliant.
 
@@ -942,7 +938,7 @@ That is the claim: not "one more portal," not "one more reviewer bot," and not "
 
 ---
 
-**The Tweedles, inside one agent — a bounded contrarian debate that improves the artifact.**
+**The Tweedles, inside one agent: a bounded contrarian debate that improves the artifact.**
 
 **What it prevents:** A single-pass PRD or code design usually looks confident before it is complete. It may list functional requirements without acceptance boundaries, name a latency target without a budget, or describe threat coverage in prose without turning it into security requirements. The Tweedles loop forces the draft to survive pressure before a human approves it.
 
@@ -956,7 +952,7 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
 
 **Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence.
 
-**What each does:** The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export turns the chain into a one-click markdown closeout per OKR action — cryptographic pass/fail verdict at the top, requirement traceability in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL.
+**What each does:** The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it; any tamper breaks the signature, and the runner re-verifies on every PR. The Audit Report Export turns the chain into a one-click markdown closeout per OKR action: cryptographic pass/fail verdict at the top, requirement traceability in the middle, event timeline at the bottom. An auditor reads one document instead of grepping JSONL.
 
 **What the auditor sees:** A single self-contained markdown closeout per merged action, plus the core source files it cites: the artifact, JSONL chain, ladder, and public keys. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
 
@@ -1146,7 +1142,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
 <div class="docs-heading">The new SDLC is not a loop. It is a governed evidence pipeline.</div>
 </div>
 
-<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages — OKR, WHY, HOW, WHAT shipped today, plus BUILD fan-out as the next act — each carry three parallel rails: agent judgment, deterministic proof, and human governance. All five stages write into a continuous signed audit chain at the bottom." class="docs-svg" />
+<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT shipped today, plus BUILD fan-out as the next act. Each carries three parallel rails: agent judgment, deterministic proof, and human governance. All five stages write into a continuous signed audit chain at the bottom." class="docs-svg" />
 
 
 <div class="docs-grid docs-grid-wide">
@@ -1154,7 +1150,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
     <div class="docs-card-kicker">Promise 1</div>
     <div class="docs-heading">One signed audit trail per OKR</div>
     <div class="docs-copy">Every agent session generates its own ephemeral signing key. The public key is committed to the mesh; the private key never leaves the session that created it. Every event the agent emits carries a signature plus the session number. Verification picks the right key per event and walks the chain from objective to merged code.</div>
-    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> a regression test pins the revise-round path so a second agent session can never overwrite the first epoch's keypair. The verifier rejects any chain with an unsigned agent-emitted event or an event missing <code>signer_epoch</code> — only workflow-emitted events may be unsigned (post-agent context, no key). One contract, no legacy escape hatch.</div>
+    <div class="docs-copy" style="margin-top:8px;font-size:11px;color:#94a3b8"><strong>How it's enforced:</strong> a regression test pins the revise-round path so a second agent session can never overwrite the first epoch's keypair. The verifier rejects any chain with an unsigned agent-emitted event or an event missing <code>signer_epoch</code>. Only workflow-emitted events may be unsigned (post-agent context, no key). One contract, no legacy escape hatch.</div>
   </div>
   <div class="docs-card docs-card-amber">
     <div class="docs-card-kicker">Promise 2</div>
@@ -1209,7 +1205,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   <text x="400" y="232" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">Trust earned, not granted. Per agent, per session, per event.</text>
 </svg>
 
-**How the three lanes work.** The runtime logs every skill call automatically — the agent never touches that log. The agent signs its own review scores (because judgment isn't deterministic, and a signature is what makes it auditable later). The workflow records what it can re-derive from git and pull-request state — file changes, label flips, reviewer approvals. Each event kind belongs to exactly one of those three lanes; if the wrong lane tries to emit something, the verifier won't accept it.
+**How the three lanes work.** The runtime logs every skill call automatically; the agent never touches that log. The agent signs its own review scores because judgment is not deterministic, and a signature is what makes it auditable later. The workflow records what it can re-derive from git and pull-request state: file changes, label flips, reviewer approvals. Each event kind belongs to exactly one of those three lanes; if the wrong lane tries to emit something, the verifier won't accept it.
 
 The threat model section below names the gaps we have not yet closed. We publish them openly because honest design beats marketing claims.
 
@@ -1393,7 +1389,7 @@ Five actors the Hatter must withstand:
     <span class="docs-proof-status docs-proof-status-queued">🛠 Queued</span>
     <div>
       <p class="docs-proof-title">External-shareable audit bundle needs a redaction layer</p>
-      <p class="docs-proof-body">The internal auditor closeout report ships today (markdown export, cryptographic pass/fail verdict, requirement traceability). It includes research, PRD, and design references verbatim — powerful for internal audit and incident response, but external sharing with regulators or downstream consumers needs an automated PII / IP / secrets scrubbing pass first. That redaction layer plus the one-zip packaging is what's queued for the next act.</p>
+      <p class="docs-proof-body">The internal auditor closeout report ships today (markdown export, cryptographic pass/fail verdict, requirement traceability). It includes research, PRD, and design references verbatim. That is powerful for internal audit and incident response, but external sharing with regulators or downstream consumers needs an automated PII / IP / secrets scrubbing pass first. That redaction layer plus the one-zip packaging is what's queued for the next act.</p>
     </div>
     <div class="docs-proof-evidence"><strong>Current state:</strong> token and cost counts are captured; prompt bodies are not stored. Redacted export is queued with Audit Report Export.</div>
   </div>
@@ -1424,13 +1420,13 @@ Five actors the Hatter must withstand:
 </div>
 
 <details>
-<summary><strong>Row-by-row detail for security teams</strong> — every concrete threat + the specific control in design + status (click to expand)</summary>
+<summary><strong>Row-by-row detail for security teams:</strong> every concrete threat + the specific control in design + status (click to expand)</summary>
 
 | STRIDE | Concrete threat | Control in design | Status |
 |---|---|---|:-:|
-| **Spoof** | Reviewer impersonates the author on the same PR | At PRD AND code-design time there is no separate reviewer agent — the author agent (prd-agent / code-design-agent) inhabits Architect + Security personas in bounded self-critique, so impersonation is structurally impossible. There is only one DID per artifact run; each persona-round emits its own agent-signed `self_review` audit event from inside the persona-prompt section. The workflow no longer synthesizes unsigned review events (Bug V, 2026-05-23) | ✓ |
+| **Spoof** | Reviewer impersonates the author on the same PR | At PRD AND code-design time there is no separate reviewer agent. The author agent (prd-agent / code-design-agent) inhabits Architect + Security personas in bounded self-critique, so impersonation is structurally impossible. There is only one DID per artifact run; each persona-round emits its own agent-signed `self_review` audit event from inside the persona-prompt section. The workflow no longer synthesizes unsigned review events (Bug V, 2026-05-23) | ✓ |
 | **Spoof** | Dual-signature override second-signer is impersonated | Fingerprint validation tying request to OKR + phase + reason + timestamp; Signer 2 confirmed via GitHub commenter handle or signed YAML commit; signer ≠ signer | ✓ |
-| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag; **Knight's Seal — per-event, per-epoch ephemeral Ed25519 signing** (each agent session is its own signer epoch with its own keypair; revise rounds advance to epoch 2, 3, …; the runner's `audit-verify-chain` skill cryptographically verifies every event against the right epoch's pub key on every PR — same code path the runner uses to write the chain). Cosign-anchored persistent signing for long-term third-party verifiability is the next act | ✓ |
+| **Spoof** | Author identity in audit log forged | GitHub App installation ID + `system_prompt_sha` on every Hatter Tag; **Knight's Seal: per-event, per-epoch ephemeral Ed25519 signing** (each agent session is its own signer epoch with its own keypair; revise rounds advance to epoch 2, 3, etc.; the runner's `audit-verify-chain` skill cryptographically verifies every event against the right epoch's pub key on every PR using the same code path the runner uses to write the chain). Cosign-anchored persistent signing for long-term third-party verifiability is the next act | ✓ |
 | **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain | 🛠 |
 | **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id; POSIX advisory locking within file; per-run filenames prevent cross-run collision | ✓ |
 | **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel | ✓ |
@@ -1440,20 +1436,20 @@ Five actors the Hatter must withstand:
 | **Tamper** | Agent cites fake sources or fake brownfield paths | Search-skill audit metadata includes `results_preview[]` with provider, query, title, URL, snippet, score, and published date where available. WHAT-phase brownfield runs record `inventory_paths` from `knowledge-code`, require `knowledge-code-read` per brownfield repo, and fail the path-citation gate if any cited path is missing from the inventory | ✓ |
 | **Tamper** | Dashboard shows a green seal or inflated metrics on a chain CI would reject | Looking Glass uses the shared `chainVerify.ts` contract: event kind must match origin, runtime/agent/workflow signing rules mirror the runner, malformed JSONL is treated as tampered, and forged events are excluded from metric extraction before CI finishes | ✓ |
 | **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted | ✓ |
-| **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal** (shipped) signs every event with the session's own ephemeral Ed25519 keypair — each agent session is its own signer epoch, so the agent's session is the only thing that could have produced the signature. The chain plus the per-epoch pub keys committed to the mesh are sufficient to reconstruct who signed what. Persistent third-party verifiability (cosign / sigstore) is the next act | ✓ |
+| **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal** (shipped) signs every event with the session's own ephemeral Ed25519 keypair. Each agent session is its own signer epoch, so the agent's session is the only thing that could have produced the signature. The chain plus the per-epoch pub keys committed to the mesh are sufficient to reconstruct who signed what. Persistent third-party verifiability (cosign / sigstore) is the next act | ✓ |
 | **Info disclosure** | LLM provider retains our prompts indefinitely | Out of our trust boundary; the design captures cost + token counts only, not prompt bodies | ⚠ |
 | **Info disclosure** | Sensitive research-source content lands in audit export | Pure-data Skills emit structured findings; no automated sensitive-content classification on results | ⚠ |
-| **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) — queued for a future release | ⚠ |
+| **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) yet. Queued for a future release | ⚠ |
 | **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments | ✓ |
 | **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy; workflow `timeout-minutes` on every bus workflow | ✓ |
-| **DoS** | Fan-out blast radius — one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; `design-bus.yml` will write an issue per entry. Cap + warn threshold queued for a future release | ⚠ |
-| **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference — the gate becomes self-reinforcing | ✓ |
+| **DoS** | Fan-out blast radius: one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; `design-bus.yml` will write an issue per entry. Cap + warn threshold queued for a future release | ⚠ |
+| **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference, so the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
-| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; **sanitization layer + data-vs-instructions partitioning is queued research** — `mesh_sha` does not sanitize hostile content | 🛠 |
-| **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` **detect** poisoned state across runs; **deterministic rejection of poisoned mesh artifacts is queued** — detection only today | 🛠 |
+| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; **sanitization layer + data-vs-instructions partitioning is queued research**. `mesh_sha` does not sanitize hostile content | 🛠 |
+| **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` **detect** poisoned state across runs; **deterministic rejection of poisoned mesh artifacts is queued**. Detection only today | 🛠 |
 | **ASTRIDE: A.inter-agent-influence** | Upstream agent's output steers a downstream agent | Partial coverage via Caterpillar's Challenge cross-phase semantic-drift check (PRD vs research; design vs PRD); full coverage requires agent-to-agent provenance signing | 🛠 |
-| **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge CI step invokes the runner's `audit-verify-chain` skill — same code path the runner uses to write the chain — which replays the SHA-256 hash chain AND cryptographically verifies every per-epoch Ed25519 signature; mismatch applies `chain-integrity-failed` and blocks merge (shipped) | ✓ |
+| **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge CI step invokes the runner's `audit-verify-chain` skill, using the same code path the runner uses to write the chain. It replays the SHA-256 hash chain AND cryptographically verifies every per-epoch Ed25519 signature; mismatch applies `chain-integrity-failed` and blocks merge (shipped) | ✓ |
 
 </details>
 
@@ -1492,14 +1488,14 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <span class="docs-proof-status docs-proof-status-partial">🛠 1 of 4 shipped</span>
     <div>
       <p class="docs-proof-title">ASTRIDE</p>
-      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes — prompt manipulation, poisoned memory, inter-agent influence, fake audit trails — are explicit rows in the threat model. Audit-fabrication is closed by the three-class ownership contract; prompt injection, memory poisoning, and inter-agent influence are partially controlled today (named gaps, not silent gaps).</p>
+      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes are explicit rows in the threat model: prompt manipulation, poisoned memory, inter-agent influence, fake audit trails. Audit-fabrication is closed by the three-class ownership contract; prompt injection, memory poisoning, and inter-agent influence are partially controlled today (named gaps, not silent gaps).</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Shipped (1 of 4):</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery — closes A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>Partial (3 of 4):</strong> A.prompt-injection (mesh_sha pinning is verifiable provenance, sanitization queued); A.memory-poisoning (mesh_sha detects, deterministic rejection queued); A.inter-agent-influence (Caterpillar's Challenge catches cross-phase semantic drift; full agent-to-agent provenance signing queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
+    <div class="docs-proof-evidence"><strong>Shipped (1 of 4):</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery. This closes A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>Partial (3 of 4):</strong> A.prompt-injection (mesh_sha pinning is verifiable provenance, sanitization queued); A.memory-poisoning (mesh_sha detects, deterministic rejection queued); A.inter-agent-influence (Caterpillar's Challenge catches cross-phase semantic drift; full agent-to-agent provenance signing queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
   </div>
 </div>
 
 <details>
-<summary><strong>Forrester AEGIS — row-by-row detail for security teams</strong> (click to expand)</summary>
+<summary><strong>Forrester AEGIS:</strong> row-by-row detail for security teams (click to expand)</summary>
 
 | Forrester domain | Forrester named control | MaintainabilityAI implementation | Status |
 |---|---|---|:-:|
@@ -1508,25 +1504,25 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | Data Security & Privacy | Data provenance, memory, enclaves | Hatter Tag pins `mesh_sha` + `prompt_pack_version` + chain root; every artifact traces back to source documents | ✓ |
 | Application Security & DevSecOps | Prompt engineering + supply-chain validation | Prompt packs versioned + SHA-stamped. **Pack-signature verification via cosign / sigstore** is a future enhancement that pairs with the persistent Knight's Seal evolution (v1 ephemeral keys, v2 cosign-anchored) | 🛠 |
 | Threat Management & SecOps | Real-time monitoring + detection engineering | Hatter hash-chained audit JSONL is queryable and replayable; Red Queen `.redqueen/audit-log.jsonl` records every hook and `validate_action` decision with verdict, rule ID, and override attribution. Signing Red Queen decisions under Knight's Seal is Queen's Next Act | ✓ / 🛠 |
-| Zero Trust | "Least agency" — minimum permissions per goal | Each agent's `.agent.md` declares a minimum-per-task `tools:` list; skill backends are pure-data and can't mutate beyond their declared writes. Red Queen enforces least agency at action time through pre-tool hooks, MCP `validate_action`, permission tiers, and custom team rules. There are no separate reviewer agents; the author agent's tool scope is bounded to what its persona-switch self-critique requires | ✓ |
+| Zero Trust | "Least agency": minimum permissions per goal | Each agent's `.agent.md` declares a minimum-per-task `tools:` list; skill backends are pure-data and can't mutate beyond their declared writes. Red Queen enforces least agency at action time through pre-tool hooks, MCP `validate_action`, permission tiers, and custom team rules. There are no separate reviewer agents; the author agent's tool scope is bounded to what its persona-switch self-critique requires | ✓ |
 
 **Core principles satisfaction.** *Least Agency* ✓ (per-agent tool whitelists). *Continuous Assurance* ✓ (every PR re-runs the gate workflows, not point-in-time review). *Explainable Outcomes* ✓ (audit JSONL is both human- and machine-readable; correctness summary PR comment names the failure reasons literally).
 
 </details>
 
 <details>
-<summary><strong>AEGIS Pre-Execution Firewall — row-by-row detail for security teams</strong> (click to expand)</summary>
+<summary><strong>AEGIS Pre-Execution Firewall:</strong> row-by-row detail for security teams (click to expand)</summary>
 
 | AEGIS Pre-Execution Firewall control | MaintainabilityAI implementation | Status |
 |---|---|:-:|
 | SHA-256 hash chain over every audit record | `prev_event_hash` linkage on every JSONL line; `chain_root_hash` pins the run | ✓ |
 | Tamper-evident audit trail | Modifying any past event breaks every subsequent `prev_event_hash`; the runner's `audit-verify-chain` skill catches it both online (CI) and offline (auditor re-run) | ✓ |
-| **Pre-merge chain verification (CI gate)** | `audit-and-drift` workflow calls the runner's `audit-verify-chain` skill — the same code path the runner uses to write the chain — pinned to a specific runner version per workflow template. Verifies SHA-256 hash chain integrity AND per-epoch Ed25519 signatures against every committed `<runId>.epoch-N.pub.pem`. One implementation, one source of truth, no drift between writer and verifier. Sealed chains that fail signature verification block merge with `chain-integrity-failed`; per-epoch chains that arrive unsealed are rejected too (the contract says signed). Closed the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
-| **Three-class event ownership (Court Recorder Auto-Logging + Bug V/W/Y/Z)** | The skill runtime emits `skill_call` events inside `runSkill()` itself. The workflow re-derives `artifact_written` from `git diff` and `state_transition` / `human_gate` from PR labels + reviewer state. The agent emits `self_review` via `audit-emit-event` from inside its persona-prompt section while its per-epoch private key is still in scope — the runner signs it cryptographically. The split is deterministic-vs-LLM: facts that deterministic code can derive are workflow-emitted; signed LLM judgment (persona-critique scoring) is agent-emitted; everything is cross-checked against the chain. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload. Bug Z also keeps the privileged runtime emitter off the package export surface so `internal:true` is not a consumer-callable API. | ✓ |
+| **Pre-merge chain verification (CI gate)** | `audit-and-drift` workflow calls the runner's `audit-verify-chain` skill, using the same code path the runner uses to write the chain, pinned to a specific runner version per workflow template. Verifies SHA-256 hash chain integrity AND per-epoch Ed25519 signatures against every committed `<runId>.epoch-N.pub.pem`. One implementation, one source of truth, no drift between writer and verifier. Sealed chains that fail signature verification block merge with `chain-integrity-failed`; per-epoch chains that arrive unsealed are rejected too (the contract says signed). Closed the gap where an agent that lost access to the `audit-emit-event` runner could hand-write the JSONL with fabricated hashes (observed on PR #105) | ✓ |
+| **Three-class event ownership (Court Recorder Auto-Logging + Bug V/W/Y/Z)** | The skill runtime emits `skill_call` events inside `runSkill()` itself. The workflow re-derives `artifact_written` from `git diff` and `state_transition` / `human_gate` from PR labels + reviewer state. The agent emits `self_review` via `audit-emit-event` from inside its persona-prompt section while its per-epoch private key is still in scope, and the runner signs it cryptographically. The split is deterministic-vs-LLM: facts that deterministic code can derive are workflow-emitted; signed LLM judgment (persona-critique scoring) is agent-emitted; everything is cross-checked against the chain. Closes three threats in one design: A.false-audit-fabrication, A.audit-skip, A.audit-forge-payload. Bug Z also keeps the privileged runtime emitter off the package export surface so `internal:true` is not a consumer-callable API. | ✓ |
 | **Audit-event payload contract pinned with a regression test** | The emitted event shape is documented in a canonical contract (`design/audit-event-shape.md`) and pinned by an automated test that asserts the flat-merge behavior, canonical-field-wins-on-collision, and absence of nested `payload.audit_metadata`. Any future drift between emitter + downstream auditor breaks the test before reaching production. Closes the operational-drift class of bugs where the contract was implicit and a workflow could silently read the wrong key | ✓ |
 | **Phase-spec cross-layer consistency tests** | The per-phase strings (agent name, label variants, artifact path, workflow file, meta-status transitions) live in a single source-of-truth map (`src/types/phaseSpec.ts`). Cross-layer consistency tests assert every label / agent / workflow this map references is also in the deploy registries. Drift between the extension and what's deployed to the mesh repo fails at test time, not at production-run time. Closes the class of bugs where a label was renamed in one place and silently broke `gh pr edit` somewhere else | ✓ |
-| Pre-execution interception (log before side effect) | `runSkill()` wraps every handler: emit the audit event before the result returns to the caller. The window between "skill ran" and "audit recorded" doesn't exist — they're the same function | ✓ |
-| **Ed25519 per-event, per-epoch signing (Knight's Seal)** | Each agent session is its own signer epoch with its own ephemeral Ed25519 keypair. The original agent invocation is epoch 1; the first revise-agent is epoch 2; the second revise is epoch 3; etc. The private key never leaves the session that created it; the public key is committed to the mesh at `audit/keys/<runId>.epoch-N.pub.pem`. Every emitted event carries its signature plus the `signer_epoch` value. CI invokes the runner's `audit-verify-chain` skill — same code path the runner uses to write the chain — which loads all epoch pub keys and verifies each event against the right one. A green Sealed badge surfaces in the Looking Glass phase card + the PR audit comment. Cosign / sigstore-anchored persistent signing is the next act | ✓ |
+| Pre-execution interception (log before side effect) | `runSkill()` wraps every handler: emit the audit event before the result returns to the caller. The window between "skill ran" and "audit recorded" doesn't exist because they're the same function | ✓ |
+| **Ed25519 per-event, per-epoch signing (Knight's Seal)** | Each agent session is its own signer epoch with its own ephemeral Ed25519 keypair. The original agent invocation is epoch 1; the first revise-agent is epoch 2; the second revise is epoch 3; etc. The private key never leaves the session that created it; the public key is committed to the mesh at `audit/keys/<runId>.epoch-N.pub.pem`. Every emitted event carries its signature plus the `signer_epoch` value. CI invokes the runner's `audit-verify-chain` skill, using the same code path the runner uses to write the chain, which loads all epoch pub keys and verifies each event against the right one. A green Sealed badge surfaces in the Looking Glass phase card + the PR audit comment. Cosign / sigstore-anchored persistent signing is the next act | ✓ |
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 | **Red Queen pre-side-effect decision log** | Claude Code and Copilot hooks validate Edit / Write / Bash before the action proceeds. Built-in rails emit stable rule IDs (`TIER-*`, `CTRL-*`, `SEC-*`, `CALM-*`, `PLAT-*`), and `customRules[]` lets teams add their own regex-scoped rule IDs. Every hook decision appends a fail-soft JSONL line with verdict, rule ID, tool, path, and session context | ✓ |
 | **Override attribution at action time** | When `REDQUEEN_TOOL_APPROVED`, `REDQUEEN_PLAN_APPROVED`, or `toolInput.redqueenApproved` flips a deny into an allow, the audit line records `override: true`, `bypassedRuleId`, and `approvalSource`. An override no longer looks like an ordinary allow | ✓ |
@@ -1536,12 +1532,12 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 
 #### One closeout report. Source files underneath.
 
-**What it prevents:** Most audit "trails" are a folder full of JSON nobody reads. An auditor opens it, can't tell signed from unsigned, can't tell what is a fact from what is a claim, gives up, and asks a person — at which point the audit has become a conversation, not a record. The closeout report removes that friction. Every merged action ships a single self-contained document an auditor can actually read.
+**What it prevents:** Most audit "trails" are a folder full of JSON nobody reads. An auditor opens it, cannot tell signed from unsigned, cannot tell what is a fact from what is a claim, gives up, and asks a person. At that point the audit has become a conversation, not a record. The closeout report removes that friction. Every merged action ships a single self-contained document an auditor can actually read.
 
-**How it works:** When an OKR action completes, Looking Glass exports one markdown document — one click in the dashboard — and writes it next to the artifact at `okrs/<id>/audit/exports/<runId>-report.md`. The document is laid out the way an auditor reads, top to bottom:
+**How it works:** When an OKR action completes, Looking Glass exports one markdown document with one click in the dashboard and writes it next to the artifact at `okrs/<id>/audit/exports/<runId>-report.md`. The document is laid out the way an auditor reads, top to bottom:
 
-- **The verdict, first.** Did the cryptographic verifier accept every signature and replay every hash, end to end? Pass or fail in the first line, with the chain head and event count next to it. This is the same verifier CI runs before merge — same code path, same result.
-- **The trust posture next.** A shape-level seal at a glance, plus a source-breakdown table naming where each input came from (canonical GitHub or local mesh) and whether the bytes the report displays match the bytes the verifier read.
+- **The verdict, first.** Did the cryptographic verifier accept every signature and replay every hash, end to end? Pass or fail in the first line, with the chain head and event count next to it. This is the same verifier CI runs before merge, using the same code path and producing the same result.
+- **The trust posture next.** A quick seal check at a glance, plus a source table naming where each input came from (canonical GitHub or local mesh) and whether the bytes the report displays match the bytes the verifier read.
 - **Evidence.** Which deterministic skills the agent called, how many times each, which failed. The fact record, not the agent's self-report.
 - **The self-review trail.** Each reviewer persona (Architect, Security) round by round, with the chain event ID that backs each score, so an auditor can jump to the source-of-record event in the JSONL without grep.
 - **Workflow facts.** What got written. What state changed. Which PR closed it. All re-derivable from git, all cross-checked.
@@ -1549,7 +1545,13 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 - **Control mapping.** Every declared security requirement traced back to the STRIDE category, the OWASP category, the PRD section that named it, and the design section that cites it.
 - **Cross-phase ladder.** How this action's chain links to the WHY, HOW, and WHAT chains around it.
 
-Underneath the closeout, the source files it cites sit on disk for any reviewer to walk independently — the merged artifact (`okrs/<id>/<phase>/<artifact>.md`), the hash-chained activity log (`okrs/<id>/audit/events/<run>.jsonl`), the cross-phase ladder (`audit/chain-ladder.yaml`), the per-session public signing keys (`audit/keys/<run>.epoch-*.pub.pem`), and the PRD the control mapping anchors to.
+Underneath the closeout, the source files it cites sit on disk for any reviewer to walk independently:
+
+- `okrs/<id>/<phase>/<artifact>.md`: the merged research document, PRD, or code design
+- `okrs/<id>/audit/events/<run>.jsonl`: the hash-chained activity log
+- `okrs/<id>/audit/chain-ladder.yaml`: the cross-phase WHY, HOW, and WHAT ladder
+- `okrs/<id>/audit/keys/<run>.epoch-*.pub.pem`: the public keys used to verify agent signatures
+- `okrs/<id>/how/prd.md`: the PRD the control mapping anchors to
 
 **What the auditor sees:** One self-contained document at the top. The source files below it. Nothing to grep, nothing to install, nothing to wait for. An internal auditor, a security architect, or an incident-response team at 3 AM walks the same evidence the runner verified, in the same order CI walked it.
 
@@ -1585,7 +1587,7 @@ No live system access. No proprietary tooling. Five checks land the story:
   </div>
 </div>
 
-> 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record — facts produced by deterministic code, judgments signed by the agent.
+> 🍵 **This is what closes EU AI Act Article 12** (≥6 month retention; model + inputs + operator + timestamps; deadline 2 August 2026) and what makes **SOC 2 CC8.1** demonstrable on every artifact the pipeline produces. The auditor's offline check matches the pre-merge CI check. One algorithm. Two replays. One trustworthy record: facts produced by deterministic code, judgments signed by the agent.
 
 > 🎯 **May 2026 live cert run.** All three planning agents shipped a real OKR on the open IMDB-Celebs sample, with every defense above firing on merged PRs. Each phase ended with a green Sealed badge in the dashboard, and the three phases linked to each other through the audit chain.
 
@@ -1606,41 +1608,41 @@ No live system access. No proprietary tooling. Five checks land the story:
   </div>
 </div>
 
-<p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-top:1rem;">The full exported closeout report — cryptographic pass/fail verdict, requirement traceability, event timeline — is in the mesh repo under <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code>.</p>
+<p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-top:1rem;">The full exported closeout report, including cryptographic pass/fail verdict, requirement traceability, and event timeline, is in the mesh repo under <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code>.</p>
 
 The "the agent cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion. The audit-event shape is regression-locked across the runtime, the workflow that reads the chain, and the dashboard that displays it. Drift between any two layers breaks at test time.
 
 ### What we're still closing
 
-We publish this list because honest design beats marketing claims. Every status badge in the tables above maps to one of the items below — what's shipped, what's queued for a named phase, what's open research with no committed date, and what's explicitly out of scope. Reviewers can scan it left to right.
+We publish this list because honest design beats marketing claims. Every status badge in the tables above maps to one of the items below: what's shipped, what's queued for a named phase, what's open research with no committed date, and what's explicitly out of scope. Reviewers can scan it left to right.
 
 <div class="docs-gap-list">
   <div class="docs-gap-row">
     <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
     <div>
-      <p class="docs-gap-title">Knight's Seal v2 — persistent external verification (cosign / sigstore)</p>
-      <p class="docs-gap-body">Knight's Seal v1 ships today (per-event, per-epoch Ed25519 signing — see hero promise + Court Recorder above) and is sufficient for internal replay: any reviewer with the mesh repo can verify any chain in place via the runner's <code>audit-verify-chain</code> skill. v2 anchors the same chain to cosign / sigstore so an external auditor a year out can verify a year-old artifact without trusting the key material embedded in its own audit log. Same signing primitive, durable external root of trust.</p>
+      <p class="docs-gap-title">Knight's Seal v2: persistent external verification (cosign / sigstore)</p>
+      <p class="docs-gap-body">Knight's Seal v1 ships today (per-event, per-epoch Ed25519 signing; see hero promise + Court Recorder above) and is sufficient for internal replay: any reviewer with the mesh repo can verify any chain in place via the runner's <code>audit-verify-chain</code> skill. v2 anchors the same chain to cosign / sigstore so an external auditor a year out can verify a year-old artifact without trusting the key material embedded in its own audit log. Same signing primitive, durable external root of trust.</p>
     </div>
   </div>
   <div class="docs-gap-row">
     <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
     <div>
       <p class="docs-gap-title">Red Queen signed enforcement chain</p>
-      <p class="docs-gap-body">Red Queen already writes a per-decision JSON log for every hook + <code>validate_action</code> call: verdict, rule ID, target, override attribution. Reviewable today. The remaining gap is cryptographic — those decision logs aren't yet folded into the same signed chain the Hatter side uses.</p>
+      <p class="docs-gap-body">Red Queen already writes a per-decision JSON log for every hook + <code>validate_action</code> call: verdict, rule ID, target, override attribution. Reviewable today. The remaining gap is cryptographic: those decision logs aren't yet folded into the same signed chain the Hatter side uses.</p>
       <p class="docs-gap-next"><strong>Next:</strong> signed <code>redqueen-action</code> events + a required status check + cross-chain inclusion proofs from OKR intent down to per-repo action.</p>
     </div>
   </div>
   <div class="docs-gap-row">
     <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
     <div>
-      <p class="docs-gap-title">Shipped: Internal Audit Report Export — auditor closeout per OKR action</p>
+      <p class="docs-gap-title">Shipped: Internal Audit Report Export, auditor closeout per OKR action</p>
       <p class="docs-gap-body">One-click markdown export from Looking Glass produces a closeout report per merged action containing the cryptographic pass/fail verdict, shape-level seal verdict, per-skill evidence table, per-persona self-review trail with <code>event_id</code> citations, workflow facts (<code>artifact_written</code> + <code>state_transition</code>), collapsible event timeline, a requirement traceability table tying security requirements to STRIDE, OWASP, the PRD, and the design, and the cross-phase WHY→HOW→WHAT ladder. Saved to <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code> for durable record.</p>
     </div>
   </div>
   <div class="docs-gap-row">
     <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
     <div>
-      <p class="docs-gap-title">Redacted external bundle — one zip for regulators</p>
+      <p class="docs-gap-title">Redacted external bundle, one zip for regulators</p>
       <p class="docs-gap-body">The internal closeout ships now. The next act packages it plus its source files (artifact, JSONL chain, ladder, pub keys) into a single downloadable zip, after running an automated PII / IP / secrets scrubbing pass so the bundle is safe to share with external auditors, regulators, or downstream consumers without exposing prompt internals or proprietary code references verbatim.</p>
     </div>
   </div>
@@ -1649,7 +1651,7 @@ We publish this list because honest design beats marketing claims. Every status 
     <div>
       <p class="docs-gap-title">Org-separation on dual-signature override</p>
       <p class="docs-gap-body">Today's override gate requires Signer 2 ≠ Signer 1, both human, both authorized by the org's override policy. What it doesn't catch: two engineers on the same team coordinating an override between themselves.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> org-graph-aware enforcement — different team and different cost-center required for the second signature.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> org-graph-aware enforcement with different team and different cost-center required for the second signature.</p>
     </div>
   </div>
   <div class="docs-gap-row">
@@ -1669,10 +1671,10 @@ We publish this list because honest design beats marketing claims. Every status 
     </div>
   </div>
   <div class="docs-gap-row">
-    <span class="docs-gap-status docs-gap-status-scope">— Out of scope</span>
+    <span class="docs-gap-status docs-gap-status-scope">Out of scope</span>
     <div>
       <p class="docs-gap-title">LLM-provider audit blind spot</p>
-      <p class="docs-gap-body">Anthropic and GitHub Copilot retain our prompts and outputs under their own retention policies. Our audit chain stops at the request boundary — we record token counts and costs, not prompt bodies.</p>
+      <p class="docs-gap-body">Anthropic and GitHub Copilot retain our prompts and outputs under their own retention policies. Our audit chain stops at the request boundary; we record token counts and costs, not prompt bodies.</p>
       <p class="docs-gap-next"><strong>Status:</strong> only changes if self-hosted inference is in scope, which it isn't on the current roadmap.</p>
     </div>
   </div>
@@ -1729,5 +1731,5 @@ Manage intent. Quality follows.
 
 <div class="docs-hero-flourish">
   <em>"Why, sometimes I've believed as many as six impossible things before breakfast."</em>
-  <br/><small>— Lewis Carroll</small>
+  <br/><small>Lewis Carroll</small>
 </div>
