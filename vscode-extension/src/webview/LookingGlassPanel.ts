@@ -30,6 +30,7 @@ import { AgentStatusService } from '../services/AgentStatusService';
 import { OrgScannerService } from '../services/OrgScannerService';
 import { ThreatModelService, exportThreatModelCsv } from '../services/ThreatModelService';
 import { GitSyncService, gitSyncService } from '../services/GitSyncService';
+import { checkMeshBranchGuard, recoverMeshBranch, formatMeshBranchGuardMessage } from '../services/MeshBranchGuard';
 import { CapabilityModelService } from '../services/CapabilityModelService';
 import { generateMermaidDiagrams } from '../services/CalmTransformer';
 import { readCalmArchitectureData, readLayoutFile, writeLayoutFile } from '../services/LayoutPersistenceService';
@@ -1660,17 +1661,27 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'No mesh configured' });
       return;
     }
+    const phaseLabel = phase.toUpperCase();
+
+    // Bug QQ/A-plus — branch guard FIRST, before any file read. If we
+    // need to recover (auto-switch to main + pull), the okr.yaml
+    // contents change underneath us, so reading the card before the
+    // guard would leave us with stale in-memory state. Doing the guard
+    // first means the subsequent okrService.read sees main's content,
+    // including any actions/state we just pulled.
+    if (!await this.withMainBranchGuard(meshPath, `Reset ${phaseLabel}`)) { return; }
+
     const okrService = this.meshService.getOkrService();
     const card = okrService.read(meshPath, okrId);
     if (!card) {
       this.postMessage({ type: 'error', message: `OKR not found: ${okrId}` });
       return;
     }
+
     const actionsForPhase = card.actions.filter(a => a.phase === phase);
     const runIds = actionsForPhase.map(a => a.runId);
     // Compute what would be deleted so the confirmation modal is concrete
     // (the user sees exactly what's about to go away — never blind delete).
-    const phaseLabel = phase.toUpperCase();
     const summary = [
       `okrs/${okrId}/${phase}/  — phase artifact directory`,
       `okrs/${okrId}/audit/events/${phaseLabel}-*.jsonl  — ${runIds.length} audit event file${runIds.length === 1 ? '' : 's'}`,
@@ -1747,6 +1758,70 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     });
     await this.onDrillIntoOkr(okrId, 'view');
     await this.onLoadOkrPhaseSignals(okrId);
+  }
+
+  /**
+   * Bug QQ/A-plus (2026-05-25) — fail-closed branch guard for every
+   * Looking Glass write operation against the mesh repo. Reads current
+   * branch via `git branch --show-current`; if not main, surfaces a
+   * VS Code modal with the right recovery affordance:
+   *
+   *   - clean tree: "Switch to main and retry" button → caller invokes
+   *     the recovered closure and the op resumes from scratch.
+   *   - dirty tree: refuse (cannot safely auto-switch — would discard
+   *     or fail). Modal lists the dirty files; user must commit / stash
+   *     / discard manually, then re-click the original button.
+   *   - divergent (branch has OKR commits not on main): warn the user
+   *     NOT to merge this branch; explain main is source of truth;
+   *     offer manual switch to main + retry.
+   *
+   * Returns true when the caller should proceed (HEAD is main, or the
+   * user accepted recovery and the recovery succeeded). Returns false
+   * when the caller MUST abort the write. The returned closure should
+   * be invoked by the caller's continuation path — it does not block
+   * here, the caller is responsible for re-entering its own logic.
+   *
+   * Operation label is purely cosmetic (used in the modal message) —
+   * e.g. "Redeploy", "Start WHAT", "Reset HOW".
+   */
+  private async withMainBranchGuard(meshPath: string, operationLabel: string): Promise<boolean> {
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (!gitRoot) {
+      // No git repo — non-fatal in dev/test, but surface so the user
+      // notices. Treat as pass-through; the underlying op will fail
+      // its own way if it needs git.
+      return true;
+    }
+    const guard = await checkMeshBranchGuard(gitRoot);
+    if (guard.ok) { return true; }
+
+    const message = formatMeshBranchGuardMessage(guard, operationLabel);
+    // Only the clean-tree case offers auto-recovery; dirty and divergent
+    // require manual user action so we never silently rearrange the
+    // working tree (the original Bug QQ foot-gun was exactly that —
+    // git operations doing things the user didn't authorize).
+    const buttons: string[] = guard.kind === 'wrong-branch-clean'
+      ? ['Switch to main and retry']
+      : [];
+    const choice = await vscode.window.showWarningMessage(
+      message,
+      { modal: true },
+      ...buttons,
+    );
+    if (choice !== 'Switch to main and retry') {
+      // User cancelled, or there was no recovery offered (dirty /
+      // divergent / git-error). Caller aborts.
+      return false;
+    }
+    // User accepted recovery. Run checkout + ff-pull, then signal the
+    // caller to re-enter.
+    const recovery = await recoverMeshBranch(gitRoot);
+    if (!recovery.success) {
+      void vscode.window.showErrorMessage(recovery.message);
+      return false;
+    }
+    void vscode.window.showInformationMessage(`${recovery.message} Resuming ${operationLabel}…`);
+    return true;
   }
 
   /**
@@ -1924,6 +1999,19 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'No mesh configured' });
       return;
     }
+
+    // Bug QQ/A-plus — branch guard BEFORE we even read okr.yaml. If
+    // the mesh checkout is on a feature branch, dispatching would
+    // (a) write the action entry to THAT branch's okr.yaml so the
+    // agent's self-review-code-architect / -security skills can't
+    // find the dispatched action when they read main, AND (b) create
+    // a GitHub issue that's only meaningful relative to that branch's
+    // OKR state. Failing here means we never even create the half-
+    // dispatched issue. Doing the guard before the read also means
+    // recovery (auto-switch + pull) lands main's content on disk
+    // before our okrService.read picks up the card.
+    if (!await this.withMainBranchGuard(meshPath, `Start ${phase.toUpperCase()}`)) { return; }
+
     const okrService = this.meshService.getOkrService();
     const card = okrService.read(meshPath, okrId);
     if (!card) {
@@ -1935,6 +2023,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Cannot start: OKR ${okrId} is paused.` });
       return;
     }
+
     const tier = okrService.tierForCard(meshPath, card);
 
     // Bug FF (2026-05) — pull-rebase before checking the in-progress
@@ -3790,6 +3879,12 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       this.postMessage({ type: 'syncError', barPath: '', message: 'Not a git repository.' });
       return;
     }
+
+    // Bug QQ/A-plus — Commit All on the wrong branch is the original
+    // foot-gun: extension writes everything to main intent, but `git
+    // push` against current HEAD lands on whatever branch is checked
+    // out. Guard refuses if not main.
+    if (!await this.withMainBranchGuard(meshPath, 'Commit mesh')) { return; }
 
     try {
       await execFileAsync('git', ['add', '-A'], { cwd: gitRoot });
@@ -5735,6 +5830,14 @@ Policy file: ${filename}
       this.postMessage({ type: 'error', message: 'No mesh configured' });
       return;
     }
+
+    // Bug QQ/A-plus — branch guard BEFORE we touch anything. If the
+    // mesh checkout is on a Copilot PR branch, this redeploy would
+    // commit + push the new workflows + agents to THAT branch instead
+    // of main, where the audit runner reads from. Fail closed and let
+    // the user recover (the helper handles the modal + auto-recovery
+    // for clean trees).
+    if (!await this.withMainBranchGuard(meshPath, 'Redeploy')) { return; }
 
     this.postMessage({ type: 'loading', active: true, message: 'Provisioning Oraculum workflow...' });
 

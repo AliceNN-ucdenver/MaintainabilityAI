@@ -939,3 +939,60 @@ describe('Bug II — every deployable MESH_WORKFLOWS body parses as valid YAML',
     ).toEqual([]);
   });
 });
+
+describe('Bug QQ/A-plus — MeshBranchGuard wired at every mesh-write site', () => {
+  // Source-grep regression. The four extension-driven write paths into
+  // the mesh repo MUST each invoke `withMainBranchGuard` before any
+  // git commit. The original Bug QQ was exactly the absence of this
+  // guard on `onProvisionWorkflow` — Settings → Redeploy silently
+  // committed to whatever branch the local mesh checkout happened to
+  // be on (the user's manual `git checkout copilot/...` for PR
+  // inspection). Same shape applies to dispatch (onConfirmStartOkr
+  // Phase), reset (onResetOkrPhase), and the legacy Commit-All path
+  // (onCommitMesh). Catching this at test time prevents a future
+  // refactor from regressing the guard out of any of the four.
+  const panelSource = fs.readFileSync(
+    path.join(EXTENSION_PATH, 'src', 'webview', 'LookingGlassPanel.ts'),
+    'utf8',
+  );
+
+  // Match the method declaration through to either the next method or
+  // end-of-class so the assertion is scoped to a single function body.
+  function extractMethod(source: string, name: string): string {
+    const re = new RegExp(`private async ${name}\\s*\\([^)]*\\)[^{]*\\{`);
+    const start = source.search(re);
+    if (start < 0) { return ''; }
+    // Brace-balance walk forward until depth returns to zero.
+    let depth = 0;
+    let i = start;
+    while (i < source.length) {
+      if (source[i] === '{') { depth++; }
+      else if (source[i] === '}') { depth--; if (depth === 0) { return source.slice(start, i + 1); } }
+      i++;
+    }
+    return source.slice(start);
+  }
+
+  it.each([
+    ['onProvisionWorkflow',     'Redeploy'],
+    ['onConfirmStartOkrPhase',  'Start'],   // label is `Start ${phase.toUpperCase()}` — substring match
+    ['onResetOkrPhase',         'Reset'],   // label is `Reset ${phaseLabel}` — substring match
+    ['onCommitMesh',            'Commit mesh'],
+  ])('%s body invokes withMainBranchGuard with operation label containing %j', (method, labelSubstring) => {
+    const body = extractMethod(panelSource, method);
+    expect(body, `${method} not found in LookingGlassPanel.ts`).not.toBe('');
+    expect(
+      body,
+      `${method} must invoke this.withMainBranchGuard(meshPath, …) before any git write. ` +
+      `Bug QQ regression: without this guard, the commit + push lands on whatever branch ` +
+      `the user's local mesh checkout happens to be on, not main.`,
+    ).toMatch(/this\.withMainBranchGuard\s*\(\s*meshPath\s*,/);
+    // The label substring is partial — confirms the operation name
+    // reaches the modal so the user knows which click is being refused.
+    expect(body).toContain(labelSubstring);
+  });
+
+  it('withMainBranchGuard helper itself exists with the expected shape', () => {
+    expect(panelSource).toMatch(/private async withMainBranchGuard\s*\(\s*meshPath\s*:\s*string\s*,\s*operationLabel\s*:\s*string\s*\)\s*:\s*Promise<boolean>/);
+  });
+});
