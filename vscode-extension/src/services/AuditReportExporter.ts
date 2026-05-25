@@ -1,3 +1,5 @@
+import * as YAML from 'yaml';
+
 // ============================================================================
 // AuditReportExporter — Phase E E3 (2026-05-25)
 //
@@ -59,7 +61,52 @@ export interface AuditReportInput {
    * input — caller MUST set it explicitly (no default).
    */
   sourceTag: string;
+  /**
+   * Codex E3-gold review (2026-05-25) — verdict from the runner's
+   * `skill-audit-verify-chain` skill, which does the crypto checks
+   * the UI verifier cannot (Ed25519 sig verify + per-event hash
+   * replay + chain_root_hash recompute). Caller shells out via
+   * `npx ... skill-audit-verify-chain` with stdin JSON before
+   * building the report; if shell-out fails or runner isn't
+   * available, caller passes `{ invoked: false, reason }` and the
+   * report renders RUNNER NOT INVOKED in the trust posture.
+   */
+  runnerVerdict: RunnerVerifyVerdict;
+  /**
+   * Optional raw PRD markdown for control-mapping (SR-NN →
+   * STRIDE/OWASP → PRD anchor → design section). When absent the
+   * report skips the "Control mapping" section instead of
+   * fabricating it.
+   */
+  prdText?: string | null;
+  /**
+   * Optional raw artifact markdown (research-doc.md / prd.md /
+   * code-design.md). Used to check which SR-NNs appear in §5 of the
+   * design — completes the control-mapping trace.
+   */
+  artifactText?: string | null;
 }
+
+/**
+ * Codex E3-gold (2026-05-25) — runner crypto verdict shape. Mirrors
+ * the JSON output of the `skill-audit-verify-chain` skill (see
+ * vscode-extension/code-templates/skills/audit-verify-chain/SKILL.md).
+ *
+ * Two cases:
+ *   `{ invoked: true, ok: true, chainHead, eventCount }` — runner ran,
+ *     verified end-to-end, returned the chain head + count.
+ *   `{ invoked: true, ok: false, reason }` — runner ran, found
+ *     tampering; reason is the canonical failure tag (e.g.
+ *     `prev-hash-mismatch-line-7`).
+ *   `{ invoked: false, reason }` — caller couldn't invoke (offline,
+ *     runner not installed, timeout, etc.). Report renders an
+ *     explicit "RUNNER VERIFICATION: NOT INVOKED" block so the
+ *     reviewer knows the gold step is missing.
+ */
+export type RunnerVerifyVerdict =
+  | { invoked: true; ok: true; chainHead: string; eventCount: number }
+  | { invoked: true; ok: false; reason: string }
+  | { invoked: false; reason: string };
 
 interface ChainEvent {
   event_id?: number;
@@ -273,6 +320,157 @@ function summarizeWorkflowEvents(events: ChainEvent[]): { artifactWritten: Chain
 }
 
 /**
+ * E3-gold (Codex review, 2026-05-25) — compact chronological event
+ * timeline. One row per event with kind, emitter (origin), signed
+ * flag, and a 1-line summary derived from payload. Renders inside a
+ * collapsible <details> so the report stays scannable but auditors
+ * can expand to trace decision flow event-by-event.
+ */
+interface TimelineRow {
+  n: number;
+  kind: string;
+  emitter: string;
+  signed: boolean;
+  summary: string;
+}
+function summarizeEventTimeline(events: ChainEvent[]): TimelineRow[] {
+  return events.map((e, i) => {
+    const n = typeof e.event_id === 'number' ? e.event_id : i + 1;
+    const kind = e.event_kind ?? '?';
+    const emitter = (e.payload?.emitted_by as string | undefined) ?? '?';
+    const signed = typeof e.signature === 'string' && e.signature.length > 0;
+    let summary = '';
+    if (kind === 'skill_call') {
+      const skill = e.payload?.skill ?? '?';
+      const ok = e.payload?.ok === false ? ' (failed)' : '';
+      summary = `\`${skill}\`${ok}`;
+    } else if (kind === 'self_review') {
+      const persona = e.payload?.persona ?? '?';
+      const round = e.payload?.round ?? '?';
+      const score = typeof e.payload?.score === 'number' ? e.payload.score.toFixed(2) : '—';
+      const sev = e.payload?.severity ?? '?';
+      summary = `${persona} r${round} → ${score} (${sev})`;
+    } else if (kind === 'artifact_written') {
+      summary = `\`${e.payload?.path ?? '?'}\` · ${e.payload?.bytes ?? '?'} bytes`;
+    } else if (kind === 'state_transition') {
+      summary = `${e.payload?.from ?? '?'} → ${e.payload?.to ?? '?'} · PR #${e.payload?.pr_number ?? '?'}`;
+    } else {
+      summary = '—';
+    }
+    return { n, kind, emitter, signed, summary };
+  });
+}
+
+/**
+ * E3-gold — parse chain-ladder.yaml into structured rows for the
+ * cross-phase summary table. Defensive: ladder shape evolved over
+ * Phase D so we tolerate missing fields. Returns empty array if
+ * parse fails or the ladder has no entries.
+ */
+interface LadderRow {
+  phase: string;
+  actionId: string;
+  runId: string;
+  status: string;
+  mergedAt: string;
+  chainHead: string;
+}
+function summarizeChainLadder(ladderText: string | null): LadderRow[] {
+  if (!ladderText) { return []; }
+  try {
+    const parsed = YAML.parse(ladderText) as { chain?: Array<Record<string, unknown>> };
+    const entries = parsed.chain ?? [];
+    return entries.map(e => ({
+      phase: String(e['phase'] ?? '?'),
+      actionId: String(e['action_id'] ?? e['actionId'] ?? '?'),
+      runId: String(e['run_id'] ?? e['runId'] ?? '?'),
+      status: String(e['status'] ?? '?'),
+      mergedAt: String(e['merged_at'] ?? e['mergedAt'] ?? e['completed_at'] ?? e['completedAt'] ?? '—'),
+      chainHead: shortHash(String(e['chain_root_hash'] ?? e['chainRootHash'] ?? e['chain_head'] ?? '')),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * E3-gold — extract SR-NN definitions + STRIDE/OWASP citations from
+ * the PRD markdown, then check which SR-NNs appear in the design
+ * artifact's §5 section. Produces a compact compliance trace table:
+ *   SR | STRIDE | OWASP | PRD anchor | Design §
+ *
+ * Defensive: returns empty array if PRD is missing OR has no SR-NN
+ * sections (e.g. WHY/HOW phases that don't yet declare SRs). Report
+ * skips the section rather than fabricating it.
+ */
+interface ControlRow {
+  sr: string;
+  stride: string[];
+  owasp: string[];
+  prdAnchor: string;
+  designCited: boolean;
+}
+function extractControlMapping(prdText: string | null | undefined, artifactText: string | null | undefined): ControlRow[] {
+  if (!prdText) { return []; }
+  const rows: ControlRow[] = [];
+  // Match SR sections: `### SR-NN:` or `## SR-NN ...` or list-shaped
+  // SR-NN declarations. Capture body up to next H2/H3 boundary so we
+  // can scan for STRIDE/OWASP refs inside the SR's own scope.
+  const sectionRe = /(?:^|\n)#{2,4}[ \t]+SR-(\d+)[\s\S]*?(?=\n#{2,4}[ \t]|\n---\n|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = sectionRe.exec(prdText)) !== null) {
+    const sr = `SR-${match[1]}`;
+    const body = match[0];
+    // STRIDE refs: `THR-NNN` (3+ digit threat IDs).
+    const stride = Array.from(new Set(Array.from(body.matchAll(/\bTHR-(\d+)\b/g)).map(m => `THR-${m[1]}`)));
+    // OWASP refs: `A0X` or `A10`.
+    const owasp = Array.from(new Set(Array.from(body.matchAll(/\b(A0?[1-9]|A10)\b/g)).map(m => m[1])));
+    const designCited = artifactText ? new RegExp(`\\b${sr}\\b`).test(artifactText) : false;
+    rows.push({
+      sr,
+      stride,
+      owasp,
+      prdAnchor: `prd.md (${sr} section)`,
+      designCited,
+    });
+  }
+  return rows.sort((a, b) => a.sr.localeCompare(b.sr, undefined, { numeric: true }));
+}
+
+/**
+ * E3-gold — render the runner crypto verdict block. Three states
+ * (see RunnerVerifyVerdict): invoked+ok, invoked+failed, not-invoked.
+ * The not-invoked case explicitly tells the reviewer the gold step
+ * is missing — better than silently omitting.
+ */
+function renderRunnerVerdictBlock(rv: RunnerVerifyVerdict, okrId: string, runId: string): string {
+  if (rv.invoked && rv.ok) {
+    return `✅ **RUNNER CRYPTO VERDICT: PASS** — \`audit-verify-chain\` verified ${rv.eventCount} event(s) end-to-end.
+
+Chain head: \`${shortHash(rv.chainHead, 32)}\`
+
+The runner replayed every event's signature against the per-epoch public keys committed to \`audit/keys/\`, recomputed each event hash, and walked the \`prev_event_hash\` → \`event_hash\` chain. No tampering detected. This is the source-of-truth verdict CI also uses.`;
+  }
+  if (rv.invoked && !rv.ok) {
+    return `❌ **RUNNER CRYPTO VERDICT: FAIL** — \`audit-verify-chain\` rejected the chain.
+
+Reason: **\`${rv.reason}\`**
+
+The runner found a cryptographic or hash-chain integrity failure. DO NOT promote this run to fan-out / coding-agent handoff. Investigate the named event and rerun the verifier before proceeding.`;
+  }
+  return `⚠ **RUNNER CRYPTO VERDICT: NOT INVOKED** — gold verification missing.
+
+Reason: ${rv.reason}
+
+The Looking Glass exporter could not shell out to \`skill-audit-verify-chain\`. The report below contains only the in-extension SHAPE verdict, which does NOT verify Ed25519 signatures, does NOT replay per-event hashes, and does NOT recompute the chain root. Run the runner manually before promoting this run to fan-out:
+
+\`\`\`sh
+printf '{"okrId":"${okrId}","runId":"${runId}"}' \\
+  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+\`\`\``;
+}
+
+/**
  * Build the reviewer report markdown body from the chain + metadata.
  * Pure function — input in, string out. Caller writes to disk + opens.
  */
@@ -339,8 +537,70 @@ export function buildAuditReportMarkdown(input: AuditReportInput): string {
 Total events: ${verdict.totalEvents} · Malformed lines: ${verdict.malformedLines} · Unsigned agent events: ${verdict.unsignedAgentEvents} · Signed workflow forgeries: ${verdict.signedWorkflowEvents} · Origin-kind mismatches: ${verdict.originKindMismatches}`
       : 'ℹ No failures, but chain has no agent events to sign.';
 
+  // E3-gold — runner crypto verdict (caller shells out to skill-audit-
+  // verify-chain). Three states: invoked+ok, invoked+failed,
+  // not-invoked. Rendered as a top-of-Trust-posture block since it's
+  // the most authoritative signal.
+  const runnerBlock = renderRunnerVerdictBlock(input.runnerVerdict, input.okrId, input.runId);
+
+  // E3-gold — compact chronological event timeline inside <details>.
+  const timeline = summarizeEventTimeline(events);
+  const timelineRows = timeline.map(r =>
+    `| ${r.n} | \`${r.kind}\` | ${r.emitter} | ${r.signed ? '✓' : '—'} | ${r.summary} |`
+  ).join('\n');
+  const signedCount = timeline.filter(r => r.signed).length;
+  const unsignedCount = timeline.length - signedCount;
+  const timelineBlock = timeline.length > 0
+    ? `<details>
+<summary>Click to expand · ${timeline.length} events · ${signedCount} signed · ${unsignedCount} unsigned</summary>
+
+| # | kind | emitter | signed | summary |
+|---:|---|---|:---:|---|
+${timelineRows}
+
+</details>`
+    : '_No events in chain._';
+
+  // E3-gold — cross-phase ladder as a human table + raw YAML in <details>.
+  const ladderRows = summarizeChainLadder(input.chainLadderText);
   const ladderBlock = input.chainLadderText
-    ? `\n\n## Cross-phase ladder\n\n_From \`okrs/${input.okrId}/audit/chain-ladder.yaml\`:_\n\n\`\`\`yaml\n${input.chainLadderText.trim()}\n\`\`\``
+    ? (ladderRows.length > 0
+        ? `## Cross-phase ladder
+
+| Phase | Action | Run ID | Status | Merged | Chain head |
+|---|---|---|---|---|---|
+${ladderRows.map(r => `| \`${r.phase}\` | \`${r.actionId}\` | \`${r.runId}\` | ${r.status} | ${r.mergedAt} | \`${r.chainHead}\` |`).join('\n')}
+
+<details>
+<summary>Raw <code>chain-ladder.yaml</code></summary>
+
+\`\`\`yaml
+${input.chainLadderText.trim()}
+\`\`\`
+
+</details>`
+        : `## Cross-phase ladder
+
+_chain-ladder.yaml present but failed to parse OR has no entries. Raw:_
+
+\`\`\`yaml
+${input.chainLadderText.trim()}
+\`\`\``)
+    : '';
+
+  // E3-gold — control mapping (SR-NN → STRIDE/OWASP → design § cited).
+  // Skipped when PRD text not provided OR PRD has no SR-NN sections.
+  const controlRows = extractControlMapping(input.prdText, input.artifactText);
+  const controlBlock = controlRows.length > 0
+    ? `## Control mapping
+
+_Did each PRD-declared security requirement land in the design?_
+
+| SR | STRIDE | OWASP | PRD anchor | Design references SR? |
+|---|---|---|---|:---:|
+${controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '—'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '—'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
+
+_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. That belongs in PR review._`
     : '';
 
   return `# Audit report — ${input.okrId} · ${input.phase.toUpperCase()} · ${input.actionId}
@@ -373,10 +633,12 @@ ${executiveSummary}
 
 ## Trust posture
 
+${runnerBlock}
+
 ${sealLine}
 
 ${trustBlock}
-
+${controlBlock ? '\n' + controlBlock + '\n' : ''}
 ## Evidence — skill calls
 
 ${skillTable}
@@ -388,30 +650,32 @@ ${reviewBlock}
 ## Workflow facts
 
 ${workflowBlock}
-${ladderBlock}
+
+## Event timeline
+
+${timelineBlock}
+${ladderBlock ? '\n\n' + ladderBlock : ''}
 
 ## Verifier notes
 
-This report is a **SHAPE-level audit summary**, generated client-side
-from the per-run audit JSONL chain + okr.yaml + chain-ladder.yaml.
-**It does NOT perform** (these all require the runner):
-  - Ed25519 signature verification against \`audit/keys/\` pub keys
-  - Per-event hash-chain replay (\`prev_event_hash\` → \`this_event_hash\`)
-  - Cross-check of \`chain_root_hash\` against recomputed leaf hash
+**UI shape check is convenience. Runner verifier is source of truth.**
 
-**Before fan-out / handoff to a coding agent, run the canonical
-verifier:**
+What the runner does that the UI does NOT:
+  - **Ed25519 signature verification** against per-epoch public keys
+    committed to \`audit/keys/<runId>.epoch-N.pub.pem\`
+  - **Per-event hash-chain replay** (each event's \`prev_event_hash\`
+    must equal the prior event's \`event_hash\`)
+  - **\`chain_root_hash\` recomputation** against the leaf hash
+
+If the runner verdict is missing OR fails, ignore the shape verdict and
+fix the chain before fan-out. Same allowlist + origin-kind contract
+applies on both sides (Bug V/W/X/Y).
+
+To re-verify from a fresh shell:
 
 \`\`\`sh
 printf '{"okrId":"${input.okrId}","runId":"${input.runId}"}' \\
   | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
 \`\`\`
-
-Same code path CI uses; same allowlist + origin-kind contract
-(Bug V/W/X/Y). The runner's verdict is the source of truth. This
-report's verdict only certifies what's checkable without key
-material AND without hash recomputation — a clean shape verdict
-here does NOT prove the chain hasn't been tampered with at the
-signature or hash-continuity layer.
 `;
 }

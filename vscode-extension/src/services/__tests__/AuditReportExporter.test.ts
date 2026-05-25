@@ -6,7 +6,7 @@
  * surfaces immediately.
  */
 import { describe, it, expect } from 'vitest';
-import { buildAuditReportMarkdown, type AuditReportInput, type ChainVerifyVerdictLite } from '../AuditReportExporter';
+import { buildAuditReportMarkdown, type AuditReportInput, type ChainVerifyVerdictLite, type RunnerVerifyVerdict } from '../AuditReportExporter';
 
 function makeVerdict(over: Partial<ChainVerifyVerdictLite> = {}): ChainVerifyVerdictLite {
   return {
@@ -42,8 +42,20 @@ function makeInput(over: Partial<AuditReportInput> = {}): AuditReportInput {
     chainLadderText: null,
     verdict: makeVerdict(),
     sourceTag: 'GitHub AliceNN-ucdenver/alicenn-ucdenver-governance-mesh (default branch)',
+    runnerVerdict: makeRunnerVerdict(),
     ...over,
   };
+}
+
+function makeRunnerVerdict(over: Partial<RunnerVerifyVerdict> = {}): RunnerVerifyVerdict {
+  // Default: invoked + passed. Tests can override for fail / not-invoked.
+  return {
+    invoked: true,
+    ok: true,
+    chainHead: 'a'.repeat(64),
+    eventCount: 28,
+    ...over,
+  } as RunnerVerifyVerdict;
 }
 
 describe('buildAuditReportMarkdown', () => {
@@ -193,19 +205,27 @@ describe('buildAuditReportMarkdown', () => {
     expect(md).toContain('r1: 0.89 (MINOR) [event_id=26] → r2: 0.95 (PASS) [event_id=28]');
   });
 
-  it('ignores unsigned self_review events (Bug W legitimacy gate)', () => {
+  it('ignores unsigned self_review events in the trail section (Bug W legitimacy gate)', () => {
+    // Note: the event timeline below the trail DOES show forged events
+    // (that's what an auditor needs to see). The legitimacy gate's job
+    // is to keep forged scores out of the trail's aggregated table.
     const md = buildAuditReportMarkdown(makeInput({
       chainLines: [
         // Signed legitimate — should count.
         JSON.stringify({ event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'architect', round: 1, score: 0.90, severity: 'PASS', emitted_by: 'agent' } }),
-        // Unsigned forgery — must NOT appear.
+        // Unsigned forgery — must NOT appear in trail.
         JSON.stringify({ event_kind: 'self_review', payload: { persona: 'security', round: 1, score: 0.10, severity: 'CRITICAL', emitted_by: 'agent' } }),
       ],
     }));
     expect(md).toContain('**architect**');
     expect(md).toContain('final: 0.90 (PASS)');
-    expect(md).not.toContain('**security**');
-    expect(md).not.toContain('CRITICAL');
+    // Scope assertion to the self-review trail section, not the report
+    // as a whole — timeline below shows forged events too (correctly).
+    const trailStart = md.indexOf('## Self-review trail');
+    const trailEnd = md.indexOf('## Workflow facts');
+    const trailSection = md.slice(trailStart, trailEnd);
+    expect(trailSection).not.toContain('**security**');
+    expect(trailSection).not.toContain('CRITICAL');
   });
 
   it('renders artifact_written + state_transition workflow facts', () => {
@@ -281,32 +301,136 @@ describe('buildAuditReportMarkdown', () => {
     expect(md).toContain('Sources: GitHub foo/bar (default branch)');
   });
 
-  it('ignores self_review events that lack agent origin (Codex E3 fix)', () => {
+  it('ignores self_review events that lack agent origin in the trail (Codex E3 fix)', () => {
     // Pre-fix the aggregator gated only on signature presence — a
     // forged event with payload.emitted_by='workflow' (origin lie)
     // would have been counted toward the score. Now it must be
-    // dropped before reaching the report.
+    // dropped from the trail (timeline below still shows it).
     const md = buildAuditReportMarkdown(makeInput({
       chainLines: [
-        // Forged: signature present but origin lies (workflow on an
-        // agent-only kind). Runner rejects; report must too.
         JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'architect', round: 1, score: 0.01, severity: 'CRITICAL', emitted_by: 'workflow' } }),
       ],
     }));
-    expect(md).not.toContain('CRITICAL');
-    expect(md).not.toContain('**architect**');
-    expect(md).toContain('No signed `self_review` events');
+    const trailStart = md.indexOf('## Self-review trail');
+    const trailEnd = md.indexOf('## Workflow facts');
+    const trailSection = md.slice(trailStart, trailEnd);
+    expect(trailSection).not.toContain('CRITICAL');
+    expect(trailSection).not.toContain('**architect**');
+    expect(trailSection).toContain('No signed `self_review` events');
   });
 
-  it('ignores self_review events missing numeric signer_epoch (Codex E3 fix)', () => {
+  it('ignores self_review events missing numeric signer_epoch in the trail (Codex E3 fix)', () => {
     const md = buildAuditReportMarkdown(makeInput({
       chainLines: [
-        // Signature + agent origin but signer_epoch is missing — runner
-        // rejects per Bug X round-8. Report must agree.
         JSON.stringify({ event_id: 1, event_kind: 'self_review', signature: 'sig', payload: { persona: 'architect', round: 1, score: 0.01, severity: 'CRITICAL', emitted_by: 'agent' } }),
       ],
     }));
-    expect(md).not.toContain('CRITICAL');
-    expect(md).not.toContain('**architect**');
+    const trailStart = md.indexOf('## Self-review trail');
+    const trailEnd = md.indexOf('## Workflow facts');
+    const trailSection = md.slice(trailStart, trailEnd);
+    expect(trailSection).not.toContain('CRITICAL');
+    expect(trailSection).not.toContain('**architect**');
+  });
+
+  // ── Codex E3-gold review additions ────────────────────────────────────
+
+  it('renders RUNNER CRYPTO VERDICT: PASS when runner invoked + ok', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'b'.repeat(64), eventCount: 28 },
+    }));
+    expect(md).toContain('✅ **RUNNER CRYPTO VERDICT: PASS**');
+    expect(md).toContain('verified 28 event(s) end-to-end');
+    expect(md).toContain('Chain head: `bbbbbbbbbbbbbbbb');
+  });
+
+  it('renders RUNNER CRYPTO VERDICT: FAIL with reason when runner rejected the chain', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: true, ok: false, reason: 'prev-hash-mismatch-line-7' },
+    }));
+    expect(md).toContain('❌ **RUNNER CRYPTO VERDICT: FAIL**');
+    expect(md).toContain('prev-hash-mismatch-line-7');
+    expect(md).toContain('DO NOT promote');
+  });
+
+  it('renders RUNNER CRYPTO VERDICT: NOT INVOKED with runner CLI when shell-out failed', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      runnerVerdict: { invoked: false, reason: 'npx not found on PATH.' },
+    }));
+    expect(md).toContain('⚠ **RUNNER CRYPTO VERDICT: NOT INVOKED**');
+    expect(md).toContain('npx not found on PATH');
+    expect(md).toContain('skill-audit-verify-chain');
+  });
+
+  it('renders event timeline inside collapsible <details>', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      chainLines: [
+        JSON.stringify({ event_id: 1, event_kind: 'skill_call', signature: 'sig', signer_epoch: 1, payload: { skill: 'knowledge-okr', ok: true, emitted_by: 'runtime' } }),
+        JSON.stringify({ event_id: 2, event_kind: 'self_review', signature: 'sig', signer_epoch: 1, payload: { persona: 'architect', round: 1, score: 0.90, severity: 'PASS', emitted_by: 'agent' } }),
+        JSON.stringify({ event_id: 3, event_kind: 'artifact_written', payload: { emitted_by: 'workflow', path: 'okrs/X/why/research-doc.md', sha256: 'a', bytes: 1, merge_commit_sha: 'b' } }),
+      ],
+    }));
+    expect(md).toContain('## Event timeline');
+    expect(md).toContain('<details>');
+    expect(md).toContain('3 events · 2 signed · 1 unsigned');
+    expect(md).toContain('| 1 | `skill_call` | runtime | ✓ | `knowledge-okr` |');
+    expect(md).toContain('| 2 | `self_review` | agent | ✓ | architect r1 → 0.90 (PASS) |');
+    expect(md).toContain('| 3 | `artifact_written` | workflow | — | `okrs/X/why/research-doc.md`');
+  });
+
+  it('renders cross-phase ladder as a human table + raw YAML in <details>', () => {
+    const ladder = `chain:
+  - phase: why
+    action_id: ACT-1
+    run_id: WHY-2026-05-25-aaa
+    status: complete
+    merged_at: '2026-05-25T10:00:00Z'
+    chain_root_hash: ${'a'.repeat(64)}
+  - phase: how
+    action_id: ACT-2
+    run_id: HOW-2026-05-25-bbb
+    status: complete
+    merged_at: '2026-05-25T11:00:00Z'
+    chain_root_hash: ${'b'.repeat(64)}`;
+    const md = buildAuditReportMarkdown(makeInput({ chainLadderText: ladder }));
+    expect(md).toContain('## Cross-phase ladder');
+    expect(md).toContain('| Phase | Action | Run ID | Status | Merged | Chain head |');
+    expect(md).toContain('| `why` | `ACT-1` | `WHY-2026-05-25-aaa` |');
+    expect(md).toContain('| `how` | `ACT-2` | `HOW-2026-05-25-bbb` |');
+    expect(md).toContain('<summary>Raw <code>chain-ladder.yaml</code></summary>');
+  });
+
+  it('renders control mapping when PRD has SR-NN sections + design cites them', () => {
+    const prd = `## Security Requirements
+
+### SR-01: Auth with RBAC
+
+Mitigates THR-003 (spoofing). Maps to OWASP A01 + A09.
+
+### SR-02: Input validation
+
+Mitigates THR-006. OWASP A03 / A05.
+`;
+    const artifact = `## 5. Security Control Implementations
+
+Per-SR implementation:
+- SR-01: bcrypt + JWT middleware.
+- SR-02: zod schemas.
+`;
+    const md = buildAuditReportMarkdown(makeInput({ prdText: prd, artifactText: artifact }));
+    expect(md).toContain('## Control mapping');
+    expect(md).toContain('| `SR-01` | `THR-003` | `A01`, `A09` | prd.md (SR-01 section) | ✓ |');
+    expect(md).toContain('| `SR-02` | `THR-006` | `A03`, `A05` | prd.md (SR-02 section) | ✓ |');
+  });
+
+  it('omits control mapping when PRD text not provided', () => {
+    const md = buildAuditReportMarkdown(makeInput({ prdText: null }));
+    expect(md).not.toContain('## Control mapping');
+  });
+
+  it('marks SR as not cited in design when artifact text omits the SR-NN reference', () => {
+    const prd = `### SR-99: Some control\nMitigates THR-099. A10.`;
+    const artifact = `## 5. Security Control Implementations\n\nDoes not mention the SR.`;
+    const md = buildAuditReportMarkdown(makeInput({ prdText: prd, artifactText: artifact }));
+    expect(md).toContain('| `SR-99` | `THR-099` | `A10` | prd.md (SR-99 section) | ✗ |');
   });
 });

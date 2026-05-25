@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawn as childSpawn } from 'child_process';
 import type {
   AbsolemCommand,
   ArchitectureDsl,
@@ -73,7 +73,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
-import { buildAuditReportMarkdown } from '../services/AuditReportExporter';
+import { buildAuditReportMarkdown, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -2611,10 +2611,43 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
     const verdict = verifyChainForUI(chainLines);
+
+    // E3-gold (Codex review) — also invoke the runner's crypto verifier
+    // so the report carries ground-truth signature + hash-replay
+    // verdict, not just the shape preview. Best-effort: if npx fails,
+    // shell-out times out, or runner crashes, mark as NOT INVOKED with
+    // a reason so the reviewer knows the gold step is missing.
+    const runnerVerdict = await this.invokeRunnerVerifyChain(okrId, runId);
+
+    // E3-gold — fetch PRD + artifact (when available) so the report
+    // can render the SR-NN → STRIDE/OWASP → design § control mapping.
+    // Best-effort: missing inputs just mean the section is skipped.
+    const phase = (actionYaml['phase'] as 'why' | 'how' | 'what') ?? localAction.phase;
+    const artifactRel = ((actionYaml['artifact'] as string) ?? localAction.artifact) ?? phaseSpec(phase).artifactPath(okrId);
+    const prdRel = `okrs/${okrId}/how/prd.md`;
+    let prdText: string | null = null;
+    let artifactText: string | null = null;
+    if (repoInfo) {
+      try { prdText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, prdRel); } catch { /* optional */ }
+      try { artifactText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, artifactRel); } catch { /* optional */ }
+    }
+    if (!prdText) {
+      const localPrd = path.join(meshPath, prdRel);
+      if (fs.existsSync(localPrd)) {
+        try { prdText = fs.readFileSync(localPrd, 'utf8'); } catch { /* optional */ }
+      }
+    }
+    if (!artifactText) {
+      const localArtifact = path.join(meshPath, artifactRel);
+      if (fs.existsSync(localArtifact)) {
+        try { artifactText = fs.readFileSync(localArtifact, 'utf8'); } catch { /* optional */ }
+      }
+    }
+
     const markdown = buildAuditReportMarkdown({
       okrId,
       runId,
-      phase: (actionYaml['phase'] as 'why' | 'how' | 'what') ?? localAction.phase,
+      phase,
       actionId,
       agent: (actionYaml['agent'] as string) ?? localAction.agent,
       intentThreadUuid: (actionYaml['intentThreadUuid'] as string) ?? localAction.intentThreadUuid,
@@ -2625,11 +2658,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       completedAt: (actionYaml['completedAt'] as string) ?? localAction.completedAt ?? null,
       hatterChainRoot: (actionYaml['hatterChainRoot'] as string) ?? localAction.hatterChainRoot ?? null,
       prUrl: (actionYaml['pr'] as string) ?? localAction.pr ?? null,
-      artifactPath: (actionYaml['artifact'] as string) ?? localAction.artifact ?? null,
+      artifactPath: artifactRel,
       chainLines,
       chainLadderText,
       verdict,
       sourceTag,
+      runnerVerdict,
+      prdText,
+      artifactText,
     });
     const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
     const exportPath = path.join(exportDir, `${action.runId}-report.md`);
@@ -2646,7 +2682,89 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const doc = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(doc, { preview: false });
     } catch { /* non-fatal — file's still on disk */ }
-    void vscode.window.showInformationMessage(`Audit report exported: okrs/${okrId}/audit/exports/${action.runId}-report.md`);
+    const runnerNote = runnerVerdict.invoked
+      ? (runnerVerdict.ok ? ' · runner verdict: PASS' : ' · runner verdict: FAIL')
+      : ' · runner: NOT INVOKED';
+    void vscode.window.showInformationMessage(`Audit report exported${runnerNote}: okrs/${okrId}/audit/exports/${runId}-report.md`);
+  }
+
+  /**
+   * E3-gold (Codex review, 2026-05-25) — invoke the runner's crypto
+   * verifier via `npx ... skill-audit-verify-chain` with stdin JSON.
+   * Returns a RunnerVerifyVerdict the exporter renders. Best-effort:
+   * timeouts, missing npx, runner crashes all surface as
+   * `{ invoked: false, reason }` so the report is honest about
+   * whether gold verification ran.
+   *
+   * Timeout chosen at 90s — first npx run downloads the runner pkg
+   * (~5-15s on a warm cache, longer cold). Subsequent runs in the
+   * same VS Code session reuse the cache and complete in 2-5s.
+   */
+  private async invokeRunnerVerifyChain(okrId: string, runId: string): Promise<RunnerVerifyVerdict> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      return { invoked: false, reason: 'No mesh configured.' };
+    }
+    const stdinJson = JSON.stringify({ okrId, runId });
+    return new Promise<RunnerVerifyVerdict>((resolve) => {
+      // execFile doesn't pipe stdin — use spawn so we can write the
+      // okrId/runId JSON to the runner's stdin (per SKILL.md contract).
+      const child = childSpawn('npx', ['-y', '@maintainabilityai/research-runner@~0.1.42', 'skill-audit-verify-chain'], {
+        cwd: meshPath,
+      });
+      let stdout = '';
+      let stderr = '';
+      let resolved = false;
+      const finish = (verdict: RunnerVerifyVerdict) => {
+        if (resolved) { return; }
+        resolved = true;
+        try { child.kill(); } catch { /* already dead */ }
+        clearTimeout(killTimer);
+        resolve(verdict);
+      };
+      const killTimer = setTimeout(() => {
+        finish({ invoked: false, reason: 'Shell-out to npx timed out after 90s. First-run package download may be blocked — pre-warm cache by running the command from the Verifier notes section in a terminal first.' });
+      }, 90_000);
+      child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
+      child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
+      child.on('error', (err) => {
+        const msg = err.message ?? String(err);
+        if (msg.includes('ENOENT')) {
+          finish({ invoked: false, reason: 'npx not found on PATH. Install Node.js (and ensure npx is reachable from VS Code\'s shell) to enable in-extension runner verification.' });
+          return;
+        }
+        finish({ invoked: false, reason: `Shell-out failed: ${msg}` });
+      });
+      child.on('close', (code) => {
+        if (code !== 0) {
+          finish({ invoked: false, reason: `Runner exited with code ${code}. stderr: ${stderr.slice(0, 200)}` });
+          return;
+        }
+        try {
+          // Runner may emit log lines before the JSON verdict; take the
+          // LAST non-empty line as the canonical output per SKILL.md.
+          const lastLine = stdout.split('\n').map(s => s.trim()).filter(Boolean).pop() ?? '';
+          const verdict = JSON.parse(lastLine) as { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string };
+          if (verdict.ok === true && typeof verdict.chainHead === 'string' && typeof verdict.eventCount === 'number') {
+            finish({ invoked: true, ok: true, chainHead: verdict.chainHead, eventCount: verdict.eventCount });
+            return;
+          }
+          if (verdict.ok === false) {
+            finish({ invoked: true, ok: false, reason: verdict.reason ?? 'runner returned ok:false without a reason' });
+            return;
+          }
+          finish({ invoked: false, reason: `runner returned unexpected JSON shape: ${stdout.slice(0, 200)}` });
+        } catch (parseErr) {
+          finish({ invoked: false, reason: `runner output failed to parse as JSON: ${toErrorMessage(parseErr)}. Raw stdout (first 200): ${stdout.slice(0, 200)}` });
+        }
+      });
+      try {
+        child.stdin?.write(stdinJson);
+        child.stdin?.end();
+      } catch (err) {
+        finish({ invoked: false, reason: `Failed to write to runner stdin: ${toErrorMessage(err)}` });
+      }
+    });
   }
 
   /**
