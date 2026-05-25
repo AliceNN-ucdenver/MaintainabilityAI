@@ -914,6 +914,181 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 **Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence. The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export (shipped today) turns the chain into a one-click markdown closeout per OKR action — runner crypto verdict at the top, control mapping in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
 
 <div class="docs-center-block">
+<div class="docs-heading">Every event has one legitimate author. Anything else is forgery.</div>
+</div>
+
+<svg viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Three-lane trust model. Runtime records facts, the agent signs judgment, the workflow records state. All three converge into the Court Recorder canonical contract, then Knight's Seal seals every agent event with a per-session Ed25519 signature, and the Audit Report Export turns the chain into a one-click reviewer document.">
+  <defs>
+    <linearGradient id="tlmBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0c1426"/>
+      <stop offset="100%" stop-color="#070d1a"/>
+    </linearGradient>
+    <linearGradient id="tlmRuntime" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(125,211,252,0.28)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0.06)"/>
+    </linearGradient>
+    <linearGradient id="tlmAgent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(167,139,250,0.32)"/>
+      <stop offset="100%" stop-color="rgba(167,139,250,0.08)"/>
+    </linearGradient>
+    <linearGradient id="tlmWorkflow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(253,186,116,0.28)"/>
+      <stop offset="100%" stop-color="rgba(253,186,116,0.06)"/>
+    </linearGradient>
+    <linearGradient id="tlmCourt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(148,163,184,0.32)"/>
+      <stop offset="100%" stop-color="rgba(148,163,184,0.10)"/>
+    </linearGradient>
+    <linearGradient id="tlmSeal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(134,239,172,0.40)"/>
+      <stop offset="100%" stop-color="rgba(134,239,172,0.10)"/>
+    </linearGradient>
+    <linearGradient id="tlmReport" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(129,140,248,0.36)"/>
+      <stop offset="100%" stop-color="rgba(129,140,248,0.10)"/>
+    </linearGradient>
+    <filter id="tlmGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="800" height="560" rx="12" fill="url(#tlmBg)"/>
+  <text x="400" y="28" text-anchor="middle" fill="#cbd5e1" font-size="10.5" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">THE THREE-LANE TRUST MODEL</text>
+  <text x="400" y="46" text-anchor="middle" fill="#64748b" font-size="9.5" letter-spacing="1.5" font-family="system-ui, sans-serif">RUNTIME · AGENT · WORKFLOW — separated at emission, joined at the chain</text>
+
+  <!-- ── Three lane headers ─────────────────────────────────────── -->
+  <g transform="translate(40,72)">
+    <!-- Runtime lane -->
+    <rect x="0" y="0" width="220" height="38" rx="8" fill="url(#tlmRuntime)" stroke="rgba(125,211,252,0.55)" stroke-width="1.4"/>
+    <circle cx="22" cy="19" r="8" fill="rgba(125,211,252,0.20)" stroke="rgba(125,211,252,0.75)" stroke-width="1.3"/>
+    <path d="M 18 19 L 21 22 L 26 16" stroke="#7dd3fc" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="40" y="17" fill="#e0f2fe" font-size="11" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">RUNTIME</text>
+    <text x="40" y="31" fill="#7dd3fc" font-size="9" font-weight="600" font-family="system-ui, sans-serif">records factual tool use</text>
+  </g>
+  <g transform="translate(290,72)">
+    <!-- Agent lane -->
+    <rect x="0" y="0" width="220" height="38" rx="8" fill="url(#tlmAgent)" stroke="rgba(167,139,250,0.65)" stroke-width="1.4"/>
+    <circle cx="22" cy="19" r="8" fill="rgba(167,139,250,0.24)" stroke="rgba(167,139,250,0.85)" stroke-width="1.3"/>
+    <path d="M 18 22 L 18 18 Q 18 14 22 14 Q 26 14 26 18 L 26 22 Z" fill="#a78bfa" stroke="#a78bfa" stroke-width="0.8"/>
+    <rect x="16" y="21" width="12" height="5" rx="1.2" fill="#c4b5fd"/>
+    <text x="40" y="17" fill="#ede9fe" font-size="11" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">AGENT</text>
+    <text x="40" y="31" fill="#a78bfa" font-size="9" font-weight="600" font-family="system-ui, sans-serif">signs only what it judges</text>
+  </g>
+  <g transform="translate(540,72)">
+    <!-- Workflow lane -->
+    <rect x="0" y="0" width="220" height="38" rx="8" fill="url(#tlmWorkflow)" stroke="rgba(253,186,116,0.65)" stroke-width="1.4"/>
+    <circle cx="22" cy="19" r="8" fill="rgba(253,186,116,0.20)" stroke="rgba(253,186,116,0.85)" stroke-width="1.3"/>
+    <rect x="17" y="14" width="10" height="10" rx="1.2" fill="none" stroke="#fdba74" stroke-width="1.4"/>
+    <path d="M 19 18 L 25 18 M 19 21 L 25 21" stroke="#fdba74" stroke-width="1.2"/>
+    <text x="40" y="17" fill="#fef3c7" font-size="11" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">WORKFLOW</text>
+    <text x="40" y="31" fill="#fdba74" font-size="9" font-weight="600" font-family="system-ui, sans-serif">records re-derivable state</text>
+  </g>
+
+  <!-- ── Event-kind cards per lane ─────────────────────────────── -->
+  <g transform="translate(40,124)">
+    <!-- Runtime events -->
+    <rect x="0" y="0" width="220" height="48" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.32)" stroke-width="1"/>
+    <text x="14" y="16" fill="#e0f2fe" font-size="10.5" font-weight="700" font-family="ui-monospace, Menlo, monospace">skill_call</text>
+    <text x="14" y="30" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">tavily · knowledge-code · context-*</text>
+    <text x="14" y="42" fill="#7dd3fc" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">🔒 signed under agent epoch</text>
+  </g>
+  <g transform="translate(40,180)">
+    <rect x="0" y="0" width="220" height="48" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.32)" stroke-width="1"/>
+    <text x="14" y="16" fill="#e0f2fe" font-size="10.5" font-weight="700" font-family="ui-monospace, Menlo, monospace">llm_call</text>
+    <text x="14" y="30" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">model · token counts · cost</text>
+    <text x="14" y="42" fill="#7dd3fc" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">🔒 signed under agent epoch</text>
+  </g>
+  <g transform="translate(290,124)">
+    <!-- Agent events -->
+    <rect x="0" y="0" width="220" height="48" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.42)" stroke-width="1"/>
+    <text x="14" y="16" fill="#ede9fe" font-size="10.5" font-weight="700" font-family="ui-monospace, Menlo, monospace">self_review</text>
+    <text x="14" y="30" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">architect · security · score · severity</text>
+    <text x="14" y="42" fill="#a78bfa" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">🔒 signed · the only judgment lane</text>
+  </g>
+  <g transform="translate(290,180)">
+    <rect x="0" y="0" width="220" height="48" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.42)" stroke-width="1"/>
+    <text x="14" y="16" fill="#ede9fe" font-size="10.5" font-weight="700" font-family="ui-monospace, Menlo, monospace">gap_loop</text>
+    <text x="14" y="30" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">refinement queries from research gaps</text>
+    <text x="14" y="42" fill="#a78bfa" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">🔒 signed under agent epoch</text>
+  </g>
+  <g transform="translate(540,124)">
+    <!-- Workflow events -->
+    <rect x="0" y="0" width="220" height="48" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.42)" stroke-width="1"/>
+    <text x="14" y="16" fill="#fef3c7" font-size="10.5" font-weight="700" font-family="ui-monospace, Menlo, monospace">artifact_written</text>
+    <text x="14" y="30" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">path · sha256 · bytes · merge_sha</text>
+    <text x="14" y="42" fill="#fdba74" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">— unsigned · re-derivable from git</text>
+  </g>
+  <g transform="translate(540,180)">
+    <rect x="0" y="0" width="220" height="48" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.42)" stroke-width="1"/>
+    <text x="14" y="16" fill="#fef3c7" font-size="10.5" font-weight="700" font-family="ui-monospace, Menlo, monospace">state_transition</text>
+    <text x="14" y="30" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">from → to · PR # · merge_sha</text>
+    <text x="14" y="42" fill="#fdba74" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">— unsigned · re-derivable from labels</text>
+  </g>
+
+  <!-- ── Forgery rejection callout ─────────────────────────────── -->
+  <g transform="translate(40,244)">
+    <rect x="0" y="0" width="720" height="32" rx="8" fill="rgba(248,113,113,0.08)" stroke="rgba(248,113,113,0.35)" stroke-width="1" stroke-dasharray="3,2"/>
+    <circle cx="20" cy="16" r="7" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.75)" stroke-width="1.2"/>
+    <text x="20" y="20" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="700" font-family="system-ui, sans-serif">!</text>
+    <text x="38" y="20" fill="#fecaca" font-size="10" font-weight="600" font-family="system-ui, sans-serif">If a caller claims the wrong source — workflow-attribution on an agent kind, signed workflow event, missing epoch — the verifier rejects the chain. Tested.</text>
+  </g>
+
+  <!-- ── Convergence funnel ───────────────────────────────────── -->
+  <g transform="translate(0,288)">
+    <path d="M 150 0 L 380 56" stroke="rgba(125,211,252,0.55)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <path d="M 400 0 L 400 56" stroke="rgba(167,139,250,0.65)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M 650 0 L 420 56" stroke="rgba(253,186,116,0.55)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <circle cx="150" cy="0" r="3" fill="#7dd3fc"/>
+    <circle cx="400" cy="0" r="3" fill="#a78bfa"/>
+    <circle cx="650" cy="0" r="3" fill="#fdba74"/>
+  </g>
+
+  <!-- ── Court Recorder bar ───────────────────────────────────── -->
+  <g transform="translate(140,352)">
+    <rect x="0" y="0" width="520" height="46" rx="10" fill="url(#tlmCourt)" stroke="rgba(148,163,184,0.55)" stroke-width="1.4"/>
+    <g transform="translate(18,11)">
+      <rect x="0" y="6" width="18" height="14" rx="1.2" fill="none" stroke="#cbd5e1" stroke-width="1.4"/>
+      <path d="M 3 10 L 15 10 M 3 14 L 15 14 M 3 18 L 11 18" stroke="#cbd5e1" stroke-width="1"/>
+      <path d="M 9 0 L 9 6 M 4 3 L 14 3" stroke="#cbd5e1" stroke-width="1.4" stroke-linecap="round"/>
+    </g>
+    <text x="48" y="20" fill="#f1f5f9" font-size="12.5" font-weight="700" font-family="system-ui, sans-serif">Court Recorder</text>
+    <text x="48" y="35" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">canonical event-payload contract · pinned by regression test · any drift fails CI</text>
+  </g>
+
+  <!-- ── Down arrow ────────────────────────────────────────────── -->
+  <path d="M 400 406 L 400 422" stroke="#94a3b8" stroke-width="1.4"/>
+  <path d="M 394 418 L 400 426 L 406 418" stroke="#94a3b8" stroke-width="1.4" fill="none" stroke-linejoin="round"/>
+
+  <!-- ── Knight's Seal band ───────────────────────────────────── -->
+  <g transform="translate(140,432)">
+    <rect x="0" y="0" width="520" height="50" rx="10" fill="url(#tlmSeal)" stroke="rgba(134,239,172,0.65)" stroke-width="1.6" filter="url(#tlmGlow)"/>
+    <g transform="translate(18,11)">
+      <path d="M 14 0 L 26 4 L 26 16 Q 26 24 14 28 Q 2 24 2 16 L 2 4 Z" fill="rgba(134,239,172,0.25)" stroke="#86efac" stroke-width="1.4"/>
+      <path d="M 9 14 L 13 18 L 19 11" stroke="#86efac" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="50" y="22" fill="#dcfce7" font-size="13" font-weight="700" font-family="system-ui, sans-serif">🛡  Knight's Seal v1</text>
+    <text x="50" y="38" fill="#86efac" font-size="10" font-family="system-ui, sans-serif">per-event Ed25519 signature · per-session epoch key · verifier replays on every PR</text>
+    <rect x="420" y="14" width="84" height="22" rx="11" fill="rgba(134,239,172,0.20)" stroke="rgba(134,239,172,0.65)"/>
+    <text x="462" y="29" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="700" letter-spacing="0.5" font-family="system-ui, sans-serif">✓ SHIPPED</text>
+  </g>
+
+  <!-- ── Down arrow ────────────────────────────────────────────── -->
+  <path d="M 400 490 L 400 506" stroke="#94a3b8" stroke-width="1.4"/>
+  <path d="M 394 502 L 400 510 L 406 502" stroke="#94a3b8" stroke-width="1.4" fill="none" stroke-linejoin="round"/>
+
+  <!-- ── Audit Report Export band ─────────────────────────────── -->
+  <g transform="translate(140,516)">
+    <rect x="0" y="0" width="520" height="38" rx="8" fill="url(#tlmReport)" stroke="rgba(129,140,248,0.65)" stroke-width="1.5"/>
+    <g transform="translate(18,8)">
+      <rect x="0" y="0" width="18" height="22" rx="1.5" fill="rgba(129,140,248,0.18)" stroke="#a5b4fc" stroke-width="1.3"/>
+      <path d="M 4 6 L 14 6 M 4 10 L 14 10 M 4 14 L 12 14 M 4 18 L 10 18" stroke="#a5b4fc" stroke-width="1"/>
+    </g>
+    <text x="50" y="17" fill="#e0e7ff" font-size="12" font-weight="700" font-family="system-ui, sans-serif">📄  Audit Report Export</text>
+    <text x="50" y="30" fill="#a5b4fc" font-size="9.5" font-family="system-ui, sans-serif">internal markdown closeout · runner verdict + control map + timeline (shipped) · redacted external zip (next act)</text>
+  </g>
+</svg>
+
+<div class="docs-center-block">
 <div class="docs-heading">Free. Open Source. Forever.</div>
 <div class="docs-copy">No $100K enterprise license. No SaaS vendor lock-in. Your governance data lives in Git, version-controlled alongside your code.</div>
 </div>
@@ -923,6 +1098,259 @@ Backstage catalogs services without understanding their architecture. Port.io tr
 ## How we keep the promises
 
 Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, three plain-English receipts. Every one is enforced by code that runs on every PR, not by a slide.
+
+<div class="docs-center-block">
+<div class="docs-heading">The new SDLC is not a loop. It is a governed evidence pipeline.</div>
+</div>
+
+<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="The governed SDLC rail map. Five lifecycle stages — OKR, WHY, HOW, WHAT shipped today, plus BUILD-handoff as the next act — each carry three parallel rails: agent judgment, deterministic proof, and human governance. All five stages write into a continuous signed audit chain at the bottom.">
+  <defs>
+    <linearGradient id="railBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0c1426"/>
+      <stop offset="100%" stop-color="#070d1a"/>
+    </linearGradient>
+    <linearGradient id="railJudgment" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(167,139,250,0.22)"/>
+      <stop offset="100%" stop-color="rgba(167,139,250,0.06)"/>
+    </linearGradient>
+    <linearGradient id="railProof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(125,211,252,0.22)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0.06)"/>
+    </linearGradient>
+    <linearGradient id="railGovernance" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(253,186,116,0.22)"/>
+      <stop offset="100%" stop-color="rgba(253,186,116,0.06)"/>
+    </linearGradient>
+    <linearGradient id="railChain" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(134,239,172,0.10)"/>
+      <stop offset="50%" stop-color="rgba(134,239,172,0.30)"/>
+      <stop offset="100%" stop-color="rgba(134,239,172,0.10)"/>
+    </linearGradient>
+    <linearGradient id="railNextAct" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(148,163,184,0.16)"/>
+      <stop offset="100%" stop-color="rgba(148,163,184,0.04)"/>
+    </linearGradient>
+    <filter id="railGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="800" height="540" rx="12" fill="url(#railBg)"/>
+
+  <!-- ── Title strip ─────────────────────────────────────────── -->
+  <text x="400" y="28" text-anchor="middle" fill="#cbd5e1" font-size="10.5" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">FIVE STAGES · THREE RAILS · ONE SIGNED CHAIN</text>
+  <text x="400" y="46" text-anchor="middle" fill="#64748b" font-size="9.5" letter-spacing="1.5" font-family="system-ui, sans-serif">Judgment is the agent's. Proof is deterministic. Governance is the human's.</text>
+
+  <!-- ── Phase column headers ───────────────────────────────── -->
+  <g transform="translate(0,72)">
+    <rect x="100" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
+    <text x="165" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">OKR</text>
+    <text x="165" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">intent locked</text>
+
+    <rect x="238" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
+    <text x="303" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">WHY</text>
+    <text x="303" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">research synthesis</text>
+
+    <rect x="376" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
+    <text x="441" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">HOW</text>
+    <text x="441" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">PRD + persona-switch</text>
+
+    <rect x="514" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
+    <text x="579" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">WHAT</text>
+    <text x="579" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">code-grounded design</text>
+
+    <rect x="652" y="0" width="130" height="28" rx="6" fill="url(#railNextAct)" stroke="rgba(148,163,184,0.45)" stroke-width="1.1" stroke-dasharray="3,2"/>
+    <text x="717" y="13" text-anchor="middle" fill="#cbd5e1" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">BUILD-handoff</text>
+    <text x="717" y="23" text-anchor="middle" fill="#94a3b8" font-size="8" font-style="italic" font-family="system-ui, sans-serif">fan-out · next act</text>
+  </g>
+
+  <!-- ── JUDGMENT rail ──────────────────────────────────────── -->
+  <g transform="translate(0,118)">
+    <!-- rail label -->
+    <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railJudgment)" stroke="rgba(167,139,250,0.55)" stroke-width="1.3"/>
+    <g transform="translate(28,18)">
+      <rect x="0" y="6" width="6" height="14" rx="1" fill="#a78bfa"/>
+      <rect x="11" y="2" width="6" height="18" rx="1" fill="#a78bfa"/>
+      <rect x="22" y="9" width="6" height="11" rx="1" fill="#a78bfa"/>
+      <path d="M -1 26 L 30 26" stroke="#a78bfa" stroke-width="1.3"/>
+    </g>
+    <text x="53" y="62" text-anchor="middle" fill="#ede9fe" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">JUDGMENT</text>
+    <text x="53" y="74" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">agent · signed</text>
+
+    <!-- OKR -->
+    <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
+    <text x="110" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">intent hypothesis</text>
+    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">objective + KRs</text>
+    <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">tier proposal</text>
+    <text x="110" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">+ Hatter Tag</text>
+
+    <!-- WHY -->
+    <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
+    <text x="248" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">research synthesis</text>
+    <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">conclusions ranked</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">gap-loop refinement</text>
+    <text x="248" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">self_review × N</text>
+
+    <!-- HOW -->
+    <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
+    <text x="386" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">PRD self-critique</text>
+    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">architect persona</text>
+    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">security persona</text>
+    <text x="386" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">2 rounds → PASS</text>
+
+    <!-- WHAT -->
+    <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
+    <text x="524" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">code-design critique</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-architect persona</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-security persona</text>
+    <text x="524" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">2 rounds → PASS</text>
+
+    <!-- BUILD-handoff (queued) -->
+    <rect x="652" y="0" width="130" height="84" rx="6" fill="url(#railNextAct)" stroke="rgba(148,163,184,0.30)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="662" y="18" fill="#cbd5e1" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">design sign-off</text>
+    <text x="662" y="32" fill="#64748b" font-size="8.5" font-family="system-ui, sans-serif">CIO/CISO review</text>
+    <text x="662" y="46" fill="#64748b" font-size="8.5" font-family="system-ui, sans-serif">over redacted bundle</text>
+    <text x="662" y="74" fill="#94a3b8" font-size="8" font-style="italic" font-family="system-ui, sans-serif">queued</text>
+  </g>
+
+  <!-- ── PROOF rail ─────────────────────────────────────────── -->
+  <g transform="translate(0,212)">
+    <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railProof)" stroke="rgba(125,211,252,0.55)" stroke-width="1.3"/>
+    <g transform="translate(34,16)">
+      <circle cx="0" cy="6" r="9" fill="none" stroke="#7dd3fc" stroke-width="1.4"/>
+      <path d="M -4 6 L -1 10 L 5 2" stroke="#7dd3fc" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="53" y="62" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">PROOF</text>
+    <text x="53" y="74" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="system-ui, sans-serif">runtime · signed</text>
+
+    <!-- OKR -->
+    <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
+    <text x="110" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">BAR + mesh anchors</text>
+    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">CALM nodes referenced</text>
+    <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">ADR / threat IDs</text>
+    <text x="110" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">knowledge-mesh-bar</text>
+
+    <!-- WHY -->
+    <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
+    <text x="248" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">external evidence</text>
+    <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">Tavily · arXiv · USPTO</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">HN · community signals</text>
+    <text x="248" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">skill_call × N</text>
+
+    <!-- HOW -->
+    <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
+    <text x="386" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">mesh + decisions</text>
+    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">ADRs read in-place</text>
+    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">STRIDE threats indexed</text>
+    <text x="386" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">context-* skills</text>
+
+    <!-- WHAT -->
+    <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
+    <text x="524" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">real code reads</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">brownfield clone + read</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">cited paths verified</text>
+    <text x="524" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">knowledge-code · -read</text>
+
+    <!-- BUILD-handoff -->
+    <rect x="652" y="0" width="130" height="84" rx="6" fill="url(#railNextAct)" stroke="rgba(148,163,184,0.30)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="662" y="18" fill="#cbd5e1" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">enforced at action</text>
+    <text x="662" y="32" fill="#64748b" font-size="8.5" font-family="system-ui, sans-serif">Red Queen MCP gates</text>
+    <text x="662" y="46" fill="#64748b" font-size="8.5" font-family="system-ui, sans-serif">per-decision audit log</text>
+    <text x="662" y="74" fill="#94a3b8" font-size="8" font-style="italic" font-family="system-ui, sans-serif">queued</text>
+  </g>
+
+  <!-- ── GOVERNANCE rail ─────────────────────────────────────── -->
+  <g transform="translate(0,306)">
+    <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railGovernance)" stroke="rgba(253,186,116,0.55)" stroke-width="1.3"/>
+    <g transform="translate(34,16)">
+      <rect x="-9" y="2" width="18" height="14" rx="2" fill="none" stroke="#fdba74" stroke-width="1.4"/>
+      <path d="M -6 0 L -6 2 M 6 0 L 6 2" stroke="#fdba74" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="0" cy="9" r="2.5" fill="#fdba74"/>
+    </g>
+    <text x="53" y="62" text-anchor="middle" fill="#fef3c7" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">GOVERNANCE</text>
+    <text x="53" y="74" text-anchor="middle" fill="#fdba74" font-size="8" font-family="system-ui, sans-serif">human + workflow</text>
+
+    <!-- OKR -->
+    <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
+    <text x="110" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">tier set</text>
+    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">autonomous / supervised /</text>
+    <text x="110" y="44" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">restricted by BAR score</text>
+    <text x="110" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">okr.yaml.actions[]</text>
+
+    <!-- WHY -->
+    <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
+    <text x="248" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">research-pass</text>
+    <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">PR label applied</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">merge unlocked</text>
+    <text x="248" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">state_transition</text>
+
+    <!-- HOW -->
+    <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
+    <text x="386" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">prd-pass</text>
+    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">label + finalize roll</text>
+    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">meta.status → design</text>
+    <text x="386" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">artifact_written</text>
+
+    <!-- WHAT -->
+    <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
+    <text x="524" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">design-pass</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">label + finalize roll</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">meta.status → building</text>
+    <text x="524" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">artifact_written</text>
+
+    <!-- BUILD-handoff -->
+    <rect x="652" y="0" width="130" height="84" rx="6" fill="url(#railNextAct)" stroke="rgba(148,163,184,0.30)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="662" y="18" fill="#cbd5e1" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">per-repo gates</text>
+    <text x="662" y="32" fill="#64748b" font-size="8.5" font-family="system-ui, sans-serif">design-bus fan-out</text>
+    <text x="662" y="46" fill="#64748b" font-size="8.5" font-family="system-ui, sans-serif">override attribution</text>
+    <text x="662" y="74" fill="#94a3b8" font-size="8" font-style="italic" font-family="system-ui, sans-serif">queued</text>
+  </g>
+
+  <!-- ── Signed audit chain band ──────────────────────────────── -->
+  <g transform="translate(0,408)">
+    <rect x="14" y="6" width="768" height="56" rx="10" fill="url(#railChain)" stroke="rgba(134,239,172,0.65)" stroke-width="1.6" filter="url(#railGlow)"/>
+    <g transform="translate(30,20)">
+      <path d="M 16 4 L 28 8 L 28 18 Q 28 24 16 28 Q 4 24 4 18 L 4 8 Z" fill="rgba(134,239,172,0.25)" stroke="#86efac" stroke-width="1.3"/>
+      <path d="M 10 15 L 14 19 L 21 12" stroke="#86efac" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="74" y="28" fill="#dcfce7" font-size="12.5" font-weight="700" font-family="system-ui, sans-serif">🛡  Signed audit chain · every event tied to its emitting session</text>
+    <text x="74" y="46" fill="#86efac" font-size="9.5" font-family="system-ui, sans-serif">Knight's Seal v1 (per-session Ed25519) · CI replays on every PR · chain-ladder.yaml stitches WHY → HOW → WHAT</text>
+    <!-- chain link dots indicating phase positions -->
+    <circle cx="165" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
+    <circle cx="303" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
+    <circle cx="441" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
+    <circle cx="579" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
+    <circle cx="717" cy="34" r="4" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="2,1"/>
+    <path d="M 165 34 L 303 34 M 303 34 L 441 34 M 441 34 L 579 34" stroke="rgba(134,239,172,0.55)" stroke-width="1.4"/>
+    <path d="M 579 34 L 717 34" stroke="rgba(148,163,184,0.55)" stroke-width="1.4" stroke-dasharray="3,2"/>
+  </g>
+
+  <!-- ── Legend ──────────────────────────────────────────────── -->
+  <g transform="translate(0,484)">
+    <rect x="14" y="0" width="768" height="42" rx="8" fill="rgba(15,23,42,0.55)" stroke="rgba(148,163,184,0.25)" stroke-width="1"/>
+    <!-- Shipped -->
+    <g transform="translate(30,11)">
+      <rect x="0" y="0" width="14" height="20" rx="2" fill="rgba(196,181,253,0.18)" stroke="rgba(196,181,253,0.55)" stroke-width="1"/>
+      <text x="22" y="14" fill="#e2e8f0" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">solid border · shipped today</text>
+    </g>
+    <!-- Next act -->
+    <g transform="translate(238,11)">
+      <rect x="0" y="0" width="14" height="20" rx="2" fill="rgba(148,163,184,0.10)" stroke="rgba(148,163,184,0.45)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="22" y="14" fill="#cbd5e1" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">dashed border · next act (fan-out)</text>
+    </g>
+    <!-- Chain dot -->
+    <g transform="translate(490,11)">
+      <circle cx="7" cy="10" r="4" fill="#86efac"/>
+      <text x="20" y="14" fill="#86efac" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">chain rung · sealed event</text>
+    </g>
+    <!-- Hash dot -->
+    <g transform="translate(660,11)">
+      <circle cx="7" cy="10" r="4" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="2,1"/>
+      <text x="20" y="14" fill="#94a3b8" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">queued rung</text>
+    </g>
+  </g>
+</svg>
+
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-violet">
