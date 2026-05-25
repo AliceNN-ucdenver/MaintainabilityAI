@@ -500,7 +500,7 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
       <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Every hit (title, URL, snippet) lands in the audit chain — a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
       <li class="docs-list-item">PRD refined by mesh-anchored clarifying questions; reviewers score it for mesh-grounding</li>
       <li class="docs-list-item">Cross-cutting code design grounded against every indexed target repo (the heaviest gate in the pipeline). The agent reads actual file contents from each brownfield clone, and the workflow rejects the design if it cites any file path that does not exist in the repo's inventory.</li>
-      <li class="docs-list-item"><strong>Audit Report Export</strong> — internal auditor closeout report ships now (one-click export of a markdown closeout per OKR action with runner crypto verdict, control mapping, event timeline). <em>The redacted external one-zip regulator bundle is the next act.</em></li>
+      <li class="docs-list-item"><strong>Audit Report Export</strong> — internal auditor closeout report ships now (one-click export of a markdown closeout per OKR action with a cryptographic pass/fail verdict, requirement traceability, and an event timeline). <em>The redacted external one-zip regulator bundle is the next act.</em></li>
     </ul>
     <p class="docs-copy"><a href="/docs/hatters-tea-party" class="docs-button-primary">Open the Tea Party →</a></p>
   </div>
@@ -956,7 +956,7 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
 
 **Court Recorder records. Knight's Seal proves. Audit Report explains.** Three primitives, one sequence.
 
-**What each does:** The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export turns the chain into a one-click markdown closeout per OKR action — runner crypto verdict at the top, control mapping in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL.
+**What each does:** The Court Recorder lanes split who-can-emit-what so the chain has one legitimate source per event. Knight's Seal v1 (per-event Ed25519 signing under a per-session ephemeral keypair) makes each agent-emitted event cryptographically tied to the session that produced it — any tamper breaks the signature; the runner re-verifies on every PR. The Audit Report Export turns the chain into a one-click markdown closeout per OKR action — cryptographic pass/fail verdict at the top, requirement traceability in the middle, event timeline at the bottom — so an auditor reads one document instead of grepping JSONL.
 
 **What the auditor sees:** A single self-contained markdown closeout per merged action, plus the core source files it cites: the artifact, JSONL chain, ladder, and public keys. Persistent external verification (cosign-anchored Knight's Seal v2) and the redacted external one-zip regulator bundle are the next act.
 
@@ -1393,7 +1393,7 @@ Five actors the Hatter must withstand:
     <span class="docs-proof-status docs-proof-status-queued">🛠 Queued</span>
     <div>
       <p class="docs-proof-title">External-shareable audit bundle needs a redaction layer</p>
-      <p class="docs-proof-body">The internal auditor closeout report ships today (markdown export, runner crypto verdict, control mapping). It includes research, PRD, and design references verbatim — powerful for internal audit and incident response, but external sharing with regulators or downstream consumers needs an automated PII / IP / secrets scrubbing pass first. That redaction layer plus the one-zip packaging is what's queued for the next act.</p>
+      <p class="docs-proof-body">The internal auditor closeout report ships today (markdown export, cryptographic pass/fail verdict, requirement traceability). It includes research, PRD, and design references verbatim — powerful for internal audit and incident response, but external sharing with regulators or downstream consumers needs an automated PII / IP / secrets scrubbing pass first. That redaction layer plus the one-zip packaging is what's queued for the next act.</p>
     </div>
     <div class="docs-proof-evidence"><strong>Current state:</strong> token and cost counts are captured; prompt bodies are not stored. Redacted export is queued with Audit Report Export.</div>
   </div>
@@ -1606,7 +1606,7 @@ No live system access. No proprietary tooling. Five checks land the story:
   </div>
 </div>
 
-<p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-top:1rem;">The full exported closeout report — runner crypto verdict, control map, event timeline — is in the mesh repo under <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code>.</p>
+<p style="text-align:center; font-size:0.9rem; color:#94a3b8; margin-top:1rem;">The full exported closeout report — cryptographic pass/fail verdict, requirement traceability, event timeline — is in the mesh repo under <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code>.</p>
 
 The "the agent cannot fabricate the audit log" claim is now a measured property of merged runs, not a design assertion. The audit-event shape is regression-locked across the runtime, the workflow that reads the chain, and the dashboard that displays it. Drift between any two layers breaks at test time.
 
@@ -1634,7 +1634,7 @@ We publish this list because honest design beats marketing claims. Every status 
     <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
     <div>
       <p class="docs-gap-title">Shipped: Internal Audit Report Export — auditor closeout per OKR action</p>
-      <p class="docs-gap-body">One-click markdown export from Looking Glass produces a closeout report per merged action containing the runner crypto verdict (Ed25519 + hash-chain replay), shape-level seal verdict, per-skill evidence table, per-persona self-review trail with <code>event_id</code> citations, workflow facts (<code>artifact_written</code> + <code>state_transition</code>), collapsible event timeline, SR-NN → STRIDE/OWASP → PRD anchor → design § control mapping, and the cross-phase WHY→HOW→WHAT ladder. Saved to <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code> for durable record.</p>
+      <p class="docs-gap-body">One-click markdown export from Looking Glass produces a closeout report per merged action containing the cryptographic pass/fail verdict, shape-level seal verdict, per-skill evidence table, per-persona self-review trail with <code>event_id</code> citations, workflow facts (<code>artifact_written</code> + <code>state_transition</code>), collapsible event timeline, a requirement traceability table tying security requirements to STRIDE, OWASP, the PRD, and the design, and the cross-phase WHY→HOW→WHAT ladder. Saved to <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code> for durable record.</p>
     </div>
   </div>
   <div class="docs-gap-row">
