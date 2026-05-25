@@ -6,7 +6,7 @@
  * surfaces immediately.
  */
 import { describe, it, expect } from 'vitest';
-import { buildAuditReportMarkdown, parseRunnerVerdictFromStdout, type AuditReportInput, type ChainVerifyVerdictLite, type RunnerVerifyVerdict } from '../AuditReportExporter';
+import { buildAuditReportMarkdown, composeSourceTag, parseRunnerVerdictFromStdout, type AuditReportInput, type AuditReportInputSources, type ChainVerifyVerdictLite, type RunnerVerifyVerdict } from '../AuditReportExporter';
 
 function makeVerdict(over: Partial<ChainVerifyVerdictLite> = {}): ChainVerifyVerdictLite {
   return {
@@ -893,5 +893,102 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
     if (!verdict.invoked) {
       expect(verdict.reason).toContain('unexpected shape');
     }
+  });
+
+  // ── Codex E3-gold-r5-followup — composeSourceTag canonicality predicate ──
+  // The handler's old inline predicate allowed runnerInput=not-applicable
+  // without re-checking keysSource. In a key-mismatch / key-missing case
+  // the executive summary still failed correctly, but the headline
+  // sourceTag could read "GitHub canonical" — a chief-auditor-grade
+  // honesty bug. The pure helper now guarantees that any of
+  // keys=mismatch/missing or runnerInput=jsonl-mismatch/missing
+  // produces a MIXED tag.
+  const REPO = { owner: 'AliceNN-ucdenver', repo: 'mesh' };
+  function mkSources(over: Partial<AuditReportInputSources> = {}): AuditReportInputSources {
+    return {
+      okr: 'github',
+      chain: 'github',
+      ladder: 'github',
+      keys: 'github-verified',
+      prd: 'github',
+      artifact: 'github',
+      runnerInput: 'github-verified',
+      ...over,
+    };
+  }
+
+  it('composeSourceTag: all-canonical happy path produces GitHub headline', () => {
+    expect(composeSourceTag(mkSources(), REPO))
+      .toBe('GitHub AliceNN-ucdenver/mesh (default branch)');
+  });
+
+  it('composeSourceTag: all-local produces local-mesh headline', () => {
+    const sources = mkSources({
+      okr: 'local-fallback',
+      chain: 'local-fallback',
+      ladder: 'local-fallback',
+      keys: 'local-only',
+      prd: 'local-fallback',
+      artifact: 'local-fallback',
+      runnerInput: 'local-only',
+    });
+    expect(composeSourceTag(sources, REPO)).toBe('local mesh checkout');
+  });
+
+  it('composeSourceTag: workflow-only chain (no signed agent events) stays canonical', () => {
+    // Legitimate case: chain has no signed agent events, so runnerInput
+    // is not-applicable BECAUSE keys is not-checked. This is the ONLY
+    // path where not-applicable should be allowed in a canonical tag.
+    const sources = mkSources({ keys: 'not-checked', runnerInput: 'not-applicable' });
+    expect(composeSourceTag(sources, REPO))
+      .toBe('GitHub AliceNN-ucdenver/mesh (default branch)');
+  });
+
+  it('composeSourceTag: keys=mismatch produces MIXED · keys: LOCAL DRIFT (Codex r5-followup BLOCKING)', () => {
+    // The exact regression Codex caught: pre-r5-followup, keys=mismatch
+    // + runnerInput=not-applicable (which the helper sets when it
+    // short-circuits past JSONL check) would pass the inline predicate
+    // and produce "GitHub canonical". Now: MIXED, with keys hint.
+    const sources = mkSources({ keys: 'mismatch', runnerInput: 'not-applicable' });
+    const tag = composeSourceTag(sources, REPO);
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('keys: LOCAL DRIFT');
+    expect(tag).toContain('NON-ATOMIC');
+    expect(tag).not.toContain('canonical');
+  });
+
+  it('composeSourceTag: keys=missing produces MIXED · keys: MISSING', () => {
+    const sources = mkSources({ keys: 'missing', runnerInput: 'not-applicable' });
+    const tag = composeSourceTag(sources, REPO);
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('keys: MISSING');
+    expect(tag).not.toContain('canonical');
+  });
+
+  it('composeSourceTag: runnerInput=jsonl-mismatch produces MIXED · runner input: LOCAL DRIFT', () => {
+    // Keys are canonical but local JSONL bytes drifted — the case
+    // r5 BLOCKING closed at the exec-summary level. The headline
+    // must also be honest about it.
+    const sources = mkSources({ runnerInput: 'jsonl-mismatch' });
+    const tag = composeSourceTag(sources, REPO);
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('runner input: LOCAL DRIFT');
+    expect(tag).not.toContain('canonical');
+  });
+
+  it('composeSourceTag: runnerInput=jsonl-missing produces MIXED · runner input: LOCAL MISSING', () => {
+    const sources = mkSources({ runnerInput: 'jsonl-missing' });
+    const tag = composeSourceTag(sources, REPO);
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('runner input: LOCAL MISSING');
+    expect(tag).not.toContain('canonical');
+  });
+
+  it('composeSourceTag: okr=github + chain=local-fallback produces MIXED (no canonical headline)', () => {
+    const sources = mkSources({ chain: 'local-fallback', runnerInput: 'not-applicable' });
+    const tag = composeSourceTag(sources, REPO);
+    expect(tag).toContain('MIXED');
+    expect(tag).toContain('local-fallback');
+    expect(tag).not.toContain('canonical');
   });
 });

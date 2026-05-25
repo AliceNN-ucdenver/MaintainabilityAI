@@ -73,7 +73,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
-import { buildAuditReportMarkdown, parseRunnerVerdictFromStdout, type AuditReportInputSources, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
+import { buildAuditReportMarkdown, composeSourceTag, parseRunnerVerdictFromStdout, type AuditReportInputSources, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -2754,21 +2754,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       artifact: artifactSource,
       runnerInput: runnerInputSource,
     };
-    // Codex E3-gold-r5 — sourceTag is now an honest composition over
-    // every input that affects atomicity. allCanonical requires
-    // runnerInput to also be github-verified (or n/a when there's
-    // nothing to verify), otherwise a local JSONL drift would let
-    // a "GitHub canonical" headline mask broken atomicity.
-    const allCanonical =
-      okrSource === 'github'
-      && chainSource === 'github'
-      && (runnerInputSource === 'github-verified' || runnerInputSource === 'not-applicable');
-    const allLocal = okrSource === 'local-fallback' && chainSource === 'local-fallback';
-    const sourceTag = allCanonical
-      ? `GitHub ${repoInfo!.owner}/${repoInfo!.repo} (default branch)`
-      : allLocal
-        ? 'local mesh checkout'
-        : `MIXED — okr.yaml: ${okrSource === 'github' ? `GitHub ${repoInfo?.owner ?? '?'}/${repoInfo?.repo ?? '?'}` : 'local'} · chain JSONL: ${chainSource === 'github' ? 'GitHub' : 'local-fallback'}${runnerInputSource === 'jsonl-mismatch' ? ' · runner input: LOCAL DRIFT' : runnerInputSource === 'jsonl-missing' ? ' · runner input: LOCAL MISSING' : ''} (NON-ATOMIC; see Source breakdown)`;
+    // Codex E3-gold-r5-followup — sourceTag composition extracted
+    // to composeSourceTag() so the canonicality predicate has direct
+    // unit-test coverage. See AuditReportExporter.composeSourceTag
+    // for the precedence rules; the helper guarantees that any of
+    // keys=mismatch/missing or runnerInput=jsonl-mismatch/missing
+    // produces a MIXED tag, never a GitHub canonical headline.
+    const sourceTag = composeSourceTag(sources, repoInfo);
 
     const markdown = buildAuditReportMarkdown({
       okrId,

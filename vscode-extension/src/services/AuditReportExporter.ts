@@ -718,6 +718,70 @@ function extractControlMapping(prdText: string | null | undefined, artifactText:
 }
 
 /**
+ * Codex E3-gold-r5-followup (2026-05-25) — compose the headline
+ * `sourceTag` string from a per-input sources object.
+ *
+ * Extracted from LookingGlassPanel so the canonicality predicate that
+ * decides "GitHub canonical" vs "MIXED" gets direct unit-test coverage
+ * — Codex's r5-followup finding was that the inline version in the
+ * handler allowed `runnerInputSource === 'not-applicable'` without
+ * also checking `keysSource`. In a key-missing or key-mismatch case,
+ * the executive summary already failed correctly, but the headline
+ * could still say "GitHub canonical" because `runnerInput=not-
+ * applicable` (which fires whenever the helper short-circuits past
+ * the JSONL byte check) does NOT imply atomicity. Tightened predicate:
+ *
+ *   keysCanonical       = keys ∈ {github-verified, not-checked}
+ *   runnerInputCanonical = runnerInput === github-verified
+ *                          OR (runnerInput === not-applicable
+ *                              AND keys === not-checked)
+ *   allCanonical = okr=github ∧ chain=github ∧ both above
+ *
+ * The MIXED-tag suffix now also surfaces the specific failing input
+ * (keys: LOCAL DRIFT / MISSING; runner input: LOCAL DRIFT / MISSING)
+ * so a reviewer reading just the headline knows where to look.
+ */
+export function composeSourceTag(
+  sources: AuditReportInputSources,
+  repoInfo: { owner: string; repo: string } | null | undefined,
+): string {
+  const keysCanonical =
+    sources.keys === 'github-verified' || sources.keys === 'not-checked';
+  const runnerInputCanonical =
+    sources.runnerInput === 'github-verified'
+    || (sources.runnerInput === 'not-applicable' && sources.keys === 'not-checked');
+  const allCanonical =
+    sources.okr === 'github'
+    && sources.chain === 'github'
+    && keysCanonical
+    && runnerInputCanonical;
+  const allLocal =
+    sources.okr === 'local-fallback' && sources.chain === 'local-fallback';
+  if (allCanonical && repoInfo) {
+    return `GitHub ${repoInfo.owner}/${repoInfo.repo} (default branch)`;
+  }
+  if (allLocal) { return 'local mesh checkout'; }
+  const okrPart =
+    sources.okr === 'github'
+      ? `GitHub ${repoInfo?.owner ?? '?'}/${repoInfo?.repo ?? '?'}`
+      : 'local';
+  const chainPart = sources.chain === 'github' ? 'GitHub' : 'local-fallback';
+  const keysHint =
+    sources.keys === 'mismatch'
+      ? ' · keys: LOCAL DRIFT'
+      : sources.keys === 'missing'
+        ? ' · keys: MISSING'
+        : '';
+  const runnerHint =
+    sources.runnerInput === 'jsonl-mismatch'
+      ? ' · runner input: LOCAL DRIFT'
+      : sources.runnerInput === 'jsonl-missing'
+        ? ' · runner input: LOCAL MISSING'
+        : '';
+  return `MIXED — okr.yaml: ${okrPart} · chain JSONL: ${chainPart}${keysHint}${runnerHint} (NON-ATOMIC; see Source breakdown)`;
+}
+
+/**
  * Codex E3-gold-r4 (2026-05-25) — render the per-input source breakdown
  * so an auditor can see at a glance which inputs are canonical, which
  * fell back to local, and whether keys atomicity holds. Returns null
