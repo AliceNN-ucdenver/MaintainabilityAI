@@ -627,4 +627,148 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
       expect(verdict.reason).toContain('unexpected shape');
     }
   });
+
+  // ── Codex E3-gold-r4 — bottom-to-top walker regression ──
+  // r3 parsed only the absolute final non-empty line. If an npx wrapper
+  // or runner-side cleanup log emitted a non-JSON line AFTER the verdict
+  // JSON, the parser silently fell through to NOT INVOKED. r4 walks from
+  // the bottom finding the first JSON-shaped line.
+  it('parseRunnerVerdictFromStdout: parses verdict JSON when followed by trailing log line', () => {
+    const stdout = [
+      '[runner] init',
+      'verifying 28 events…',
+      '{"ok":true,"chainHead":"' + 'a'.repeat(64) + '","eventCount":28}',
+      '[runner] cleanup complete',
+      'Done.',
+    ].join('\n');
+    const verdict = parseRunnerVerdictFromStdout(stdout, '', 0);
+    expect(verdict.invoked).toBe(true);
+    if (verdict.invoked) {
+      expect(verdict.ok).toBe(true);
+      if (verdict.ok) {
+        expect(verdict.eventCount).toBe(28);
+      }
+    }
+  });
+
+  // ── Codex E3-gold-r4 — Source breakdown rendering ──
+  it('renders Source breakdown table when sources object is provided', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'github-verified',
+        prd: 'github',
+        artifact: 'github',
+      },
+    }));
+    expect(md).toContain('**Source breakdown**');
+    expect(md).toContain('| `okr.yaml` |');
+    expect(md).toContain('| chain JSONL |');
+    expect(md).toContain('| `audit/keys/<runId>.epoch-*.pub.pem` |');
+    expect(md).toContain('canonical (GitHub) · local key bytes match');
+  });
+
+  it('Source breakdown table absent when sources not provided (backward-compat)', () => {
+    const md = buildAuditReportMarkdown(makeInput());
+    expect(md).not.toContain('**Source breakdown**');
+  });
+
+  it('Source breakdown labels suppressed PRD honestly (Codex r4 atomicity)', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'missing',
+        keys: 'github-verified',
+        prd: 'suppressed-non-canonical',
+        artifact: 'github',
+      },
+    }));
+    expect(md).toContain('suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)');
+  });
+
+  it('Source breakdown labels LOCAL FALLBACK chain prominently', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'local-fallback',
+        ladder: 'missing',
+        keys: 'mismatch',
+        prd: 'github',
+        artifact: 'github',
+      },
+    }));
+    expect(md).toContain('⚠ LOCAL FALLBACK');
+    expect(md).toContain('🚫 LOCAL DOES NOT MATCH GITHUB');
+  });
+
+  // ── Codex E3-gold-r4 — atomicity-broken executive summary ──
+  it('exec summary VERDICT=FAIL (source atomicity broken) when okr=github + chain=local-fallback', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'local-fallback',  // ← non-atomic
+        ladder: 'missing',
+        keys: 'not-checked',
+        prd: 'github',
+        artifact: 'github',
+      },
+      runnerVerdict: { invoked: false, reason: 'Source atomicity broken' },
+    }));
+    expect(md).toContain('FAIL (source atomicity broken — report bytes ≠ runner bytes)');
+    expect(md).toContain('CRITICAL — source atomicity broken');
+    // Must not say PASS or SHAPE-CLEARED under any circumstance with broken atomicity.
+    expect(md).not.toContain('VERDICT**: PASS');
+    expect(md).not.toContain('SHAPE-CLEARED');
+  });
+
+  it('exec summary VERDICT=FAIL (atomicity broken) when keys=mismatch even if chain=github', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'mismatch',  // ← local key bytes don't match GitHub
+        prd: 'github',
+        artifact: 'github',
+      },
+      runnerVerdict: { invoked: false, reason: 'Local public key for epoch 1 does NOT match canonical GitHub bytes' },
+    }));
+    expect(md).toContain('FAIL (source atomicity broken');
+    expect(md).toContain('CRITICAL — source atomicity broken');
+    expect(md).toContain('local public-key files do not match canonical GitHub bytes');
+  });
+
+  it('exec summary VERDICT=FAIL (atomicity broken) when keys=missing', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'missing',
+        prd: 'github',
+        artifact: 'github',
+      },
+      runnerVerdict: { invoked: false, reason: 'Public key for epoch 1 missing locally' },
+    }));
+    expect(md).toContain('FAIL (source atomicity broken');
+    expect(md).toContain('public-key files needed by the runner are missing');
+  });
+
+  it('exec summary PASS allowed only when sources atomic AND runner invoked + ok', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      sources: {
+        okr: 'github',
+        chain: 'github',
+        ladder: 'github',
+        keys: 'github-verified',
+        prd: 'github',
+        artifact: 'github',
+      },
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'a'.repeat(64), eventCount: 28 },
+    }));
+    expect(md).toContain('PASS (runner-verified');
+  });
 });

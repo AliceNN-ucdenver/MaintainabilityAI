@@ -31,6 +31,51 @@ export interface ChainVerifyVerdictLite {
   shapeOk: boolean;
 }
 
+/**
+ * Codex E3-gold-r4 review (2026-05-25) — per-input source descriptor.
+ *
+ * The previous round tracked only a single `sourceTag` string. That
+ * collapsed the canonical/local distinction across all inputs, which
+ * hid a real bug class: `Promise.all([JSONL, ladder])` falling back
+ * to local JSONL while `sourceTag` still said GitHub, then the
+ * source-atomicity guard comparing `localJsonl !== chainText` —
+ * which had become local-vs-local and passed trivially.
+ *
+ * Now every input carries its own provenance. The handler can
+ * detect mixed states and either fail closed (runner not invoked,
+ * with reason) or render the report with honest source labels per
+ * input so the auditor sees exactly what came from where.
+ *
+ * Field semantics:
+ *   - `okr` / `chain`: required inputs. `github` means canonical
+ *     fetch succeeded; `local-fallback` means GitHub failed and
+ *     local was substituted.
+ *   - `ladder`: optional cross-phase context. `missing` is a normal
+ *     state (single-phase exports don't have one).
+ *   - `keys`: needed for the runner verifier. `github-verified`
+ *     means every local key file's bytes match GitHub canonical;
+ *     `local-only` means the run is in local-fallback mode and keys
+ *     are atomic by virtue of common source; `mismatch` / `missing`
+ *     mean the runner CANNOT be invoked atomically with this
+ *     report's claims (handler MUST NOT invoke runner in these
+ *     states); `not-checked` means no signed agent events were
+ *     present in the chain (workflow-only chain — runner has no
+ *     Ed25519 work to do).
+ *   - `prd` / `artifact`: optional. `suppressed-non-canonical` is
+ *     the Codex r4 fix — when okr came from GitHub but the
+ *     PRD/artifact fetch failed, the handler suppresses local
+ *     fallback so the control-mapping section never silently mixes
+ *     canonical metadata with possibly-stale local design text.
+ */
+export interface AuditReportInputSources {
+  okr: 'github' | 'local-fallback';
+  chain: 'github' | 'local-fallback';
+  ladder: 'github' | 'local-fallback' | 'missing';
+  keys: 'github-verified' | 'local-only' | 'mismatch' | 'missing' | 'not-checked';
+  prd: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
+  artifact: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
+}
+
 export interface AuditReportInput {
   okrId: string;
   runId: string;
@@ -59,6 +104,13 @@ export interface AuditReportInput {
    * this so a reviewer can tell whether they're looking at canonical
    * post-finalize state OR a possibly-stale local export. Required
    * input — caller MUST set it explicitly (no default).
+   *
+   * Codex E3-gold-r4 (2026-05-25): when `sources` is present, the
+   * handler should compose `sourceTag` to reflect the per-input
+   * truth (e.g. `MIXED · ... (NON-ATOMIC)` when okr came from GitHub
+   * but chain fell back to local). The report header always renders
+   * `sourceTag` as the headline; `sources` powers the detailed
+   * breakdown subsection inside Trust posture.
    */
   sourceTag: string;
   /**
@@ -85,6 +137,15 @@ export interface AuditReportInput {
    * design — completes the control-mapping trace.
    */
   artifactText?: string | null;
+  /**
+   * Codex E3-gold-r4 (2026-05-25) — per-input source provenance.
+   * Optional for backward compatibility with tests, but the handler
+   * always passes it now. When present, the report renders a "Source
+   * breakdown" table inside Trust posture so the auditor can see at
+   * a glance which inputs came from canonical GitHub vs local
+   * fallback, and whether keys were atomically verified.
+   */
+  sources?: AuditReportInputSources;
 }
 
 /**
@@ -116,9 +177,19 @@ export type RunnerVerifyVerdict =
  * a direct regression test on this pure function — testing the
  * handler end-to-end would require mocking child_process.spawn.
  *
+ * Codex E3-gold-r4 (2026-05-25) — walks stdout from BOTTOM to TOP
+ * and parses the first JSON-shaped line. Pre-fix only inspected the
+ * absolute final non-empty line: an npx wrapper or runner-side
+ * trailing log line ("Done.", "[runner] cleanup", etc.) emitted
+ * AFTER the verdict JSON would silently make the parser fall
+ * through to NOT INVOKED even though the verdict was right there.
+ * The runner contract is "verdict JSON is the last JSON-shaped
+ * line"; walking from the bottom finds it even when wrappers append
+ * non-JSON afterwards.
+ *
  * Contract — parse runner stdout regardless of exit code:
- *   - Last non-empty stdout line that looks like JSON ({...}) is
- *     the canonical verdict per SKILL.md.
+ *   - Walk stdout lines bottom-to-top; first line that parses as
+ *     JSON ({...}) is the canonical verdict per SKILL.md.
  *   - {ok:true, chainHead, eventCount} → invoked PASS.
  *   - {ok:false, reason} → invoked FAIL (real tamper verdict;
  *     do NOT downgrade to NOT INVOKED just because the runner
@@ -134,12 +205,20 @@ export function parseRunnerVerdictFromStdout(
   exitCode: number,
 ): RunnerVerifyVerdict {
   let parsed: { ok?: boolean; chainHead?: string; eventCount?: number; reason?: string } | null = null;
-  try {
-    const lastLine = stdout.split('\n').map(s => s.trim()).filter(Boolean).pop() ?? '';
-    if (lastLine.startsWith('{') && lastLine.endsWith('}')) {
-      parsed = JSON.parse(lastLine);
+  const lines = stdout.split('\n').map(s => s.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (line.startsWith('{') && line.endsWith('}')) {
+      try {
+        parsed = JSON.parse(line);
+        break;
+      } catch {
+        // Malformed JSON-shaped line — keep walking upward in case the
+        // real verdict line is above.
+        continue;
+      }
     }
-  } catch { /* fall through */ }
+  }
   if (parsed) {
     if (parsed.ok === true && typeof parsed.chainHead === 'string' && typeof parsed.eventCount === 'number') {
       return { invoked: true, ok: true, chainHead: parsed.chainHead, eventCount: parsed.eventCount };
@@ -308,9 +387,32 @@ function buildExecutiveSummary(
 ): string {
   const v = input.verdict;
   const rv = input.runnerVerdict;
+  const sources = input.sources;
   let verdictLabel: string;
   let actionLine: string;
 
+  // Codex E3-gold-r4 — source-atomicity gate. If the per-input
+  // breakdown shows the report's claimed canonical source doesn't
+  // match what the runner would verify, name that explicitly in the
+  // executive summary BEFORE evaluating shape/runner verdicts. The
+  // handler already passes runnerVerdict={invoked:false, reason: ...}
+  // in this case, so without this branch the auditor would only see
+  // SHAPE-CLEARED — which understates the trust violation.
+  const atomicityBroken = sources && (
+    // okr came from canonical but chain or keys did not
+    (sources.okr === 'github' && sources.chain === 'local-fallback')
+    || sources.keys === 'mismatch'
+    || sources.keys === 'missing'
+  );
+  if (atomicityBroken) {
+    verdictLabel = 'FAIL (source atomicity broken — report bytes ≠ runner bytes)';
+    const detail = sources.keys === 'mismatch'
+      ? 'local public-key files do not match canonical GitHub bytes — runner would verify against different cryptographic material than this report references'
+      : sources.keys === 'missing'
+        ? 'public-key files needed by the runner are missing or unfetchable'
+        : 'chain JSONL fell back to local while okr.yaml is canonical GitHub — runner cannot atomically prove the canonical bytes';
+    actionLine = `REJECT — ${detail}. The runner was NOT invoked because doing so would produce a verdict that doesn't describe the bytes shown in this report. Run \`git pull\` in your mesh checkout to sync, then retry the export. Do NOT promote to fan-out from this report.`;
+  } else
   // Runner verdict (when invoked) is ground truth and leads the
   // summary. Shape verdict only drives the summary when the runner
   // couldn't be invoked (offline, npx unavailable, source-atomicity
@@ -348,7 +450,12 @@ function buildExecutiveSummary(
     return last.severity === 'MINOR';
   });
   let riskLine: string;
-  if (rv.invoked && !rv.ok) {
+  if (atomicityBroken) {
+    // Codex E3-gold-r4 — source atomicity violation outranks all other
+    // signals. Runner verdict (whether PASS or FAIL) would not describe
+    // the bytes shown in the report, so the entire report is suspect.
+    riskLine = 'CRITICAL — source atomicity broken; report contents cannot be cryptographically vouched for';
+  } else if (rv.invoked && !rv.ok) {
     // Codex E3-gold-r3 — runner FAIL escalates risk above all shape
     // signals. Runner is ground truth.
     riskLine = `CRITICAL — runner rejected the chain (\`${rv.reason}\`). Cryptographic / hash-chain integrity failure.`;
@@ -529,6 +636,50 @@ function extractControlMapping(prdText: string | null | undefined, artifactText:
 }
 
 /**
+ * Codex E3-gold-r4 (2026-05-25) — render the per-input source breakdown
+ * so an auditor can see at a glance which inputs are canonical, which
+ * fell back to local, and whether keys atomicity holds. Returns null
+ * when no sources object is provided (backward-compat with tests).
+ *
+ * The label conventions are deliberately blunt: `canonical (GitHub)`
+ * and `LOCAL FALLBACK` are visually distinct so a reviewer skimming
+ * the report immediately spots non-canonical inputs. `suppressed`
+ * names the Codex r4 atomicity discipline — when canonical fetch
+ * fails, we DO NOT silently use local; we drop the input so the
+ * downstream section doesn't mix canonical metadata with local
+ * design text.
+ */
+function renderSourceBreakdownBlock(sources: AuditReportInputSources | undefined): string {
+  if (!sources) { return ''; }
+  const label = (origin: string): string => {
+    switch (origin) {
+      case 'github':            return '✅ canonical (GitHub)';
+      case 'github-verified':   return '✅ canonical (GitHub) · local key bytes match';
+      case 'local-only':        return 'ℹ local mesh (atomic with chain — both fell back together)';
+      case 'local-fallback':    return '⚠ LOCAL FALLBACK (GitHub fetch failed)';
+      case 'missing':           return '— missing';
+      case 'mismatch':          return '🚫 LOCAL DOES NOT MATCH GITHUB (atomicity broken)';
+      case 'not-checked':       return 'ℹ not checked (no signed agent events to verify)';
+      case 'suppressed-non-canonical':
+        return '⚠ suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)';
+      default:                  return origin;
+    }
+  };
+  return `**Source breakdown** — which inputs are canonical:
+
+| Input | Source |
+|---|---|
+| \`okr.yaml\` | ${label(sources.okr)} |
+| chain JSONL | ${label(sources.chain)} |
+| chain-ladder.yaml | ${label(sources.ladder)} |
+| \`audit/keys/<runId>.epoch-*.pub.pem\` | ${label(sources.keys)} |
+| \`prd.md\` | ${label(sources.prd)} |
+| artifact | ${label(sources.artifact)} |
+
+_The runner verifier shells out against local-disk bytes. If \`chain\` or \`keys\` are not \`canonical\` or \`local-only\` (atomic), this export refuses to invoke the runner — its verdict would describe bytes the report cannot vouch for._`;
+}
+
+/**
  * E3-gold — render the runner crypto verdict block. Three states
  * (see RunnerVerifyVerdict): invoked+ok, invoked+failed, not-invoked.
  * The not-invoked case explicitly tells the reviewer the gold step
@@ -634,6 +785,12 @@ Total events: ${verdict.totalEvents} · Malformed lines: ${verdict.malformedLine
   // the most authoritative signal.
   const runnerBlock = renderRunnerVerdictBlock(input.runnerVerdict, input.okrId, input.runId);
 
+  // Codex E3-gold-r4 — per-input source breakdown. Rendered immediately
+  // above the runner verdict so the auditor knows what bytes are being
+  // attested to BEFORE reading the crypto verdict. Empty when sources
+  // is undefined (backward-compat for existing tests).
+  const sourceBreakdownBlock = renderSourceBreakdownBlock(input.sources);
+
   // E3-gold — compact chronological event timeline inside <details>.
   const timeline = summarizeEventTimeline(events);
   const timelineRows = timeline.map(r =>
@@ -723,7 +880,7 @@ ${executiveSummary}
 | Hatter chain root | \`${shortHash(input.hatterChainRoot, 32)}\` |
 
 ## Trust posture
-
+${sourceBreakdownBlock ? '\n' + sourceBreakdownBlock + '\n' : ''}
 ${runnerBlock}
 
 ${sealLine}

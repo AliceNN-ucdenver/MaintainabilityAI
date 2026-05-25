@@ -73,7 +73,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
 import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
-import { buildAuditReportMarkdown, parseRunnerVerdictFromStdout, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
+import { buildAuditReportMarkdown, parseRunnerVerdictFromStdout, type AuditReportInputSources, type RunnerVerifyVerdict } from '../services/AuditReportExporter';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -103,6 +103,30 @@ interface WhatChainSignals {
   greenfieldRepoCount?: number;
   selfReviewRounds?: number;
 }
+/**
+ * Codex E3-gold-r4 (2026-05-25) — extract the set of distinct
+ * signer_epoch values present in a chain. Used by Export Audit Report
+ * to enumerate which `audit/keys/<runId>.epoch-N.pub.pem` files need
+ * atomic verification against canonical GitHub bytes before the
+ * runner verifier can be invoked.
+ *
+ * Tolerant of malformed lines (skipped — the chain shape verdict
+ * surfaces them separately). Tolerant of events without signer_epoch
+ * (workflow events legitimately omit it).
+ */
+function extractSignerEpochs(chainLines: string[]): Set<number> {
+  const epochs = new Set<number>();
+  for (const line of chainLines) {
+    try {
+      const ev = JSON.parse(line) as { signer_epoch?: unknown };
+      if (typeof ev.signer_epoch === 'number' && Number.isInteger(ev.signer_epoch) && ev.signer_epoch > 0) {
+        epochs.add(ev.signer_epoch);
+      }
+    } catch { /* malformed — shape verifier handles */ }
+  }
+  return epochs;
+}
+
 function extractWhatChainSignals(lines: string[]): WhatChainSignals {
   let mesh = 0;
   let knowledgeCode = 0;
@@ -2551,17 +2575,33 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       if (parsed) { repoInfo = { owner: parsed.owner, repo: parsed.repo }; }
     }
 
+    // Codex E3-gold-r4 (2026-05-25) — per-input source tracking.
+    //
+    // Every input gets its own `*Source` local. The handler composes
+    // an AuditReportInputSources object at the end and passes it to
+    // buildAuditReportMarkdown so the report renders an explicit
+    // breakdown. Atomicity decisions (runner invocation, PRD
+    // suppression, sourceTag composition) all key off these per-
+    // input states — no more bundling everything under a single
+    // sourceTag string that hid divergence in r3.
+    //
+    // Mode: when okr.yaml comes from GitHub, the report claims
+    // "canonical" state. Every other input MUST come from GitHub OR
+    // (in the case of locally-resident files the runner reads) MUST
+    // match GitHub bytes — or the runner is NOT invoked and the
+    // input is suppressed/labelled accordingly. When okr.yaml falls
+    // back to local, the report is honest local-mesh state and all
+    // inputs are read locally (atomic by common source).
+
     // Step 1: fetch canonical okr.yaml from GitHub main. Local fallback
     // only on failure.
     const okrYamlRelPath = `okrs/${okrId}/okr.yaml`;
     let okrYamlText: string | null = null;
-    let sourceTag = 'local mesh checkout';
+    let okrSource: 'github' | 'local-fallback' = 'local-fallback';
     if (repoInfo) {
       try {
         okrYamlText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, okrYamlRelPath);
-        if (okrYamlText) {
-          sourceTag = `GitHub ${repoInfo.owner}/${repoInfo.repo} (default branch)`;
-        }
+        if (okrYamlText) { okrSource = 'github'; }
       } catch { /* fall through to local */ }
     }
     if (!okrYamlText) {
@@ -2575,26 +2615,27 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         this.postMessage({ type: 'error', message: `Failed to read local okr.yaml fallback: ${toErrorMessage(err)}` });
         return;
       }
+      okrSource = 'local-fallback';
     }
 
     // Step 2: parse canonical okr.yaml + find the action by id. The
     // runId comes from CANONICAL state, NOT local — this is the
-    // Codex E3-gold blocking fix.
+    // Codex E3-gold blocking fix from r2.
     let actionYaml: Record<string, unknown> | null = null;
     try {
       const parsed = YAML.parse(okrYamlText) as { actions?: Array<Record<string, unknown>> };
       actionYaml = (parsed.actions ?? []).find(a => a['id'] === actionId) ?? null;
     } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to parse okr.yaml (source: ${sourceTag}): ${toErrorMessage(err)}` });
+      this.postMessage({ type: 'error', message: `Failed to parse okr.yaml (source: ${okrSource}): ${toErrorMessage(err)}` });
       return;
     }
     if (!actionYaml) {
-      this.postMessage({ type: 'error', message: `Action ${actionId} not in canonical okr.yaml (source: ${sourceTag}). May not be pushed yet — wait for finalize to land, then retry.` });
+      this.postMessage({ type: 'error', message: `Action ${actionId} not in ${okrSource} okr.yaml. May not be pushed yet — wait for finalize to land, then retry.` });
       return;
     }
     const runId = actionYaml['runId'] as string | undefined;
     if (!runId) {
-      this.postMessage({ type: 'error', message: `Canonical action ${actionId} has no runId (source: ${sourceTag}). Cannot derive chain path.` });
+      this.postMessage({ type: 'error', message: `Canonical action ${actionId} has no runId (source: ${okrSource}). Cannot derive chain path.` });
       return;
     }
 
@@ -2603,27 +2644,27 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const localCard = okrService.read(meshPath, okrId);
     const localAction = localCard?.actions.find(a => a.id === actionId);
 
-    // Step 3: fetch chain + ladder keyed by CANONICAL runId. Same
-    // sourceTag applies — they all came from the same place.
+    // Step 3a: fetch chain JSONL keyed by CANONICAL runId.
+    //
+    // Codex E3-gold-r4: JSONL is fetched SEPARATELY from the ladder.
+    // Pre-fix used `Promise.all([JSONL, ladder])` — if ladder fetch
+    // threw, JSONL was discarded and BOTH fell back to local, but
+    // sourceTag still said GitHub and the atomicity guard compared
+    // local-vs-local and trivially passed. Now: each input fails
+    // independently and is labelled with its actual provenance.
     const jsonlRelPath = `okrs/${okrId}/audit/events/${runId}.jsonl`;
-    const ladderRelPath = `okrs/${okrId}/audit/chain-ladder.yaml`;
     let chainText: string | null = null;
-    let chainLadderText: string | null = null;
-    if (repoInfo && sourceTag.startsWith('GitHub')) {
+    let chainSource: 'github' | 'local-fallback' = 'local-fallback';
+    if (repoInfo && okrSource === 'github') {
       try {
-        const [b, c] = await Promise.all([
-          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath),
-          this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, ladderRelPath),
-        ]);
-        chainText = b;
-        chainLadderText = c;
-      } catch { /* fall through to local for chain */ }
+        chainText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath);
+        if (chainText) { chainSource = 'github'; }
+      } catch { /* fall through to local */ }
     }
     if (!chainText) {
       const jsonlPath = path.join(meshPath, jsonlRelPath);
-      const ladderPath = path.join(meshPath, ladderRelPath);
       if (!fs.existsSync(jsonlPath)) {
-        this.postMessage({ type: 'error', message: `Audit JSONL not found on ${sourceTag} OR locally: ${jsonlRelPath}. Chain may not exist yet — finalize writes workflow events after PR merge.` });
+        this.postMessage({ type: 'error', message: `Audit JSONL not found on GitHub OR locally: ${jsonlRelPath}. Chain may not exist yet — finalize writes workflow events after PR merge.` });
         return;
       }
       try { chainText = fs.readFileSync(jsonlPath, 'utf8'); }
@@ -2631,68 +2672,48 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         this.postMessage({ type: 'error', message: `Failed to read chain JSONL: ${toErrorMessage(err)}` });
         return;
       }
-      if (!chainLadderText && fs.existsSync(ladderPath)) {
-        try { chainLadderText = fs.readFileSync(ladderPath, 'utf8'); } catch { /* optional */ }
+      chainSource = 'local-fallback';
+    }
+
+    // Step 3b: fetch chain-ladder.yaml independently (optional input;
+    // failure does NOT force JSONL fallback — that was the r3 hole).
+    const ladderRelPath = `okrs/${okrId}/audit/chain-ladder.yaml`;
+    let chainLadderText: string | null = null;
+    let ladderSource: 'github' | 'local-fallback' | 'missing' = 'missing';
+    if (repoInfo && okrSource === 'github') {
+      try {
+        chainLadderText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, ladderRelPath);
+        if (chainLadderText) { ladderSource = 'github'; }
+      } catch { /* optional */ }
+    }
+    if (!chainLadderText) {
+      const ladderPath = path.join(meshPath, ladderRelPath);
+      if (fs.existsSync(ladderPath)) {
+        try {
+          chainLadderText = fs.readFileSync(ladderPath, 'utf8');
+          ladderSource = 'local-fallback';
+        } catch { /* keep missing */ }
       }
     }
 
     const chainLines = chainText.split('\n').filter(l => l.trim().length > 0);
     const verdict = verifyChainForUI(chainLines);
 
-    // Codex E3-gold-r3 BLOCKING fix — source atomicity.
+    // Step 4: keys atomicity check + runner invocation.
     //
-    // The runner is invoked via shell-out with `cwd: meshPath` and
-    // reads the JSONL by convention: `okrs/<id>/audit/events/
-    // <runId>.jsonl`. That means the runner verifies WHATEVER IS ON
-    // LOCAL DISK — not the GitHub-fetched bytes we used to build the
-    // rest of the report.
-    //
-    // If sourceTag says "GitHub …" but local mesh has a different
-    // JSONL (stale pull, in-flight push, accidental edit), the report
-    // would show GitHub metadata + GitHub chain prose + a runner
-    // verdict that actually verified the LOCAL chain. A reviewer would
-    // believe the whole report reflects canonical state. That's a
-    // chief-auditor trust violation.
-    //
-    // Fix: when sourceTag is GitHub, verify local JSONL bytes EQUAL
-    // GitHub-fetched bytes BEFORE invoking the runner. If they don't
-    // match (or local is missing entirely), mark runner verdict as
-    // NOT INVOKED with reason naming the mismatch — the report stays
-    // honest about which bytes were actually verified.
-    let runnerVerdict: RunnerVerifyVerdict;
-    if (sourceTag.startsWith('GitHub')) {
-      const localJsonlPath = path.join(meshPath, jsonlRelPath);
-      const localJsonl = fs.existsSync(localJsonlPath)
-        ? (() => { try { return fs.readFileSync(localJsonlPath, 'utf8'); } catch { return null; } })()
-        : null;
-      if (localJsonl === null) {
-        runnerVerdict = {
-          invoked: false,
-          reason: 'Local mesh does not have a JSONL at the canonical path; runner shells out against local disk and cannot verify the GitHub-fetched bytes shown in this report. Run `git pull` in your mesh checkout and retry the export.',
-        };
-      } else if (localJsonl !== chainText) {
-        runnerVerdict = {
-          invoked: false,
-          reason: 'Local mesh JSONL does not match canonical GitHub source — runner would have verified different bytes than this report displays. Run `git pull` in your mesh checkout to sync, then retry the export.',
-        };
-      } else {
-        // Local matches GitHub — safe to invoke runner against local
-        // disk because both source-of-truth and runner-input agree.
-        runnerVerdict = await this.invokeRunnerVerifyChain(okrId, runId);
-      }
-    } else {
-      // sourceTag is local mesh checkout (GitHub fetch failed earlier).
-      // Runner verifies local, report shows local. Source-atomic by
-      // virtue of using the same source for both.
-      runnerVerdict = await this.invokeRunnerVerifyChain(okrId, runId);
-    }
+    // Codex E3-gold-r4 BLOCKING fix #2 — see decideRunnerInvocation()
+    // for the full decision tree. Extracted out of the handler to keep
+    // cyclomatic complexity under the architecture-fitness budget AND
+    // to make the rules testable in isolation.
+    const signerEpochs = extractSignerEpochs(chainLines);
+    const decision = await this.decideRunnerInvocation({
+      okrId, runId, okrSource, chainSource, chainText, jsonlRelPath, meshPath, repoInfo, signerEpochs,
+    });
+    const keysSource = decision.keysSource;
+    const runnerVerdict = decision.runnerVerdict;
 
-    // E3-gold — fetch PRD + artifact (when available) so the report
-    // can render the SR-NN → STRIDE/OWASP → design § control mapping.
-    // Best-effort: missing inputs just mean the section is skipped.
-    // Read phase + artifact path from CANONICAL action first (Codex
-    // E3-gold fix); only fall back to localAction.* if the canonical
-    // field is absent (rare; defensive).
+    // Step 5: PRD + artifact fetch — source-discipline rules. See
+    // fetchPrdAndArtifact() for the suppress-non-canonical rule.
     const phase = ((actionYaml['phase'] as 'why' | 'how' | 'what' | undefined) ?? localAction?.phase) as 'why' | 'how' | 'what';
     if (!phase) {
       this.postMessage({ type: 'error', message: `Canonical action ${actionId} has no phase field.` });
@@ -2700,24 +2721,29 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
     const artifactRel = ((actionYaml['artifact'] as string | undefined) ?? localAction?.artifact) ?? phaseSpec(phase).artifactPath(okrId);
     const prdRel = `okrs/${okrId}/how/prd.md`;
-    let prdText: string | null = null;
-    let artifactText: string | null = null;
-    if (repoInfo) {
-      try { prdText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, prdRel); } catch { /* optional */ }
-      try { artifactText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, artifactRel); } catch { /* optional */ }
-    }
-    if (!prdText) {
-      const localPrd = path.join(meshPath, prdRel);
-      if (fs.existsSync(localPrd)) {
-        try { prdText = fs.readFileSync(localPrd, 'utf8'); } catch { /* optional */ }
-      }
-    }
-    if (!artifactText) {
-      const localArtifact = path.join(meshPath, artifactRel);
-      if (fs.existsSync(localArtifact)) {
-        try { artifactText = fs.readFileSync(localArtifact, 'utf8'); } catch { /* optional */ }
-      }
-    }
+    const { prdText, prdSource, artifactText, artifactSource } = await this.fetchPrdAndArtifact({
+      okrSource, repoInfo, prdRel, artifactRel, meshPath,
+    });
+
+    // Compose AuditReportInputSources for the renderer + the headline
+    // sourceTag string. The sourceTag is the human-readable headline;
+    // the structured `sources` object is what powers the per-input
+    // breakdown table inside Trust posture.
+    const sources: AuditReportInputSources = {
+      okr: okrSource,
+      chain: chainSource,
+      ladder: ladderSource,
+      keys: keysSource,
+      prd: prdSource,
+      artifact: artifactSource,
+    };
+    const allCanonical = okrSource === 'github' && chainSource === 'github';
+    const allLocal = okrSource === 'local-fallback' && chainSource === 'local-fallback';
+    const sourceTag = allCanonical
+      ? `GitHub ${repoInfo!.owner}/${repoInfo!.repo} (default branch)`
+      : allLocal
+        ? 'local mesh checkout'
+        : `MIXED — okr.yaml: ${okrSource === 'github' ? `GitHub ${repoInfo?.owner ?? '?'}/${repoInfo?.repo ?? '?'}` : 'local'} · chain JSONL: ${chainSource === 'github' ? 'GitHub' : 'local-fallback'} (NON-ATOMIC; see Source breakdown)`;
 
     const markdown = buildAuditReportMarkdown({
       okrId,
@@ -2741,6 +2767,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       runnerVerdict,
       prdText,
       artifactText,
+      sources,
     });
     const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
     const exportPath = path.join(exportDir, `${runId}-report.md`);
@@ -2761,6 +2788,265 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       ? (runnerVerdict.ok ? ' · runner verdict: PASS' : ' · runner verdict: FAIL')
       : ' · runner: NOT INVOKED';
     void vscode.window.showInformationMessage(`Audit report exported${runnerNote}: okrs/${okrId}/audit/exports/${runId}-report.md`);
+  }
+
+  /**
+   * Codex E3-gold-r4 (2026-05-25) — verify that the runner's pub-key
+   * inputs are atomic with the report's claimed source.
+   *
+   * The runner verifier loads keys from local
+   * `audit/keys/<runId>.epoch-N.pub.pem`. Codex caught that without
+   * a per-key atomicity check, a stale or modified local key could
+   * make the runner verify against different cryptographic material
+   * than the report cites — best case a false FAIL on innocent CI,
+   * worst case a false PASS that masks local tampering.
+   *
+   * Two modes:
+   *   - `canonical-github`: caller is in canonical mode (okr came
+   *     from GitHub). For every distinct signer_epoch in the chain,
+   *     fetch the canonical pub key from GitHub and byte-compare to
+   *     the local copy. Any miss/mismatch ⇒ `mismatch` | `missing`
+   *     and caller MUST NOT invoke the runner.
+   *   - `local-only`: caller is in local-fallback mode. Local IS
+   *     the canonical source for this report, so the check reduces
+   *     to "do the expected key files exist locally?".
+   *
+   * `not-checked` is returned when the chain has zero distinct
+   * signer_epoch values (workflow-only chain, WHY phase) — the
+   * runner has no Ed25519 work to do, so atomicity of keys is moot.
+   */
+  private async verifyKeysAtomicity(
+    okrId: string,
+    runId: string,
+    signerEpochs: Set<number>,
+    mode: 'canonical-github' | 'local-only',
+    repoInfo: { owner: string; repo: string } | null,
+  ): Promise<{ keysSource: 'github-verified' | 'local-only' | 'mismatch' | 'missing' | 'not-checked'; reason?: string }> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) { return { keysSource: 'missing', reason: 'No mesh path resolved' }; }
+    if (signerEpochs.size === 0) { return { keysSource: 'not-checked' }; }
+    for (const epoch of signerEpochs) {
+      const keyRel = `okrs/${okrId}/audit/keys/${runId}.epoch-${epoch}.pub.pem`;
+      const localKeyPath = path.join(meshPath, keyRel);
+      if (!fs.existsSync(localKeyPath)) {
+        return {
+          keysSource: 'missing',
+          reason: `Public key for epoch ${epoch} missing locally — runner verifier reads keys from local disk and cannot verify signatures without it: ${keyRel}`,
+        };
+      }
+      if (mode === 'canonical-github') {
+        if (!repoInfo) {
+          return { keysSource: 'missing', reason: 'Canonical mode requires repoInfo to fetch canonical keys' };
+        }
+        let githubBytes: string | null = null;
+        try {
+          githubBytes = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, keyRel);
+        } catch (err) {
+          return {
+            keysSource: 'missing',
+            reason: `Failed to fetch canonical key for epoch ${epoch} from GitHub (${keyRel}): ${toErrorMessage(err)}`,
+          };
+        }
+        if (!githubBytes) {
+          return {
+            keysSource: 'missing',
+            reason: `Canonical key for epoch ${epoch} not present on GitHub default branch: ${keyRel}`,
+          };
+        }
+        let localBytes: string;
+        try {
+          localBytes = fs.readFileSync(localKeyPath, 'utf8');
+        } catch (err) {
+          return {
+            keysSource: 'missing',
+            reason: `Failed to read local key for epoch ${epoch} (${keyRel}): ${toErrorMessage(err)}`,
+          };
+        }
+        if (localBytes !== githubBytes) {
+          return {
+            keysSource: 'mismatch',
+            reason: `Local public key for epoch ${epoch} does NOT match canonical GitHub bytes (${keyRel}). Runner would verify against different cryptographic material than this report references. Run \`git pull\` and retry.`,
+          };
+        }
+      }
+    }
+    return { keysSource: mode === 'canonical-github' ? 'github-verified' : 'local-only' };
+  }
+
+  /**
+   * Codex E3-gold-r4 (2026-05-25) — runner-invocation decision tree.
+   *
+   * Extracted from onExportAuditReport because (a) the if/else cascade
+   * was driving handler complexity past the architecture-fitness budget
+   * and (b) the atomicity rules deserve direct, isolated comment cover.
+   *
+   * Rule precedence (top → bottom is most-restrictive → least):
+   *   1. okr=github + chain=local-fallback → atomicity broken; do not
+   *      invoke. The report shows canonical metadata but the runner
+   *      would verify local bytes — a chief-auditor trust violation.
+   *   2. keys mismatch/missing → do not invoke. Runner verifies against
+   *      local key files; if they don't match canonical bytes (or
+   *      aren't present), verdict would describe untrusted cryptographic
+   *      material.
+   *   3. keys not-checked (no signed agent events) → do not invoke;
+   *      runner has no Ed25519 work to do. Normal for WHY phase and
+   *      pure-workflow chains.
+   *   4. okr=github (atomic so far) → also confirm local JSONL bytes
+   *      match canonical chainText before invoking. Belt-and-braces:
+   *      keys atomicity is the new gate but per-event chain hash replay
+   *      depends on the chain bytes themselves matching too.
+   *   5. okr=local-fallback → invoke. Chain+keys are all local; runner
+   *      verifies local, report shows local. Atomic by common source.
+   */
+  private async decideRunnerInvocation(params: {
+    okrId: string;
+    runId: string;
+    okrSource: 'github' | 'local-fallback';
+    chainSource: 'github' | 'local-fallback';
+    chainText: string;
+    jsonlRelPath: string;
+    meshPath: string;
+    repoInfo: { owner: string; repo: string } | undefined | null;
+    signerEpochs: Set<number>;
+  }): Promise<{ runnerVerdict: RunnerVerifyVerdict; keysSource: AuditReportInputSources['keys'] }> {
+    const { okrId, runId, okrSource, chainSource, chainText, jsonlRelPath, meshPath, repoInfo, signerEpochs } = params;
+    const keysVerdict = await this.verifyKeysAtomicity(
+      okrId,
+      runId,
+      signerEpochs,
+      okrSource === 'github' ? 'canonical-github' : 'local-only',
+      okrSource === 'github' ? repoInfo ?? null : null,
+    );
+    const keysSource = keysVerdict.keysSource;
+
+    // Rule 1: canonical mode but chain fell back. Atomicity broken.
+    if (okrSource === 'github' && chainSource === 'local-fallback') {
+      return {
+        keysSource,
+        runnerVerdict: {
+          invoked: false,
+          reason: 'Source atomicity broken: okr.yaml is canonical GitHub but chain JSONL fell back to local. Runner would verify bytes other than what this report shows. Run `git pull` in your mesh checkout and retry the export.',
+        },
+      };
+    }
+    // Rule 2: key files don't match canonical (or are missing).
+    if (keysSource === 'mismatch' || keysSource === 'missing') {
+      return {
+        keysSource,
+        runnerVerdict: {
+          invoked: false,
+          reason: keysVerdict.reason ?? 'Key atomicity check failed (no specific reason)',
+        },
+      };
+    }
+    // Rule 3: no signed agent events — runner has no work.
+    if (keysSource === 'not-checked') {
+      return {
+        keysSource,
+        runnerVerdict: {
+          invoked: false,
+          reason: 'Chain contains no signed agent events with signer_epoch — runner verifier has no Ed25519 work to do on this chain (expected for WHY phase / workflow-only chains).',
+        },
+      };
+    }
+    // Rule 4: canonical mode — also confirm local JSONL bytes match
+    // canonical chainText (belt-and-braces; keys atomicity passes but
+    // chain bytes themselves still need to match the report).
+    if (okrSource === 'github') {
+      const localJsonlPath = path.join(meshPath, jsonlRelPath);
+      const localJsonl = fs.existsSync(localJsonlPath)
+        ? (() => { try { return fs.readFileSync(localJsonlPath, 'utf8'); } catch { return null; } })()
+        : null;
+      if (localJsonl === null) {
+        return {
+          keysSource,
+          runnerVerdict: {
+            invoked: false,
+            reason: 'Local mesh does not have a JSONL at the canonical path; runner shells out against local disk and cannot verify the GitHub-fetched bytes shown in this report. Run `git pull` in your mesh checkout and retry the export.',
+          },
+        };
+      }
+      if (localJsonl !== chainText) {
+        return {
+          keysSource,
+          runnerVerdict: {
+            invoked: false,
+            reason: 'Local mesh JSONL does not match canonical GitHub source — runner would have verified different bytes than this report displays. Run `git pull` in your mesh checkout to sync, then retry the export.',
+          },
+        };
+      }
+      return { keysSource, runnerVerdict: await this.invokeRunnerVerifyChain(okrId, runId) };
+    }
+    // Rule 5: local-fallback mode — atomic by common source.
+    return { keysSource, runnerVerdict: await this.invokeRunnerVerifyChain(okrId, runId) };
+  }
+
+  /**
+   * Codex E3-gold-r4 (2026-05-25) — fetch PRD + artifact with the
+   * suppress-non-canonical atomicity rule.
+   *
+   * In canonical mode (okr came from GitHub), if a PRD/artifact fetch
+   * fails OR returns null, we DO NOT silently fall back to local —
+   * doing so would let the control-mapping section render canonical
+   * chain metadata next to possibly-stale local design text under the
+   * "GitHub canonical" headline. Instead, we suppress the input (pass
+   * null to the report) and label it `suppressed-non-canonical` in
+   * the sources breakdown so the auditor sees the gap.
+   *
+   * In local-fallback mode, local IS the canonical source for this
+   * report, so reading PRD/artifact locally is atomic.
+   */
+  private async fetchPrdAndArtifact(params: {
+    okrSource: 'github' | 'local-fallback';
+    repoInfo: { owner: string; repo: string } | undefined | null;
+    prdRel: string;
+    artifactRel: string;
+    meshPath: string;
+  }): Promise<{
+    prdText: string | null;
+    prdSource: AuditReportInputSources['prd'];
+    artifactText: string | null;
+    artifactSource: AuditReportInputSources['artifact'];
+  }> {
+    const { okrSource, repoInfo, prdRel, artifactRel, meshPath } = params;
+    let prdText: string | null = null;
+    let prdSource: AuditReportInputSources['prd'] = 'missing';
+    let artifactText: string | null = null;
+    let artifactSource: AuditReportInputSources['artifact'] = 'missing';
+
+    if (repoInfo && okrSource === 'github') {
+      try {
+        prdText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, prdRel);
+        if (prdText) { prdSource = 'github'; }
+      } catch { /* suppression check below */ }
+      try {
+        artifactText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, artifactRel);
+        if (artifactText) { artifactSource = 'github'; }
+      } catch { /* suppression check below */ }
+      if (!prdText && fs.existsSync(path.join(meshPath, prdRel))) {
+        prdSource = 'suppressed-non-canonical';
+      }
+      if (!artifactText && fs.existsSync(path.join(meshPath, artifactRel))) {
+        artifactSource = 'suppressed-non-canonical';
+      }
+      return { prdText, prdSource, artifactText, artifactSource };
+    }
+    // local-fallback mode
+    const localPrd = path.join(meshPath, prdRel);
+    if (fs.existsSync(localPrd)) {
+      try {
+        prdText = fs.readFileSync(localPrd, 'utf8');
+        prdSource = 'local-fallback';
+      } catch { /* keep missing */ }
+    }
+    const localArtifact = path.join(meshPath, artifactRel);
+    if (fs.existsSync(localArtifact)) {
+      try {
+        artifactText = fs.readFileSync(localArtifact, 'utf8');
+        artifactSource = 'local-fallback';
+      } catch { /* keep missing */ }
+    }
+    return { prdText, prdSource, artifactText, artifactSource };
   }
 
   /**
