@@ -401,8 +401,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'openOraculum':                (m) => { vscode.commands.executeCommand('maintainabilityai.oraculum', m.barPath); },
     'summarizeTopFindings':        (m) => { this.onSummarizeTopFindings(m.barPath).catch(() => {}); },
     'checkWorkflowStatus':         () => this.onCheckWorkflowStatus(),
-    'provisionWorkflow':           () => this.onProvisionWorkflow(),
-    'provisionAgentic':            () => this.onProvisionAgentic(),
+    // Bug DD cleanup — provisionWorkflow + provisionAgentic message
+    // handlers removed; provisionAll is the only redeploy entry point
+    // and onProvisionWorkflow (its implementation) atomically deploys
+    // workflows + composite actions + agents + skills + prompts +
+    // labels in one commit. The two legacy buttons were no longer
+    // mounted in the UI anyway.
     'provisionAll':                () => this.onProvisionAll(),
     'checkAgenticStatus':          () => this.onCheckAgenticStatus(),
     'getCopilotEnvStatus':         () => this.onGetCopilotEnvStatus(),
@@ -5836,101 +5840,21 @@ Policy file: ${filename}
   }
 
   /**
-   * Single-button "Deploy All" — kept for back-compat with any UI surface
-   * still wired to it. Post-Bug-DD, onProvisionWorkflow itself deploys
-   * workflows + composite actions + agents + skills + prompts + labels
-   * in one commit, so this just delegates. The onProvisionAgentic flow
-   * is no longer called from here (avoids double-commit) but stays on
-   * the message bus for any direct caller that needs agents-only.
+   * Single-button "Deploy All" — the only redeploy entry point post-
+   * Bug-DD cleanup. Delegates to onProvisionWorkflow, which atomically
+   * deploys workflows + composite actions + agents + skills + prompts
+   * + labels in one git commit. The standalone onProvisionAgentic
+   * method + its provisionAgentic message handler were deleted in the
+   * Bug DD cleanup — they were no longer reachable from the UI and
+   * the sequential two-commit path was the original Bug DD foot-gun
+   * (workflows committed, agents failed mid-push → partial deploy →
+   * agent ran with stale prompt → audit failed with confusing
+   * symptom). Kept as a wrapper rather than inlining the call so any
+   * future "deploy variants" (e.g. dry-run, repo-scoped) hang off
+   * onProvisionAll uniformly.
    */
   private async onProvisionAll() {
     await this.onProvisionWorkflow();
-  }
-
-  /**
-   * Phase B Mesh Provisioning — deploys the 18 PURE-data Skills + 4 Agents
-   * into the mesh's `.github/skills/` + `.github/agents/` dirs, then commits
-   * + pushes (mirroring `onProvisionWorkflow`'s git surface so the user sees
-   * one consistent "redeploy" behavior).
-   *
-   * Idempotent at the service layer — `deploySkills` / `deployAgents` only
-   * write files whose body changed. If everything is in sync the commit
-   * step short-circuits with "nothing to commit."
-   */
-  private async onProvisionAgentic() {
-    const meshPath = MeshService.getMeshPath();
-    if (!meshPath) {
-      this.postMessage({ type: 'error', message: 'No mesh configured' });
-      return;
-    }
-
-    this.postMessage({ type: 'loading', active: true, message: 'Deploying agents + skills…' });
-
-    try {
-      const gitRoot = this.gitSyncService.findGitRoot(meshPath);
-      if (gitRoot) {
-        const pullResult = await this.gitSyncService.pullFromRemote(gitRoot);
-        if (!pullResult.success) {
-          this.postMessage({ type: 'error', message: `Cannot provision: ${pullResult.message}` });
-          return;
-        }
-      }
-
-      const svc = new AgentDeploymentService(this.context.extensionPath);
-      const skillsResult = svc.deploySkills(meshPath);
-      const agentsResult = svc.deployAgents(meshPath);
-      const warnings: string[] = [];
-      for (const s of skillsResult.perSkill) {
-        if (s.status === 'empty-template') {
-          warnings.push(`Skill template missing for ${s.name} — re-install the extension?`);
-        }
-      }
-      for (const a of agentsResult.perAgent) {
-        if (a.status === 'empty-template') {
-          warnings.push(`Agent template missing for ${a.name}.`);
-        } else if (a.status === 'skill-missing') {
-          warnings.push(`Agent ${a.name} declares missing skills: ${(a.missingSkills ?? []).join(', ')}`);
-        }
-      }
-
-      await execFileAsync('git', ['add', '-A'], { cwd: meshPath });
-      const { stdout: diffCheck } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: meshPath });
-      const changedFiles = diffCheck.trim().split('\n').filter(Boolean);
-      let toastMessage: string;
-      if (changedFiles.length > 0) {
-        const commitMsg = [
-          'chore: deploy v4 agents + pure-data skills',
-          '',
-          `Skills written: ${skillsResult.written} (${skillsResult.unchanged} unchanged)`,
-          `Agents written: ${agentsResult.written} (${agentsResult.unchanged} unchanged)`,
-          '',
-          'Generated by MaintainabilityAI VS Code Extension',
-        ].join('\n');
-        await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: meshPath });
-        await execFileAsync('git', ['push'], { cwd: meshPath, timeout: 60_000 });
-        toastMessage = `Deployed ${skillsResult.written} skill + ${agentsResult.written} agent file(s); ${changedFiles.length} total file change(s).`;
-      } else {
-        toastMessage = 'Agents + skills already up-to-date — nothing to commit.';
-      }
-
-      this.postMessage({
-        type: 'agenticProvisioned',
-        skillsWritten: skillsResult.written,
-        skillsUnchanged: skillsResult.unchanged,
-        agentsWritten: agentsResult.written,
-        agentsUnchanged: agentsResult.unchanged,
-        warnings,
-      });
-      this.onCheckAgenticStatus();
-      void vscode.window.showInformationMessage(toastMessage + (warnings.length ? ` (${warnings.length} warning${warnings.length === 1 ? '' : 's'})` : ''));
-    } catch (err) {
-      this.postMessage({
-        type: 'error',
-        message: `Failed to deploy agents + skills: ${toErrorMessage(err)}`,
-      });
-    } finally {
-      this.postMessage({ type: 'loading', active: false });
-    }
   }
 
   /**

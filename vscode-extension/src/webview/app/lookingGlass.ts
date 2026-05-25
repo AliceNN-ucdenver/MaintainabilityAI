@@ -2991,19 +2991,15 @@ function attachEventHandlers() {
   });
 
   // Settings: deploy all (workflows + actions + agents + skills) — single
-  // button replaces the prior two-button layout.
+  // button. Post-Bug-DD (2026-05), onProvisionWorkflow itself deploys
+  // everything atomically, so this is the only redeploy entry point.
+  // The legacy btn-settings-provision + btn-settings-provision-agentic
+  // click handlers were removed in the same cleanup — neither button
+  // was mounted anywhere in the current UI, and the underlying
+  // provisionWorkflow / provisionAgentic message handlers led to
+  // partial-deployment foot-guns (see Bug DD forensic).
   document.getElementById('btn-settings-deploy-all')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'provisionAll' });
-  });
-
-  // Legacy single-target buttons (kept for backwards compat if anything
-  // outside Mesh Provisioning still mounts them; the new section uses
-  // btn-settings-deploy-all).
-  document.getElementById('btn-settings-provision')?.addEventListener('click', () => {
-    vscode.postMessage({ type: 'provisionWorkflow' });
-  });
-  document.getElementById('btn-settings-provision-agentic')?.addEventListener('click', () => {
-    vscode.postMessage({ type: 'provisionAgentic' });
   });
 
   // Settings: Coding Agent Environment (B-PR1e)
@@ -4654,12 +4650,10 @@ const inboundHandlers: Record<string, InboundHandler> = {
       }
       if (state.view === 'settings') { render(); }
     },
-    'agenticProvisioned': (_message: WebviewInboundMessage) => {
-      // The extension follows up with agenticStatus which refreshes counts.
-      // This message is the success signal — render() so the badge transition
-      // is smooth if the agenticStatus arrives in the same tick.
-      if (state.view === 'settings') { render(); }
-    },
+    // Bug DD cleanup — agenticProvisioned handler removed. The extension
+    // no longer sends this message (provisionAgentic was deleted). The
+    // workflowProvisioned handler above is the only redeploy success
+    // signal now.
     'preferredModelSaved': (message: WebviewInboundMessage) => {
       state.settingsPreferredModel = message.family as string;
       if (state.view === 'settings') { render(); }

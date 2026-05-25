@@ -374,7 +374,16 @@ export type LookingGlassWebviewMessage =
   | { type: 'summarizeTopFindings'; barPath: string }
   // Settings
   | { type: 'checkWorkflowStatus' }
-  | { type: 'provisionWorkflow' }
+  // Bug DD cleanup (2026-05) — provisionWorkflow + provisionAgentic
+  // message types deleted. The single `provisionAll` entry below is
+  // the only redeploy path; its handler (onProvisionWorkflow under
+  // the hood) atomically deploys workflows + composite actions +
+  // agents + skills + prompts + labels in one commit. The legacy
+  // types' handlers led to partial deployment foot-guns (see Bug DD
+  // forensic on PR #140 in the mesh repo). OracularWebviewMessage
+  // still has a provisionWorkflow type at line 148 — that's a
+  // SEPARATE webview (OracularPanel) with its own handler. Don't
+  // confuse them.
   | { type: 'savePreferredModel'; family: string }
   | { type: 'reinitializeMesh' }
   | { type: 'loadDriftWeights' }
@@ -410,17 +419,22 @@ export type LookingGlassWebviewMessage =
   // Red Queen — Governance Court agent type
   | { type: 'loadAgentType' }
   | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' }
-  // Phase B — Mesh Provisioning: deploy the 18 Skills + 4 Agents to the mesh's
-  // `.github/skills/` and `.github/agents/` directories. Idempotent.
-  | { type: 'provisionAgentic' }
+  // Phase B — Mesh Provisioning status check (the deploy itself is via
+  // provisionAll below; the agentic-status query stays separate because
+  // the UI badge polls it independently of redeploy clicks).
+  // provisionAgentic message type removed in Bug DD cleanup — see the
+  // comment near checkWorkflowStatus above.
   | { type: 'checkAgenticStatus' }
   // Coding Agent Environment readiness (Settings → Coding Agent Environment)
   | { type: 'getCopilotEnvStatus' }
   | { type: 'setCopilotEnvSecret'; secretName: string }
   | { type: 'openCopilotFirewallSettings' }
   | { type: 'openCopilotEnvSecretsPage' }
-  // One-button Deploy All — runs provisionWorkflow + provisionAgentic sequentially
-  // (the new consolidated Settings → Mesh Provisioning button).
+  // Single "Deploy all" button (Settings → Mesh Provisioning) — atomic
+  // redeploy of workflows + composite actions + agents + skills +
+  // prompts + labels in one git commit. Post-Bug-DD this is the ONLY
+  // redeploy entry; the prior provisionWorkflow / provisionAgentic
+  // split led to partial-deployment foot-guns.
   | { type: 'provisionAll' }
   // Research dispatch from platform / BAR views — opens NewResearchPanel pre-filled with scope
   | { type: 'newResearchFromPlatform'; slug: string; name: string }
@@ -663,7 +677,10 @@ export type LookingGlassExtensionMessage =
   // workflow pushed commits while the user was elsewhere.
   | { type: 'panelActivated' }
   | { type: 'agenticStatus'; skills: { name: string; family: string; deployed: boolean }[]; agents: { name: string; deployed: boolean }[] }
-  | { type: 'agenticProvisioned'; skillsWritten: number; skillsUnchanged: number; agentsWritten: number; agentsUnchanged: number; warnings: string[] }
+  // Bug DD cleanup (2026-05) — agenticProvisioned message type
+  // removed. Was only sent by the deleted onProvisionAgentic handler.
+  // The unified onProvisionWorkflow posts `workflowProvisioned` for
+  // the same UI signal (badge refresh + agenticStatus follow-up).
   | { type: 'okrPhaseStarted'; okrId: string; phase: 'why' | 'how' | 'what'; actionId: string; issueUrl: string }
   | {
       type: 'startPhasePreview';
