@@ -206,6 +206,30 @@ interface CelebsGetByIdResponse {
 
 (Language adapts — Python would be Pydantic, Go would be structs, etc.)
 
+**Business-state status codes (Bug RR).** If a non-2xx code (or a
+2xx variant the caller routes on, e.g. `202 manual-review-required`)
+represents a NORMAL business outcome — not a failure — model it as
+a typed RESPONSE BODY field, not as a thrown error. The response
+shape is the same as the success case plus a discriminant:
+
+```typescript
+interface CelebsGetByIdResponse {
+  id: string;
+  name: string;
+  identity_status: 'resolved' | 'ambiguous' | 'manual_review_required';
+  // ...
+}
+// 200 OK { identity_status: 'resolved' | 'ambiguous' | 'manual_review_required' }
+// 404 not_found   — true error
+// 451 license_blocked — true error (callers cannot recover)
+```
+
+Callers branch on `identity_status`, not on `try/catch`. §7 must
+NOT declare a corresponding `LowConfidenceMatchError extends ApiError`
+for the same case — that produces a three-way contradiction (§2 says
+typed body, §7 says thrown, §8 frontend says "remap to non-blocking
+badge") and a downstream coding agent picks one at random.
+
 ### `## 3. Data Models`
 
 Per entity touched:
@@ -248,6 +272,20 @@ const Config = z.object({
 });
 ```
 
+**NFR-from-PRD telemetry envs (Bug RR).** If the PRD lists telemetry
+fields (e.g. `confidence_distribution`, `low_confidence_routing_rate`,
+`false_merge_incidents`), name them here as concrete metric+env-var
+pairs. Vague mentions like "telemetry for false-merge monitoring"
+in §10 do NOT count — the downstream coder needs the metric name +
+collection backend + sampling cadence:
+
+```typescript
+TELEMETRY_BACKEND: z.enum(['prometheus', 'datadog', 'cloudwatch']),
+METRIC_CONFIDENCE_DISTRIBUTION: z.string().default('celeb_match_confidence_histogram'),  // FR-02 → PRD NFR-T1
+METRIC_LOW_CONF_RATE: z.string().default('celeb_low_confidence_rate'),                   // FR-02 → PRD NFR-T2
+METRIC_FALSE_MERGE_INCIDENTS: z.string().default('celeb_false_merge_count_total'),       // FR-04 → PRD NFR-T3
+```
+
 ### `## 7. Error Handling Patterns`
 
 Error classes, middleware, consistent error response format with
@@ -260,6 +298,15 @@ class CelebNotFoundError extends ApiError {
 }
 // Global error handler returns { error: { code, message, trace_id } }
 ```
+
+**ONLY true errors belong here (Bug RR).** A class extending
+`ApiError` MUST represent a genuine failure the caller cannot
+recover from in normal flow — bad input, missing resource, auth
+failure, dependency outage. Business-state outcomes (low-confidence,
+pending-review, partial-success) belong in §2 as typed body fields,
+NOT here. If you find yourself writing `class LowConfidenceMatchError
+extends ApiError` for a `202` that §2 documents as a typed success
+body, delete it — the §2 typed body IS the contract.
 
 ### `## 8. Testing Strategy with Example Test Cases`
 
@@ -277,6 +324,31 @@ Dockerfile fragment (or override for existing brownfield Dockerfile).
 docker-compose service definition. Environment setup. Health-check
 endpoint shape. For brownfield, MODIFY the existing deployment; for
 greenfield, write from scratch.
+
+**NFR-from-PRD failure-mode behavior (Bug RR).** Every dependency
+the service relies on (DB, external API, license provider, identity
+provider) MUST have a documented failure-mode behavior. The PRD's
+fallback requirements are NOT satisfied by a readiness gate that
+fails closed — "blocks traffic if license config missing" is the
+OPPOSITE of stale-safe fallback. State explicitly what the service
+returns when each dependency is down: cached-stale-with-warning-
+header, degraded-mode-with-reduced-fields, hard-fail-503, or queue-
+and-retry. Example:
+
+```yaml
+# §9 — Failure-mode behavior (FR-05 + PRD NFR §3.2 stale-safe)
+dependencies:
+  - name: license-provider
+    when_down: serve cached license decision; add header
+      X-License-Cache-Age: <seconds>; reject only if cache is older
+      than LICENSE_CACHE_MAX_STALE_SECONDS (default 86400).
+  - name: mongodb
+    when_down: HTTP 503 with Retry-After; do NOT serve from a
+      different store (cache poisoning risk per THR-006).
+  - name: identity-provider
+    when_down: rely on cached JWKS for verification up to
+      JWKS_CACHE_MAX_STALE_SECONDS; reject new tokens after.
+```
 
 ### `## 10. Design Rationale & Research Traceability`
 
@@ -312,6 +384,41 @@ mode: brownfield
 addresses: [FR-01, FR-04, SR-02]
 ---
 ```
+
+**NFR-to-alert mapping (Bug RR).** Every NFR with a numeric target
+(uptime SLO, p95 latency, error budget, fallback freshness) MUST
+appear here paired with the alert threshold that triggers paging or
+the rollback gate:
+
+| NFR | Target | Alert threshold | Source |
+|---|---|---|---|
+| Uptime SLO | 99.9% monthly | error_budget_remaining < 25% → page | PRD §3.1 |
+| Stale-cache freshness | < 1h typical, < 24h max | X-License-Cache-Age > 3600 → warn; > 86400 → reject | PRD §3.2 |
+| Confidence routing | < 5% manual-review rate | celeb_low_confidence_rate > 0.10 sustained 1h → page | PRD §3.3 |
+
+Mapping each NFR back to its PRD section closes the FR/SR/NFR
+coverage triangle — auditors can verify every PRD non-functional
+ask landed somewhere implementable.
+
+## Final-write hygiene (Bug RR)
+
+After the LAST revise round converges to PASS, before the final
+write, scan the artifact for HTML-comment process residue and strip
+it. The revise-agent uses markers like `<!-- Rev 2: change #1 -->`
+to track what it modified between rounds — these are bookkeeping
+notes for the agent itself and MUST NOT ship in the merged design.
+The audit doesn't currently fail on them but they leak prompt
+internals into customer-facing artifacts and look like the agent
+left half-finished TODOs.
+
+Strip these patterns on final write:
+- `<!-- Rev N: ... -->` (any number)
+- `<!-- TODO: ... -->`
+- `<!-- agent: ... -->`
+- `<!-- DELETE BEFORE COMMIT -->`
+
+Anything a reviewer needs to know goes in §10 Rationale or the PR
+comment, not in HTML comments hidden in the artifact body.
 
 ## Hatter Tag (frontmatter, FIRST thing in the document)
 

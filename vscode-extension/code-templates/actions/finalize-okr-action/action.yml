@@ -104,6 +104,88 @@ runs:
           echo "::warning::No chain_root_hash extracted from Hatter Tag — actions[].hatterChainRoot left empty; UI seal badge will not render for this run. The agent's artifact frontmatter likely still says \`chain_root_hash: <write at finalize>\` placeholder — extract-okr-context can't resolve from a placeholder."
         fi
 
+        # ── 1b. Aggregate self_review events from chain → okr.yaml. ──
+        # Bug RR (2026-05-25) — pre-this-fix, okr.yaml ACT-N showed
+        # `rounds: 0` and `reviewerScores: {}` even when the run's
+        # JSONL chain had 4 signed self_review events across 2
+        # rounds. The chain is the source of truth and the UI reads
+        # from it for live display (correct), but consumers reading
+        # okr.yaml fields (e.g. portfolio queries, exports) saw
+        # under-reported state.
+        #
+        # Walk the chain, count rounds + extract final-round scores
+        # per persona (Bug-W legitimacy gate: only signed self_review
+        # events count, matching what audit-verify-chain accepts).
+        # Idempotent — re-running finalize re-derives the same
+        # aggregates from the same chain.
+        JSONL_FOR_AGG="okrs/${{ inputs.okr-id }}/audit/events/$RUN_ID.jsonl"
+        if [ -f "$JSONL_FOR_AGG" ]; then
+          AGG_OUT=$(JSONL="$JSONL_FOR_AGG" python3 <<'PYEOF'
+        import json, os
+        jsonl = os.environ['JSONL']
+        # Track per-persona max round + the score at that max round.
+        # The chain may have multiple rounds; we want the FINAL one.
+        per_persona = {}  # persona -> (max_round, score_at_max)
+        max_round_any = 0
+        with open(jsonl, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line: continue
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                if e.get('event_kind') != 'self_review': continue
+                # Bug W gate: only signed self_review events are legitimate.
+                # Unsigned + workflow-emitted self_review was rejected post-V/X.
+                if not e.get('signature'): continue
+                payload = e.get('payload') or {}
+                persona = payload.get('persona')
+                round_n = payload.get('round')
+                score   = payload.get('score')
+                if not persona or round_n is None: continue
+                cur = per_persona.get(persona)
+                if cur is None or round_n > cur[0]:
+                    per_persona[persona] = (round_n, score)
+                if round_n > max_round_any:
+                    max_round_any = round_n
+        # Emit shell-readable aggregates. Use lines like KEY=VALUE so
+        # bash can `eval` cleanly. Skip if no signed self_review found
+        # (WHY phase has none — that's correct, not a failure).
+        out = []
+        out.append(f'MAX_ROUND={max_round_any}')
+        for persona, (_round, score) in sorted(per_persona.items()):
+            # YAML-safe persona key (alphanumeric + underscore in practice).
+            safe = ''.join(c if c.isalnum() else '_' for c in persona)
+            out.append(f'SCORE_{safe}={score if score is not None else "null"}')
+        print('\n'.join(out))
+        PYEOF
+          )
+          # Parse the AGG_OUT lines into yq -i mutations on okr.yaml.
+          MAX_ROUND=$(echo "$AGG_OUT" | grep -E '^MAX_ROUND=' | cut -d= -f2)
+          if [ -n "$MAX_ROUND" ] && [ "$MAX_ROUND" -gt 0 ]; then
+            yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .rounds) = $MAX_ROUND" "$OKR_FILE"
+            # Build the reviewerScores mapping from SCORE_<persona>=N lines.
+            # yq merge instead of overwrite so re-running doesn't clobber
+            # any future per-persona fields we might add.
+            echo "$AGG_OUT" | grep -E '^SCORE_' | while IFS='=' read -r key val; do
+              persona="${key#SCORE_}"
+              # Convert underscore back to hyphen for common persona names
+              # (code-architect, code-security). One-way isn't perfect but
+              # we don't currently have personas with both - and _ in names.
+              persona_yaml=$(echo "$persona" | tr '_' '-')
+              if [ "$val" = "null" ]; then
+                yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .reviewerScores.\"$persona_yaml\") = null" "$OKR_FILE"
+              else
+                yq -i "(.actions[] | select(.runId == \"$RUN_ID\") | .reviewerScores.\"$persona_yaml\") = $val" "$OKR_FILE"
+              fi
+            done
+            echo "::notice::Aggregated $MAX_ROUND self_review round(s) into okr.yaml ACT for runId=$RUN_ID"
+          else
+            echo "::notice::No signed self_review events in chain for $RUN_ID (expected for WHY phase) — leaving rounds/reviewerScores untouched"
+          fi
+        fi
+
         # ── 2. Roll meta.status forward (guarded — no downgrade). ──
         # When a re-run of an earlier phase fires after a later one
         # shipped, the master status MUST NOT downgrade.

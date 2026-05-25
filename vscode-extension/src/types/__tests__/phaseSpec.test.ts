@@ -996,3 +996,47 @@ describe('Bug QQ/A-plus — MeshBranchGuard wired at every mesh-write site', () 
     expect(panelSource).toMatch(/private async withMainBranchGuard\s*\(\s*meshPath\s*:\s*string\s*,\s*operationLabel\s*:\s*string\s*\)\s*:\s*Promise<boolean>/);
   });
 });
+
+describe('Bug RR — finalize-okr-action chain → okr.yaml aggregation', () => {
+  // Source-grep regression. Bug RR: pre-fix, okr.yaml ACT-N showed
+  // `rounds: 0` and `reviewerScores: {}` even after a clean WHAT run
+  // emitted 4 signed self_review events across 2 rounds. The chain is
+  // the source of truth and the UI reads from it, but downstream
+  // consumers reading okr.yaml fields saw under-reported state.
+  //
+  // The fix walks the chain at finalize time and writes the
+  // aggregated rounds + per-persona scores. This test ensures the
+  // aggregation step stays present in finalize-okr-action/action.yml.
+  // A future refactor that drops the step would regress okr.yaml
+  // back to under-reporting.
+  const actionSource = fs.readFileSync(
+    path.join(EXTENSION_PATH, 'code-templates', 'actions', 'finalize-okr-action', 'action.yml'),
+    'utf8',
+  );
+
+  it('action.yml has the per-run JSONL aggregation step (Bug RR)', () => {
+    // The step is bash-prefixed with `## ── 1b. Aggregate self_review`
+    // — a distinctive marker. Catches deletion of the entire block.
+    expect(
+      actionSource,
+      'finalize-okr-action/action.yml missing the Bug RR aggregation step. ' +
+      'Without it, okr.yaml ACT-N.rounds + reviewerScores stay at 0 / {} ' +
+      'even when the run chain has signed self_review events.',
+    ).toContain('1b. Aggregate self_review events from chain → okr.yaml');
+  });
+
+  it('aggregation only counts SIGNED self_review events (Bug W gate)', () => {
+    // Forged / unsigned self_review must NOT be counted; this matches
+    // audit-verify-chain's legitimacy gate from Bug W round-7.
+    expect(
+      actionSource,
+      'Bug RR aggregation must gate on signature presence (same rule audit-verify-chain enforces). ' +
+      'Otherwise a forged unsigned self_review would corrupt okr.yaml reviewerScores.',
+    ).toMatch(/if not e\.get\(.signature.\)/);
+  });
+
+  it('aggregation writes rounds + reviewerScores via yq', () => {
+    expect(actionSource).toMatch(/\.rounds\)\s*=\s*\$MAX_ROUND/);
+    expect(actionSource).toMatch(/\.reviewerScores\./);
+  });
+});
