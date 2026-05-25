@@ -1031,7 +1031,7 @@ _Did each PRD-declared security requirement land in the design?_
 |---|---|---|---|:---:|
 ${controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '_not declared_'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '_not declared_'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
 
-_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. not declared means the PRD did not explicitly name that taxonomy for the SR. That belongs in PR review._`
+_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. The phrase "not declared" means the PRD did not explicitly name that taxonomy for the SR. That belongs in PR review._`
     : '';
 
   return `# Audit report — ${input.okrId} · ${input.phase.toUpperCase()} · ${input.actionId}
@@ -1582,7 +1582,7 @@ ${input.chainLadderText.trim()}
 |---|---|---|---|:---:|
 ${input.controlRows.map(r => `| \`${r.sr}\` | ${r.stride.length > 0 ? r.stride.map(s => `\`${s}\``).join(', ') : '_not declared_'} | ${r.owasp.length > 0 ? r.owasp.map(o => `\`${o}\``).join(', ') : '_not declared_'} | ${r.prdAnchor} | ${r.designCited ? '✓' : '✗'} |`).join('\n')}
 
-_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. not declared means the PRD did not explicitly name that taxonomy for the SR. That belongs in PR review._`;
+_Cited check is a textual reference of the SR-NN string in the artifact body — does NOT validate the implementation actually satisfies the requirement. The phrase "not declared" means the PRD did not explicitly name that taxonomy for the SR. That belongs in PR review._`;
   } else if (input.prdSource === 'suppressed-non-canonical') {
     controlBlock = '_Control mapping not rendered — PRD suppressed (canonical fetch failed; local exists but withheld to preserve atomicity)._';
   } else if (input.prdSource === 'missing') {
