@@ -52,6 +52,59 @@ how the agent grounds its per-repo design:
 | `create` (greenfield) | PRD + mesh + reference-repos | Write a **scaffolding spec**. Pick language + framework from the BAR's ADRs (`{architect_input}`) and from any reference-repos exemplars provided. If neither specifies, default to TypeScript + Node.js (Express/Fastify) per the platform standard — but DO NOT hardcode TypeScript when the BAR ADRs prescribe a different stack. |
 | `not-connected` / `unreachable` | (refused at dispatch — agent never reaches synthesis with these states) | n/a |
 
+## Brownfield reuse — contract honesty (Bug PP)
+
+When the design proposes reusing an existing helper/utility/middleware
+from a brownfield repo, you are claiming a **contract** that the
+downstream coding agent will rely on. If that contract is wrong, the
+agent ships malformed code. Bug PP (PR #150, code-design v1) shipped
+two such handoff bugs at once: an `apiFetch` reuse that produced
+double-base-URL strings, and a `sanitize` import that didn't exist
+(actual exports were `sanitizeText` / `sanitizeHtml`). Both would have
+failed at runtime in the downstream PR.
+
+Enforce these four rules for **every** brownfield reuse claim:
+
+1. **Helper-contract rule.** Before recommending reuse of an existing
+   helper, invoke `knowledge-code-read` on the file that defines it
+   and quote (or paraphrase faithfully) its actual signature and the
+   first ~10 lines of its body. State the helper's contract in the
+   design: what it takes, what it does to its inputs, what it returns,
+   what side effects it has (cookies, headers, timeouts, error mapping).
+   **Do NOT write "reuse unchanged" unless the call shape you propose
+   actually fits that contract.** Paraphrase from intuition = drift.
+
+2. **Base-URL rule.** If an existing API helper prepends a fixed base
+   URL internally (e.g. `apiFetch` building `${VITE_API_BASE_URL}${path}`),
+   you may NEVER pass it an absolute URL for a second service — the
+   result is a malformed concatenation like
+   `http://localhost:8080http://localhost:8081/api/celebs`. Three
+   acceptable resolutions:
+   - **(A) New helper.** Add a sibling helper (e.g. `celebFetch`) scoped
+     to the second service's base URL that **mirrors** the original's
+     auth (credentials), correlation header, timeout, and error-mapping
+     behavior. Reuse the shared error class only.
+   - **(B) Extend the helper.** Add an optional `baseUrl` parameter to
+     the existing helper. Existing call sites unchanged.
+   - **(C) Relative path.** Use a relative path through the helper's
+     configured base if the second service is actually reachable from
+     that base (rare — usually it isn't, which is why you have two).
+   The design block must pick one and include a reference implementation.
+
+3. **Exact-export rule.** When citing utilities from brownfield files,
+   name the **exact exported function or class** observed in the file's
+   `export` statements (via `knowledge-code-read`). Do not invent
+   shorter or "obvious" names. If the file exports `sanitizeText` and
+   `sanitizeHtml`, write `sanitizeText` (and say which fields it's for)
+   — never write `sanitize`, which does not exist. Wrong export name =
+   `undefined` at runtime in the downstream PR.
+
+4. **Test-mock rule.** Example tests in §8 must mock the helper that
+   the §2/§4/§5 design actually uses. If the design introduces a new
+   `celebFetch`, the example tests mock `celebFetch`, not the old
+   `apiFetch`. Mocking the wrong helper = a coding agent who copies
+   the test gets passing tests against an untouched code path.
+
 ## Inputs
 
 ```
