@@ -3405,7 +3405,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const status = (actionYaml['status'] as string | undefined) ?? 'unknown';
     const completedAt = (actionYaml['completedAt'] as string | undefined) ?? null;
     const prUrl = (actionYaml['pr'] as string | undefined) ?? null;
-    const artifactPath = (actionYaml['artifact'] as string | undefined) ?? null;
+    // Older completed actions predate the forward-only action.artifact
+    // field. The artifact path is deterministic by phase, so use the
+    // same phaseSpec fallback as View Tag and per-action export.
+    const artifactPath = (actionYaml['artifact'] as string | undefined) ?? phaseSpec(phase).artifactPath(okrId);
 
     const evidenceGaps: string[] = [];
 
@@ -3495,39 +3498,35 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // For okrSource === 'local-fallback', behavior is unchanged: just
     // existsSync (atomic by common source).
     let artifactExists = false;
-    if (artifactPath) {
-      if (repoInfo && okrSource === 'github') {
-        const result = await this.githubService.getRepoFileStatus(
-          repoInfo.owner, repoInfo.repo, artifactPath,
-        );
-        if (result.status === 'ok') {
-          // text.length > 0 not required — an empty canonical file is
-          // still a present canonical file. (Truncation/empty content
-          // is an artifact-quality concern, not a presence concern.)
-          artifactExists = true;
-        } else if (result.status === 'not-found') {
-          // Definitive: artifact not on canonical. Local cannot rescue.
-          evidenceGaps.push(`artifact missing at ${artifactPath} on canonical GitHub (local file, if any, was never pushed and does not count as evidence)`);
-        } else {
-          // fetch-error — true existence is unknown. Fall back to
-          // local existsSync; transient failure shouldn't punish if
-          // local has the file.
-          if (fs.existsSync(path.join(meshPath, artifactPath))) {
-            artifactExists = true;
-          } else {
-            evidenceGaps.push(`artifact missing at ${artifactPath} (GitHub fetch failed: ${result.reason}; not on local either)`);
-          }
-        }
+    if (repoInfo && okrSource === 'github') {
+      const result = await this.githubService.getRepoFileStatus(
+        repoInfo.owner, repoInfo.repo, artifactPath,
+      );
+      if (result.status === 'ok') {
+        // text.length > 0 not required — an empty canonical file is
+        // still a present canonical file. (Truncation/empty content
+        // is an artifact-quality concern, not a presence concern.)
+        artifactExists = true;
+      } else if (result.status === 'not-found') {
+        // Definitive: artifact not on canonical. Local cannot rescue.
+        evidenceGaps.push(`artifact missing at ${artifactPath} on canonical GitHub (local file, if any, was never pushed and does not count as evidence)`);
       } else {
-        // local-fallback mode — atomic by common source.
+        // fetch-error — true existence is unknown. Fall back to
+        // local existsSync; transient failure shouldn't punish if
+        // local has the file.
         if (fs.existsSync(path.join(meshPath, artifactPath))) {
           artifactExists = true;
         } else {
-          evidenceGaps.push(`artifact missing at ${artifactPath} (local mesh checkout)`);
+          evidenceGaps.push(`artifact missing at ${artifactPath} (GitHub fetch failed: ${result.reason}; not on local either)`);
         }
       }
     } else {
-      evidenceGaps.push('action has no artifact field');
+      // local-fallback mode — atomic by common source.
+      if (fs.existsSync(path.join(meshPath, artifactPath))) {
+        artifactExists = true;
+      } else {
+        evidenceGaps.push(`artifact missing at ${artifactPath} (local mesh checkout)`);
+      }
     }
 
     // Check finalize evidence — chain should have at least one
