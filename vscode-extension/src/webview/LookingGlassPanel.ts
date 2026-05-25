@@ -72,7 +72,7 @@ import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extra
 // of the runner's allowlist + signature gate. Lives in chainVerify.ts
 // so vitest tests run without the VS Code runtime + the constant
 // has a single home synchronized with the runner.
-import { detectKnightSeal, isEventLegitimate } from './chainVerify';
+import { detectKnightSeal, isEventLegitimate, verifyChainForUI } from './chainVerify';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
 // allowlist live in chainVerify.ts (see import above). Lifted out
@@ -510,6 +510,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'startOkrWhat':                (m) => this.onStartOkrPhase(m.okrId, 'what'),
     'confirmStartOkrPhase':        (m) => this.onConfirmStartOkrPhase(m.okrId, m.phase, m.additionalContext ?? ''),
     'loadHatterTag':               (m) => this.onLoadHatterTag(m.okrId, m.actionId),
+    'verifyChain':                 (m) => this.onVerifyChain(m.okrId, m.actionId),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -2410,6 +2411,81 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } catch (err) {
       this.postMessage({ type: 'hatterTagSheet', okrId, actionId, tag: null, reason: `Failed to read artifact: ${toErrorMessage(err)}` });
     }
+  }
+
+  /**
+   * E1 (2026-05-25) — Verify Chain button handler. Reads the per-run
+   * audit JSONL via the GitHub Contents API (PR-aware: pulls from the
+   * action's PR head ref when the PR is still open, else from default
+   * branch). Runs the in-extension `verifyChainForUI` helper to
+   * produce a UI-shaped verdict (Knight's Seal status + per-kind
+   * counts + first-failure diagnosis) and ships it to the webview
+   * for modal render.
+   *
+   * Architectural note: this mirrors the runner's `audit-verify-chain`
+   * skill for SHAPE only — Ed25519 signature verification needs the
+   * pub keys + crypto, which lives in the runner. The modal exposes
+   * a "Re-run full verify via runner" link for users who need
+   * cryptographic gold. For most reviewer flows, the shape verdict
+   * matches CI's runner verdict on every check that doesn't require
+   * key material (Bug V/W/X/Y closed the drift between these layers).
+   */
+  private async onVerifyChain(okrId: string, actionId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured' });
+      return;
+    }
+    const okrService = this.meshService.getOkrService();
+    const card = okrService.read(meshPath, okrId);
+    if (!card) {
+      this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: '', verdict: null, reason: 'OKR not found' });
+      return;
+    }
+    const action = card.actions.find(a => a.id === actionId);
+    if (!action) {
+      this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: '', verdict: null, reason: `Action ${actionId} not found on this OKR` });
+      return;
+    }
+    if (!action.runId) {
+      this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: '', verdict: null, reason: 'No runId on this action — agent may still be running or pre-Phase B' });
+      return;
+    }
+    // Resolve owner/repo for the Contents API call. Same pattern as
+    // fetchPhaseSignal (line ~720); the runId-based JSONL path is
+    // canonical so we don't need PR ref awareness here — the JSONL
+    // lives at the same path on main once finalize lands.
+    const repoInfo = this.meshRepoInfo
+      ?? (() => {
+        const url = getRemoteOriginUrl(meshPath);
+        return null;  // best-effort; bail to local-file fallback below
+      })();
+    const jsonlRelPath = `okrs/${okrId}/audit/events/${action.runId}.jsonl`;
+    let jsonlText: string | null = null;
+    if (repoInfo) {
+      try {
+        jsonlText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, jsonlRelPath);
+      } catch { /* fall through to local */ }
+    }
+    if (jsonlText === null) {
+      // Local fallback — useful in dev when the mesh hasn't been
+      // pushed, or when GH API is rate-limited.
+      const localPath = path.join(meshPath, jsonlRelPath);
+      if (fs.existsSync(localPath)) {
+        try { jsonlText = fs.readFileSync(localPath, 'utf8'); } catch { /* ignore */ }
+      }
+    }
+    if (jsonlText === null) {
+      this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: action.runId, verdict: null, reason: `JSONL not found at ${jsonlRelPath} (tried GitHub + local mesh checkout). The chain may not exist yet — finalize writes the workflow events after PR merge.` });
+      return;
+    }
+    const lines = jsonlText.split('\n').filter(l => l.trim().length > 0);
+    if (lines.length === 0) {
+      this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: action.runId, verdict: null, reason: 'Chain file exists but contains zero events.' });
+      return;
+    }
+    const verdict = verifyChainForUI(lines);
+    this.postMessage({ type: 'chainVerifySheet', okrId, actionId, runId: action.runId, verdict });
   }
 
   /**

@@ -127,6 +127,25 @@ const state = {
   // Phase B-PR4 — Hatter Tag slide-out sheet
   hatterTagSheetOpen: false,
   hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
+  // Phase E E1 — Verify Chain slide-out sheet
+  chainVerifySheetOpen: false,
+  chainVerifySheetData: null as {
+    okrId: string;
+    actionId: string;
+    runId: string;
+    verdict: {
+      seal: { sealed?: boolean; sealTampered?: boolean };
+      totalEvents: number;
+      malformedLines: number;
+      byKind: Record<string, { signed: number; unsigned: number }>;
+      unsignedAgentEvents: number;
+      signedWorkflowEvents: number;
+      originKindMismatches: number;
+      firstFailure: { line: number; kind: string; reason: string } | null;
+      shapeOk: boolean;
+    } | null;
+    reason?: string;
+  } | null,
   // Phase B-PR3+ Start-phase preview modal — formatted body preview + multi-line additional context.
   startPhaseModalOpen: false,
   startPhaseModalData: null as { okrId: string; phase: 'why' | 'how' | 'what'; agent: string; issueLabel: string; body: string } | null,
@@ -1558,6 +1577,7 @@ function renderView(): string {
           phaseSignals: state.okrPhaseSignals,
         })
         + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
+        + (state.chainVerifySheetOpen ? renderChainVerifySheet() : '')
         + (state.startPhaseModalOpen ? renderStartPhaseModal() : '');
       break;
     default: content = renderNoMesh(); break;
@@ -1894,11 +1914,98 @@ function renderHatterTagSheet(): string {
           OKR: <code>${escapeHtml(data.okrId)}</code>
         </div>
         ${body}
-        <p class="hatter-tag-note">
-          Phase E will wire <code>verify-chain</code> as a clickable badge here.
-          For now the tag's <code>chain_root_hash</code> can be checked manually
-          against <code>okrs/${escapeHtml(data.okrId)}/audit/events/</code>.
-        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Phase E E1 — Verify Chain slide-out sheet. Mirrors the runner's
+ * `audit-verify-chain` skill verdict in a user-friendly modal so a
+ * reviewer can spot-check chain integrity from the OKR detail page
+ * without dropping to the CLI. Same overlay shape as renderHatter
+ * TagSheet to keep the visual rhythm consistent.
+ *
+ * Verdict shape produced by verifyChainForUI(lines) in chainVerify.ts.
+ */
+function renderChainVerifySheet(): string {
+  const data = state.chainVerifySheetData;
+  if (!data) { return ''; }
+  let body: string;
+  if (!data.verdict) {
+    body = `<p class="hatter-tag-empty">${escapeHtml(data.reason ?? 'No verdict available.')}</p>`;
+  } else {
+    const v = data.verdict;
+    const sealEmoji = v.seal.sealed ? '🛡 Sealed' : v.seal.sealTampered ? '⚠ Tampered' : 'ℹ No agent events';
+    const sealColor = v.seal.sealed ? 'var(--success, #4ade80)' : v.seal.sealTampered ? 'var(--danger, #f87171)' : 'var(--text-dim, #94a3b8)';
+    const shapeEmoji = v.shapeOk ? '✓ shape-ok' : '✗ shape-failed';
+    const shapeColor = v.shapeOk ? 'var(--success, #4ade80)' : 'var(--danger, #f87171)';
+    const kindRows = Object.entries(v.byKind).sort(([a],[b]) => a.localeCompare(b)).map(([kind, counts]) => `
+      <tr>
+        <td><code>${escapeHtml(kind)}</code></td>
+        <td style="text-align:right;">${counts.signed}</td>
+        <td style="text-align:right;">${counts.unsigned}</td>
+        <td style="text-align:right;"><strong>${counts.signed + counts.unsigned}</strong></td>
+      </tr>
+    `).join('');
+    const failureBlock = v.firstFailure
+      ? `<div class="hatter-tag-note" style="border-left: 3px solid var(--danger, #f87171); padding-left: 8px;">
+           <strong>First failure</strong> at line ${v.firstFailure.line}
+           (<code>${escapeHtml(v.firstFailure.kind)}</code>): ${escapeHtml(v.firstFailure.reason)}
+         </div>`
+      : '';
+    const forgeryCounts = (v.malformedLines + v.unsignedAgentEvents + v.signedWorkflowEvents + v.originKindMismatches) > 0
+      ? `<ul style="margin: 4px 0 0 16px; padding: 0;">
+           ${v.malformedLines > 0 ? `<li>${v.malformedLines} malformed JSONL line(s)</li>` : ''}
+           ${v.unsignedAgentEvents > 0 ? `<li>${v.unsignedAgentEvents} unsigned agent event(s)</li>` : ''}
+           ${v.signedWorkflowEvents > 0 ? `<li>${v.signedWorkflowEvents} signed-workflow forgery / non-allowlisted workflow kind</li>` : ''}
+           ${v.originKindMismatches > 0 ? `<li>${v.originKindMismatches} event_kind ↔ emitted_by mismatch(es)</li>` : ''}
+         </ul>`
+      : '<div style="color: var(--text-dim, #94a3b8);">No forgery indicators.</div>';
+    body = `
+      <div style="display:flex; gap:16px; align-items:baseline; margin-bottom:12px;">
+        <div style="font-size: 1.4em; font-weight: 600; color: ${sealColor};">${escapeHtml(sealEmoji)}</div>
+        <div style="font-size: 0.95em; color: ${shapeColor};">${escapeHtml(shapeEmoji)}</div>
+        <div style="margin-left:auto; color: var(--text-dim, #94a3b8); font-size: 0.85em;">
+          ${v.totalEvents} events in chain
+        </div>
+      </div>
+      <table style="width:100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.9em;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border, #475569);">
+            <th style="text-align:left; padding:4px 8px;">Event kind</th>
+            <th style="text-align:right; padding:4px 8px;">Signed</th>
+            <th style="text-align:right; padding:4px 8px;">Unsigned</th>
+            <th style="text-align:right; padding:4px 8px;">Total</th>
+          </tr>
+        </thead>
+        <tbody>${kindRows}</tbody>
+      </table>
+      ${failureBlock}
+      <details style="margin-top: 12px;">
+        <summary style="cursor: pointer; font-size: 0.9em;">Forgery breakdown</summary>
+        <div style="margin-top: 6px; font-size: 0.9em;">${forgeryCounts}</div>
+      </details>
+      <p class="hatter-tag-note">
+        Shape verification only — Ed25519 signature crypto runs in the runner
+        (<code>audit-verify-chain</code>). For cryptographic gold,
+        re-run via:<br>
+        <code style="font-size: 0.85em;">npx @maintainabilityai/research-runner audit-verify-chain --okrId ${escapeHtml(data.okrId)} --runId ${escapeHtml(data.runId)}</code>
+      </p>
+    `;
+  }
+  return `
+    <div class="hatter-tag-overlay" data-action="close-chain-verify-overlay">
+      <div class="hatter-tag-sheet" role="dialog" aria-modal="true" aria-label="Verify chain for ${escapeHtml(data.actionId)}">
+        <div class="hatter-tag-header">
+          <h3>🔗 Verify Chain · ${escapeHtml(data.actionId)}</h3>
+          <button class="btn-ghost" data-action="close-chain-verify">✕ Close</button>
+        </div>
+        <div class="hatter-tag-meta">
+          OKR: <code>${escapeHtml(data.okrId)}</code>
+          ${data.runId ? ` · Run: <code>${escapeHtml(data.runId)}</code>` : ''}
+        </div>
+        ${body}
       </div>
     </div>
   `;
@@ -3788,6 +3895,8 @@ function attachEventHandlers() {
     state.currentOkrAvailableBars = [];
     state.hatterTagSheetOpen = false;
     state.hatterTagSheetData = null;
+    state.chainVerifySheetOpen = false;
+    state.chainVerifySheetData = null;
     state.startPhaseModalOpen = false;
     state.startPhaseModalData = null;
     render();
@@ -3843,6 +3952,24 @@ function attachEventHandlers() {
       if (e.target === e.currentTarget) {
         state.hatterTagSheetOpen = false;
         state.hatterTagSheetData = null;
+        render();
+      }
+    });
+  });
+
+  // Phase E E1: Verify Chain sheet close handlers (mirror of hatter-tag pattern)
+  document.querySelectorAll('[data-action="close-chain-verify"]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.chainVerifySheetOpen = false;
+      state.chainVerifySheetData = null;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-action="close-chain-verify-overlay"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        state.chainVerifySheetOpen = false;
+        state.chainVerifySheetData = null;
         render();
       }
     });
@@ -4884,6 +5011,21 @@ const inboundHandlers: Record<string, InboundHandler> = {
         okrId: message.okrId as string,
         actionId: message.actionId as string,
         tag: (message.tag as Record<string, unknown> | null) ?? null,
+        reason: message.reason as string | undefined,
+      };
+      render();
+    },
+    'chainVerifySheet': (message: WebviewInboundMessage) => {
+      state.chainVerifySheetOpen = true;
+      // Verdict shape is the ChainVerifyVerdict from chainVerify.ts —
+      // typed identically on state.chainVerifySheetData. Backend sends
+      // either a structured verdict or null + a reason string.
+      const verdict = message.verdict as NonNullable<typeof state.chainVerifySheetData>['verdict'];
+      state.chainVerifySheetData = {
+        okrId: message.okrId as string,
+        actionId: message.actionId as string,
+        runId: (message.runId as string) ?? '',
+        verdict: verdict ?? null,
         reason: message.reason as string | undefined,
       };
       render();

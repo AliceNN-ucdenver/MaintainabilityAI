@@ -1712,6 +1712,21 @@ export function attachOkrDetailEvents(
       }
     });
   });
+  // Phase E E1 — Verify Chain — opens the chain verification modal
+  // for an action's run. Extension walks the per-run audit JSONL via
+  // GitHub Contents API + local fallback, runs `verifyChainForUI`
+  // (UI mirror of the runner's audit-verify-chain skill), and posts
+  // the verdict back as a `chainVerifySheet` message for modal render.
+  document.querySelectorAll('[data-action="verify-chain"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const container = el.closest('[data-okr-id]') as HTMLElement | null;
+      const okrId = container?.dataset.okrId;
+      const actionId = (el as HTMLElement).dataset.actionId;
+      if (okrId && actionId) {
+        vscode.postMessage({ type: 'verifyChain', okrId, actionId });
+      }
+    });
+  });
   // Run Audit — applies the phase's audit-trigger label to the OKR's
   // open artifact PR so the audit-and-drift workflow fires. The button
   // is rendered conditionally in renderPhaseSignals when (a) the PR is

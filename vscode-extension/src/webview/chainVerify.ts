@@ -162,6 +162,133 @@ export function detectKnightSeal(lines: string[]): { sealed?: boolean; sealTampe
  * Bug X (round-8) — tightened in lockstep with detectKnightSeal:
  * signer_epoch and signed-workflow-event checks now match the runner.
  */
+/**
+ * E1 (2026-05-25) — chain-verification verdict shape for the UI's
+ * "Verify Chain" modal. Mirrors the verdict surface the runner's
+ * `audit-verify-chain` skill produces, but using the in-extension
+ * helpers (no signature crypto — flags signed agent events as
+ * "verified-shape" rather than "verified-crypto"; the modal surfaces
+ * a "Re-run full verify via runner" link for users who need the
+ * cryptographic gold).
+ */
+export interface ChainVerifyVerdict {
+  /** Knight's Seal verdict (sealed/tampered/no-agent-events). */
+  seal: { sealed?: boolean; sealTampered?: boolean };
+  /** Total events in the JSONL (including unparseable lines). */
+  totalEvents: number;
+  /** Lines that failed JSON.parse. Each one is forgery per the runner. */
+  malformedLines: number;
+  /** Per-kind counts. */
+  byKind: Record<string, { signed: number; unsigned: number }>;
+  /** Agent events lacking a signature (forgery per Bug V). */
+  unsignedAgentEvents: number;
+  /** Workflow events carrying a signature (forgery per Bug X round-8). */
+  signedWorkflowEvents: number;
+  /** Events whose payload.emitted_by disagrees with EVENT_KIND_ORIGIN. */
+  originKindMismatches: number;
+  /** First failure encountered, if any — for surfacing in the UI. */
+  firstFailure: { line: number; kind: string; reason: string } | null;
+  /** True if every event passed the in-extension legitimacy check. */
+  shapeOk: boolean;
+}
+
+/**
+ * Walk a JSONL chain and produce a UI-shaped verdict. Caller passes the
+ * decoded text split into lines (one event per line, empties stripped).
+ * The verdict tells the modal what to render: a green "Sealed" panel
+ * with the per-kind breakdown, or a red "Tampered" panel naming the
+ * first failure point.
+ *
+ * Limitations vs runner:
+ *   - Does NOT verify Ed25519 signatures cryptographically (helper
+ *     doesn't load pub keys or do signature math). Shape-checks only.
+ *   - Does NOT recompute per-event hash continuity (prev_event_hash →
+ *     this_event_hash chain) — that's runner-territory and requires
+ *     the canonical event-hash algorithm. Modal surfaces a "Re-run
+ *     full verify via runner" link for the gold path.
+ *
+ * What the helper DOES catch (every check the runner enforces minus
+ * the two above):
+ *   - Malformed JSONL lines (bad-jsonl-line-N)
+ *   - Origin-kind mismatches (event_kind ↔ emitted_by drift, Bug Y)
+ *   - Workflow attribution on a non-allowlisted kind (Bug V/W)
+ *   - Signed workflow events (Bug X round-8 — workflow has no key)
+ *   - Workflow events carrying signer_epoch (Bug X round-8)
+ *   - Unsigned agent events (Bug V — signature mandatory)
+ *   - Signed agent events lacking numeric signer_epoch (Bug X round-8)
+ */
+export function verifyChainForUI(lines: string[]): ChainVerifyVerdict {
+  const byKind: Record<string, { signed: number; unsigned: number }> = {};
+  let malformedLines = 0;
+  let unsignedAgentEvents = 0;
+  let signedWorkflowEvents = 0;
+  let originKindMismatches = 0;
+  let firstFailure: { line: number; kind: string; reason: string } | null = null;
+  function record(lineNo: number, kind: string, reason: string) {
+    if (firstFailure === null) { firstFailure = { line: lineNo, kind, reason }; }
+  }
+  let total = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    if (!raw || raw.trim().length === 0) { continue; }
+    total++;
+    let event: SealEvent & { payload?: { emitted_by?: string } };
+    try {
+      event = JSON.parse(raw) as SealEvent & { payload?: { emitted_by?: string } };
+    } catch {
+      malformedLines++;
+      record(i + 1, '?', 'malformed-jsonl');
+      continue;
+    }
+    const kind = event.event_kind ?? '?';
+    const hasSignature = typeof event.signature === 'string' && event.signature.length > 0;
+    byKind[kind] = byKind[kind] ?? { signed: 0, unsigned: 0 };
+    if (hasSignature) { byKind[kind].signed++; } else { byKind[kind].unsigned++; }
+    if (!originKindMatches(event)) {
+      originKindMismatches++;
+      record(i + 1, kind, 'origin-kind-mismatch (event_kind ↔ emitted_by drift)');
+      continue;
+    }
+    const claimsWorkflow = event.payload?.emitted_by === 'workflow';
+    if (claimsWorkflow) {
+      if (!WORKFLOW_EMITTABLE_KINDS.has(kind)) {
+        signedWorkflowEvents++;  // misuse — non-allowlisted workflow kind
+        record(i + 1, kind, 'workflow-attribution-on-non-allowlisted-kind');
+        continue;
+      }
+      if (hasSignature) {
+        signedWorkflowEvents++;
+        record(i + 1, kind, 'signed-workflow-event (workflow has no key)');
+        continue;
+      }
+    } else {
+      if (!hasSignature) {
+        unsignedAgentEvents++;
+        record(i + 1, kind, 'unsigned-agent-event');
+        continue;
+      }
+      if (typeof event.signer_epoch !== 'number') {
+        unsignedAgentEvents++;
+        record(i + 1, kind, 'agent-event-missing-numeric-signer_epoch');
+        continue;
+      }
+    }
+  }
+  const shapeOk = firstFailure === null;
+  const seal = detectKnightSeal(lines);
+  return {
+    seal,
+    totalEvents: total,
+    malformedLines,
+    byKind,
+    unsignedAgentEvents,
+    signedWorkflowEvents,
+    originKindMismatches,
+    firstFailure,
+    shapeOk,
+  };
+}
+
 export function isEventLegitimate(event: { event_kind?: string; signature?: string; signer_epoch?: unknown; payload?: { emitted_by?: string } }): boolean {
   // Bug Y (round-9) — origin-kind consistency check first. If the
   // line's kind + emitted_by don't agree with EVENT_KIND_ORIGIN, it
