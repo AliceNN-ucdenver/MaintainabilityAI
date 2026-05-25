@@ -531,6 +531,21 @@ export type LookingGlassWebviewMessage =
    */
   | { type: 'loadHatterTag'; okrId: string; actionId: string }
   /**
+   * Phase E E1 — Verify Chain button click on an action card. Extension
+   * fetches the run's audit JSONL (GitHub Contents API + local fallback),
+   * runs `verifyChainForUI`, and posts back `chainVerifySheet` with the
+   * structured verdict.
+   */
+  | { type: 'verifyChain'; okrId: string; actionId: string }
+  /**
+   * Phase E E3 — Export Audit Report button click. Extension shells out
+   * to the runner verifier, fetches PRD + artifact for control mapping,
+   * builds the markdown closeout report, writes it to
+   * `okrs/<id>/audit/exports/<runId>-report.md`, and opens it in
+   * VS Code. No outbound payload — the toast + opened file ARE the UX.
+   */
+  | { type: 'exportAuditReport'; okrId: string; actionId: string }
+  /**
    * Phase C-PR3 — HumanGate controls on the OKR detail Action card.
    * Fire when the latest action's status is `human_gate` (auto-revision
    * cycle exhausted per §6.1). The extension handles the actual GitHub
@@ -697,5 +712,20 @@ export type LookingGlassExtensionMessage =
       /** Parsed tag JSON, or null if the artifact had no parseable Hatter's Tag. */
       tag: unknown | null;
       /** When tag is null, why — surfaced in the sheet as a friendly message. */
+      reason?: string;
+    }
+  /**
+   * Phase E E1 — payload for the Verify Chain modal. `verdict` is the
+   * ChainVerifyVerdict shape from `webview/chainVerify.ts`; carried as
+   * `unknown` here to avoid a cross-package dep (the webview's render
+   * function casts back to the structured shape). When `verdict` is
+   * null the modal renders the `reason` string instead.
+   */
+  | {
+      type: 'chainVerifySheet';
+      okrId: string;
+      actionId: string;
+      runId: string;
+      verdict: unknown | null;
       reason?: string;
     };

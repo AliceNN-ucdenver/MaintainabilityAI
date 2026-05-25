@@ -2668,7 +2668,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       artifactText,
     });
     const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
-    const exportPath = path.join(exportDir, `${action.runId}-report.md`);
+    const exportPath = path.join(exportDir, `${runId}-report.md`);
     try {
       fs.mkdirSync(exportDir, { recursive: true });
       fs.writeFileSync(exportPath, markdown, 'utf8');
