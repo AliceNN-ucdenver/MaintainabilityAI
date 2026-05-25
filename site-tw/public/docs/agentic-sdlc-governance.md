@@ -5,10 +5,10 @@
     <div class="docs-eyebrow">Vision · The agentic SDLC governance framework <span class="docs-hero-meta">Executive read + technical deep dive</span></div>
     <h1 class="docs-hero-title">An agentic governed SDLC</h1>
     <p class="docs-hero-copy">
-      <strong>One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.</strong> The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. Trust earned, not granted. Per agent, per session, per event.
+      <strong>AI agents can move faster than the review process built for human teams.</strong> MaintainabilityAI makes that speed governable: every OKR becomes a signed trail of evidence, every phase has one human gate, and every artifact traces back to the business intent that approved it.
     </p>
     <p class="docs-hero-copy">
-      One control plane. Two governance modalities. Every artifact audit-chained from intent to shipped code.
+      The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. No shared credentials. No mystery handoffs. One governance surface from intent to shipped code.
     </p>
     <div class="docs-actions">
       <a href="https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai" class="docs-button-primary">Install the Extension</a>
@@ -776,26 +776,36 @@ Trend sparklines show governance health over time. Drift indicators catch decay 
 
 An AI governance assistant grounded in your mesh. You chat with it the way you chat with any LLM, but every answer is anchored to the CALM model, the ADRs, the threat catalog, and the NIST controls you have already curated. Citations are real. References do not hallucinate.
 
-Eight commands, grouped by the question the architect is actually asking.
+The commands are not a menu to memorize. They are three doors an architect walks through when the model, the code, and the next decision need to line up.
 
-**"What does my architecture actually look like right now?"**
+<div class="docs-proof-list docs-proof-list-compact">
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">Reality</span>
+    <div>
+      <p class="docs-proof-title">What does my architecture actually look like right now?</p>
+      <p class="docs-proof-body"><code>/scan-repo</code> derives a draft CALM model from running code. <code>/validate</code> checks whether the CALM document is well-formed. <code>/drift</code> checks whether the CALM document still describes the running system.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Key distinction:</strong> <code>/validate</code> can be green while <code>/drift</code> is red. One proves the model is valid. The other proves it is still true.</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">Decision</span>
+    <div>
+      <p class="docs-proof-title">What should I decide next, and how do I explain it?</p>
+      <p class="docs-proof-body"><code>/gap-analysis</code> ranks missing governance artifacts across architecture, security, risk, and operations. <code>/adr</code> turns a plain-English decision into an Architecture Decision Record. <code>/ask</code> answers freeform architecture questions with citations back to CALM, ADRs, and STRIDE threats.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Outcome:</strong> the architect gets a ranked next move or a merge-ready rationale, not a generic chat answer.</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">Change</span>
+    <div>
+      <p class="docs-proof-title">How do I bring something new into the model?</p>
+      <p class="docs-proof-body"><code>/add-component</code> scaffolds a new CALM node with schema, linkages, security-control placeholders, and threat-reference slots. <code>/image-to-calm</code> turns a whiteboard photo into a structured CALM 1.2 draft after a workshop or design session.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Outcome:</strong> the architecture memory gets updated while the idea is still fresh, before the code and the wiki diverge.</div>
+  </div>
+</div>
 
-- `/scan-repo` derives a CALM model from running code, bottom-up. The outcome is a draft CALM document the architect can review, edit, and adopt. Useful when the wiki and reality have drifted, or when you are adopting governance on a system that has been running for years.
-- `/validate` checks a CALM document against the FINOS CALM 1.2 schema. The outcome is a pass / fail with line-level errors. Answers "is this CALM document well-formed" before you commit it.
-- `/drift` compares the declared CALM model against the actual code. The outcome is a list of architectural deltas (interfaces present in code but missing from CALM, connections in CALM that no longer exist in code, layer crossings that violate declared flows). Answers "does what we wrote down still match what we shipped."
-
-The split between `/validate` and `/drift` is the one most architects need named: `/validate` says "this CALM document is well-formed"; `/drift` says "this CALM document still describes the running system." Both can be green, only one is a guarantee the model reflects reality.
-
-**"What should I decide next, and how do I explain it?"**
-
-- `/gap-analysis` walks the four governance pillars (architecture, security, risk, operations) and surfaces coverage holes. The outcome is a ranked list of missing artifacts ("no threat model for the payment flow," "no fitness function for the auth pillar"). Answers "where am I weakest, and what is the cheapest thing I could do to fix that."
-- `/adr` drafts an Architecture Decision Record for a choice you describe in plain English. The outcome is a structured ADR with the right Context section, Decision section, and Consequences section, ready for the team to amend and merge. Answers "I have made the call; now help me write it down so the next architect can read it."
-- `/ask` is freeform consultation. Paste a question, get a mesh-grounded answer with sources cited back to your CALM, your ADRs, and your STRIDE catalog. Answers anything that does not fit the other seven commands.
-
-**"How do I bring something new into the model?"**
-
-- `/add-component` scaffolds a new CALM node with the right schema, the right linkages, and the right placeholders for security controls and threat references. The outcome is a CALM patch the architect reviews before commit. Answers "I am adding a service; what does it need to look like in CALM."
-- `/image-to-calm` turns a whiteboard photo into a structured CALM 1.2 model. The outcome is a draft CALM document derived from the boxes and arrows the architect sketched. Useful after a workshop or a design session, when the room agreed but nobody wants to retype every box. Answers "we drew it; how do I make the mesh hold it."
+The point is not command syntax. The point is that architectural judgment becomes queryable, updateable, and tied to evidence the next agent run can inherit.
 
 ### Oraculum: automated architecture review
 
@@ -1131,8 +1141,6 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
     <text x="50" y="30" fill="#a5b4fc" font-size="9.5" font-family="system-ui, sans-serif">internal markdown closeout · runner verdict + control map + timeline (shipped) · redacted external zip (next act)</text>
   </g>
 </svg>
-
----
 
 ## How we keep the promises
 
