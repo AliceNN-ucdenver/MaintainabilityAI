@@ -674,6 +674,8 @@
   .docs-hero-glyph svg {
     width: 100%;
     height: 100%;
+    margin: 0;
+    padding: 0;
     display: block;
     object-fit: cover;
     object-position: center;
