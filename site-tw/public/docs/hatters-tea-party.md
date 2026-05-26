@@ -12,11 +12,12 @@
     </p>
     <div class="docs-actions">
       <a href="/docs/red-queens-court" class="docs-button-secondary">Meet the Red Queen</a>
-      <a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-primary">Read the design (v4)</a>
+      <a href="/docs/agentic-sdlc-governance" class="docs-button-primary">Read the full governance story</a>
     </div>
+    <span class="docs-hero-flourish">&ldquo;No room for unsigned intent.&rdquo;</span>
   </div>
   <figure class="docs-hero-figure">
-    <img src="/images/tea-party.png" alt="The Hatter's Tea Party — host of governed intent" class="docs-hero-art" />
+    <img src="/images/tea-party.png" alt="The Hatter's Tea Party, host of governed intent" class="docs-hero-art" />
     <figcaption class="docs-visual-caption">The Hatter hosts the tea party of governed intent. Six teacups. One signed chain. No riddles.</figcaption>
   </figure>
 </div>
@@ -45,15 +46,15 @@ That's the **Hatter's Tea Party.** Six guests around the table (the OKR, the fou
     </marker>
   </defs>
   <rect width="800" height="280" rx="12" fill="url(#twoVisBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">TWO VISIONS — ONE PIPELINE</text>
+  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">TWO VISIONS · ONE PIPELINE</text>
   <!-- Hatter's Tea Party (left) -->
   <rect x="30" y="50" width="320" height="190" rx="10" fill="rgba(165,180,252,0.06)" stroke="rgba(165,180,252,0.35)"/>
   <text x="190" y="76" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700" font-family="system-ui, sans-serif">Hatter's Tea Party</text>
-  <text x="190" y="94" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Plans the work — governs intent upstream</text>
+  <text x="190" y="94" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Plans the work · governs intent upstream</text>
   <rect x="50" y="110" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
   <text x="190" y="125" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">OKR → Market Research (4 oracles + JTBD)</text>
   <rect x="50" y="138" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
-  <text x="190" y="153" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">PRD (ask-experts — mesh-grounded gate)</text>
+  <text x="190" y="153" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">PRD (expert review · mesh-grounded gate)</text>
   <rect x="50" y="166" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
   <text x="190" y="181" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Code Design (implementation readiness)</text>
   <rect x="50" y="194" width="280" height="22" rx="6" fill="rgba(165,180,252,0.12)" stroke="rgba(165,180,252,0.3)"/>
@@ -66,7 +67,7 @@ That's the **Hatter's Tea Party.** Six guests around the table (the OKR, the fou
   <!-- Red Queen (right) -->
   <rect x="450" y="50" width="320" height="190" rx="10" fill="rgba(244,114,182,0.06)" stroke="rgba(244,114,182,0.35)"/>
   <text x="610" y="76" text-anchor="middle" fill="#f9a8d4" font-size="13" font-weight="700" font-family="system-ui, sans-serif">The Red Queen</text>
-  <text x="610" y="94" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Enforces in code — governs action downstream</text>
+  <text x="610" y="94" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Enforces in code · governs action downstream</text>
   <rect x="470" y="110" width="280" height="22" rx="6" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.3)"/>
   <text x="610" y="125" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">deterministic tool checks</text>
   <rect x="470" y="138" width="280" height="22" rx="6" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.3)"/>
@@ -100,7 +101,7 @@ Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in 
     </marker>
   </defs>
   <rect width="800" height="280" rx="12" fill="url(#journeyBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">FIVE STAGES — ONE AUDIT CHAIN</text>
+  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">FIVE STAGES · ONE AUDIT CHAIN</text>
   <!-- Stages -->
   <!-- 1. OKR -->
   <rect x="20" y="60" width="140" height="120" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
@@ -149,9 +150,9 @@ Everything flows from a single anchor: an **OKR** (Objectives + Key Results, in 
   <line x1="634" y1="120" x2="652" y2="120" stroke="#a5b4fc" stroke-width="2" marker-end="url(#journeyArrow)"/>
   <!-- Audit chain band -->
   <rect x="20" y="208" width="772" height="32" rx="6" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.3)"/>
-  <text x="406" y="228" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Hatter's Tag chain — shared audit thread links every artifact and reviewer</text>
+  <text x="406" y="228" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Hatter's Tag chain · shared audit thread links every artifact and reviewer</text>
   <!-- Bottom callout -->
-  <text x="406" y="262" text-anchor="middle" fill="#64748b" font-size="9" font-family="system-ui, sans-serif">Audit Report Export — one markdown closeout per action (verifier result + traceability)</text>
+  <text x="406" y="262" text-anchor="middle" fill="#64748b" font-size="9" font-family="system-ui, sans-serif">Audit Report Export · one readable closeout per action</text>
 </svg>
 
 The five stages are the chapters of the audit story. Every chapter writes a **Hatter's Tag**: a structured provenance record carrying the author agent's DID, model version, prompt-pack SHA, threat-model reference, reviewer DIDs, CALM nodes touched, OWASP categories, fitness results, scores, rationale. The chain ladder is what an auditor reads.
@@ -173,7 +174,7 @@ The intent cascade (**Org → Role → Developer → User**) is the Court Hierar
   </div>
   <div class="docs-card docs-card-indigo">
     <div class="docs-heading">Key Results</div>
-    <div class="docs-copy">3–5 SMART metrics. <code>Identity-disambiguation false-merge &lt; 0.5%</code>. <code>Licensing-compliance audit 100%</code>. <code>p95 fetch &lt; 200ms</code>. Each KR gets a row in the final traceability matrix.</div>
+    <div class="docs-copy">3-5 SMART metrics. <code>Identity-disambiguation false-merge &lt; 0.5%</code>. <code>Licensing-compliance audit 100%</code>. <code>p95 fetch &lt; 200ms</code>. Each KR gets a row in the final traceability matrix.</div>
   </div>
   <div class="docs-card docs-card-indigo">
     <div class="docs-heading">Intent cascade</div>
@@ -191,11 +192,11 @@ This is also where the **two-tier example** becomes concrete. IMDB-Lite ships wi
 
 ## Stage 2 · Why: four independent sources of evidence, checked against itself
 
-Most "AI research" is a single web search and a summary. That's not research — that's a one-source brief. Build a product spec on top of it and the spec inherits whatever was wrong or missing in that single source.
+Most "AI research" is a single web search and a summary. That's not research. It is a one-source brief. Build a product spec on top of it and the spec inherits whatever was wrong or missing in that single source.
 
-This stage does the opposite. It pulls from **four independent kinds of evidence** in parallel — what the web is saying about the topic right now, what academic researchers have proven, what's been patented (the incumbent IP landscape), and what working developers complain about — and adds a fifth lens that asks **what the customer is actually trying to get done**. Then it grades its own coverage and runs one more targeted sweep if anything looks thin.
+This stage does the opposite. It pulls from **four independent kinds of evidence** in parallel: what the web is saying right now, what academic researchers have proven, what's been patented, and what working developers complain about. It adds a fifth lens that asks **what the customer is actually trying to get done**. Then it grades its own coverage and runs one more targeted sweep if anything looks thin.
 
-> 🔍 **Real evidence, not summary stats.** Every oracle hit (provider, query, title, URL, snippet) lands in the audit chain — up to 25 hits per skill_call. A reviewer who wants to verify that source citation `S-3` resolves to an actual arXiv paper or Tavily result can read the chain payload directly; there's no "trust the agent that it cited a real source" gap. The chain is the evidence.
+> 🔍 **Real evidence, not summary stats.** Every oracle hit (provider, query, title, URL, snippet) lands in the audit chain. A reviewer who wants to verify that source citation `S-3` resolves to an actual arXiv paper or Tavily result can read the chain payload directly. There is no "trust the agent that it cited a real source" gap. The chain is the evidence.
 
 **A second research mode is on the roadmap: codebase archaeology.** When the team wants to model what their actual code does, not what the world says about a topic, archaeology mode will read impacted repositories and extract the observed architecture: modules, layers, cross-module calls, exposed interfaces. Today the WHY phase is web-evidence only. The design is reserved so the planning layer can eventually ground itself in *what is*, not just *what the world says could be*.
 
@@ -217,7 +218,7 @@ This stage does the opposite. It pulls from **four independent kinds of evidence
     </marker>
   </defs>
   <rect width="800" height="380" rx="12" fill="url(#researchBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">MARKET RESEARCH — FOUR ORACLES + JTBD + GAP LOOP</text>
+  <text x="400" y="28" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">MARKET RESEARCH · FOUR ORACLES + JTBD + GAP LOOP</text>
   <!-- Center: agent reasoning -->
   <circle cx="400" cy="200" r="90" fill="url(#researchCenter)" stroke="rgba(165,180,252,0.5)" stroke-width="1.5"/>
   <text x="400" y="180" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700" font-family="system-ui, sans-serif">market-research</text>
@@ -228,35 +229,35 @@ This stage does the opposite. It pulls from **four independent kinds of evidence
   <!-- 4 oracles + JTBD around the center -->
   <!-- Tavily (top-left) -->
   <rect x="40" y="60" width="180" height="76" rx="10" fill="rgba(125,211,252,0.12)" stroke="rgba(125,211,252,0.4)"/>
-  <text x="130" y="82" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">🌐 Tavily — Web</text>
+  <text x="130" y="82" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">🌐 Tavily · Web</text>
   <text x="130" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">What's being said today</text>
   <text x="130" y="115" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">trade press · vendor docs</text>
   <text x="130" y="128" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">regulatory guidance</text>
   <line x1="219" y1="120" x2="312" y2="170" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#researchArrow)"/>
   <!-- arXiv (top-right) -->
   <rect x="580" y="60" width="180" height="76" rx="10" fill="rgba(110,231,183,0.12)" stroke="rgba(110,231,183,0.4)"/>
-  <text x="670" y="82" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="700" font-family="system-ui, sans-serif">📚 arXiv — Academic</text>
+  <text x="670" y="82" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="700" font-family="system-ui, sans-serif">📚 arXiv · Academic</text>
   <text x="670" y="100" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">What researchers found</text>
   <text x="670" y="115" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">peer-reviewed methods</text>
   <text x="670" y="128" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">benchmarks · proofs</text>
   <line x1="580" y1="120" x2="488" y2="170" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#researchArrow)"/>
   <!-- USPTO (bottom-left) -->
   <rect x="40" y="264" width="180" height="76" rx="10" fill="rgba(252,211,77,0.12)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="130" y="286" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="700" font-family="system-ui, sans-serif">📜 USPTO — Patents</text>
+  <text x="130" y="286" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="700" font-family="system-ui, sans-serif">📜 USPTO · Patents</text>
   <text x="130" y="304" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">What's been invented</text>
   <text x="130" y="319" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">incumbent IP landscape</text>
   <text x="130" y="332" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">whitespace opportunities</text>
   <line x1="219" y1="280" x2="312" y2="230" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#researchArrow)"/>
   <!-- Hacker News (bottom-right) -->
   <rect x="580" y="264" width="180" height="76" rx="10" fill="rgba(251,146,60,0.12)" stroke="rgba(251,146,60,0.4)"/>
-  <text x="670" y="286" text-anchor="middle" fill="#fb923c" font-size="12" font-weight="700" font-family="system-ui, sans-serif">🧑‍💻 HN — Community</text>
+  <text x="670" y="286" text-anchor="middle" fill="#fb923c" font-size="12" font-weight="700" font-family="system-ui, sans-serif">🧑‍💻 HN · Community</text>
   <text x="670" y="304" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">What devs complain about</text>
   <text x="670" y="319" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">real-world pain points</text>
   <text x="670" y="332" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">working code · workarounds</text>
   <line x1="580" y1="280" x2="488" y2="230" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#researchArrow)"/>
   <!-- JTBD (top center) -->
   <rect x="310" y="40" width="180" height="60" rx="10" fill="rgba(196,181,253,0.12)" stroke="rgba(196,181,253,0.4)"/>
-  <text x="400" y="62" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700" font-family="system-ui, sans-serif">🎯 JTBD — Customer jobs</text>
+  <text x="400" y="62" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700" font-family="system-ui, sans-serif">🎯 JTBD · Customer jobs</text>
   <text x="400" y="80" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">What the user is hiring</text>
   <text x="400" y="93" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">the product to do</text>
   <line x1="400" y1="100" x2="400" y2="110" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#researchArrow)"/>
@@ -270,55 +271,55 @@ This stage does the opposite. It pulls from **four independent kinds of evidence
   <text x="620" y="268" text-anchor="middle" fill="#fcd34d" font-size="8" font-style="italic" font-family="system-ui, sans-serif">3 follow-up queries</text>
   <!-- Output -->
   <rect x="280" y="346" width="240" height="22" rx="11" fill="rgba(74,222,128,0.12)" stroke="rgba(74,222,128,0.3)"/>
-  <text x="400" y="361" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">10-section research doc — every claim cites S[N]</text>
+  <text x="400" y="361" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">10-section research doc · every claim cites S[N]</text>
 </svg>
 
 ### What the system does
 
-**The agent reads the business context before it searches anything.** Before the first query is sent, it loads the objective, the success metrics, the strategy chain that links the objective from org leadership down to the end user, and the company's existing record of architecture, known security threats, and prior research on adjacent topics. From that grounding it writes search queries that are tailored to each source — a query that works on a general-purpose web search engine is useless on a patent database, and a casual phrasing that gets results on a developer forum gets ignored by an academic index. The system enforces this with worked examples baked into the prompt, so the agent can't drift into the vague phrasing that wastes a research budget without producing anything useful.
+**The agent reads the business context before it searches anything.** Before the first query is sent, it loads the objective, the success metrics, the strategy chain that links the objective from org leadership down to the end user, and the company's existing record of architecture, known security threats, and prior research on adjacent topics. From that grounding it writes search queries tailored to each source. A query that works on a general-purpose web search engine is useless on a patent database, and casual developer-forum phrasing gets ignored by an academic index. The system enforces this with worked examples, so the agent can't drift into vague phrasing that wastes a research budget.
 
-**Then it grades its own coverage.** After the first sweep of all five lenses, the agent asks three questions of the results: is there a finding that only one source supports? Are two sources contradicting each other? Is there a topic the original brief mentioned that came back with no evidence at all? If any answer is yes, the agent runs **one bounded follow-up sweep** — up to three additional queries, targeted at exactly the gap that prompted them, and only the lens where that gap exists. The bound is hard: one follow-up sweep, not a recursive loop. We tried unbounded loops in prototyping; they multiplied the cost without changing the conclusions. If coverage is still thin after the follow-up, the agent doesn't paper it over — it writes the unresolved gap out plainly in a section called **Evidence Gaps**, which the next stage inherits and a reviewer can challenge.
+**Then it grades its own coverage.** After the first sweep of all five lenses, the agent asks three questions of the results: is there a finding that only one source supports? Are two sources contradicting each other? Is there a topic the original brief mentioned that came back with no evidence at all? If any answer is yes, the agent runs **one bounded follow-up sweep**: up to three additional queries, targeted at exactly the gap that prompted them, and only the lens where that gap exists. The bound is hard: one follow-up sweep, not a recursive loop. We tried unbounded loops in prototyping; they multiplied the cost without changing the conclusions. If coverage is still thin after the follow-up, the agent writes the unresolved gap plainly in **Evidence Gaps**, which the next stage inherits and a reviewer can challenge.
 
-**The output is a structured research document with ten required sections** — an executive summary, a comparison across sources, an evidence-gaps list, a customer-needs analysis, a patent landscape, a whitespace map, formal conclusions with confidence ratings, and recommendations — and every claim in the document carries a tag pointing back to the source it came from. The next stage (the product spec) traces individual requirements back to specific source tags. There's no path for an unsupported claim to launder its way into the design.
+**The output is a structured research document with ten required sections**: an executive summary, a comparison across sources, an evidence-gaps list, a customer-needs analysis, a patent landscape, a whitespace map, formal conclusions with confidence ratings, and recommendations. Every claim in the document carries a tag pointing back to the source it came from. The next stage traces individual requirements back to those tags. Unsupported claims have no path into the design.
 
 ### How it's guarded
 
-The Why stage has no human-style reviewer because research is descriptive, not a design decision — there's no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently confirms four things.
+The Why stage has no human-style reviewer because research is descriptive, not a design decision. There is no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently confirms four things.
 
 | Check | What it confirms |
 |---|---|
-| **The agent actually searched** | The run's activity log shows successful calls to each evidence source — not a silent fall-back to reading already-committed files |
+| **The agent actually searched** | The run's activity log shows successful calls to each evidence source, not a silent fall-back to reading already-committed files |
 | **The document is structurally complete** | All ten required sections are present, in the canonical order |
 | **Every claim is sourced** | Every formal conclusion in the document cites at least one of the evidence tags |
-| **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective (a comparison based on meaning, not just shared keywords — catches an agent that drifted onto an adjacent topic) |
+| **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective. This catches an agent that drifted onto an adjacent topic |
 
 Only when all four pass does the system apply the green-flag label that unlocks merge. If any fail, it applies a specific failure label naming exactly which check failed, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
 
 ### Why the audit is trustworthy
 
-Three things happen automatically during every run, and together they make the result self-auditing — no separate process needs to "keep notes."
+Three things happen automatically during every run. Together, they make the result self-auditing. No separate process needs to "keep notes."
 
-**1. The document carries its own receipt.** The artifact ships with a small block of metadata at the top — the objective it belongs to, the unique run identifier, the agent that produced it, and what mode it was in (was this a live search, or did it reuse already-known evidence?). The same block also appears in the pull-request description so reviewers see it without opening the file. If the document gets moved, copied, or quoted out of context six months later, the receipt is still attached.
+**1. The document carries its own receipt.** The artifact ships with a small block of metadata at the top: the objective it belongs to, the unique run identifier, the agent that produced it, and whether this was a live search or reused evidence. The same block also appears in the pull-request description so reviewers see it without opening the file. If the document gets moved, copied, or quoted out of context six months later, the receipt is still attached.
 
-**2. The activity log is tamper-evident — and we re-verify it before every merge.** Every search the agent ran, every analysis step it took, is recorded as a sequence of entries chained together by cryptographic hashes — each entry references the hash of the one before it. The same trick that secures a blockchain. You can't quietly edit an earlier entry without breaking every entry that follows, and the break is detectable. We don't just *trust* the chain exists — before any pull request can merge, an independent verification step replays the chain end-to-end and recomputes every hash. If the math doesn't balance — including the case where an agent tries to bypass the proper logging tool and hand-writes entries to look compliant — the merge refuses with a `chain-integrity-failed` label. The record proves itself, and the proof runs automatically on every audit.
+**2. The activity log is tamper-evident, and we re-verify it before every merge.** Every search the agent ran and every analysis step it took is recorded as a sequence of entries chained together by cryptographic hashes. Each entry references the hash of the one before it. You can't quietly edit an earlier entry without breaking every entry that follows, and the break is detectable. Before any pull request can merge, an independent verification step replays the chain end-to-end and recomputes every hash. If the math doesn't balance, including the case where an agent hand-writes entries to look compliant, the merge refuses. The record proves itself, and the proof runs automatically on every audit.
 
 **Knight's Seal proves which agent signed which event.** Each agent session gets its own short-lived signing key. The private key stays inside that session and disappears when the session ends. Every agent judgment is signed by the session that produced it, and the verifier checks those signatures before merge. Looking Glass shows a *"🛡 Sealed"* badge when the chain verifies. If someone edits the artifact or the chain after the run, the badge flips and the merge refuses. **The next act:** external anchoring with cosign / sigstore so a third-party auditor can verify an old artifact without trusting keys stored in the mesh.
 
-**3. The audit IS the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request — what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic, **whether the activity-log chain still verifies**, **whether the Knight's Seal signature is intact**. Pass everything → green-flag label → merge unlocks. Fail anything → specific failure label naming the cause + the same comment showing where to look.
+**3. The audit is the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request: what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic, whether the activity-log chain still verifies, and whether the Knight's Seal signature is intact. Pass everything and merge unlocks. Fail anything and the PR gets a specific failure label plus the same comment showing where to look.
 
-For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the sources those queries returned, and a tamper-evident log of the whole run — all without anyone having to remember to take minutes.
+For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the sources those queries returned, and a tamper-evident log of the whole run. No one has to remember to take minutes.
 
 
 
 ## Stage 3 · How: the product spec, with every requirement tied to a real constraint
 
-Stage 2 produced research. Stage 3 turns that research into a **Product Requirements Document** — the spec the team will build from. Asking an AI to "write a PRD" the naive way is how teams end up with requirements that look plausible but don't match the system they actually have and that nobody can trace back to a real constraint. Stage 3 won't let that happen.
+Stage 2 produced research. Stage 3 turns that research into a **Product Requirements Document**: the spec the team will build from. Asking an AI to "write a PRD" the naive way is how teams end up with requirements that look plausible but don't match the system they actually have and that nobody can trace back to a real constraint. Stage 3 won't let that happen.
 
 It does three things the naive approach doesn't.
 
-**It reads everything that matters before writing anything.** Before the first requirement is drafted, the agent loads the objective, the research document from Stage 2, every business system the objective touches, the architectural decisions already on record for those systems, the known security threats they face, and the company's quality standards (latency targets, availability commitments, that kind of thing). Nothing in the spec can be made up — the agent is required to cite the source of every claim, and the system rejects the spec if any citation is missing.
+**It reads everything that matters before writing anything.** Before the first requirement is drafted, the agent loads the objective, the research document from Stage 2, every business system the objective touches, the architectural decisions already on record for those systems, the known security threats they face, and the company's quality standards (latency targets, availability commitments, that kind of thing). Nothing in the spec can be made up. The agent is required to cite the source of every claim, and the system rejects the spec if any citation is missing.
 
-**Every requirement is traceable in both directions.** Each feature requirement carries a tag pointing back to the research finding or expert input it came from. Each security requirement carries a tag pointing to a known threat from the industry-standard catalogs (STRIDE for threat categorization, OWASP for application-security risks, NIST for control families). The downstream audit doesn't take the agent's word for it — it walks every requirement and rejects the document if any tag is missing or unresolvable.
+**Every requirement is traceable in both directions.** Each feature requirement carries a tag pointing back to the research finding or expert input it came from. Each security requirement carries a tag pointing to a known threat or control category. The downstream audit doesn't take the agent's word for it. It walks every requirement and rejects the document if any tag is missing or unresolvable.
 
 **The agent then critiques its own draft, twice, from different angles.** This is the part that changed recently and is worth explaining clearly.
 
@@ -336,7 +337,7 @@ It does three things the naive approach doesn't.
     </marker>
   </defs>
   <rect width="800" height="360" rx="12" fill="url(#prdBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">PRD — SELF-CRITIQUED AS ARCHITECT + SECURITY</text>
+  <text x="400" y="28" text-anchor="middle" fill="#6ee7b7" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">PRD · SELF-CRITIQUED AS ARCHITECT + SECURITY</text>
   <!-- Mesh inputs (left) -->
   <rect x="30" y="60" width="180" height="120" rx="10" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
   <text x="120" y="82" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Mesh inputs</text>
@@ -383,12 +384,12 @@ It does three things the naive approach doesn't.
 
 ### Why one agent self-critiques instead of two separate reviewers
 
-An earlier version of this stage ran two extra agents the moment the spec was opened for review — one playing "architect," one playing "security" — to grade it independently. In practice both extra agents were reading the same internal records the original agent had just read. The "independent review" was a re-grade of identical inputs by a differently-named agent. It added latency, doubled the failure surface (two more processes that could time out), and tripled the moving pieces — without changing the quality of the review.
+An earlier version of this stage ran two extra agents the moment the spec was opened for review: one playing "architect," one playing "security." In practice both extra agents were reading the same internal records the original agent had just read. The "independent review" was a re-grade of identical inputs by a differently named agent. It added latency, doubled the failure surface, and tripled the moving pieces without changing the quality of the review.
 
 So we collapsed it. The same agent that drafts the spec also critiques it, twice, from different angles:
 
-- **First as an architect** — checking whether the spec aligns with the company's existing architectural decisions, fits the system's quality requirements, and doesn't propose work outside the declared boundaries. Produces a structured verdict: an overall score, a severity (`pass` / `minor` / `major` / `blocking`), what it covered well, what's missing, what should change.
-- **Then as a security reviewer** — checking whether every security threat in scope has a corresponding requirement that addresses it, whether industry control categories triggered by the threat model are reflected in the spec. Same structured verdict shape.
+- **First as an architect:** checking whether the spec aligns with the company's existing architectural decisions, fits the system's quality requirements, and doesn't propose work outside the declared boundaries. Produces a structured verdict: an overall score, severity, what it covered well, what's missing, and what should change.
+- **Then as a security reviewer:** checking whether every security threat in scope has a corresponding requirement that addresses it, and whether the threat model is reflected in the spec. Same structured verdict shape.
 
 If both critiques come back clean (`pass` or `minor` with no missing items), the loop exits. If either flagged gaps, the agent revises the spec and runs both critiques again. **The number of revision rounds is bounded by how much risk the system is willing to accept on automation alone.** A low-risk (Autonomous-tier) initiative gets up to 3 rounds, a medium-risk (Supervised) gets 2, a high-risk (Restricted) gets 0 and ships straight to human review. The agent doesn't decide its own bound. The business system's risk profile does.
 
@@ -398,30 +399,20 @@ The next stage (the code design) starts the same way. Persona-switch self-critiq
 
 ### How it's guarded
 
-The same merge gate pattern as Stage 2 — the pull request stays blocked until the system can independently confirm the evidence, structure, traceability, drift checks, and self-critique outcome.
+The same merge gate pattern as Stage 2 applies. The pull request stays blocked until the system can independently confirm the evidence, structure, traceability, drift checks, and self-critique outcome.
 
 | Check | What it confirms |
 |---|---|
-| **The activity log is intact** | The system re-replays the agent's own activity log end-to-end and recomputes the cryptographic chain. If a single entry doesn't match — including the agent fabricating entries it never actually ran — the chain breaks and the merge refuses. This is the gate that survives a misbehaving agent: even if the agent tries to look compliant by hand-writing a clean log, the chain math gives it away |
+| **The activity log is intact** | The system replays the agent's own activity log end-to-end and recomputes the cryptographic chain. If a single entry doesn't match, including fabricated entries, the chain breaks and the merge refuses |
 | **The agent actually consulted the records** | The activity log shows the agent looked up the objective, the research, every affected business system, the relevant architectural decisions, the known threats, and the quality standards. A spec that grounded on nothing is a spec the agent invented |
-| **The spec is structurally complete** | All ten required sections are present, in canonical order — problem statement, goals, feature requirements, non-functional requirements, security requirements, coverage analysis, risk matrix, success metrics, references |
+| **The spec is structurally complete** | All ten required sections are present, in canonical order |
 | **Every feature requirement traces to a source** | Each feature requirement carries a tag pointing back to a specific research finding or expert input. Missing tags → reject |
 | **Every security requirement traces to a known threat** | Each security requirement carries at least one industry-standard category (STRIDE threat id or OWASP risk category). Unbacked security claims → reject |
 | **The spec hasn't drifted off the objective** | A meaning-based comparison (not just keyword overlap) between the original objective and the spec's problem statement. Catches an agent that started writing a spec for an adjacent problem |
 | **The spec hasn't drifted from the research** | The same meaning-based comparison between the spec's problem statement and the prior-stage research summary. Catches an agent that quietly lost the research findings in translation |
 | **The agent's self-critique converged** | The architect and security verdicts from the final round are both `pass` or `minor`. If the agent ran out of revision rounds without converging, the spec ships but flagged for mandatory human review |
 
-When all checks pass, the system applies the green-flag label that unlocks merge. When any check fails, it applies a specific failure label naming exactly which check failed — one label per cause, so a reviewer reads the label and immediately knows where to look:
-
-- **`prd-pass`** — clean, merge unlocked
-- **`chain-integrity-failed`** — the activity-log chain didn't replay; an agent's claimed history doesn't match the math
-- **`degraded-evidence`** — the agent didn't actually consult the records it claimed to
-- **`structure-invalid`** — sections missing, or feature/security requirements missing their source tags
-- **`goal-drift-detected`** — the spec drifted off the original objective
-- **`caterpillar-drift-detected`** — the spec drifted off the upstream research
-- **`self-review-exhausted`** — the agent ran out of revision rounds without resolving the gaps it identified itself
-
-The audit comment posted on the pull request shows exactly what each check found, with the specific score on every meaning-comparison check (so a 0.71 vs a 0.43 isn't ambiguous about how close the spec was to passing).
+When all checks pass, the system applies the green-flag label that unlocks merge. When a check fails, the PR gets one plain failure label for the class of problem: chain integrity, evidence, structure, objective drift, research drift, or self-review exhaustion. The audit comment carries the exact scores and findings, so the reviewer sees both the headline and the place to fix it.
 
 > 🍵 **This stage is the intent gate, not the implementation gate.** A perfectly grounded spec can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
 
@@ -446,7 +437,7 @@ Why one cross-cutting design, not one design per repo? Because real features cro
     </marker>
   </defs>
   <rect width="800" height="360" rx="12" fill="url(#codeDesignBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">CODE DESIGN — GROUNDED IN ACTUAL REPOS</text>
+  <text x="400" y="28" text-anchor="middle" fill="#fcd34d" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">CODE DESIGN · GROUNDED IN ACTUAL REPOS</text>
   <!-- Inputs (left column) -->
   <rect x="30" y="58" width="180" height="30" rx="6" fill="rgba(110,231,183,0.12)" stroke="rgba(110,231,183,0.35)"/>
   <text x="120" y="78" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600" font-family="system-ui, sans-serif">Merged PRD (FR · SR)</text>
@@ -478,7 +469,7 @@ Why one cross-cutting design, not one design per repo? Because real features cro
   <text x="355" y="239" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">maps back to requirements</text>
   <!-- Arrow to reviewers -->
   <line x1="455" y1="185" x2="497" y2="185" stroke="#a5b4fc" stroke-width="2" marker-end="url(#cdArrow)"/>
-  <!-- Self-critique personas (right column) — same agent, two persona-switched rounds -->
+  <!-- Self-critique personas (right column): same agent, two persona-switched rounds -->
   <rect x="500" y="98" width="270" height="70" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
   <text x="635" y="121" text-anchor="middle" fill="#a5b4fc" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Architect persona</text>
   <text x="635" y="139" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">checks system fit</text>
@@ -520,7 +511,7 @@ The same author agent then changes hats twice and argues against its own design:
 
 Same self-critique pattern as the PRD stage, different evidence. The PRD review asks: *is the intent coherent?* The code-design review asks: *can this intent be implemented here without violating governance?* Restricted-tier work often stops here, and that is the point. This is the last chance to catch a bad design before the coding agents pick it up.
 
-> 📁 **Real code, real reads — not paraphrased guesses.** For every brownfield repo, the agent must read the actual files it plans to touch. The audit chain records those reads, and the workflow checks every cited file path against the repo inventory. If the design names a file that does not exist, the PR fails instead of receiving a design-pass label.
+> 📁 **Real code, real reads, not paraphrased guesses.** For every brownfield repo, the agent must read the actual files it plans to touch. The audit chain records those reads, and the workflow checks every cited file path against the repo inventory. If the design names a file that does not exist, the PR fails instead of receiving a design-pass label.
 
 When the code design merges, the Looking Glass-side governance is done. From here it is a workflow handoff, then coding agents in each target repo, governed by the Red Queen.
 
@@ -547,7 +538,7 @@ From here, coding agents in the target repos pick up the work. The Red Queen gov
     </marker>
   </defs>
   <rect width="800" height="320" rx="12" fill="url(#handoffBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">HAND-OFF — DESIGN BECOMES REPO WORK</text>
+  <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">HAND-OFF · DESIGN BECOMES REPO WORK</text>
   <!-- Source: code-design.md -->
   <rect x="30" y="120" width="170" height="80" rx="10" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
   <text x="115" y="143" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">code-design.md</text>
@@ -571,7 +562,7 @@ From here, coding agents in the target repos pick up the work. The Red Queen gov
   <text x="620" y="158" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">issue → imdb-react-frontend repo</text>
   <text x="620" y="174" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">slice: §2.3 SWR cache, §5 consumer</text>
   <rect x="480" y="218" width="280" height="50" rx="8" fill="rgba(148,163,184,0.08)" stroke="rgba(148,163,184,0.30)" stroke-dasharray="3 3"/>
-  <text x="620" y="238" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="700" font-family="system-ui, sans-serif">no PR — honors existing auth contract</text>
+  <text x="620" y="238" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="700" font-family="system-ui, sans-serif">no PR · honors existing auth contract</text>
   <text x="620" y="254" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design references JWT scope already in place</text>
   <!-- Bottom: red queen takes over -->
   <rect x="160" y="280" width="480" height="28" rx="14" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.4)"/>
@@ -605,7 +596,7 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <circle cx="38" cy="34" r="5" fill="#f87171"/>
   <circle cx="54" cy="34" r="5" fill="#fcd34d"/>
   <circle cx="70" cy="34" r="5" fill="#4ade80"/>
-  <text x="92" y="38" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Looking Glass — Platforms / IMDB-Lite / OKR-2026Q1-IMDB-001-celeb-api</text>
+  <text x="92" y="38" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Looking Glass · Platforms / IMDB-Lite / OKR-2026Q1-IMDB-001-celeb-api</text>
   <!-- Header -->
   <rect x="20" y="56" width="760" height="80" rx="8" fill="url(#okrCardBg)" stroke="rgba(165,180,252,0.3)"/>
   <text x="36" y="78" fill="#a5b4fc" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">🎯  OKR-2026Q1-IMDB-001-celeb-api</text>
@@ -621,7 +612,7 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <text x="36" y="177" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">☐ KR-1  False-merge &lt;0.5%      ☐ KR-2  Licensing audit 100%      ☐ KR-3  p95 fetch &lt;200ms</text>
   <!-- Action cards -->
   <!-- Why card -->
-  <!-- Why card (complete) — research signals: sources, refinement, coverage -->
+  <!-- Why card (complete): research signals, sources, refinement, coverage -->
   <rect x="20" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(74,222,128,0.4)"/>
   <text x="34" y="216" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">✓ Why  · Research</text>
   <text x="252" y="216" text-anchor="end" fill="#86efac" font-size="9" font-family="system-ui, sans-serif">Rounds 1</text>
@@ -636,7 +627,7 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <text x="74" y="330" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui, sans-serif">View Tag ↗</text>
   <rect x="120" y="316" width="100" height="20" rx="4" fill="rgba(165,180,252,0.15)" stroke="rgba(165,180,252,0.3)"/>
   <text x="170" y="330" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui, sans-serif">Verify Chain ↗</text>
-  <!-- How card (blocked) — PRD signals: ask-experts, FR/SR counts, mesh-grounding -->
+  <!-- How card (blocked): PRD signals, ask-experts, FR/SR counts, mesh-grounding -->
   <rect x="277" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(248,113,113,0.4)"/>
   <text x="291" y="216" fill="#fca5a5" font-size="11" font-weight="700" font-family="system-ui, sans-serif">⚠ How · PRD</text>
   <text x="509" y="216" text-anchor="end" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">Rounds 1/0</text>
@@ -651,7 +642,7 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <text x="341" y="330" text-anchor="middle" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">Escalate BAR</text>
   <rect x="397" y="316" width="106" height="20" rx="4" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
   <text x="450" y="330" text-anchor="middle" fill="#fca5a5" font-size="9" font-family="system-ui, sans-serif">Human Override</text>
-  <!-- What card (gated) — code-design signals: code-grounded reviewers, this is where Arch/Sec scoring lives -->
+  <!-- What card (gated): code-design signals and reviewer scores -->
   <rect x="534" y="194" width="246" height="160" rx="8" fill="url(#okrCardBg)" stroke="rgba(252,211,77,0.4)"/>
   <text x="548" y="216" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">☐ What · Code Design</text>
   <text x="766" y="216" text-anchor="end" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">readiness gate</text>
@@ -675,8 +666,8 @@ Looking Glass is the VS Code surface where the Hatter's Tea Party plays out. Eve
   <rect x="456" y="384" width="160" height="22" rx="4" fill="rgba(148,163,184,0.10)" stroke="rgba(148,163,184,0.25)"/>
   <text x="536" y="399" text-anchor="middle" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">📂 Open Mesh Folder</text>
   <!-- Caption -->
-  <text x="400" y="450" text-anchor="middle" fill="#64748b" font-size="10" font-family="system-ui, sans-serif">OKR detail — every phase status, score, and Hatter Tag chip lives on one scrolling page.</text>
-  <text x="400" y="465" text-anchor="middle" fill="#64748b" font-size="10" font-family="system-ui, sans-serif">No tab switching. No copy-paste. The audit chain is one click away — at any phase.</text>
+  <text x="400" y="450" text-anchor="middle" fill="#64748b" font-size="10" font-family="system-ui, sans-serif">OKR detail · every phase status, score, and Hatter Tag chip lives on one scrolling page.</text>
+  <text x="400" y="465" text-anchor="middle" fill="#64748b" font-size="10" font-family="system-ui, sans-serif">No tab switching. No copy-paste. The audit chain is one click away at any phase.</text>
 </svg>
 
 The screen is **deliberately linear, not tabbed.** Tabs let a user open How without reading Why; the linear page enforces the reading order that matches the audit trail. The "Restricted blocks auto-revise" banner is inline because Restricted-gate context shouldn't require a sub-navigation. Hatter Tag access is one click on every Action card.
@@ -779,5 +770,5 @@ Everything here is **design**. Implementation is phased; you can track progress 
 
 <div class="docs-hero-flourish">
   <em>"Have I gone mad?"</em> · <em>"I'm afraid so. You're entirely bonkers. But I'll tell you a secret. All the best people are."</em>
-  <br/><small>— Lewis Carroll</small>
+  <br/><small>Lewis Carroll</small>
 </div>
