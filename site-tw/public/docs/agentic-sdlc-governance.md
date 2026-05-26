@@ -386,37 +386,14 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <text x="400" y="530" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2026 shift: smaller OKR-aligned capability teams, more of them, more experiments fixed capacity would never have prioritized.</text>
 </svg>
 
-<div class="docs-grid docs-grid-wide">
-  <div class="docs-card docs-card-indigo">
-    <div class="docs-card-kicker">Human · always at the table</div>
-    <div class="docs-heading">Agentic Team Orchestrator</div>
-    <div class="docs-copy">Owns the intent flow from objective to merged code. Approves the three human gates per OKR (WHY, HOW, WHAT) and closes the loop with stakeholders. Often a player-coach who can read a signed audit chain as fluently as a release plan. Replaces the classic Scrum Master role in agentic teams.</div>
-  </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-card-kicker">Human · mesh steward</div>
-    <div class="docs-heading">Software Architect</div>
-    <div class="docs-copy">The 30 percent as code is their craft. Curates the CALM architecture, the STRIDE threat catalog, the ADRs, the fitness function definitions. Reads merged designs to learn what the organization's actual appetite is, then tightens the mesh so the next run inherits the lesson. Writes the rules the agents must follow.</div>
-  </div>
-  <div class="docs-card docs-card-emerald">
-    <div class="docs-card-kicker">Human · harness steward</div>
-    <div class="docs-heading">Agentic Platform Engineer</div>
-    <div class="docs-copy">The rails the agents run on are their craft. Owns the <code>.agent.md</code> packs, the workflow YAMLs, the MCP server pin, the finalize composite action, and the chain-verify-on-PR step. Wires the fitness functions the Architect defined into actual CI gates that fail the build. Keeps the Looking Glass extension healthy and the runner pinned. The Architect writes the rule; the Platform Engineer makes the build break when somebody violates it.</div>
-  </div>
-  <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Human · rotational seat</div>
-    <div class="docs-heading">Jr Agentic Architect</div>
-    <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns the agentic SDLC by writing it. Sometimes in the Architect chair (drafting ADRs, naming threats), sometimes in the Platform Engineer chair (debugging a finalize workflow on a Tuesday). Both chairs leave a signed audit trail behind, so the apprenticeship is legible: every ADR, every fitness gate, every signed design is a teaching artifact. This is the bench that becomes tomorrow's seniors.</div>
-  </div>
-</div>
+The diagram is the structure. The **Orchestrator** owns OKR intent and the three human gates, replacing the Scrum Master role in agentic teams. The **Software Architect** writes the rules: CALM, STRIDE, ADRs, fitness function definitions. The **Agentic Platform Engineer** wires those rules into reality: the `.agent.md` packs, workflow YAMLs, finalize composite, and the CI gates that fail the build when somebody violates a rule the Architect wrote. The **Jr Agentic Architect** rotates through either senior chair on a two-quarter cadence, learning the craft by writing the artifacts a signed audit chain will preserve.
 
-<div class="docs-panel">
-  <p class="docs-panel-copy"><strong>Different teams weight these seats differently.</strong> Greenfield platform work tilts toward the Architect, where most of the week is curating the mesh and naming the threats the agents will navigate. Brownfield reliability and high-throughput shipping tilt toward the Platform Engineer, where most of the week is hardening rails, tightening CI gates, and keeping the harness honest under load. <em>The four-seat structure stays the same</em>; what changes is whose chair the OKR's center of gravity sits over this quarter.</p>
-</div>
+**Different teams weight these seats differently.** Greenfield platform work tilts toward the Architect, where most of the week is curating the mesh and naming the threats the agents will navigate. Brownfield reliability and high-throughput shipping tilt toward the Platform Engineer, where most of the week is hardening rails, tightening CI gates, and keeping the harness honest under load. *The four-seat structure stays the same*; what changes is whose chair the OKR's center of gravity sits over this quarter.
 
 <div class="docs-card docs-card-amber">
   <div class="docs-card-kicker">Capacity shift</div>
   <div class="docs-heading">More OKRs in flight, the same bench</div>
-  <div class="docs-copy">The four roles above describe who sits on each team. The bigger shift is how many teams the same bench can run. Capacity stops being a tax on ambition. The headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
+  <div class="docs-copy">The four roles describe who sits on each team. The bigger shift is how many teams the same bench can run. Capacity stops being a tax on ambition. The headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
 </div>
 
 > **2026 market signal.** Microsoft's Work Trend Index says the frontier shift is human-led, agent-operated work. DORA says AI amplifies the organizational system underneath it. Forrester AEGIS says security leaders now have to secure intent, provenance, and machine-speed agent behavior. The mesh is what makes that shift governable instead of chaotic.
