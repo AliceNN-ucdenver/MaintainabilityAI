@@ -638,6 +638,7 @@
     background-size: 64px 64px;
     mask-image: linear-gradient(120deg, transparent 0%, black 35%, black 80%, transparent 100%);
     opacity: .55;
+    z-index: 0;
   }
 
   /* Hero theme variants */
@@ -666,6 +667,7 @@
     box-shadow: none;
     overflow: hidden;
     pointer-events: none;
+    z-index: 3;
   }
 
   .docs-hero-glyph img,
@@ -683,6 +685,7 @@
   .docs-hero-inner,
   .docs-hero-eyebrow-line {
     position: relative;
+    z-index: 1;
   }
 
   /* Breadcrumb line above the hero title */
@@ -802,6 +805,8 @@
     justify-self: end;
     margin: 0;
     max-width: 320px;
+    position: relative;
+    z-index: 1;
   }
 
   .docs-hero-art {
