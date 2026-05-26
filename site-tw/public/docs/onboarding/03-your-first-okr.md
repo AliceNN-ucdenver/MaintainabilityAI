@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-split docs-hero-emerald">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/">Home</a><span class="sep">/</span><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/onboarding/">Onboarding</a><span class="sep">/</span><span>Chapter 3</span></div>
     <div class="docs-eyebrow">Chapter 3 of 4 · ~6 min walk <span class="docs-hero-meta">Run your first real OKR</span></div>

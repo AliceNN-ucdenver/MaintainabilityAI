@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-cyan">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/watch.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/watch.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>SDLC</span></div>
     <div class="docs-eyebrow">Continuous SDLC <span class="docs-hero-meta">~7 min read</span></div>

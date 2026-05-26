@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-split docs-hero-indigo">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/">Home</a><span class="sep">/</span><a href="/docs/">Docs</a><span class="sep">/</span><span>Onboarding</span></div>
     <div class="docs-eyebrow">Onboarding · For a team adopting this Monday <span class="docs-hero-meta">~30 min guided walk</span></div>

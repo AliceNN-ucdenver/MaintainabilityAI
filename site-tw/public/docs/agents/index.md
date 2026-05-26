@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-violet">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mushroom.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mushroom.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Agents</span></div>
     <div class="docs-eyebrow">Agent guides <span class="docs-hero-meta">~3 min read</span></div>

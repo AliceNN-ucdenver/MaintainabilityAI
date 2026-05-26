@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-amber">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">Prompts</a><span class="sep">/</span><span>STRIDE</span></div>
     <div class="docs-eyebrow">Prompt packs · STRIDE <span class="docs-hero-meta">~4 min read</span></div>

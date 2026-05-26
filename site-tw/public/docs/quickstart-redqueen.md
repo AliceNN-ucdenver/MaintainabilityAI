@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-rose">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Quickstart</span><span class="sep">/</span><span>Red Queen</span></div>
     <div class="docs-eyebrow">Quickstart · IMDB Celebs end-to-end <span class="docs-hero-meta">~8 min read</span></div>

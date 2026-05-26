@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-cyan">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 6</span></div>
     <div class="docs-eyebrow">Phase 6 of 6 · Evolve <span class="docs-hero-meta">~1 min read</span></div>

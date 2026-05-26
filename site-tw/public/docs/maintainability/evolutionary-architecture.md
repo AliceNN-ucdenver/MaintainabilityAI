@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-emerald">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/maintainability/">Maintainability</a><span class="sep">/</span><span>Evolutionary architecture</span></div>
     <div class="docs-eyebrow">Maintainability · architecture as a product <span class="docs-hero-meta">~3 min read</span></div>

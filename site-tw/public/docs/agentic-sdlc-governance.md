@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-split docs-hero-indigo">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/">Home</a><span class="sep">/</span><a href="/docs/">Docs</a><span class="sep">/</span><span>Vision</span></div>
     <div class="docs-eyebrow">Vision · The agentic SDLC governance framework <span class="docs-hero-meta">Executive read + technical deep dive</span></div>
@@ -405,12 +405,12 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Human · rotational seat</div>
     <div class="docs-heading">Jr Agentic Architect</div>
-    <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns the agentic SDLC by writing it — sometimes in the Architect chair (drafting ADRs, naming threats), sometimes in the Platform Engineer chair (debugging a finalize workflow on a Tuesday). Both chairs leave a signed audit trail behind, so the apprenticeship is legible: every ADR, every fitness gate, every signed design is a teaching artifact. This is the bench that becomes tomorrow's seniors.</div>
+    <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns the agentic SDLC by writing it. Sometimes in the Architect chair (drafting ADRs, naming threats), sometimes in the Platform Engineer chair (debugging a finalize workflow on a Tuesday). Both chairs leave a signed audit trail behind, so the apprenticeship is legible: every ADR, every fitness gate, every signed design is a teaching artifact. This is the bench that becomes tomorrow's seniors.</div>
   </div>
 </div>
 
 <div class="docs-panel">
-  <p class="docs-panel-copy"><strong>Different teams weight these seats differently.</strong> Greenfield platform work tilts toward the Architect — most of the week is curating the mesh and naming the threats the agents will navigate. Brownfield reliability and high-throughput shipping tilt toward the Platform Engineer — most of the week is hardening rails, tightening CI gates, and keeping the harness honest under load. <em>The four-seat structure stays the same</em>; what changes is whose chair the OKR's center of gravity sits over this quarter.</p>
+  <p class="docs-panel-copy"><strong>Different teams weight these seats differently.</strong> Greenfield platform work tilts toward the Architect, where most of the week is curating the mesh and naming the threats the agents will navigate. Brownfield reliability and high-throughput shipping tilt toward the Platform Engineer, where most of the week is hardening rails, tightening CI gates, and keeping the harness honest under load. <em>The four-seat structure stays the same</em>; what changes is whose chair the OKR's center of gravity sits over this quarter.</p>
 </div>
 
 <div class="docs-card docs-card-amber">

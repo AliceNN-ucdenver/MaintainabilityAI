@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-rose">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Governance</span></div>
     <div class="docs-eyebrow">Governance <span class="docs-hero-meta">~9 min read &middot; 2026 edition</span></div>

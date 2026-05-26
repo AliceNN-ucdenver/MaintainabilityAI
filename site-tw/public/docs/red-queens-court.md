@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-split docs-hero-rose">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/">Home</a><span class="sep">/</span><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agentic-sdlc-governance">Vision</a><span class="sep">/</span><span>Red Queen's Court</span></div>
     <div class="docs-eyebrow">Vision · Enforcement modality <span class="docs-hero-meta">~12 min read</span></div>

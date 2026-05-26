@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-indigo">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 4</span></div>
     <div class="docs-eyebrow">Phase 4 of 6 · Govern <span class="docs-hero-meta">~2 min read</span></div>

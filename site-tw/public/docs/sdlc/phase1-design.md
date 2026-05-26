@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-blue">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 1</span></div>
     <div class="docs-eyebrow">Phase 1 of 6 · Design <span class="docs-hero-meta">~3 min read</span></div>

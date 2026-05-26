@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-amber">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mushroom.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mushroom.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/sdlc/">SDLC</a><span class="sep">/</span><span>Phase 2</span></div>
     <div class="docs-eyebrow">Phase 2 of 6 · Implement <span class="docs-hero-meta">~1 min read</span></div>

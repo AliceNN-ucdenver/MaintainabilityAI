@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-rose">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Insecure design</span></div>
     <div class="docs-eyebrow">A04 · Insecure design <span class="docs-hero-meta">~3 min read</span></div>

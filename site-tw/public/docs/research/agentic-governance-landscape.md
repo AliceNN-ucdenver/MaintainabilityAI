@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-violet">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Research</span><span class="sep">/</span><span>Agentic governance landscape</span></div>
     <div class="docs-eyebrow">Research &middot; May 2026 <span class="docs-hero-meta">~6 min read</span></div>

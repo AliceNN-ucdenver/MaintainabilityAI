@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-cyan">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/crown.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Claude Code Action</span></div>
     <div class="docs-eyebrow">Agentic · governed by The Red Queen <span class="docs-hero-meta">~4 min read</span></div>

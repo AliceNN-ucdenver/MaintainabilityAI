@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-rose">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/rabbit.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/rabbit.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Alice</span></div>
     <div class="docs-eyebrow">Agentic · The Good Maintainer <span class="docs-hero-meta">~14 min read</span></div>

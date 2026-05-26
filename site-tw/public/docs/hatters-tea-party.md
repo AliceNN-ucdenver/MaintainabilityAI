@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-split docs-hero-indigo">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/hat.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hat.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/">Home</a><span class="sep">/</span><a href="/docs/">Docs</a><span class="sep">/</span><span>Hatter's Tea Party</span></div>
     <div class="docs-eyebrow">Vision · In Development <span class="docs-hero-meta">~14 min read</span></div>

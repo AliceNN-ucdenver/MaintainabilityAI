@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-rose">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/owasp/">OWASP</a><span class="sep">/</span><span>Identification &amp; authentication failures</span></div>
     <div class="docs-eyebrow">A07 · Authentication failures <span class="docs-hero-meta">~3 min read</span></div>

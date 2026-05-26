@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-violet">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/spade.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>Multi-agent</span></div>
     <div class="docs-eyebrow">Agentic · orchestration patterns <span class="docs-hero-meta">~4 min read</span></div>

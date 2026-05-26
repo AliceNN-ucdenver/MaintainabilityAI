@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-blue">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/cat.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/cat.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/agents/">Agents</a><span class="sep">/</span><span>GitHub Copilot</span></div>
     <div class="docs-eyebrow">In-editor · human-in-the-loop <span class="docs-hero-meta">~3 min read</span></div>

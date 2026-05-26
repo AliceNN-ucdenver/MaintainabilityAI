@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-amber">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/magnifier.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><a href="/docs/prompts/threat-modeling/">STRIDE</a><span class="sep">/</span><span>Tampering with data</span></div>
     <div class="docs-eyebrow">STRIDE · Tampering <span class="docs-hero-meta">~6 min read</span></div>

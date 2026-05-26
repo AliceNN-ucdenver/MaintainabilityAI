@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-emerald">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/hourglass.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Maintainability</span></div>
     <div class="docs-eyebrow">Evolutionary architecture <span class="docs-hero-meta">~2 min read</span></div>

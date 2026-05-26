@@ -1,5 +1,5 @@
 <div class="docs-hero docs-hero-indigo">
-  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.svg" alt="" /></div>
+  <div class="docs-hero-glyph"><img src="/images/glyphs/mirror.png" alt="" /></div>
   <div class="docs-hero-inner">
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Impossible Things</span></div>
     <div class="docs-eyebrow">Page moved <span class="docs-hero-meta">~30 sec read</span></div>
