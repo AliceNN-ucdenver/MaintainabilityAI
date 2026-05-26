@@ -29,12 +29,12 @@ Before we walk through the structure, **see the actual output**:
   <div>
     <div class="docs-card-kicker">Live sample</div>
     <div class="docs-heading">Open the sample audit report</div>
-    <div class="docs-copy">The marketing page carries a `View sample audit report` button that pops the real rollup output from a May 2026 cert run: WHY + HOW + WHAT all signed, all source-atomic, verdict PASS. Look at the destination, then come back here for the walkthrough.</div>
+    <div class="docs-copy">The button below pops the real rollup output from a May 2026 cert run: WHY + HOW + WHAT all signed, all source-atomic, verdict PASS. Look at the destination, then come back here for the walkthrough.</div>
   </div>
-  <a href="/docs/agentic-sdlc-governance#how-we-keep-the-promises" class="docs-button-primary">Open sample report on the governance page</a>
+  <button type="button" class="docs-button-primary" data-audit-report-preview>View sample audit report</button>
 </div>
 
-Click `View sample audit report` on that page. A modal pops with the rollup laid out exactly as the extension writes it. Keep it open in another tab while you read this chapter.
+A modal opens with the rollup laid out exactly as the extension writes it — same content the marketing page shows. Skim it first, then read the walkthrough below with the modal still on screen for reference.
 
 ---
 
