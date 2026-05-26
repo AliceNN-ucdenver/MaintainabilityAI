@@ -660,24 +660,24 @@
     right: clamp(0.85rem, 2vw, 1.5rem);
     width: clamp(64px, 8vw, 96px);
     height: clamp(64px, 8vw, 96px);
-    display: grid;
-    place-items: center;
     border: 0;
     border-radius: 999px;
     background: transparent;
-    box-shadow: 0 22px 46px rgba(2, 6, 23, 0.42);
-    overflow: visible;
+    box-shadow: none;
+    overflow: hidden;
     pointer-events: none;
   }
 
   .docs-hero-glyph img,
   .docs-hero-glyph svg {
-    width: 88%;
-    height: 88%;
+    width: 100%;
+    height: 100%;
     display: block;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
     border-radius: 999px;
+    clip-path: circle(50% at 50% 50%);
+    filter: drop-shadow(0 18px 36px rgba(2, 6, 23, 0.45));
   }
 
   .docs-hero-inner,
