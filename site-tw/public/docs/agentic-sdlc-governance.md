@@ -268,9 +268,9 @@ By Wednesday morning, the work is in main. Behind it: one chain, three signature
 
 ## Your team in this world
 
-Agentic engineering reshapes who sits at the table. The keyboard is no longer the bottleneck. The bottleneck is intent, judgment, and the architecture decisions that say "we don't do that, here's why." Three human roles do the work the agents cannot, and a Jr seat rotates through so the bench keeps deepening.
+Agentic engineering reshapes who sits at the table. The keyboard is no longer the bottleneck. The bottleneck is intent, judgment, the architecture decisions that say "we don't do that, here's why," and the engineering craft that makes those decisions enforceable in milliseconds. Four human roles do the work the agents cannot, and a Jr seat rotates through the senior chairs so the bench keeps deepening.
 
-<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Agentic team composition. Three human roles at the top set intent and curate the mesh. The mesh in the middle holds the Hatter, the Red Queen, the Cheshire Cat, the Caterpillar, and the Pocket Watch. Agents at the bottom execute in parallel against the repos.">
+<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Agentic team composition. Four human roles at the top set intent, curate the mesh, and own the harness. The mesh in the middle holds the Hatter, the Red Queen, the Cheshire Cat, the Caterpillar, and the Pocket Watch. Agents at the bottom execute in parallel against the repos.">
   <defs>
     <linearGradient id="teamBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -297,37 +297,47 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   </defs>
   <rect width="800" height="540" rx="12" fill="url(#teamBg)"/>
   <text x="400" y="30" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">AGENTIC TEAM · WHO SITS AT THE TABLE</text>
-  <text x="20" y="62" fill="#c7d2fe" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">HUMANS · SET INTENT, CURATE THE MESH</text>
-  <g transform="translate(28,76)">
-    <rect x="0" y="0" width="240" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
-    <text x="120" y="24" text-anchor="middle" fill="#ede9fe" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Agentic Team Orchestrator</text>
-    <text x="120" y="42" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">replaces Scrum Master role</text>
-    <text x="20" y="64" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• owns OKR intent flow</text>
-    <text x="20" y="80" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• approves the three human gates</text>
-    <text x="20" y="96" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• closes the loop with stakeholders</text>
-    <text x="20" y="112" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">one per team, often a player-coach</text>
+  <text x="20" y="62" fill="#c7d2fe" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">HUMANS · SET INTENT, CURATE THE MESH, OWN THE HARNESS</text>
+  <g transform="translate(18,76)">
+    <rect x="0" y="0" width="180" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="90" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Agentic Team Orchestrator</text>
+    <text x="90" y="40" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">replaces Scrum Master</text>
+    <text x="14" y="62" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• owns OKR intent flow</text>
+    <text x="14" y="78" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• approves the three gates</text>
+    <text x="14" y="94" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• closes the stakeholder loop</text>
+    <text x="14" y="112" fill="#94a3b8" font-size="8.5" font-style="italic" font-family="system-ui, sans-serif">one per team · player-coach</text>
   </g>
-  <g transform="translate(280,76)">
-    <rect x="0" y="0" width="240" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
-    <text x="120" y="24" text-anchor="middle" fill="#ede9fe" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Software Architect</text>
-    <text x="120" y="42" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">Mesh Steward</text>
-    <text x="20" y="64" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• curates ADRs, CALM, threat catalog</text>
-    <text x="20" y="80" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• writes the fitness functions</text>
-    <text x="20" y="96" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• reads merged designs to learn appetite</text>
-    <text x="20" y="112" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">the 30 percent as code is their craft</text>
+  <g transform="translate(213,76)">
+    <rect x="0" y="0" width="180" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="90" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Software Architect</text>
+    <text x="90" y="40" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">Mesh Steward</text>
+    <text x="14" y="62" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• curates ADRs · CALM · threats</text>
+    <text x="14" y="78" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• defines the fitness functions</text>
+    <text x="14" y="94" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• reads designs for appetite</text>
+    <text x="14" y="112" fill="#94a3b8" font-size="8.5" font-style="italic" font-family="system-ui, sans-serif">the 30% as code is their craft</text>
   </g>
-  <g transform="translate(532,76)">
-    <rect x="0" y="0" width="240" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
-    <text x="120" y="24" text-anchor="middle" fill="#ede9fe" font-size="12" font-weight="700" font-family="system-ui, sans-serif">Jr Agentic Architect</text>
-    <text x="120" y="42" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">rotational seat</text>
-    <text x="20" y="64" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• rising talent rotates through</text>
-    <text x="20" y="80" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• learns architecture by writing it</text>
-    <text x="20" y="96" fill="#cbd5e1" font-size="9.5" font-family="system-ui, sans-serif">• the bench for tomorrow's seniors</text>
-    <text x="20" y="112" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">2 quarters on, then back to product</text>
+  <g transform="translate(408,76)">
+    <rect x="0" y="0" width="180" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="90" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Agentic Platform Engineer</text>
+    <text x="90" y="40" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">Harness Steward</text>
+    <text x="14" y="62" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• owns .agent.md + workflows</text>
+    <text x="14" y="78" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• wires CI + quality gates</text>
+    <text x="14" y="94" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• keeps the runtime pinned</text>
+    <text x="14" y="112" fill="#94a3b8" font-size="8.5" font-style="italic" font-family="system-ui, sans-serif">the harness is their craft</text>
   </g>
-  <line x1="148" y1="200" x2="148" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
-  <line x1="400" y1="200" x2="400" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
-  <line x1="652" y1="200" x2="652" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <g transform="translate(603,76)">
+    <rect x="0" y="0" width="180" height="120" rx="10" fill="url(#teamHuman)" stroke="rgba(165,180,252,0.55)" stroke-width="1.4"/>
+    <text x="90" y="22" text-anchor="middle" fill="#ede9fe" font-size="11" font-weight="700" font-family="system-ui, sans-serif">Jr Agentic Architect</text>
+    <text x="90" y="40" text-anchor="middle" fill="#a5b4fc" font-size="9" letter-spacing="1" font-family="system-ui, sans-serif">rotational seat</text>
+    <text x="14" y="62" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• rotates through any chair</text>
+    <text x="14" y="78" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• learns by writing artifacts</text>
+    <text x="14" y="94" fill="#cbd5e1" font-size="8.5" font-family="system-ui, sans-serif">• tomorrow's senior bench</text>
+    <text x="14" y="112" fill="#94a3b8" font-size="8.5" font-style="italic" font-family="system-ui, sans-serif">2 quarters on, back to product</text>
+  </g>
+  <line x1="108" y1="200" x2="108" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="303" y1="200" x2="303" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="498" y1="200" x2="498" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
+  <line x1="693" y1="200" x2="693" y2="232" stroke="#a5b4fc" stroke-width="1.4" marker-end="url(#teamArrowDown)"/>
   <text x="20" y="226" fill="#7dd3fc" font-size="10" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">MESH · CARRIES INTENT, SIGNS WORK</text>
   <rect x="28" y="240" width="744" height="120" rx="10" fill="url(#teamMesh)" stroke="rgba(125,211,252,0.55)" stroke-width="1.4"/>
   <text x="80" y="266" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Hatter</text>
@@ -385,19 +395,28 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <div class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Human · mesh steward</div>
     <div class="docs-heading">Software Architect</div>
-    <div class="docs-copy">The 30 percent as code is their craft. Curates the CALM architecture, the STRIDE threat catalog, the ADRs, the fitness functions. Reads merged designs to learn what the organization's actual appetite is, then tightens the mesh so the next run inherits the lesson. They write the rules; the agents follow them at speed.</div>
+    <div class="docs-copy">The 30 percent as code is their craft. Curates the CALM architecture, the STRIDE threat catalog, the ADRs, the fitness function definitions. Reads merged designs to learn what the organization's actual appetite is, then tightens the mesh so the next run inherits the lesson. Writes the rules the agents must follow.</div>
+  </div>
+  <div class="docs-card docs-card-emerald">
+    <div class="docs-card-kicker">Human · harness steward</div>
+    <div class="docs-heading">Agentic Platform Engineer</div>
+    <div class="docs-copy">The rails the agents run on are their craft. Owns the <code>.agent.md</code> packs, the workflow YAMLs, the MCP server pin, the finalize composite action, and the chain-verify-on-PR step. Wires the fitness functions the Architect defined into actual CI gates that fail the build. Keeps the Looking Glass extension healthy and the runner pinned. The Architect writes the rule; the Platform Engineer makes the build break when somebody violates it.</div>
   </div>
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Human · rotational seat</div>
     <div class="docs-heading">Jr Agentic Architect</div>
-    <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns architecture by writing it, not by reading old wiki pages. The mesh makes the apprenticeship legible: every ADR, every fitness function, every signed design is a teaching artifact. This is the bench that becomes tomorrow's senior architects.</div>
+    <div class="docs-copy">Two-quarter rotation, then back to product. Rising talent learns the agentic SDLC by writing it — sometimes in the Architect chair (drafting ADRs, naming threats), sometimes in the Platform Engineer chair (debugging a finalize workflow on a Tuesday). Both chairs leave a signed audit trail behind, so the apprenticeship is legible: every ADR, every fitness gate, every signed design is a teaching artifact. This is the bench that becomes tomorrow's seniors.</div>
   </div>
 </div>
 
-<div class="docs-card docs-card-emerald">
+<div class="docs-panel">
+  <p class="docs-panel-copy"><strong>Different teams weight these seats differently.</strong> Greenfield platform work tilts toward the Architect — most of the week is curating the mesh and naming the threats the agents will navigate. Brownfield reliability and high-throughput shipping tilt toward the Platform Engineer — most of the week is hardening rails, tightening CI gates, and keeping the harness honest under load. <em>The four-seat structure stays the same</em>; what changes is whose chair the OKR's center of gravity sits over this quarter.</p>
+</div>
+
+<div class="docs-card docs-card-amber">
   <div class="docs-card-kicker">Capacity shift</div>
   <div class="docs-heading">More OKRs in flight, the same bench</div>
-  <div class="docs-copy">The three roles above describe who sits on each team. The bigger shift is how many teams the same bench can run. Capacity stops being a tax on ambition. The headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
+  <div class="docs-copy">The four roles above describe who sits on each team. The bigger shift is how many teams the same bench can run. Capacity stops being a tax on ambition. The headcount that used to staff one large feature team can now stand up several smaller, OKR-aligned capability teams in parallel. Experiments that never cleared the prioritization bar under fixed capacity finally get a path. Each team inherits the same mesh, the same signed audit chain, the same governance posture; what changes is how many bets are in flight at once and how fast the portfolio can rotate. The frontier organization is not the one with the most engineers. It is the one with the most OKRs it can govern at once.</div>
 </div>
 
 > **2026 market signal.** Microsoft's Work Trend Index says the frontier shift is human-led, agent-operated work. DORA says AI amplifies the organizational system underneath it. Forrester AEGIS says security leaders now have to secure intent, provenance, and machine-speed agent behavior. The mesh is what makes that shift governable instead of chaotic.
