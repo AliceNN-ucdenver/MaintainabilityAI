@@ -1034,9 +1034,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         // even though every FR had a valid citation. Switched to
         // unique-id dedup + 12-line window (matches the workflow's
         // Python rewrite for parity).
-        const FR_MARKER_RE = /^(\*\*FR-\d+\*\*|### +FR-\d+)/m;
-        const NFR_MARKER_RE = /^(\*\*NFR-\d+\*\*|### +NFR-\d+)/m;
-        const SR_MARKER_RE = /^(\*\*SR-\d+\*\*|### +SR-\d+)/m;
+        const FR_MARKER_RE = /^\s*(?:[-*]\s+)?(\*\*FR-\d+\*\*|### +FR-\d+)/m;
+        const NFR_MARKER_RE = /^\s*(?:[-*]\s+)?(\*\*NFR-\d+\*\*|### +NFR-\d+)/m;
+        const SR_MARKER_RE = /^\s*(?:[-*]\s+)?(\*\*SR-\d+\*\*|### +SR-\d+)/m;
         const FR_CITE_RE = /\b[CRSE]-?\d+\b/;
         const SR_ANCHOR_RE = /\b(?:THR-?\d+|A0[1-9]|A10)\b/;
 

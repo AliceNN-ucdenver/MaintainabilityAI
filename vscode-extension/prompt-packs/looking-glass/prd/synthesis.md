@@ -2,9 +2,10 @@
 
 The PRD pipeline's central LLM node. Takes research findings + mesh expert
 context + optional clarifying-question answers and produces a structured PRD
-with bidirectional traceability: every Functional Requirement (`FR-NN`) cites
-a Research finding (`R[N]`) or Mesh Expert input (`E[N]`); every Security
-Requirement cites a STRIDE entry (`THR-NNN`) and/or OWASP category (`A0X`).
+with bidirectional traceability: every Functional Requirement (`FR-NN`) and
+Non-Functional Requirement (`NFR-NN`) cites an upstream `S[N]`, `C[N]`, `R[N]`,
+or `E[N]` premise; every Security Requirement cites a STRIDE entry (`THR-NNN`)
+and/or OWASP category (`A0X`).
 
 Pack ID: `prd/synthesis`
 Output format: `markdown-with-tables`
@@ -18,7 +19,8 @@ prompt is assembled by the runner outside this pack.
 
 - `{brief.topic}` — the original PRD topic
 - `{scope.bar_id}` — BAR id
-- `{research_findings}` — list of `R[N]` findings from the input research doc
+- `{research_findings}` — list of `S[N]` / `C[N]` premises from the merged WHY
+  research doc, plus any generated `R[N]` findings from PRD synthesis
 - `{mesh_expert_input}` — numbered list of `E[N]` mesh-extracted expert points
   (CALM nodes, ADRs, STRIDE entries, NIST controls)
 - `{clarifying_answers}` — populated only in `deep` mode; numbered `QA-NN` blocks
@@ -64,7 +66,7 @@ sections cite.
 
 ### `## Problem Statement and Scope`
 
-3-5 sentences. Cite `R[N]` and `E[N]` inline.
+3-5 sentences. Cite `S[N]`, `C[N]`, `R[N]`, or `E[N]` inline.
 
 ### `## Goals and Non-Goals`
 
@@ -74,7 +76,7 @@ Two bulleted lists. Each goal cites the input premise that motivated it.
 
 Numbered `FR-01`, `FR-02`, … Each entry:
 - Statement of the requirement
-- `Traces to: R[N], E[N], ...` (at least one upstream citation REQUIRED)
+- `Traces to: S[N], C[N], R[N], E[N], ...` (at least one upstream citation REQUIRED)
 - `CALM node: <node-id>` if the requirement touches an endpoint in `{calm_endpoints}`
 - Acceptance criteria sub-bullets (Given/When/Then phrasing preferred)
 
@@ -82,7 +84,11 @@ Numbered `FR-01`, `FR-02`, … Each entry:
 
 Numbered `NFR-01`, `NFR-02`, … Each entry:
 - Statement, target metric, measurement method
-- `Traces to: R[N], E[N], ...`
+- `Traces to: S[N], C[N], R[N], E[N], ...`
+
+Use the literal marker `**NFR-01**:` or `### NFR-01:` for every entry.
+Do not write unnumbered NFR bullets; the audit parser treats those as prose,
+not governed non-functional requirements.
 
 ### `## Security Requirements with Threat Tracing`
 
@@ -136,8 +142,8 @@ in FR-04` but `FR-04` has no `R3` citation, the loop catches it.
 
 ## Anti-hallucination guardrails
 
-- DO NOT cite an `R[N]` / `E[N]` that is not in `{research_findings}` or
-  `{mesh_expert_input}`.
+- DO NOT cite an `S[N]`, `C[N]`, `R[N]`, or `E[N]` marker that is not defined in
+  the merged WHY research doc, `{research_findings}`, or `{mesh_expert_input}`.
 - DO NOT cite a CALM node id that is not in `{calm_endpoints}`.
 - DO NOT cite a `THR-NNN` / `A0X` / `NIST-XX-NN` that is not in scope.
 - DO NOT invent acceptance criteria for requirements you cannot ground.

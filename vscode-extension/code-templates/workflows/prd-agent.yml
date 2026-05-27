@@ -696,6 +696,8 @@ jobs:
             echo "h2_present=0"       >> "$GITHUB_OUTPUT"
             echo "fr_count=0"         >> "$GITHUB_OUTPUT"
             echo "fr_with_cites=0"    >> "$GITHUB_OUTPUT"
+            echo "nfr_count=0"        >> "$GITHUB_OUTPUT"
+            echo "nfr_with_cites=0"   >> "$GITHUB_OUTPUT"
             echo "sr_count=0"         >> "$GITHUB_OUTPUT"
             echo "sr_with_anchors=0"  >> "$GITHUB_OUTPUT"
             echo "doc_path=$DOC"      >> "$GITHUB_OUTPUT"
@@ -719,13 +721,13 @@ jobs:
             fi
           done
 
-          # FR-NN markers + per-FR source citations (R-N or E-N).
+          # FR-NN markers + per-FR source citations (S-N/C-N/R-N/E-N).
           # Accept BOTH formats observed in agent output: `**FR-01**`
           # (bold) AND `### FR-01` / `### FR-01:` (H3 heading). The
           # bold-only pattern missed PR #101's PRD where the agent used
           # heading form → FR=0/0 → audit incorrectly read as "no
           # functional requirements." The merged regex matches either.
-          # FR + SR counts and citation/anchor coverage. PR #118 forensic:
+          # FR + NFR + SR counts and citation/anchor coverage. PR #118 forensic:
           # the prior awk approach counted '### FR-01' heading AND
           # '**FR-01**' bold as TWO separate markers (FR_COUNT=20 for
           # 10 logical FRs). The heading-marker's short window often
@@ -733,21 +735,28 @@ jobs:
           # 'Traces to:' line, while the bold-marker's window did catch
           # it — producing the misleading 10/20. Switch to Python with
           # unique-id dedup + 12-line window. Same regex tolerance from
-          # B31 ([CRSE]-?[0-9]+ for FR citations; THR-?[0-9]+|A0[1-9]|A10
-          # for SR anchors).
+          # B31 ([CRSE]-?[0-9]+ for FR/NFR citations;
+          # THR-?[0-9]+|A0[1-9]|A10 for SR anchors).
+          # Bug HOW-NFR (2026-05): agent output used bullet-prefixed bold
+          # FR/SR markers (`- **FR-01**`) and unnumbered NFR bullets. The
+          # UI showed 0 FR / 0 NFR / 0 SR because the marker regex was
+          # start-of-line only, and the workflow never counted NFR. Accept
+          # bullet-prefixed markers, count NFR-NN, and fail closed on zero
+          # NFR so Quality requirements are governed, not prose-only.
           # DOC must be exported to the python subprocess explicitly —
           # bash 'DOC=...' assignment alone doesn't propagate to children.
           # PR #118 audit re-run hit `KeyError: 'DOC'` here before the
           # inline DOC="$DOC" prefix. Inline-env beats `export DOC` so we
           # don't mutate step-level state.
-          read FR_COUNT FR_WITH_CITES SR_COUNT SR_WITH_ANCHORS <<<"$(DOC="$DOC" python3 <<PYEOF
+          read FR_COUNT FR_WITH_CITES NFR_COUNT NFR_WITH_CITES SR_COUNT SR_WITH_ANCHORS <<<"$(DOC="$DOC" python3 <<PYEOF
           import re, os
           body = open(os.environ['DOC'], 'r', encoding='utf-8').read()
           lines = body.split('\n')
+
           def count_and_cite(marker_re_str, marker_id_re_str, cite_re):
               marker_re = re.compile(marker_re_str)
               marker_id_re = re.compile(marker_id_re_str)
-              # ordered unique map: id → first line index
+              # ordered unique map: id -> first line index
               seen = {}
               for i, line in enumerate(lines):
                   if marker_re.search(line):
@@ -761,17 +770,23 @@ jobs:
                   if cite_re.search(window):
                       covered += 1
               return total, covered
+
           fr_total, fr_cited = count_and_cite(
-              r'\*\*FR-\d+\*\*|^### +FR-\d+',
+              r'^\s*(?:[-*]\s+)?(?:\*\*FR-\d+\*\*|### +FR-\d+)',
               r'FR-(\d+)',
               re.compile(r'\b[CRSE]-?\d+\b'),
           )
+          nfr_total, nfr_cited = count_and_cite(
+              r'^\s*(?:[-*]\s+)?(?:\*\*NFR-\d+\*\*|### +NFR-\d+)',
+              r'NFR-(\d+)',
+              re.compile(r'\b[CRSE]-?\d+\b'),
+          )
           sr_total, sr_anchored = count_and_cite(
-              r'\*\*SR-\d+\*\*|^### +SR-\d+',
+              r'^\s*(?:[-*]\s+)?(?:\*\*SR-\d+\*\*|### +SR-\d+)',
               r'SR-(\d+)',
               re.compile(r'\bTHR-?\d+\b|\bA0[1-9]\b|\bA10\b'),
           )
-          print(fr_total, fr_cited, sr_total, sr_anchored)
+          print(fr_total, fr_cited, nfr_total, nfr_cited, sr_total, sr_anchored)
           PYEOF
           )"
 
@@ -780,10 +795,12 @@ jobs:
             echo "missing_h2=${MISSING_H2%; }"
             echo "fr_count=$FR_COUNT"
             echo "fr_with_cites=$FR_WITH_CITES"
+            echo "nfr_count=$NFR_COUNT"
+            echo "nfr_with_cites=$NFR_WITH_CITES"
             echo "sr_count=$SR_COUNT"
             echo "sr_with_anchors=$SR_WITH_ANCHORS"
           } >> "$GITHUB_OUTPUT"
-          echo "::notice::structure h2=$H2_PRESENT/10 FR=$FR_WITH_CITES/$FR_COUNT cited SR=$SR_WITH_ANCHORS/$SR_COUNT anchored"
+          echo "::notice::structure h2=$H2_PRESENT/10 FR=$FR_WITH_CITES/$FR_COUNT cited NFR=$NFR_WITH_CITES/$NFR_COUNT cited SR=$SR_WITH_ANCHORS/$SR_COUNT anchored"
 
       # Bug LL (2026-05) — citation-integrity gate. The structure step
       # above counts FRs that cite SOME [SCRE]-N tag, but it never
@@ -1052,6 +1069,8 @@ jobs:
           H2="${{ steps.structure.outputs.h2_present }}"
           FR_COUNT="${{ steps.structure.outputs.fr_count }}"; FR_COUNT="${FR_COUNT:-0}"
           FR_CITED="${{ steps.structure.outputs.fr_with_cites }}"; FR_CITED="${FR_CITED:-0}"
+          NFR_COUNT="${{ steps.structure.outputs.nfr_count }}"; NFR_COUNT="${NFR_COUNT:-0}"
+          NFR_CITED="${{ steps.structure.outputs.nfr_with_cites }}"; NFR_CITED="${NFR_CITED:-0}"
           SR_COUNT="${{ steps.structure.outputs.sr_count }}"; SR_COUNT="${SR_COUNT:-0}"
           SR_ANCHORED="${{ steps.structure.outputs.sr_with_anchors }}"; SR_ANCHORED="${SR_ANCHORED:-0}"
           POCKET="${{ steps.pocket.outputs.passed }}"
@@ -1181,7 +1200,13 @@ jobs:
               VERDICT="degraded"; REASON="No FR-NN markers in prd.md"
               STRUCTURE_FAIL="true"
             elif [ "$FR_COUNT" -gt 0 ] && [ "$FR_CITED" -lt "$FR_COUNT" ]; then
-              VERDICT="degraded"; REASON="FR citation gap — $FR_CITED/$FR_COUNT cite R-N or E-N source"
+              VERDICT="degraded"; REASON="FR citation gap - $FR_CITED/$FR_COUNT cite S-N/C-N/R-N/E-N source"
+              STRUCTURE_FAIL="true"
+            elif [ "$NFR_COUNT" -eq 0 ]; then
+              VERDICT="degraded"; REASON="No NFR-NN markers in prd.md"
+              STRUCTURE_FAIL="true"
+            elif [ "$NFR_COUNT" -gt 0 ] && [ "$NFR_CITED" -lt "$NFR_COUNT" ]; then
+              VERDICT="degraded"; REASON="NFR citation gap - $NFR_CITED/$NFR_COUNT cite S-N/C-N/R-N/E-N source"
               STRUCTURE_FAIL="true"
             elif [ "${{ steps.citations.outputs.ok }}" = "false" ]; then
               VERDICT="degraded"; REASON="Citation integrity (Bug LL) — PRD cites undefined anchors: ${{ steps.citations.outputs.undefined }}. Define each in research-doc.md (S-N / C-N) or in the PRD Input Premises section with a **R1**/**E1** bold marker before citing."
@@ -1251,7 +1276,8 @@ jobs:
           printf '| Check | Result |\n|---|---|\n' >> "$BODY"
           printf '| `prd.md` written | %s |\n' "$( [ '${{ steps.structure.outputs.doc_found }}' = 'true' ] && echo '✓' || echo '✗' )" >> "$BODY"
           printf '| 10 H2 sections | %s/10 |\n' '${{ steps.structure.outputs.h2_present }}' >> "$BODY"
-          printf '| FR-NN cited (R-N / E-N) | %s/%s |\n' '${{ steps.structure.outputs.fr_with_cites }}' '${{ steps.structure.outputs.fr_count }}' >> "$BODY"
+          printf '| FR-NN cited (S/C/R/E) | %s/%s |\n' '${{ steps.structure.outputs.fr_with_cites }}' '${{ steps.structure.outputs.fr_count }}' >> "$BODY"
+          printf '| NFR-NN cited (S/C/R/E) | %s/%s |\n' '${{ steps.structure.outputs.nfr_with_cites }}' '${{ steps.structure.outputs.nfr_count }}' >> "$BODY"
           printf '| SR-NN anchored (STRIDE / OWASP) | %s/%s |\n' '${{ steps.structure.outputs.sr_with_anchors }}' '${{ steps.structure.outputs.sr_count }}' >> "$BODY"
           # Bug LL — citation integrity row.
           CITATION_OK_DISPLAY='${{ steps.citations.outputs.ok }}'

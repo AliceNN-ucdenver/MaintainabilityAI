@@ -168,6 +168,64 @@ describe('cert-run-2 source-id counter regression (Task #57)', () => {
   });
 });
 
+describe('HOW PRD bullet-form requirement counters', () => {
+  it('counts bullet-prefixed bold FR/SR markers from current PRD shape', () => {
+    const prd = `## Functional Requirements
+- **FR-01**: Provide profile endpoints. Sources: S7, C3.
+- **FR-02**: Require canonical PID-based identity linking. Sources: S9, C2.
+
+## Non-Functional Requirements
+- p95 latency for celebrity profile fetches must remain <200ms.
+- Availability target: 99.9% monthly.
+
+## Security Requirements
+- **SR-01**: Enforce strong API access controls. Anchors: OWASP A01, A07.
+- **SR-02**: Protect integrity of cached profiles. Anchors: OWASP A08, A09.
+`;
+    const lines = prd.split('\n');
+    const fr = countUniqueIds(
+      lines,
+      /^\s*(?:[-*]\s+)?(\*\*FR-\d+\*\*|### +FR-\d+)/m,
+      /\bFR-\d+\b/,
+      /\b[CRSE]-?\d+\b/,
+    );
+    const nfr = countUniqueIds(
+      lines,
+      /^\s*(?:[-*]\s+)?(\*\*NFR-\d+\*\*|### +NFR-\d+)/m,
+      /\bNFR-\d+\b/,
+      /./,
+    );
+    const sr = countUniqueIds(
+      lines,
+      /^\s*(?:[-*]\s+)?(\*\*SR-\d+\*\*|### +SR-\d+)/m,
+      /\bSR-\d+\b/,
+      /\b(?:THR-?\d+|A0[1-9]|A10)\b/,
+    );
+
+    expect(fr.total).toBe(2);
+    expect(fr.covered).toBe(2);
+    expect(nfr.total).toBe(0);
+    expect(sr.total).toBe(2);
+    expect(sr.covered).toBe(2);
+  });
+
+  it('counts bullet-prefixed bold NFR markers when the agent writes governed NFRs', () => {
+    const prd = `## Non-Functional Requirements
+- **NFR-01**: p95 celebrity profile lookup remains below 200ms. Traces to: S7, C3.
+- **NFR-02**: Profile cache invalidation emits observable audit logs. Traces to: S12.
+`;
+    const nfr = countUniqueIds(
+      prd.split('\n'),
+      /^\s*(?:[-*]\s+)?(\*\*NFR-\d+\*\*|### +NFR-\d+)/m,
+      /\bNFR-\d+\b/,
+      /./,
+    );
+
+    expect(nfr.total).toBe(2);
+    expect(nfr.covered).toBe(2);
+  });
+});
+
 /**
  * Task #58 — extractWhatArtifactSignals honest coverage check.
  *
