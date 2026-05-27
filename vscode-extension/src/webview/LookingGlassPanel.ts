@@ -1071,7 +1071,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         const dispatchedAt = this.reviseDispatchedAt.get(okrId);
         if (dispatchedAt && Date.now() - dispatchedAt < 10 * 60 * 1000) {
           try {
-            const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+            const client = await this.githubService.getClient();
             const { data: commit } = await client.rest.repos.getCommit({ owner, repo, ref: pr.headSha });
             const commitTs = new Date(commit.commit?.author?.date ?? 0).getTime();
             if (commitTs < dispatchedAt) {
@@ -1157,7 +1157,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     marker: string,
   ): Promise<string | null> {
     try {
-      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      const client = await this.githubService.getClient();
       const { data } = await client.rest.issues.listComments({ owner, repo, issue_number: prNumber, per_page: 100 });
       const comments = data as Array<{ body?: string }>;
       const hit = comments.find(c => typeof c.body === 'string' && c.body.startsWith(marker));
@@ -1185,7 +1185,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     actionCreatedAt: string | null = null,
   ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean; draft: boolean; reviewRequested: boolean; headRef: string; headSha: string; labels: string[] } | null> {
     try {
-      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      const client = await this.githubService.getClient();
       // GitHub's issues search matches against PR title + body text,
       // NOT changed-file paths. Agents typically don't paste the full
       // artifact path into the PR body — they mention the OKR id and
@@ -1358,7 +1358,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     ].join('\n');
 
     try {
-      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      const client = await this.githubService.getClient();
       await client.rest.issues.createComment({
         owner: meshRepo.owner,
         repo: meshRepo.repo,
@@ -1405,7 +1405,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    */
   private async getPrHeadRef(owner: string, repo: string, prNumber: number): Promise<string | null> {
     try {
-      const client = await (this.githubService as unknown as { getClient: () => Promise<any> }).getClient();
+      const client = await this.githubService.getClient();
       const { data } = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
       return data.head.ref ?? null;
     } catch {
