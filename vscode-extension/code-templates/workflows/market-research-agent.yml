@@ -420,7 +420,18 @@ jobs:
           echo "total=$TOTAL"         >> "$GITHUB_OUTPUT"
           if [ "$OK" != "true" ]; then
             echo "::warning::source-table verify found $MISMATCHES title-mismatch(es) + $UNMATCHED unmatched citation(s) across $TOTAL S[N] sources"
-            echo "$RESULT" | jq -r '.mismatches[]? | "::error file=\(.cited_url),line=\(.line)::S\(.s) title \"\(.cited_title)\" does not match chain title(s) for this URL: \(.chain_titles | join(\" | \"))"'
+            # Inside jq's `\(...)` string interpolation we're in jq
+            # EXPRESSION context, NOT string context — so the join
+            # separator MUST be a regular jq string `" | "`, NOT the
+            # escaped form `\" | \"` (which only works at the outer
+            # string level around the interpolation itself, like the
+            # `\"\(.cited_title)\"` wrap above). Before this fix, jq
+            # crashed with "unexpected INVALID_CHARACTER" the moment
+            # source-verify produced any mismatch — making the WHY
+            # workflow non-degradable. Bug Z's source-table verifier
+            # shipped with this latent bug because tests only covered
+            # the OK path. Pre-existing class.
+            echo "$RESULT" | jq -r '.mismatches[]? | "::error file=\(.cited_url),line=\(.line)::S\(.s) title \"\(.cited_title)\" does not match chain title(s) for this URL: \(.chain_titles | join(" | "))"'
             echo "$RESULT" | jq -r '.unmatched[]?  | "::error file=\(.url),line=\(.line)::S\(.s) URL not present in any audited provider result — possible fabrication"'
           else
             echo "::notice::source-table verify ok — $TOTAL S[N] citations all match chain previews"
