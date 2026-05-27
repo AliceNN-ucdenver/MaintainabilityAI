@@ -101,6 +101,7 @@ const INTENTIONAL_STANDALONE_MODULES = new Set([
   'services/coordination/parser.ts',
   'services/coordination/topologicalSort.ts',
   'services/coordination/preflightDerivation.ts',
+  'services/coordination/probes.ts',
 ]);
 
 const CORE_APPROVED_DOMAIN_SERVICES = new Set([

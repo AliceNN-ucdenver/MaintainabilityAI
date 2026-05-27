@@ -912,6 +912,171 @@ export class GitHubService {
     }
   }
 
+  /**
+   * D-PR4 sub-PR 2 — repo-existence + emptiness probe.
+   *
+   * Returns the discriminated existence state for a target repo slug.
+   * Used by Looking Glass fan-out pre-flight:
+   *
+   *   - Brownfield + `exists` → continue with harness + permission checks
+   *   - Brownfield + `not-found` → row gets `repo-not-found` (typo in slug?)
+   *   - Greenfield + `not-found` → ready to create via createOrgRepo
+   *   - Greenfield + `exists` + `isEmpty: true` → scaffold-over-empty (safe)
+   *   - Greenfield + `exists` + `isEmpty: false` → `repo-exists-conflict`
+   *
+   * Emptiness is best-effort: we count the default branch's tree at
+   * depth 1. A repo with a single auto_init README still counts as
+   * non-empty (the user committed nothing themselves, but the slug
+   * is taken). Some teams use `auto_init: false` so empty truly
+   * means zero commits — we handle both.
+   */
+  async getRepoExistence(owner: string, repo: string): Promise<
+    | { status: 'exists'; isEmpty: boolean; defaultBranch: string }
+    | { status: 'not-found' }
+    | { status: 'fetch-error'; reason: string }
+  > {
+    const client = await this.getClient();
+    try {
+      const { data: repoData } = await client.rest.repos.get({ owner, repo });
+      const defaultBranch = repoData.default_branch ?? 'main';
+      // Probe emptiness via the repo tree (1 request, depth 1).
+      let isEmpty = false;
+      try {
+        const { data: tree } = await client.rest.git.getTree({
+          owner,
+          repo,
+          tree_sha: defaultBranch,
+        });
+        isEmpty = !tree.tree || tree.tree.length === 0;
+      } catch (treeErr) {
+        // Trees on a default-branch ref can 404 for genuinely empty
+        // repos (no commits yet). That's the strongest possible
+        // signal of emptiness — treat as empty.
+        const treeStatus = (treeErr as { status?: number })?.status;
+        if (treeStatus === 404 || treeStatus === 409) {
+          isEmpty = true;
+        }
+        // Other errors: fall through with isEmpty=false (conservative).
+      }
+      return { status: 'exists', isEmpty, defaultBranch };
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status === 404) return { status: 'not-found' };
+      const reason = err instanceof Error ? err.message : String(err);
+      return { status: 'fetch-error', reason };
+    }
+  }
+
+  /**
+   * D-PR4 sub-PR 2 — issues:write permission probe.
+   *
+   * Uses the per-repo response's `permissions.push` field, which
+   * GitHub includes when the requesting token has elevated access.
+   * `permissions.push === true` implies issues:write (PAT can open
+   * issues + close + comment). `permissions.pull` alone is read-only.
+   *
+   * Returns:
+   *   - `present`     — token can create issues
+   *   - `missing`     — token can read but not write
+   *   - `fetch-error` — 404 (repo gone), 403 (suspended), 401 (token revoked), or transient
+   */
+  async checkIssueWritePermission(owner: string, repo: string): Promise<
+    | { status: 'present' }
+    | { status: 'missing' }
+    | { status: 'fetch-error'; reason: string }
+  > {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.rest.repos.get({ owner, repo });
+      // GitHub returns permissions only when the requesting identity
+      // has any access at all. If permissions is missing entirely,
+      // treat as missing — the token has no write capability declared.
+      const push = data.permissions?.push;
+      if (push === true) return { status: 'present' };
+      return { status: 'missing' };
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      // 404 here usually means the repo exists but the token can't
+      // see it (private + insufficient grant). Tag as missing rather
+      // than fetch-error so pre-flight surfaces a "fix permissions"
+      // path. Honest-true-error (5xx, network) stays fetch-error.
+      if (status === 404 || status === 403) return { status: 'missing' };
+      const reason = err instanceof Error ? err.message : String(err);
+      return { status: 'fetch-error', reason };
+    }
+  }
+
+  /**
+   * D-PR4 sub-PR 2 — greenfield repo creation.
+   *
+   * Wraps `repos.createInOrg`. Idempotent against the "name already
+   * exists" case (422) — that scenario is handled by the fan-out
+   * engine: if create returns repo-exists, fall through to
+   * `getRepoExistence` and treat as scaffold-over-empty or
+   * repo-exists-conflict per the existing slug's state.
+   *
+   * Defaults match the Cheshire greenfield-mode spec:
+   *   - private: true                (org policy can override)
+   *   - auto_init: false             (Cheshire writes the seed commit, not GitHub)
+   *   - has_issues: true             (landing issue + impl agent need this)
+   *   - has_projects: false
+   *   - has_wiki: false
+   *   - visibility: 'internal' OR 'private' per the option
+   */
+  async createOrgRepo(
+    org: string,
+    name: string,
+    options: {
+      description?: string;
+      visibility?: 'private' | 'internal' | 'public';
+      autoInit?: boolean;
+    } = {},
+  ): Promise<
+    | { status: 'created'; defaultBranch: string; htmlUrl: string }
+    | { status: 'already-exists' }
+    | { status: 'forbidden'; reason: string }
+    | { status: 'fetch-error'; reason: string }
+  > {
+    const client = await this.getClient();
+    try {
+      // Note: Octokit's TS types don't accept 'internal' for
+      // visibility (GitHub Enterprise extension; the wire API does
+      // accept it). We send `private: true|false` instead, which
+      // covers private + public. Orgs that want 'internal' set it
+      // as the default visibility in org settings.
+      const { data } = await client.rest.repos.createInOrg({
+        org,
+        name,
+        description: options.description,
+        private: options.visibility !== 'public',
+        auto_init: options.autoInit ?? false,
+        has_issues: true,
+        has_projects: false,
+        has_wiki: false,
+      });
+      return {
+        status: 'created',
+        defaultBranch: data.default_branch ?? 'main',
+        htmlUrl: data.html_url,
+      };
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      // 422: GitHub's "name already exists in org" — discriminated
+      // separately so the fan-out engine can fall through to existence
+      // probe without surfacing a hard error to the user.
+      if (status === 422) return { status: 'already-exists' };
+      // 403: org policy blocks repo creation by this PAT, OR the user
+      // does not have admin:org. Distinct from fetch-error so the UX
+      // can prompt "fix org permissions" rather than "retry".
+      if (status === 403) {
+        const reason = err instanceof Error ? err.message : String(err);
+        return { status: 'forbidden', reason };
+      }
+      const reason = err instanceof Error ? err.message : String(err);
+      return { status: 'fetch-error', reason };
+    }
+  }
+
   async createRepo(name: string, description: string, isPrivate: boolean): Promise<RepoInfo> {
     const client = await this.getClient();
 
