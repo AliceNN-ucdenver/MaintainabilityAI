@@ -393,14 +393,18 @@ jobs:
           JSONL_PATH: ${{ steps.audit.outputs.path }}
         run: |
           set -e
-          if [ ! -f .github/workflows/scripts/verify-source-table.mjs ]; then
+          TRUSTED_SCRIPT="$RUNNER_TEMP/verify-source-table.mjs"
+          if ! gh api \
+            -H "Accept: application/vnd.github.raw" \
+            "repos/${{ github.repository }}/contents/.github/workflows/scripts/verify-source-table.mjs?ref=${{ github.event.repository.default_branch }}" \
+            > "$TRUSTED_SCRIPT"; then
             # Bug Z review fix — was previously a fail-OPEN skip ("warn +
             # ok=true"). That meant a partial mesh deploy could ship a
             # green WHY run with no source-claim verification at all,
             # which is the exact "green but unchecked" class this gate
             # exists to catch. Now fails closed as missing-verifier so
             # the verdict step degrades the run with a clear reason.
-            echo "::error::verify-source-table.mjs not deployed — source-table verification cannot run. Open Looking Glass → Settings → Mesh Provisioning → Redeploy so the script lands on main, then re-trigger this audit."
+            echo "::error::trusted verify-source-table.mjs could not be fetched from ${{ github.event.repository.default_branch }} — source-table verification cannot run. Open Looking Glass → Settings → Mesh Provisioning → Redeploy so the script lands on main, then re-trigger this audit."
             echo "ok=false"          >> "$GITHUB_OUTPUT"
             echo "missing=true"      >> "$GITHUB_OUTPUT"
             echo "mismatches=0"      >> "$GITHUB_OUTPUT"
@@ -408,7 +412,7 @@ jobs:
             echo "total=0"           >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          RESULT=$(node .github/workflows/scripts/verify-source-table.mjs)
+          RESULT=$(node "$TRUSTED_SCRIPT")
           echo "$RESULT" > /tmp/source-verify.json
           OK=$(echo "$RESULT" | jq -r '.ok')
           MISMATCHES=$(echo "$RESULT" | jq -r '.mismatches | length // 0')
