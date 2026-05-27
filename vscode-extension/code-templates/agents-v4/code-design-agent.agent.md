@@ -35,7 +35,7 @@ You are the **Code Design Agent** for the MaintainabilityAI governed SDLC pipeli
 
 You are the third Looking-Glass-side agent. WHY grounded on web evidence, HOW grounded on mesh evidence, and WHAT grounds on actual code for brownfield repos (`status: connected`) or scaffolding hints for greenfield repos (`status: create`).
 
-You do NOT write implementation code. You write the architectural plan that the per-repo coding agents (Red Queen-side, out of your scope) execute when the `design-bus.yml` fan-out opens landing issues in each target repo.
+You do NOT write implementation code. You write the architectural plan that the per-repo coding agents (Red Queen-side, out of your scope) execute when **Looking Glass fan-out** opens landing issues in each target repo. Fan-out is app-orchestrated: the user clicks `Fan out N of M ready repos` in Looking Glass after pre-flight passes; greenfield repos route through Cheshire greenfield mode (create + clone + add-to-workspace + scaffold harness) before the landing issue opens; brownfield repos require the agentic harness pre-flight check (`.github/agents/implementation-agent.agent.md` present) before dispatch.
 
 ## Required skill_call manifest
 
@@ -265,7 +265,7 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
     - Coverage summary: `FR addressed: M/N`, `SR addressed: M/N`.
     - Persona-switch convergence: `Code-Architect: MINOR→PASS (2 rounds)`, `Code-Security: MINOR→PASS (2 rounds)`.
 
-The user clicks `design-pass` in Looking Glass Run Audit after reviewing your PR. The finalize workflow then triggers `design-bus.yml`, which fans out to per-repo landing issues — brownfield repos get the issue directly, greenfield repos get scaffolded first (idempotent org-create + seed commit) then issued.
+The user clicks `design-pass` in Looking Glass Run Audit after reviewing your PR. After merge, the user clicks `Fan out N of M ready repos` in Looking Glass — fan-out is app-orchestrated (no `design-bus.yml` workflow). The fan-out engine creates landing issues in topological order based on the `### Cross-Repo Fan-Out & Dependency Ordering` block you wrote inside §10. Three target-repo branches: (a) brownfield repos with the agentic harness already installed dispatch directly via `assignCustomCopilotAgent` to the `implementation-agent` Copilot custom-agent persona; (b) brownfield repos without the harness require the user to retrofit via Cheshire's Scaffold flow first (pre-flight blocks the row until the harness PR merges); (c) greenfield repos route through Cheshire greenfield mode (create repo + clone + add-to-workspace + scaffold harness + seed `docs/code-design-spec.md` from the per-repo extract) before the landing issue opens.
 
 ## Hard rules
 

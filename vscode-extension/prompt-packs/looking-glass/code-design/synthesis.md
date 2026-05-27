@@ -426,24 +426,34 @@ comment, not in HTML comments hidden in the artifact body.
 ---
 phase: what
 okr_id: <OKR-id>
+run_id: WHAT-...                          # exact value from dispatch issue body
 intent_thread_uuid: <OKR's master intent_thread_uuid — same value the dispatch issue carries>
 parent_intent_thread: <same value — the OKR's master intent_thread_uuid threads through every in-OKR phase>
 governance_tier: <copy from okr.yaml.actions[latest with phase=what]>
 author_did: did:github:copilot-swe-agent
 reviewer_dids: []
 evidence_mode: code
-chain_root_hash: <YOU paste the REAL event-1 hash here — see below>
+audit:
+  chain_root_hash: <YOU paste the REAL event-1 hash here — see below; NEVER a placeholder>
 ---
 ```
 
-> 🪧 **Bug L closeout — `chain_root_hash` is written by YOU, not finalize.**
-> The agent populates `chain_root_hash` with the actual event-1 hash from
-> the audit JSONL. After your first `runSkill()` call auto-emits event 1,
+> 🪧 **Bug AA closeout — `chain_root_hash` is NESTED under `audit:`, not top-level.**
+> The Hatter Tag groups all audit-chain identifiers under a single `audit:`
+> key for consistent extraction across phases. Prior versions of this pack
+> showed `chain_root_hash` at the top level of the frontmatter; that drift
+> caused PR audit extraction to misread the value as null and was closed
+> by Bug AA / Bug AA-r2 for WHY/HOW phases. WHAT phase MUST use the nested
+> path. The agent prompt + workflow extractor both expect `audit.chain_root_hash`.
+>
+> 🪧 **`chain_root_hash` is written by YOU, not finalize (Bug L closeout).**
+> The agent populates `audit.chain_root_hash` with the actual event-1 hash
+> from the audit JSONL. After your first `runSkill()` call auto-emits event 1,
 > run:
 > ```sh
 > jq -r 'select(.event_id == 1) | .event_hash' "okrs/${OKR_ID}/audit/events/${RUN_ID}.jsonl"
 > ```
-> and paste that 64-character lower-case hex value into `chain_root_hash`.
+> and paste that 64-character lower-case hex value into `audit.chain_root_hash`.
 > The `extract-okr-context` action validates the format and rejects any
 > placeholder, `<...>`, or empty string.
 >
