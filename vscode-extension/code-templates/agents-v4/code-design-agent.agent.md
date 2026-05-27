@@ -143,6 +143,12 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
     language: typescript | python | go | ...
     framework: express | fastify | nestjs | ...
     addresses: [FR-01, FR-02, SR-01]
+    # Cross-Repo Fan-Out & Dependency Ordering (D-PR4-prep) — REQUIRED on every per-repo block:
+    fanout_wave: 1                                   # 1 = no deps; N = max(dep.wave) + 1
+    coordination_role: foundation | provider | consumer | independent
+    depends_on: []                                   # other target-repo slugs; MUST be empty when fanout_wave=1
+    provides: []                                     # contracts this repo exposes (see §10 H3 for schema)
+    consumes: []                                     # contracts this repo consumes from siblings (see §10 H3)
     ---
 
     For BROWNFIELD: cite real paths from `knowledge-code.structure.files[]`
@@ -157,6 +163,19 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
 
     For GREENFIELD: name the proposed file tree as a code block.
     Cite scaffolding hints from knowledge-code.scaffoldingHints.
+
+    **Cross-Repo Coordination block (REQUIRED inside §10).** Every
+    per-repo block above carries `fanout_wave` / `coordination_role` /
+    `depends_on` / `provides` / `consumes` in its frontmatter. The
+    machine-readable `coordination:` YAML lives inside §10 under the
+    H3 subsection `### Cross-Repo Fan-Out & Dependency Ordering`. See
+    the synthesis prompt for the full schema + the seven rules the
+    workflow's coordination verifier enforces (missing-repo, unknown-dep,
+    cycle, wave-mismatch, consumes-not-in-depends, wave-nonminimal,
+    contract-mismatch). The verifier uses a real YAML parser (yq), not
+    regex; nested `provides`/`consumes` arrays MUST parse cleanly. Looking
+    Glass fan-out reads this block to decide which target repos fan out
+    immediately (wave 1) vs which wait for upstream PRs to merge first.
     ```
 
     See `.caterpillar/prompts/code-design/synthesis.md` for the FULL canonical examples of each section (TypeScript interface examples for §2, zod schema for §3, middleware code for §4, env loader for §6, error class for §7, etc). Mirror those examples to your repo's primary language.

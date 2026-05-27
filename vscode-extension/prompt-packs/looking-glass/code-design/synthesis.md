@@ -163,6 +163,15 @@ status: connected | create       # MATCH the A12.v1.1 targetCodeRepoStatus
 language: <typescript|python|go|...>   # from knowledge-code.primary_language OR BAR ADR
 framework: <express|fastify|nestjs|...> # from knowledge-code.entryPoints[].framework OR scaffold spec
 cited_paths: [src/api/users.ts, src/api/__tests__/users.test.ts]  # OPTIONAL but recommended for brownfield — explicit list of file paths this design modifies. Workflow path-citation gate cross-checks both this list AND every backtick-quoted path in the body against knowledge-code.inventory_paths.
+
+# Cross-Repo Fan-Out & Dependency Ordering (D-PR4-prep). REQUIRED on every
+# per-repo block; verifier rejects the design if any field is missing.
+# Full schema + rules in §10 ### Cross-Repo Fan-Out & Dependency Ordering.
+fanout_wave: 1                                # 1 = no dependencies. N = max(dep.wave) + 1.
+coordination_role: foundation | provider | consumer | independent
+depends_on: []                                 # other target-repo slugs (owner/name); MUST be empty when fanout_wave=1
+provides: []                                   # contracts this repo exposes to siblings (see §10 schema)
+consumes: []                                   # contracts this repo consumes from siblings (see §10 schema)
 ---
 ```
 
@@ -399,6 +408,59 @@ the rollback gate:
 Mapping each NFR back to its PRD section closes the FR/SR/NFR
 coverage triangle — auditors can verify every PRD non-functional
 ask landed somewhere implementable.
+
+### Cross-Repo Fan-Out & Dependency Ordering
+
+**REQUIRED.** Machine-readable coordination block that Looking Glass
+fan-out reads to decide which target repos can fan out immediately
+(wave 1, no dependencies) and which must wait for upstream PRs to merge
+first (wave 2+). This block also sets the implementation agent's
+expectations: when its session opens, every dependency it reads from
+`consumes:` will already be shipped in the dependency repo's main branch
+— never mocked.
+
+Use this exact YAML shape (no fenced ` ``` ` inside the artifact body; the
+workflow's coordination verifier parses with `yq`, not regex):
+
+```yaml
+coordination:
+  - repo: <owner>/<slug-of-foundation-repo>
+    fanout_wave: 1
+    coordination_role: foundation
+    depends_on: []
+    provides:
+      - contract: <short slug for the contract, e.g. "GET /api/profile/:id" or "jwt-claim:profile_access">
+        consumed_by:
+          - <owner>/<slug-of-consumer-repo>
+        readiness: must merge before consumers
+    consumes: []
+    rationale: <one sentence: why this is the foundation, what siblings need from it>
+
+  - repo: <owner>/<slug-of-consumer-repo>
+    fanout_wave: 2
+    coordination_role: consumer
+    depends_on:
+      - <owner>/<slug-of-foundation-repo>
+    provides: []
+    consumes:
+      - contract: <same contract slug as the provider's entry>
+        from: <owner>/<slug-of-foundation-repo>
+        required_for:
+          - <FR-NN or SR-NN this contract enables>
+    rationale: <one sentence: what consuming this contract lets this repo deliver>
+```
+
+**Seven rules the verifier enforces** (each rule failure emits a distinct named reason):
+
+1. **Every `targetCodeRepos[]` repo appears exactly once** in the coordination YAML. Failure: `coordination-missing-repo:<slug>`.
+2. **`depends_on` can only reference another target repo.** Cross-org or out-of-OKR repos are not allowed. Failure: `coordination-unknown-dep:<slug>→<unknown>`.
+3. **No dependency cycles** (Kahn's algorithm). Failure: `coordination-cycle:[a→b→c→a]`.
+4. **`fanout_wave: 1` MUST have empty `depends_on`.** Wave 2+ MUST have every dependency in an earlier wave. Failure: `coordination-wave-mismatch:<slug>@wave=N deps-in-wave=M`.
+5. **If a repo consumes a contract from another target repo, it MUST list that repo in `depends_on`.** Failure: `coordination-consumes-not-in-depends:<slug>→<from>`.
+6. **`fanout_wave` MUST be minimal.** `fanout_wave == 1 + max(dep.fanout_wave)` for any repo with deps; `fanout_wave == 1` for any repo without deps. Without this rule, you can have an acyclic YAML where everything is "wave 5" and topological sort passes but the wave numbering is meaningless. Failure: `coordination-wave-nonminimal:<slug>@wave=N expected=M`.
+7. **Contract reciprocity.** For every `provides.consumed_by: [<consumer-slug>]` entry, the consumer's `consumes.from: <provider-slug>` MUST reference the same provider for the same contract. Otherwise the YAML can claim "A provides X to B" while B's consumes list omits X — acyclic but misleading. Failure: `coordination-contract-mismatch:<provider>→<consumer>:<contract>`.
+
+**Hard rule for the implementation agent (carried forward into D-PR7's agent prompt):** Do NOT ship production mocks to main. Tests may mock dependencies, but the implementation agent must wait for upstream provider repos to land before opening its PR. Topological gating in Looking Glass enforces this — by the time the agent runs, every dependency has merged. If ordering is uncertain at WHAT time, mark the repo `coordination_role: independent`, explain why in the `rationale`, and do NOT invent a `depends_on` you can't justify.
 
 ## Final-write hygiene (Bug RR)
 
