@@ -123,17 +123,24 @@ jobs:
     steps:
       # SAFETY: checkout PR head with persist-credentials:false because
       # this is pull_request_target. We need the PR's audit JSONL +
-      # research-doc.md, but we never execute scripts from the checkout
-      # (only parse fixed paths).
+      # research-doc.md, but PR-head files are DATA only. Trusted helper
+      # actions / verifier scripts must come from the base branch.
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
+      - name: Checkout trusted helpers from base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .trusted
+          persist-credentials: false
+
       - name: Extract OKR context
         id: ctx
-        uses: ./.github/actions/extract-okr-context
+        uses: ./.trusted/.github/actions/extract-okr-context
         with:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -373,7 +380,7 @@ jobs:
       - name: Count successful skill_calls + distinct queries
         id: counts
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
-        uses: ./.github/actions/count-skill-calls
+        uses: ./.trusted/.github/actions/count-skill-calls
         with:
           audit-jsonl-path: ${{ steps.audit.outputs.path }}
 

@@ -120,6 +120,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
+      - name: Checkout trusted helpers from base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .trusted
+          persist-credentials: false
+
       - name: Checkout base ref to /tmp/base for cross-phase reads
         # We need the MERGED research-doc.md (from base / main) for
         # Caterpillar's Challenge. The PR head may not include it if
@@ -133,7 +140,7 @@ jobs:
 
       - name: Extract OKR context
         id: ctx
-        uses: ./.github/actions/extract-okr-context
+        uses: ./.trusted/.github/actions/extract-okr-context
         with:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
