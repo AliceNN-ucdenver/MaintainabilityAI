@@ -124,6 +124,18 @@ export const MESH_SKILLS: MeshSkillSpec[] = [
   // are cross-checked by the workflow path-citation gate against the
   // chain's inventory_paths payload.
   skillSpec('knowledge-code-read', 'knowledge'),
+  // D-PR3 — knowledge-reference-repos: optional exemplar grounding for
+  // the code-design-agent. Reads `.caterpillar/reference-repos/*.yml`
+  // configs in the mesh, clones each, runs the same tree-sitter
+  // polyglot classification as knowledge-code, returns with
+  // `reference: true` so the agent treats them as read-only EXEMPLARS
+  // (never edit targets). Primary motivation: greenfield runs have no
+  // in-repo grounding without an exemplar Skill. Brownfield runs may
+  // also benefit when the team has a canonical reference pattern.
+  // The workflow's path-citation gate rejects any design that cites a
+  // reference-repo path as an edit target with `cited-reference-repo-
+  // as-edit-target:<path>`.
+  skillSpec('knowledge-reference-repos', 'knowledge'),
   // B5 — context (mesh aggregators; no LLM inside)
   skillSpec('context-architecture', 'context'),
   skillSpec('context-security', 'context'),

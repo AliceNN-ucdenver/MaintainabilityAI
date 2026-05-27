@@ -14,6 +14,7 @@ tools:
   - knowledge-prd
   - knowledge-code
   - knowledge-code-read
+  - knowledge-reference-repos
   - knowledge-mesh-bar
   - knowledge-mesh-adrs
   - knowledge-mesh-threats

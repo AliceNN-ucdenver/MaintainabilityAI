@@ -29,11 +29,11 @@ describe('AgentDeploymentService.deploySkills', () => {
     fs.rmSync(tmpMesh, { recursive: true, force: true });
   });
 
-  it('writes all 23 SKILL.md files on a clean deploy', () => {
+  it('writes all 24 SKILL.md files on a clean deploy', () => {
     // Bug-Q phase 2 — knowledge-code-read brings the total to 23.
     const result = svc.deploySkills(tmpMesh);
-    expect(result.total).toBe(23);
-    expect(result.written).toBe(23);
+    expect(result.total).toBe(24);
+    expect(result.written).toBe(24);
     expect(result.unchanged).toBe(0);
     for (const skill of MESH_SKILLS) {
       const filePath = path.join(tmpMesh, skill.relativePath);
@@ -48,7 +48,7 @@ describe('AgentDeploymentService.deploySkills', () => {
     svc.deploySkills(tmpMesh);
     const second = svc.deploySkills(tmpMesh);
     expect(second.written).toBe(0);
-    expect(second.unchanged).toBe(23);
+    expect(second.unchanged).toBe(24);
   });
 
   it('re-writes a single skill when its on-disk content has drifted', () => {
@@ -57,7 +57,7 @@ describe('AgentDeploymentService.deploySkills', () => {
     fs.writeFileSync(target, '# hand-edited drift\n', 'utf8');
     const result = svc.deploySkills(tmpMesh);
     expect(result.written).toBe(1);
-    expect(result.unchanged).toBe(22);
+    expect(result.unchanged).toBe(23);
     expect(result.perSkill.find(p => p.name === MESH_SKILLS[0].name)?.status).toBe('written');
   });
 
@@ -72,9 +72,10 @@ describe('AgentDeploymentService.deploySkills', () => {
     // B29 added self-review-architect + self-review-security under the
     // 'context' family. D-PR1 added self-review-code-architect +
     // self-review-code-security (also 'context'; total 7).
-    // Bug-Q phase 2 added knowledge-code-read under 'knowledge' (now 9).
+    // Bug-Q phase 2 added knowledge-code-read under 'knowledge'.
+    // D-PR3 added knowledge-reference-repos under 'knowledge' (now 10).
     expect(counts).toEqual({
-      search: 4, rank: 1, knowledge: 9, context: 7, audit: 1, format: 1,
+      search: 4, rank: 1, knowledge: 10, context: 7, audit: 1, format: 1,
     });
   });
 
@@ -108,7 +109,7 @@ describe('AgentDeploymentService.listDeployedSkills', () => {
 
   it('reports all skills as not-deployed on a fresh mesh', () => {
     const list = svc.listDeployedSkills(tmpMesh);
-    expect(list).toHaveLength(23);
+    expect(list).toHaveLength(24);
     expect(list.every(s => s.deployed === false)).toBe(true);
   });
 
@@ -126,7 +127,7 @@ describe('AgentDeploymentService.listDeployedSkills', () => {
     const list = svc.listDeployedSkills(tmpMesh);
     const removedRow = list.find(s => s.name === removed.name)!;
     expect(removedRow.deployed).toBe(false);
-    expect(list.filter(s => s.deployed).length).toBe(22);
+    expect(list.filter(s => s.deployed).length).toBe(23);
   });
 });
 
