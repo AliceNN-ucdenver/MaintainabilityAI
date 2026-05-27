@@ -91,19 +91,11 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
 const INTENTIONAL_STANDALONE_MODULES = new Set([
   // Source-of-truth implementation mirrored into generated .redqueen/consensus.js.
   'mcp/utils/consensus.ts',
-  // D-PR4 sub-PRs 1 + 2 + 3a — Looking Glass fan-out engine foundation.
-  // Pure functions, GitHub probe adapters, and the orchestrator engine
-  // that wires them together. Not yet wired into the panel; D-PR4
-  // sub-PRs 3b-6 (panel message handlers, okrDetail render, greenfield
-  // Cheshire integration, design-fan-out.yaml writer) will add the
-  // imports. Remove these entries when LookingGlassPanel.ts imports
-  // from coordination/.
-  'services/coordination/types.ts',
-  'services/coordination/parser.ts',
-  'services/coordination/topologicalSort.ts',
-  'services/coordination/preflightDerivation.ts',
-  'services/coordination/probes.ts',
-  'services/coordination/fanOutEngine.ts',
+  // D-PR4 fan-out engine — the panel imports `runFanOutPreflight` from
+  // `services/coordination/fanOutEngine` in `onFanOutPreflight` (sub-PR
+  // 3b), which transitively reaches every other coordination module
+  // (parser + topologicalSort + preflightDerivation + probes + types).
+  // No standalone entries needed — reachability via the panel is enough.
 ]);
 
 const CORE_APPROVED_DOMAIN_SERVICES = new Set([

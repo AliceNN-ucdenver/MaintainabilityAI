@@ -89,6 +89,18 @@ import {
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
 } from '../services/AuditReportExporter';
+// D-PR4 sub-PR 3b — fan-out engine entry point.
+// runFanOutPreflight is a pure orchestrator (parse + verify + probe in
+// parallel + derive per-repo PreflightDecision). The panel handler
+// onFanOutPreflight assembles caller-state inputs (target repos from
+// the OKR card, scaffold + upstream PR state placeholders that later
+// sub-PRs will source from design-fan-out.yaml + chain-ladder) and
+// forwards the discriminated report back to the webview.
+import {
+  runFanOutPreflight,
+  type FanOutPreflightInputs,
+  type FanOutTargetRepo,
+} from '../services/coordination/fanOutEngine';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -554,6 +566,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'verifyChain':                 (m) => this.onVerifyChain(m.okrId, m.actionId),
     'exportAuditReport':           (m) => this.onExportAuditReport(m.okrId, m.actionId),
     'exportOkrRollup':             (m) => this.onExportOkrRollup(m.okrId),
+    // D-PR4 sub-PR 3b — fan-out pre-flight entry point on the OKR detail
+    // card. Read-only call into the engine; returns a discriminated
+    // FanOutPreflightReport (success → per-repo decisions + ready set;
+    // failure → coordination-section-missing | coordination-yaml-malformed
+    // | coordination-verify-failed). Subsequent sub-PRs add the "Fan out
+    // N of M ready" action message that actually opens landing issues.
+    'fanOutPreflight':             (m) => this.onFanOutPreflight(m.okrId),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -732,6 +751,173 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
 
     this.postMessage({ type: 'okrPhaseSignals', okrId, signals });
+  }
+
+  /**
+   * D-PR4 sub-PR 3b — fan-out pre-flight handler.
+   *
+   * Run the Looking Glass fan-out engine for an OKR's WHAT-phase fan-out
+   * decision. Read-only: this handler only assembles inputs + calls the
+   * engine + posts the report back. It does NOT open landing issues,
+   * dispatch agents, or write `design-fan-out.yaml` — those land in
+   * subsequent sub-PRs.
+   *
+   * Failure modes (each posted back as `fanOutPreflightResult`):
+   *
+   *   - `setupError: 'no-mesh'`            -> mesh not initialized
+   *   - `setupError: 'no-mesh-repo'`       -> repo metadata not discoverable
+   *   - `setupError: 'okr-not-found'`      -> OKR id doesn't resolve in mesh
+   *   - `setupError: 'what-not-complete'`  -> no completed WHAT action yet
+   *   - `setupError: 'artifact-missing'`   -> code-design.md couldn't be fetched
+   *   - `setupError: 'no-target-repos'`    -> OKR's targetCodeRepos[] is empty
+   *
+   * On success (engine returned a discriminated report), the result message
+   * carries the report verbatim (the webview cast it back to the
+   * `FanOutPreflightReport` type from coordination/fanOutEngine).
+   *
+   * `skippedRepos` surfaces target repos whose `targetCodeRepoStatus[url]`
+   * is `not-connected` or `unreachable` -- the engine can't probe them
+   * because the user hasn't decided their disposition yet. Webview renders
+   * these as a yellow chip alongside the engine results so the user knows
+   * which slugs they need to set status on before fan-out can include them.
+   *
+   * Slug normalization: the OKR card stores `targetCodeRepos` as
+   * full GitHub URLs (https://github.com/owner/name); the coordination
+   * block uses owner/name slugs. We strip the URL prefix at the panel
+   * boundary so the engine sees owner/name throughout.
+   */
+  private async onFanOutPreflight(okrId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'fanOutPreflightResult', okrId, ok: false, setupError: 'no-mesh' });
+      return;
+    }
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'fanOutPreflightResult', okrId, ok: false, setupError: 'no-mesh-repo' });
+      return;
+    }
+
+    const okrService = this.meshService.getOkrService();
+    const okr = okrService.read(meshPath, okrId);
+    if (!okr) {
+      this.postMessage({ type: 'fanOutPreflightResult', okrId, ok: false, setupError: 'okr-not-found' });
+      return;
+    }
+
+    // Most-recent WHAT action that completed. Skip queued / in_progress /
+    // failed -- pre-flight only meaningful once the code-design artifact
+    // has merged.
+    const whatAction = [...okr.actions]
+      .reverse()
+      .find(a => a.phase === 'what' && a.status === 'complete');
+    if (!whatAction) {
+      this.postMessage({
+        type: 'fanOutPreflightResult',
+        okrId,
+        ok: false,
+        setupError: 'what-not-complete',
+      });
+      return;
+    }
+
+    // Fetch code-design.md live from the mesh repo (default branch --
+    // the WHAT artifact is always merged by the time meta.status is
+    // complete, so PR-head fallback isn't needed here).
+    const artifactPath = `okrs/${okrId}/what/code-design.md`;
+    let designMarkdown: string | null;
+    try {
+      designMarkdown = await this.githubService.getRepoFileText(
+        meshRepo.owner,
+        meshRepo.repo,
+        artifactPath,
+      );
+    } catch (err) {
+      this.postMessage({
+        type: 'fanOutPreflightResult',
+        okrId,
+        ok: false,
+        setupError: `artifact-fetch-error: ${toErrorMessage(err)}`,
+      });
+      return;
+    }
+    if (!designMarkdown) {
+      this.postMessage({
+        type: 'fanOutPreflightResult',
+        okrId,
+        ok: false,
+        setupError: `artifact-missing: ${artifactPath} not found on default branch`,
+      });
+      return;
+    }
+
+    // Partition target repos by status. `not-connected` and `unreachable`
+    // can't be probed; surface them as skippedRepos for the UI chip.
+    const targetRepos: FanOutTargetRepo[] = [];
+    const skippedRepos: Array<{ slug: string; status: 'not-connected' | 'unreachable' }> = [];
+    const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
+    for (const repoUrl of okr.objectiveAlignment.targetCodeRepos) {
+      const status = statusMap[repoUrl] ?? 'not-connected';
+      // Normalize: targetCodeRepos[] stores URLs; the coordination block
+      // and the engine speak owner/name slugs. parseGitHubUrl handles
+      // both https://github.com/... + git@github.com:... forms; bare
+      // slugs fall through to the input string (rare but possible if a
+      // user typed "owner/repo" directly into the OKR card form).
+      const parsed = parseGitHubUrl(repoUrl);
+      const slug = parsed ? `${parsed.owner}/${parsed.repo}` : repoUrl.trim();
+      if (status === 'connected' || status === 'create') {
+        targetRepos.push({ slug, status });
+      } else if (status === 'not-connected' || status === 'unreachable') {
+        skippedRepos.push({ slug, status });
+      }
+    }
+    if (targetRepos.length === 0 && skippedRepos.length === 0) {
+      this.postMessage({
+        type: 'fanOutPreflightResult',
+        okrId,
+        ok: false,
+        setupError: 'no-target-repos',
+      });
+      return;
+    }
+
+    // Caller-state inputs. Sub-PR 3b ships these as empty defaults --
+    // subsequent sub-PRs populate them from design-fan-out.yaml (already-
+    // opened landing issues, impl PR states) and chain-ladder.yaml
+    // (upstream PR states). Empty defaults mean: all upstreams treated as
+    // not-started, no greenfield mid-scaffold, no landing issues yet open,
+    // no impl PRs yet. Result: brownfield rows surface their probe verdict;
+    // greenfield rows surface pending-scaffold (rule 3 fires on idle).
+    const inputs: FanOutPreflightInputs = {
+      okrId,
+      designMarkdown,
+      targetRepos,
+      upstreamPrStates: new Map(),
+      greenfieldScaffoldStatus: new Map(),
+      alreadyOpenedRepos: new Set(),
+      implPrStates: new Map(),
+    };
+
+    try {
+      const report = await runFanOutPreflight(this.githubService, inputs);
+      this.postMessage({
+        type: 'fanOutPreflightResult',
+        okrId,
+        ok: true,
+        report,
+        ...(skippedRepos.length > 0 ? { skippedRepos } : {}),
+      });
+    } catch (err) {
+      // Probe-level transient failures already map to per-row
+      // fetch-error decisions inside the engine, so a thrown error here
+      // is an unexpected programming bug -- surface it as setupError.
+      this.postMessage({
+        type: 'fanOutPreflightResult',
+        okrId,
+        ok: false,
+        setupError: `engine-crashed: ${toErrorMessage(err)}`,
+      });
+    }
   }
 
   /**

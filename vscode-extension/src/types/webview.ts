@@ -578,7 +578,23 @@ export type LookingGlassWebviewMessage =
    * the webview preview modal. additionalContext is appended to the
    * canned body before `gh issue create` runs.
    */
-  | { type: 'confirmStartOkrPhase'; okrId: string; phase: 'why' | 'how' | 'what'; additionalContext: string };
+  | { type: 'confirmStartOkrPhase'; okrId: string; phase: 'why' | 'how' | 'what'; additionalContext: string }
+  /**
+   * D-PR4 sub-PR 3b — Looking Glass fan-out engine entry point.
+   *
+   * Run pre-flight for an OKR's WHAT-phase fan-out. Extension reads the
+   * most-recent completed WHAT action, fetches its code-design.md
+   * artifact, parses + verifies the §10 H3 coordination block, runs
+   * per-repo probes (harness presence for brownfield, issue-write
+   * permission, repo existence + isEmpty for greenfield), combines with
+   * caller-side state (upstream PR states, scaffold status, already-
+   * opened landing issues, impl PR states) and posts back a
+   * `fanOutPreflightResult` with per-repo decisions + ready set + waves.
+   *
+   * Read-only — does NOT open landing issues, dispatch agents, or write
+   * `design-fan-out.yaml`. Those land in subsequent sub-PRs.
+   */
+  | { type: 'fanOutPreflight'; okrId: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }
@@ -738,4 +754,32 @@ export type LookingGlassExtensionMessage =
       runId: string;
       verdict: unknown | null;
       reason?: string;
+    }
+  /**
+   * D-PR4 sub-PR 3b — payload for the OKR detail's fan-out pre-flight
+   * pane. Discriminated on `ok`: failures map 1:1 to the engine's
+   * `FanOutPreflightReport` failure variants; success carries the
+   * per-repo decisions + ready set + topological waves the panel
+   * renders. `report` is typed `unknown` to avoid leaking the
+   * coordination types into webview message land — the webview's
+   * renderer casts back to `FanOutPreflightReport` from
+   * `services/coordination/fanOutEngine`.
+   *
+   * `skippedRepos` carries repos in `targetCodeRepos[]` whose status
+   * is `not-connected` or `unreachable` (engine can't probe them);
+   * surfaced as a yellow chip next to the pre-flight pane so the user
+   * knows they need to set the status before fan-out can include them.
+   *
+   * `setupError` carries the friendly message when pre-flight couldn't
+   * even start (mesh not initialized, OKR not found, no completed WHAT
+   * action yet, artifact fetch failed). Webview renders this as the
+   * top-level state of the card.
+   */
+  | {
+      type: 'fanOutPreflightResult';
+      okrId: string;
+      ok: boolean;
+      report?: unknown;
+      setupError?: string;
+      skippedRepos?: Array<{ slug: string; status: 'not-connected' | 'unreachable' }>;
     };
