@@ -100,8 +100,22 @@ export function normalizeTitle(raw) {
   return raw
     .trim()
     .replace(/^[“"']+|[”"']+$/g, '')
+    .replace(/…/g, '...')
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/--+/g, '-')
+    .replace(/\s*-\s*/g, ' - ')
     .replace(/\s+/g, ' ')
     .toLowerCase();
+}
+
+function titlePrefixBeforeEllipsis(title) {
+  const normalized = normalizeTitle(title);
+  const idx = normalized.indexOf('...');
+  if (idx < 0) { return ''; }
+  const prefix = normalized.slice(0, idx).trim().replace(/[^\p{L}\p{N}]+$/gu, '');
+  const tokenCount = prefix.split(/\s+/).filter(Boolean).length;
+  if (prefix.length < 24 || tokenCount < 5) { return ''; }
+  return prefix;
 }
 
 /**
@@ -119,7 +133,19 @@ export function titleMatches(docTitle, chainTitle) {
   // "Search Results" against longer real ones.
   const min = Math.min(a.length, b.length);
   if (min < 12) { return false; }
-  return a.includes(b) || b.includes(a);
+  if (a.includes(b) || b.includes(a)) { return true; }
+
+  // Search providers often truncate long titles in `results_preview`
+  // with an ellipsis, sometimes adding a provider suffix such as
+  // " - YouTube". Treat a long prefix before the ellipsis as a match
+  // only when the other title starts with that exact prefix. This keeps
+  // the S40/S44 title-swap protection while avoiding false positives
+  // for provider-side display truncation.
+  const aPrefix = titlePrefixBeforeEllipsis(a);
+  if (aPrefix && b.startsWith(aPrefix)) { return true; }
+  const bPrefix = titlePrefixBeforeEllipsis(b);
+  if (bPrefix && a.startsWith(bPrefix)) { return true; }
+  return false;
 }
 
 /**

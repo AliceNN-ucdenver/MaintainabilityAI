@@ -63,6 +63,30 @@ test('titleMatches: substring acceptable when at least 12 chars', () => {
   );
 });
 
+test('titleMatches: unicode dash and double-hyphen variants match', () => {
+  assert.equal(titleMatches('DeepER — Deep Entity Resolution', 'DeepER -- Deep Entity Resolution'), true);
+});
+
+test('titleMatches: provider-truncated ellipsis prefix matches full title', () => {
+  assert.equal(
+    titleMatches(
+      'Top 5 API Trends for 2026: Learnings from the Anatomy of API Calls',
+      'Top 5 API Trends for 2026: Learnings from the Anatomy ... - YouTube',
+    ),
+    true,
+  );
+});
+
+test('titleMatches: provider-truncated lawsuit title matches full title', () => {
+  assert.equal(
+    titleMatches(
+      'ADT Data Breach Lawsuit Could Become One of the Largest Consumer Privacy Cases of 2026',
+      'ADT Data Breach Lawsuit Could Become One of the Largest ...',
+    ),
+    true,
+  );
+});
+
 test('titleMatches: short generic titles do NOT fuzzy-match', () => {
   // "Home" and "Home Page" should NOT match — both short, ambiguous.
   assert.equal(titleMatches('Home', 'Home Page'), false);
