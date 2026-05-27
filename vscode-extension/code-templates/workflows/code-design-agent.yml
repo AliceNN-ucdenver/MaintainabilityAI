@@ -428,6 +428,216 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "::notice::structure h2=$H2_PRESENT/10"
 
+      # D-PR4-prep.4 — Cross-repo coordination verifier.
+      # The Tier 2 fan-out engine reads §10's `### Cross-Repo Fan-Out
+      # & Dependency Ordering` H3 block to decide which target repos
+      # fan out immediately (wave 1, no dependencies) and which wait
+      # for upstream PRs to merge first (wave 2+). The verifier
+      # enforces 7 named conditions; any failure blocks design-pass
+      # with a discriminated reason. Uses PyYAML (yaml.safe_load),
+      # NOT regex — the nested provides/consumes arrays of objects
+      # are too complex for regex parsing.
+      #
+      # 7 named failure reasons (each maps to a distinct fix path):
+      #   coordination-section-missing
+      #   coordination-yaml-malformed
+      #   coordination-missing-repo:<slug>
+      #   coordination-unknown-dep:<slug>→<unknown>
+      #   coordination-cycle:[a→b→c→a]
+      #   coordination-wave-mismatch:<slug>@wave=N deps-in-wave=M
+      #   coordination-consumes-not-in-depends:<slug>→<from>
+      #   coordination-wave-nonminimal:<slug>@wave=N expected=M
+      #   coordination-contract-mismatch:<provider>→<consumer>:<contract>
+      #
+      # Per-repo §1 frontmatter must also carry fanout_wave,
+      # coordination_role, depends_on, provides, consumes (matched
+      # against the coordination block).
+      - name: Coordination verifier (cross-repo fan-out / dependency ordering)
+        id: coordination
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        env:
+          DOC: okrs/${{ steps.ctx.outputs.okr_id }}/what/code-design.md
+          OKR_YAML: okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml
+        run: |
+          DOC="$DOC" OKR_YAML="$OKR_YAML" python3 <<'PYEOF'
+          import os, re, sys, yaml
+
+          doc_path = os.environ['DOC']
+          okr_yaml_path = os.environ.get('OKR_YAML', '')
+
+          def emit(ok: bool, reason: str = "") -> None:
+              with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+                  f.write(f'ok={"true" if ok else "false"}\n')
+                  f.write(f'reason={reason}\n')
+              if ok:
+                  print(f"::notice::coordination ok")
+              else:
+                  print(f"::warning::coordination FAIL: {reason}")
+              sys.exit(0)
+
+          # 1. Read target repo slugs from okr.yaml. If okr.yaml is
+          #    missing or has no targetCodeRepos, treat as single-repo
+          #    OKR and skip coordination requirement (verifier passes).
+          target_repos = set()
+          try:
+              if okr_yaml_path and os.path.exists(okr_yaml_path):
+                  okr_doc = yaml.safe_load(open(okr_yaml_path, 'r', encoding='utf-8').read())
+                  for action in (okr_doc or {}).get('actions', []) or []:
+                      align = action.get('objectiveAlignment', {}) or {}
+                      for slug in align.get('targetCodeRepos', []) or []:
+                          target_repos.add(slug.strip())
+                      # also accept top-level targetCodeRepos[] on the OKR
+                  for slug in (okr_doc or {}).get('targetCodeRepos', []) or []:
+                      target_repos.add(slug.strip())
+          except Exception as e:
+              emit(False, f"coordination-yaml-malformed: okr.yaml parse failed: {type(e).__name__}: {e}")
+
+          if not target_repos:
+              # Single-repo OKR or pre-Tier-2 sample — verifier passes silently.
+              emit(True)
+
+          # 2. Find §10 H3 `### Cross-Repo Fan-Out & Dependency Ordering`
+          #    and extract the first yaml fence inside it.
+          doc = open(doc_path, 'r', encoding='utf-8').read()
+          h3_marker = '### Cross-Repo Fan-Out & Dependency Ordering'
+          h3_idx = doc.find(h3_marker)
+          if h3_idx < 0:
+              emit(False, "coordination-section-missing")
+
+          # Slice from H3 marker to the next H2/H3 (or EOF).
+          tail = doc[h3_idx + len(h3_marker):]
+          next_h2 = tail.find('\n## ')
+          next_h3 = tail.find('\n### ')
+          end_offsets = [n for n in (next_h2, next_h3) if n >= 0]
+          h3_body = tail[:min(end_offsets)] if end_offsets else tail
+
+          # Extract first ```yaml ... ``` fence.
+          fence_re = re.compile(r'```ya?ml\n(.*?)\n```', re.DOTALL)
+          m = fence_re.search(h3_body)
+          if not m:
+              emit(False, "coordination-yaml-malformed: no ```yaml fence in §10 H3")
+
+          try:
+              coord_doc = yaml.safe_load(m.group(1))
+          except yaml.YAMLError as e:
+              emit(False, f"coordination-yaml-malformed: {type(e).__name__}: {e}")
+
+          rows = (coord_doc or {}).get('coordination') or []
+          if not isinstance(rows, list):
+              emit(False, "coordination-yaml-malformed: coordination is not a list")
+
+          # 3. Rule 1 — every targetCodeRepos[] repo appears exactly once.
+          slugs_in_coord = []
+          for row in rows:
+              if not isinstance(row, dict):
+                  emit(False, f"coordination-yaml-malformed: row is not an object: {row!r}")
+              slug = (row.get('repo') or '').strip()
+              if not slug:
+                  emit(False, f"coordination-yaml-malformed: row missing repo key: {row!r}")
+              slugs_in_coord.append(slug)
+
+          for target in target_repos:
+              if target not in slugs_in_coord:
+                  emit(False, f"coordination-missing-repo:{target}")
+
+          # Detect duplicates (also a missing-repo class violation).
+          seen = set()
+          for slug in slugs_in_coord:
+              if slug in seen:
+                  emit(False, f"coordination-missing-repo:{slug} (duplicate row)")
+              seen.add(slug)
+
+          # 4. Rule 2 — depends_on can only reference another target repo.
+          slug_to_row = {row['repo'].strip(): row for row in rows}
+          for slug, row in slug_to_row.items():
+              for dep in row.get('depends_on') or []:
+                  if dep not in slug_to_row:
+                      emit(False, f"coordination-unknown-dep:{slug}→{dep}")
+
+          # 5. Rule 3 — no cycles (Kahn's algorithm).
+          in_degree = {slug: 0 for slug in slug_to_row}
+          adj = {slug: [] for slug in slug_to_row}
+          for slug, row in slug_to_row.items():
+              for dep in row.get('depends_on') or []:
+                  in_degree[slug] += 1
+                  adj[dep].append(slug)
+          queue = [s for s in slug_to_row if in_degree[s] == 0]
+          sorted_order = []
+          while queue:
+              s = queue.pop(0)
+              sorted_order.append(s)
+              for nxt in adj[s]:
+                  in_degree[nxt] -= 1
+                  if in_degree[nxt] == 0:
+                      queue.append(nxt)
+          if len(sorted_order) != len(slug_to_row):
+              # Cycle detected — reconstruct one for the error message.
+              remaining = [s for s in slug_to_row if s not in sorted_order]
+              chain = remaining[:3] + [remaining[0]] if remaining else []
+              chain_str = '→'.join(chain)
+              emit(False, f"coordination-cycle:[{chain_str}]")
+
+          # 6. Rule 4 + Rule 6 — fanout_wave must be minimal AND match
+          #    topological sort. Wave 1 must have empty depends_on.
+          #    Wave N must have all deps with wave < N. AND minimal:
+          #    wave == 1 + max(dep.wave) for repos with deps; wave == 1
+          #    for repos without deps.
+          for slug, row in slug_to_row.items():
+              wave = row.get('fanout_wave')
+              if not isinstance(wave, int) or wave < 1:
+                  emit(False, f"coordination-yaml-malformed: {slug} fanout_wave must be a positive integer (got {wave!r})")
+              deps = row.get('depends_on') or []
+              if not deps:
+                  if wave != 1:
+                      emit(False, f"coordination-wave-mismatch:{slug}@wave={wave} deps-in-wave=- (no deps must be wave 1)")
+                  # Wave 1 with no deps is rule 6 happy path.
+                  continue
+              # Has deps — check wave-mismatch (Rule 4) AND wave-nonminimal (Rule 6).
+              max_dep_wave = max((slug_to_row[d].get('fanout_wave', 0) or 0) for d in deps)
+              # Rule 4: every dep must be in an earlier wave.
+              for d in deps:
+                  d_wave = slug_to_row[d].get('fanout_wave', 0) or 0
+                  if d_wave >= wave:
+                      emit(False, f"coordination-wave-mismatch:{slug}@wave={wave} deps-in-wave={d_wave}")
+              # Rule 6: wave MUST be exactly 1 + max(dep.wave).
+              expected = 1 + max_dep_wave
+              if wave != expected:
+                  emit(False, f"coordination-wave-nonminimal:{slug}@wave={wave} expected={expected}")
+
+          # 7. Rule 5 — every consumes.from MUST be in depends_on.
+          for slug, row in slug_to_row.items():
+              deps = set(row.get('depends_on') or [])
+              for c in (row.get('consumes') or []):
+                  if not isinstance(c, dict): continue
+                  from_slug = (c.get('from') or '').strip()
+                  if from_slug and from_slug in slug_to_row and from_slug not in deps:
+                      emit(False, f"coordination-consumes-not-in-depends:{slug}→{from_slug}")
+
+          # 8. Rule 7 — contract reciprocity. For every provides entry
+          #    with consumed_by: [<X>], X's consumes MUST include a
+          #    matching from: <provider> + same contract slug.
+          for prov_slug, row in slug_to_row.items():
+              for p in (row.get('provides') or []):
+                  if not isinstance(p, dict): continue
+                  contract = (p.get('contract') or '').strip()
+                  for consumer in (p.get('consumed_by') or []):
+                      consumer = consumer.strip()
+                      if consumer not in slug_to_row: continue
+                      consumer_row = slug_to_row[consumer]
+                      matched = False
+                      for c in (consumer_row.get('consumes') or []):
+                          if not isinstance(c, dict): continue
+                          if (c.get('from') or '').strip() == prov_slug \
+                                  and (c.get('contract') or '').strip() == contract:
+                              matched = True
+                              break
+                      if not matched:
+                          emit(False, f"coordination-contract-mismatch:{prov_slug}→{consumer}:{contract}")
+
+          # All 7 checks passed.
+          emit(True)
+          PYEOF
+
       # Bug-Q phase 2 — brownfield path-citation gate.
       # Codex audit round 2 (B1): the WHAT prompt asks for `src/state/
       # profileStore.ts`-level file paths but `knowledge-code` only
@@ -1197,6 +1407,8 @@ jobs:
           PATHS_OK_IN: ${{ steps.paths.outputs.ok }}
           PATHS_VIOLATIONS: ${{ steps.paths.outputs.violations }}
           PATHS_VIOLATION_COUNT: ${{ steps.paths.outputs.violation_count }}
+          COORD_OK_IN: ${{ steps.coordination.outputs.ok }}
+          COORD_REASON: ${{ steps.coordination.outputs.reason }}
         run: |
           STRUCT_OK="true"
           STRUCT_REASON=""
@@ -1222,6 +1434,15 @@ jobs:
             STRUCT_OK="false"
             STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }brownfield path-citation ${PATHS_VIOLATION_COUNT} not in inventory: ${PATHS_VIOLATIONS}"
           fi
+          # D-PR4-prep.4 — coordination verifier folds into STRUCT_OK.
+          # Single-repo OKRs (no targetCodeRepos[]) get COORD_OK_IN=true
+          # because the verifier passes silently. Multi-repo OKRs MUST
+          # produce a parseable §10 H3 block satisfying all 7 conditions.
+          # COORD_REASON is the discriminated named reason verbatim.
+          if [ -n "$COORD_OK_IN" ] && [ "$COORD_OK_IN" = "false" ]; then
+            STRUCT_OK="false"
+            STRUCT_REASON="${STRUCT_REASON:+$STRUCT_REASON; }cross-repo coordination: ${COORD_REASON}"
+          fi
           # Manifest verdict (P1): the manifest step already computes
           # ok/missing; surface them as a step output so the label step
           # can consume them on equal footing with CHAIN_OK + MODE_OK.
@@ -1233,7 +1454,7 @@ jobs:
             echo "manifest_ok=$MANIFEST_OK"
             echo "manifest_missing=$MANIFEST_MISSING_FLAT"
           } >> "$GITHUB_OUTPUT"
-          echo "::notice::verdict struct=$STRUCT_OK manifest=$MANIFEST_OK"
+          echo "::notice::verdict struct=$STRUCT_OK manifest=$MANIFEST_OK coord=${COORD_OK_IN:-true}"
 
       # Apply the design-pass label on clean OR design-degraded on
       # evidence/mode-honesty/structure/manifest fail OR design-drift-
@@ -1455,6 +1676,26 @@ jobs:
             SR_ICON="✗"; [ "$SR_ADDRESSED" = "$SR_TOTAL" ] && SR_ICON="✓"
             printf '| SR addressed by per-repo §5 | %s/%s %s (universe: %s) |\n' \
               "$SR_ADDRESSED" "$SR_TOTAL" "$SR_ICON" "$FR_SR_UNIVERSE_SOURCE" >> "$BODY"
+          fi
+          # D-PR4-prep.4 — surface the cross-repo coordination verdict
+          # so a reviewer can see whether the §10 H3 block parsed clean
+          # and which (if any) of the 7 named conditions failed. Single-
+          # repo OKRs show as "n/a — single repo" because the verifier
+          # passes silently when no targetCodeRepos[] are declared.
+          COORD_OK='${{ steps.coordination.outputs.ok }}'
+          COORD_REASON='${{ steps.coordination.outputs.reason }}'
+          if [ "$COORD_OK" = "true" ]; then
+            if [ -n "$COORD_REASON" ]; then
+              # Currently coordination.outputs.reason is always empty on OK;
+              # this branch is reserved for future "ok with notes" usage.
+              printf '| Cross-repo coordination (§10 H3) | ✓ (%s) |\n' "$COORD_REASON" >> "$BODY"
+            else
+              printf '| Cross-repo coordination (§10 H3) | ✓ |\n' >> "$BODY"
+            fi
+          elif [ -z "$COORD_OK" ]; then
+            printf '| Cross-repo coordination (§10 H3) | — (verifier did not run) |\n' >> "$BODY"
+          else
+            printf '| Cross-repo coordination (§10 H3) | ✗ %s |\n' "$COORD_REASON" >> "$BODY"
           fi
           # Workflow-validity fix (post-cert-3): GitHub Actions tightened
           # its expression parser. The previous inline-ternary pattern (a

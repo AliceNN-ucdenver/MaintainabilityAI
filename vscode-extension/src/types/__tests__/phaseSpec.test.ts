@@ -426,6 +426,56 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         expect(content).toContain('all_violations = gate_errors + violations');
       });
 
+      it('WHAT coordination verifier has all 7 named failure reasons + folds into struct_ok (D-PR4-prep.4)', () => {
+        // D-PR4-prep.4 — drift-detection between the next-acts spec and
+        // the workflow. The verifier is inline Python in the workflow
+        // (matching every other validator in this file). The test
+        // asserts the contract surface:
+        //   - The coordination step exists with id `coordination`
+        //   - All 7 named failure reasons appear as string literals
+        //   - The verdict step consumes coordination_ok and folds into
+        //     STRUCT_OK so design-pass blocks on coordination failure
+        //   - The audit comment surfaces the coordination verdict
+        if (phase !== 'what') { return; }
+
+        // Step + id present.
+        expect(content).toContain('Coordination verifier (cross-repo fan-out / dependency ordering)');
+        expect(content).toMatch(/id:\s*coordination\b/);
+
+        // All 7 named failure reasons present verbatim (Codex-approved spec).
+        // Two structural reasons (section/yaml) + 7 verifier-rule reasons.
+        const REQUIRED_REASONS = [
+          'coordination-section-missing',
+          'coordination-yaml-malformed',
+          'coordination-missing-repo:',
+          'coordination-unknown-dep:',
+          'coordination-cycle:',
+          'coordination-wave-mismatch:',
+          'coordination-consumes-not-in-depends:',
+          'coordination-wave-nonminimal:',
+          'coordination-contract-mismatch:',
+        ];
+        const missingReasons = REQUIRED_REASONS.filter(r => !content.includes(r));
+        expect(
+          missingReasons,
+          `coordination verifier missing named failure reasons: ${missingReasons.join(', ')}`,
+        ).toEqual([]);
+
+        // Verdict step folds COORD_OK_IN into STRUCT_OK so the gate
+        // actually blocks design-pass on coordination failure.
+        expect(content).toContain('COORD_OK_IN: ${{ steps.coordination.outputs.ok }}');
+        expect(content).toContain('COORD_REASON: ${{ steps.coordination.outputs.reason }}');
+        expect(content).toMatch(/if \[ -n "\$COORD_OK_IN" \] && \[ "\$COORD_OK_IN" = "false" \]; then[\s\S]*?STRUCT_OK="false"/);
+
+        // Audit comment surfaces the verdict so reviewers see WHY the
+        // PR failed (the discriminated reason, not a generic "failed").
+        expect(content).toContain('Cross-repo coordination (§10 H3)');
+
+        // Verifier uses PyYAML (yaml.safe_load), NOT regex — nested
+        // arrays of objects in provides/consumes can't be regex'd safely.
+        expect(content).toMatch(/yaml\.safe_load\(/);
+      });
+
       it('workflow required[] manifest matches the agent prompt manifest BOTH WAYS (Bug-R / R1 — bidirectional parity)', () => {
         // Codex round-3 caught: round-2's parity test only checked
         // workflow→agent (every workflow-required skill must appear
