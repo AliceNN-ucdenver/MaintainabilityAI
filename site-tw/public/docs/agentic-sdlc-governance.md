@@ -1132,9 +1132,9 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
 </svg>
 
 
-**The chain is stitched, not single.** Planning events (WHY, HOW, WHAT) write to the governance mesh at `<mesh>/okrs/<id>/audit/events/<runId>.jsonl`. Implementation events write to each target repo at `<repo>/.maintainability/audit/events/IMPL-*.jsonl`. The runner routes by run-id prefix: `IMPL-*` goes to the target repo, `WHY-* / HOW-* / WHAT-*` goes to the mesh. Same per-event Ed25519 signing, same evidence-honesty rules, same uniform score scale (0.00–1.00 + PASS / MINOR / MAJOR / BLOCKING) across all four phases.
+**Evidence lives in two places.** The planning phases — WHY, HOW, WHAT — write their signed events into the governance mesh. The implementation phase writes its signed events into the target repo where the code actually lands. Same per-run signing key, same evidence rules, same score scale (0.00–1.00 plus PASS / MINOR / MAJOR / BLOCKING). Only the file location differs.
 
-**The seam is the merge SHA.** When an implementation PR opens, it carries a continuation YAML block in its body that points to the impl chain in the target repo. When the PR merges, Looking Glass fetches the events file and the per-session public key from the target repo at the PR's `merge_commit_sha`, verifies they exist at that exact SHA, then appends a row to the mesh's `chain-ladder.yaml` with the merge SHA stamped on it. If the fetch fails, the row gets marked retry-pending instead of sealed. The auditor reads one stitched ladder; the cryptographic anchor that joins the two halves is the commit hash itself.
+**They join at the merge commit.** When an implementation pull request opens, its body carries a small block pointing back to the planning run in the mesh. When the PR merges, Looking Glass goes to the target repo, reads the signed events and the public key *at the exact commit the PR merged at*, confirms they are present there, then appends one row to the mesh's chain ladder with that commit hash stamped on it. If the read fails, the row is held as pending instead of sealed. The auditor reads one ladder; the commit hash is the proof that the planning side and the implementation side belong to the same story.
 
 **The whole-OKR rollup is the buyer's story.** One click in Looking Glass produces a single closeout report **over** the signed evidence — folding WHY + HOW + WHAT + every implementation row into one auditor-readable document. The rollup is not itself a signed artifact; it is a report that re-verifies the underlying chain ladder at export time, so what it says reflects the chain as it stands today — not as it stood when each phase sealed. The verdict comes first, then the evidence, traceability, event timeline, and cross-phase ladder.
 
@@ -1166,17 +1166,17 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
   <rect x="20" y="50" width="760" height="100" rx="10" fill="url(#stitchMesh)" stroke="rgba(196,181,253,0.5)" stroke-width="1.2"/>
   <text x="36" y="72" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">MESH REPO · planning chain</text>
   <text x="36" y="86" fill="#a78bfa" font-size="9" font-family="ui-monospace, Menlo, monospace">&lt;mesh&gt;/okrs/&lt;id&gt;/audit/events/&lt;runId&gt;.jsonl</text>
-  <!-- Mesh chain rungs -->
-  <circle cx="170" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
-  <text x="170" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">WHY</text>
-  <text x="170" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHY-*</text>
-  <circle cx="310" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
-  <text x="310" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">HOW</text>
-  <text x="310" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">HOW-*</text>
-  <circle cx="450" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
-  <text x="450" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">WHAT</text>
-  <text x="450" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHAT-*</text>
-  <path d="M 179 120 L 301 120 M 319 120 L 441 120" stroke="rgba(134,239,172,0.55)" stroke-width="1.4"/>
+  <!-- Mesh chain rungs (pill-shaped so labels fit) -->
+  <rect x="148" y="108" width="44" height="24" rx="12" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="170" y="125" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">WHY</text>
+  <text x="170" y="146" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHY-*</text>
+  <rect x="288" y="108" width="44" height="24" rx="12" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="310" y="125" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">HOW</text>
+  <text x="310" y="146" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">HOW-*</text>
+  <rect x="428" y="108" width="44" height="24" rx="12" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="450" y="125" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">WHAT</text>
+  <text x="450" y="146" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHAT-*</text>
+  <path d="M 192 120 L 288 120 M 332 120 L 428 120" stroke="rgba(134,239,172,0.55)" stroke-width="1.4"/>
   <!-- Ladder row block on the right -->
   <rect x="540" y="92" width="220" height="44" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(252,211,77,0.4)" stroke-width="1"/>
   <text x="650" y="108" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">chain-ladder.yaml</text>
@@ -1201,17 +1201,17 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
   <rect x="20" y="266" width="760" height="100" rx="10" fill="url(#stitchRepo)" stroke="rgba(125,211,252,0.5)" stroke-width="1.2"/>
   <text x="36" y="288" fill="#e0f2fe" font-size="10" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">TARGET REPOS · implementation chain (one per repo)</text>
   <text x="36" y="302" fill="#7dd3fc" font-size="9" font-family="ui-monospace, Menlo, monospace">&lt;repo&gt;/.maintainability/audit/events/IMPL-*.jsonl</text>
-  <circle cx="170" cy="336" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
-  <text x="170" y="340" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
-  <text x="170" y="358" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">celeb-api</text>
-  <circle cx="310" cy="336" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
-  <text x="310" y="340" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
-  <text x="310" y="358" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">imdb-react-frontend</text>
-  <circle cx="450" cy="336" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
-  <text x="450" y="340" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
-  <text x="450" y="358" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">checkout-svc · greenfield</text>
-  <!-- Stitch back into chain-ladder, right side -->
-  <path d="M 480 336 Q 540 336 600 200 Q 660 100 540 120" fill="none" stroke="#86efac" stroke-width="1.6" marker-end="url(#stitchArrow)"/>
+  <rect x="148" y="324" width="44" height="24" rx="12" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="170" y="341" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
+  <text x="170" y="362" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">celeb-api</text>
+  <rect x="288" y="324" width="44" height="24" rx="12" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="310" y="341" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
+  <text x="310" y="362" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">imdb-react-frontend</text>
+  <rect x="428" y="324" width="44" height="24" rx="12" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="450" y="341" text-anchor="middle" fill="#dcfce7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
+  <text x="450" y="362" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">checkout-svc · greenfield</text>
+  <!-- Stitch back into chain-ladder: routed OUTSIDE the right column so it doesn't cross the landing-issue / Stage-5 / chain-ladder boxes -->
+  <path d="M 760 316 C 794 316, 794 114, 762 114" fill="none" stroke="#86efac" stroke-width="1.8" marker-end="url(#stitchArrow)"/>
   <rect x="540" y="282" width="220" height="68" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.5)" stroke-width="1"/>
   <text x="650" y="298" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">Stage 5 stitches</text>
   <text x="650" y="312" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">fetch events + key at pr.merge_commit_sha</text>
