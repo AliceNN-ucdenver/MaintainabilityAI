@@ -28,7 +28,7 @@ import {
 import {
   renderOkrDetailView, getOkrDetailStyles, attachOkrDetailEvents,
 } from './views/okrDetail';
-import type { OkrPhaseSignals } from './views/okrDetail';
+import type { FanOutPreflightReportUi, FanOutPreflightUiState, OkrPhaseSignals } from './views/okrDetail';
 import type {
   OkrListItem, OkrAffectedBar, OkrCard,
   OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode,
@@ -124,6 +124,12 @@ const state = {
   // Populates the rich Why/How/What cards (audit skill_call counts, FR/SR
   // citation coverage, PR state, chain root). Undefined while loading.
   okrPhaseSignals: undefined as OkrPhaseSignals | undefined,
+  // D-PR4 sub-PR 4 — fan-out pre-flight pane state. Populated when the
+  // OKR detail mounts AND the WHAT phase has at least one completed
+  // action; cleared on view-change. The pane itself only renders in
+  // view mode (renderFanOutPreflightPane guards on the same WHAT-complete
+  // check before showing anything).
+  fanOutPreflight: undefined as FanOutPreflightUiState | undefined,
   // Phase B-PR4 — Hatter Tag slide-out sheet
   hatterTagSheetOpen: false,
   hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
@@ -1575,6 +1581,7 @@ function renderView(): string {
           availableBars: state.currentOkrAvailableBars,
           gitStatus: state.gitStatus,
           phaseSignals: state.okrPhaseSignals,
+          fanOutPreflight: state.fanOutPreflight,
         })
         + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
         + (state.chainVerifySheetOpen ? renderChainVerifySheet() : '')
@@ -3971,7 +3978,25 @@ function attachEventHandlers() {
     state.chainVerifySheetData = null;
     state.startPhaseModalOpen = false;
     state.startPhaseModalData = null;
+    state.fanOutPreflight = undefined;
     render();
+  });
+
+  // D-PR4 sub-PR 4 — Fan-out pre-flight Re-check button. Sets the pane
+  // back to loading and re-dispatches fanOutPreflight; the result lands
+  // via the 'fanOutPreflightResult' inbound handler above. The "Fan out"
+  // execute button stays disabled in this PR (sub-PR 6 wires the actual
+  // landing-issue + agent-dispatch flow).
+  document.body.addEventListener('click', (ev) => {
+    const target = ev.target as HTMLElement | null;
+    if (!target) { return; }
+    const trigger = target.closest('[data-action="fanout-refresh"]') as HTMLElement | null;
+    if (!trigger) { return; }
+    const okrId = trigger.dataset.okrId;
+    if (!okrId || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+    state.fanOutPreflight = { loading: true };
+    render();
+    vscode.postMessage({ type: 'fanOutPreflight', okrId });
   });
 
   // Phase B-PR3+ Start-phase modal — Cancel (✕ + footer) + click-outside
@@ -5052,9 +5077,44 @@ const inboundHandlers: Record<string, InboundHandler> = {
           };
         }
         vscode.postMessage({ type: 'loadOkrPhaseSignals', okrId: state.currentOkr.meta.id });
+        // D-PR4 sub-PR 4 — kick off fan-out pre-flight if WHAT has completed.
+        // The handler on the extension side returns setupError 'what-not-complete'
+        // for WHAT-incomplete OKRs, but we save the round-trip by checking
+        // the action list locally first. Re-dispatched on every refresh
+        // so the pane reflects the latest probe state (PR merges land
+        // upstream rows; users connect repos between checks).
+        const whatComplete = incomingOkr.actions.some(a => a.phase === 'what' && a.status === 'complete');
+        if (whatComplete) {
+          state.fanOutPreflight = { loading: true };
+          vscode.postMessage({ type: 'fanOutPreflight', okrId: state.currentOkr.meta.id });
+        } else {
+          state.fanOutPreflight = undefined;
+        }
       } else {
         state.okrPhaseSignals = undefined;
+        state.fanOutPreflight = undefined;
       }
+      render();
+    },
+    'fanOutPreflightResult': (message: WebviewInboundMessage) => {
+      // D-PR4 sub-PR 4 — payload from onFanOutPreflight: { okrId, ok,
+      // report?, setupError?, skippedRepos? }. The extension casts the
+      // typed report to unknown when posting; we cast back to the
+      // webview's local FanOutPreflightReportUi type (kept narrow per
+      // services/coordination/* wire-shape contract).
+      const msg = message as unknown as {
+        okrId: string;
+        ok: boolean;
+        report?: FanOutPreflightReportUi;
+        setupError?: string;
+        skippedRepos?: Array<{ slug: string; status: 'not-connected' | 'unreachable' }>;
+      };
+      if (!state.currentOkr || state.currentOkr.meta.id !== msg.okrId) {
+        return; // user navigated away; drop stale result
+      }
+      state.fanOutPreflight = msg.ok
+        ? { report: msg.report, skippedRepos: msg.skippedRepos }
+        : { setupError: msg.setupError ?? 'unknown-error', skippedRepos: msg.skippedRepos };
       render();
     },
     'okrPhaseSignals': (message: WebviewInboundMessage) => {

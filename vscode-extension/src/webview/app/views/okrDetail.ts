@@ -156,6 +156,90 @@ export interface OkrPhaseSignal {
 export type OkrPhaseSignals = Partial<Record<OkrPhase, OkrPhaseSignal>>;
 
 /**
+ * D-PR4 sub-PR 4 — webview-local mirror of the FanOutPreflightReport
+ * wire shape posted by the extension's onFanOutPreflight handler.
+ *
+ * Kept narrow + manual instead of importing from
+ * `services/coordination/fanOutEngine` so the webview bundle stays
+ * decoupled from the extension's GitHubService (which the engine
+ * depends on for probe I/O). The wire shape matches verbatim; the
+ * extension casts its typed report to `unknown` when posting and the
+ * webview's pane renderer narrows by checking the discriminator
+ * fields.
+ */
+export type FanOutPreflightStatusUi =
+  | 'ready'
+  | 'opened'
+  | 'pending-on-upstream'
+  | 'pending-scaffold'
+  | 'harness-missing'
+  | 'permission-blocked'
+  | 'repo-not-found'
+  | 'repo-exists-conflict'
+  | 'pr-opened'
+  | 'pr-merged'
+  | 'pr-rejected';
+
+export interface FanOutRepoEntryUi {
+  slug: string;
+  status: 'connected' | 'create';
+  decision: { status: FanOutPreflightStatusUi; reason?: string };
+  coordinationRow?: {
+    fanout_wave: number;
+    coordination_role: 'foundation' | 'provider' | 'consumer' | 'independent';
+    depends_on: string[];
+  };
+}
+
+export type FanOutPreflightReportUi =
+  | {
+      ok: false;
+      okrId: string;
+      reason: 'coordination-section-missing' | 'coordination-yaml-malformed';
+      detail: string;
+    }
+  | {
+      ok: false;
+      okrId: string;
+      reason: 'coordination-verify-failed';
+      verifyReason: string;
+    }
+  | {
+      ok: true;
+      okrId: string;
+      entries: FanOutRepoEntryUi[];
+      readyRepos: string[];
+      waves: string[][];
+    };
+
+/**
+ * Per-OKR webview state for the fan-out pre-flight pane. The pane
+ * appears in view mode only AND only after WHAT completes; it shows a
+ * pre-flight verdict per target repo and a "Fan out N of M ready"
+ * button (DISABLED in sub-PR 4 — execution lands in sub-PR 6).
+ *
+ * Three states:
+ *
+ *   - `loading: true`        request in flight; show spinner
+ *   - `setupError: <str>`    extension couldn't run pre-flight (no mesh,
+ *                            WHAT not complete, artifact missing, etc.);
+ *                            show a friendly inline message
+ *   - `report` present       engine returned a discriminated report;
+ *                            render the per-row pane + ready button
+ */
+export interface FanOutPreflightUiState {
+  loading?: boolean;
+  setupError?: string;
+  report?: FanOutPreflightReportUi;
+  /**
+   * Target repos whose status is `not-connected` or `unreachable` --
+   * engine can't probe them. Surfaced as a yellow chip so the user knows
+   * to set the status before fan-out can include them.
+   */
+  skippedRepos?: Array<{ slug: string; status: 'not-connected' | 'unreachable' }>;
+}
+
+/**
  * Lightweight markdown → safe HTML renderer for inline artifact preview.
  *
  * We can't pull in markdown-it as a webview dependency without bundling
@@ -263,6 +347,8 @@ export interface OkrDetailRenderState {
   gitStatus?: GitSyncStatus | null;
   /** Per-phase signal data fetched from GitHub API. Populates rich phase cards. */
   phaseSignals?: OkrPhaseSignals;
+  /** D-PR4 sub-PR 4 — fan-out pre-flight pane state (view mode only, post-WHAT). */
+  fanOutPreflight?: FanOutPreflightUiState;
 }
 
 export function renderOkrDetailView(state: OkrDetailRenderState): string {
@@ -294,6 +380,8 @@ export function renderOkrDetailView(state: OkrDetailRenderState): string {
       ${renderActionCard(okr, 'why', state)}
       ${renderActionCard(okr, 'how', state)}
       ${renderActionCard(okr, 'what', state)}
+
+      ${mode === 'view' ? renderFanOutPreflightPane(okr, state.fanOutPreflight) : ''}
 
       ${renderFooter(okr, mode)}
     </div>
@@ -1437,6 +1525,241 @@ function renderStartButton(
   `;
 }
 
+/* ───────────────── D-PR4 sub-PR 4: Fan-out pre-flight pane ───────────────── */
+
+/**
+ * Per-decision status label + tone class for the pre-flight pane.
+ * Tone drives the CSS color (green = ready, yellow = needs action,
+ * red = blocked, blue = in-flight, gray = done).
+ */
+const FANOUT_STATUS_PRESENT: Record<FanOutPreflightStatusUi, { label: string; tone: string; icon: string }> = {
+  'ready':                { label: 'Ready',                 tone: 'ready',   icon: '✓' },
+  'opened':               { label: 'Landing issue opened',  tone: 'flight',  icon: '📬' },
+  'pending-on-upstream':  { label: 'Waiting on upstream',   tone: 'wait',    icon: '⏳' },
+  'pending-scaffold':     { label: 'Awaiting scaffold',     tone: 'wait',    icon: '🏗' },
+  'harness-missing':      { label: 'Harness missing',       tone: 'block',   icon: '⚠' },
+  'permission-blocked':   { label: 'Permission blocked',    tone: 'block',   icon: '🔒' },
+  'repo-not-found':       { label: 'Repo not found',        tone: 'block',   icon: '❓' },
+  'repo-exists-conflict': { label: 'Repo conflict',         tone: 'block',   icon: '⚠' },
+  'pr-opened':            { label: 'Impl PR open',          tone: 'flight',  icon: '🔀' },
+  'pr-merged':            { label: 'Merged',                tone: 'done',    icon: '✓' },
+  'pr-rejected':          { label: 'PR rejected',           tone: 'block',   icon: '✗' },
+};
+
+/**
+ * Setup-error code → friendly inline message. Matches the discriminated
+ * `setupError` strings the extension's onFanOutPreflight handler emits.
+ * Unknown codes fall through to a generic "couldn't load" message with
+ * the raw code attached for debug.
+ */
+function fanOutSetupErrorMessage(code: string): { title: string; body: string } {
+  if (code === 'no-mesh') {
+    return { title: 'Mesh not initialized', body: 'Initialize the governance mesh from Settings before running fan-out pre-flight.' };
+  }
+  if (code === 'no-mesh-repo') {
+    return { title: 'Mesh repo not detected', body: 'Couldn\'t resolve the mesh\'s GitHub repository. Check Settings → Mesh.' };
+  }
+  if (code === 'okr-not-found') {
+    return { title: 'OKR not found', body: 'This OKR isn\'t present in the local mesh. Try pulling.' };
+  }
+  if (code === 'what-not-complete') {
+    return { title: 'WHAT phase not complete', body: 'Pre-flight runs after the code-design artifact merges. Finish the WHAT phase first.' };
+  }
+  if (code === 'no-target-repos') {
+    return { title: 'No target code repos', body: 'Add target repos to this OKR (and set each to Connected or Create) so fan-out has somewhere to land.' };
+  }
+  if (code.startsWith('artifact-missing')) {
+    return { title: 'Code-design artifact missing', body: code };
+  }
+  if (code.startsWith('artifact-fetch-error')) {
+    return { title: 'Couldn\'t fetch artifact', body: code };
+  }
+  if (code.startsWith('engine-crashed')) {
+    return { title: 'Pre-flight engine error', body: code };
+  }
+  return { title: 'Pre-flight failed', body: code };
+}
+
+/**
+ * The 9 named verify reasons from the workflow-side coordination
+ * verifier. Each has a friendly explanation; the raw verdict string is
+ * shown verbatim too so the user can match it to the workflow's audit
+ * comment.
+ */
+function verifyReasonExplanation(verifyReason: string): string {
+  const head = verifyReason.split(':')[0];
+  switch (head) {
+    case 'coordination-section-missing': return 'WHAT artifact is missing the §10 H3 coordination block.';
+    case 'coordination-yaml-malformed':  return 'The coordination YAML didn\'t parse — check the §10 H3 block.';
+    case 'coordination-missing-repo':    return 'A target repo declared on the OKR isn\'t in the coordination block.';
+    case 'coordination-unknown-dep':     return 'A depends_on entry references a repo that isn\'t in the coordination block.';
+    case 'coordination-cycle':           return 'depends_on graph has a cycle — every dependency chain must terminate.';
+    case 'coordination-wave-mismatch':   return 'A row\'s fanout_wave is inconsistent with its depends_on (every dep must be in an earlier wave).';
+    case 'coordination-consumes-not-in-depends': return 'A consumed contract\'s `from:` repo isn\'t listed in depends_on for the consumer.';
+    case 'coordination-wave-nonminimal': return 'A row\'s fanout_wave is higher than the minimum required (must be exactly 1 + max(dep.wave)).';
+    case 'coordination-contract-mismatch': return 'A provider\'s consumed_by[] doesn\'t reciprocate the consumer\'s consumes[] for the same contract.';
+    default: return 'Coordination block failed verification.';
+  }
+}
+
+/**
+ * The pre-flight pane — visible in view mode AFTER the WHAT phase
+ * completes. Three render states:
+ *
+ *   - WHAT not complete yet → pane is hidden entirely (no setup-error
+ *     placeholder — the WHAT action card itself already signals the
+ *     phase isn't done, so a second "waiting on WHAT" panel would be
+ *     redundant).
+ *   - Loading → shows a spinner + "Running pre-flight..." message.
+ *   - SetupError → renders the friendly setup-error message and skips
+ *     the per-row table.
+ *   - Report success → renders the per-row table + skippedRepos chips
+ *     + "Fan out N of M ready" button (DISABLED in sub-PR 4 — execution
+ *     lands in sub-PR 6).
+ *   - Report failure (verify-failed etc.) → renders the verify-reason
+ *     explanation with the raw verdict for cross-reference.
+ */
+function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiState | undefined): string {
+  const whatComplete = okr.actions.some(a => a.phase === 'what' && a.status === 'complete');
+  if (!whatComplete) {
+    return '';
+  }
+
+  const heading = `
+    <h2 class="okr-section-heading">Fan-out Pre-flight</h2>
+    <p class="okr-section-help">After the WHAT phase merges, pre-flight checks each target repo for harness + permissions + repo state, then groups them by dependency wave. The Fan out button below opens landing issues in topological order (execution arrives in a follow-up release).</p>
+  `;
+
+  if (!fanOutState || fanOutState.loading) {
+    return `
+      ${heading}
+      <div class="okr-fanout-pane okr-fanout-loading">
+        <span class="okr-fanout-spinner">⏳</span>
+        <span>Running pre-flight…</span>
+      </div>
+    `;
+  }
+
+  if (fanOutState.setupError) {
+    const msg = fanOutSetupErrorMessage(fanOutState.setupError);
+    return `
+      ${heading}
+      <div class="okr-fanout-pane okr-fanout-setup-error">
+        <div class="okr-fanout-setup-title">${escapeHtml(msg.title)}</div>
+        <div class="okr-fanout-setup-body">${escapeHtml(msg.body)}</div>
+      </div>
+    `;
+  }
+
+  const report = fanOutState.report;
+  if (!report) {
+    return `
+      ${heading}
+      <div class="okr-fanout-pane okr-fanout-setup-error">
+        <div class="okr-fanout-setup-title">Pre-flight returned no data</div>
+        <div class="okr-fanout-setup-body">The extension did not produce a report. Click Refresh to retry.</div>
+      </div>
+    `;
+  }
+
+  if (report.ok === false) {
+    const verifyDetail = report.reason === 'coordination-verify-failed'
+      ? report.verifyReason
+      : report.detail;
+    const explanation = report.reason === 'coordination-verify-failed'
+      ? verifyReasonExplanation(report.verifyReason)
+      : (report.reason === 'coordination-section-missing'
+          ? 'WHAT artifact is missing the §10 H3 coordination block.'
+          : 'The coordination YAML didn\'t parse.');
+    return `
+      ${heading}
+      <div class="okr-fanout-pane okr-fanout-verify-failed">
+        <div class="okr-fanout-setup-title">Coordination block ${escapeHtml(report.reason)}</div>
+        <div class="okr-fanout-setup-body">${escapeHtml(explanation)}</div>
+        <div class="okr-fanout-verify-raw"><code>${escapeHtml(verifyDetail)}</code></div>
+        <div class="okr-fanout-verify-hint">Fix the §10 H3 block in <code>okrs/${escapeHtml(okr.meta.id)}/what/code-design.md</code> and re-run the WHAT phase audit, or revise the WHAT artifact and merge a fix.</div>
+      </div>
+    `;
+  }
+
+  // Happy path: report.ok === true
+  const entriesHtml = report.entries.length === 0
+    ? `<div class="okr-fanout-empty">No target repos to evaluate.</div>`
+    : report.entries.map(entry => renderFanOutEntryRow(entry)).join('\n');
+
+  const skipped = fanOutState.skippedRepos ?? [];
+  const skippedHtml = skipped.length === 0 ? '' : `
+    <div class="okr-fanout-skipped">
+      <div class="okr-fanout-skipped-title">⚠ ${skipped.length} target repo${skipped.length === 1 ? '' : 's'} skipped</div>
+      <ul class="okr-fanout-skipped-list">
+        ${skipped.map(s => `<li><code>${escapeHtml(s.slug)}</code> <span class="okr-fanout-skipped-status">(${escapeHtml(s.status)})</span></li>`).join('')}
+      </ul>
+      <div class="okr-fanout-skipped-hint">Set status to <strong>Connected</strong> (brownfield) or <strong>Create</strong> (greenfield) in the Target Code Repos section above so pre-flight can include these.</div>
+    </div>
+  `;
+
+  const totalCount = report.entries.length;
+  const readyCount = report.readyRepos.length;
+  const buttonEnabled = false; // sub-PR 4: execution lands in sub-PR 6
+  const buttonLabel = readyCount === 0
+    ? 'Fan out — no rows ready'
+    : `🚀 Fan out ${readyCount} of ${totalCount} ready`;
+  const buttonTitle = buttonEnabled
+    ? `Open landing issues for the ${readyCount} ready row${readyCount === 1 ? '' : 's'}.`
+    : 'Fan-out execution arrives in a follow-up release. Pre-flight verdict shown above is final.';
+  const buttonClass = buttonEnabled ? 'okr-button-primary' : 'okr-button-primary okr-button-disabled';
+
+  const wavesHtml = report.waves.length > 1 ? `
+    <div class="okr-fanout-waves">
+      <strong>Topological order:</strong>
+      ${report.waves.map((wave, idx) => `<span class="okr-fanout-wave">Wave ${idx + 1}: ${wave.map(s => `<code>${escapeHtml(s)}</code>`).join(', ')}</span>`).join(' → ')}
+    </div>
+  ` : '';
+
+  return `
+    ${heading}
+    <div class="okr-fanout-pane okr-fanout-ok">
+      <div class="okr-fanout-entries">
+        ${entriesHtml}
+      </div>
+      ${wavesHtml}
+      ${skippedHtml}
+      <div class="okr-fanout-actions">
+        <button class="${buttonClass}" ${buttonEnabled ? '' : 'disabled'} title="${escapeAttr(buttonTitle)}" data-action="fanout-execute" data-okr-id="${escapeAttr(okr.meta.id)}">
+          ${escapeHtml(buttonLabel)}
+        </button>
+        <button class="okr-button-secondary" data-action="fanout-refresh" data-okr-id="${escapeAttr(okr.meta.id)}" title="Re-run pre-flight (re-fetches code-design.md + re-probes every target repo).">
+          🔄 Re-check
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderFanOutEntryRow(entry: FanOutRepoEntryUi): string {
+  const presentation = FANOUT_STATUS_PRESENT[entry.decision.status];
+  const reason = entry.decision.reason
+    ? `<div class="okr-fanout-entry-reason">${escapeHtml(entry.decision.reason)}</div>`
+    : '';
+  const coordHint = entry.coordinationRow
+    ? `<span class="okr-fanout-entry-meta">wave ${entry.coordinationRow.fanout_wave} · ${escapeHtml(entry.coordinationRow.coordination_role)}${entry.coordinationRow.depends_on.length > 0 ? ` · depends on ${entry.coordinationRow.depends_on.map(d => `<code>${escapeHtml(d)}</code>`).join(', ')}` : ''}</span>`
+    : '';
+  const greenfieldChip = entry.status === 'create'
+    ? `<span class="okr-fanout-chip okr-fanout-chip-greenfield">greenfield</span>`
+    : `<span class="okr-fanout-chip okr-fanout-chip-brownfield">brownfield</span>`;
+  return `
+    <div class="okr-fanout-entry okr-fanout-tone-${presentation.tone}">
+      <div class="okr-fanout-entry-head">
+        <span class="okr-fanout-entry-slug"><code>${escapeHtml(entry.slug)}</code></span>
+        ${greenfieldChip}
+        <span class="okr-fanout-entry-status">${presentation.icon} ${escapeHtml(presentation.label)}</span>
+      </div>
+      ${coordHint}
+      ${reason}
+    </div>
+  `;
+}
+
 function renderFooter(okr: OkrCard, mode: OkrDetailMode): string {
   if (mode === 'view') {
     // Phase E E4 (2026-05-25) — closes the long-standing UX bug where
@@ -1582,6 +1905,45 @@ export function getOkrDetailStyles(): string {
     .okr-button-locked-icon { font-size: 0.75rem; opacity: 0.7; margin-left: 0.25rem; }
     .okr-button-tooltip-hint { font-size: 0.7rem; color: var(--vscode-descriptionForeground); font-style: italic; }
     .okr-detail-footer { display: flex; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--vscode-panel-border); flex-wrap: wrap; }
+    /* ──────── D-PR4 sub-PR 4: Fan-out pre-flight pane ──────── */
+    .okr-fanout-pane { padding: 1rem 1.25rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.5rem; margin-bottom: 0.75rem; background: var(--vscode-editor-background); }
+    .okr-fanout-loading { display: flex; align-items: center; gap: 0.5rem; color: var(--vscode-descriptionForeground); font-size: 0.875rem; }
+    .okr-fanout-spinner { display: inline-block; animation: okr-fanout-spin 1.5s linear infinite; }
+    @keyframes okr-fanout-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .okr-fanout-setup-error { border-color: rgba(252, 211, 77, 0.4); background: rgba(252, 211, 77, 0.04); }
+    .okr-fanout-setup-title { font-weight: 700; color: var(--vscode-foreground); font-size: 0.9rem; margin-bottom: 0.25rem; }
+    .okr-fanout-setup-body { color: var(--vscode-descriptionForeground); font-size: 0.8125rem; line-height: 1.5; }
+    .okr-fanout-verify-failed { border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.05); }
+    .okr-fanout-verify-raw { margin-top: 0.5rem; font-family: var(--vscode-editor-font-family, monospace); font-size: 0.75rem; padding: 0.375rem 0.5rem; background: rgba(148, 163, 184, 0.08); border-radius: 0.25rem; }
+    .okr-fanout-verify-hint { margin-top: 0.5rem; font-size: 0.75rem; color: var(--vscode-descriptionForeground); }
+    .okr-fanout-verify-hint code { font-family: var(--vscode-editor-font-family, monospace); font-size: 0.75rem; }
+    .okr-fanout-entries { display: flex; flex-direction: column; gap: 0.5rem; }
+    .okr-fanout-entry { padding: 0.5rem 0.75rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; background: rgba(148, 163, 184, 0.04); border-left-width: 3px; }
+    .okr-fanout-tone-ready  { border-left-color: #4ade80; }
+    .okr-fanout-tone-flight { border-left-color: #38bdf8; }
+    .okr-fanout-tone-wait   { border-left-color: #fcd34d; }
+    .okr-fanout-tone-block  { border-left-color: #f87171; }
+    .okr-fanout-tone-done   { border-left-color: #94a3b8; opacity: 0.85; }
+    .okr-fanout-entry-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .okr-fanout-entry-slug code { font-family: var(--vscode-editor-font-family, monospace); font-size: 0.875rem; font-weight: 600; color: var(--vscode-foreground); }
+    .okr-fanout-entry-status { font-size: 0.8125rem; margin-left: auto; font-weight: 500; }
+    .okr-fanout-entry-meta { font-size: 0.75rem; color: var(--vscode-descriptionForeground); margin-top: 0.25rem; display: block; }
+    .okr-fanout-entry-meta code { font-family: var(--vscode-editor-font-family, monospace); font-size: 0.7rem; padding: 0.0625rem 0.25rem; background: rgba(148, 163, 184, 0.1); border-radius: 0.1875rem; }
+    .okr-fanout-entry-reason { font-size: 0.75rem; color: var(--vscode-descriptionForeground); margin-top: 0.25rem; line-height: 1.4; }
+    .okr-fanout-chip { font-size: 0.65rem; padding: 0.0625rem 0.375rem; border-radius: 0.25rem; letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; }
+    .okr-fanout-chip-brownfield { background: rgba(74, 222, 128, 0.12); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
+    .okr-fanout-chip-greenfield { background: rgba(168, 85, 247, 0.14); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .okr-fanout-waves { margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px dashed rgba(148, 163, 184, 0.25); font-size: 0.75rem; color: var(--vscode-descriptionForeground); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .okr-fanout-waves code { font-family: var(--vscode-editor-font-family, monospace); font-size: 0.7rem; padding: 0.0625rem 0.25rem; background: rgba(148, 163, 184, 0.1); border-radius: 0.1875rem; }
+    .okr-fanout-wave { padding: 0.125rem 0.375rem; background: rgba(148, 163, 184, 0.08); border-radius: 0.25rem; }
+    .okr-fanout-skipped { margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(252, 211, 77, 0.06); border: 1px solid rgba(252, 211, 77, 0.25); border-radius: 0.375rem; }
+    .okr-fanout-skipped-title { font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem; color: var(--vscode-foreground); }
+    .okr-fanout-skipped-list { margin: 0.25rem 0 0.5rem; padding-left: 1.25rem; font-size: 0.75rem; }
+    .okr-fanout-skipped-list code { font-family: var(--vscode-editor-font-family, monospace); }
+    .okr-fanout-skipped-status { color: var(--vscode-descriptionForeground); font-size: 0.7rem; }
+    .okr-fanout-skipped-hint { font-size: 0.75rem; color: var(--vscode-descriptionForeground); }
+    .okr-fanout-empty { font-size: 0.875rem; color: var(--vscode-descriptionForeground); padding: 0.5rem 0; }
+    .okr-fanout-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .okr-link-button { background: transparent; color: var(--vscode-textLink-foreground); border: none; cursor: pointer; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
     .okr-link-button:hover { text-decoration: underline; }
     .okr-form-grid { display: grid; grid-template-columns: 8rem 1fr; gap: 0.5rem 0.75rem; margin-bottom: 1rem; align-items: center; }
