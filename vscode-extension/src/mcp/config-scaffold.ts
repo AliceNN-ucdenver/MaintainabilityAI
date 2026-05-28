@@ -776,6 +776,36 @@ exec node "\${SCRIPT_DIR}/validate-tool.js"
 `;
 }
 
+/**
+ * D-PR7 — read the canonical implementation-agent template from
+ * `code-templates/agents/implementation-agent.agent.md`. Returns null
+ * if the file is missing (a packaging bug — tests catch this; the
+ * scaffold treats missing template as "skip" rather than crash so
+ * pre-Tier-2 builds don't break).
+ *
+ * Path resolution walks up from this module's directory until it
+ * finds `code-templates/`. This works for both:
+ *   - dev: src/mcp/config-scaffold.ts -> ../../code-templates/
+ *   - production esbuild bundle: dist/extension.js -> ../code-templates/
+ *   - vsix install: <ext root>/dist/extension.js -> ../code-templates/
+ */
+function readImplementationAgentTemplate(): string | null {
+  const candidatePaths = [
+    // src/mcp/config-scaffold.ts → up three to vscode-extension/
+    path.join(__dirname, '..', '..', 'code-templates', 'agents', 'implementation-agent.agent.md'),
+    // dist/extension.js → up one
+    path.join(__dirname, '..', 'code-templates', 'agents', 'implementation-agent.agent.md'),
+    // dist/ deep nesting (defensive)
+    path.join(__dirname, '..', '..', '..', 'code-templates', 'agents', 'implementation-agent.agent.md'),
+  ];
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
 export function writeScaffoldFiles(outputDir: string, files: Record<string, string>): number {
   let written = 0;
   for (const [filePath, content] of Object.entries(files)) {
@@ -1721,6 +1751,36 @@ export function scaffoldAgentConfig(
   files['.redqueen/hooks/validate-tool.sh'] = generateValidateToolSh();
   files['.redqueen/policy.json'] = generatePolicyJson(reader, bar, tier);
   files['.github/hooks/redqueen.json'] = generateCopilotHooksJson(tier);
+
+  // D-PR7 — implementation-agent template. The Looking Glass fan-out
+  // engine probes for this file when deciding pre-flight per repo:
+  //   - present  → row can flow to `ready`
+  //   - missing  → row goes to `harness-missing`; user routes through
+  //                Cheshire retrofit (THIS scaffold path) to install
+  // The template body lives in code-templates/agents/ so the same
+  // file Looking Glass installs is the file the fan-out engine's
+  // probe expects. NEVER inline the body in code-scaffold.ts -- a
+  // future template tweak would silently diverge across the two
+  // install paths (mesh redeploy vs Cheshire scaffold).
+  const implAgentTemplate = readImplementationAgentTemplate();
+  if (implAgentTemplate) {
+    files['.github/agents/implementation-agent.agent.md'] = implAgentTemplate;
+  }
+
+  // D-PR7 — `.maintainability/audit/` is agent-emission territory
+  // (event log + per-epoch public keys). Cheshire seeds an empty
+  // directory tree + a .gitignore exception so the agent's commits
+  // aren't rejected by language-default rules (Python, Node, etc.
+  // commonly ignore dotfiles + state dirs).
+  files['.maintainability/audit/events/.gitkeep'] = '';
+  files['.maintainability/audit/keys/.gitkeep'] = '';
+  files['.maintainability/.gitignore'] = [
+    '# D-PR7 — implementation-agent emission territory.',
+    '# Keep events + keys committed; ignore transient runtime files.',
+    '*.tmp',
+    '*.lock',
+    '',
+  ].join('\n');
 
   // Read mesh portfolio config for the org/repo reference
   const portfolio = reader.readPortfolioConfig();
