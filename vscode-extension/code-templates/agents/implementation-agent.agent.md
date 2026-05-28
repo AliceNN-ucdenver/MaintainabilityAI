@@ -63,7 +63,7 @@ Every run MUST produce successful `skill_call` events for these skills. The opti
 | Skill | Minimum successful calls | Notes |
 |---|---|---|
 | `knowledge-code` OR `knowledge-code-read` | ≥1 | Per-repo grounding. Brownfield uses both; greenfield runs after scaffold has populated the tree. |
-| `self-review-impl-architect` | ≥1 per round | Tier echo + persona-switch entry into the Architect critique. Pass `tier` from the landing issue's Hatter Tag (REQUIRED — see Codex-r4 Bug 2). |
+| `self-review-impl-architect` | ≥1 per round | Tier echo + persona-switch entry into the Architect critique. Pass `tier` from the landing issue's `<!-- governance_tier: ... -->` HTML comment (REQUIRED — see Codex-r4 Bug 2 + Codex-r5 Bug 1). |
 | `self-review-impl-security` | ≥1 per round | Same shape, Security persona. |
 | `audit-emit-event` | ≥1 per round per persona | `self_review` event with `{ persona, round, score, severity, summary }`. Must pair `phase: 'implementation'` with your `IMPL-*` `runId` — the runner enforces this pairing (Codex-r4 Bug 3). |
 
