@@ -18,9 +18,9 @@
  *     `- **S40**: [title](url) explainer text`
  *     and References-section form
  *     `- **S40** — [title](url)` / `S40. [title](url)`
- *   - per-run audit JSONL → collect results_preview[] from skill_call
- *     events whose payload.skill ∈ search providers, plus the
- *     dedupe-and-rank output
+ *   - per-run audit JSONL → prefer the dedupe-and-rank source registry
+ *     declared by source_registry_path/source_registry_sha256; fall back
+ *     to results_preview[] from search skill_call events for legacy runs
  *
  * For each (S_num, title, url) in the doc, the verifier looks for a
  * matching preview entry. Match rule (URL is the primary identity;
@@ -37,7 +37,8 @@
  *   - mismatches > 0 → URL was matched in chain but title disagrees
  *     (the S40/S44 pattern — evidence laundering by title swap)
  *   - unmatched > 0 → S[N] cited a URL that is not present in any
- *     audited provider result (the S47/S48 pattern — fabrication)
+ *     audited provider result / source registry row (the S47/S48 pattern
+ *     — fabrication)
  *
  * Run with env: OKR_ID, RUN_ID. Writes a JSON summary to stdout for
  * the workflow to parse + label. Exit 0 always; the workflow decides
@@ -47,6 +48,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const SEARCH_SKILLS = new Set([
   'tavily-search',
@@ -99,7 +101,15 @@ export function normalizeTitle(raw) {
   if (!raw || typeof raw !== 'string') { return ''; }
   return raw
     .trim()
-    .replace(/^[“"']+|[”"']+$/g, '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*34;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#0*39;/gi, "'")
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/[\u2018\u2019\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201F\u2033]/g, '"')
+    .replace(/^[“”"']+|[“”"']+$/g, '')
     .replace(/…/g, '...')
     .replace(/[\u2010-\u2015]/g, '-')
     .replace(/--+/g, '-')
@@ -175,6 +185,8 @@ export function parseSourceCitations(markdown) {
   const bulletRe = /^\s*[-*]\s+\*\*S(\d+)\*\*\s*[:—–\-]?\s*\[([^\]]+)\]\(([^)]+)\)/;
   // 2. S40. [title](url)
   const numberedRe = /^\s*S(\d+)\.\s*\[([^\]]+)\]\(([^)]+)\)/;
+  // 3. - S40: Title — https://example.com/x — retrieved YYYY-MM-DD
+  const plainRefRe = /^\s*[-*]\s+S(\d+)\s*[:—–\-]\s*(.*)\s+[—–-]\s*(https?:\/\/\S+)(?:\s+[—–-]\s*.*)?$/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -184,6 +196,11 @@ export function parseSourceCitations(markdown) {
       continue;
     }
     m = line.match(numberedRe);
+    if (m) {
+      out.push({ num: Number(m[1]), title: m[2].trim(), url: m[3].trim(), line: i + 1 });
+      continue;
+    }
+    m = line.match(plainRefRe);
     if (m) {
       out.push({ num: Number(m[1]), title: m[2].trim(), url: m[3].trim(), line: i + 1 });
     }
@@ -219,12 +236,113 @@ export function collectPreviewIndex(events) {
   return index;
 }
 
+function sourceRegistryCandidates(events) {
+  const out = [];
+  for (const e of events) {
+    if (e.event_kind !== 'skill_call') { continue; }
+    const p = e.payload || {};
+    if (p.skill !== 'dedupe-and-rank') { continue; }
+    if (typeof p.source_registry_path !== 'string' || !p.source_registry_path) { continue; }
+    out.push({
+      event_id: e.event_id,
+      path: p.source_registry_path,
+      sha256: typeof p.source_registry_sha256 === 'string' ? p.source_registry_sha256 : '',
+      count: Number(p.source_registry_count || 0),
+    });
+  }
+  return out;
+}
+
+function loadSourceRegistry(events, baseDir = process.cwd()) {
+  const candidates = sourceRegistryCandidates(events);
+  if (candidates.length === 0) { return null; }
+  const selected = candidates[candidates.length - 1];
+  const abs = path.resolve(baseDir, selected.path);
+  if (!fs.existsSync(abs)) {
+    return { ok: false, reason: `source-registry-not-found: ${selected.path}`, selected };
+  }
+  const bytes = fs.readFileSync(abs);
+  const actual = createHash('sha256').update(bytes).digest('hex');
+  if (selected.sha256 && actual !== selected.sha256) {
+    return {
+      ok: false,
+      reason: `source-registry-hash-mismatch: ${selected.path}`,
+      selected,
+      expected_sha256: selected.sha256,
+      actual_sha256: actual,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'));
+  } catch (err) {
+    return { ok: false, reason: `source-registry-json-invalid: ${(err && err.message) || err}`, selected };
+  }
+  const sources = Array.isArray(parsed.sources) ? parsed.sources : [];
+  const byId = new Map();
+  const byUrl = new Map();
+  for (const raw of sources) {
+    const id = String(raw.source_id || raw.id || '').replace(/^S-/, 'S');
+    const url = String(raw.url || raw.canonical_url || '');
+    if (!id || !url) { continue; }
+    const row = {
+      id,
+      num: Number(id.replace(/^S/, '')),
+      title: String(raw.title || ''),
+      url,
+      provider: String(raw.provider || 'source-registry'),
+      raw,
+    };
+    byId.set(id, row);
+    const key = normalizeUrl(url);
+    if (!byUrl.has(key)) { byUrl.set(key, []); }
+    byUrl.get(key).push(row);
+  }
+  return { ok: true, selected, parsed, byId, byUrl, count: sources.length };
+}
+
+function findCitationConflicts(citations) {
+  const byNum = new Map();
+  const conflicts = [];
+  for (const c of citations) {
+    if (!byNum.has(c.num)) { byNum.set(c.num, []); }
+    byNum.get(c.num).push(c);
+  }
+  for (const [num, rows] of byNum.entries()) {
+    const urls = new Map();
+    for (const row of rows) {
+      const key = normalizeUrl(row.url);
+      if (!urls.has(key)) { urls.set(key, []); }
+      urls.get(key).push(row);
+    }
+    if (urls.size > 1) {
+      conflicts.push({
+        s: num,
+        reason: 'same S[N] is declared with conflicting URLs',
+        declarations: rows.map(r => ({ line: r.line, title: r.title, url: r.url })),
+      });
+      continue;
+    }
+    const first = rows[0];
+    const disagree = rows.slice(1).filter(row => !titleMatches(first.title, row.title));
+    if (disagree.length > 0) {
+      conflicts.push({
+        s: num,
+        reason: 'same S[N] is declared with conflicting titles',
+        declarations: rows.map(r => ({ line: r.line, title: r.title, url: r.url })),
+      });
+    }
+  }
+  return conflicts;
+}
+
 /**
  * Verify each S[N] citation against the preview index.
  * Returns { ok, totalCited, totalUnique, mismatches: [...], unmatched: [...] }.
  */
-export function verifySourceTable(markdown, events) {
+export function verifySourceTable(markdown, events, opts = {}) {
   const citations = parseSourceCitations(markdown);
+  const conflicts = findCitationConflicts(citations);
   // Dedupe by (num, url) so a source listed once and re-cited inline
   // doesn't fire twice.
   const seen = new Set();
@@ -236,13 +354,40 @@ export function verifySourceTable(markdown, events) {
     unique.push(c);
   }
 
-  const index = collectPreviewIndex(events);
+  const registry = loadSourceRegistry(events, opts.baseDir || process.cwd());
+  const index = registry && registry.ok ? registry.byUrl : collectPreviewIndex(events);
   const mismatches = [];
   const unmatched = [];
+  const registryErrors = registry && !registry.ok ? [registry] : [];
 
   for (const c of unique) {
     const key = normalizeUrl(c.url);
-    const matches = index.get(key);
+    let matches = index.get(key);
+    if (registry && registry.ok) {
+      const expected = registry.byId.get(`S${c.num}`);
+      if (!expected) {
+        unmatched.push({
+          s: c.num,
+          line: c.line,
+          title: c.title,
+          url: c.url,
+          reason: 'cited S[N] not present in source registry',
+        });
+        continue;
+      }
+      matches = [expected];
+      if (normalizeUrl(c.url) !== normalizeUrl(expected.url)) {
+        unmatched.push({
+          s: c.num,
+          line: c.line,
+          title: c.title,
+          url: c.url,
+          registry_url: expected.url,
+          reason: 'cited URL does not match source registry URL for this S[N]',
+        });
+        continue;
+      }
+    }
     if (!matches || matches.length === 0) {
       unmatched.push({
         s: c.num,
@@ -269,9 +414,16 @@ export function verifySourceTable(markdown, events) {
   }
 
   return {
-    ok: mismatches.length === 0 && unmatched.length === 0,
+    ok: mismatches.length === 0 && unmatched.length === 0 && conflicts.length === 0 && registryErrors.length === 0,
     totalCited: citations.length,
     totalUnique: unique.length,
+    sourceRegistry: registry && registry.ok ? {
+      path: registry.selected.path,
+      sha256: registry.selected.sha256,
+      count: registry.count,
+    } : null,
+    conflicts,
+    registryErrors,
     mismatches,
     unmatched,
   };

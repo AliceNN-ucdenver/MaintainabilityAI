@@ -485,7 +485,7 @@ jobs:
       # evidence-laundering patterns observed on WHY-2026-05-24-wzi0yl
       # (S40 title-swap, S47/S48 URL fabrication). Mismatches degrade
       # the audit verdict in the next step.
-      - name: Verify source-table integrity (S[N] title+URL match chain previews)
+      - name: Verify source-table integrity (S[N] title+URL match registry/previews)
         id: source-verify
         if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
         env:
@@ -511,6 +511,8 @@ jobs:
             echo "missing=true"      >> "$GITHUB_OUTPUT"
             echo "mismatches=0"      >> "$GITHUB_OUTPUT"
             echo "unmatched=0"       >> "$GITHUB_OUTPUT"
+            echo "conflicts=0"       >> "$GITHUB_OUTPUT"
+            echo "registry_errors=0" >> "$GITHUB_OUTPUT"
             echo "total=0"           >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -519,13 +521,17 @@ jobs:
           OK=$(echo "$RESULT" | jq -r '.ok')
           MISMATCHES=$(echo "$RESULT" | jq -r '.mismatches | length // 0')
           UNMATCHED=$(echo "$RESULT" | jq -r '.unmatched | length // 0')
+          CONFLICTS=$(echo "$RESULT" | jq -r '.conflicts | length // 0')
+          REGISTRY_ERRORS=$(echo "$RESULT" | jq -r '.registryErrors | length // 0')
           TOTAL=$(echo "$RESULT" | jq -r '.totalUnique // 0')
           echo "ok=$OK"               >> "$GITHUB_OUTPUT"
           echo "mismatches=$MISMATCHES" >> "$GITHUB_OUTPUT"
           echo "unmatched=$UNMATCHED" >> "$GITHUB_OUTPUT"
+          echo "conflicts=$CONFLICTS" >> "$GITHUB_OUTPUT"
+          echo "registry_errors=$REGISTRY_ERRORS" >> "$GITHUB_OUTPUT"
           echo "total=$TOTAL"         >> "$GITHUB_OUTPUT"
           if [ "$OK" != "true" ]; then
-            echo "::warning::source-table verify found $MISMATCHES title-mismatch(es) + $UNMATCHED unmatched citation(s) across $TOTAL S[N] sources"
+            echo "::warning::source-table verify found $MISMATCHES title-mismatch(es) + $UNMATCHED unmatched citation(s) + $CONFLICTS declaration-conflict(s) + $REGISTRY_ERRORS registry error(s) across $TOTAL S[N] sources"
             # Inside jq's `\(...)` string interpolation we're in jq
             # EXPRESSION context, NOT string context — so the join
             # separator MUST be a regular jq string `" | "`, NOT the
@@ -539,6 +545,8 @@ jobs:
             # the OK path. Pre-existing class.
             echo "$RESULT" | jq -r '.mismatches[]? | "::error file=\(.cited_url),line=\(.line)::S\(.s) title \"\(.cited_title)\" does not match chain title(s) for this URL: \(.chain_titles | join(" | "))"'
             echo "$RESULT" | jq -r '.unmatched[]?  | "::error file=\(.url),line=\(.line)::S\(.s) URL not present in any audited provider result — possible fabrication"'
+            echo "$RESULT" | jq -r '.conflicts[]?  | "::error::S\(.s) source declaration conflict: \(.reason); declarations: \(.declarations | map("line " + (.line|tostring) + " -> " + .url) | join(" | "))"'
+            echo "$RESULT" | jq -r '.registryErrors[]? | "::error::source registry error: \(.reason)"'
           else
             echo "::notice::source-table verify ok — $TOTAL S[N] citations all match chain previews"
           fi
@@ -949,13 +957,15 @@ jobs:
           SRC_OK='${{ steps.source-verify.outputs.ok }}'
           SRC_MISMATCH='${{ steps.source-verify.outputs.mismatches }}'
           SRC_UNMATCHED='${{ steps.source-verify.outputs.unmatched }}'
+          SRC_CONFLICTS='${{ steps.source-verify.outputs.conflicts }}'
+          SRC_REGISTRY_ERRORS='${{ steps.source-verify.outputs.registry_errors }}'
           SRC_TOTAL='${{ steps.source-verify.outputs.total }}'
           SRC_MISSING='${{ steps.source-verify.outputs.missing }}'
           if [ "$VERDICT" = "ok" ] && [ "$SRC_MISSING" = "true" ]; then
             VERDICT="degraded"; REASON="source-table verifier script missing from mesh — verify-source-table.mjs not deployed to .github/workflows/scripts/. Redeploy mesh workflows from Looking Glass and re-trigger this audit. WHY-phase evidence-laundering check cannot be skipped."
             EVIDENCE_FAIL="true"
           elif [ "$VERDICT" = "ok" ] && [ "$SRC_OK" != "true" ]; then
-            VERDICT="degraded"; REASON="source-table mismatch: ${SRC_MISMATCH:-0} S[N] title(s) disagree with chain previews + ${SRC_UNMATCHED:-0} URL(s) not present in any audited provider result (across ${SRC_TOTAL:-0} cited sources). See ::error lines from the source-verify step for per-S detail. This is the evidence-laundering check the WHY phase exists to enforce."
+            VERDICT="degraded"; REASON="source-table mismatch: ${SRC_MISMATCH:-0} S[N] title(s) disagree with audited source data + ${SRC_UNMATCHED:-0} URL/S[N] value(s) not present in the audited registry/previews + ${SRC_CONFLICTS:-0} conflicting S[N] declaration(s) + ${SRC_REGISTRY_ERRORS:-0} source-registry error(s) (across ${SRC_TOTAL:-0} cited sources). See ::error lines from the source-verify step for per-S detail. This is the evidence-laundering check the WHY phase exists to enforce."
             EVIDENCE_FAIL="true"
           fi
 
