@@ -1228,6 +1228,58 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       message: `Fanning out ${readySet.size} ready repo${readySet.size === 1 ? '' : 's'}…`,
     });
 
+    // Codex-r1 Bug B+E — source the 5 parent-chain fields that the
+    // implementation-agent template's storage contract requires. The
+    // impl agent REFUSES to open a PR if any are missing from the
+    // landing-issue body. Source them here so the values are locked in
+    // at landing-issue creation time, not at PR-open time (when the
+    // agent runs in a target repo with no mesh access).
+    //
+    //   - parent_run_id          → whatAction.runId (the WHAT phase's run id)
+    //   - parent_intent_thread   → okr.meta.intentThreadUuid
+    //   - parent_chain_root      → chain-ladder.yaml WHAT row's chain_root_hash
+    //                              (NOT the runner chain head — those values
+    //                              differ; the storage contract names the
+    //                              first-event chain root, not the last-event
+    //                              chain head)
+    //   - mesh_repo              → meshRepo.owner/meshRepo.repo
+    //   - parent_phase           → literal 'what'
+    const parentRunId = whatAction.runId;
+    const meshRepoSlug = `${meshRepo.owner}/${meshRepo.repo}`;
+    const intentThreadValue = (okr.meta as { intentThreadUuid?: string } | undefined)?.intentThreadUuid;
+    const parentIntentThread = typeof intentThreadValue === 'string' ? intentThreadValue : '';
+    // Read chain-ladder.yaml from canonical (GitHub default branch) +
+    // parse the WHAT row's full chain_root_hash. Falls back to local
+    // if canonical fetch fails. Empty string when not available --
+    // composer renders the field empty AND the impl agent will refuse.
+    let parentChainRoot = '';
+    try {
+      const ladderText = await this.githubService.getRepoFileText(meshRepo.owner, meshRepo.repo, `okrs/${okrId}/audit/chain-ladder.yaml`);
+      if (ladderText) {
+        const parsedLadder = (YAML.parse(ladderText) as { chain?: Array<Record<string, unknown>> })?.chain ?? [];
+        const whatRow = parsedLadder.find(r => String(r['phase'] ?? '').toLowerCase() === 'what' && String(r['run_id'] ?? r['runId'] ?? '') === parentRunId)
+          ?? parsedLadder.find(r => String(r['phase'] ?? '').toLowerCase() === 'what');
+        if (whatRow) {
+          const rootValue = whatRow['chain_root_hash'] ?? whatRow['chainRootHash'];
+          if (typeof rootValue === 'string') parentChainRoot = rootValue;
+        }
+      }
+    } catch {
+      // Best-effort -- empty parentChainRoot will cause the agent to
+      // refuse, which is the correct fail-closed behavior.
+    }
+    if (!parentChainRoot || !parentIntentThread) {
+      this.postMessage({
+        type: 'loading',
+        active: false,
+      });
+      this.postMessage({
+        type: 'error',
+        message: `Cannot fan out: missing parent chain continuation values (parent_chain_root=${parentChainRoot ? 'ok' : 'MISSING'}, parent_intent_thread=${parentIntentThread ? 'ok' : 'MISSING'}). The implementation-agent template requires both. Re-run WHAT and ensure chain-ladder.yaml + okr.yaml meta are populated before fan-out.`,
+      });
+      return;
+    }
+
     const nowIso = new Date().toISOString();
     const dispatched: string[] = [];
     const failed: Array<{ slug: string; error: string }> = [];
@@ -1265,7 +1317,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           coordinationRow: entry.coordinationRow,
           siblingSlugs: report.entries.filter(e => e.slug !== entry.slug).map(e => e.slug),
           codeDesignArtifactPath: `okrs/${okrId}/what/code-design.md`,
-          meshRepoSlug: `${meshRepo.owner}/${meshRepo.repo}`,
+          meshRepoSlug,
+          parentRunId,
+          parentIntentThread,
+          parentChainRoot,
         });
 
         const issue = await this.githubService.createIssueRaw(
@@ -1286,7 +1341,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             issue.number,
             'implementation-agent',
             {
-              customInstructions: `Read the landing issue body for OKR ${okrId} context, your per-repo extract under §5, and sibling-repo coordination. Open a PR with a Hatter Tag continuation block.`,
+              customInstructions: `Read the landing issue body for OKR ${okrId} context, your per-repo extract under \`## 1. Project Structure\` of code-design.md, and sibling-repo coordination. Open a PR with the implementation_chain Hatter Tag continuation block.`,
             },
           );
         } catch (dispatchErr) {
@@ -1404,24 +1459,45 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    * Implementation chain section entirely.
    *
    * Expected ground truths sourced from:
-   *   - expectedIntentThread: okr.yaml meta.intentThreadUuid
-   *   - expectedWhatChainRoot: WHAT phase's chainHead from phaseDigests
-   *     (single source of truth — same value the WHAT-phase trust
-   *     block renders + the workflow audit comment carries)
+   *   - expectedIntentThread:  okr.yaml meta.intentThreadUuid
+   *   - expectedWhatChainRoot: WHAT phase's chain_root_hash from
+   *     chain-ladder.yaml (NOT phaseDigests[].chainHead -- that's the
+   *     runner's last-event chain head; the Hatter Tag continuation
+   *     contract names the FIRST-event chain root which is what
+   *     chain-ladder records and what impl-agent templates emit).
+   *     Codex-r1 Bug E.
    */
   private async assembleImplementationChainInput(
     meshPath: string,
     okrId: string,
     phaseDigests: PhaseRollupDigest[],
     okrParsed: { meta?: Record<string, unknown> | undefined },
+    chainLadderText: string | null,
   ): Promise<OkrRollupInput['implementationChain']> {
     const fanOut = this.meshService.readDesignFanOut(meshPath, okrId);
     if (!fanOut || fanOut.rows.length === 0) return undefined;
 
     const intentThreadValue = okrParsed.meta?.['intentThreadUuid'];
     const expectedIntentThread = typeof intentThreadValue === 'string' ? intentThreadValue : null;
-    const whatDigest = phaseDigests.find(p => p.phase === 'what');
-    const expectedWhatChainRoot = whatDigest?.chainHead ?? null;
+    // Read WHAT row's chain_root_hash from chain-ladder.yaml (full
+    // hash, not truncated). summarizeChainLadder is the renderer's
+    // truncating-shortHash variant -- not suitable for verification.
+    let expectedWhatChainRoot: string | null = null;
+    if (chainLadderText) {
+      try {
+        const ladderParsed = (YAML.parse(chainLadderText) as { chain?: Array<Record<string, unknown>> })?.chain ?? [];
+        const whatRow = ladderParsed.find(r => String(r['phase'] ?? '').toLowerCase() === 'what');
+        if (whatRow) {
+          const rootValue = whatRow['chain_root_hash'] ?? whatRow['chainRootHash'];
+          if (typeof rootValue === 'string' && rootValue.length > 0) {
+            expectedWhatChainRoot = rootValue;
+          }
+        }
+      } catch {
+        // Best-effort -- null leaves cross-axis verification as skip-axis
+        // (per verifyImplementationChainEntry contract).
+      }
+    }
 
     const rows: ImplementationChainRow[] = [];
     for (const r of fanOut.rows) {
@@ -1528,6 +1604,49 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           updatedAt: nowIso,
         };
         anyChanged = true;
+
+        // Codex-r1 Bug F — on pr-merged transition, append a row to
+        // chain-ladder.yaml so the rollup exporter has the impl-side
+        // ground truth (implementation_run_id + chain_root_hash +
+        // parent_intent_thread + parent_chain_root + paths). Best
+        // effort: fetch the impl PR body, parse the
+        // implementation_chain YAML frontmatter block, write the row.
+        // Failures here don't block the poll's design-fan-out update --
+        // they just leave the chain-ladder impl row missing for the
+        // next poll to populate.
+        // row.status was already filtered to opened/pr-opened by the
+        // candidates loop above, so newStatus === 'pr-merged' here is
+        // by definition a transition into merged.
+        if (newStatus === 'pr-merged') {
+          try {
+            const client = await this.githubService.getClient();
+            const pr = await client.rest.pulls.get({ owner, repo, pull_number: parseInt(issueNum, 10) });
+            const implChain = parseImplementationChainBlock(pr.data.body ?? null);
+            if (implChain && implChain.implementation_run_id && implChain.parent_chain_root) {
+              // chain_root_hash on the impl row = the impl-side chain's
+              // first-event hash. Per D-PR7 storage contract this lives
+              // in the .maintainability/audit/events/<run-id>.jsonl file
+              // INSIDE the target repo at the merge commit. We don't
+              // fetch + verify that here (T3-2 runner extension does);
+              // we record the value the impl agent claimed via the
+              // PR body's continuation block. The chain-ladder row
+              // documents the claim; verification is a separate axis.
+              this.meshService.appendChainLadderImplRow(meshPath, okrId, {
+                repo: row.repo,
+                pr_url: observed.url,
+                implementation_run_id: implChain.implementation_run_id,
+                chain_root_hash: implChain.parent_chain_root, // claim per PR body; T3-2 verifies
+                parent_intent_thread: implChain.parent_intent_thread,
+                parent_chain_root: implChain.parent_chain_root,
+                event_log_path: implChain.event_log_path,
+                key_path: implChain.key_path,
+                merged_at: pr.data.merged_at ?? nowIso,
+              });
+            }
+          } catch (err) {
+            logger.warn(`pollFanOutPRs(${okrId}): chain-ladder impl-row append failed for ${row.repo}: ${toErrorMessage(err)}`);
+          }
+        }
       } catch {
         // Best-effort: skip the row on API failure, next poll will retry.
         continue;
@@ -1560,7 +1679,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated)\n\nStage 5 auto-poll detected impl PR state changes.`;
     if (gitRoot) {
       try {
-        await execFileAsync('git', ['add', path.join('okrs', okrId, 'what', 'design-fan-out.yaml')], { cwd: gitRoot });
+        // Stage both files -- design-fan-out.yaml always, chain-ladder.yaml
+        // when the Bug F impl-row append landed during this poll.
+        await execFileAsync('git', ['add',
+          path.join('okrs', okrId, 'what', 'design-fan-out.yaml'),
+          path.join('okrs', okrId, 'audit', 'chain-ladder.yaml'),
+        ], { cwd: gitRoot });
         const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
         if (staged.trim()) {
           await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
@@ -4246,7 +4370,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // verdict (cross-repo-thread-broken / cross-repo-chain-root-
     // mismatch / implementation-chain-evidence-missing FAILs;
     // implementation-pr-rejected PARTIAL).
-    const implChainInput = await this.assembleImplementationChainInput(meshPath, okrId, phaseDigests, okrParsed);
+    const implChainInput = await this.assembleImplementationChainInput(meshPath, okrId, phaseDigests, okrParsed, chainLadderText);
 
     const rollupInput: OkrRollupInput = {
       okrId,
@@ -8554,17 +8678,49 @@ function composeFanOutLandingIssueBody(args: {
   siblingSlugs: string[];
   codeDesignArtifactPath: string;
   meshRepoSlug: string;
+  // Codex-r1 Bug B — parent chain continuation fields. The impl agent's
+  // template REFUSES to open a PR if any of these are missing from the
+  // landing issue (the implementation_chain Hatter block in the impl
+  // PR body MUST carry them all per D-PR7 storage contract). Sourcing
+  // them at landing-issue creation time + threading them through the
+  // body via HTML comments is the only place where the mesh-side
+  // ground truth can be locked in.
+  parentRunId: string;
+  parentIntentThread: string;
+  parentChainRoot: string;
 }): string {
   const lines: string[] = [];
+  // HTML-comment metadata block — the impl agent parses these for the
+  // Hatter Tag continuation block in its PR body (per the
+  // implementation-agent.agent.md template). All 5 fields are
+  // required: missing any → agent refuses + comments on the issue.
   lines.push(`<!-- okr_id: ${args.okrId} -->`);
   lines.push(`<!-- fanout_target: ${args.repoSlug} -->`);
+  lines.push(`<!-- mesh_repo: ${args.meshRepoSlug} -->`);
+  lines.push(`<!-- parent_phase: what -->`);
+  lines.push(`<!-- parent_run_id: ${args.parentRunId} -->`);
+  lines.push(`<!-- parent_intent_thread: ${args.parentIntentThread} -->`);
+  lines.push(`<!-- parent_chain_root: ${args.parentChainRoot} -->`);
   lines.push('');
   lines.push(`## OKR context`);
   lines.push('');
   lines.push(`- **OKR:** \`${args.okrId}\``);
   lines.push(`- **Objective:** ${args.okrObjective}`);
-  lines.push(`- **Source artifact:** [\`${args.codeDesignArtifactPath}\`](https://github.com/${args.meshRepoSlug}/blob/main/${args.codeDesignArtifactPath})`);
+  lines.push(`- **Source artifact:** [\`${args.codeDesignArtifactPath}\`](https://github.com/${args.meshRepoSlug}/blob/main/${args.codeDesignArtifactPath}) (your per-repo extract lives under \`## 1. Project Structure\`)`);
   lines.push(`- **Target repo mode:** ${args.repoStatus === 'create' ? 'greenfield (scaffolded via Cheshire)' : 'brownfield (existing repo)'}`);
+  lines.push('');
+  // Parent chain continuation summary — surfaces the values the impl
+  // agent must echo into its PR body's implementation_chain YAML
+  // frontmatter block (per D-PR7 storage contract). Reviewer reads
+  // these to cross-check the impl PR's Hatter Tag without leaving the
+  // landing issue.
+  lines.push(`## Parent chain continuation (for your PR's implementation_chain block)`);
+  lines.push('');
+  lines.push(`- \`parent_phase\`: \`what\``);
+  lines.push(`- \`parent_run_id\`: \`${args.parentRunId}\``);
+  lines.push(`- \`mesh_repo\`: \`${args.meshRepoSlug}\``);
+  lines.push(`- \`parent_intent_thread\`: \`${args.parentIntentThread}\``);
+  lines.push(`- \`parent_chain_root\`: \`${args.parentChainRoot}\``);
   lines.push('');
 
   if (args.coordinationRow) {

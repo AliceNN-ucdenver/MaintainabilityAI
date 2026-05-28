@@ -558,10 +558,12 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   // to DEPRECATED_MESH_FILES below so pruneDeprecatedWorkflows sweeps
   // them from any mesh repo on next Redeploy).
   //
-  // design-bus.yml (D-PR4) — per-repo fan-out from the merged WHAT
-  // PR to each target code repo (brownfield: open landing issue;
-  // greenfield: create repo + seed commit + open landing issue) —
-  // is queued for D-PR4 and not yet in this list.
+  // design-bus.yml (formerly queued as D-PR4 workflow) was superseded
+  // — D-PR4 shipped as an app-side fan-out engine in Looking Glass
+  // (per `vscode-extension/design/next-acts-tier-2-and-3.md`). The
+  // deprecated entry below in DEPRECATED_MESH_FILES stays so
+  // pruneDeprecatedWorkflows sweeps any prior-installed copies from
+  // mesh repos on next Redeploy. (Codex-r1 Bug I — comment cleanup.)
 ];
 
 /**

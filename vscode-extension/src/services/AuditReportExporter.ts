@@ -1532,6 +1532,20 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
         };
       }
     }
+    // Codex-r1 Bug D — any non-merged impl row (opened, pr-opened,
+    // pending-on-upstream) means the OKR has not closed out the
+    // implementation work yet. Without this, an OKR with 3 fanned-out
+    // landing issues + 0 merged PRs would PASS the rollup, which is
+    // not a closeout. PARTIAL is honest: the work isn't done.
+    const inFlight = input.implementationChain.rows.find(r =>
+      r.status === 'opened' || r.status === 'pr-opened' || r.status === 'pending-on-upstream'
+    );
+    if (inFlight) {
+      return {
+        verdict: 'PARTIAL',
+        reason: `implementation-pr-in-flight:${inFlight.repoSlug} — impl row at status \`${inFlight.status}\`; wait for merge before closeout`,
+      };
+    }
   }
   // All 3 phases present and no FAIL — but each phase's runner must have
   // actually run and passed for PASS. Anything else (runner not invoked

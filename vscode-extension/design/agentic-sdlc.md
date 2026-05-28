@@ -218,10 +218,16 @@ Looking Glass — Portfolio
    ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 3b — WHAT (Hand-off): per-repo issue fan-out (no LLM)     │
-│  design-bus.yml workflow opens one issue per target_code_repos[] │
-│  in that repo, carrying OKR context + the relevant slice of the  │
-│  merged code-design.md. From here, coding agents in each target  │
-│  repo take over — governed by The Red Queen on the code side.    │
+│  Looking Glass fan-out engine (D-PR4 / Tier 2) opens one landing │
+│  issue per target_code_repos[] entry in topological order +      │
+│  dispatches the per-repo implementation-agent via               │
+│  assignCustomCopilotAgent. Each landing issue carries OKR        │
+│  context + parent_* continuation fields + the per-repo extract   │
+│  pointer (§1 of code-design.md). From here, coding agents in     │
+│  each target repo take over — governed by The Red Queen on the   │
+│  code side. (Replaces the original `design-bus.yml` workflow     │
+│  spec; see vscode-extension/design/next-acts-tier-2-and-3.md     │
+│  D-PR4 for canonical Tier 2 shape.)                              │
 │  (Out of scope for THIS design; the Hatter's Tea Party ends      │
 │  when the issues are written.)                                   │
 └─────────────────────────────────────────────────────────────────┘

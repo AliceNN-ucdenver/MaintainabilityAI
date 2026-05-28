@@ -128,8 +128,28 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toMatch(/max_auto_rounds=3/);
   });
 
+  it('only declares runtime-allowlisted event kinds (Codex-r1 Bug A)', () => {
+    // Allowed kinds per audit-emit-event/SKILL.md (Bug V/Y contract):
+    expect(body).toContain('event_kind: self_review');
+    expect(body).toContain('event_kind: self_review_exhausted');
+    // Forbidden -- runner allowlist would reject these:
+    expect(body).not.toMatch(/event_kind:\s*self_review_start\b/);
+    expect(body).not.toMatch(/event_kind:\s*self_review_complete\b/);
+    // Explicit warning in the prompt so future contributors don't reintroduce.
+    expect(body).toMatch(/Allowlist constraint/);
+    expect(body).toMatch(/Inventing your own kinds.*will be rejected/);
+  });
+
   it('refuses to open the PR when landing-issue inputs are missing (no half-implementation)', () => {
     expect(body).toMatch(/refuse to open the PR/i);
     expect(body).toMatch(/leave the PR in draft/i);
+  });
+
+  it('points to §1 Project Structure for the per-repo extract (Codex-r1 Bug H)', () => {
+    // Per the WHAT synthesis pack, per-repo frontmatter lives under
+    // `## 1. Project Structure` -- NOT §5 (which is "Security Control
+    // Implementations" -- a different section entirely).
+    expect(body).toContain('## 1. Project Structure');
+    expect(body).not.toMatch(/per-repo extract.{0,30}§5/);
   });
 });

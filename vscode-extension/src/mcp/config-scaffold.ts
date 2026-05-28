@@ -1690,10 +1690,27 @@ try {
 // Main scaffold function
 // ============================================================================
 
+/**
+ * Codex-r1 Bug G — optional OKR context for greenfield fan-out
+ * scaffolds. When ScaffoldPanel.createOrShow is invoked from the
+ * fan-out flow with an `okrContext`, the same context is threaded
+ * here so the scaffold output includes `docs/code-design-spec.md`
+ * pointing the impl-agent at its source artifact in the mesh repo.
+ * Without this seed file, the agent would land in an empty target
+ * repo with no in-tree reference to its per-repo extract.
+ */
+export interface ScaffoldOkrContextLite {
+  okrId: string;
+  repoSlug: string;
+  /** Mesh repo slug (owner/name) — needed for the artifact link. */
+  meshRepoSlug?: string;
+}
+
 export function scaffoldAgentConfig(
   reader: MeshReader,
   barName: string,
   redQueen?: RedQueenService,
+  okrContext?: ScaffoldOkrContextLite,
 ): ScaffoldResult | { error: string } {
   const bar = reader.getBar(barName);
   if (!bar) {
@@ -1781,6 +1798,49 @@ export function scaffoldAgentConfig(
     '*.lock',
     '',
   ].join('\n');
+
+  // Codex-r1 Bug G — seed docs/code-design-spec.md when the scaffold
+  // was launched from a greenfield fan-out (okrContext present).
+  // Gives the impl-agent a stable in-repo file pointing at its source
+  // artifact in the mesh repo. The agent's template tells it to read
+  // §1 of code-design.md for its per-repo extract; this seed file
+  // makes that path discoverable without the agent needing to know
+  // the mesh repo URL out-of-band. The agent (or a human) can later
+  // replace this stub with the actual extracted §1 content; for the
+  // MVP scaffold, a link + checklist is enough to unblock the run.
+  if (okrContext) {
+    const mesh = okrContext.meshRepoSlug ?? 'OWNER/MESH-REPO';
+    files['docs/code-design-spec.md'] = [
+      `# Code Design Spec — \`${okrContext.repoSlug}\``,
+      '',
+      `_Seeded by Cheshire greenfield scaffold for OKR \`${okrContext.okrId}\`._`,
+      '',
+      '## Source artifact',
+      '',
+      `The canonical design lives in the governance mesh repo:`,
+      '',
+      `- **Repo:** \`${mesh}\``,
+      `- **Path:** \`okrs/${okrContext.okrId}/what/code-design.md\``,
+      `- **Link:** [\`okrs/${okrContext.okrId}/what/code-design.md\`](https://github.com/${mesh}/blob/main/okrs/${okrContext.okrId}/what/code-design.md)`,
+      '',
+      '## Your per-repo extract',
+      '',
+      `The per-repo frontmatter for \`${okrContext.repoSlug}\` lives under \`## 1. Project Structure\` of that source artifact (each target repo gets its own per-repo sub-block in §1 per the WHAT synthesis pack).`,
+      '',
+      '## Implementation agent checklist',
+      '',
+      '1. Fetch the source artifact at the link above.',
+      '2. Read your per-repo extract under `## 1. Project Structure`.',
+      '3. Read sibling-repo coordination from the landing issue body.',
+      '4. Plan + implement + run Tweedles persona-switch self-critique (Architect + Security).',
+      '5. Open the impl PR with the `implementation_chain` Hatter Tag continuation block per `.github/agents/implementation-agent.agent.md`.',
+      '',
+      '---',
+      '',
+      `_Future: this stub should be replaced by the extracted §1 sub-block content for \`${okrContext.repoSlug}\` at scaffold time. Current scaffold writes the pointer + checklist only; the agent fetches the full extract from the mesh._`,
+      '',
+    ].join('\n');
+  }
 
   // Read mesh portfolio config for the org/repo reference
   const portfolio = reader.readPortfolioConfig();

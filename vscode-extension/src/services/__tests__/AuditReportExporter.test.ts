@@ -1841,15 +1841,47 @@ describe('computeOkrRollupVerdict — implementation chain signals', () => {
   });
 
   it('skips non-merged rows for FAIL-precedence cross-axis checks (only pr-merged is verified)', () => {
-    // Row at pr-opened with a broken chain block -- should NOT FAIL the OKR
-    // because the PR hasn't merged yet; only pr-merged rows get cross-axis
-    // verified. The verdict stays PASS (clean phases + no fatal impl rows).
+    // Codex-r1 Bug D update: a row at pr-opened no longer PASSes the
+    // rollup outright -- it now downgrades to PARTIAL implementation-
+    // pr-in-flight because the work hasn't closed out. This still
+    // proves "cross-axis FAIL only runs on merged rows" (the broken
+    // chain block on the open row isn't surfaced as FAIL); it just
+    // also surfaces the more honest PARTIAL signal.
     const v = computeOkrRollupVerdict(mkInput({
       rows: [mkRow({ status: 'pr-opened', chain: null })],
       expectedIntentThread: FULL_CHAIN.parent_intent_thread,
       expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
     }));
-    expect(v.verdict).toBe('PASS');
+    expect(v.verdict).toBe('PARTIAL');
+    expect(v.reason).toMatch(/^implementation-pr-in-flight:/);
+  });
+
+  it('PARTIAL with implementation-pr-in-flight when any row is opened/pr-opened/pending-on-upstream (Codex-r1 Bug D)', () => {
+    for (const status of ['opened', 'pr-opened', 'pending-on-upstream'] as const) {
+      const v = computeOkrRollupVerdict(mkInput({
+        rows: [mkRow({ status, chain: null })],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      }));
+      expect(v.verdict, `status=${status}`).toBe('PARTIAL');
+      expect(v.reason).toMatch(/^implementation-pr-in-flight:acme\/celeb-api/);
+    }
+  });
+
+  it('implementation-pr-rejected PARTIAL takes precedence over in-flight PARTIAL', () => {
+    // When one row is rejected AND another is in-flight, the rejected
+    // signal wins because rejection is a stronger negative (the slice
+    // failed review) than in-flight (the slice hasn't shipped yet).
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [
+        mkRow({ repoSlug: 'acme/rejected', status: 'pr-rejected' }),
+        mkRow({ repoSlug: 'acme/inflight', status: 'pr-opened', chain: null }),
+      ],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(v.verdict).toBe('PARTIAL');
+    expect(v.reason).toMatch(/^implementation-pr-rejected:acme\/rejected/);
   });
 
   it('ignores implementationChain when not supplied (back-compat for pre-Tier-2 OKRs)', () => {

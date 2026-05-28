@@ -238,6 +238,45 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     }
   }
 
+  /**
+   * Codex-r1 Bug G — best-effort detection of the governance mesh
+   * repo slug for greenfield scaffold seeding. Mirrors
+   * LookingGlassPanel.detectGovernanceRepo's heuristic (portfolio
+   * config first, then git remote in the mesh path) but stays
+   * self-contained here so ScaffoldPanel doesn't depend on
+   * SecretsService. Returns undefined when not detectable -- the
+   * seed file falls back to a placeholder slug + the user can
+   * edit the file later.
+   */
+  private async detectMeshRepoSlug(): Promise<string | undefined> {
+    try {
+      const meshPath = MeshService.getMeshPath();
+      if (!meshPath) return undefined;
+      // Cheap path 1: read portfolio mesh.yaml for explicit repo field.
+      try {
+        const meshYamlPath = path.join(meshPath, 'mesh.yaml');
+        if (fs.existsSync(meshYamlPath)) {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const YAML = require('yaml') as { parse(text: string): unknown };
+          const parsed = YAML.parse(fs.readFileSync(meshYamlPath, 'utf8')) as { org?: string; repo?: string };
+          if (parsed?.org && parsed?.repo) {
+            return parsed.repo.includes('/') ? parsed.repo : `${parsed.org}/${parsed.repo}`;
+          }
+        }
+      } catch { /* fall through */ }
+      // Cheap path 2: git remote get-url origin from meshPath.
+      try {
+        const { execFileSync } = await import('child_process');
+        const url = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
+        const m = url.match(/github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/);
+        if (m) return m[1];
+      } catch { /* git not available */ }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async detectStackForFolder(folderPath: string) {
     // Check for existing repo-metadata.yml first
     const metadata = readRepoMetadata(folderPath);
@@ -411,7 +450,17 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
           if (barName) {
             const reader = new MeshReader(meshPath);
             const redQueen = new RedQueenService();
-            const result = scaffoldAgentConfig(reader, barName, redQueen);
+            // Codex-r1 Bug G — thread OKR context through so the
+            // scaffold output includes docs/code-design-spec.md
+            // pointing the impl-agent at its mesh-side artifact.
+            // Greenfield fan-out is the only path that supplies
+            // okrContext; brownfield retrofit passes undefined +
+            // skips the seed file.
+            const meshRepoSlug = await this.detectMeshRepoSlug();
+            const okrCtxArg = this.okrContext
+              ? { okrId: this.okrContext.okrId, repoSlug: this.okrContext.repoSlug, meshRepoSlug }
+              : undefined;
+            const result = scaffoldAgentConfig(reader, barName, redQueen, okrCtxArg);
             if (!('error' in result)) {
               const govCreated = writeScaffoldFiles(workspaceRoot, result.files);
               const tier = this.componentContext?.governanceTier || 'unknown';

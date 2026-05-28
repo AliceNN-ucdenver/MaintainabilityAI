@@ -485,17 +485,45 @@ jobs:
           # 1. Read target repo slugs from okr.yaml. If okr.yaml is
           #    missing or has no targetCodeRepos, treat as single-repo
           #    OKR and skip coordination requirement (verifier passes).
+          #
+          # Codex-r1 Bug C — normalize URL → slug. OKR cards historically
+          # store targetCodeRepos as full GitHub URLs
+          # (https://github.com/owner/name) while the WHAT coordination
+          # block uses bare owner/name slugs (per the synthesis pack
+          # contract). Comparing raw URLs to slugs would reject every
+          # URL-style OKR with coordination-missing-repo even when the
+          # coordination block was correct. Mirror the panel-side
+          # normalization (parseGitHubUrl) so workflow + panel agree
+          # bit-for-bit on what counts as a slug.
+          import re
+          def normalize_to_slug(value):
+              s = (value or '').strip()
+              if not s:
+                  return s
+              # Strip https://github.com/ prefix + .git suffix + trailing slash.
+              # Matches what TypeScript parseGitHubUrl does in src/utils/git.ts.
+              m = re.match(r'^(?:https?://)?(?:www\.)?github\.com[/:]([\w.\-]+)/([\w.\-]+?)(?:\.git)?/?$', s)
+              if m:
+                  return f"{m.group(1)}/{m.group(2)}"
+              # Already a bare slug (or unrecognized; pass through so
+              # the missing-repo error names the actual value).
+              return s
+
           target_repos = set()
           try:
               if okr_yaml_path and os.path.exists(okr_yaml_path):
                   okr_doc = yaml.safe_load(open(okr_yaml_path, 'r', encoding='utf-8').read())
                   for action in (okr_doc or {}).get('actions', []) or []:
                       align = action.get('objectiveAlignment', {}) or {}
-                      for slug in align.get('targetCodeRepos', []) or []:
-                          target_repos.add(slug.strip())
+                      for raw in align.get('targetCodeRepos', []) or []:
+                          slug = normalize_to_slug(raw)
+                          if slug:
+                              target_repos.add(slug)
                       # also accept top-level targetCodeRepos[] on the OKR
-                  for slug in (okr_doc or {}).get('targetCodeRepos', []) or []:
-                      target_repos.add(slug.strip())
+                  for raw in (okr_doc or {}).get('targetCodeRepos', []) or []:
+                      slug = normalize_to_slug(raw)
+                      if slug:
+                          target_repos.add(slug)
           except Exception as e:
               emit(False, f"coordination-yaml-malformed: okr.yaml parse failed: {type(e).__name__}: {e}")
 

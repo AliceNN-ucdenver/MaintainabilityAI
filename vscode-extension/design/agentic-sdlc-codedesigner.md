@@ -209,6 +209,8 @@ Phase B's B24 collapsed PRD-time reviewers into single-agent self-critique becau
 
 ### D9 — `design-bus.yml` workflow
 
+> **SUPERSEDED (Codex-r1 Bug I — Tier 2 docs cleanup).** The `design-bus.yml` workflow was the original spec for per-repo fan-out on code-design PR merge. **D-PR4 shipped a different model**: an **app-orchestrated fan-out engine** inside the Looking Glass panel (`src/services/coordination/fanOutEngine.ts` + `LookingGlassPanel.onFanOutPreflight` / `onFanOut`). The user clicks "Fan out N of M ready" after pre-flight passes; the engine opens landing issues via the GitHub API + dispatches the per-repo `implementation-agent` via `assignCustomCopilotAgent`. There is no `design-bus.yml` workflow. The canonical Tier 2 spec lives in [`next-acts-tier-2-and-3.md`](next-acts-tier-2-and-3.md) D-PR4. The text below is preserved for historical context (it described the planned workflow shape before the pivot); the **landing-issue body template + `design-fan-out.yaml` row shape + cross-repo Hatter Tag continuation contract remain canonical** — they're now produced by the app engine instead of a workflow, but the data shapes are unchanged.
+
 Per-repo fan-out on code-design PR merge. Full spec in [Hand-off](#hand-off-per-repo-fan-out-from-mesh-to-code-repos-canonical) below. Includes: tier-gating on the receiving repo (refuse auto-assign on Restricted-tier BAR target repos), partial-failure handling with `design-fan-out-partial` label, `okrs/<id>/what/design-fan-out.yaml` per-repo result record, cross-repo Hatter Tag continuation contract.
 
 ### D10 — Looking Glass UX — Stage 4 / Stage 5 OKR detail card

@@ -114,3 +114,108 @@ export function readDesignFanOut(meshPath: string, okrId: string): DesignFanOutD
   }
   return { schema: 1, okrId, rows };
 }
+
+/**
+ * Codex-r1 Bug F — append (or upsert) an implementation row into the
+ * OKR's `chain-ladder.yaml`. Stage 5 calls this when poll detects an
+ * impl PR has merged + the PR body's `implementation_chain` block has
+ * been parsed.
+ *
+ * Row shape per the D-PR8 design doc spec:
+ *
+ *   - phase: implementation
+ *     repo: <owner>/<slug>
+ *     pr_url: <impl PR URL>
+ *     implementation_run_id: IMPL-...
+ *     chain_root_hash: <event-1 hash from .maintainability/audit/events/<run-id>.jsonl>
+ *     parent_intent_thread: <OKR master thread>
+ *     parent_chain_root: <WHAT phase chain root>
+ *     event_log_path: .maintainability/audit/events/<run-id>.jsonl
+ *     key_path: .maintainability/audit/keys/<run-id>.epoch-1.pub.pem
+ *     merged_at: <ISO timestamp>
+ *
+ * Idempotent on `implementation_run_id` — re-calling with the same id
+ * upserts (replaces the existing row in place). Lets the poll fire
+ * multiple times without producing duplicate rows. Read existing file
+ * first, mutate the chain array, write back — preserves any non-impl
+ * rows the workflow finalize-step wrote (WHY/HOW/WHAT planning rows).
+ *
+ * Creates the file if missing (chain: [<new row>]).
+ */
+export interface ChainLadderImplRow {
+  repo: string;
+  pr_url: string;
+  implementation_run_id: string;
+  chain_root_hash: string;
+  parent_intent_thread: string;
+  parent_chain_root: string;
+  event_log_path: string;
+  key_path: string;
+  merged_at: string;
+}
+
+export function appendChainLadderImplRow(meshPath: string, okrId: string, row: ChainLadderImplRow): void {
+  const filePath = path.join(meshPath, 'okrs', okrId, 'audit', 'chain-ladder.yaml');
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
+  // Read existing chain array (defensive on parse failure: start fresh
+  // rather than throw -- the workflow finalize step is the canonical
+  // writer for non-impl rows, and a parse failure here just means our
+  // append loses pre-existing context, NOT that we corrupt the file).
+  let chain: Array<Record<string, unknown>> = [];
+  if (fs.existsSync(filePath)) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const YAML = require('yaml') as { parse(text: string): unknown };
+      const parsed = YAML.parse(fs.readFileSync(filePath, 'utf8')) as { chain?: unknown };
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.chain)) {
+        chain = parsed.chain as Array<Record<string, unknown>>;
+      }
+    } catch {
+      // Best-effort -- keep chain empty.
+    }
+  }
+
+  // Upsert by implementation_run_id (idempotent).
+  const existingIdx = chain.findIndex(r =>
+    String(r['phase'] ?? '').toLowerCase() === 'implementation' &&
+    String(r['implementation_run_id'] ?? '') === row.implementation_run_id
+  );
+  const newEntry: Record<string, unknown> = {
+    phase: 'implementation',
+    repo: row.repo,
+    pr_url: row.pr_url,
+    implementation_run_id: row.implementation_run_id,
+    chain_root_hash: row.chain_root_hash,
+    parent_intent_thread: row.parent_intent_thread,
+    parent_chain_root: row.parent_chain_root,
+    event_log_path: row.event_log_path,
+    key_path: row.key_path,
+    merged_at: row.merged_at,
+  };
+  if (existingIdx >= 0) {
+    chain[existingIdx] = newEntry;
+  } else {
+    chain.push(newEntry);
+  }
+
+  // Hand-roll the YAML write so the diff stays predictable + impl
+  // rows have a recognizable shape. Existing non-impl rows
+  // round-trip via their parsed form (key order may shuffle on
+  // re-write, which is fine -- the finalize step rewrites planning
+  // rows wholesale on phase merge anyway).
+  const lines: string[] = ['chain:'];
+  for (const r of chain) {
+    lines.push('  -');
+    for (const [k, v] of Object.entries(r)) {
+      if (v === undefined || v === null) continue;
+      const key = String(k);
+      const value = String(v);
+      // Quote when value contains characters that'd confuse the YAML
+      // parser bare. Matches quoteYaml semantics above.
+      const needsQuote = /[":#[\]{}|&*!%@`,]/.test(value) || /^\s|\s$/.test(value);
+      lines.push(`    ${key}: ${needsQuote ? `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : value}`);
+    }
+  }
+  fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+}

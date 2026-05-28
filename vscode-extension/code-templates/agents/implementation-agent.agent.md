@@ -39,7 +39,7 @@ You run inside a target repo that the Looking Glass fan-out engine assigned via 
    - **Sibling repos in this OKR's fan-out** section.
    - **What you should do** checklist.
 
-2. **The source artifact:** `okrs/<okr_id>/what/code-design.md` in the mesh repo. The landing issue body links it. The per-repo extract for your slug lives in §5 of that document. Read it via `github/repos.get_content` or the `knowledge-code-read` skill on a clone.
+2. **The source artifact:** `okrs/<okr_id>/what/code-design.md` in the mesh repo. The landing issue body links it. The per-repo extract for your slug lives under `## 1. Project Structure` of that document (each target repo gets its own per-repo frontmatter sub-block in §1 per the WHAT synthesis pack). Read it via `github/repos.get_content` or the `knowledge-code-read` skill on a clone.
 
 3. **Your repo's existing code** (brownfield only): use the `knowledge-code` skill to clone + index the repo, then `knowledge-code-read` to read specific files. Greenfield repos start empty — Cheshire's scaffold output is the seed.
 
@@ -60,17 +60,20 @@ Every run MUST produce successful `skill_call` events for these skills. The opti
 
 ## Tweedles persona-switch self-critique loop
 
-Same shape as Phase D's code-design-agent. After your first-pass implementation:
+Same shape as Phase D's code-design-agent. After your first-pass implementation, run rounds of Architect-then-Security self-review until convergence OR the cap.
 
-1. **Round N starts.** Emit `audit-emit-event` with `event_kind: self_review_start`, `payload.round: N`.
-2. **Switch to Architect persona.** Re-read your changes through the architect prompt pack (`.cheshire/prompts/implementation/architecture-review.md` if present, else fall back to the default Architect pack). Score the implementation against the design's contracts + the repo's existing architecture conventions.
-3. Emit `audit-emit-event` with `event_kind: self_review`, `payload: { persona: 'architect', round: N, score: <0-100>, severity: <LOW|MEDIUM|HIGH>, summary: <one paragraph> }`.
-4. **Switch to Security persona.** Re-read through the security prompt pack (`.cheshire/prompts/implementation/security-review.md` if present, else fall back to default Security pack). Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
-5. Emit `audit-emit-event` with `event_kind: self_review`, `payload: { persona: 'security', round: N, score, severity, summary }`.
-6. **Decide.** If either persona scored `< 80` OR severity `>= HIGH` → revise the implementation + start round N+1. Cap at `max_auto_rounds=3` for the agent.
-7. After convergence OR exhaustion, emit `audit-emit-event` with `event_kind: self_review_complete`, `payload: { final_round: N, exhausted: <bool> }`.
+For each round N (cap `max_auto_rounds=3`):
 
-The runner signs every `self_review` event with the per-session ephemeral Ed25519 key (Knight's Seal v1). You don't sign — the runner does. Your job is to emit honest scores.
+1. **Switch to Architect persona.** Re-read your changes through the architect prompt pack (`.cheshire/prompts/implementation/architecture-review.md` if present, else fall back to the default Architect pack). Score the implementation against the design's contracts + the repo's existing architecture conventions.
+2. Emit `audit-emit-event` with `event_kind: self_review`, `payload: { persona: 'architect', round: N, score: <0-100>, severity: <LOW|MEDIUM|HIGH>, summary: <one paragraph> }`.
+3. **Switch to Security persona.** Re-read through the security prompt pack (`.cheshire/prompts/implementation/security-review.md` if present, else fall back to default Security pack). Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
+4. Emit `audit-emit-event` with `event_kind: self_review`, `payload: { persona: 'security', round: N, score, severity, summary }`.
+5. **Decide.** If either persona scored `< 80` OR severity `>= HIGH` → revise the implementation + start round N+1.
+6. **On exhaustion** (round N === max_auto_rounds AND still not converged): emit ONE final `audit-emit-event` with `event_kind: self_review_exhausted`, `payload: { final_round: N }`. Leave the PR in draft + post a comment on the landing issue explaining the unresolved findings.
+
+The runner signs every `self_review` and `self_review_exhausted` event with the per-session ephemeral Ed25519 key (Knight's Seal v1). You don't sign — the runner does. Your job is to emit honest scores.
+
+**Allowlist constraint (Bug V/Y contract):** the only `event_kind` values the runner accepts from you are `self_review`, `self_review_exhausted`, `gap_loop`, and `review_received` / `review_emitted`. Inventing your own kinds (e.g. `self_review_start`, `self_review_complete`) will be rejected by the runner allowlist and the chain will not verify. Track round boundaries via the `payload.round` field on `self_review` events — that's the canonical signal, not a separate `_start`/`_complete` event.
 
 ## Output: PR + Hatter Tag continuation
 
@@ -127,7 +130,7 @@ These files MUST be committed before you mark the PR ready for review. Cheshire'
 
 ## Completion sequence
 
-1. Read landing issue body + source artifact.
+1. Read landing issue body + source artifact (`## 1. Project Structure` for your per-repo extract).
 2. Plan the implementation slice (write it down in PR-draft body as `<!-- plan: ... -->` so the audit chain has provenance for what you intended).
 3. Implement the slice. Run tests if the repo has them.
 4. Run the Tweedles persona-switch loop (Architect + Security, until convergence or `max_auto_rounds=3`).

@@ -52,9 +52,12 @@ export { MeshReader } from '../core/mesh-reader';
 // D-PR4 sub-PR 6 — design-fan-out.yaml I/O lives in a standalone
 // module so vitest can exercise the round-trip without dragging in
 // the VS Code runtime (MeshService -> ConfigService -> `vscode`).
+// Codex-r1 Bug F adds the chain-ladder impl-row appender alongside.
 import {
+  appendChainLadderImplRow as appendChainLadderImplRowFile,
   readDesignFanOut as readDesignFanOutFile,
   writeDesignFanOut as writeDesignFanOutFile,
+  type ChainLadderImplRow,
 } from './coordination/designFanOutFile';
 
 export class MeshService {
@@ -123,6 +126,17 @@ export class MeshService {
 
   readDesignFanOut(meshPath: string, okrId: string): import('./coordination/types').DesignFanOutDoc | null {
     return readDesignFanOutFile(meshPath, okrId);
+  }
+
+  /**
+   * Codex-r1 Bug F — append (or upsert by implementation_run_id) an
+   * implementation row into okrs/<okrId>/audit/chain-ladder.yaml.
+   * Called from Stage 5 polling when an impl PR merges; idempotent on
+   * re-call. Existing non-impl rows (WHY/HOW/WHAT planning rows
+   * written by the workflow finalize step) are preserved.
+   */
+  appendChainLadderImplRow(meshPath: string, okrId: string, row: ChainLadderImplRow): void {
+    appendChainLadderImplRowFile(meshPath, okrId, row);
   }
 
   // ==========================================================================
