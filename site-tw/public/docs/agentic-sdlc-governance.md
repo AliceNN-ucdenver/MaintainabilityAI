@@ -1369,7 +1369,7 @@ Five actors the Hatter must withstand:
       <p class="docs-proof-title">Claims must trace to evidence</p>
       <p class="docs-proof-body">Research claims trace to provider results; PRD requirements trace to source tags; code-design paths trace to real inventories and file reads. The agent can synthesize, but it cannot pass cleanly by inventing sources or paths.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Proof:</strong> Search skills emit <code>results_preview[]</code>; WHAT brownfield runs require <code>knowledge-code-read</code> and reject cited paths outside inventory.</div>
+    <div class="docs-proof-evidence"><strong>Proof:</strong> WHY runs write a hash-pinned source registry for citable research tags; WHAT brownfield runs require <code>knowledge-code-read</code> and reject cited paths outside inventory.</div>
   </div>
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
@@ -1427,7 +1427,7 @@ Five actors the Hatter must withstand:
 | **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective; compares with semantic similarity ≥ 0.85 AND edit-distance ≤ 0.30; `goal-drift-detected` label blocks merge | ✓ |
 | **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes | ✓ |
 | **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow | ✓ |
-| **Tamper** | Agent cites fake sources or fake brownfield paths | Search-skill audit metadata includes `results_preview[]` with provider, query, title, URL, snippet, score, and published date where available. WHAT-phase brownfield runs record `inventory_paths` from `knowledge-code`, require `knowledge-code-read` per brownfield repo, and fail the path-citation gate if any cited path is missing from the inventory | ✓ |
+| **Tamper** | Agent cites fake sources or fake brownfield paths | WHY search skills record provider queries and bounded result previews. After dedupe, the runner writes a hash-pinned source registry for the `S[N]` rows the research document is allowed to cite. The WHY audit verifies titles and URLs against that registry, with preview fallback for legacy runs. WHAT-phase brownfield runs record `inventory_paths` from `knowledge-code`, require `knowledge-code-read` per brownfield repo, and fail the path-citation gate if any cited path is missing from the inventory | ✓ |
 | **Tamper** | Dashboard shows a green seal or inflated metrics on a chain CI would reject | Looking Glass uses the shared `chainVerify.ts` contract: event kind must match origin, runtime/agent/workflow signing rules mirror the runner, malformed JSONL is treated as tampered, and forged events are excluded from metric extraction before CI finishes | ✓ |
 | **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted | ✓ |
 | **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal** (shipped) signs every event with the session's own ephemeral Ed25519 keypair. Each agent session is its own signer epoch, so the agent's session is the only thing that could have produced the signature. The chain plus the per-epoch pub keys committed to the mesh are sufficient to reconstruct who signed what. Persistent third-party verifiability (cosign / sigstore) is the next act | ✓ |
@@ -1543,6 +1543,7 @@ Underneath the closeout, the source files it cites sit on disk for any reviewer 
 
 - `okrs/<id>/<phase>/<artifact>.md`: the merged research document, PRD, or code design
 - `okrs/<id>/audit/events/<run>.jsonl`: the hash-chained activity log
+- `okrs/<id>/audit/sources/<run>.source-registry.json`: the hash-pinned citable-source registry for WHY research
 - `okrs/<id>/audit/chain-ladder.yaml`: the cross-phase WHY, HOW, and WHAT ladder
 - `okrs/<id>/audit/keys/<run>.epoch-*.pub.pem`: the public keys used to verify agent signatures
 - `okrs/<id>/how/prd.md`: the PRD the control mapping anchors to
@@ -1576,7 +1577,7 @@ No live system access. No proprietary tooling. Five checks land the story:
   <div class="docs-card docs-card-amber">
     <div class="docs-card-kicker">Check 3 · Reproducibility</div>
     <div class="docs-heading">Can the evidence be replayed?</div>
-    <div class="docs-copy">Search events keep the queries and a bounded preview of returned results. Code-grounding events keep the file inventory and explicit file reads. A reviewer can see what the agent saw, rerun the important calls, and separate real provider drift from invented evidence.</div>
+    <div class="docs-copy">Search events keep the queries and bounded previews; WHY runs also keep a hash-pinned source registry for every citable research source. Code-grounding events keep the file inventory and explicit file reads. A reviewer can see what the agent saw, rerun the important calls, and separate real provider drift from invented evidence.</div>
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Check 4 · Tamper detection</div>

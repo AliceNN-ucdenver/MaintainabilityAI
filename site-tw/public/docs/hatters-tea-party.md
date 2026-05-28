@@ -196,7 +196,7 @@ Most "AI research" is a single web search and a summary. That's not research. It
 
 This stage does the opposite. It pulls from **four independent kinds of evidence** in parallel: what the web is saying right now, what academic researchers have proven, what's been patented, and what working developers complain about. It adds a fifth lens that asks **what the customer is actually trying to get done**. Then it grades its own coverage and runs one more targeted sweep if anything looks thin.
 
-> 🔍 **Real evidence, not summary stats.** Every oracle hit (provider, query, title, URL, snippet) lands in the audit chain. A reviewer who wants to verify that source citation `S-3` resolves to an actual arXiv paper or Tavily result can read the chain payload directly. There is no "trust the agent that it cited a real source" gap. The chain is the evidence.
+> 🔍 **Real evidence, not summary stats.** Search events record the provider, query, title, URL, and bounded preview in the audit chain. After dedupe, the runner writes a hash-pinned source registry for the `S[N]` sources the agent is allowed to cite. A reviewer can verify that `S3` resolves to the source the agent actually saw, and the merge gate rejects a research document whose title or URL drifts from that registry. There is no "trust the agent that it cited a real source" gap.
 
 **A second research mode is on the roadmap: codebase archaeology.** When the team wants to model what their actual code does, not what the world says about a topic, archaeology mode will read impacted repositories and extract the observed architecture: modules, layers, cross-module calls, exposed interfaces. Today the WHY phase is web-evidence only. The design is reserved so the planning layer can eventually ground itself in *what is*, not just *what the world says could be*.
 
@@ -290,7 +290,7 @@ The Why stage has no human-style reviewer because research is descriptive, not a
 |---|---|
 | **The agent actually searched** | The run's activity log shows successful calls to each evidence source, not a silent fall-back to reading already-committed files |
 | **The document is structurally complete** | All ten required sections are present, in the canonical order |
-| **Every claim is sourced** | Every formal conclusion in the document cites at least one of the evidence tags |
+| **Every claim is sourced** | Every formal conclusion in the document cites at least one evidence tag, and each cited source tag must match the hash-pinned source registry |
 | **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective. This catches an agent that drifted onto an adjacent topic |
 
 Only when all four pass does the system apply the green-flag label that unlocks merge. If any fail, it applies a specific failure label naming exactly which check failed, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
@@ -307,7 +307,7 @@ Three things happen automatically during every run. Together, they make the resu
 
 **3. The audit is the merge gate.** It isn't a side report someone has to remember to file. When a reviewer clicks **Run audit** in Looking Glass, the system inspects the run end-to-end and posts a replaceable summary comment on the pull request: what was searched, what was found, whether the document is structurally complete, whether the synthesis stayed on topic, whether the activity-log chain still verifies, and whether the Knight's Seal signature is intact. Pass everything and merge unlocks. Fail anything and the PR gets a specific failure label plus the same comment showing where to look.
 
-For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the sources those queries returned, and a tamper-evident log of the whole run. No one has to remember to take minutes.
+For a CIO walking into a regulator meeting: every research artifact that ships under this pipeline can be traced to the queries that produced it, the source registry the agent was allowed to cite, and a tamper-evident log of the whole run. No one has to remember to take minutes.
 
 
 
