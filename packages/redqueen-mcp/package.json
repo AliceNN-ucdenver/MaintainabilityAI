@@ -1,6 +1,6 @@
 {
   "name": "@maintainabilityai/redqueen-mcp",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "Red Queen Governance MCP Server — AI coding agent governance via CALM architecture",
   "license": "MIT",
   "author": "MaintainabilityAI",
