@@ -476,6 +476,105 @@ describe('workflow YAML ↔ phaseSpec drift detector (layer-3 consistency)', () 
         expect(content).toMatch(/yaml\.safe_load\(/);
       });
 
+      it('Bug TT-1: WHAT coordination verifier reads okr.objectiveAlignment.targetCodeRepos (canonical OKR shape)', () => {
+        // Bug TT-1 forensic: the verifier was looking for target repos
+        // under actions[].objectiveAlignment.targetCodeRepos and a top-
+        // level okr.targetCodeRepos that doesn't exist on the real card.
+        // The canonical OKR shape from OkrObjectiveAlignmentSchema in
+        // src/types/okr.ts puts the field at OKR-top-level
+        // `objectiveAlignment.targetCodeRepos`. The mismatch meant
+        // target_repos stayed empty, the "if not target_repos: emit(True)"
+        // short-circuit hit, and §10 never got parsed. A malformed (or
+        // unfenced) coordination block silently shipped through the
+        // audit and Stage 5 was the first surface to reject it.
+        //
+        // Pin the canonical path verbatim so a future refactor can't
+        // re-introduce this drift.
+        if (phase !== 'what') { return; }
+
+        // The canonical lookup MUST be present — fetched from
+        // okr_doc.objectiveAlignment.targetCodeRepos at the OKR's
+        // top-level, NOT just per-action.
+        expect(
+          content,
+          'workflow must read top-level objectiveAlignment.targetCodeRepos from okr.yaml (canonical shape per OkrObjectiveAlignmentSchema)',
+        ).toMatch(/okr_doc\.get\(['"]objectiveAlignment['"]/);
+
+        // Legacy fallbacks may stay for compatibility but the canonical
+        // shape MUST come first. Order check: the top-level read happens
+        // before the actions[] read.
+        const canonicalIdx = content.search(
+          /align\s*=\s*okr_doc\.get\(['"]objectiveAlignment['"]/,
+        );
+        const actionsIdx = content.search(
+          /for action in okr_doc\.get\(['"]actions['"]/,
+        );
+        expect(canonicalIdx).toBeGreaterThan(-1);
+        expect(actionsIdx).toBeGreaterThan(-1);
+        expect(
+          canonicalIdx,
+          'canonical top-level objectiveAlignment.targetCodeRepos read must come BEFORE the legacy per-action read so we never silently miss the real shape',
+        ).toBeLessThan(actionsIdx);
+      });
+
+      it('Bug TT-2 / TT-3: synthesis pack + agent prompt agree on the mandatory ```yaml fenced coordination block', () => {
+        // Bug TT-2: synthesis.md line 422 used to say "no fenced ```
+        // inside the artifact body" — directly contradicting both the
+        // TypeScript parser (parser.ts:36 YAML_FENCE_RE) and the Python
+        // verifier (this workflow's "no ```yaml fence in §10 H3" path).
+        // The agent followed the prompt and consistently produced an
+        // unfenced block; the workflow's TT-1 bug meant the verifier
+        // skipped §10 entirely; Stage 5 was the first to surface the
+        // problem on PR #170.
+        //
+        // Bug TT-3: code-design-agent.agent.md mentioned the H3 but
+        // didn't make the fence mandatory. After fixing the synthesis
+        // contradiction, also make the agent prompt itself name the
+        // hard rule + the named failure reason.
+        //
+        // Both files MUST teach the same fenced contract.
+        if (phase !== 'what') { return; }
+
+        const synthPath = path.join(
+          __dirname, '..', '..', '..',
+          'prompt-packs', 'looking-glass', 'code-design', 'synthesis.md',
+        );
+        const synthContent = fs.readFileSync(synthPath, 'utf8');
+
+        // Negative: must NOT contain the contradictory wording.
+        expect(
+          synthContent,
+          'synthesis.md must NOT teach "no fenced" anywhere near the coordination block — parser and verifier both REQUIRE the fence',
+        ).not.toMatch(/no fenced ` ``` ` inside the artifact body/);
+        expect(
+          synthContent,
+          'synthesis.md must NOT contain the legacy "no fenced ```" wording in any form',
+        ).not.toMatch(/no fenced\s+``/);
+
+        // Positive: must teach the fence is MANDATORY.
+        expect(synthContent).toMatch(/MANDATORY[\s\S]{0,200}fenced/);
+        // Must reference the literal ```yaml fence opener somewhere in
+        // the coordination instructions (the example block alone wouldn't
+        // suffice if the prose contradicted it — that's how Bug TT-2
+        // happened).
+        expect(synthContent).toMatch(/```yaml[\s\S]{0,400}coordination:/);
+
+        // Agent prompt mirror: hard rule must name the fenced contract +
+        // the discriminated failure reason so the agent can recover from
+        // a soft model.
+        const agentPath = path.join(
+          __dirname, '..', '..', '..',
+          'code-templates', 'agents-v4',
+          'code-design-agent.agent.md',
+        );
+        const agentContent = fs.readFileSync(agentPath, 'utf8');
+        expect(agentContent).toMatch(/HARD RULE[\s\S]{0,200}fenced/i);
+        expect(agentContent).toMatch(/```yaml/);
+        expect(agentContent).toMatch(/coordination-yaml-malformed/);
+        // And the agent prompt must NOT contradict itself either.
+        expect(agentContent).not.toMatch(/no fenced\s+``/);
+      });
+
       it('workflow required[] manifest matches the agent prompt manifest BOTH WAYS (Bug-R / R1 — bidirectional parity)', () => {
         // Codex round-3 caught: round-2's parity test only checked
         // workflow→agent (every workflow-required skill must appear

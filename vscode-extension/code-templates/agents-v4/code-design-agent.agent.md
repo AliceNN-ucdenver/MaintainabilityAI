@@ -169,8 +169,19 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
     per-repo block above carries `fanout_wave` / `coordination_role` /
     `depends_on` / `provides` / `consumes` in its frontmatter. The
     machine-readable `coordination:` YAML lives inside §10 under the
-    H3 subsection `### Cross-Repo Fan-Out & Dependency Ordering`. See
-    the synthesis prompt for the full schema + the seven rules the
+    H3 subsection `### Cross-Repo Fan-Out & Dependency Ordering`.
+
+    **HARD RULE (Bug TT-3): §10 H3 MUST contain exactly ONE fenced
+    ` ```yaml ... ``` ` block before References, and the `coordination:`
+    YAML MUST live inside that fence.** The workflow verifier and the
+    Looking Glass Stage 5 parser both extract the FIRST `` ```yaml ``
+    fence inside the H3 — an unfenced block, or a fence using `~~~` or
+    bare backticks instead of `` ```yaml ``, fails with
+    `coordination-yaml-malformed: no ` `` ```yaml `` ` fence in §10 H3`
+    and blocks `design-pass`. Even when the YAML is otherwise correct,
+    the fence is mandatory.
+
+    See the synthesis prompt for the full schema + the seven rules the
     workflow's coordination verifier enforces (missing-repo, unknown-dep,
     cycle, wave-mismatch, consumes-not-in-depends, wave-nonminimal,
     contract-mismatch). The verifier uses a real YAML parser (yq), not

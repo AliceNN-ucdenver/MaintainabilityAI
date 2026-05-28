@@ -512,15 +512,35 @@ jobs:
           target_repos = set()
           try:
               if okr_yaml_path and os.path.exists(okr_yaml_path):
-                  okr_doc = yaml.safe_load(open(okr_yaml_path, 'r', encoding='utf-8').read())
-                  for action in (okr_doc or {}).get('actions', []) or []:
-                      align = action.get('objectiveAlignment', {}) or {}
-                      for raw in align.get('targetCodeRepos', []) or []:
+                  okr_doc = yaml.safe_load(open(okr_yaml_path, 'r', encoding='utf-8').read()) or {}
+                  # Bug TT-1 — the canonical OKR shape stores target repos at
+                  # the OKR's top-level `objectiveAlignment.targetCodeRepos`
+                  # (the field is declared by OkrObjectiveAlignmentSchema in
+                  # src/types/okr.ts and round-trips through OKRService). Pre-
+                  # fix we only read actions[].objectiveAlignment.targetCodeRepos
+                  # and a top-level `targetCodeRepos` that doesn't exist on
+                  # the real card — so target_repos stayed empty, the empty
+                  # check below silently emitted true, and the §10 H3 parse
+                  # was never reached. Result: a malformed coordination block
+                  # passed audit and Stage 5 was the first to reject it.
+                  #
+                  # Read order:
+                  #   1. canonical: okr.objectiveAlignment.targetCodeRepos
+                  #   2. legacy:    actions[].objectiveAlignment.targetCodeRepos
+                  #   3. legacy:    okr.targetCodeRepos (top-level bare)
+                  # Anything found is unioned + slug-normalized.
+                  align = okr_doc.get('objectiveAlignment', {}) or {}
+                  for raw in align.get('targetCodeRepos', []) or []:
+                      slug = normalize_to_slug(raw)
+                      if slug:
+                          target_repos.add(slug)
+                  for action in okr_doc.get('actions', []) or []:
+                      action_align = action.get('objectiveAlignment', {}) or {}
+                      for raw in action_align.get('targetCodeRepos', []) or []:
                           slug = normalize_to_slug(raw)
                           if slug:
                               target_repos.add(slug)
-                      # also accept top-level targetCodeRepos[] on the OKR
-                  for raw in (okr_doc or {}).get('targetCodeRepos', []) or []:
+                  for raw in okr_doc.get('targetCodeRepos', []) or []:
                       slug = normalize_to_slug(raw)
                       if slug:
                           target_repos.add(slug)

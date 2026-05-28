@@ -419,8 +419,18 @@ expectations: when its session opens, every dependency it reads from
 `consumes:` will already be shipped in the dependency repo's main branch
 — never mocked.
 
-Use this exact YAML shape (no fenced ` ``` ` inside the artifact body; the
-workflow's coordination verifier parses with `yq`, not regex):
+**MANDATORY: this block MUST be a single fenced ` ```yaml ` code block,
+opened with three backticks plus `yaml`, closed with three backticks on
+its own line.** Both the in-extension TypeScript parser (Looking Glass
+Stage 5 fan-out) and the workflow's Python coordination verifier extract
+the FIRST `` ```yaml `` fence inside this H3 subsection. An unfenced YAML
+block — even one that is otherwise correct — fails with
+`coordination-yaml-malformed: no ` `` ```yaml `` ` fence in §10 H3` and
+blocks `design-pass`. The verifier uses a real YAML parser (`yq` /
+`yaml.safe_load`), not regex; nested `provides` / `consumes` arrays
+parse cleanly inside the fence.
+
+Use exactly this fenced shape (literal three backticks):
 
 ```yaml
 coordination:
