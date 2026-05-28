@@ -6,6 +6,10 @@ sub-optimal recall everywhere. This pack enforces per-provider tuning AND
 hard topic-anchoring so we never waste recall budget on year-only generic
 queries like "trends 2026" that match unrelated content.
 
+The WHY audit validates the deterministic shape rules below from the emitted
+`skill_call.payload.queries[]`. Badly shaped queries can return `ok: true` with
+zero results, but they still fail the query-plan quality gate.
+
 Pack ID: `research/query-plan`
 Output format: `json-only` (one JSON object with four keys: `web`, `arxiv`, `patent`, `community`)
 Adopts NCMS `PLAN_QUERIES_PROMPT` pattern + strict topic-anchor enforcement.

@@ -17,7 +17,7 @@ Call when the agent needs structured web search results for OKR / PRD research. 
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `queries` | `string[]` | yes | — | Search queries (the agent crafts these, NOT this skill). |
+| `queries` | `string[]` | yes | — | Web queries the agent crafts. WHY audit expects each query to include the current 4-digit year plus a subject/concept anchor. |
 | `maxResults` | `integer` | no | 10 | Per-query result cap. |
 
 ## Outputs (stdout JSON)

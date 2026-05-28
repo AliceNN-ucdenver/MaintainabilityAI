@@ -85,7 +85,12 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
 2. Invoke `knowledge-okr` with `{"okrId":"<extracted id>"}`. Canonical input; chain event 1.
 3. Invoke `knowledge-mesh-bar` with `{"barId":"<id>"}` ONCE per `objectiveAlignment.affectedBarIds[]` entry. These BARs' CALM + threats + ADRs ground your synthesis.
 4. Invoke `knowledge-mesh-threats` with `{"concern":"<primary keyword>"}` AND `knowledge-mesh-adrs` with the same. These bound your "what does the mesh already know" baseline.
-5. Generate a query plan from the OKR objective + mesh context — YOUR own reasoning, no Skill needed. Per provider: Tavily 3–5 web queries with subject anchors; arXiv 2–3 formal-domain queries; USPTO Q1/Q2/Q3 narrow→broad with `AND` boolean and 1–3 terms; HN 2–3 short casual queries. See `.caterpillar/prompts/research/query-plan.md` for examples.
+5. Generate a query plan from the OKR objective + mesh context — YOUR own reasoning, no Skill needed. Per provider: Tavily 3–5 web queries with subject anchors; arXiv 2–3 formal-domain queries; USPTO Q1/Q2/Q3 narrow→broad with `AND` boolean and 1–3 terms; HN 2–3 short casual queries. Treat `.caterpillar/prompts/research/query-plan.md` as a contract, not inspiration:
+   - Tavily queries MUST include the current 4-digit year and a subject/concept anchor.
+   - arXiv queries MUST be plain technical phrases, 3–6 words, with no boolean operators and no year.
+   - USPTO queries MUST be 2–3 technical keywords joined by `AND`; avoid stop words and long phrases.
+   - Hacker News queries MUST be 2–3 casual words, the way a developer would title a Show HN or Ask HN post.
+   - Follow-up gap-loop queries MUST obey the same provider-specific shape rules.
 6. Invoke `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search` in parallel. **All four must produce a `skill_call` event in the chain** — the audit-and-drift workflow counts per-provider and the evidence-honesty gate fails if a provider you claim sources from has zero invocations. Do not summarize results from `skill_use` context loading and pretend they came from real search.
 7. **MUST invoke `dedupe-and-rank`** over the four result arrays. The runner accepts both grouped-by-provider and flat result arrays; the skill emits the canonical `rankedSources` + `providerCounts` either way.
 8. Inspect `rankedSources` + `providerCounts` for coverage gaps. If you see `low_source_diversity` / `contradiction` / `topic_uncovered` for a key brief term, run **ONE bounded second pass** — never iterative, never multi-round:

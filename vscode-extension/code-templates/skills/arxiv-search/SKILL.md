@@ -15,7 +15,7 @@ Call when the agent needs peer-reviewed / preprint academic sources for research
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `queries` | `string[]` | yes | — | Formal-domain queries (e.g. "named entity disambiguation knowledge graph"). |
+| `queries` | `string[]` | yes | — | Formal-domain queries: 3-6 word technical phrases, no boolean operators, no recency year (e.g. "named entity disambiguation knowledge graph"). |
 | `maxResults` | `integer` | no | 10 | Per-query result cap. |
 
 ## Outputs (stdout JSON)

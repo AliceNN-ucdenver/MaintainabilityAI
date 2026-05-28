@@ -327,6 +327,101 @@ jobs:
                   print(f'::warning::skill-manifest missing: {m}')
           PYEOF
 
+      # Query-plan quality gate. Each provider searches a different corpus:
+      # Tavily wants recency-anchored web queries, arXiv wants short formal
+      # technical phrases, USPTO wants 2-3 AND-joined keywords, and HN wants
+      # short casual title phrases. The audit chain is honest even when a
+      # poorly shaped query returns ok:true + zero results, so enforce the
+      # deterministic parts of .caterpillar/prompts/research/query-plan.md
+      # from the JSONL payload.
+      - name: Verify provider query-plan shape
+        id: query_plan
+        if: steps.gate.outputs.skip != 'true' && steps.audit.outputs.found == 'true'
+        env:
+          JSONL: ${{ steps.audit.outputs.path }}
+        run: |
+          JSONL="$JSONL" python3 <<'PYEOF'
+          import datetime, json, os, re
+          path = os.environ['JSONL']
+          bad = []
+          total = 0
+          current_year = str(datetime.datetime.utcnow().year)
+          stop_words = {'a', 'an', 'and', 'as', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'with'}
+
+          def word_count(query):
+              return len(re.findall(r"[A-Za-z0-9][A-Za-z0-9+._/-]*", str(query)))
+
+          def words(query):
+              return re.findall(r"[A-Za-z0-9][A-Za-z0-9+._/-]*", str(query).lower())
+
+          def record(skill, query, reason):
+              bad.append(f'{skill}: "{query}" - {reason}')
+
+          with open(path, 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  if not line:
+                      continue
+                  try:
+                      event = json.loads(line)
+                  except Exception:
+                      continue
+                  if event.get('event_kind') != 'skill_call':
+                      continue
+                  payload = event.get('payload') or {}
+                  skill = payload.get('skill')
+                  if skill not in {'tavily-search', 'arxiv-search', 'uspto-search', 'hackernews-search'}:
+                      continue
+                  for query in payload.get('queries') or []:
+                      total += 1
+                      count = word_count(query)
+                      q = str(query)
+                      if skill == 'tavily-search':
+                          if current_year not in q:
+                              record(skill, q, f'missing recency year {current_year}')
+                          if count < 4:
+                              record(skill, q, f'too short for web search ({count} words, expected >=4)')
+                      elif skill == 'arxiv-search':
+                          if count < 3 or count > 6:
+                              record(skill, q, f'{count} words, expected 3-6')
+                          if re.search(r'\b(AND|OR|NOT)\b', q, re.IGNORECASE):
+                              record(skill, q, 'contains boolean operator; arXiv queries should be plain phrases')
+                          if re.search(r'\b20\d{2}\b', q):
+                              record(skill, q, 'contains year; arXiv queries should be technical phrases, not recency queries')
+                      elif skill == 'uspto-search':
+                          terms = [t.strip() for t in re.split(r'\s+AND\s+', q, flags=re.IGNORECASE) if t.strip()]
+                          if len(terms) < 2 or len(terms) > 3:
+                              record(skill, q, f'{len(terms)} AND terms, expected 2-3')
+                          for term in terms:
+                              term_words = words(term)
+                              if len(term_words) == 0:
+                                  record(skill, q, 'contains empty USPTO term')
+                              elif len(term_words) > 2:
+                                  record(skill, q, f'USPTO term "{term}" is too phrase-like; use keywords')
+                              if any(w in stop_words for w in term_words):
+                                  record(skill, q, f'USPTO term "{term}" contains stop word')
+                      elif skill == 'hackernews-search':
+                          if count < 2 or count > 3:
+                              record(skill, q, f'{count} words, expected 2-3 casual words')
+
+          ok = len(bad) == 0
+          out = os.environ['GITHUB_OUTPUT']
+          with open(out, 'a', encoding='utf-8') as f:
+              f.write(f'ok={"true" if ok else "false"}\n')
+              f.write(f'total={total}\n')
+              f.write(f'bad_count={len(bad)}\n')
+              f.write('bad<<QEOF\n')
+              for item in bad:
+                  f.write(item + '\n')
+              f.write('QEOF\n')
+          if ok:
+              print(f'::notice::query-plan PASS ({total} provider queries matched deterministic provider-shape rules)')
+          else:
+              print(f'::warning::query-plan FAIL ({len(bad)} violation(s) across {total} provider queries)')
+              for item in bad:
+                  print(f'::warning::bad provider query: {item}')
+          PYEOF
+
       # Bug Z (post-Codex round-10) — PR audit VERIFIES, finalize RECORDS.
       # This step previously emitted artifact_written into the workspace
       # JSONL via `npx audit-emit-event`. That path was always disposable:
@@ -737,6 +832,9 @@ jobs:
           MANIFEST_OK="${{ steps.manifest.outputs.ok }}"
           MANIFEST_MISSING_RAW="${{ steps.manifest.outputs.missing }}"
           MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
+          QUERY_PLAN_OK="${{ steps.query_plan.outputs.ok }}"
+          QUERY_PLAN_BAD_RAW="${{ steps.query_plan.outputs.bad }}"
+          QUERY_PLAN_BAD=$(echo "$QUERY_PLAN_BAD_RAW" | tr '\n' ';' | sed 's/;$//')
 
           VERDICT="ok"; REASON=""
           # Discrete failure-kind flags — used by the label-apply step to
@@ -883,6 +981,14 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
+          # Query-plan shape is an evidence-quality gate. Providers can
+          # return ok:true with zero results for badly shaped queries; this
+          # keeps that from looking like high-quality live evidence.
+          if [ "$VERDICT" = "ok" ] && [ "$QUERY_PLAN_OK" = "false" ]; then
+            VERDICT="degraded"; REASON="Provider query-plan violation: $QUERY_PLAN_BAD"
+            EVIDENCE_FAIL="true"
+          fi
+
           # Structure
           if [ "$VERDICT" = "ok" ]; then
             if [ "$DOC_FOUND" != "true" ]; then
@@ -958,6 +1064,13 @@ jobs:
             true)  printf '| Required skill_call manifest | ✓ all 10 required skills invoked |\n' >> "$BODY" ;;
             false) printf '| Required skill_call manifest | ✗ incomplete — missing: %s |\n' "$(echo "$MANIFEST_MISSING_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
             *)     printf '| Required skill_call manifest | — n/a (no chain) |\n' >> "$BODY" ;;
+          esac
+          QUERY_PLAN_OK_DISPLAY='${{ steps.query_plan.outputs.ok }}'
+          QUERY_PLAN_BAD_DISPLAY='${{ steps.query_plan.outputs.bad }}'
+          case "$QUERY_PLAN_OK_DISPLAY" in
+            true)  printf '| Provider query-plan shape | ✓ Tavily / arXiv / USPTO / HN query shapes valid |\n' >> "$BODY" ;;
+            false) printf '| Provider query-plan shape | ✗ bad queries: %s |\n' "$(echo "$QUERY_PLAN_BAD_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
+            *)     printf '| Provider query-plan shape | — n/a (no chain) |\n' >> "$BODY" ;;
           esac
           # Knight's Seal v1 (B27): per-run Ed25519 sealing.
           SEALED='${{ steps.chain.outputs.sealed }}'

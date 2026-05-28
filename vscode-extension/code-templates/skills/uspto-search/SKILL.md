@@ -17,7 +17,7 @@ Call when the agent needs prior-art / patent-landscape evidence (whitespace anal
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `queries` | `string[]` | yes | — | Q1/Q2/Q3 narrow/medium/broad queries with `AND` boolean (e.g. `celebrity AND identity AND disambiguation`). 1–3 terms total, no stop words. |
+| `queries` | `string[]` | yes | — | Q1/Q2/Q3 narrow/medium/broad queries with `AND` boolean (e.g. `celebrity AND identity AND disambiguation`). 2-3 technical terms, no stop words or long prose phrases. |
 | `maxResults` | `integer` | no | 10 | Per-query result cap. |
 
 ## Outputs (stdout JSON)
