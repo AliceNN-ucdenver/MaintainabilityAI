@@ -12,10 +12,14 @@ import {
   composeOkrRollupSourceTag,
   composeSourceTag,
   computeOkrRollupVerdict,
+  parseImplementationChainBlock,
   parseRunnerVerdictFromStdout,
+  verifyImplementationChainEntry,
   type AuditReportInput,
   type AuditReportInputSources,
   type ChainVerifyVerdictLite,
+  type ImplementationChainEntry,
+  type ImplementationChainRow,
   type OkrRollupInput,
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
@@ -1597,5 +1601,368 @@ describe('composeOkrRollupSourceTag', () => {
     expect(tag).toContain('MIXED');
     expect(tag).toContain('HOW');
     expect(tag).not.toContain('WHY');
+  });
+});
+
+// ============================================================================
+// D-PR8 — implementation chain pure pieces:
+//   - parseImplementationChainBlock (extract YAML frontmatter from PR body)
+//   - verifyImplementationChainEntry (cross-axis verification)
+//   - computeOkrRollupVerdict extension (impl chain FAIL/PARTIAL signals)
+//   - buildOkrRollupMarkdown extension (Implementation chain section)
+// ============================================================================
+
+const FULL_CHAIN: ImplementationChainEntry = {
+  okr_id: 'OKR-2026Q3-IMDB-002-celeb-api',
+  parent_phase: 'what',
+  parent_run_id: 'WHAT-2026-06-10-abc123',
+  implementation_run_id: 'IMPL-2026-06-15-celeb-api-x7n2qk',
+  mesh_repo: 'acme/governance-mesh',
+  target_repo: 'acme/celeb-api',
+  event_log_path: '.maintainability/audit/events/IMPL-2026-06-15-celeb-api-x7n2qk.jsonl',
+  key_path: '.maintainability/audit/keys/IMPL-2026-06-15-celeb-api-x7n2qk.epoch-1.pub.pem',
+  parent_intent_thread: '2e28b567-ab8a-4ad0-a29d-632673f412a9',
+  parent_chain_root: '87edfc98924d2956abcdef0123456789012345678901234567890abcdef012345',
+};
+
+function makeChainPrBody(chain: Partial<ImplementationChainEntry> = {}): string {
+  const merged = { ...FULL_CHAIN, ...chain };
+  const yamlLines = [
+    '---',
+    'implementation_chain:',
+    `  okr_id: ${merged.okr_id}`,
+    `  parent_phase: ${merged.parent_phase}`,
+    `  parent_run_id: ${merged.parent_run_id}`,
+    `  implementation_run_id: ${merged.implementation_run_id}`,
+    `  mesh_repo: ${merged.mesh_repo}`,
+    `  target_repo: ${merged.target_repo}`,
+    `  event_log_path: ${merged.event_log_path}`,
+    `  key_path: ${merged.key_path}`,
+    `  parent_intent_thread: ${merged.parent_intent_thread}`,
+    `  parent_chain_root: ${merged.parent_chain_root}`,
+    '---',
+    '',
+    'Implements the celeb-api slice for OKR-2026Q3-IMDB-002.',
+  ];
+  return yamlLines.join('\n');
+}
+
+describe('parseImplementationChainBlock', () => {
+  it('extracts a fully-populated implementation_chain block', () => {
+    const parsed = parseImplementationChainBlock(makeChainPrBody());
+    expect(parsed).not.toBeNull();
+    expect(parsed!.okr_id).toBe(FULL_CHAIN.okr_id);
+    expect(parsed!.parent_phase).toBe('what');
+    expect(parsed!.implementation_run_id).toBe('IMPL-2026-06-15-celeb-api-x7n2qk');
+    expect(parsed!.parent_chain_root).toBe(FULL_CHAIN.parent_chain_root);
+  });
+
+  it('returns null on null/empty PR body', () => {
+    expect(parseImplementationChainBlock(null)).toBeNull();
+    expect(parseImplementationChainBlock(undefined)).toBeNull();
+    expect(parseImplementationChainBlock('')).toBeNull();
+  });
+
+  it('returns null when PR body has no implementation_chain block', () => {
+    const body = '---\nfoo: bar\n---\n\nNot a fan-out PR.';
+    expect(parseImplementationChainBlock(body)).toBeNull();
+  });
+
+  it('returns null when YAML inside the block does not parse', () => {
+    const body = '---\nimplementation_chain:\n  okr_id: [unterminated\n---';
+    expect(parseImplementationChainBlock(body)).toBeNull();
+  });
+
+  it('treats absent fields as empty strings (preserves partial blocks)', () => {
+    const body = [
+      '---',
+      'implementation_chain:',
+      '  okr_id: OKR-X',
+      '  parent_phase: what',
+      // intentionally missing the rest
+      '---',
+    ].join('\n');
+    const parsed = parseImplementationChainBlock(body);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.okr_id).toBe('OKR-X');
+    expect(parsed!.parent_run_id).toBe('');
+    expect(parsed!.parent_chain_root).toBe('');
+  });
+});
+
+describe('verifyImplementationChainEntry', () => {
+  it('returns empty array for a fully-valid entry that matches expectations', () => {
+    const issues = verifyImplementationChainEntry(
+      FULL_CHAIN,
+      FULL_CHAIN.parent_intent_thread,
+      FULL_CHAIN.parent_chain_root,
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('reports evidence-missing for the whole block when entry is null', () => {
+    const issues = verifyImplementationChainEntry(null, 'x', 'y');
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toEqual({ kind: 'evidence-missing', field: 'implementation_chain' });
+  });
+
+  it('reports per-field evidence-missing for empty fields', () => {
+    const partial: ImplementationChainEntry = { ...FULL_CHAIN, event_log_path: '', key_path: '' };
+    const issues = verifyImplementationChainEntry(partial, FULL_CHAIN.parent_intent_thread, FULL_CHAIN.parent_chain_root);
+    expect(issues).toHaveLength(2);
+    expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'event_log_path')).toBe(true);
+    expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'key_path')).toBe(true);
+  });
+
+  it('reports cross-repo-thread-broken when parent_intent_thread mismatches', () => {
+    const issues = verifyImplementationChainEntry(
+      FULL_CHAIN,
+      'different-thread-uuid',
+      FULL_CHAIN.parent_chain_root,
+    );
+    expect(issues.some(i => i.kind === 'cross-repo-thread-broken')).toBe(true);
+    const threadIssue = issues.find(i => i.kind === 'cross-repo-thread-broken')!;
+    if (threadIssue.kind !== 'cross-repo-thread-broken') throw new Error('narrow');
+    expect(threadIssue.got).toBe(FULL_CHAIN.parent_intent_thread);
+    expect(threadIssue.expected).toBe('different-thread-uuid');
+  });
+
+  it('reports cross-repo-chain-root-mismatch when parent_chain_root mismatches', () => {
+    const issues = verifyImplementationChainEntry(
+      FULL_CHAIN,
+      FULL_CHAIN.parent_intent_thread,
+      'different-chain-root',
+    );
+    expect(issues.some(i => i.kind === 'cross-repo-chain-root-mismatch')).toBe(true);
+  });
+
+  it('skips cross-axis verification when expected values are null', () => {
+    const issues = verifyImplementationChainEntry(FULL_CHAIN, null, null);
+    expect(issues).toEqual([]); // no cross-axis, no field-missing → clean
+  });
+
+  it('collects multiple issues simultaneously (not short-circuit)', () => {
+    const partial: ImplementationChainEntry = { ...FULL_CHAIN, mesh_repo: '', parent_chain_root: 'wrong-root' };
+    const issues = verifyImplementationChainEntry(partial, FULL_CHAIN.parent_intent_thread, FULL_CHAIN.parent_chain_root);
+    expect(issues.length).toBeGreaterThanOrEqual(2);
+    expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'mesh_repo')).toBe(true);
+    expect(issues.some(i => i.kind === 'cross-repo-chain-root-mismatch')).toBe(true);
+  });
+});
+
+describe('computeOkrRollupVerdict — implementation chain signals', () => {
+  function mkCanonicalSources(): AuditReportInputSources {
+    return {
+      okr: 'github', chain: 'github', ladder: 'github', keys: 'github-verified',
+      prd: 'github', artifact: 'github', runnerInput: 'github-verified',
+    };
+  }
+  function mkPhase(over: Partial<PhaseRollupDigest> = {}): PhaseRollupDigest {
+    const phase = over.phase ?? 'why';
+    return {
+      phase, runId: `${phase.toUpperCase()}-X`, actionId: 'ACT-1', status: 'complete',
+      completedAt: 'T0', artifactPath: 'x', prUrl: null,
+      evidenceComplete: true, evidenceGaps: [],
+      verdict: { seal: { sealed: true }, totalEvents: 0, malformedLines: 0, unsignedAgentEvents: 0, signedWorkflowEvents: 0, originKindMismatches: 0, firstFailure: null, shapeOk: true },
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'h', eventCount: 1 },
+      sources: mkCanonicalSources(), agentStats: { signedAgent: 1, totalAgent: 1 }, reviewSummary: [],
+      chainHead: 'h', eventCount: 1, perActionReportPath: 'p',
+      ...over,
+    };
+  }
+  function mkInput(implChain?: OkrRollupInput['implementationChain']): OkrRollupInput {
+    return {
+      okrId: 'OKR-X', objective: null, owner: null, tier: null, barId: null,
+      createdAt: null, completedAt: null,
+      phases: [mkPhase({ phase: 'why' }), mkPhase({ phase: 'how' }), mkPhase({ phase: 'what' })],
+      missingPhases: [], chainLadderText: null, ladderSource: 'github',
+      controlRows: [], prdSource: 'github', artifactSource: 'github',
+      sourceTag: 'x', repoInfo: null,
+      implementationChain: implChain,
+    };
+  }
+  function mkRow(over: Partial<ImplementationChainRow> = {}): ImplementationChainRow {
+    return {
+      repoSlug: 'acme/celeb-api',
+      status: 'pr-merged',
+      prUrl: 'https://github.com/acme/celeb-api/pull/42',
+      chain: { ...FULL_CHAIN },
+      ...over,
+    };
+  }
+
+  it('PASS when all phases pass + all impl chain rows verify cleanly', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow()],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(v.verdict).toBe('PASS');
+  });
+
+  it('FAIL with cross-repo-thread-broken when impl PR thread mismatches', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow()],
+      expectedIntentThread: 'different-uuid',
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(v.verdict).toBe('FAIL');
+    expect(v.reason).toMatch(/^cross-repo-thread-broken:acme\/celeb-api/);
+  });
+
+  it('FAIL with cross-repo-chain-root-mismatch when impl PR root mismatches', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow()],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: 'different-root',
+    }));
+    expect(v.verdict).toBe('FAIL');
+    expect(v.reason).toMatch(/^cross-repo-chain-root-mismatch:acme\/celeb-api/);
+  });
+
+  it('FAIL with implementation-chain-evidence-missing when PR body missing the block', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow({ chain: null })],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(v.verdict).toBe('FAIL');
+    expect(v.reason).toMatch(/^implementation-chain-evidence-missing:acme\/celeb-api/);
+  });
+
+  it('PARTIAL with implementation-pr-rejected when impl PR was closed without merging', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow({ status: 'pr-rejected' })],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(v.verdict).toBe('PARTIAL');
+    expect(v.reason).toMatch(/^implementation-pr-rejected:acme\/celeb-api/);
+  });
+
+  it('skips non-merged rows for FAIL-precedence cross-axis checks (only pr-merged is verified)', () => {
+    // Row at pr-opened with a broken chain block -- should NOT FAIL the OKR
+    // because the PR hasn't merged yet; only pr-merged rows get cross-axis
+    // verified. The verdict stays PASS (clean phases + no fatal impl rows).
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow({ status: 'pr-opened', chain: null })],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(v.verdict).toBe('PASS');
+  });
+
+  it('ignores implementationChain when not supplied (back-compat for pre-Tier-2 OKRs)', () => {
+    const v = computeOkrRollupVerdict(mkInput(undefined));
+    expect(v.verdict).toBe('PASS');
+  });
+
+  it('per-phase FAIL takes precedence over impl chain FAIL (atomicity > impl)', () => {
+    const broken = mkInput({
+      rows: [mkRow({ status: 'pr-merged', chain: null })], // impl FAIL
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    });
+    broken.phases[0].evidenceComplete = false;
+    broken.phases[0].evidenceGaps = ['JSONL not present in chain'];
+    const v = computeOkrRollupVerdict(broken);
+    expect(v.verdict).toBe('FAIL');
+    expect(v.reason).toMatch(/WHY phase has incomplete evidence/);
+  });
+
+  it('missing-phase PARTIAL takes precedence over impl-pr-rejected PARTIAL', () => {
+    const v = computeOkrRollupVerdict({
+      ...mkInput({
+        rows: [mkRow({ status: 'pr-rejected' })],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      }),
+      missingPhases: ['what'],
+      phases: [mkPhase({ phase: 'why' }), mkPhase({ phase: 'how' })],
+    });
+    expect(v.verdict).toBe('PARTIAL');
+    expect(v.reason).toMatch(/WHAT phase\(s\) not started yet/);
+  });
+});
+
+describe('buildOkrRollupMarkdown — implementation chain section', () => {
+  function mkCanonicalSources(): AuditReportInputSources {
+    return {
+      okr: 'github', chain: 'github', ladder: 'github', keys: 'github-verified',
+      prd: 'github', artifact: 'github', runnerInput: 'github-verified',
+    };
+  }
+  function mkPhase(phase: 'why' | 'how' | 'what'): PhaseRollupDigest {
+    return {
+      phase, runId: `${phase.toUpperCase()}-X`, actionId: 'ACT-1', status: 'complete',
+      completedAt: 'T0', artifactPath: 'x', prUrl: null,
+      evidenceComplete: true, evidenceGaps: [],
+      verdict: { seal: { sealed: true }, totalEvents: 0, malformedLines: 0, unsignedAgentEvents: 0, signedWorkflowEvents: 0, originKindMismatches: 0, firstFailure: null, shapeOk: true },
+      runnerVerdict: { invoked: true, ok: true, chainHead: 'h', eventCount: 1 },
+      sources: mkCanonicalSources(), agentStats: { signedAgent: 1, totalAgent: 1 }, reviewSummary: [],
+      chainHead: 'h', eventCount: 1, perActionReportPath: 'p',
+    };
+  }
+  const baseInput: OkrRollupInput = {
+    okrId: 'OKR-Y', objective: null, owner: null, tier: null, barId: null,
+    createdAt: null, completedAt: null,
+    phases: [mkPhase('why'), mkPhase('how'), mkPhase('what')],
+    missingPhases: [], chainLadderText: null, ladderSource: 'github',
+    controlRows: [], prdSource: 'github', artifactSource: 'github',
+    sourceTag: 'x', repoInfo: null,
+  };
+
+  it('omits the Implementation chain section when implementationChain is undefined', () => {
+    const md = buildOkrRollupMarkdown(baseInput);
+    expect(md).not.toContain('## Implementation chain');
+  });
+
+  it('omits the Implementation chain section when rows is empty', () => {
+    const md = buildOkrRollupMarkdown({
+      ...baseInput,
+      implementationChain: { rows: [], expectedIntentThread: null, expectedWhatChainRoot: null },
+    });
+    expect(md).not.toContain('## Implementation chain');
+  });
+
+  it('renders the Implementation chain table when rows present', () => {
+    const md = buildOkrRollupMarkdown({
+      ...baseInput,
+      implementationChain: {
+        rows: [{
+          repoSlug: 'acme/celeb-api',
+          status: 'pr-merged',
+          prUrl: 'https://github.com/acme/celeb-api/pull/42',
+          chain: { ...FULL_CHAIN },
+        }],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      },
+    });
+    expect(md).toContain('## Implementation chain');
+    expect(md).toContain('acme/celeb-api');
+    expect(md).toContain('IMPL-2026-06-15-celeb-api-x7n2qk');
+    // Both ✓ marks present for matching root + thread
+    expect(md).toMatch(/\| ✓ \| ✓ \|/);
+    expect(md).toContain('_not-yet-verified_'); // runner-verify placeholder
+  });
+
+  it('surfaces issue details below the table when verification fails', () => {
+    const md = buildOkrRollupMarkdown({
+      ...baseInput,
+      implementationChain: {
+        rows: [{
+          repoSlug: 'acme/celeb-api',
+          status: 'pr-merged',
+          prUrl: 'https://github.com/acme/celeb-api/pull/42',
+          chain: { ...FULL_CHAIN, parent_chain_root: 'wrong-root' },
+        }],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      },
+    });
+    expect(md).toContain('**Implementation chain issues**');
+    expect(md).toContain('cross-repo-chain-root-mismatch');
+    expect(md).toContain('wrong-root');
   });
 });

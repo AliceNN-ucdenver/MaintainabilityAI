@@ -82,9 +82,12 @@ import {
   countAgentEventStats,
   extractControlMapping,
   parseChain,
+  parseImplementationChainBlock,
   parseRunnerVerdictFromStdout,
   summarizeSelfReview,
   type AuditReportInputSources,
+  type ImplementationChainEntry,
+  type ImplementationChainRow,
   type OkrRollupInput,
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
@@ -1387,6 +1390,74 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } catch (err) {
       return `Wrote file but git commit failed: ${toErrorMessage(err)}.`;
     }
+  }
+
+  /**
+   * D-PR8 — assemble the OkrRollupInput.implementationChain field for
+   * the rollup export. Reads design-fan-out.yaml, fetches each impl
+   * PR's body via the GitHub API for merged rows, parses the
+   * implementation_chain YAML frontmatter block, returns the
+   * per-target-repo tuple the exporter renders + verifies against.
+   *
+   * Returns undefined when there's no design-fan-out.yaml (pre-Tier-2
+   * OKR OR WHAT-not-fanned-out OKR) — the rollup omits the
+   * Implementation chain section entirely.
+   *
+   * Expected ground truths sourced from:
+   *   - expectedIntentThread: okr.yaml meta.intentThreadUuid
+   *   - expectedWhatChainRoot: WHAT phase's chainHead from phaseDigests
+   *     (single source of truth — same value the WHAT-phase trust
+   *     block renders + the workflow audit comment carries)
+   */
+  private async assembleImplementationChainInput(
+    meshPath: string,
+    okrId: string,
+    phaseDigests: PhaseRollupDigest[],
+    okrParsed: { meta?: Record<string, unknown> | undefined },
+  ): Promise<OkrRollupInput['implementationChain']> {
+    const fanOut = this.meshService.readDesignFanOut(meshPath, okrId);
+    if (!fanOut || fanOut.rows.length === 0) return undefined;
+
+    const intentThreadValue = okrParsed.meta?.['intentThreadUuid'];
+    const expectedIntentThread = typeof intentThreadValue === 'string' ? intentThreadValue : null;
+    const whatDigest = phaseDigests.find(p => p.phase === 'what');
+    const expectedWhatChainRoot = whatDigest?.chainHead ?? null;
+
+    const rows: ImplementationChainRow[] = [];
+    for (const r of fanOut.rows) {
+      // Only render rows that actually represent fan-out targets with
+      // PR-state-ish status (skip never-opened rows like
+      // pending-on-upstream when there's no useful info yet).
+      const renderableStatuses = new Set(['opened', 'pr-opened', 'pr-merged', 'pr-rejected', 'pending-on-upstream']);
+      if (!renderableStatuses.has(r.status)) continue;
+
+      let chain: ImplementationChainEntry | null = null;
+      // Only fetch + parse the PR body for rows with an impl PR URL.
+      // opened rows (landing issue created, no PR yet) skip the fetch.
+      if (r.implPrUrl && (r.status === 'pr-merged' || r.status === 'pr-opened' || r.status === 'pr-rejected')) {
+        const prMatch = r.implPrUrl.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)/);
+        if (prMatch) {
+          const [, owner, repo, prNum] = prMatch;
+          try {
+            const client = await this.githubService.getClient();
+            const pr = await client.rest.pulls.get({ owner, repo, pull_number: parseInt(prNum, 10) });
+            chain = parseImplementationChainBlock(pr.data.body ?? null);
+          } catch {
+            // Best-effort: leave chain null → renders as evidence-missing.
+          }
+        }
+      }
+
+      rows.push({
+        repoSlug: r.repo,
+        status: r.status,
+        prUrl: r.implPrUrl ?? null,
+        chain,
+      });
+    }
+
+    if (rows.length === 0) return undefined;
+    return { rows, expectedIntentThread, expectedWhatChainRoot };
   }
 
   /**
@@ -4169,6 +4240,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const allStartedComplete = phaseDigests.length > 0 && phaseDigests.every(d => d.completedAt);
     const okrCompletedAt = allStartedComplete && missingPhases.length === 0 ? lastCompletedAt : null;
 
+    // D-PR8 — assemble the implementation chain rows from
+    // design-fan-out.yaml + each merged impl PR's body. Surfaced in
+    // the rollup's "Implementation chain" section + factored into the
+    // verdict (cross-repo-thread-broken / cross-repo-chain-root-
+    // mismatch / implementation-chain-evidence-missing FAILs;
+    // implementation-pr-rejected PARTIAL).
+    const implChainInput = await this.assembleImplementationChainInput(meshPath, okrId, phaseDigests, okrParsed);
+
     const rollupInput: OkrRollupInput = {
       okrId,
       objective: okrParsed.objective?.name ?? null,
@@ -4192,6 +4271,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // Trust posture blocks render the canonical headline (not MIXED)
       // when a phase's sources match the OKR-level canonical state.
       repoInfo: repoInfo ?? null,
+      implementationChain: implChainInput,
     };
 
     const markdown = buildOkrRollupMarkdown(rollupInput);

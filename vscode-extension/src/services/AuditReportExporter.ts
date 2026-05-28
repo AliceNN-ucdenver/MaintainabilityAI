@@ -1224,9 +1224,203 @@ export interface OkrRollupInput {
    * same canonical headline as the top-level.
    */
   repoInfo: { owner: string; repo: string } | null;
+  /**
+   * D-PR8 — per-target-repo implementation rows sourced from
+   * design-fan-out.yaml + each impl PR body's YAML frontmatter
+   * `implementation_chain` block.
+   *
+   * Caller (panel handler) assembles: reads design-fan-out.yaml,
+   * fetches each pr-merged row's PR body, parses the
+   * implementation_chain block via parseImplementationChainBlock,
+   * passes the per-row tuple here.
+   *
+   * Optional. Undefined / empty array means "no impl rows to render"
+   * — pre-Tier-2 OKRs + fresh-WHAT-not-yet-fanned-out OKRs both fall
+   * into this branch and the rollup omits the implementation chain
+   * section entirely.
+   *
+   * `expectedIntentThread` + `expectedWhatChainRoot` are the
+   * mesh-side ground truths the per-row chain entries verify against.
+   * When null, cross-axis verification skips (still surfaces
+   * evidence-missing for any field absent from the parsed block).
+   */
+  implementationChain?: {
+    rows: ImplementationChainRow[];
+    expectedIntentThread: string | null;
+    expectedWhatChainRoot: string | null;
+  };
 }
 
+/**
+ * D-PR8 — implementation chain row sourced from `design-fan-out.yaml`
+ * + the impl PR body's YAML frontmatter `implementation_chain` block
+ * (per D-PR7 storage contract).
+ *
+ * `chain` is the parsed block from the PR body when present. `chain
+ * === null` means the impl PR exists but its body doesn't carry the
+ * continuation block — that's an `implementation-chain-evidence-missing`
+ * FAIL signal in computeOkrRollupVerdict.
+ *
+ * Caller (panel handler) fetches PR bodies + parses + supplies. Pure
+ * exporter pieces verify + render.
+ */
+export interface ImplementationChainRow {
+  repoSlug: string;
+  /** From design-fan-out.yaml row. */
+  status: 'opened' | 'pending-on-upstream' | 'pr-opened' | 'pr-merged' | 'pr-rejected' | string;
+  prUrl: string | null;
+  /** Parsed YAML frontmatter from the impl PR body; null when PR has none. */
+  chain: ImplementationChainEntry | null;
+}
+
+/**
+ * Per the D-PR7 storage contract (template's `implementation_chain:`
+ * YAML block). All fields required; missing any → evidence-missing
+ * FAIL in verifyImplementationChainEntry.
+ */
+export interface ImplementationChainEntry {
+  okr_id: string;
+  parent_phase: string;
+  parent_run_id: string;
+  implementation_run_id: string;
+  mesh_repo: string;
+  target_repo: string;
+  event_log_path: string;
+  key_path: string;
+  parent_intent_thread: string;
+  parent_chain_root: string;
+}
+
+/**
+ * Discriminated failure signals from verifyImplementationChainEntry.
+ * Each maps 1:1 to a `computeOkrRollupVerdict` failure reason string
+ * (per design doc D-PR8 acceptance section's reason taxonomy).
+ */
+export type ImplementationChainIssue =
+  | { kind: 'evidence-missing'; field: string }
+  | { kind: 'cross-repo-thread-broken'; got: string; expected: string }
+  | { kind: 'cross-repo-chain-root-mismatch'; got: string; expected: string };
+
 export type OkrRollupVerdict = 'PASS' | 'PARTIAL' | 'FAIL';
+
+/**
+ * D-PR8 — extract the `implementation_chain:` YAML frontmatter block
+ * from an impl PR body. PR-body convention (per D-PR7 template):
+ *
+ *   ---
+ *   implementation_chain:
+ *     okr_id: ...
+ *     parent_phase: what
+ *     ...
+ *   ---
+ *
+ *   (optional human-readable PR description below)
+ *
+ * Returns null when:
+ *   - the PR body is empty or null
+ *   - there's no `---\nimplementation_chain:` block
+ *   - YAML inside the block doesn't parse
+ *   - parsed value isn't an object with required fields
+ *
+ * Defensive — never throws. Caller treats null as `evidence-missing`
+ * for verifyImplementationChainEntry.
+ */
+export function parseImplementationChainBlock(prBody: string | null | undefined): ImplementationChainEntry | null {
+  if (!prBody) return null;
+  // Look for any `---\n...\n---` block + filter to one containing
+  // `implementation_chain:`. The naive `\n---` boundary needs a
+  // newline preceding the closer so we don't match the opener as the
+  // closer when the block is empty.
+  const m = prBody.match(/(^|\n)---\s*\n([\s\S]*?)\n---/);
+  if (!m) return null;
+  const yamlText = m[2];
+  // Cheap pre-check: the block must literally contain
+  // `implementation_chain:` somewhere. PRs with other frontmatter
+  // shouldn't accidentally parse as impl-chain PRs.
+  if (!/(^|\n)\s*implementation_chain\s*:/.test(yamlText)) return null;
+  let parsed: unknown;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const YAML = require('yaml') as { parse(text: string): unknown };
+    parsed = YAML.parse(yamlText);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const root = parsed as Record<string, unknown>;
+  const block = root.implementation_chain;
+  if (!block || typeof block !== 'object') return null;
+  const rec = block as Record<string, unknown>;
+  // Each field MUST be a non-empty string per the storage contract.
+  // Missing fields produce an entry where those fields are empty
+  // strings — verifyImplementationChainEntry then flags
+  // evidence-missing per missing field.
+  return {
+    okr_id: typeof rec.okr_id === 'string' ? rec.okr_id : '',
+    parent_phase: typeof rec.parent_phase === 'string' ? rec.parent_phase : '',
+    parent_run_id: typeof rec.parent_run_id === 'string' ? rec.parent_run_id : '',
+    implementation_run_id: typeof rec.implementation_run_id === 'string' ? rec.implementation_run_id : '',
+    mesh_repo: typeof rec.mesh_repo === 'string' ? rec.mesh_repo : '',
+    key_path: typeof rec.key_path === 'string' ? rec.key_path : '',
+    event_log_path: typeof rec.event_log_path === 'string' ? rec.event_log_path : '',
+    target_repo: typeof rec.target_repo === 'string' ? rec.target_repo : '',
+    parent_intent_thread: typeof rec.parent_intent_thread === 'string' ? rec.parent_intent_thread : '',
+    parent_chain_root: typeof rec.parent_chain_root === 'string' ? rec.parent_chain_root : '',
+  };
+}
+
+/**
+ * D-PR8 — verify a parsed implementation_chain block against the
+ * mesh-side ground truth: the OKR's intent_thread_uuid + the WHAT
+ * phase's chain root from chain-ladder.
+ *
+ * Returns the full list of issues found (NOT short-circuit on first)
+ * so the rollup can display all problems at once + the verdict
+ * computer can pick the highest-precedence reason. Empty array = clean.
+ */
+export function verifyImplementationChainEntry(
+  entry: ImplementationChainEntry | null,
+  expectedIntentThread: string | null,
+  expectedWhatChainRoot: string | null,
+): ImplementationChainIssue[] {
+  const issues: ImplementationChainIssue[] = [];
+  if (!entry) {
+    // Single evidence-missing for the whole block -- caller renders
+    // this as "PR body missing implementation_chain block".
+    issues.push({ kind: 'evidence-missing', field: 'implementation_chain' });
+    return issues;
+  }
+  // Required fields: every field on the entry must be non-empty.
+  const required: Array<keyof ImplementationChainEntry> = [
+    'okr_id', 'parent_phase', 'parent_run_id', 'implementation_run_id',
+    'mesh_repo', 'target_repo', 'event_log_path', 'key_path',
+    'parent_intent_thread', 'parent_chain_root',
+  ];
+  for (const f of required) {
+    if (!entry[f] || entry[f].trim() === '') {
+      issues.push({ kind: 'evidence-missing', field: f });
+    }
+  }
+  // Cross-axis: parent_intent_thread + parent_chain_root must match
+  // the mesh-side truth from chain-ladder. Only verify when we have
+  // both values to compare against (caller can pass null when not
+  // yet sourced -- not a FAIL signal on its own).
+  if (entry.parent_intent_thread && expectedIntentThread && entry.parent_intent_thread !== expectedIntentThread) {
+    issues.push({
+      kind: 'cross-repo-thread-broken',
+      got: entry.parent_intent_thread,
+      expected: expectedIntentThread,
+    });
+  }
+  if (entry.parent_chain_root && expectedWhatChainRoot && entry.parent_chain_root !== expectedWhatChainRoot) {
+    issues.push({
+      kind: 'cross-repo-chain-root-mismatch',
+      got: entry.parent_chain_root,
+      expected: expectedWhatChainRoot,
+    });
+  }
+  return issues;
+}
 
 /**
  * Predicate that mirrors the per-input atomicity logic in
@@ -1283,6 +1477,39 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
       };
     }
   }
+  // D-PR8 — implementation chain FAIL signals (highest-precedence
+  // impl-side reasons, evaluated only after per-phase FAILs clear).
+  // Order: cross-repo-thread-broken > cross-repo-chain-root-mismatch >
+  // evidence-missing — matches the design doc D-PR8 acceptance
+  // taxonomy. First failing slug wins for the reason string.
+  if (input.implementationChain && input.implementationChain.rows.length > 0) {
+    const { rows, expectedIntentThread, expectedWhatChainRoot } = input.implementationChain;
+    for (const row of rows) {
+      if (row.status !== 'pr-merged') continue;
+      const issues = verifyImplementationChainEntry(row.chain, expectedIntentThread, expectedWhatChainRoot);
+      const threadIssue = issues.find(i => i.kind === 'cross-repo-thread-broken');
+      if (threadIssue) {
+        return {
+          verdict: 'FAIL',
+          reason: `cross-repo-thread-broken:${row.repoSlug} — impl PR's parent_intent_thread does not match the OKR's master thread`,
+        };
+      }
+      const rootIssue = issues.find(i => i.kind === 'cross-repo-chain-root-mismatch');
+      if (rootIssue) {
+        return {
+          verdict: 'FAIL',
+          reason: `cross-repo-chain-root-mismatch:${row.repoSlug} — impl PR's parent_chain_root does not match the WHAT phase's chain root`,
+        };
+      }
+      const evidenceIssue = issues.find(i => i.kind === 'evidence-missing');
+      if (evidenceIssue) {
+        return {
+          verdict: 'FAIL',
+          reason: `implementation-chain-evidence-missing:${row.repoSlug} — impl PR body missing or incomplete (field: ${evidenceIssue.field})`,
+        };
+      }
+    }
+  }
   // PARTIAL — at least one expected phase not started yet (or runner not
   // invoked for innocent reasons, e.g. shape-only path). The OKR cannot
   // be PASS because the gold step is missing somewhere.
@@ -1291,6 +1518,20 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
       verdict: 'PARTIAL',
       reason: `OKR incomplete — ${input.missingPhases.map(p => p.toUpperCase()).join(', ')} phase(s) not started yet`,
     };
+  }
+  // D-PR8 — implementation chain PARTIAL signals: pr-rejected rows.
+  // Evaluated after the phase-completion PARTIAL so missing-phases
+  // take precedence (an incomplete OKR is a bigger gap than a
+  // rejected slice on a complete one).
+  if (input.implementationChain && input.implementationChain.rows.length > 0) {
+    for (const row of input.implementationChain.rows) {
+      if (row.status === 'pr-rejected') {
+        return {
+          verdict: 'PARTIAL',
+          reason: `implementation-pr-rejected:${row.repoSlug} — impl PR was closed without merging; revise + reopen`,
+        };
+      }
+    }
   }
   // All 3 phases present and no FAIL — but each phase's runner must have
   // actually run and passed for PASS. Anything else (runner not invoked
@@ -1474,6 +1715,91 @@ printf '{"okrId":"${input.okrId}","runId":"${p.runId}"}' \\
  *   8. Outstanding gaps (per-phase + cross-cutting)
  *   9. Verifier notes (one runner cmd per phase)
  */
+/**
+ * D-PR8 — render the per-target-repo implementation chain section.
+ *
+ * One row per target slug. Columns:
+ *   - Repo (slug)
+ *   - Status (from design-fan-out row + PR-state mapping)
+ *   - PR (link)
+ *   - implementation_run_id
+ *   - Chain root match (parent_chain_root vs expected, ✓/✗/—)
+ *   - Thread match (parent_intent_thread vs expected, ✓/✗/—)
+ *   - Evidence files (event_log_path + key_path with target repo prefix)
+ *   - Runner verify (placeholder `not-yet-verified` per design doc D-PR8
+ *     MVP -- T3-2 runner extension is when this column flips real)
+ *
+ * Below the table: an inline detail list of per-row issues when any
+ * row produced ImplementationChainIssues (renders the discriminated
+ * issue.field / got vs expected so the reviewer doesn't need to
+ * cross-reference verifyImplementationChainEntry).
+ */
+function renderImplementationChainSection(
+  rows: ImplementationChainRow[],
+  expectedIntentThread: string | null,
+  expectedWhatChainRoot: string | null,
+): string {
+  if (rows.length === 0) return '';
+
+  const tableRows: string[] = [];
+  const issueBlocks: string[] = [];
+
+  for (const row of rows) {
+    const issues = verifyImplementationChainEntry(row.chain, expectedIntentThread, expectedWhatChainRoot);
+    const prCell = row.prUrl ? `[link](${row.prUrl})` : '—';
+    const runIdCell = row.chain?.implementation_run_id
+      ? `\`${row.chain.implementation_run_id}\``
+      : '—';
+    // Chain root match: ✓ when entry has it AND matches expected;
+    // ✗ when entry has it but mismatches; — when entry missing OR
+    // expected missing (skip-axis).
+    const rootMatch = !row.chain || !row.chain.parent_chain_root
+      ? '—'
+      : !expectedWhatChainRoot
+        ? '—'
+        : row.chain.parent_chain_root === expectedWhatChainRoot ? '✓' : '✗';
+    const threadMatch = !row.chain || !row.chain.parent_intent_thread
+      ? '—'
+      : !expectedIntentThread
+        ? '—'
+        : row.chain.parent_intent_thread === expectedIntentThread ? '✓' : '✗';
+    const evidenceCell = row.chain && row.chain.event_log_path && row.chain.key_path
+      ? `\`${row.chain.event_log_path}\` · \`${row.chain.key_path}\``
+      : '_missing_';
+    const verifyCell = '_not-yet-verified_';
+    tableRows.push(
+      `| \`${row.repoSlug}\` | ${row.status} | ${prCell} | ${runIdCell} | ${rootMatch} | ${threadMatch} | ${evidenceCell} | ${verifyCell} |`,
+    );
+
+    if (issues.length > 0) {
+      const lines: string[] = [];
+      lines.push(`**\`${row.repoSlug}\`** — ${issues.length} issue${issues.length === 1 ? '' : 's'}:`);
+      for (const issue of issues) {
+        if (issue.kind === 'evidence-missing') {
+          lines.push(`  - \`evidence-missing\`: \`implementation_chain.${issue.field}\` missing or empty in the PR body's YAML frontmatter`);
+        } else if (issue.kind === 'cross-repo-thread-broken') {
+          lines.push(`  - \`cross-repo-thread-broken\`: parent_intent_thread = \`${issue.got}\` ≠ OKR master thread \`${issue.expected}\``);
+        } else if (issue.kind === 'cross-repo-chain-root-mismatch') {
+          lines.push(`  - \`cross-repo-chain-root-mismatch\`: parent_chain_root = \`${issue.got}\` ≠ WHAT phase chain root \`${issue.expected}\``);
+        }
+      }
+      issueBlocks.push(lines.join('\n'));
+    }
+  }
+
+  const table = `| Repo | Status | PR | Implementation run id | parent_chain_root | parent_intent_thread | Evidence in target repo | Runner verify |
+|---|---|---|---|:---:|:---:|---|---|
+${tableRows.join('\n')}`;
+
+  const issuesSection = issueBlocks.length > 0
+    ? `\n\n**Implementation chain issues**\n\n${issueBlocks.join('\n\n')}`
+    : '';
+
+  const verifyHint = '\n\n_Runner verify column shows `not-yet-verified` pending the audit-verify-chain runner extension (Tier 3 T3-2). Chain-root + thread cross-checks above are the verification today — `✓` means the PR body\'s continuation block matched the mesh-side ground truth from chain-ladder.yaml._';
+
+  return table + issuesSection + verifyHint;
+}
+
 export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
   const { verdict, reason } = computeOkrRollupVerdict(input);
   const verdictBadge = verdict === 'PASS'
@@ -1596,6 +1922,18 @@ _Cited check is a textual reference of the SR-NN string in the artifact body —
   const outstandingGaps = renderOutstandingGaps(input);
   const verifierNotes = renderVerifierNotesPerPhase(input);
 
+  // D-PR8 — implementation chain section. Rendered between control
+  // coverage and outstanding gaps so its FAIL/PARTIAL signals
+  // immediately precede the gap list (which is where reviewers go
+  // to find the actionable fix).
+  const implChainBlock = input.implementationChain && input.implementationChain.rows.length > 0
+    ? renderImplementationChainSection(
+        input.implementationChain.rows,
+        input.implementationChain.expectedIntentThread,
+        input.implementationChain.expectedWhatChainRoot,
+      )
+    : null;
+
   return `# OKR Audit Rollup — ${input.okrId}
 
 > Generated by Looking Glass · ${new Date().toISOString()}
@@ -1627,7 +1965,7 @@ ${ladderBlock}
 _Did each PRD-declared security requirement land in the design? Unioned across all phases._
 
 ${controlBlock}
-
+${implChainBlock ? `\n## Implementation chain\n\n${implChainBlock}\n` : ''}
 ## Outstanding gaps
 
 ${outstandingGaps}
