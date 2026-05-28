@@ -287,15 +287,24 @@ async function buildEntry(
     existingRepoIsEmpty: probes.isEmpty,
     coordinationRow,
     upstreamPrStates: cloneMap(inputs.upstreamPrStates),
-    // For create-repo targets, treat a missing scaffold-status entry as
-    // `idle` (the natural reading is "scaffold hasn't been initiated").
-    // This lets callers omit slugs they have no record of without
-    // accidentally flipping them to ready. Brownfield repos pass
-    // through `undefined` because rule 3 in derivePreflightStatus only
-    // consults this field for `repoStatus === 'create'`.
+    // Caller-passed scaffold status wins. Otherwise, for create-repo
+    // targets, infer from observable facts:
+    //   - repo exists + harness file present  → scaffold-complete
+    //     (the harness file is what Cheshire writes at the end of
+    //     scaffold, so its presence is the post-scaffold ground truth)
+    //   - everything else                     → idle (the natural reading
+    //     of "no caller record + no observable scaffold artifacts"
+    //     is "scaffold hasn't been initiated yet")
+    // Brownfield repos pass through `undefined` because rule 3 in
+    // derivePreflightStatus only consults this field for
+    // `repoStatus === 'create'`.
     greenfieldScaffoldStatus:
       inputs.greenfieldScaffoldStatus.get(target.slug) ??
-      (target.status === 'create' ? 'idle' : undefined),
+      (target.status === 'create'
+        ? (probes.existence.kind === 'exists' && probes.harness.kind === 'present'
+            ? 'complete'
+            : 'idle')
+        : undefined),
     alreadyOpened: inputs.alreadyOpenedRepos.has(target.slug),
     implPrState: inputs.implPrStates.get(target.slug),
   };
@@ -309,11 +318,20 @@ async function buildEntry(
 }
 
 /**
- * Brownfield runs the three probes; greenfield skips the harness probe
- * (the repo may not exist yet, and `derivePreflightStatus` rule 8 only
- * consults harness for `repoStatus === 'connected'`) and uses the FULL
- * existence probe to surface `isEmpty` for the scaffold-over-empty
- * carve-out (rule 5 in `derivePreflightStatus`).
+ * Brownfield runs the three probes. Greenfield ALSO runs all three:
+ * harness is meaningless pre-scaffold (will return `missing` because
+ * the repo 404s, which is fine — rule 8 in derivePreflightStatus is
+ * brownfield-only so it short-circuits regardless), but POST-scaffold
+ * harness presence is the ground-truth signal that scaffold completed.
+ * The engine's buildEntry uses `harness.kind === 'present'` AND
+ * `existence.kind === 'exists'` to infer `greenfieldScaffoldStatus
+ * === 'complete'` when the caller has nothing better to pass, which
+ * lets the "Re-check after scaffold" flow flip pending-scaffold →
+ * ready without any cross-panel breadcrumb state.
+ *
+ * Greenfield uses the FULL existence probe to surface `isEmpty` for
+ * the scaffold-over-empty carve-out (rule 5 in
+ * `derivePreflightStatus`).
  */
 async function probesForRepo(
   github: GitHubService,
@@ -322,14 +340,13 @@ async function probesForRepo(
   status: 'connected' | 'create',
 ): Promise<PerRepoProbes> {
   if (status === 'create') {
-    const [permission, existenceFull] = await Promise.all([
+    const [permission, existenceFull, harness] = await Promise.all([
       getIssueWritePermission(github, owner, name),
       getRepoExistenceFull(github, owner, name),
+      getHarnessPresence(github, owner, name),
     ]);
     return {
-      // Harness is meaningless for greenfield (repo may not exist).
-      // Use `missing` so the brownfield-only rule 8 short-circuits.
-      harness: { kind: 'missing' },
+      harness,
       permission,
       existence: collapseToExistence(existenceFull),
       isEmpty: existenceFull.kind === 'exists' ? existenceFull.isEmpty : undefined,

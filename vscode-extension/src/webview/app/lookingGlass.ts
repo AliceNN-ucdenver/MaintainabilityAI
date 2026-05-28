@@ -3982,21 +3982,40 @@ function attachEventHandlers() {
     render();
   });
 
-  // D-PR4 sub-PR 4 — Fan-out pre-flight Re-check button. Sets the pane
-  // back to loading and re-dispatches fanOutPreflight; the result lands
-  // via the 'fanOutPreflightResult' inbound handler above. The "Fan out"
-  // execute button stays disabled in this PR (sub-PR 6 wires the actual
-  // landing-issue + agent-dispatch flow).
+  // D-PR4 sub-PR 4 + 5 — Fan-out pre-flight delegated click handlers:
+  //   * fanout-refresh         → re-dispatch fanOutPreflight
+  //   * fanout-start-scaffold  → kick off greenfield Cheshire scaffold
+  //                              (creates the repo via createOrgRepo +
+  //                              opens Cheshire with the OKR context)
+  // The "Fan out N of M ready" execute button stays disabled until
+  // sub-PR 6 wires the actual landing-issue + agent-dispatch flow.
   document.body.addEventListener('click', (ev) => {
     const target = ev.target as HTMLElement | null;
     if (!target) { return; }
-    const trigger = target.closest('[data-action="fanout-refresh"]') as HTMLElement | null;
-    if (!trigger) { return; }
-    const okrId = trigger.dataset.okrId;
-    if (!okrId || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
-    state.fanOutPreflight = { loading: true };
-    render();
-    vscode.postMessage({ type: 'fanOutPreflight', okrId });
+
+    const refresh = target.closest('[data-action="fanout-refresh"]') as HTMLElement | null;
+    if (refresh) {
+      const okrId = refresh.dataset.okrId;
+      if (!okrId || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+      state.fanOutPreflight = { loading: true };
+      render();
+      vscode.postMessage({ type: 'fanOutPreflight', okrId });
+      return;
+    }
+
+    const startScaffold = target.closest('[data-action="fanout-start-scaffold"]') as HTMLElement | null;
+    if (startScaffold) {
+      const okrId = startScaffold.dataset.okrId;
+      const repoSlug = startScaffold.dataset.repoSlug;
+      if (!okrId || !repoSlug || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+      // Optimistic: don't flip the row immediately — the extension
+      // surfaces progress via info/error toasts + the loading banner.
+      // Cheshire panel opens in a new tab; user returns to the OKR
+      // detail and clicks Re-check when scaffold completes (harness
+      // probe will then infer scaffold-complete).
+      vscode.postMessage({ type: 'startGreenfieldScaffold', okrId, repoSlug });
+      return;
+    }
   });
 
   // Phase B-PR3+ Start-phase modal — Cancel (✕ + footer) + click-outside

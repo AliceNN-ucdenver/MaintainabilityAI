@@ -30,13 +30,36 @@ import { execFileAsync } from '../utils/exec';
 import { BasePanel } from './BasePanel';
 import { getSharedStyles } from './styles';
 
+/**
+ * D-PR4 sub-PR 5 — Optional OKR context that ScaffoldPanel carries when
+ * Cheshire is opened for a greenfield fan-out target. Lets Cheshire
+ * know which OKR's WHAT artifact to seed as `docs/code-design-spec.md`
+ * once the project structure is in place. The okrId + repoSlug let the
+ * Looking Glass pane match scaffolds back to fan-out rows when the user
+ * returns and clicks Re-check.
+ *
+ * Sub-PR 5 plumbs the parameter end-to-end; the actual code-design-spec
+ * seeding lands in sub-PR 6 alongside the design-fan-out.yaml writer.
+ */
+export interface ScaffoldOkrContext {
+  okrId: string;
+  /** owner/name slug. */
+  repoSlug: string;
+}
+
 export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<string, unknown>> {
   public static currentPanel: ScaffoldPanel | undefined;
   private static readonly viewType = 'maintainabilityai.scaffold';
 
   private componentContext?: ComponentScaffoldContext;
+  private okrContext?: ScaffoldOkrContext;
 
-  public static createOrShow(context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext, folderPath?: string) {
+  public static createOrShow(
+    context: vscode.ExtensionContext,
+    componentContext?: ComponentScaffoldContext,
+    folderPath?: string,
+    okrContext?: ScaffoldOkrContext,
+  ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -59,6 +82,17 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         ScaffoldPanel.currentPanel.postMessage({ type: 'init', workspaceRoot: folderPath });
         ScaffoldPanel.currentPanel.detectStackForFolder(folderPath);
       }
+      // D-PR4 sub-PR 5 — refresh OKR context on the existing panel so
+      // returning users see the right fan-out target when scaffolding
+      // a new greenfield slug back-to-back.
+      if (okrContext) {
+        ScaffoldPanel.currentPanel.okrContext = okrContext;
+        ScaffoldPanel.currentPanel.postMessage({
+          type: 'okrMode',
+          okrId: okrContext.okrId,
+          repoSlug: okrContext.repoSlug,
+        });
+      }
       return;
     }
 
@@ -72,12 +106,19 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
       }
     );
 
-    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, componentContext, folderPath);
+    ScaffoldPanel.currentPanel = new ScaffoldPanel(panel, context, componentContext, folderPath, okrContext);
   }
 
-  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, componentContext?: ComponentScaffoldContext, folderPath?: string) {
+  private constructor(
+    panel: vscode.WebviewPanel,
+    context: vscode.ExtensionContext,
+    componentContext?: ComponentScaffoldContext,
+    folderPath?: string,
+    okrContext?: ScaffoldOkrContext,
+  ) {
     super(panel, context);
     this.componentContext = componentContext;
+    this.okrContext = okrContext;
 
     // Send initial state and detect stack if workspace is available
     const workspaceRoot = folderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
@@ -94,6 +135,18 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         repoUrl: this.componentContext.repoUrl,
         repoName: this.componentContext.repoName,
         homeDir: process.env.HOME || process.env.USERPROFILE || '',
+      });
+    }
+
+    // D-PR4 sub-PR 5 — notify webview of OKR context if greenfield
+    // fan-out launched scaffold. The webview can use this to surface
+    // an OKR badge in the header + (sub-PR 6) seed code-design-spec.md
+    // from the OKR's WHAT artifact as part of the scaffold output.
+    if (this.okrContext) {
+      this.postMessage({
+        type: 'okrMode',
+        okrId: this.okrContext.okrId,
+        repoSlug: this.okrContext.repoSlug,
       });
     }
   }

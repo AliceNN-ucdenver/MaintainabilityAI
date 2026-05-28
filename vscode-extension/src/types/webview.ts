@@ -594,7 +594,22 @@ export type LookingGlassWebviewMessage =
    * Read-only — does NOT open landing issues, dispatch agents, or write
    * `design-fan-out.yaml`. Those land in subsequent sub-PRs.
    */
-  | { type: 'fanOutPreflight'; okrId: string };
+  | { type: 'fanOutPreflight'; okrId: string }
+  /**
+   * D-PR4 sub-PR 5 — kick off greenfield Cheshire scaffold for one
+   * target repo of an OKR. Extension:
+   *   1. Confirms the OKR action's targetCodeRepos[] entry has status
+   *      'create'.
+   *   2. Creates the repo on the org via `createOrgRepo`.
+   *   3. Opens ScaffoldPanel with okrContext = { okrId, repoSlug } so
+   *      Cheshire knows which OKR's WHAT artifact to seed (sub-PR 6
+   *      lands the actual seeding).
+   * After scaffold completes, the user clicks Re-check on the OKR
+   * detail's fan-out pane and the engine's harness probe flips the
+   * row from pending-scaffold to ready (engine infers
+   * scaffold-complete from harness-present + repo-exists).
+   */
+  | { type: 'startGreenfieldScaffold'; okrId: string; repoSlug: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

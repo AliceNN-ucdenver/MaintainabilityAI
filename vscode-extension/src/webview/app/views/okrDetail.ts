@@ -1685,7 +1685,7 @@ function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiS
   // Happy path: report.ok === true
   const entriesHtml = report.entries.length === 0
     ? `<div class="okr-fanout-empty">No target repos to evaluate.</div>`
-    : report.entries.map(entry => renderFanOutEntryRow(entry)).join('\n');
+    : report.entries.map(entry => renderFanOutEntryRow(entry, okr.meta.id)).join('\n');
 
   const skipped = fanOutState.skippedRepos ?? [];
   const skippedHtml = skipped.length === 0 ? '' : `
@@ -1736,7 +1736,7 @@ function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiS
   `;
 }
 
-function renderFanOutEntryRow(entry: FanOutRepoEntryUi): string {
+function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okrId: string): string {
   const presentation = FANOUT_STATUS_PRESENT[entry.decision.status];
   const reason = entry.decision.reason
     ? `<div class="okr-fanout-entry-reason">${escapeHtml(entry.decision.reason)}</div>`
@@ -1747,6 +1747,22 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi): string {
   const greenfieldChip = entry.status === 'create'
     ? `<span class="okr-fanout-chip okr-fanout-chip-greenfield">greenfield</span>`
     : `<span class="okr-fanout-chip okr-fanout-chip-brownfield">brownfield</span>`;
+
+  // D-PR4 sub-PR 5 — per-row affordances keyed off the decision status.
+  // pending-scaffold (greenfield only) -> Start Scaffold button that
+  // triggers createOrgRepo + ScaffoldPanel via startGreenfieldScaffold.
+  // Other affordances (Open repo in workspace for harness-missing,
+  // Fix permissions for permission-blocked) land in later polish PRs.
+  const affordance = entry.decision.status === 'pending-scaffold' && entry.status === 'create'
+    ? `
+      <div class="okr-fanout-entry-actions">
+        <button class="okr-button-small okr-button-primary" data-action="fanout-start-scaffold" data-okr-id="${escapeAttr(okrId)}" data-repo-slug="${escapeAttr(entry.slug)}" title="Create the GitHub repo + open Cheshire to scaffold the agentic harness. After scaffold completes, click Re-check above to flip this row to ready.">
+          🏗 Start Scaffold
+        </button>
+      </div>
+    `
+    : '';
+
   return `
     <div class="okr-fanout-entry okr-fanout-tone-${presentation.tone}">
       <div class="okr-fanout-entry-head">
@@ -1756,6 +1772,7 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi): string {
       </div>
       ${coordHint}
       ${reason}
+      ${affordance}
     </div>
   `;
 }
@@ -1944,6 +1961,7 @@ export function getOkrDetailStyles(): string {
     .okr-fanout-skipped-hint { font-size: 0.75rem; color: var(--vscode-descriptionForeground); }
     .okr-fanout-empty { font-size: 0.875rem; color: var(--vscode-descriptionForeground); padding: 0.5rem 0; }
     .okr-fanout-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .okr-fanout-entry-actions { margin-top: 0.5rem; display: flex; gap: 0.375rem; flex-wrap: wrap; }
     .okr-link-button { background: transparent; color: var(--vscode-textLink-foreground); border: none; cursor: pointer; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
     .okr-link-button:hover { text-decoration: underline; }
     .okr-form-grid { display: grid; grid-template-columns: 8rem 1fr; gap: 0.5rem 0.75rem; margin-bottom: 1rem; align-items: center; }

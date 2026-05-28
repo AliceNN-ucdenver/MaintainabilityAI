@@ -573,6 +573,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // | coordination-verify-failed). Subsequent sub-PRs add the "Fan out
     // N of M ready" action message that actually opens landing issues.
     'fanOutPreflight':             (m) => this.onFanOutPreflight(m.okrId),
+    // D-PR4 sub-PR 5 — greenfield scaffold launcher. Click on a
+    // pending-scaffold row's "Start Scaffold" button calls this;
+    // handler creates the repo + opens Cheshire with OKR context.
+    'startGreenfieldScaffold':     (m) => this.onStartGreenfieldScaffold(m.okrId, m.repoSlug),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -918,6 +922,120 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         setupError: `engine-crashed: ${toErrorMessage(err)}`,
       });
     }
+  }
+
+  /**
+   * D-PR4 sub-PR 5 — greenfield scaffold launcher.
+   *
+   * Triggered when the user clicks "Start Scaffold" on a pending-scaffold
+   * row in the OKR detail's fan-out pre-flight pane. The handler:
+   *
+   *   1. Confirms the OKR's targetCodeRepos[] includes this slug with
+   *      status === 'create' (refuses on mismatch -- prevents accidentally
+   *      creating a repo for a brownfield row).
+   *   2. Parses owner/name from the slug.
+   *   3. Calls createOrgRepo on the org. Discriminated outcomes:
+   *        - created          -> proceed to open Cheshire
+   *        - already-exists   -> proceed (user may be retrying after a
+   *                              prior partial scaffold; harness probe
+   *                              still drives correctness)
+   *        - forbidden        -> surface "fix org permissions" error
+   *        - fetch-error      -> surface transient error
+   *   4. Opens ScaffoldPanel with okrContext = { okrId, repoSlug } so
+   *      Cheshire knows which OKR's WHAT artifact to seed. Sub-PR 6
+   *      adds the actual code-design-spec.md seeding step inside
+   *      Cheshire; sub-PR 5 just plumbs the parameter.
+   *
+   * Post-scaffold, the user clicks Re-check on the OKR fan-out pane.
+   * The engine's harness probe sees the implementation-agent template
+   * file Cheshire wrote and infers greenfieldScaffoldStatus='complete'
+   * (no cross-panel breadcrumb required), so the row flips
+   * pending-scaffold -> ready.
+   */
+  private async onStartGreenfieldScaffold(okrId: string, repoSlug: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'Mesh not initialized. Initialize from Settings before scaffolding a greenfield target.' });
+      return;
+    }
+
+    const okrService = this.meshService.getOkrService();
+    const okr = okrService.read(meshPath, okrId);
+    if (!okr) {
+      this.postMessage({ type: 'error', message: `OKR ${okrId} not found in local mesh.` });
+      return;
+    }
+
+    // Verify the slug is actually a greenfield ('create') target on
+    // this OKR. Guards against drift between the pane render + click,
+    // and against malicious panel messages.
+    const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
+    const matchingUrl = okr.objectiveAlignment.targetCodeRepos.find(url => {
+      const parsed = parseGitHubUrl(url);
+      const slug = parsed ? `${parsed.owner}/${parsed.repo}` : url.trim();
+      return slug === repoSlug;
+    });
+    if (!matchingUrl) {
+      this.postMessage({ type: 'error', message: `${repoSlug} is not in this OKR's target code repos.` });
+      return;
+    }
+    const status = statusMap[matchingUrl];
+    if (status !== 'create') {
+      this.postMessage({
+        type: 'error',
+        message: `${repoSlug} is not a greenfield target (status: ${status ?? 'not-connected'}). Set status to Create in the Target Code Repos section before scaffolding.`,
+      });
+      return;
+    }
+
+    const parts = repoSlug.split('/');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      this.postMessage({ type: 'error', message: `Invalid repo slug ${repoSlug} (expected owner/name).` });
+      return;
+    }
+    const [org, name] = parts;
+
+    // Create the repo on GitHub. Surface each discriminated outcome
+    // with the right fix-path message.
+    this.postMessage({ type: 'loading', active: true, message: `Creating repo ${repoSlug}...` });
+    const createResult = await this.githubService.createOrgRepo(org, name, {
+      description: `Greenfield target for OKR ${okrId}`,
+      autoInit: false,
+    });
+    this.postMessage({ type: 'loading', active: false });
+
+    if (createResult.status === 'forbidden') {
+      this.postMessage({
+        type: 'error',
+        message: `Cannot create ${repoSlug}: GitHub PAT lacks org admin:write OR org policy blocks repo creation. Detail: ${createResult.reason}`,
+      });
+      return;
+    }
+    if (createResult.status === 'fetch-error') {
+      this.postMessage({
+        type: 'error',
+        message: `Failed to create ${repoSlug}: ${createResult.reason}`,
+      });
+      return;
+    }
+    if (createResult.status === 'created') {
+      this.postMessage({
+        type: 'info',
+        message: `Created repo ${repoSlug}. Opening Cheshire to scaffold the agentic harness.`,
+      });
+    } else {
+      // already-exists -- proceed (user may be retrying; harness probe
+      // is the ground truth for scaffold completion regardless).
+      this.postMessage({
+        type: 'info',
+        message: `Repo ${repoSlug} already exists. Opening Cheshire to scaffold or re-scaffold the agentic harness.`,
+      });
+    }
+
+    // Open Cheshire with the OKR context so the scaffold knows which
+    // OKR is the source-of-truth. Cheshire's existing pickFolder UX
+    // lets the user choose where to clone the new repo locally.
+    ScaffoldPanel.createOrShow(this.context, undefined, undefined, { okrId, repoSlug });
   }
 
   /**

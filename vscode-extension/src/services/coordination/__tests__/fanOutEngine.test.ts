@@ -474,16 +474,18 @@ coordination:
     if (!report.ok) throw new Error('expected success');
     expect(report.entries[0].decision.status).toBe('pending-scaffold');
     expect(report.readyRepos).toEqual([]);
-    // Greenfield should NOT call the harness probe (waste — repo may not exist).
-    expect(github.getRepoFileStatus).not.toHaveBeenCalled();
-    // Greenfield uses getRepoExistence (the FULL version, but mock fakes both shapes).
+    // Sub-PR 5: greenfield DOES call the harness probe now -- post-scaffold,
+    // harness presence is the ground-truth signal that scaffold completed.
+    // Pre-scaffold (this test), the repo 404s so harness is `missing` and the
+    // scaffold-complete inference doesn't fire -- behavior is unchanged.
+    expect(github.getRepoFileStatus).toHaveBeenCalledWith('acme', 'brand-new-api', '.github/agents/implementation-agent.agent.md');
     expect(github.getRepoExistence).toHaveBeenCalledWith('acme', 'brand-new-api');
   });
 
   it('returns ready when greenfield scaffold has completed', async () => {
     // Post-scaffold, the repo exists + has content (the seed commit + harness).
     const github = fakeGithub({
-      getRepoFileStatus: vi.fn(), // should NOT be called for greenfield
+      getRepoFileStatus: vi.fn().mockResolvedValue({ status: 'ok', text: '---' }),
       checkIssueWritePermission: vi.fn().mockResolvedValue({ status: 'present' }),
       getRepoExistence: vi.fn().mockResolvedValue({ status: 'exists', isEmpty: false, defaultBranch: 'main' }),
     });
@@ -509,12 +511,47 @@ coordination:
     if (!report.ok) throw new Error('expected success');
     expect(report.entries[0].decision.status).toBe('ready');
     expect(report.readyRepos).toEqual(['acme/brand-new-api']);
-    expect(github.getRepoFileStatus).not.toHaveBeenCalled();
+  });
+
+  it('infers scaffold-complete from observable facts when caller omits status (harness present + exists)', async () => {
+    // Sub-PR 5: this is the "user clicked Re-check after running scaffold"
+    // flow -- caller has no record that scaffold completed, but harness file
+    // + repo content prove it. Engine should infer scaffold-complete and
+    // surface the row as ready without needing a cross-panel breadcrumb.
+    const github = fakeGithub({
+      getRepoFileStatus: vi.fn().mockResolvedValue({ status: 'ok', text: '---\nname: implementation-agent\n---' }),
+      checkIssueWritePermission: vi.fn().mockResolvedValue({ status: 'present' }),
+      getRepoExistence: vi.fn().mockResolvedValue({ status: 'exists', isEmpty: false, defaultBranch: 'main' }),
+    });
+    const designMd = buildDesignMd(`
+coordination:
+  - repo: acme/post-scaffold
+    fanout_wave: 1
+    coordination_role: independent
+    depends_on: []
+    provides: []
+    consumes: []
+`);
+    const report = await runFanOutPreflight(
+      github,
+      baseInputs({
+        designMarkdown: designMd,
+        targetRepos: [{ slug: 'acme/post-scaffold', status: 'create' }],
+        // greenfieldScaffoldStatus deliberately empty -- engine should infer
+      }),
+    );
+
+    expect(report.ok).toBe(true);
+    if (!report.ok) throw new Error('expected success');
+    expect(report.entries[0].decision.status).toBe('ready');
+    expect(report.readyRepos).toEqual(['acme/post-scaffold']);
   });
 
   it('returns repo-exists-conflict when greenfield slug is taken by a non-empty repo (pre-scaffold)', async () => {
     const github = fakeGithub({
-      getRepoFileStatus: vi.fn(),
+      // Harness probe: not-found means scaffold hasn't run yet, so the
+      // existing repo is a name-squat (not our scaffold output).
+      getRepoFileStatus: vi.fn().mockResolvedValue({ status: 'not-found' }),
       checkIssueWritePermission: vi.fn().mockResolvedValue({ status: 'present' }),
       getRepoExistence: vi.fn().mockResolvedValue({ status: 'exists', isEmpty: false, defaultBranch: 'main' }),
     });
