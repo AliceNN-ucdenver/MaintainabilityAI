@@ -252,6 +252,81 @@ the chain, you read this doc first, you grep for `payload.skill` in
 existing YAML to see the pattern, and you point your code at
 `payload.X` not `payload.audit_metadata.X`.
 
+## Bug-UU-2 — Copilot built-in tools are intentionally outside the audit envelope
+
+A real cert-run flagged this: a Copilot Coding Agent run log showed an
+attempt to invoke `search_code_subagent` that returned an error, but
+the audit JSONL had NO `skill_call` event for it. The audit looked like
+the tool fired in a different universe — because it did.
+
+**The contract:** the runner's audit envelope covers exactly two
+classes of event:
+
+1. **Skill invocations bridged through `runSkill()` in the runner.** Any
+   tool name registered in `SKILLS` at
+   `packages/research-runner/src/runner/skills.ts` triggers the
+   auto-emit `skill_call` event when `runSkill()` is called with session
+   context env vars (`OKR_ID` / `RUN_ID` / `INTENT_THREAD_UUID` /
+   `PHASE`). This is the only path that produces `skill_call` events
+   today (Bug Y locked it down — the public CLI rejects user-input
+   `skill_call` to prevent forgery).
+2. **Agent-emitted events via `audit-emit-event`** for the agent-owned
+   kinds (`self_review`, `self_review_exhausted`, `gap_loop`,
+   `review_emitted` / `review_received`).
+
+**Everything else is outside the envelope by design.** The
+`.agent.md` tool lists grant `read`, `edit`, `search`, `execute`, and
+`github/*` — these are Copilot's built-in tool surface. They execute
+in Copilot's runtime, not the research-runner's. They do not call
+`runSkill()`. They never emit a `skill_call` event.
+
+`search_code_subagent` is one of those built-in Copilot tools. It is
+not in the runner's `SKILLS` registry, it is not named in any
+`.agent.md` `tools:` list (it's reached transitively through Copilot's
+built-in `search` tool capability), and an invocation attempt — failed
+or successful — produces no audit event by design.
+
+**What that means for an auditor reading a run log:**
+
+- A line in the Copilot run log naming a tool that has **no
+  corresponding audit event** does NOT prove the audit chain dropped
+  the event. It usually means the tool was a Copilot built-in
+  (`read` / `edit` / `search` / `execute` family), which is outside
+  the runner's audit envelope by contract.
+- The auditable surface is what the runner's `SKILLS` registry covers
+  PLUS the agent-emitted kinds. That surface is the per-event
+  Ed25519-signed chain.
+- Built-in tools are governed by the agent's prompt (what it's told
+  to do), the per-action governance tier (what auto-rounds it gets),
+  and the Red Queen on the code-repo side (what hooks fire when its
+  PR opens) — NOT by the planning-side audit chain.
+
+**Why this is intentional:** the runner's audit envelope exists to
+make agent reasoning and skill invocations cryptographically
+attributable. Bringing every Copilot built-in tool inside that
+envelope would either require Copilot itself to sign its
+tool-execution events (out of our trust boundary), or require the
+agent's prompt to wrap every read / edit / search / execute call in
+an `audit-emit-event` (a) which the agent could trivially skip,
+defeating the cryptographic guarantee, and (b) which would mostly
+just clone Copilot's existing run log without adding signed
+provenance.
+
+**What to do if a Copilot built-in tool's behavior matters for
+governance:**
+
+- Add a runner skill that wraps the capability you actually want to
+  audit, and require the agent to call it. The runner-bridged
+  invocation will then auto-emit `skill_call`.
+- Or, for repo-side enforcement, rely on the Red Queen's per-decision
+  log at the code-repo boundary — that's what enforces what the
+  agent's PR is allowed to do.
+
+This bug docket (Bug-UU-2) is closed by documentation: the failed
+`search_code_subagent` attempt is not a chain gap, it is a Copilot
+built-in tool executing outside the planning-side audit envelope by
+design. Stage 5 fan-out and the rollup do not depend on this surface.
+
 ## Related
 
 - [B25 chain forgery detection](agentic-sdlc.md#1125-chain-forgery-detection-b25--pr-105-forensic)

@@ -1189,3 +1189,50 @@ describe('Bug RR — finalize-okr-action chain → okr.yaml aggregation', () => 
     expect(actionSource).toMatch(/\.reviewerScores\./);
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// Bug-UU-1 — WHY card gap-loop extractor reads BOTH canonical Bug-Y
+// `event_kind: 'gap_loop'` AND the legacy `skill_call` with
+// `payload.skill: 'gap-loop'` shape. Pre-fix the extractor only checked
+// the legacy shape, so a real WHY run with 2 first-class `gap_loop`
+// events showed "Refine: 0 gap-loops" on the card even though the
+// audit JSONL had the right thing.
+//
+// Bug Y promoted `gap_loop` to a top-tier event kind with origin: agent.
+// The runner's audit-verify-chain accepts both shapes (count-skill-calls
+// has a legacy fallback for chains that pre-date Bug Y); the UI must do
+// the same. Pin both shapes here so a future cleanup that drops the
+// legacy fallback also lands a UI test failure for any pre-Y chain.
+// ──────────────────────────────────────────────────────────────────────
+describe('Bug-UU-1: LookingGlassPanel WHY gap-loop extractor recognizes both shapes', () => {
+  const panelSource = fs.readFileSync(
+    path.join(EXTENSION_PATH, 'src', 'webview', 'LookingGlassPanel.ts'),
+    'utf8',
+  );
+
+  it('canonical Bug-Y shape: event_kind === "gap_loop" increments gapLoops', () => {
+    // The new first-class kind. This is what the runner emits today.
+    expect(
+      panelSource,
+      'LookingGlassPanel must increment gapLoops when event_kind === "gap_loop". ' +
+      'Pre-Bug-UU-1 only the legacy skill_call shape was checked, so real Bug-Y chains ' +
+      'showed "Refine: 0 gap-loops" with non-zero gap_loop events in the JSONL.',
+    ).toMatch(/event\.event_kind\s*===\s*['"]gap_loop['"]/);
+  });
+
+  it('legacy shape: skill_call + payload.skill === "gap-loop" still counted (fallback for pre-Bug-Y chains)', () => {
+    // Pre-Bug-Y chains have the legacy shape. The runner's count-skill-calls
+    // action keeps that fallback for backward compat; the UI must too.
+    expect(
+      panelSource,
+      'LookingGlassPanel must keep the legacy skill_call+payload.skill==="gap-loop" branch ' +
+      'as a fallback so pre-Bug-Y chains still render correct gap-loop counts.',
+    ).toMatch(/event\.event_kind\s*===\s*['"]skill_call['"][\s\S]{0,200}payload\?\.skill\s*===\s*['"]gap-loop['"]/);
+  });
+
+  it('extractor names the Bug-UU-1 reference in a code comment (anchor for future audits)', () => {
+    // Anchors the bug to the code so a future grep finds the rationale
+    // without re-doing the forensics.
+    expect(panelSource).toContain('Bug-UU-1');
+  });
+});

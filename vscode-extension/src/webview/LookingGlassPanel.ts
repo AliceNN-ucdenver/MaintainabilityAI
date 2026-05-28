@@ -2050,7 +2050,23 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           if (event.event_kind === 'skill_call' && event.payload?.skill && event.payload?.ok !== false) {
             counts.set(event.payload.skill, (counts.get(event.payload.skill) ?? 0) + 1);
           }
-          if (event.event_kind === 'skill_call' && event.payload?.skill === 'gap-loop') {
+          // Bug-UU-1 — gap-loop counter must read the CANONICAL Bug-Y
+          // contract (event_kind: 'gap_loop' as a first-class agent kind)
+          // AND fall back to the legacy shape (skill_call with
+          // payload.skill === 'gap-loop'). Pre-fix we only recognized
+          // the legacy shape, so a real WHY run with 2 `gap_loop`
+          // events showed "Refine: 0 gap-loops" on the card while the
+          // chain JSONL had the right thing.
+          //
+          // Both shapes are intentionally counted: post-Bug-Y the runner
+          // emits the new kind, but legacy chains and the runner's
+          // count-skill-calls fallback still recognize the old shape, so
+          // the UI must too. We deliberately do NOT count both shapes for
+          // the same logical event (a chain has either-or, not both).
+          if (event.event_kind === 'gap_loop') {
+            gapLoops++;
+            followUps += event.payload?.queries?.length ?? 0;
+          } else if (event.event_kind === 'skill_call' && event.payload?.skill === 'gap-loop') {
             gapLoops++;
             followUps += event.payload?.queries?.length ?? 0;
           }
