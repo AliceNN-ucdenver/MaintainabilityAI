@@ -1652,7 +1652,7 @@ jobs:
         env:
           # Bug-WW-1 — every GHA expression whose value might contain
           # shell metacharacters (backticks, $(), $VAR) must reach the
-          # shell through env:, NOT through an inlined ${{ ... }}
+          # shell through env:, NOT through an inlined an inlined GHA expression
           # expression inside double quotes. Bug-VV-3 fixed this for
           # the audit-comment step but missed the label step's echos
           # of mode-honesty findings, struct_reason, chain reason, and
@@ -1764,7 +1764,7 @@ jobs:
             # the sibling to Bug-VV-3's fix for the audit-comment step:
             # findings carry backticks around repo slugs (e.g. "repo
             # `owner/name` has no per-repo subsection frontmatter"); an
-            # inlined ${{ ... }} expression inside double quotes lets
+            # inlined an inlined GHA expression expression inside double quotes lets
             # bash evaluate those backticks. Env-var pass-through
             # stops the command substitution.
             echo "::warning::Applied design-degraded — mode-honesty findings: $MODE_HONESTY_FINDINGS"
@@ -1792,7 +1792,7 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         env:
           # Bug-VV-3 + Bug-XX-2 — findings AND chain reason reach the
-          # shell via env vars, NOT via inlined ${{ ... }} expressions
+          # shell via env vars, NOT via inlined an inlined GHA expression expressions
           # inside double quotes. The findings text routinely contains
           # backticks (e.g. "repo `owner/name` has no per-repo subsection
           # frontmatter"), and chain reasons can carry backticked event
@@ -1846,7 +1846,7 @@ jobs:
             # step's env: block alongside MODE_HONESTY_FINDINGS, mirrors
             # the WW-1 fix to the label step). Chain reasons routinely
             # carry backticks around event ids and run ids; an inlined
-            # ${{ ... }} expression inside double quotes lets bash
+            # an inlined GHA expression expression inside double quotes lets bash
             # evaluate them as command substitution.
             VERDICT="degraded"
             REASON="Audit chain verification failed: $CHAIN_REASON"
@@ -1999,7 +1999,7 @@ jobs:
           if [ "${MODE_FINDINGS:-0}" != "0" ]; then
             printf '**Mode-honesty findings:**\n\n' >> "$BODY"
             # Bug-VV-3 — read findings from env var (set on this step's
-            # env: block above), NOT from an inlined ${{ ... }}
+            # env: block above), NOT from an inlined an inlined GHA expression
             # expression. Findings contain backticks around repo slugs;
             # the env-var path stops bash from executing them as
             # command substitution. The double-quoted "$MODE_HONESTY_FINDINGS"

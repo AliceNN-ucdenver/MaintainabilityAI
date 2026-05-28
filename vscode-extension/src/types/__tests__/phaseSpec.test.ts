@@ -1400,6 +1400,30 @@ describe('Bug-VV: WHAT workflow hardening after second cert-run', () => {
     expect(workflowContent).toContain('Bug-XX-2');
   });
 
+  it('Bug-YY-1: workflow source must NOT contain literal `${{ ... }}` (GHA parses it even in comments)', () => {
+    // The cert-run after WW deployed and GHA refused the workflow:
+    //   "Unexpected symbol: '...'. Located at position 1 within expression"
+    // at two lines. Root cause is the same class Codex-r3 caught in Bug
+    // F.v2: GHA's expression evaluator scans the workflow source text
+    // for `${{` patterns BEFORE the YAML comment marker is honored. A
+    // comment line that mentions `\${{ ... }}` (literal three dots
+    // inside a GHA expression placeholder) makes the evaluator try to
+    // parse `...` as an expression body, which it can't.
+    //
+    // Safe wording in comments: paraphrase ("an inlined GHA
+    // expression"), OR write a valid expression placeholder ("${{ X }}"
+    // where X is a syntactically valid identifier), but NEVER write
+    // literal `\${{ ... }}` with three dots inside.
+    //
+    // This test pins the safe contract for THIS workflow's comments.
+    // (The other two WHAT-phase workflows — market-research-agent.yml
+    // and prd-agent.yml — already had Bug F.v2 sweeps and stay clean.)
+    expect(
+      workflowContent,
+      'code-design-agent.yml must NOT contain literal `${{ ... }}` (with three dots) in source — GHA expression evaluator rejects it even when it appears inside a YAML comment. Use paraphrase like "an inlined GHA expression" instead. See Bug-YY-1.',
+    ).not.toMatch(/\$\{\{\s*\.\.\.\s*\}\}/);
+  });
+
   it('Bug-WW-2: path-list normalizer accepts both YAML list AND comma-string shapes (sanity on the parsing contract)', () => {
     // Sanity-check the normalize_paths helper handles the three
     // documented input shapes:
