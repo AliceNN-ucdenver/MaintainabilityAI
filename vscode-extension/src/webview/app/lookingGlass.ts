@@ -4016,6 +4016,21 @@ function attachEventHandlers() {
       vscode.postMessage({ type: 'startGreenfieldScaffold', okrId, repoSlug });
       return;
     }
+
+    const execute = target.closest('[data-action="fanout-execute"]') as HTMLElement | null;
+    if (execute) {
+      // D-PR4 sub-PR 6 — fan-out execute click. Confirms with the user
+      // (writes design-fan-out.yaml + commits to main + opens N
+      // GitHub issues + dispatches the impl agent N times). Native
+      // VS Code modal — webview can't intercept beforeunload.
+      if ((execute as HTMLButtonElement).disabled) { return; }
+      const okrId = execute.dataset.okrId;
+      if (!okrId || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+      state.fanOutPreflight = { loading: true };
+      render();
+      vscode.postMessage({ type: 'fanOut', okrId });
+      return;
+    }
   });
 
   // Phase B-PR3+ Start-phase modal — Cancel (✕ + footer) + click-outside

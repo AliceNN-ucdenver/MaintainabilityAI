@@ -204,11 +204,13 @@ export interface PreflightInputs {
  * NOT signed (the `state_transition` event kind is workflow-owned and
  * unsigned by contract; emitting it from the app would violate Bug Y).
  *
- * NOT exported in sub-PR 1 — the writer lives in sub-PR 6 (MeshService
- * `writeDesignFanOut`). Will be `export`ed when D-PR4 sub-PR 6 lands.
+ * Written by MeshService.writeDesignFanOut (D-PR4 sub-PR 6); read by
+ * MeshService.readDesignFanOut + the FanOutPreflightInputs assembler
+ * to populate alreadyOpenedRepos / implPrStates on subsequent
+ * pre-flight runs (idempotent fan-out — re-clicking the button on a
+ * row at `opened` is a no-op).
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface DesignFanOutRow {
+export interface DesignFanOutRow {
   repo: string;
   status: PreflightStatus;
   /** Optional fix-path hint; matches the discriminated probe failure. */
@@ -225,4 +227,13 @@ interface DesignFanOutRow {
   updatedAt?: string;
   /** ISO 8601 timestamp of when the landing issue first opened. */
   openedAt?: string;
+}
+
+/** Wire shape of the on-disk design-fan-out.yaml file. */
+export interface DesignFanOutDoc {
+  /** Schema version — bumped if the row shape ever changes. */
+  schema: 1;
+  /** OKR id — echoed for cross-reference + safety on read. */
+  okrId: string;
+  rows: DesignFanOutRow[];
 }

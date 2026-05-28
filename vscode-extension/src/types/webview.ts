@@ -609,7 +609,31 @@ export type LookingGlassWebviewMessage =
    * row from pending-scaffold to ready (engine infers
    * scaffold-complete from harness-present + repo-exists).
    */
-  | { type: 'startGreenfieldScaffold'; okrId: string; repoSlug: string };
+  | { type: 'startGreenfieldScaffold'; okrId: string; repoSlug: string }
+  /**
+   * D-PR4 sub-PR 6 — execute fan-out for an OKR.
+   *
+   * Click handler for the "🚀 Fan out N of M ready" button on the
+   * OKR detail's fan-out pane. Extension:
+   *   1. Branch-guards against non-main writes (MeshBranchGuard).
+   *   2. Re-runs pre-flight to validate the ready set hasn't changed.
+   *   3. For each ready row: composes + creates the landing issue
+   *      via createIssueRaw, dispatches the impl agent via
+   *      assignCustomCopilotAgent('implementation-agent'), records the
+   *      result in a DesignFanOutRow.
+   *   4. For each non-ready row that's part of the coordination block:
+   *      records its current decision status as a row (gives Stage 5
+   *      something to poll once D-PR5 lands).
+   *   5. Writes okrs/<okrId>/what/design-fan-out.yaml + commits +
+   *      pushes (under the same git pattern as commitAndPushOkrYaml).
+   *   6. Re-fires the pane's pre-flight so the UI reflects the new
+   *      opened rows.
+   *
+   * Idempotent: re-running fan-out is a no-op on rows already at
+   * `opened` (the pre-flight engine flags them via alreadyOpenedRepos,
+   * sourced from the existing design-fan-out.yaml on disk).
+   */
+  | { type: 'fanOut'; okrId: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

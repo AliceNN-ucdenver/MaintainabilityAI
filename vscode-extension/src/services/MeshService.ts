@@ -49,6 +49,14 @@ import { MESH_WORKFLOWS, DEPRECATED_MESH_FILES } from '../templates/codeRepoTemp
 
 export { MeshReader } from '../core/mesh-reader';
 
+// D-PR4 sub-PR 6 — design-fan-out.yaml I/O lives in a standalone
+// module so vitest can exercise the round-trip without dragging in
+// the VS Code runtime (MeshService -> ConfigService -> `vscode`).
+import {
+  readDesignFanOut as readDesignFanOutFile,
+  writeDesignFanOut as writeDesignFanOutFile,
+} from './coordination/designFanOutFile';
+
 export class MeshService {
   private barService: BarService;
   private scorer: GovernanceScorer;
@@ -98,6 +106,23 @@ export class MeshService {
   createReader(meshPath: string): MeshReader {
     const scoringConfig = this.readScoringConfig(meshPath);
     return new MeshReader(meshPath, scoringConfig);
+  }
+
+  // ==========================================================================
+  // D-PR4 sub-PR 6 — design-fan-out.yaml read/write (thin delegates).
+  //
+  // Implementation lives in `coordination/designFanOutFile.ts` so
+  // vitest can exercise the round-trip without dragging in VS Code
+  // (MeshService -> ConfigService -> `vscode`). The commit + push
+  // (under MeshBranchGuard) lives in LookingGlassPanel.onFanOut.
+  // ==========================================================================
+
+  writeDesignFanOut(meshPath: string, doc: import('./coordination/types').DesignFanOutDoc): void {
+    writeDesignFanOutFile(meshPath, doc);
+  }
+
+  readDesignFanOut(meshPath: string, okrId: string): import('./coordination/types').DesignFanOutDoc | null {
+    return readDesignFanOutFile(meshPath, okrId);
   }
 
   // ==========================================================================

@@ -1700,13 +1700,17 @@ function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiS
 
   const totalCount = report.entries.length;
   const readyCount = report.readyRepos.length;
-  const buttonEnabled = false; // sub-PR 4: execution lands in sub-PR 6
+  // D-PR4 sub-PR 6 — fan-out execution wired. Button enabled when
+  // ≥1 row is `ready`. Click dispatches `fanOut` → opens landing
+  // issues + dispatches impl-agent via assignCustomCopilotAgent +
+  // writes design-fan-out.yaml.
+  const buttonEnabled = readyCount > 0;
   const buttonLabel = readyCount === 0
     ? 'Fan out — no rows ready'
     : `🚀 Fan out ${readyCount} of ${totalCount} ready`;
   const buttonTitle = buttonEnabled
-    ? `Open landing issues for the ${readyCount} ready row${readyCount === 1 ? '' : 's'}.`
-    : 'Fan-out execution arrives in a follow-up release. Pre-flight verdict shown above is final.';
+    ? `Open landing issues for the ${readyCount} ready row${readyCount === 1 ? '' : 's'}. Writes design-fan-out.yaml + commits to main.`
+    : 'No rows are ready. Resolve harness/permission/upstream blockers above, then click Re-check.';
   const buttonClass = buttonEnabled ? 'okr-button-primary' : 'okr-button-primary okr-button-disabled';
 
   const wavesHtml = report.waves.length > 1 ? `

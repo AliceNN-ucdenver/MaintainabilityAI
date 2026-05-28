@@ -577,6 +577,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // pending-scaffold row's "Start Scaffold" button calls this;
     // handler creates the repo + opens Cheshire with OKR context.
     'startGreenfieldScaffold':     (m) => this.onStartGreenfieldScaffold(m.okrId, m.repoSlug),
+    // D-PR4 sub-PR 6 — execute fan-out. Opens landing issues for
+    // every ready row + dispatches the impl agent via custom-agent
+    // assignment + writes design-fan-out.yaml + commits + pushes.
+    'fanOut':                      (m) => this.onFanOut(m.okrId),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -885,21 +889,41 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Caller-state inputs. Sub-PR 3b ships these as empty defaults --
-    // subsequent sub-PRs populate them from design-fan-out.yaml (already-
-    // opened landing issues, impl PR states) and chain-ladder.yaml
-    // (upstream PR states). Empty defaults mean: all upstreams treated as
-    // not-started, no greenfield mid-scaffold, no landing issues yet open,
-    // no impl PRs yet. Result: brownfield rows surface their probe verdict;
-    // greenfield rows surface pending-scaffold (rule 3 fires on idle).
+    // Caller-state inputs. Sub-PR 6 reads design-fan-out.yaml (if it
+    // exists from a prior fan-out wave) to populate alreadyOpenedRepos
+    // + implPrStates so re-runs are idempotent. upstreamPrStates +
+    // greenfieldScaffoldStatus stay empty for now; D-PR5's Stage 5
+    // polling will populate them when it lands.
+    const prior = this.meshService.readDesignFanOut(meshPath, okrId);
+    const alreadyOpened = new Set<string>();
+    const implPrs = new Map<string, 'pr-opened' | 'pr-merged' | 'pr-rejected'>();
+    if (prior) {
+      for (const row of prior.rows) {
+        // A row in `opened` (or any later PR-state) means the landing
+        // issue was created on a prior fan-out. The engine's
+        // alreadyOpened short-circuit prevents double-open.
+        if (
+          row.status === 'opened' ||
+          row.status === 'pr-opened' ||
+          row.status === 'pr-merged' ||
+          row.status === 'pr-rejected'
+        ) {
+          alreadyOpened.add(row.repo);
+        }
+        if (row.status === 'pr-opened' || row.status === 'pr-merged' || row.status === 'pr-rejected') {
+          implPrs.set(row.repo, row.status);
+        }
+      }
+    }
+
     const inputs: FanOutPreflightInputs = {
       okrId,
       designMarkdown,
       targetRepos,
       upstreamPrStates: new Map(),
       greenfieldScaffoldStatus: new Map(),
-      alreadyOpenedRepos: new Set(),
-      implPrStates: new Map(),
+      alreadyOpenedRepos: alreadyOpened,
+      implPrStates: implPrs,
     };
 
     try {
@@ -1036,6 +1060,321 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // OKR is the source-of-truth. Cheshire's existing pickFolder UX
     // lets the user choose where to clone the new repo locally.
     ScaffoldPanel.createOrShow(this.context, undefined, undefined, { okrId, repoSlug });
+  }
+
+  /**
+   * D-PR4 sub-PR 6 — fan-out execution.
+   *
+   * Triggered when the user clicks "🚀 Fan out N of M ready" on the
+   * OKR detail's fan-out pane. Steps:
+   *
+   *   1. Branch-guard against non-main writes (MeshBranchGuard).
+   *   2. Re-run pre-flight (engine reads existing design-fan-out.yaml
+   *      to populate alreadyOpenedRepos -- re-clicks are idempotent).
+   *   3. Refuse if no rows are ready (state may have drifted between
+   *      pane render + click).
+   *   4. For each ready row:
+   *        - Compose landing-issue body (per-repo extract + sibling
+   *          table from the coordination doc).
+   *        - createIssueRaw with `oraculum-design-landing` label.
+   *        - assignCustomCopilotAgent(owner, repo, n, 'implementation-agent',
+   *          { customInstructions }).
+   *        - Build a DesignFanOutRow at status='opened' with
+   *          landingIssueUrl + openedAt + updatedAt.
+   *   5. For coordination rows NOT in the ready set: record their
+   *      current decision status so Stage 5 (D-PR5) has something to
+   *      poll later.
+   *   6. Write okrs/<okrId>/what/design-fan-out.yaml + commit + push.
+   *   7. Re-fire fanOutPreflight so the pane re-renders with the new
+   *      opened rows.
+   *
+   * Partial failure handling: an issue-creation or dispatch error on
+   * one row does NOT abort the rest -- the row gets recorded with
+   * status='permission-blocked' (or the closest discriminated reason)
+   * + a `reason` carrying the error message. User can re-click after
+   * fixing the underlying problem; the engine's alreadyOpened gate
+   * skips successfully-opened rows.
+   */
+  private async onFanOut(okrId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'Mesh not initialized.' });
+      return;
+    }
+
+    // Branch-guard: writes to design-fan-out.yaml are direct commits
+    // to main, same as the okr.yaml dispatch pattern.
+    const guardOk = await this.withMainBranchGuard(meshPath, `Fan out ${okrId}`);
+    if (!guardOk) return;
+
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Mesh repo not detected.' });
+      return;
+    }
+
+    const okrService = this.meshService.getOkrService();
+    const okr = okrService.read(meshPath, okrId);
+    if (!okr) {
+      this.postMessage({ type: 'error', message: `OKR ${okrId} not found.` });
+      return;
+    }
+
+    // Re-run pre-flight so we operate on the freshest decisions.
+    // This also reads the existing design-fan-out.yaml + populates
+    // alreadyOpenedRepos so re-clicks are idempotent.
+    this.postMessage({ type: 'loading', active: true, message: 'Re-running pre-flight before fan-out…' });
+    const whatAction = [...okr.actions].reverse().find(a => a.phase === 'what' && a.status === 'complete');
+    if (!whatAction) {
+      this.postMessage({ type: 'loading', active: false });
+      this.postMessage({ type: 'error', message: 'WHAT phase not complete -- nothing to fan out.' });
+      return;
+    }
+    const artifactPath = `okrs/${okrId}/what/code-design.md`;
+    let designMarkdown: string | null;
+    try {
+      designMarkdown = await this.githubService.getRepoFileText(meshRepo.owner, meshRepo.repo, artifactPath);
+    } catch (err) {
+      this.postMessage({ type: 'loading', active: false });
+      this.postMessage({ type: 'error', message: `Couldn't fetch code-design.md: ${toErrorMessage(err)}` });
+      return;
+    }
+    if (!designMarkdown) {
+      this.postMessage({ type: 'loading', active: false });
+      this.postMessage({ type: 'error', message: `code-design.md missing at ${artifactPath}.` });
+      return;
+    }
+
+    const targetRepos: FanOutTargetRepo[] = [];
+    const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
+    for (const repoUrl of okr.objectiveAlignment.targetCodeRepos) {
+      const status = statusMap[repoUrl] ?? 'not-connected';
+      const parsed = parseGitHubUrl(repoUrl);
+      const slug = parsed ? `${parsed.owner}/${parsed.repo}` : repoUrl.trim();
+      if (status === 'connected' || status === 'create') {
+        targetRepos.push({ slug, status });
+      }
+    }
+
+    const prior = this.meshService.readDesignFanOut(meshPath, okrId);
+    const priorAlreadyOpened = new Set<string>();
+    const priorImplPrs = new Map<string, 'pr-opened' | 'pr-merged' | 'pr-rejected'>();
+    if (prior) {
+      for (const row of prior.rows) {
+        if (
+          row.status === 'opened' ||
+          row.status === 'pr-opened' ||
+          row.status === 'pr-merged' ||
+          row.status === 'pr-rejected'
+        ) {
+          priorAlreadyOpened.add(row.repo);
+        }
+        if (row.status === 'pr-opened' || row.status === 'pr-merged' || row.status === 'pr-rejected') {
+          priorImplPrs.set(row.repo, row.status);
+        }
+      }
+    }
+
+    const report = await runFanOutPreflight(this.githubService, {
+      okrId,
+      designMarkdown,
+      targetRepos,
+      upstreamPrStates: new Map(),
+      greenfieldScaffoldStatus: new Map(),
+      alreadyOpenedRepos: priorAlreadyOpened,
+      implPrStates: priorImplPrs,
+    });
+
+    if (!report.ok) {
+      this.postMessage({ type: 'loading', active: false });
+      const reason = report.reason === 'coordination-verify-failed' ? report.verifyReason : report.detail;
+      this.postMessage({ type: 'error', message: `Pre-flight failed: ${reason}` });
+      return;
+    }
+
+    const readySet = new Set(report.readyRepos);
+    if (readySet.size === 0) {
+      this.postMessage({ type: 'loading', active: false });
+      this.postMessage({ type: 'info', message: 'No rows are ready -- nothing to fan out.' });
+      return;
+    }
+
+    // Build the rows we'll write. Start from prior rows (preserves
+    // history); overlay the new opened rows; record the non-ready rows
+    // at their current decision status for Stage 5 polling.
+    const rowsByRepo = new Map<string, import('../services/coordination/types').DesignFanOutRow>();
+    if (prior) {
+      for (const r of prior.rows) rowsByRepo.set(r.repo, r);
+    }
+
+    this.postMessage({
+      type: 'loading',
+      active: true,
+      message: `Fanning out ${readySet.size} ready repo${readySet.size === 1 ? '' : 's'}…`,
+    });
+
+    const nowIso = new Date().toISOString();
+    const dispatched: string[] = [];
+    const failed: Array<{ slug: string; error: string }> = [];
+
+    for (const entry of report.entries) {
+      // Record every non-ready coordination row at its current
+      // status so Stage 5 polling has a starting state.
+      if (!readySet.has(entry.slug)) {
+        const existing = rowsByRepo.get(entry.slug);
+        rowsByRepo.set(entry.slug, {
+          ...(existing ?? { repo: entry.slug }),
+          repo: entry.slug,
+          status: entry.decision.status,
+          reason: entry.decision.reason,
+          updatedAt: nowIso,
+        });
+        continue;
+      }
+
+      // Ready row -> open landing issue + dispatch.
+      const parts = entry.slug.split('/');
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        failed.push({ slug: entry.slug, error: `Invalid slug ${entry.slug} (expected owner/name)` });
+        continue;
+      }
+      const [owner, name] = parts;
+
+      try {
+        const issueTitle = `[${okrId}] Implement ${entry.slug} slice`;
+        const issueBody = composeFanOutLandingIssueBody({
+          okrId,
+          okrObjective: okr.objective.description || okr.objective.name,
+          repoSlug: entry.slug,
+          repoStatus: entry.status,
+          coordinationRow: entry.coordinationRow,
+          siblingSlugs: report.entries.filter(e => e.slug !== entry.slug).map(e => e.slug),
+          codeDesignArtifactPath: `okrs/${okrId}/what/code-design.md`,
+          meshRepoSlug: `${meshRepo.owner}/${meshRepo.repo}`,
+        });
+
+        const issue = await this.githubService.createIssueRaw(
+          owner,
+          name,
+          issueTitle,
+          issueBody,
+          ['oraculum-design-landing'],
+        );
+
+        // Dispatch the impl agent via the GitHub custom-agent API.
+        // Failures here are non-fatal — the issue still exists; the user
+        // can re-trigger by assigning the agent manually.
+        try {
+          await this.githubService.assignCustomCopilotAgent(
+            owner,
+            name,
+            issue.number,
+            'implementation-agent',
+            {
+              customInstructions: `Read the landing issue body for OKR ${okrId} context, your per-repo extract under §5, and sibling-repo coordination. Open a PR with a Hatter Tag continuation block.`,
+            },
+          );
+        } catch (dispatchErr) {
+          // Issue opened, dispatch failed. Record opened with reason.
+          rowsByRepo.set(entry.slug, {
+            repo: entry.slug,
+            status: 'opened',
+            landingIssueUrl: issue.url,
+            openedAt: nowIso,
+            updatedAt: nowIso,
+            reason: `Landing issue opened but agent dispatch failed: ${toErrorMessage(dispatchErr)}. Assign implementation-agent manually on the issue to retry.`,
+          });
+          dispatched.push(entry.slug);
+          continue;
+        }
+
+        rowsByRepo.set(entry.slug, {
+          repo: entry.slug,
+          status: 'opened',
+          landingIssueUrl: issue.url,
+          openedAt: nowIso,
+          updatedAt: nowIso,
+        });
+        dispatched.push(entry.slug);
+      } catch (err) {
+        failed.push({ slug: entry.slug, error: toErrorMessage(err) });
+        rowsByRepo.set(entry.slug, {
+          repo: entry.slug,
+          status: 'permission-blocked',
+          reason: `Landing-issue creation failed: ${toErrorMessage(err)}`,
+          updatedAt: nowIso,
+        });
+      }
+    }
+
+    // Write the merged doc.
+    this.meshService.writeDesignFanOut(meshPath, {
+      schema: 1,
+      okrId,
+      rows: Array.from(rowsByRepo.values()).sort((a, b) => a.repo.localeCompare(b.repo)),
+    });
+
+    // Commit + push.
+    const commitMsg = await this.commitAndPushDesignFanOut(meshPath, okrId, dispatched.length, failed.length);
+
+    this.postMessage({ type: 'loading', active: false });
+
+    if (failed.length > 0) {
+      this.postMessage({
+        type: 'error',
+        message: `Fan-out partial: ${dispatched.length} opened, ${failed.length} failed. ${commitMsg}\n` +
+          failed.map(f => `  - ${f.slug}: ${f.error}`).join('\n'),
+      });
+    } else if (dispatched.length > 0) {
+      this.postMessage({
+        type: 'info',
+        message: `Fan-out opened ${dispatched.length} landing issue${dispatched.length === 1 ? '' : 's'}: ${dispatched.join(', ')}. ${commitMsg}`,
+      });
+    }
+
+    // Re-fire pre-flight so the pane re-renders with `opened` rows.
+    await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * Commit + push the design-fan-out.yaml for an OKR. Mirrors
+   * commitAndPushOkrYaml -- same git pattern, same defensive checks,
+   * same upstream-detection fallback.
+   */
+  private async commitAndPushDesignFanOut(
+    meshPath: string,
+    okrId: string,
+    openedCount: number,
+    failedCount: number,
+  ): Promise<string> {
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (!gitRoot) return '(no git root -- skipped commit)';
+    const filePath = path.join('okrs', okrId, 'what', 'design-fan-out.yaml');
+    try {
+      await execFileAsync('git', ['add', filePath], { cwd: gitRoot });
+      const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+      if (!staged.trim()) return '(no diff -- already in sync)';
+      const summary = failedCount > 0
+        ? `${openedCount} opened, ${failedCount} failed`
+        : `${openedCount} opened`;
+      const commitMsg = `chore(okr): ${okrId} fan-out wave (${summary})\n\nAuto-committed by Looking Glass fan-out engine. Git history of\ndesign-fan-out.yaml IS the Tier 2 audit trail.`;
+      await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
+      try {
+        const { stdout: upstreamCheck } = await execFileAsync(
+          'git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+          { cwd: gitRoot },
+        );
+        if (upstreamCheck.trim()) {
+          await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          return 'Committed + pushed.';
+        }
+        return 'Committed locally (no upstream -- push manually).';
+      } catch (pushErr) {
+        return `Committed locally -- push failed (${toErrorMessage(pushErr)}).`;
+      }
+    } catch (err) {
+      return `Wrote file but git commit failed: ${toErrorMessage(err)}.`;
+    }
   }
 
   /**
@@ -7922,4 +8261,94 @@ function formatZodErrors(err: { issues: { path: (string | number)[]; message: st
     return `${where}: ${i.message}`;
   }).join('; ');
   return err.issues.length > 3 ? `${top} (+${err.issues.length - 3} more)` : top;
+}
+
+/**
+ * D-PR4 sub-PR 6 — compose a landing-issue body for a fan-out target.
+ *
+ * Per-repo extract + sibling table per Option III from the design-doc
+ * landing-issue contract. The impl agent reads this body to ground its
+ * implementation: knows what OKR it serves, which other repos are
+ * siblings, what coordination contracts it provides + consumes, where
+ * the WHAT artifact lives.
+ *
+ * Kept narrow + deterministic — body content drives the dispatch
+ * decision the impl agent makes, so reproducibility matters.
+ */
+function composeFanOutLandingIssueBody(args: {
+  okrId: string;
+  okrObjective: string;
+  repoSlug: string;
+  repoStatus: 'connected' | 'create';
+  coordinationRow?: import('../services/coordination/types').CoordinationRow;
+  siblingSlugs: string[];
+  codeDesignArtifactPath: string;
+  meshRepoSlug: string;
+}): string {
+  const lines: string[] = [];
+  lines.push(`<!-- okr_id: ${args.okrId} -->`);
+  lines.push(`<!-- fanout_target: ${args.repoSlug} -->`);
+  lines.push('');
+  lines.push(`## OKR context`);
+  lines.push('');
+  lines.push(`- **OKR:** \`${args.okrId}\``);
+  lines.push(`- **Objective:** ${args.okrObjective}`);
+  lines.push(`- **Source artifact:** [\`${args.codeDesignArtifactPath}\`](https://github.com/${args.meshRepoSlug}/blob/main/${args.codeDesignArtifactPath})`);
+  lines.push(`- **Target repo mode:** ${args.repoStatus === 'create' ? 'greenfield (scaffolded via Cheshire)' : 'brownfield (existing repo)'}`);
+  lines.push('');
+
+  if (args.coordinationRow) {
+    lines.push(`## Coordination (from §10 H3)`);
+    lines.push('');
+    lines.push(`- **Wave:** ${args.coordinationRow.fanout_wave}`);
+    lines.push(`- **Role:** ${args.coordinationRow.coordination_role}`);
+    if (args.coordinationRow.depends_on.length > 0) {
+      lines.push(`- **Depends on:** ${args.coordinationRow.depends_on.map(d => `\`${d}\``).join(', ')}`);
+    }
+    if (args.coordinationRow.rationale) {
+      lines.push(`- **Rationale:** ${args.coordinationRow.rationale}`);
+    }
+    lines.push('');
+
+    if (args.coordinationRow.provides.length > 0) {
+      lines.push(`### Provides`);
+      lines.push('');
+      for (const c of args.coordinationRow.provides) {
+        const consumers = c.consumed_by && c.consumed_by.length > 0 ? ` (consumed by ${c.consumed_by.map(s => `\`${s}\``).join(', ')})` : '';
+        lines.push(`- \`${c.contract}\`${consumers}${c.readiness ? ` — ${c.readiness}` : ''}`);
+      }
+      lines.push('');
+    }
+
+    if (args.coordinationRow.consumes.length > 0) {
+      lines.push(`### Consumes`);
+      lines.push('');
+      for (const c of args.coordinationRow.consumes) {
+        const from = c.from ? ` from \`${c.from}\`` : '';
+        const requiredFor = c.required_for && c.required_for.length > 0 ? ` (required for ${c.required_for.join(', ')})` : '';
+        lines.push(`- \`${c.contract}\`${from}${requiredFor}`);
+      }
+      lines.push('');
+    }
+  }
+
+  if (args.siblingSlugs.length > 0) {
+    lines.push(`## Sibling repos in this OKR's fan-out`);
+    lines.push('');
+    for (const sibling of args.siblingSlugs) {
+      lines.push(`- \`${sibling}\``);
+    }
+    lines.push('');
+  }
+
+  lines.push(`## What you should do`);
+  lines.push('');
+  lines.push(`1. Read the per-repo extract for \`${args.repoSlug}\` in the source artifact linked above (§5 in code-design.md).`);
+  lines.push(`2. Plan the implementation slice that satisfies your provided contracts.`);
+  lines.push(`3. Run Tweedles persona-switch self-critique (Architect + Security) per the implementation-agent prompt pack.`);
+  lines.push(`4. Open a PR with a Hatter Tag continuation block linking back to OKR \`${args.okrId}\`'s WHAT chain root.`);
+  lines.push('');
+  lines.push(`---`);
+  lines.push(`*Created by Looking Glass fan-out engine.*`);
+  return lines.join('\n');
 }
