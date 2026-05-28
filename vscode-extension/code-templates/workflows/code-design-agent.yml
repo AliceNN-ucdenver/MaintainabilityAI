@@ -774,14 +774,29 @@ jobs:
           # the narrative prose might not enumerate.
           REPO_HEADING_RE = re.compile(r'^###\s+`?([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)`?\s*$')
           PATH_IN_BACKTICKS_RE = re.compile(r'`([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]{1,8})`')
-          CITED_PATHS_FM_RE = re.compile(r'^\s*cited_paths:\s*\[([^\]]*)\]', re.MULTILINE)
-          # Bug-VV-2 — declare ADD/proposed files separately. The path
-          # gate verifies cited_paths against inventory (they must already
-          # exist), but new_paths are by-definition NOT in inventory yet
-          # — they're the files the design proposes to create. Treat them
-          # as legitimately-absent-from-inventory so an honest brownfield
-          # design isn't punished for adding new files.
-          NEW_PATHS_FM_RE = re.compile(r'^\s*new_paths:\s*\[([^\]]*)\]', re.MULTILINE)
+          # Bug-VV-2 — `new_paths:` (ADD/proposed files) and `cited_paths:`
+          # (existing MODIFY/REUSE files) are both extracted from per-repo
+          # frontmatter. Bug-VV-2 introduced new_paths to exempt ADD files
+          # from the inventory check.
+          #
+          # Bug-WW-2 — extract these via yaml.safe_load on the buffered
+          # frontmatter text instead of regex. Pre-WW-2 the parser used
+          # `cited_paths:\s*\[...\]` style regexes that only matched
+          # inline flow-list YAML (`cited_paths: [a, b]`). The agent
+          # commonly writes block-list style:
+          #
+          #   cited_paths:
+          #     - src/api/users.ts
+          #     - src/api/__tests__/users.test.ts
+          #
+          # which is the exact same shape and 100% valid YAML — the regex
+          # just missed it, so cited_paths went unread, the gate treated
+          # the repo as having zero cited paths, and the artifact failed
+          # `<zero-cited-paths>` on a brownfield repo that was actually
+          # citing real files. Same shape for new_paths. yaml.safe_load
+          # handles both forms transparently; normalize_paths() below
+          # accepts either a list or a comma-separated string for
+          # backward compat with any older artifacts still in flight.
           lines = doc.split('\n')
           cited_by_repo = {}
           new_by_repo = {}  # Bug-VV-2 — paths declared as proposed/ADD per repo
@@ -815,18 +830,37 @@ jobs:
                       # (Bug-VV-2 — proposed/ADD files declared
                       # separately so the gate doesn't punish them for
                       # being absent from inventory).
+                      #
+                      # Bug-WW-2 — parse via yaml.safe_load so we accept
+                      # BOTH inline flow lists (`cited_paths: [a, b]`)
+                      # AND block lists (`cited_paths:\n  - a\n  - b`).
+                      # Pre-WW-2 the regex only matched inline lists.
                       if frontmatter_owner_repo:
                           fm_text = '\n'.join(frontmatter_buf)
-                          fm_match = CITED_PATHS_FM_RE.search(fm_text)
-                          if fm_match:
-                              for raw in fm_match.group(1).split(','):
-                                  p = raw.strip().strip('"').strip("'")
-                                  if p: cited_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
-                          new_match = NEW_PATHS_FM_RE.search(fm_text)
-                          if new_match:
-                              for raw in new_match.group(1).split(','):
-                                  p = raw.strip().strip('"').strip("'")
-                                  if p: new_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
+                          try:
+                              fm_parsed = yaml.safe_load(fm_text)
+                          except Exception:
+                              fm_parsed = None
+                          def normalize_paths(value):
+                              # Accept either a YAML list (canonical) or a
+                              # comma-separated string (legacy quirk). Strip
+                              # quotes + whitespace + drop empties.
+                              if value is None: return []
+                              if isinstance(value, list):
+                                  out = []
+                                  for v in value:
+                                      if isinstance(v, str):
+                                          p = v.strip().strip('"').strip("'")
+                                          if p: out.append(p)
+                                  return out
+                              if isinstance(value, str):
+                                  return [p for p in (s.strip().strip('"').strip("'") for s in value.split(',')) if p]
+                              return []
+                          if isinstance(fm_parsed, dict):
+                              for p in normalize_paths(fm_parsed.get('cited_paths')):
+                                  cited_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
+                              for p in normalize_paths(fm_parsed.get('new_paths')):
+                                  new_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
                       in_frontmatter = False
                       frontmatter_buf = []
                       frontmatter_owner_repo = None
@@ -1607,6 +1641,20 @@ jobs:
       # the marketing page.
       - name: Apply verdict label
         if: steps.gate.outputs.skip != 'true'
+        env:
+          # Bug-WW-1 — every GHA expression whose value might contain
+          # shell metacharacters (backticks, $(), $VAR) must reach the
+          # shell through env:, NOT through an inlined ${{ ... }}
+          # expression inside double quotes. Bug-VV-3 fixed this for
+          # the audit-comment step but missed the label step's echos
+          # of mode-honesty findings, struct_reason, chain reason, and
+          # manifest_missing — every one of those is a potential
+          # injection surface because the underlying outputs commonly
+          # carry backticked repo slugs or path strings.
+          MODE_HONESTY_FINDINGS: ${{ steps.mode_honesty.outputs.findings }}
+          CHAIN_REASON: ${{ steps.chain.outputs.reason }}
+          STRUCT_REASON: ${{ steps.verdict.outputs.struct_reason }}
+          MANIFEST_MISSING: ${{ steps.verdict.outputs.manifest_missing }}
         run: |
           PR=${{ github.event.pull_request.number }}
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
@@ -1695,16 +1743,27 @@ jobs:
             echo "::warning::Applied chain-integrity-failed — Knight's Seal not verified (sealed=$SEALED, seal_verified=$SEAL_VERIFIED). Agent runs MUST land sealed (every agent event signed)."
           elif [ "$CHAIN_OK" = "false" ]; then
             apply_label --add-label chain-integrity-failed || true
-            echo "::warning::Applied chain-integrity-failed — chain reason: ${{ steps.chain.outputs.reason }}"
+            # Bug-WW-1 — read from env: CHAIN_REASON so backticks in
+            # the value don't get evaluated as command substitution.
+            echo "::warning::Applied chain-integrity-failed — chain reason: $CHAIN_REASON"
           elif [ "$STRUCT_OK" = "false" ]; then
             apply_label --add-label structure-invalid || true
-            echo "::warning::Applied structure-invalid — structure: ${{ steps.verdict.outputs.struct_reason }}"
+            # Bug-WW-1 — read from env: STRUCT_REASON.
+            echo "::warning::Applied structure-invalid — structure: $STRUCT_REASON"
           elif [ "$MODE_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — mode-honesty findings: ${{ steps.mode_honesty.outputs.findings }}"
+            # Bug-WW-1 — read from env: MODE_HONESTY_FINDINGS. This is
+            # the sibling to Bug-VV-3's fix for the audit-comment step:
+            # findings carry backticks around repo slugs (e.g. "repo
+            # `owner/name` has no per-repo subsection frontmatter"); an
+            # inlined ${{ ... }} expression inside double quotes lets
+            # bash evaluate those backticks. Env-var pass-through
+            # stops the command substitution.
+            echo "::warning::Applied design-degraded — mode-honesty findings: $MODE_HONESTY_FINDINGS"
           elif [ "$MANIFEST_OK" = "false" ]; then
             apply_label --add-label design-degraded || true
-            echo "::warning::Applied design-degraded — manifest: ${{ steps.verdict.outputs.manifest_missing }}"
+            # Bug-WW-1 — read from env: MANIFEST_MISSING.
+            echo "::warning::Applied design-degraded — manifest: $MANIFEST_MISSING"
           else
             # Fallback — shouldn't reach here given the discrete checks
             # above, but keep design-degraded as the safety net so a

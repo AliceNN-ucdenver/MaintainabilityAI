@@ -1250,21 +1250,32 @@ describe('Bug-VV: WHAT workflow hardening after second cert-run', () => {
     expect(workflowContent).toMatch(/expecting_frontmatter\s*=\s*True[\s\S]{0,500}HEADING_RE/);
   });
 
-  it('Bug-VV-2: brownfield path gate exempts new_paths from inventory check', () => {
+  it('Bug-VV-2 / WW-2: brownfield path gate exempts new_paths from inventory check (parsed via yaml.safe_load)', () => {
     // Path-gate must (a) extract a new_paths set from per-repo
     // frontmatter, (b) skip inventory check for paths in that set,
     // and (c) treat a brownfield repo with zero cited_paths but
     // non-zero new_paths as a legitimate ADD-only change set.
-    expect(workflowContent).toContain('NEW_PATHS_FM_RE');
-    // The Python regex source carries `new_paths:\s*\[` as a literal
-    // string. Just confirm the key + the regex name are present rather
-    // than re-encoding the backslash escaping inside JS regex.
+    //
+    // Bug-WW-2 — the original VV-2 fix used a `cited_paths:\s*\[...\]`
+    // style regex that only matched inline flow lists. The agent
+    // commonly writes block lists. Replaced with yaml.safe_load on
+    // the buffered frontmatter so both forms work.
     expect(workflowContent).toContain('new_paths:');
     expect(workflowContent).toContain('new_by_repo');
     // The cross-check loop must reference new_paths to skip inventory
     // lookups — the substantive contract.
     expect(workflowContent).toMatch(/if p in new_paths.*continue/);
     expect(workflowContent).toContain('Bug-VV-2');
+    // Bug-WW-2 specifics: parsing goes through yaml.safe_load, NOT
+    // through a regex that only matches inline lists.
+    expect(workflowContent).toMatch(/yaml\.safe_load\(fm_text\)/);
+    expect(workflowContent).toMatch(/normalize_paths/);
+    expect(workflowContent).toContain('Bug-WW-2');
+    // The legacy inline-only regexes for cited_paths / new_paths must
+    // be GONE — keeping them around invites future regression to the
+    // old inline-only matcher.
+    expect(workflowContent).not.toContain('CITED_PATHS_FM_RE');
+    expect(workflowContent).not.toContain('NEW_PATHS_FM_RE');
   });
 
   it('Bug-VV-2: synthesis pack + agent prompt teach the cited_paths vs new_paths contract', () => {
@@ -1306,6 +1317,56 @@ describe('Bug-VV: WHAT workflow hardening after second cert-run', () => {
       /printf\s+'%s\\n'\s+"\$\{\{\s*steps\.mode_honesty\.outputs\.findings\s*\}\}"/,
     );
     expect(workflowContent).toContain('Bug-VV-3');
+  });
+
+  it('Bug-WW-1: Apply verdict label step uses env-var pass-through for backtick-bearing outputs', () => {
+    // VV-3 fixed the audit-comment step. WW-1 closes the sibling
+    // injection in the label step: `echo "::warning::... ${{ steps.X.outputs.Y }}"`
+    // where Y might contain backticks (mode-honesty findings, chain
+    // reason, struct_reason, manifest_missing). Each surface needs the
+    // same env-var pass-through fix.
+    const fromStep = workflowContent.split('Apply verdict label')[1] ?? '';
+    // Scope to the label step (between the step header and the next
+    // step name OR the next major comment block).
+    const labelStep = fromStep.split(/\n {6}- name: /)[0] ?? fromStep;
+    expect(labelStep, 'Apply verdict label step body missing').not.toBe('');
+
+    // env: block declares ALL four backtick-prone outputs.
+    expect(labelStep).toMatch(/env:[\s\S]+MODE_HONESTY_FINDINGS:/);
+    expect(labelStep).toContain('CHAIN_REASON:');
+    expect(labelStep).toContain('STRUCT_REASON:');
+    expect(labelStep).toContain('MANIFEST_MISSING:');
+
+    // Echoes read from env-vars (not inlined GHA expressions).
+    expect(labelStep).toContain('$MODE_HONESTY_FINDINGS');
+    expect(labelStep).toContain('$CHAIN_REASON');
+    expect(labelStep).toContain('$STRUCT_REASON');
+    expect(labelStep).toContain('$MANIFEST_MISSING');
+
+    // Negative: the broken patterns must NOT come back.
+    expect(labelStep).not.toMatch(/mode-honesty findings:\s*\$\{\{\s*steps\.mode_honesty\.outputs\.findings\s*\}\}/);
+    expect(labelStep).not.toMatch(/chain reason:\s*\$\{\{\s*steps\.chain\.outputs\.reason\s*\}\}/);
+    expect(labelStep).not.toMatch(/structure:\s*\$\{\{\s*steps\.verdict\.outputs\.struct_reason\s*\}\}/);
+    expect(labelStep).not.toMatch(/manifest:\s*\$\{\{\s*steps\.verdict\.outputs\.manifest_missing\s*\}\}/);
+
+    expect(workflowContent).toContain('Bug-WW-1');
+  });
+
+  it('Bug-WW-2: path-list normalizer accepts both YAML list AND comma-string shapes (sanity on the parsing contract)', () => {
+    // Sanity-check the normalize_paths helper handles the three
+    // documented input shapes:
+    //   - YAML list (block or flow) → list of strings (post-yaml.safe_load)
+    //   - comma-separated string (legacy quirk for inline-without-brackets)
+    //   - None / missing key → empty
+    // We can't python-eval inline, but we can confirm the helper's
+    // shape is what the test scenarios above describe by inspecting
+    // its source.
+    expect(workflowContent).toMatch(/def normalize_paths\(value\):/);
+    expect(workflowContent).toMatch(/isinstance\(value, list\)/);
+    expect(workflowContent).toMatch(/isinstance\(value, str\)/);
+    // The helper iterates the list and strips quotes (the contract for
+    // YAML list values that the agent might have stringified).
+    expect(workflowContent).toMatch(/v\.strip\(\)\.strip\('"'\)\.strip\("'"\)/);
   });
 
   it('Bug-VV-4: regression scenario — two repo frontmatter blocks separated by markdown HR (---) parse correctly', () => {
