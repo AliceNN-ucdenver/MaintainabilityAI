@@ -581,6 +581,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // every ready row + dispatches the impl agent via custom-agent
     // assignment + writes design-fan-out.yaml + commits + pushes.
     'fanOut':                      (m) => this.onFanOut(m.okrId),
+    // D-PR5 Stage 5 — periodic poll. Webview fires every 60s when
+    // OKR detail is visible + WHAT is complete + design-fan-out.yaml
+    // has at least one opened row.
+    'pollFanOutPRs':               (m) => this.onPollFanOutPRs(m.okrId),
     'okrHumanGateApprove':         (m) => this.onHumanGateApprove(m.okrId, m.actionId, m.tier),
     'okrHumanGateRerun':           (m) => this.onHumanGateRerun(m.okrId, m.actionId),
     'okrHumanGateReject':          (m) => this.onHumanGateReject(m.okrId, m.actionId),
@@ -889,19 +893,21 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Caller-state inputs. Sub-PR 6 reads design-fan-out.yaml (if it
-    // exists from a prior fan-out wave) to populate alreadyOpenedRepos
-    // + implPrStates so re-runs are idempotent. upstreamPrStates +
-    // greenfieldScaffoldStatus stay empty for now; D-PR5's Stage 5
-    // polling will populate them when it lands.
+    // Caller-state inputs assembled from design-fan-out.yaml:
+    //   - alreadyOpenedRepos: rows past `opened` -- engine short-circuits
+    //   - implPrStates: per-row impl PR state (pr-opened/pr-merged/pr-rejected)
+    //   - upstreamPrStates (D-PR5): mirrors implPrStates -- a row's
+    //     "upstream from a dependent's perspective" IS its own impl PR
+    //     state. Rows that haven't reached a PR-state yet get
+    //     'not-started' implicitly (engine default when slug not in map).
+    //   - greenfieldScaffoldStatus: empty for now; engine infers from
+    //     observable facts (sub-PR 5 hardness probe heuristic).
     const prior = this.meshService.readDesignFanOut(meshPath, okrId);
     const alreadyOpened = new Set<string>();
     const implPrs = new Map<string, 'pr-opened' | 'pr-merged' | 'pr-rejected'>();
+    const upstreamStates = new Map<string, 'pr-merged' | 'pr-opened' | 'not-started' | 'pr-rejected'>();
     if (prior) {
       for (const row of prior.rows) {
-        // A row in `opened` (or any later PR-state) means the landing
-        // issue was created on a prior fan-out. The engine's
-        // alreadyOpened short-circuit prevents double-open.
         if (
           row.status === 'opened' ||
           row.status === 'pr-opened' ||
@@ -912,7 +918,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
         if (row.status === 'pr-opened' || row.status === 'pr-merged' || row.status === 'pr-rejected') {
           implPrs.set(row.repo, row.status);
+          upstreamStates.set(row.repo, row.status);
         }
+        // Note: rows at `opened` (landing issue created, no PR yet)
+        // implicitly map to 'not-started' for upstream purposes
+        // (engine's default for slugs not in the map).
       }
     }
 
@@ -920,7 +930,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       okrId,
       designMarkdown,
       targetRepos,
-      upstreamPrStates: new Map(),
+      upstreamPrStates: upstreamStates,
       greenfieldScaffoldStatus: new Map(),
       alreadyOpenedRepos: alreadyOpened,
       implPrStates: implPrs,
@@ -1159,6 +1169,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const prior = this.meshService.readDesignFanOut(meshPath, okrId);
     const priorAlreadyOpened = new Set<string>();
     const priorImplPrs = new Map<string, 'pr-opened' | 'pr-merged' | 'pr-rejected'>();
+    const priorUpstreamStates = new Map<string, 'pr-merged' | 'pr-opened' | 'not-started' | 'pr-rejected'>();
     if (prior) {
       for (const row of prior.rows) {
         if (
@@ -1171,6 +1182,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
         if (row.status === 'pr-opened' || row.status === 'pr-merged' || row.status === 'pr-rejected') {
           priorImplPrs.set(row.repo, row.status);
+          priorUpstreamStates.set(row.repo, row.status);
         }
       }
     }
@@ -1179,7 +1191,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       okrId,
       designMarkdown,
       targetRepos,
-      upstreamPrStates: new Map(),
+      upstreamPrStates: priorUpstreamStates,
       greenfieldScaffoldStatus: new Map(),
       alreadyOpenedRepos: priorAlreadyOpened,
       implPrStates: priorImplPrs,
@@ -1374,6 +1386,184 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
     } catch (err) {
       return `Wrote file but git commit failed: ${toErrorMessage(err)}.`;
+    }
+  }
+
+  /**
+   * D-PR5 Stage 5 — periodic impl-PR poll.
+   *
+   * For each row in design-fan-out.yaml at status `opened` or
+   * `pr-opened`, query the target repo for PRs that reference the
+   * landing issue. When a row's state changes (opened -> pr-opened,
+   * pr-opened -> pr-merged, etc.), update + persist.
+   *
+   * Only commits + pushes when at least one row actually changed --
+   * keeps git history clean from no-op polls. After persisting,
+   * re-fires fanOutPreflight so the pane reflects new states, which
+   * is what makes pending-on-upstream rows flip to ready once the
+   * upstream PR merges (engine derives upstreamPrStates from the
+   * persisted PR-state rows).
+   *
+   * Best-effort: per-row search/api failures are logged + the row
+   * stays at its prior state until the next poll. Doesn't block the
+   * other rows.
+   */
+  private async onPollFanOutPRs(okrId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) return;
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) return;
+    const prior = this.meshService.readDesignFanOut(meshPath, okrId);
+    if (!prior || prior.rows.length === 0) return;
+
+    // Rows worth polling: opened (no PR yet, looking for one) or
+    // pr-opened (PR found, looking for merge/reject). pr-merged is
+    // terminal-ish (we still surface it but don't repoll). pr-rejected
+    // also terminal.
+    const candidates = prior.rows.filter(r => r.status === 'opened' || r.status === 'pr-opened');
+    if (candidates.length === 0) return;
+
+    const nowIso = new Date().toISOString();
+    let anyChanged = false;
+    const updatedRows = [...prior.rows];
+
+    for (let i = 0; i < updatedRows.length; i++) {
+      const row = updatedRows[i];
+      if (row.status !== 'opened' && row.status !== 'pr-opened') continue;
+      if (!row.landingIssueUrl) continue;
+
+      const issueMatch = row.landingIssueUrl.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)/);
+      if (!issueMatch) continue;
+      const [, owner, repo, issueNum] = issueMatch;
+      const issueNumber = parseInt(issueNum, 10);
+
+      try {
+        const observed = await this.findImplPrForLandingIssue(owner, repo, issueNumber);
+        if (!observed) continue; // no impl PR yet -- keep row at `opened`
+
+        // Map observed PR state -> design-fan-out row status.
+        let newStatus: import('../services/coordination/types').PreflightStatus;
+        if (observed.merged) newStatus = 'pr-merged';
+        else if (observed.state === 'open') newStatus = 'pr-opened';
+        else newStatus = 'pr-rejected';
+
+        // Skip if nothing actually changed.
+        if (row.status === newStatus && row.implPrUrl === observed.url) continue;
+
+        updatedRows[i] = {
+          ...row,
+          status: newStatus,
+          implPrUrl: observed.url,
+          updatedAt: nowIso,
+        };
+        anyChanged = true;
+      } catch {
+        // Best-effort: skip the row on API failure, next poll will retry.
+        continue;
+      }
+    }
+
+    if (!anyChanged) return;
+
+    // Branch-guard before writing. Skip silently on dirty/wrong-branch --
+    // poll is implicit (not user-initiated), so a recovery modal would
+    // be intrusive. User will see the auto-poll stalled next time they
+    // dispatch a manual action that explicitly invokes withMainBranchGuard.
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (gitRoot) {
+      const guard = await checkMeshBranchGuard(gitRoot);
+      if (!guard.ok) {
+        // Don't write -- log + bail. Pane shows stale-but-honest state.
+        logger.warn(`pollFanOutPRs(${okrId}): MeshBranchGuard refused (${guard.kind === 'git-error' ? guard.error : guard.kind}). Skipping write.`);
+        return;
+      }
+    }
+
+    this.meshService.writeDesignFanOut(meshPath, {
+      schema: 1,
+      okrId,
+      rows: updatedRows.sort((a, b) => a.repo.localeCompare(b.repo)),
+    });
+
+    const changedCount = updatedRows.filter((r, i) => prior.rows[i] && (r.status !== prior.rows[i].status || r.implPrUrl !== prior.rows[i].implPrUrl)).length;
+    const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated)\n\nStage 5 auto-poll detected impl PR state changes.`;
+    if (gitRoot) {
+      try {
+        await execFileAsync('git', ['add', path.join('okrs', okrId, 'what', 'design-fan-out.yaml')], { cwd: gitRoot });
+        const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+        if (staged.trim()) {
+          await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
+          try {
+            await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          } catch { /* best-effort */ }
+        }
+      } catch (err) {
+        logger.warn(`pollFanOutPRs(${okrId}): commit failed (${toErrorMessage(err)})`);
+      }
+    }
+
+    // Refresh the pane.
+    await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * D-PR5 — find the impl PR for a landing issue in a target repo.
+   *
+   * GitHub auto-links PRs that reference an issue via `Closes #N` /
+   * `Fixes #N`. We search for PRs whose body mentions `#<issueNumber>`
+   * + filter by the impl-agent's labels when present (matches what
+   * implementation-agent writes per D-PR7's prompt-pack contract).
+   *
+   * Returns the most-recent matching PR (open-first, then merged-first).
+   * Null when no PR has referenced the issue yet.
+   */
+  private async findImplPrForLandingIssue(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean } | null> {
+    try {
+      const client = await this.githubService.getClient();
+      // Search PRs in this repo that mention #<issueNumber> in body.
+      // Quote the search term to force exact-match on the # prefix.
+      const search = await client.rest.search.issuesAndPullRequests({
+        q: `repo:${owner}/${repo} is:pr "#${issueNumber}" sort:created-desc`,
+        per_page: 10,
+      });
+      const items = (search.data.items ?? []) as Array<{ number: number; html_url: string; state: string; pull_request?: { merged_at: string | null } }>;
+      if (items.length === 0) return null;
+      // Filter: GitHub's search may return false positives (PR body has
+      // "#N" but refers to a different N). Verify each candidate's body
+      // explicitly references this issue number via `Closes #N` / `Fixes #N` /
+      // `Resolves #N` or bare `#N` near the start.
+      const matched: typeof items = [];
+      for (const candidate of items.slice(0, 5)) {
+        try {
+          const pr = await client.rest.pulls.get({ owner, repo, pull_number: candidate.number });
+          const body = pr.data.body ?? '';
+          const refRe = new RegExp(`(?:closes|fixes|resolves|connects)\\s+#${issueNumber}\\b|#${issueNumber}\\b`, 'i');
+          if (refRe.test(body)) {
+            matched.push({
+              number: candidate.number,
+              html_url: candidate.html_url,
+              state: candidate.state,
+              pull_request: { merged_at: pr.data.merged_at },
+            });
+          }
+        } catch { /* skip */ }
+      }
+      if (matched.length === 0) return null;
+      // Prefer most-recent-open, fall back to most-recent-overall.
+      const open = matched.filter(p => p.state === 'open');
+      const chosen = open[0] ?? matched[0];
+      return {
+        number: chosen.number,
+        url: chosen.html_url,
+        state: chosen.state === 'open' ? 'open' : 'closed',
+        merged: !!chosen.pull_request?.merged_at,
+      };
+    } catch {
+      return null;
     }
   }
 

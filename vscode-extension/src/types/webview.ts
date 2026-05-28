@@ -633,7 +633,26 @@ export type LookingGlassWebviewMessage =
    * `opened` (the pre-flight engine flags them via alreadyOpenedRepos,
    * sourced from the existing design-fan-out.yaml on disk).
    */
-  | { type: 'fanOut'; okrId: string };
+  | { type: 'fanOut'; okrId: string }
+  /**
+   * D-PR5 Stage 5 — poll impl PRs for an OKR.
+   *
+   * For each row in design-fan-out.yaml at status `opened` or
+   * `pr-opened`, queries the target repo for PRs that reference the
+   * landing issue. Updates the row's status (pr-opened/pr-merged/
+   * pr-rejected) + impl PR URL when state changes. Writes
+   * design-fan-out.yaml + commits + pushes only when something
+   * actually moved (no-op otherwise — keeps git history clean).
+   *
+   * Re-fires `fanOutPreflight` after polling so the pane reflects new
+   * states. The engine reads the updated row PR-states + derives
+   * upstreamPrStates from them, which is what flips
+   * pending-on-upstream rows to ready after their upstream merges.
+   *
+   * Webview wires this on a 60s cadence when an OKR detail with a
+   * completed WHAT phase is visible; pauses on view-change.
+   */
+  | { type: 'pollFanOutPRs'; okrId: string };
 
 export type LookingGlassExtensionMessage =
   | { type: 'portfolioData'; data: PortfolioSummary; workspaceFolders?: string[] }

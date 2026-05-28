@@ -130,6 +130,11 @@ const state = {
   // view mode (renderFanOutPreflightPane guards on the same WHAT-complete
   // check before showing anything).
   fanOutPreflight: undefined as FanOutPreflightUiState | undefined,
+  // D-PR5 Stage 5 — 60s impl-PR poll timer id. Started on okrDetail mount
+  // when WHAT is complete; cleared on view-change. The poll dispatches
+  // `pollFanOutPRs` which the extension uses to walk design-fan-out.yaml
+  // opened/pr-opened rows + update statuses when impl PRs progress.
+  fanOutPollTimer: undefined as ReturnType<typeof setInterval> | undefined,
   // Phase B-PR4 — Hatter Tag slide-out sheet
   hatterTagSheetOpen: false,
   hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
@@ -3979,6 +3984,10 @@ function attachEventHandlers() {
     state.startPhaseModalOpen = false;
     state.startPhaseModalData = null;
     state.fanOutPreflight = undefined;
+    if (state.fanOutPollTimer !== undefined) {
+      clearInterval(state.fanOutPollTimer);
+      state.fanOutPollTimer = undefined;
+    }
     render();
   });
 
@@ -5121,12 +5130,32 @@ const inboundHandlers: Record<string, InboundHandler> = {
         if (whatComplete) {
           state.fanOutPreflight = { loading: true };
           vscode.postMessage({ type: 'fanOutPreflight', okrId: state.currentOkr.meta.id });
+          // D-PR5 Stage 5 — start the impl-PR poll. Clears any prior
+          // timer (re-mount on the same OKR resets the cadence).
+          if (state.fanOutPollTimer !== undefined) {
+            clearInterval(state.fanOutPollTimer);
+          }
+          const pollOkrId = state.currentOkr.meta.id;
+          state.fanOutPollTimer = setInterval(() => {
+            // Extension's onPollFanOutPRs is a no-op when
+            // design-fan-out.yaml has no opened rows, so it's cheap to
+            // fire unconditionally while the panel is open.
+            vscode.postMessage({ type: 'pollFanOutPRs', okrId: pollOkrId });
+          }, 60_000);
         } else {
           state.fanOutPreflight = undefined;
+          if (state.fanOutPollTimer !== undefined) {
+            clearInterval(state.fanOutPollTimer);
+            state.fanOutPollTimer = undefined;
+          }
         }
       } else {
         state.okrPhaseSignals = undefined;
         state.fanOutPreflight = undefined;
+        if (state.fanOutPollTimer !== undefined) {
+          clearInterval(state.fanOutPollTimer);
+          state.fanOutPollTimer = undefined;
+        }
       }
       render();
     },
