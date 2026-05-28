@@ -513,21 +513,32 @@ Same self-critique pattern as the PRD stage, different evidence. The PRD review 
 
 > 📁 **Real code, real reads, not paraphrased guesses.** For every brownfield repo, the agent must read the actual files it plans to touch. The audit chain records those reads, and the workflow checks every cited file path against the repo inventory. If the design names a file that does not exist, the PR fails instead of receiving a design-pass label.
 
-When the code design merges, the Looking Glass-side governance is done. From here it is a workflow handoff, then coding agents in each target repo, governed by the Red Queen.
+When the code design merges, the Looking Glass-side planning artifacts are done. The chain ladder, however, continues — the next rung is an implementation chain inside each target repo, written by an implementation agent and stitched back to the mesh at the merge commit SHA.
 
 
 
 ## Stage 5 · The hand-off: one design becomes repo work
 
-When the code design merges, the Hatter's Tea Party is done. A workflow, not another agent, turns the approved design into one landing issue per target repo.
+When the code design merges, the Hatter's Tea Party's planning artifacts are done. The **FanOutEngine** — code that lives inside the Looking Glass VS Code extension, not a workflow — takes over. It is deterministic (no LLM), but it is also app-orchestrated, which means the user is in the loop at the critical moment.
 
-Each issue carries the same essentials: the OKR context, the merged PRD, the slice of the design that belongs to that repo, and the shared audit thread. The `celeb-api` issue gets the API work. The `imdb-react-frontend` issue gets the consumer work. The inherited auth contract gets honored without pretending there is a third repo PR.
+The engine runs four things, in order, and surfaces them on a single pre-flight pane:
 
-From here, coding agents in the target repos pick up the work. The Red Queen governs them on the code side: tool checks, architecture-flow checks, security-sensitive path locks, and repo-local audit logs. The work changes rooms, but it does not lose its provenance.
+1. **Coordination verify.** Each per-repo block inside `code-design.md` carries a `fanout_wave`, a `coordination_role`, and explicit `depends_on` / `provides` / `consumes` contracts. The engine and a per-repo workflow both verify the same 7+1 conditions — no missing repos, no extras, no cycles, no contract drift. Symmetry is mandatory: the in-extension TypeScript checker and the Python workflow checker must agree on every named failure.
+2. **Repo probe.** Each target repo is classified by status: `connected` (brownfield), `create` (greenfield), `not-connected`, or `unreachable`. Greenfield repos get scaffolded via Cheshire — idempotent org-create, plus seed README / LICENSE / CODEOWNERS / starter prompt packs — before the landing issue opens.
+3. **User confirms.** The pre-flight pane shows per-repo decisions. The user clicks `Fan out N of M ready`. That click is itself a governance moment: nothing dispatches without it.
+4. **Dispatch.** For each ready repo, the engine opens a landing issue carrying the OKR context, the per-repo slice of the design, the parent-chain continuation markers, and a `<!-- governance_tier: ... -->` HTML comment frozen at WHAT dispatch. Then it dispatches an implementation agent via custom-agent assignment. The implementation agent's session cwd IS the target repo — no `cd` workflow step is involved.
 
-> 🔐 **The hand-off is the signature.** Each agent session signs its own events with a session-only key. No credential is reissued between agents. The research agent signs research judgments, the PRD agent signs product judgments, the code-design agent signs design judgments, and downstream implementation work can point back to the same OKR thread.
+The `celeb-api` landing issue gets the API work. The `imdb-react-frontend` landing issue gets the consumer work. The inherited auth contract gets honored without pretending there is a third repo PR.
 
-<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
+### The chain continues in the target repo
+
+The implementation agent, running inside the target repo, writes a second hash-chained audit log — this one to `<repo>/.maintainability/audit/events/IMPL-*.jsonl` instead of the mesh. Same per-event Ed25519 signing as the planning side; same evidence honesty rules; uniform score scale (0.00–1.00 + PASS / MINOR / MAJOR / BLOCKING) so the rollup reads all four phases the same way. The runner routes the writes by run-id prefix: `IMPL-*` goes to the target repo, `RES-* / PRD-* / WHAT-*` goes to the mesh. Writer and verifier resolve via the same function, so what gets written gets verified.
+
+When the implementation PR opens, it carries a continuation `implementation_chain:` block in its body's YAML frontmatter — the IMPL run id, the parent run id, the parent intent thread, the parent chain root, the path to the in-repo events JSONL, the path to the in-repo Ed25519 public key, and **this** chain's own root hash (the IMPL chain's event_id=1 hash, not the parent's). When the PR merges, Stage 5 polling in Looking Glass fetches the events file and public key from the target repo **at `pr.merge_commit_sha`**, verifies they exist at that exact SHA, and only then appends a row to the mesh's `chain-ladder.yaml` — with the merge SHA stamped on it as evidence provenance. If the fetch fails, the row is marked retry-pending; no false-green seal lands. The work changes rooms, but the provenance does not get lost — it gets stitched.
+
+> 🔐 **The hand-off is the signature.** Each agent session signs its own events with a session-only key. No credential is reissued between agents. The research agent signs research judgments, the PRD agent signs product judgments, the code-design agent signs design judgments, and the implementation agent signs implementation judgments inside the target repo. The mesh's chain ladder names every rung; the merge commit SHA proves the impl rung existed in the repo at the moment of merge.
+
+<svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" class="docs-svg">
   <defs>
     <linearGradient id="handoffBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -537,41 +548,58 @@ From here, coding agents in the target repos pick up the work. The Red Queen gov
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#a5b4fc"/>
     </marker>
   </defs>
-  <rect width="800" height="320" rx="12" fill="url(#handoffBg)"/>
+  <rect width="800" height="360" rx="12" fill="url(#handoffBg)"/>
   <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">HAND-OFF · DESIGN BECOMES REPO WORK</text>
-  <!-- Source: code-design.md -->
-  <rect x="30" y="120" width="170" height="80" rx="10" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="115" y="143" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">code-design.md</text>
-  <text x="115" y="160" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">merged · scored</text>
-  <text x="115" y="175" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Hatter's Tag stamped</text>
-  <text x="115" y="190" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">shared audit thread</text>
-  <!-- fan-out workflow -->
-  <line x1="200" y1="160" x2="232" y2="160" stroke="#a5b4fc" stroke-width="2" marker-end="url(#handoffArrow)"/>
-  <rect x="235" y="130" width="160" height="60" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.4)"/>
-  <text x="315" y="155" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">fan-out workflow</text>
-  <text x="315" y="172" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">workflow only</text>
-  <text x="315" y="184" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">deterministic fan-out</text>
-  <!-- Per-repo issues (right column) -->
-  <line x1="395" y1="135" x2="475" y2="80" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
-  <line x1="395" y1="160" x2="475" y2="160" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
-  <line x1="395" y1="185" x2="475" y2="240" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
-  <rect x="480" y="58" width="280" height="50" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
-  <text x="620" y="78" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">issue → celeb-api repo</text>
-  <text x="620" y="94" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">slice: §3 entity resolver, §4.1 opt-out</text>
-  <rect x="480" y="138" width="280" height="50" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
-  <text x="620" y="158" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">issue → imdb-react-frontend repo</text>
-  <text x="620" y="174" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">slice: §2.3 SWR cache, §5 consumer</text>
-  <rect x="480" y="218" width="280" height="50" rx="8" fill="rgba(148,163,184,0.08)" stroke="rgba(148,163,184,0.30)" stroke-dasharray="3 3"/>
-  <text x="620" y="238" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="700" font-family="system-ui, sans-serif">no PR · honors existing auth contract</text>
-  <text x="620" y="254" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">design references JWT scope already in place</text>
-  <!-- Bottom: red queen takes over -->
-  <rect x="160" y="280" width="480" height="28" rx="14" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.4)"/>
-  <text x="400" y="298" text-anchor="middle" fill="#f9a8d4" font-size="11" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">↳ coding agents pick up · Red Queen governs from here</text>
+  <!-- Source: code-design.md merged in the mesh -->
+  <rect x="30" y="80" width="170" height="80" rx="10" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="115" y="103" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">code-design.md</text>
+  <text x="115" y="120" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">merged in the mesh</text>
+  <text x="115" y="134" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">per-repo slices + §10</text>
+  <text x="115" y="148" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">coordination contract</text>
+  <!-- FanOutEngine box (in-extension, deterministic) -->
+  <line x1="200" y1="120" x2="232" y2="120" stroke="#a5b4fc" stroke-width="2" marker-end="url(#handoffArrow)"/>
+  <rect x="235" y="60" width="200" height="170" rx="10" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.5)"/>
+  <text x="335" y="80" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">FanOutEngine</text>
+  <text x="335" y="93" text-anchor="middle" fill="#94a3b8" font-size="8" font-style="italic" font-family="system-ui, sans-serif">in-extension · deterministic</text>
+  <!-- Engine steps -->
+  <rect x="246" y="103" width="178" height="22" rx="4" fill="rgba(15,23,42,0.55)"/>
+  <text x="335" y="118" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">1 · coordination verify (7+1)</text>
+  <rect x="246" y="128" width="178" height="22" rx="4" fill="rgba(15,23,42,0.55)"/>
+  <text x="335" y="143" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">2 · repo probe (brown · green)</text>
+  <rect x="246" y="153" width="178" height="34" rx="4" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="335" y="167" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">3 · pre-flight pane</text>
+  <text x="335" y="179" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">user clicks "Fan out N of M"</text>
+  <rect x="246" y="191" width="178" height="22" rx="4" fill="rgba(15,23,42,0.55)"/>
+  <text x="335" y="206" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">4 · custom-agent dispatch</text>
+  <!-- Per-repo lanes -->
+  <line x1="435" y1="90" x2="475" y2="80" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
+  <line x1="435" y1="145" x2="475" y2="155" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
+  <line x1="435" y1="200" x2="475" y2="230" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
+  <rect x="480" y="58" width="280" height="68" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
+  <text x="620" y="78" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">celeb-api · brownfield</text>
+  <text x="620" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">landing issue + impl agent</text>
+  <text x="620" y="106" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">impl chain in /.maintainability/audit/</text>
+  <text x="620" y="119" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">↳ ladder back at merge SHA</text>
+  <rect x="480" y="134" width="280" height="68" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
+  <text x="620" y="154" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">imdb-react-frontend · brownfield</text>
+  <text x="620" y="169" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">landing issue + impl agent</text>
+  <text x="620" y="182" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">impl chain in /.maintainability/audit/</text>
+  <text x="620" y="195" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">↳ ladder back at merge SHA</text>
+  <rect x="480" y="210" width="280" height="68" rx="8" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="620" y="230" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="system-ui, sans-serif">checkout-svc · greenfield</text>
+  <text x="620" y="245" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Cheshire scaffold first</text>
+  <text x="620" y="258" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">then landing issue + impl agent</text>
+  <text x="620" y="271" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">↳ ladder back at merge SHA</text>
+  <!-- Bottom: stitch + Red Queen takes over -->
+  <rect x="60" y="298" width="680" height="22" rx="11" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="400" y="313" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">chain-ladder.yaml ← Stage 5 verifies events + key at pr.merge_commit_sha · stamps row</text>
+  <rect x="160" y="328" width="480" height="22" rx="11" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.4)"/>
+  <text x="400" y="343" text-anchor="middle" fill="#f9a8d4" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">↳ Red Queen governs the impl agent's tool calls inside each repo</text>
 </svg>
 
-What ends here: the **Looking-Glass-side pipeline**. The Hatter's Tea Party concludes with an internal auditor closeout report: one readable report per action, plus the whole-OKR rollup. The report gives the verdict first, then the evidence, traceability, event timeline, and cross-phase ladder. The external redacted bundle is next-act work: same evidence, packaged for people who should not receive raw mesh internals.
+What ends here: the **Looking-Glass-side planning artifacts**. What continues: the chain ladder itself. The Hatter's Tea Party concludes with an internal auditor closeout — one per-action report plus the **whole-OKR rollup**, which folds WHY + HOW + WHAT + every implementation row into a single signed evidence story with the verdict first, then the evidence, traceability, event timeline, and cross-phase ladder. The rollup re-verifies the chain ladder at export time, so the auditor's report is what the chain says today, not what it said when it was sealed. The external redacted bundle is next-act work: same evidence, packaged for people who should not receive raw mesh internals.
 
-What begins next: the **coding agents** working in each target repo, governed by the Red Queen. That's the other story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
+What begins next: the **implementation agents** working inside each target repo, governed by the Red Queen on their tool calls. That's the other story. Read [the Red Queen's Court](/docs/red-queens-court) for the deep dive, or jump straight to the [quickstart](/docs/quickstart-redqueen) to install hooks on a real repo.
 
 
 

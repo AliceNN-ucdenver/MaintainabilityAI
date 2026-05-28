@@ -249,17 +249,19 @@ In Queen's Next Act, the Red Queen will build **agent memory**: which policy rul
 
 ## Where the Red Queen meets the Hatter
 
-The two modalities cross paths at the hand-off from design to implementation. The Hatter finishes the planning work and creates a landing issue in each target code repo. Each issue carries the approved design slice and the shared audit thread. The coding agent picks it up, and from the moment it reaches for a tool, the **Red Queen governs**. Same governance scores. Same CALM model. Different governance modality.
+The two modalities cross paths at the hand-off from design to implementation. The Hatter finishes the planning work in the mesh; the **FanOutEngine** (in-extension code, not a workflow) runs a pre-flight pane, the user confirms `Fan out N of M ready`, and one landing issue opens per ready repo. Each issue carries the approved design slice, the shared audit thread, the parent chain continuation, and the OKR's governance tier frozen at WHAT dispatch as a machine-readable HTML comment. An implementation agent is assigned to each landing issue, runs inside the target repo, and writes its own per-event Ed25519-signed audit chain to `<repo>/.maintainability/audit/` — the **implementation chain**. From the moment that agent reaches for a tool, the **Red Queen governs**. Same governance scores. Same CALM model. Different governance modality.
 
-Today the Hatter evidence chain and the Red Queen decision log sit side by side. That is honest and useful, but not yet one unified enforcement chain. Closing that seam is Queen's Next Act.
+The Hatter evidence chain now continues into implementation. The impl PR carries a continuation block in its body; on merge, Looking Glass fetches the impl chain's events file and public key from the target repo at the merge commit SHA, verifies they exist at that exact SHA, and stamps a row on the mesh's `chain-ladder.yaml`. The planning story and the implementation story are stitched at the commit hash — one signed evidence trail, two rooms.
+
+What is **not** yet stitched: the Red Queen's own decision log. Today, the impl agent's signed events live in the same trust model as the Hatter's; the Red Queen's per-decision audit records of allow / warn / deny / override sit alongside but are not yet folded into that same per-event Ed25519 chain. Folding them in is Queen's Next Act.
 
 
 
 ## Queen's Next Act
 
-Today the Red Queen makes deterministic policy decisions at the repo boundary and records them locally. The Hatter, on the planning side, already has the stronger trust story: observed facts come from the runtime, GitHub state comes from the workflow, agent judgments are signed by the agent, and the verifier rejects any event whose author does not match its kind.
+The Hatter trust model now extends through implementation: planning events in the mesh, implementation events in each target repo, stitched at the merge commit SHA. Observed facts come from the runtime, GitHub state comes from the workflow, agent judgments are signed by the agent, and the verifier rejects any event whose author does not match its kind. That model is intact end-to-end on the **what-and-how-it-was-built** side.
 
-Queen's Next Act brings that same trust model to implementation. The Hatter makes intent and design accountable. The Red Queen will make tool use, overrides, and merge enforcement accountable under the same rules.
+Today the Red Queen makes deterministic policy decisions at the repo boundary and records them in a local decision log. Queen's Next Act brings the Hatter trust model to those **enforcement-decision** events too. The Hatter already makes intent, design, and implementation accountable. The Red Queen will make tool use, overrides, and merge enforcement accountable under the same per-event signing rules.
 
 <div class="docs-gap-list">
   <div class="docs-gap-row">
@@ -274,7 +276,7 @@ Queen's Next Act brings that same trust model to implementation. The Hatter make
     <div class="docs-gap-status docs-gap-status-queued">Queued</div>
     <div>
       <div class="docs-gap-title">Signed enforcement chain</div>
-      <p class="docs-gap-body">Red Queen allow, warning, deny, and override decisions move from a local decision log into the same verifier-checked evidence model the Hatter uses today.</p>
+      <p class="docs-gap-body">The implementation agent's events are already signed under the Hatter trust model, written into the target repo's <code>.maintainability/audit/</code>, and stitched back to the mesh ladder at the merge commit SHA. The remaining gap: Red Queen allow, warn, deny, and override <em>decision</em> events still live in a local decision log. They need to move into the same per-event Ed25519 chain, signed by their legitimate author at the moment of decision.</p>
       <p class="docs-gap-next"><strong>Next:</strong> sign enforcement events by their legitimate author: runtime for observed tool attempts, workflow for GitHub state, agent or human session for judgments and overrides.</p>
     </div>
   </div>

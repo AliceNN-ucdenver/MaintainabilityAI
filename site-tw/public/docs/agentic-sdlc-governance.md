@@ -244,7 +244,7 @@ That is the difference between a pile of coding assistants and a governed hybrid
 
 <div class="docs-center-block">
 <div class="docs-heading">This is the way: a governed evidence pipeline, not a loop</div>
-<div class="docs-copy">Five lifecycle stages × three parallel rails (judgment · proof · governance) × one signed audit chain underneath. <strong>OKR → WHY → HOW → WHAT ships today.</strong> BUILD fan-out is the next act. The full rail map sits in <a href="#how-we-keep-the-promises">How we keep the promises</a> below.</div>
+<div class="docs-copy">Five lifecycle stages × three parallel rails (judgment · proof · governance) × a stitched evidence chain underneath. <strong>OKR → WHY → HOW → WHAT ships today, and BUILD fan-out shipped via the in-extension FanOutEngine.</strong> Planning lives in the mesh, implementation lives in each target repo, and the two are stitched at the merge commit. The full rail map sits in <a href="#how-we-keep-the-promises">How we keep the promises</a> below.</div>
 </div>
 
 ## A Monday morning
@@ -1129,6 +1129,100 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
   </g>
 </svg>
 
+
+**The chain is stitched, not single.** Planning events (WHY, HOW, WHAT) write to the governance mesh at `<mesh>/okrs/<id>/audit/events/<runId>.jsonl`. Implementation events write to each target repo at `<repo>/.maintainability/audit/events/IMPL-*.jsonl`. The runner routes by run-id prefix: `IMPL-*` goes to the target repo, `RES-* / PRD-* / WHAT-*` goes to the mesh. Same per-event Ed25519 signing, same evidence-honesty rules, same uniform score scale (0.00–1.00 + PASS / MINOR / MAJOR / BLOCKING) across all four phases.
+
+**The seam is the merge SHA.** When an implementation PR opens, it carries a continuation YAML block in its body that points to the impl chain in the target repo. When the PR merges, Looking Glass fetches the events file and the per-session public key from the target repo at the PR's `merge_commit_sha`, verifies they exist at that exact SHA, then appends a row to the mesh's `chain-ladder.yaml` with the merge SHA stamped on it. If the fetch fails, the row gets marked retry-pending instead of sealed. The auditor reads one stitched ladder; the cryptographic anchor that joins the two halves is the commit hash itself.
+
+**The whole-OKR rollup is the buyer's story.** One click in Looking Glass produces a single closeout that folds WHY + HOW + WHAT + every implementation row into one signed evidence document. The rollup re-verifies the chain ladder at export time, so the report reflects the chain as it stands today — not as it stood when each phase sealed. The verdict comes first, then the evidence, traceability, event timeline, and cross-phase ladder.
+
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="The stitched evidence chain. Planning events write to the mesh, implementation events write to each target repo, and the two halves stitch at the pull request's merge commit SHA. Looking Glass fetches the target-repo events and public key at the merge SHA before appending a row to the mesh chain ladder.">
+  <defs>
+    <linearGradient id="stitchBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0c1426"/>
+      <stop offset="100%" stop-color="#070d1a"/>
+    </linearGradient>
+    <linearGradient id="stitchMesh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(196,181,253,0.18)"/>
+      <stop offset="100%" stop-color="rgba(196,181,253,0.04)"/>
+    </linearGradient>
+    <linearGradient id="stitchRepo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(125,211,252,0.18)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0.04)"/>
+    </linearGradient>
+    <linearGradient id="stitchSeam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(252,211,77,0.18)"/>
+      <stop offset="100%" stop-color="rgba(252,211,77,0.04)"/>
+    </linearGradient>
+    <marker id="stitchArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#86efac"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="800" height="440" rx="12" fill="url(#stitchBg)"/>
+  <text x="400" y="26" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">STITCHED EVIDENCE CHAIN · MESH + TARGET REPO</text>
+  <!-- MESH band -->
+  <rect x="20" y="50" width="760" height="100" rx="10" fill="url(#stitchMesh)" stroke="rgba(196,181,253,0.5)" stroke-width="1.2"/>
+  <text x="36" y="72" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">MESH REPO · planning chain</text>
+  <text x="36" y="86" fill="#a78bfa" font-size="9" font-family="ui-monospace, Menlo, monospace">&lt;mesh&gt;/okrs/&lt;id&gt;/audit/events/&lt;runId&gt;.jsonl</text>
+  <!-- Mesh chain rungs -->
+  <circle cx="170" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="170" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">WHY</text>
+  <text x="170" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">RES-*</text>
+  <circle cx="310" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="310" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">HOW</text>
+  <text x="310" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">PRD-*</text>
+  <circle cx="450" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="450" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">WHAT</text>
+  <text x="450" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHAT-*</text>
+  <path d="M 179 120 L 301 120 M 319 120 L 441 120" stroke="rgba(134,239,172,0.55)" stroke-width="1.4"/>
+  <!-- Ladder row block on the right -->
+  <rect x="540" y="92" width="220" height="44" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(252,211,77,0.4)" stroke-width="1"/>
+  <text x="650" y="108" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">chain-ladder.yaml</text>
+  <text x="650" y="122" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">WHY · HOW · WHAT · impl rows ↓</text>
+  <text x="650" y="132" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="ui-monospace, Menlo, monospace">stamped with merge_commit_sha</text>
+  <!-- SEAM band: FanOutEngine -->
+  <rect x="20" y="170" width="760" height="76" rx="10" fill="url(#stitchSeam)" stroke="rgba(252,211,77,0.5)" stroke-width="1.2"/>
+  <text x="36" y="192" fill="#fef3c7" font-size="10" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">SEAM · FanOutEngine in Looking Glass extension</text>
+  <text x="36" y="206" fill="#fcd34d" font-size="9" font-family="system-ui, sans-serif">pre-flight pane → user clicks Fan out N of M → assignCustomCopilotAgent ×N</text>
+  <rect x="540" y="186" width="220" height="46" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(252,211,77,0.4)" stroke-width="1"/>
+  <text x="650" y="202" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">landing issue</text>
+  <text x="650" y="216" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="ui-monospace, Menlo, monospace">&lt;!-- governance_tier: ... --&gt;</text>
+  <text x="650" y="227" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="ui-monospace, Menlo, monospace">+ parent_chain_root, parent_intent_thread</text>
+  <!-- arrows down from mesh into seam (3) then down from seam into repo (3) -->
+  <line x1="170" y1="150" x2="170" y2="170" stroke="rgba(252,211,77,0.55)" stroke-width="1.2"/>
+  <line x1="310" y1="150" x2="310" y2="170" stroke="rgba(252,211,77,0.55)" stroke-width="1.2"/>
+  <line x1="450" y1="150" x2="450" y2="170" stroke="rgba(252,211,77,0.55)" stroke-width="1.2"/>
+  <line x1="170" y1="246" x2="170" y2="266" stroke="rgba(125,211,252,0.55)" stroke-width="1.2"/>
+  <line x1="310" y1="246" x2="310" y2="266" stroke="rgba(125,211,252,0.55)" stroke-width="1.2"/>
+  <line x1="450" y1="246" x2="450" y2="266" stroke="rgba(125,211,252,0.55)" stroke-width="1.2"/>
+  <!-- TARGET REPO band -->
+  <rect x="20" y="266" width="760" height="100" rx="10" fill="url(#stitchRepo)" stroke="rgba(125,211,252,0.5)" stroke-width="1.2"/>
+  <text x="36" y="288" fill="#e0f2fe" font-size="10" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">TARGET REPOS · implementation chain (one per repo)</text>
+  <text x="36" y="302" fill="#7dd3fc" font-size="9" font-family="ui-monospace, Menlo, monospace">&lt;repo&gt;/.maintainability/audit/events/IMPL-*.jsonl</text>
+  <circle cx="170" cy="336" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="170" y="340" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
+  <text x="170" y="358" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">celeb-api</text>
+  <circle cx="310" cy="336" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="310" y="340" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
+  <text x="310" y="358" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">imdb-react-frontend</text>
+  <circle cx="450" cy="336" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
+  <text x="450" y="340" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">IMPL</text>
+  <text x="450" y="358" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="ui-monospace, Menlo, monospace">checkout-svc · greenfield</text>
+  <!-- Stitch back into chain-ladder, right side -->
+  <path d="M 480 336 Q 540 336 600 200 Q 660 100 540 120" fill="none" stroke="#86efac" stroke-width="1.6" marker-end="url(#stitchArrow)"/>
+  <rect x="540" y="282" width="220" height="68" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.5)" stroke-width="1"/>
+  <text x="650" y="298" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">Stage 5 stitches</text>
+  <text x="650" y="312" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">fetch events + key at pr.merge_commit_sha</text>
+  <text x="650" y="324" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">verify exists → append ladder row</text>
+  <text x="650" y="338" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">stamp merge SHA on the row</text>
+  <text x="650" y="346" text-anchor="middle" fill="#94a3b8" font-size="7" font-style="italic" font-family="system-ui, sans-serif">fetch fail → retry-pending, not sealed</text>
+  <!-- Legend -->
+  <rect x="20" y="382" width="760" height="42" rx="8" fill="rgba(15,23,42,0.55)" stroke="rgba(148,163,184,0.25)" stroke-width="1"/>
+  <text x="36" y="402" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif"><tspan fill="#a78bfa" font-weight="700">Mesh:</tspan> WHY · HOW · WHAT plans + ladder.   <tspan fill="#fcd34d" font-weight="700">Seam:</tspan> FanOutEngine + landing issues (governance_tier frozen).   <tspan fill="#7dd3fc" font-weight="700">Target repos:</tspan> impl chain per repo.</text>
+  <text x="36" y="416" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif"><tspan fill="#86efac" font-weight="700">Stitch:</tspan> the merge_commit_sha is the cryptographic anchor that joins the planning chain to the implementation chain — one signed story, two rooms.</text>
+</svg>
+
+
 ## How we keep the promises
 
 Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, three plain-English receipts. Every one is enforced by code that runs on every PR, not by a slide.
@@ -1137,7 +1231,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
 <div class="docs-heading">The new SDLC is not a loop. It is a governed evidence pipeline.</div>
 </div>
 
-<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT shipped today, plus BUILD fan-out as the next act. Each carries three parallel rails: agent judgment, deterministic proof, and human governance. All five stages write into a continuous signed audit chain at the bottom." class="docs-svg" />
+<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped. Each carries three parallel rails: agent judgment, deterministic proof, and human governance. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two stitch at the merge commit." class="docs-svg" />
 
 
 <div class="docs-grid docs-grid-wide">
@@ -1436,7 +1530,7 @@ Five actors the Hatter must withstand:
 | **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) yet. Queued for a future release | ⚠ |
 | **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments | ✓ |
 | **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy; workflow `timeout-minutes` on every bus workflow | ✓ |
-| **DoS** | Fan-out blast radius: one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; `design-bus.yml` will write an issue per entry. Cap + warn threshold queued for a future release | ⚠ |
+| **DoS** | Fan-out blast radius: one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; the FanOutEngine writes one landing issue per ready entry after the user clicks `Fan out N of M ready` in the pre-flight pane. A user-confirmed pane is the soft cap; an explicit cap + warn threshold is queued for a future release | ⚠ |
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference, so the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
@@ -1718,7 +1812,7 @@ We treat this list as **living**. As the design ships and we learn from real OKR
 
 The shift is not "AI will do more of the work." That part is settled. The shift is whether the work it does is governed, attributable, and worth the speed.
 
-Three human gates per OKR. Per-epoch signatures on every agent event. A chain anyone can verify. A control plane your architect, your compliance lead, and your CISO can all read from the same screen. **One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** Trust earned, not granted.
+Three human gates per OKR. Per-epoch signatures on every agent event. A stitched evidence chain from OKR intent to merged code — planning events in the mesh, implementation events in each target repo, joined at the merge commit SHA. A control plane your architect, your compliance lead, and your CISO can all read from the same screen. **A stitched audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** Trust earned, not granted.
 
 Manage intent. Quality follows.
 
