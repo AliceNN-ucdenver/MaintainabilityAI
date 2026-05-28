@@ -20,6 +20,10 @@ reliably consumable by the downstream PRD agent.
   platform/portfolio profile, prior research, related decisions)
 - `{ranked_sources}` — list of `RankedSource` (title, url, retrieved_at,
   salience_score, provider, excerpt) — the only sources you may cite
+- `{source_premises_markdown}` — deterministic `S[N]` premise rows from
+  `dedupe-and-rank`; use verbatim when present
+- `{references_markdown}` — deterministic reference rows from the same
+  source registry; use verbatim when present
 - `{gap_analysis_ran}` — `true` if `gap-analysis` followed-up; `false`
 - `{current_year}` — 4-digit year
 
@@ -67,6 +71,9 @@ Premises` is wrong — use `## Source Premises`).
 ### `## Source Premises`
 
 One entry per ranked source. Every source used later must appear here.
+If `{source_premises_markdown}` is present, paste it verbatim and only
+edit the claim text after `establishes:` when absolutely necessary. Do
+not change the title, URL, or `S[N]` binding.
 Format each entry exactly like this:
 
 ```
@@ -173,6 +180,8 @@ state the evidence chain:
 ### `## References`
 
 Deduplicated source list, in `S[N]` order:
+If `{references_markdown}` is present, paste it verbatim. Do not
+hand-type or reformat URLs from memory.
 
 ```
 - S1: <title> — <URL> — retrieved <date>

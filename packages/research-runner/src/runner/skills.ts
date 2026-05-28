@@ -39,7 +39,7 @@ import { runUsptoSearch } from './nodes/uspto-search';
 import { dedupeAndRank } from './nodes/dedupe-and-rank';
 import type { ProviderResult } from '../search/provider-result';
 import type { RankedSource } from '../schemas';
-import { readSessionContext } from './session-context';
+import { readSessionContext, type SessionContext } from './session-context';
 
 /**
  * Shape every skill returns. Tagged union so the agent can branch on `ok`.
@@ -1697,6 +1697,65 @@ const DedupeAndRankInput = z.object({
   topN: z.number().int().positive().optional(),
 });
 
+interface SourceRegistryInfo {
+  path: string;
+  sha256: string;
+  rowCount: number;
+}
+
+function sourceRegistryPath(ctx: SessionContext): string {
+  return path.posix.join('okrs', ctx.okrId, 'audit', 'sources', `${ctx.runId}.source-registry.json`);
+}
+
+function sourceRegistryEntry(source: RankedSource): Record<string, unknown> {
+  return {
+    source_id: source.id,
+    provider: source.provider,
+    queries: source.queries ?? [],
+    title: source.title,
+    url: source.url,
+    canonical_url: source.url,
+    retrieved_at: source.retrieved_at,
+    salience_score: source.salience_score,
+    excerpt: source.excerpt,
+    ...(source.published_at ? { published_at: source.published_at } : {}),
+    ...(source.authors && source.authors.length > 0 ? { authors: source.authors } : {}),
+  };
+}
+
+function renderSourcePremisesMarkdown(sources: RankedSource[]): string {
+  return sources
+    .map(s => `- **${s.id}**: [${s.title}](${s.url}) establishes: ${s.excerpt || 'source returned without excerpt'}`)
+    .join('\n');
+}
+
+function renderReferencesMarkdown(sources: RankedSource[]): string {
+  return sources
+    .map(s => `- ${s.id}: ${s.title} — ${s.url} — retrieved ${s.retrieved_at}`)
+    .join('\n');
+}
+
+function writeSourceRegistry(ctx: SessionContext, sources: RankedSource[]): SourceRegistryInfo {
+  const relPath = sourceRegistryPath(ctx);
+  const absPath = path.join(meshPath(), relPath);
+  const body = {
+    schema_version: 'source-registry.v1',
+    okr_id: ctx.okrId,
+    run_id: ctx.runId,
+    phase: ctx.phase,
+    source_count: sources.length,
+    sources: sources.map(sourceRegistryEntry),
+  };
+  const json = `${JSON.stringify(body, null, 2)}\n`;
+  fs.mkdirSync(path.dirname(absPath), { recursive: true });
+  fs.writeFileSync(absPath, json, 'utf8');
+  return {
+    path: relPath,
+    sha256: createHash('sha256').update(json).digest('hex'),
+    rowCount: sources.length,
+  };
+}
+
 const handleDedupeAndRank: SkillHandler = async (input) => {
   const parsed = DedupeAndRankInput.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
@@ -1712,7 +1771,31 @@ const handleDedupeAndRank: SkillHandler = async (input) => {
   for (const result of ranked) {
     providerCounts[result.provider] = (providerCounts[result.provider] ?? 0) + 1;
   }
-  return { ok: true, rankedSources: ranked, providerCounts };
+  const ctx = readSessionContext();
+  let sourceRegistry: SourceRegistryInfo | null = null;
+  if (ctx) {
+    try {
+      sourceRegistry = writeSourceRegistry(ctx, ranked);
+    } catch (err) {
+      return { ok: false, reason: `source-registry-write-failed: ${(err as Error).message}` };
+    }
+  }
+  const auditMetadata = sourceRegistry
+    ? {
+        source_registry_path: sourceRegistry.path,
+        source_registry_sha256: sourceRegistry.sha256,
+        source_registry_count: sourceRegistry.rowCount,
+      }
+    : undefined;
+  return {
+    ok: true,
+    rankedSources: ranked,
+    providerCounts,
+    sourcePremisesMarkdown: renderSourcePremisesMarkdown(ranked),
+    referencesMarkdown: renderReferencesMarkdown(ranked),
+    ...(sourceRegistry ? { sourceRegistry } : {}),
+    ...(auditMetadata ? { auditMetadata } : {}),
+  };
 };
 
 const RankedSourceSchema = z.object({
@@ -1725,6 +1808,7 @@ const RankedSourceSchema = z.object({
   excerpt: z.string(),
   published_at: z.string().optional(),
   authors: z.array(z.string()).optional(),
+  queries: z.array(z.string()).optional(),
 });
 
 const FormatIssueUpdateInput = z.object({

@@ -9,6 +9,10 @@
  */
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   normalizeUrl,
   normalizeTitle,
@@ -65,6 +69,17 @@ test('titleMatches: substring acceptable when at least 12 chars', () => {
 
 test('titleMatches: unicode dash and double-hyphen variants match', () => {
   assert.equal(titleMatches('DeepER — Deep Entity Resolution', 'DeepER -- Deep Entity Resolution'), true);
+});
+
+test('titleMatches: smart apostrophes and HTML entities normalize', () => {
+  assert.equal(
+    titleMatches(
+      "District Court's Ruling Could Signal New Wave of CCPA Litigation | CyberAdviser",
+      'District Court’s Ruling Could Signal New Wave of CCPA Litigation | CyberAdviser',
+    ),
+    true,
+  );
+  assert.equal(titleMatches('AT&T & privacy', 'AT&amp;T & privacy'), true);
 });
 
 test('titleMatches: provider-truncated ellipsis prefix matches full title', () => {
@@ -124,6 +139,18 @@ test('parseSourceCitations: numbered references form', () => {
   const out = parseSourceCitations(md);
   assert.equal(out.length, 2);
   assert.equal(out[1].num, 2);
+});
+
+test('parseSourceCitations: plain references form', () => {
+  const md = `## References\n- S24: Data Privacy Laws by Country and U.S. State (2026) — https://cdp.com/basics/international-u-s-data-privacy-laws-and-regulations-you-need-to-know — retrieved 2026-05-28\n`;
+  const out = parseSourceCitations(md);
+  assert.equal(out.length, 1);
+  assert.deepEqual(out[0], {
+    num: 24,
+    title: 'Data Privacy Laws by Country and U.S. State (2026)',
+    url: 'https://cdp.com/basics/international-u-s-data-privacy-laws-and-regulations-you-need-to-know',
+    line: 2,
+  });
 });
 
 test('parseSourceCitations: inline back-references ignored (not source declarations)', () => {
@@ -284,4 +311,85 @@ test('verifySourceTable: dedupes (num,url) repeats so one source listed twice do
   const result = verifySourceTable(md, events);
   assert.equal(result.ok, true);
   assert.equal(result.totalUnique, 1);
+});
+
+test('verifySourceTable: conflicting same-S URLs fail with source declaration conflict', () => {
+  const md = [
+    '- **S24**: [Data Privacy Laws by Country and U.S. State (2026)](https://cdp.com/basics/international-u-s-data-privacy-laws-and-regulations-you-need-to-reach-know) establishes privacy baseline.',
+    '- S24: Data Privacy Laws by Country and U.S. State (2026) — https://cdp.com/basics/international-u-s-data-privacy-laws-and-regulations-you-need-to-know — retrieved 2026-05-28',
+  ].join('\n');
+  const events = [
+    {
+      event_kind: 'skill_call',
+      payload: {
+        skill: 'tavily-search',
+        results_preview: [
+          {
+            title: 'Data Privacy Laws by Country and U.S. State (2026)',
+            url: 'https://cdp.com/basics/international-u-s-data-privacy-laws-and-regulations-you-need-to-know',
+          },
+        ],
+      },
+    },
+  ];
+  const result = verifySourceTable(md, events);
+  assert.equal(result.ok, false);
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].s, 24);
+});
+
+test('verifySourceTable: source registry is preferred over previews and hash-checked', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'source-registry-test-'));
+  try {
+    const registryPath = path.join('okrs', 'OKR-X', 'audit', 'sources', 'WHY-X.source-registry.json');
+    const abs = path.join(dir, registryPath);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    const registry = {
+      schema_version: 'source-registry.v1',
+      okr_id: 'OKR-X',
+      run_id: 'WHY-X',
+      phase: 'why',
+      source_count: 1,
+      sources: [
+        {
+          source_id: 'S1',
+          provider: 'tavily',
+          queries: ['privacy law 2026'],
+          title: 'Registry Title',
+          url: 'https://example.com/registry',
+          canonical_url: 'https://example.com/registry',
+          retrieved_at: '2026-05-28T00:00:00Z',
+          salience_score: 0.9,
+          excerpt: 'excerpt',
+        },
+      ],
+    };
+    const json = `${JSON.stringify(registry, null, 2)}\n`;
+    fs.writeFileSync(abs, json, 'utf8');
+    const sha = createHash('sha256').update(json).digest('hex');
+    const md = '- **S1**: [Registry Title](https://example.com/registry) establishes privacy baseline.';
+    const events = [
+      {
+        event_kind: 'skill_call',
+        payload: {
+          skill: 'dedupe-and-rank',
+          source_registry_path: registryPath,
+          source_registry_sha256: sha,
+          source_registry_count: 1,
+        },
+      },
+      {
+        event_kind: 'skill_call',
+        payload: {
+          skill: 'tavily-search',
+          results_preview: [{ title: 'Wrong Preview Title', url: 'https://example.com/registry' }],
+        },
+      },
+    ];
+    const result = verifySourceTable(md, events, { baseDir: dir });
+    assert.equal(result.ok, true);
+    assert.equal(result.sourceRegistry.path, registryPath);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

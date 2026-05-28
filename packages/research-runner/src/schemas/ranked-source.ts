@@ -34,6 +34,9 @@ export const RankedSource = z.object({
 
   /** Optional: authors (arxiv / news). */
   authors: z.array(z.string()).optional(),
+
+  /** Queries that surfaced this source before dedupe. */
+  queries: z.array(z.string()).optional(),
 });
 
 export type RankedSource = z.infer<typeof RankedSource>;

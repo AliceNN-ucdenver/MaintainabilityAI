@@ -24,6 +24,9 @@ Call after invoking all four search Skills (tavily / arxiv / uspto / hackernews)
 |---|---|---|
 | `rankedSources` | `RankedSource[]` | Deduped + ranked. Each carries provider tag for diversity scoring. |
 | `providerCounts` | `Record<string, number>` | Coverage signal (used by the agent for gap detection). |
+| `sourcePremisesMarkdown` | `string` | Deterministic `## Source Premises` rows generated from `rankedSources`; paste these instead of hand-typing titles/URLs. |
+| `referencesMarkdown` | `string` | Deterministic `## References` rows generated from the same ranked source list. |
+| `sourceRegistry` | `{path, sha256, rowCount}` | Present when the runner has OKR/RUN session context. The registry is written to `okrs/<id>/audit/sources/<runId>.source-registry.json` and hash-pinned into the `skill_call` audit event. |
 
 ## Invocation
 
@@ -36,6 +39,18 @@ echo '{"results":[[...tavily...],[...arxiv...],[...uspto...],[...hn...]]}' \
 echo '{"results":[...all results concatenated...]}' \
   | npx @maintainabilityai/research-runner@~0.1.42 skill-dedupe-and-rank
 ```
+
+## Source registry contract
+
+When session context is present (`OKR_ID`, `RUN_ID`, `INTENT_THREAD_UUID`, `PHASE`), the runner writes a bounded source registry beside the JSONL audit chain:
+
+```text
+okrs/<okr_id>/audit/sources/<run_id>.source-registry.json
+```
+
+The registry contains the same citable surface the synthesis agent sees after dedupe: `S[N]`, provider, queries, title, canonical URL, retrieved timestamp, salience score, excerpt, publication date, and authors where available. It is not a raw provider cache. The audit event carries `source_registry_path`, `source_registry_sha256`, and `source_registry_count`; `verify-source-table.mjs` verifies the file hash before trusting it.
+
+Use `sourcePremisesMarkdown` and `referencesMarkdown` to populate the research artifact. Do not hand-type URLs or rewrite source titles.
 
 ## Implementation
 

@@ -523,6 +523,49 @@ test('dedupe-and-rank merges per-provider arrays into a ranked list', async () =
   }
 });
 
+test('dedupe-and-rank writes a hash-addressed source registry when session context is present', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({
+        okrId: 'OKR-SRC-REG',
+        runId: 'WHY-SRC-REG',
+        intentThreadUuid: '12345678-1234-1234-1234-123456789abc',
+        phase: 'why',
+      }, async () => {
+        const r = await runSkill('dedupe-and-rank', {
+          results: [
+            { provider: 'tavily', fromQuery: 'privacy law 2026', title: 'A', url: 'https://a.com', content: 'aa', score: 0.9 },
+            { provider: 'arxiv', fromQuery: 'entity resolution graph', title: 'B', url: 'https://b.com', content: 'bb', score: 0.7 },
+          ],
+          topN: 50,
+        });
+        assert.equal(r.ok, true);
+        if (!r.ok) { return; }
+        const registry = r.sourceRegistry as { path: string; sha256: string; rowCount: number };
+        assert.equal(registry.path, 'okrs/OKR-SRC-REG/audit/sources/WHY-SRC-REG.source-registry.json');
+        assert.equal(registry.rowCount, 2);
+        const abs = path.join(mesh, registry.path);
+        assert.ok(fs.existsSync(abs), 'source registry file should exist');
+        const bytes = fs.readFileSync(abs);
+        const actual = (await import('crypto')).createHash('sha256').update(bytes).digest('hex');
+        assert.equal(actual, registry.sha256);
+        const parsed = JSON.parse(bytes.toString('utf8')) as {
+          schema_version: string;
+          sources: Array<{ source_id: string; queries: string[]; excerpt: string }>;
+        };
+        assert.equal(parsed.schema_version, 'source-registry.v1');
+        assert.deepEqual(parsed.sources.map(s => s.source_id), ['S1', 'S2']);
+        assert.deepEqual(parsed.sources[0].queries, ['privacy law 2026']);
+        assert.match(r.sourcePremisesMarkdown as string, /\*\*S1\*\*/);
+        assert.match(r.referencesMarkdown as string, /retrieved /);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+  }
+});
+
 // Cert-run-2 bug D (Task #56) — schema lenient on input shape.
 // Audit chain on PR #126 (run WHY-2026-05-22-85h5yh) showed events 10
 // and 11 both fail with bad-input because the agent passed a flat list

@@ -165,6 +165,7 @@ export function dedupeAndRank(opts: DedupeAndRankOpts): RankedSource[] {
     excerpt: entry.aggregated.excerpt.slice(0, 2000),
     ...(entry.aggregated.publishedAt ? { published_at: entry.aggregated.publishedAt } : {}),
     ...(entry.aggregated.authors && entry.aggregated.authors.length > 0 ? { authors: entry.aggregated.authors } : {}),
+    queries: [...entry.aggregated.queries].sort(),
   }));
 }
 
