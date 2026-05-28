@@ -158,9 +158,19 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
     each file you intend to MODIFY, also call `knowledge-code-read` so
     the design quotes real code. Name SPECIFIC FILES (e.g.
     `src/state/profileStore.ts`) — DO NOT stop at "extend `src`".
-    The workflow cross-checks every backtick-quoted path against the
-    chain's `inventory_paths`; cited paths not in inventory fail
+    The workflow cross-checks every backtick-quoted MODIFY/REUSE path
+    against the chain's `inventory_paths`; paths not in inventory fail
     STRUCT_OK with `cited-path-not-in-inventory: <repo> <path>`.
+
+    **Bug-VV-2 — ADD files use `new_paths:`, not `cited_paths:`.** If
+    your design ADDs new files to a brownfield repo (e.g. a new
+    service, new types module, new page), record them in the per-repo
+    frontmatter's `new_paths:` list — NOT `cited_paths:`. The path
+    gate EXEMPTS `new_paths` from the inventory check because they
+    don't exist in the brownfield tree yet; they're the ADD set. Put
+    MODIFY/REUSE in `cited_paths`, ADD in `new_paths`, don't mix —
+    mixing makes a legitimate ADD look like a hallucinated MODIFY
+    and fails the gate.
 
     For GREENFIELD: name the proposed file tree as a code block.
     Cite scaffolding hints from knowledge-code.scaffoldingHints.

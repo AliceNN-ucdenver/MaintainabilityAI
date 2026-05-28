@@ -775,8 +775,16 @@ jobs:
           REPO_HEADING_RE = re.compile(r'^###\s+`?([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)`?\s*$')
           PATH_IN_BACKTICKS_RE = re.compile(r'`([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]{1,8})`')
           CITED_PATHS_FM_RE = re.compile(r'^\s*cited_paths:\s*\[([^\]]*)\]', re.MULTILINE)
+          # Bug-VV-2 — declare ADD/proposed files separately. The path
+          # gate verifies cited_paths against inventory (they must already
+          # exist), but new_paths are by-definition NOT in inventory yet
+          # — they're the files the design proposes to create. Treat them
+          # as legitimately-absent-from-inventory so an honest brownfield
+          # design isn't punished for adding new files.
+          NEW_PATHS_FM_RE = re.compile(r'^\s*new_paths:\s*\[([^\]]*)\]', re.MULTILINE)
           lines = doc.split('\n')
           cited_by_repo = {}
+          new_by_repo = {}  # Bug-VV-2 — paths declared as proposed/ADD per repo
           current_repo = None
           in_frontmatter = False
           frontmatter_buf = []
@@ -803,7 +811,10 @@ jobs:
               if ln.strip() == '---':
                   if in_frontmatter:
                       # Closing the active frontmatter block. If a
-                      # repo owns it, extract cited_paths.
+                      # repo owns it, extract cited_paths AND new_paths
+                      # (Bug-VV-2 — proposed/ADD files declared
+                      # separately so the gate doesn't punish them for
+                      # being absent from inventory).
                       if frontmatter_owner_repo:
                           fm_text = '\n'.join(frontmatter_buf)
                           fm_match = CITED_PATHS_FM_RE.search(fm_text)
@@ -811,6 +822,11 @@ jobs:
                               for raw in fm_match.group(1).split(','):
                                   p = raw.strip().strip('"').strip("'")
                                   if p: cited_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
+                          new_match = NEW_PATHS_FM_RE.search(fm_text)
+                          if new_match:
+                              for raw in new_match.group(1).split(','):
+                                  p = raw.strip().strip('"').strip("'")
+                                  if p: new_by_repo.setdefault(frontmatter_owner_repo, set()).add(p)
                       in_frontmatter = False
                       frontmatter_buf = []
                       frontmatter_owner_repo = None
@@ -855,19 +871,36 @@ jobs:
           for repo, mode in mode_by_repo.items():
               if mode != 'brownfield': continue
               cited = cited_by_repo.get(repo, set())
+              # Bug-VV-2 — proposed/ADD files declared in `new_paths:`
+              # frontmatter. These are exempt from the inventory check
+              # because they don't exist yet in the brownfield tree; the
+              # design is proposing to create them.
+              new_paths = new_by_repo.get(repo, set())
               repo_inventory = inventory.get(repo, set())
               if not repo_inventory:
                   violations.append(f"{repo}:<missing inventory_paths>")
                   print(f"::warning::path-gate: brownfield repo {repo} has no inventory_paths — failing gate (current knowledge-code runs must emit inventory_paths)")
                   continue
-              if not cited:
+              # Cited-paths-required gate ignores new_paths: a brownfield
+              # repo whose entire change is "add three new files" can
+              # legitimately have zero cited (existing) paths as long as
+              # it declared new_paths.
+              if not cited and not new_paths:
                   violations.append(f"{repo}:<zero-cited-paths>")
-                  print(f"::warning::path-gate: brownfield repo {repo} has ZERO cited paths in the artifact — either the agent skipped citing concrete files for this repo, or the parser failed to attribute paths. Either way, mode-honesty cannot be verified.")
+                  print(f"::warning::path-gate: brownfield repo {repo} has ZERO cited paths AND ZERO new_paths in the artifact — either the agent skipped citing concrete files for this repo, or the parser failed to attribute paths. Either way, mode-honesty cannot be verified.")
                   continue
               for p in cited:
                   checked += 1
+                  # Cited paths must exist in inventory UNLESS also
+                  # declared as new (an honest design may both modify
+                  # existing files and add new ones).
+                  if p in new_paths: continue
                   if p not in repo_inventory:
                       violations.append(f"{repo}:{p}")
+              # new_paths are not checked against inventory by design —
+              # they're the ADD set, intentionally absent from the
+              # brownfield tree until this PR lands.
+              checked += len(new_paths)
           all_violations = gate_errors + violations
           ok = "true" if not all_violations else "false"
           out = os.environ['GITHUB_OUTPUT']
@@ -1098,6 +1131,25 @@ jobs:
           # text (stripped of leading "### " and optional backticks).
           # When we encounter a `---` block, parse the YAML; if no
           # `repo:` key, infer from the recent heading.
+          #
+          # Bug-VV-1 (2026-05) — frontmatter detection is now CONTEXT-AWARE
+          # (mirrors Bug-OO's path-gate fix). Pre-Bug-VV-1 the parser
+          # consumed ANY `---` line as a frontmatter delimiter, which
+          # broke on artifacts that use `---` as a markdown HR section
+          # separator between repo subsections. A stray HR between two
+          # repo H3 blocks ate the second repo's heading + its real
+          # frontmatter, so mode-honesty reported "repo X has no per-
+          # repo subsection frontmatter" even when the artifact clearly
+          # had it. The path-gate solved the same problem at line ~785
+          # with an `expecting_frontmatter` state machine; copy that
+          # state machine here so the two parsers agree on what is and
+          # isn't a frontmatter delimiter.
+          #
+          # `---` only opens a frontmatter block when EXPECTED:
+          #   - at the very top of the doc (top-of-doc Hatter Tag), OR
+          #   - immediately after an `### heading` line (the per-repo
+          #     subsection's frontmatter)
+          # All other `---` lines are markdown HR and ignored.
           doc_modes = {}  # owner/name → mode (last wins)
           last_heading = None
           HEADING_RE = re.compile(r'^###\s+`?([^\s`]+)`?\s*$')
@@ -1110,16 +1162,25 @@ jobs:
               if not sm: return None
               return f"{sm.group(1)}/{sm.group(2)}"
 
+          expecting_frontmatter = True  # top-of-doc Hatter Tag is expected first
           i = 0
           while i < len(doc_lines):
               line = doc_lines[i]
               hm = HEADING_RE.match(line)
               if hm:
                   last_heading = hm.group(1)
+                  # Per-repo frontmatter (if any) lives immediately after
+                  # this heading — arm the state machine.
+                  expecting_frontmatter = True
                   i += 1
                   continue
-              if line.strip() == '---' and i + 1 < len(doc_lines):
-                  # Collect lines until the closing ---.
+              if line.strip() == '---':
+                  if not expecting_frontmatter:
+                      # Stray `---` between sections (markdown HR). Ignore.
+                      i += 1
+                      continue
+                  # Opening a frontmatter block we were expecting. Collect
+                  # lines until the closing `---`.
                   body_lines = []
                   j = i + 1
                   while j < len(doc_lines) and doc_lines[j].strip() != '---':
@@ -1140,8 +1201,23 @@ jobs:
                           r_slug = normalize_repo(r_val) if r_val else None
                           if r_slug and m_val:
                               doc_modes[r_slug] = m_val
+                      # Closing delimiter consumed; not expecting another
+                      # one until the next H3.
+                      expecting_frontmatter = False
                       i = j + 1
                       continue
+                  # No closing delimiter — give up gracefully.
+                  i += 1
+                  continue
+              # Non-`---` content. If we were waiting for a frontmatter
+              # to open and got real prose first, the heading didn't have
+              # one; disarm so a downstream HR doesn't trigger us.
+              if line.strip():
+                  expecting_frontmatter = False
+              # H2 resets the per-repo state entirely.
+              if line.startswith('## '):
+                  last_heading = None
+                  expecting_frontmatter = False
               i += 1
 
           # 4. Compare: every target repo with status connected/create
@@ -1647,6 +1723,19 @@ jobs:
       # -> evidence_mode -> Knight's Seal -> footer.
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
+        env:
+          # Bug-VV-3 — findings reach the shell via an env var, NOT via
+          # an inlined ${{ ... }} expression inside double quotes. The
+          # findings text routinely contains backticks (e.g. "repo
+          # `owner/name` has no per-repo subsection frontmatter"), and
+          # inlining via "${{ }}" lets bash evaluate the backticks as
+          # command substitution — the cert-run failure showed up as
+          # `line 187: AliceNN-ucdenver/imdb-react-frontend: No such
+          # file or directory`. An env-var pass-through expands `$VAR`
+          # at execution time; bash does NOT re-evaluate the expanded
+          # content for command substitution. Mirror this pattern for
+          # any future output that might contain backticks.
+          MODE_HONESTY_FINDINGS: ${{ steps.mode_honesty.outputs.findings }}
         run: |
           # P1 (Bug-P): consume the SAME verdict the label step consumed.
           # Previously this step re-derived STRUCT_OK + MANIFEST_OK inline,
@@ -1834,7 +1923,14 @@ jobs:
           MODE_FINDINGS='${{ steps.mode_honesty.outputs.finding_count }}'
           if [ "${MODE_FINDINGS:-0}" != "0" ]; then
             printf '**Mode-honesty findings:**\n\n' >> "$BODY"
-            printf '%s\n' "${{ steps.mode_honesty.outputs.findings }}" | sed 's/^/- /' >> "$BODY"
+            # Bug-VV-3 — read findings from env var (set on this step's
+            # env: block above), NOT from an inlined ${{ ... }}
+            # expression. Findings contain backticks around repo slugs;
+            # the env-var path stops bash from executing them as
+            # command substitution. The double-quoted "$MODE_HONESTY_FINDINGS"
+            # is safe — bash parameter expansion does NOT re-evaluate
+            # the contents for backticks or $().
+            printf '%s\n' "$MODE_HONESTY_FINDINGS" | sed 's/^/- /' >> "$BODY"
             printf '\n' >> "$BODY"
           fi
 

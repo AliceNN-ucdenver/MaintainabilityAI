@@ -1191,6 +1191,141 @@ describe('Bug RR — finalize-okr-action chain → okr.yaml aggregation', () => 
 });
 
 // ──────────────────────────────────────────────────────────────────────
+// Bug-VV — WHAT audit hardening after second cert-run.
+//
+// The fenced §10 hardening (Bug-TT) let the rerun get past coordination,
+// but the rerun hit two more verifier-contract gaps + a shell-injection
+// in the audit comment renderer:
+//
+//   VV-1: mode-honesty parser was confused by intra-block `---`
+//         markdown HR separators (same shape as Bug-OO's path-gate fix).
+//         Mirror Bug-OO's expecting_frontmatter state machine.
+//
+//   VV-2: brownfield path gate rejected legitimate new ADD files
+//         because it checked every backticked path against inventory.
+//         Add a `new_paths:` frontmatter contract that the gate
+//         exempts from the inventory check.
+//
+//   VV-3: audit-comment shell step inlined the findings via a
+//         double-quoted GHA expression. Findings contain backticks
+//         around repo slugs; bash evaluated them as command
+//         substitution. Pass findings through an env: var instead.
+// ──────────────────────────────────────────────────────────────────────
+describe('Bug-VV: WHAT workflow hardening after second cert-run', () => {
+  const workflowPath = path.join(
+    EXTENSION_PATH,
+    'code-templates', 'workflows', 'code-design-agent.yml',
+  );
+  const workflowContent = fs.readFileSync(workflowPath, 'utf8');
+  const synthesisPath = path.join(
+    EXTENSION_PATH,
+    'prompt-packs', 'looking-glass', 'code-design', 'synthesis.md',
+  );
+  const synthesisContent = fs.readFileSync(synthesisPath, 'utf8');
+  const agentPath = path.join(
+    EXTENSION_PATH,
+    'code-templates', 'agents-v4', 'code-design-agent.agent.md',
+  );
+  const agentContent = fs.readFileSync(agentPath, 'utf8');
+
+  it('Bug-VV-1: mode-honesty parser uses expecting_frontmatter state machine (mirrors Bug-OO path-gate fix)', () => {
+    // The mode-honesty parser at the second `expecting_frontmatter` site
+    // (the first is the Bug-OO path-gate fix). Pre-VV-1, the parser
+    // toggled on ANY `---` line — so a markdown HR between two repo
+    // subsections ate the second repo's heading and its frontmatter,
+    // producing the cert-run finding "repo X has no per-repo subsection
+    // frontmatter" even though the artifact had one.
+    //
+    // Pin both fix sites + the rationale anchor.
+    const expectingMatches = workflowContent.match(/expecting_frontmatter/g) ?? [];
+    expect(
+      expectingMatches.length,
+      'expecting_frontmatter must appear in BOTH the path-gate (Bug-OO) and ' +
+      'mode-honesty (Bug-VV-1) parsers. If this drops below the path-gate ' +
+      'count, mode-honesty is back to consuming markdown HR as frontmatter.',
+    ).toBeGreaterThanOrEqual(6); // ≥ 3 usages per parser × 2 parsers
+    expect(workflowContent).toContain('Bug-VV-1');
+    // Sanity: the mode-honesty section's Python carries the new
+    // state-machine arming on H3 headings.
+    expect(workflowContent).toMatch(/expecting_frontmatter\s*=\s*True[\s\S]{0,500}HEADING_RE/);
+  });
+
+  it('Bug-VV-2: brownfield path gate exempts new_paths from inventory check', () => {
+    // Path-gate must (a) extract a new_paths set from per-repo
+    // frontmatter, (b) skip inventory check for paths in that set,
+    // and (c) treat a brownfield repo with zero cited_paths but
+    // non-zero new_paths as a legitimate ADD-only change set.
+    expect(workflowContent).toContain('NEW_PATHS_FM_RE');
+    // The Python regex source carries `new_paths:\s*\[` as a literal
+    // string. Just confirm the key + the regex name are present rather
+    // than re-encoding the backslash escaping inside JS regex.
+    expect(workflowContent).toContain('new_paths:');
+    expect(workflowContent).toContain('new_by_repo');
+    // The cross-check loop must reference new_paths to skip inventory
+    // lookups — the substantive contract.
+    expect(workflowContent).toMatch(/if p in new_paths.*continue/);
+    expect(workflowContent).toContain('Bug-VV-2');
+  });
+
+  it('Bug-VV-2: synthesis pack + agent prompt teach the cited_paths vs new_paths contract', () => {
+    // Synthesis must define BOTH list keys + explain when to use each.
+    expect(synthesisContent).toContain('cited_paths:');
+    expect(synthesisContent).toContain('new_paths:');
+    expect(synthesisContent).toMatch(/MODIFY[\s\S]{0,200}cited_paths/);
+    expect(synthesisContent).toMatch(/ADD[\s\S]{0,200}new_paths/);
+    // Agent prompt mirrors the contract + names the Bug ID so a future
+    // refactor finds the rationale.
+    expect(agentContent).toContain('new_paths');
+    expect(agentContent).toContain('Bug-VV-2');
+    expect(agentContent).toMatch(/MODIFY[\s\S]{0,200}cited_paths/);
+  });
+
+  it('Bug-VV-3: audit-comment step reads findings via env var, not inlined ${{ }} in double quotes', () => {
+    // The shell-injection happened because `${{ steps.mode_honesty.outputs.findings }}`
+    // was inlined inside double quotes; bash evaluated the backticks
+    // in the substituted text as command substitution. Fix is to pass
+    // through env: so the shell sees `$VAR`, which bash does NOT
+    // re-evaluate for backticks.
+    //
+    // Pin: the step declares MODE_HONESTY_FINDINGS in env:, AND uses
+    // "$MODE_HONESTY_FINDINGS" (or equivalent) in the printf, AND
+    // does NOT use a double-quoted inlined ${{ steps.mode_honesty.outputs.findings }}.
+    // Scope to the audit-comment step (between "Post / upsert audit
+    // comment" and the next step boundary `- name: ` OR a JOB header).
+    const fromStep = workflowContent.split('Post / upsert audit comment')[1] ?? '';
+    const auditStep = fromStep.split(/\n {2,6}# ════/)[0] ?? fromStep;
+    expect(auditStep, 'Bug-VV-3 audit-comment step missing').not.toBe('');
+    // Env-var declaration on the step.
+    expect(auditStep).toContain('MODE_HONESTY_FINDINGS:');
+    expect(auditStep).toMatch(/MODE_HONESTY_FINDINGS:\s*\$\{\{\s*steps\.mode_honesty\.outputs\.findings\s*\}\}/);
+    // printf reads from the env var, not from an inlined GHA expression.
+    expect(auditStep).toContain('"$MODE_HONESTY_FINDINGS"');
+    // Negative: the broken pattern (inlined GHA expression inside
+    // double quotes piped to a sed/printf) must NOT come back.
+    expect(auditStep).not.toMatch(
+      /printf\s+'%s\\n'\s+"\$\{\{\s*steps\.mode_honesty\.outputs\.findings\s*\}\}"/,
+    );
+    expect(workflowContent).toContain('Bug-VV-3');
+  });
+
+  it('Bug-VV-4: regression scenario — two repo frontmatter blocks separated by markdown HR (---) parse correctly', () => {
+    // This test simulates the cert-run artifact shape: two repo
+    // subsections with their own frontmatter, separated by a `---`
+    // markdown horizontal rule between them. Pre-Bug-VV-1, the mode-
+    // honesty parser ate the second repo's heading.
+    //
+    // We can't easily Python-eval the inlined workflow here, but we
+    // can sanity-check the parser's state machine by reading the
+    // workflow source: the disarm-on-prose rule MUST exist (so a
+    // heading without frontmatter doesn't leave the state armed and
+    // eat the next HR), and the H2 reset MUST exist.
+    expect(workflowContent).toMatch(/H2 resets[\s\S]{0,200}expecting_frontmatter\s*=\s*False/);
+    // The arm-on-heading rule (per-repo frontmatter follows the H3).
+    expect(workflowContent).toMatch(/HEADING_RE\.match[\s\S]{0,500}expecting_frontmatter\s*=\s*True/);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
 // Bug-UU-1 — WHY card gap-loop extractor reads BOTH canonical Bug-Y
 // `event_kind: 'gap_loop'` AND the legacy `skill_call` with
 // `payload.skill: 'gap-loop'` shape. Pre-fix the extractor only checked

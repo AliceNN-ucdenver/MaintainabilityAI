@@ -162,7 +162,8 @@ mode: brownfield | greenfield   # MATCH the knowledge-code response mode
 status: connected | create       # MATCH the A12.v1.1 targetCodeRepoStatus
 language: <typescript|python|go|...>   # from knowledge-code.primary_language OR BAR ADR
 framework: <express|fastify|nestjs|...> # from knowledge-code.entryPoints[].framework OR scaffold spec
-cited_paths: [src/api/users.ts, src/api/__tests__/users.test.ts]  # OPTIONAL but recommended for brownfield — explicit list of file paths this design modifies. Workflow path-citation gate cross-checks both this list AND every backtick-quoted path in the body against knowledge-code.inventory_paths.
+cited_paths: [src/api/users.ts, src/api/__tests__/users.test.ts]  # OPTIONAL but recommended for brownfield — explicit list of EXISTING file paths this design MODIFIES or otherwise REUSES. The path-citation gate cross-checks both this list AND every backtick-quoted path in the body against knowledge-code.inventory_paths. Hallucinated paths fail the gate.
+new_paths: [src/types/orders.ts, src/services/orderClient.ts]  # OPTIONAL but REQUIRED for brownfield repos whose change set ADDS new files (Bug-VV-2). These are files the design proposes to CREATE; they are by-definition absent from knowledge-code.inventory_paths today. The gate EXEMPTS these from the inventory check. Put MODIFY/REUSE paths in cited_paths, ADD paths in new_paths — don't mix the two.
 
 # Cross-Repo Fan-Out & Dependency Ordering (D-PR4-prep). REQUIRED on every
 # per-repo block; verifier rejects the design if any field is missing.
@@ -177,7 +178,8 @@ consumes: []                                   # contracts this repo consumes fr
 
 Body:
 
-- **Brownfield**: Cite real paths from `knowledge-code.structure.files[]` (with role classification: source / test / config / route / doc). For modules + routes, use the per-classification `modules[]` and `routes[]` arrays. Read sample contents via `knowledge-code-read` for any file you intend to MODIFY.
+- **Brownfield**: Cite real paths from `knowledge-code.structure.files[]` (with role classification: source / test / config / route / doc) for files you MODIFY or REUSE — record them in the frontmatter's `cited_paths:` list AND backtick them inline. For modules + routes, use the per-classification `modules[]` and `routes[]` arrays. Read sample contents via `knowledge-code-read` for any file you intend to MODIFY.
+  ADD files (new paths the design proposes to create) go in the frontmatter's `new_paths:` list AND should be backticked inline. The path-gate exempts `new_paths` from the inventory check (they don't exist yet); but a MODIFY path that isn't in `inventory_paths` fails the gate. Bug-VV-2: declare ADDs in `new_paths`, modifies/reuses in `cited_paths`.
   Directory tree (current shape + where new files land). Per-module
   responsibilities. Existing entrypoints (cite `entryPoints[].path`).
 - **Greenfield**: Proposed directory tree as a code block. Seed files
