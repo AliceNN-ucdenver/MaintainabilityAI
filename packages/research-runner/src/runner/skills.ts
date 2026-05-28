@@ -67,6 +67,53 @@ function meshPath(): string {
   return process.env.MESH_PATH || process.cwd();
 }
 
+/**
+ * Codex-r3 Bug 1 (Tier 2 hand-off): target-repo working-copy root for the
+ * implementation-agent. Honors `REPO_PATH` first, falls back to `process.cwd()`
+ * (the implementation-agent's GitHub Actions step runs `cd $REPO_PATH` before
+ * invoking the runner, so cwd is correct without the env var; the env var
+ * exists so tests + alternate harnesses can override).
+ *
+ * Distinct from `meshPath()` — the mesh is governance-mesh state (OKR yaml,
+ * audit chain ladder, design fan-out file). The repo is the TARGET code repo
+ * being implemented (the impl PR lands here; its audit chain lives at
+ * `<repo>/.maintainability/audit/...` so external evidence stays with the
+ * code under review).
+ */
+function repoPath(): string {
+  return process.env.REPO_PATH || process.cwd();
+}
+
+/**
+ * Codex-r3 Bug 1 — audit base directory resolver.
+ *
+ * Routing rule: `runId` starting with `IMPL-` is the implementation phase
+ * (per the D-PR7 storage contract `IMPL-<date>-<slug>-<nonce>`); its audit
+ * evidence lives in the TARGET repo at `<repo>/.maintainability/audit/`.
+ * Everything else (RES-*, PRD-*, WHAT-*) lives in the mesh at
+ * `<mesh>/okrs/<id>/audit/`.
+ *
+ * The prefix check is intentionally string-based (no phase argument) so the
+ * verifier — which only receives `runId` over its CLI — uses the same
+ * routing as the emitter. Symmetry is mandatory; a mismatch would either
+ * write to one place and verify from another (false negative) or refuse to
+ * verify a legitimate chain (false positive).
+ */
+function auditBaseDir(okrId: string, runId: string): string {
+  if (runId.startsWith('IMPL-')) {
+    return path.join(repoPath(), '.maintainability', 'audit');
+  }
+  return path.join(meshPath(), 'okrs', okrId, 'audit');
+}
+
+function auditEventsFile(okrId: string, runId: string): string {
+  return path.join(auditBaseDir(okrId, runId), 'events', `${runId}.jsonl`);
+}
+
+function auditKeysDir(okrId: string, runId: string): string {
+  return path.join(auditBaseDir(okrId, runId), 'keys');
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Knowledge skills — read mesh state, return structured JSON
 // ─────────────────────────────────────────────────────────────────────
@@ -1893,7 +1940,11 @@ const AuditEmitInput = z.object({
     'artifact_written', 'state_transition', 'human_gate',
   ]),
   payload: z.record(z.string(), z.unknown()),
-  phase: z.enum(['why', 'how', 'what']),
+  // Codex-r3 Bug 1 — `'implementation'` is the Tier 2 hand-off phase. Run
+  // IDs of shape `IMPL-*` route the writers to the TARGET repo's
+  // `.maintainability/audit/...` instead of the mesh's `okrs/<id>/audit/...`
+  // (see auditBaseDir). The other three phases remain mesh-scoped.
+  phase: z.enum(['why', 'how', 'what', 'implementation']),
   intentThreadUuid: z.string().min(1),
 });
 
@@ -1917,7 +1968,9 @@ const InternalAuditEmitInput = z.object({
     'artifact_written', 'state_transition', 'human_gate',
   ]),
   payload: z.record(z.string(), z.unknown()),
-  phase: z.enum(['why', 'how', 'what']),
+  // Codex-r3 Bug 1 — match AuditEmitInput. Runtime auto-emission for
+  // implementation-agent skill_calls flows through this schema.
+  phase: z.enum(['why', 'how', 'what', 'implementation']),
   intentThreadUuid: z.string().min(1),
 });
 
@@ -2069,11 +2122,17 @@ async function sleep(ms: number): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────
 
 function knightSealEpochPubKeyPath(okrId: string, runId: string, epoch: number): string {
-  return path.join(meshPath(), 'okrs', okrId, 'audit', 'keys', `${runId}.epoch-${epoch}.pub.pem`);
+  // Codex-r3 Bug 1 — auditKeysDir routes IMPL-* runs to the target repo's
+  // .maintainability/audit/keys/ and everything else to the mesh's
+  // okrs/<id>/audit/keys/. The pub key lives next to the JSONL so a single
+  // chain bundle (events + per-epoch pub keys) is self-contained.
+  return path.join(auditKeysDir(okrId, runId), `${runId}.epoch-${epoch}.pub.pem`);
 }
 
 function knightSealEpochPrivKeyPath(okrId: string, runId: string, epoch: number): string {
   // Tmpdir-scoped to avoid any chance of `git add`-ing a private key.
+  // The priv key stays in tmpdir regardless of phase — never the mesh,
+  // never the target repo. Only the pub key crosses the on-disk boundary.
   return path.join(
     os.tmpdir(),
     '.research-runner-keys',
@@ -2096,7 +2155,9 @@ function knightSealEpochPrivKeyPath(okrId: string, runId: string, epoch: number)
  *      runner machine), return { epoch: max+1, isNew: true }.
  */
 function findActiveEpoch(okrId: string, runId: string): { epoch: number; isNewSession: boolean } {
-  const keysDir = path.join(meshPath(), 'okrs', okrId, 'audit', 'keys');
+  // Codex-r3 Bug 1 — auditKeysDir picks the right base (mesh vs target
+  // repo) per run-id prefix; rest of the scan logic is unchanged.
+  const keysDir = auditKeysDir(okrId, runId);
   let maxEpoch = 0;
   if (fs.existsSync(keysDir)) {
     const escaped = runId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2170,7 +2231,10 @@ function loadOrCreateEpochKeypair(
  * epoch-suffixed layout cannot be verified by this runner.
  */
 function loadAllEpochPubKeys(okrId: string, runId: string): Map<number, KeyObject> {
-  const keysDir = path.join(meshPath(), 'okrs', okrId, 'audit', 'keys');
+  // Codex-r3 Bug 1 — same auditKeysDir routing; verifier and emitter MUST
+  // resolve to the same directory or chains written to the target repo
+  // would silently fail to verify against a mesh-side key lookup.
+  const keysDir = auditKeysDir(okrId, runId);
   const result = new Map<number, KeyObject>();
   if (!fs.existsSync(keysDir)) { return result; }
   const escaped = runId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2200,8 +2264,19 @@ function verifyEventSignature(pubKey: KeyObject, eventHashHex: string, signature
 }
 
 /**
- * `audit-emit-event` — append one hash-chained event to
- * `<mesh>/okrs/<id>/audit/events/<runId>.jsonl`.
+ * `audit-emit-event` — append one hash-chained event to the run's JSONL.
+ *
+ * Path is resolved by `auditEventsFile(okrId, runId)`:
+ *   - `runId` starts with `IMPL-` (implementation phase) →
+ *     `<repo>/.maintainability/audit/events/<runId>.jsonl` (target repo)
+ *   - any other prefix (RES-*, PRD-*, WHAT-*) →
+ *     `<mesh>/okrs/<id>/audit/events/<runId>.jsonl` (governance mesh)
+ *
+ * Codex-r3 Bug 1 — the IMPL routing is what makes the implementation-agent's
+ * cross-repo audit chain real. Pre-fix the agent's prompt promised
+ * .maintainability/audit/events/IMPL-*.jsonl in the target repo but the
+ * skill wrote everything to the mesh, so the impl PR's chain_root_hash
+ * was a prompt-side fiction with no runtime evidence behind it.
  *
  * Cross-process serialization: we use an exclusive-create lock file
  * (`<jsonl>.lock`) with bounded retries. Each call reads the existing
@@ -2247,9 +2322,14 @@ async function emitAuditEvent(input: unknown, opts: { internal: boolean } = { in
   // payload sha to git diff) catches at verdict time.
   const cleanPayload: Record<string, unknown> = { ...payload };
   cleanPayload.emitted_by = expectedOrigin;
-  const dir = path.join(meshPath(), 'okrs', okrId, 'audit', 'events');
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `${runId}.jsonl`);
+  // Codex-r3 Bug 1 — auditEventsFile resolves IMPL-* run ids to the
+  // target repo's .maintainability/audit/events/<runId>.jsonl and
+  // everything else to the mesh's okrs/<id>/audit/events/<runId>.jsonl.
+  // mkdirSync covers both phases (the target repo may not have
+  // .maintainability/ yet on the first IMPL run; the agent commits it
+  // in the same PR as the impl code change).
+  const filePath = auditEventsFile(okrId, runId);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const lockPath = `${filePath}.lock`;
 
   for (let attempt = 0; attempt < LOCK_RETRY_LIMIT; attempt++) {
@@ -2388,7 +2468,11 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
   const parsed = AuditVerifyInput.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
   const { okrId, runId } = parsed.data;
-  const filePath = path.join(meshPath(), 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+  // Codex-r3 Bug 1 — verifier resolves the same way as the emitter via
+  // auditEventsFile. IMPL-* run ids read from the target repo's
+  // .maintainability/audit/events/<runId>.jsonl; everything else from
+  // the mesh's okrs/<id>/audit/events/<runId>.jsonl.
+  const filePath = auditEventsFile(okrId, runId);
   if (!fs.existsSync(filePath)) {
     return { ok: false, reason: `audit-jsonl-missing: ${filePath}` };
   }

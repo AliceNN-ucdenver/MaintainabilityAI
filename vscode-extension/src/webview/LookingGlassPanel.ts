@@ -1568,7 +1568,17 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // pr-opened (PR found, looking for merge/reject). pr-merged is
     // terminal-ish (we still surface it but don't repoll). pr-rejected
     // also terminal.
-    const candidates = prior.rows.filter(r => r.status === 'opened' || r.status === 'pr-opened');
+    //
+    // Codex-r3 Bug 3 — ALSO repoll any pr-merged row whose chain-ladder
+    // append failed on a prior pass. The status transition is preserved
+    // for the user (the PR really did merge); the marker tells us the
+    // ledger write is still owed. Next poll re-fetches the PR body +
+    // re-attempts the append; on success the marker clears.
+    const candidates = prior.rows.filter(r =>
+      r.status === 'opened' ||
+      r.status === 'pr-opened' ||
+      (r.status === 'pr-merged' && r.chainLadderAppendError),
+    );
     if (candidates.length === 0) return;
 
     const nowIso = new Date().toISOString();
@@ -1584,7 +1594,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     for (let i = 0; i < updatedRows.length; i++) {
       const row = updatedRows[i];
-      if (row.status !== 'opened' && row.status !== 'pr-opened') continue;
+      // Codex-r3 Bug 3 — the candidate filter at L1572 added a third
+      // path: a pr-merged row carrying chainLadderAppendError that we
+      // need to retry. Match that filter exactly here.
+      const isRetryAppend = row.status === 'pr-merged' && !!row.chainLadderAppendError;
+      if (row.status !== 'opened' && row.status !== 'pr-opened' && !isRetryAppend) continue;
       if (!row.landingIssueUrl) continue;
 
       const issueMatch = row.landingIssueUrl.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)/);
@@ -1602,24 +1616,38 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         else if (observed.state === 'open') newStatus = 'pr-opened';
         else newStatus = 'pr-rejected';
 
-        // Skip if nothing actually changed.
-        if (row.status === newStatus && row.implPrUrl === observed.url) continue;
+        // Skip if nothing actually changed AND we're not in retry-append mode.
+        if (row.status === newStatus && row.implPrUrl === observed.url && !isRetryAppend) continue;
 
-        updatedRows[i] = {
-          ...row,
-          status: newStatus,
-          implPrUrl: observed.url,
-          updatedAt: nowIso,
-        };
-        anyChanged = true;
+        // For retry-append: keep the row at pr-merged + preserve fields,
+        // just clear the error marker for now (we'll re-set it if the
+        // append still fails after this pass).
+        if (isRetryAppend) {
+          // Don't mutate updatedRows yet — the buffer-then-flush below
+          // sets chainLadderAppendError correctly based on the per-row
+          // append outcome.
+          // (anyChanged stays whatever it was; the retry-only path doesn't
+          // require a write unless the append outcome changes the marker.)
+        } else {
+          updatedRows[i] = {
+            ...row,
+            status: newStatus,
+            implPrUrl: observed.url,
+            updatedAt: nowIso,
+          };
+          anyChanged = true;
+        }
 
-        // Codex-r1 Bug F + Codex-r2 Bug 1 + 2 — on pr-merged transition,
-        // queue a chain-ladder impl row. Fetch the IMPL PR (not the
-        // landing issue) via observed.number; read its body's
-        // implementation_chain block; queue an append using the agent's
-        // own chain_root_hash (NOT parent_chain_root -- those are
-        // different hashes per D-PR7 storage contract). Actual write
-        // happens after MeshBranchGuard passes.
+        // Codex-r1 Bug F + Codex-r2 Bug 1 + 2 + Codex-r3 Bug 3 — on
+        // pr-merged transition (NEW *or* RETRY), queue a chain-ladder
+        // impl row. Fetch the IMPL PR (not the landing issue) via
+        // observed.number; read its body's implementation_chain block;
+        // queue an append using the agent's own chain_root_hash (NOT
+        // parent_chain_root -- those are different hashes per D-PR7
+        // storage contract). Actual write happens after
+        // MeshBranchGuard passes; if THAT fails we mark the row with
+        // chainLadderAppendError so the next poll retries via the
+        // isRetryAppend branch above.
         if (newStatus === 'pr-merged') {
           try {
             const client = await this.githubService.getClient();
@@ -1654,7 +1682,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
     }
 
-    if (!anyChanged) return;
+    // Codex-r3 Bug 3 — early-exit only when there's no work at all. A
+    // retry-only pass has anyChanged=false (no status transition) but
+    // non-empty pendingChainLadderRows; we still need to fall through
+    // to MeshBranchGuard + the append loop, which will either clear the
+    // marker on success or leave it for the next poll.
+    if (!anyChanged && pendingChainLadderRows.length === 0) return;
 
     // Branch-guard before writing. Skip silently on dirty/wrong-branch --
     // poll is implicit (not user-initiated), so a recovery modal would
@@ -1671,21 +1704,53 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
     }
 
+    // Codex-r2 Bug 3 — apply buffered chain-ladder rows only AFTER
+    // guard passes. Each row is upsert by implementation_run_id
+    // (idempotent on re-call).
+    //
+    // Codex-r3 Bug 3 — record the per-row outcome BEFORE writing
+    // design-fan-out.yaml so failures land in the same write as the
+    // status transition. The marker tells the next poll to re-attempt
+    // (see candidate filter + isRetryAppend branch above). Success
+    // clears any prior marker.
+    const appendOutcomes = new Map<string, string | null>(); // repo → error reason | null=success
+    for (const implRow of pendingChainLadderRows) {
+      try {
+        this.meshService.appendChainLadderImplRow(meshPath, okrId, implRow);
+        appendOutcomes.set(implRow.repo, null);
+      } catch (err) {
+        const reason = toErrorMessage(err);
+        appendOutcomes.set(implRow.repo, reason);
+        logger.warn(`pollFanOutPRs(${okrId}): chain-ladder append failed for ${implRow.repo}: ${reason} (marked for retry on next poll)`);
+      }
+    }
+    // Apply outcomes to updatedRows: stamp chainLadderAppendError on
+    // failed rows, clear it on successful rows. Rows we didn't touch
+    // this pass keep whatever marker they had.
+    for (let i = 0; i < updatedRows.length; i++) {
+      const outcome = appendOutcomes.get(updatedRows[i].repo);
+      if (outcome === undefined) continue; // no append attempted this pass
+      if (outcome === null) {
+        // Success — clear any prior error marker.
+        if (updatedRows[i].chainLadderAppendError) {
+          const { chainLadderAppendError: _omit, ...rest } = updatedRows[i];
+          void _omit;
+          updatedRows[i] = rest;
+          anyChanged = true;
+        }
+      } else {
+        // Failure — stamp the marker so next poll retries.
+        if (updatedRows[i].chainLadderAppendError !== outcome) {
+          updatedRows[i] = { ...updatedRows[i], chainLadderAppendError: outcome };
+          anyChanged = true;
+        }
+      }
+    }
     this.meshService.writeDesignFanOut(meshPath, {
       schema: 1,
       okrId,
       rows: updatedRows.sort((a, b) => a.repo.localeCompare(b.repo)),
     });
-    // Codex-r2 Bug 3 — apply buffered chain-ladder rows only AFTER
-    // guard passes + design-fan-out.yaml writes. Each row is upsert by
-    // implementation_run_id (idempotent on re-call).
-    for (const implRow of pendingChainLadderRows) {
-      try {
-        this.meshService.appendChainLadderImplRow(meshPath, okrId, implRow);
-      } catch (err) {
-        logger.warn(`pollFanOutPRs(${okrId}): chain-ladder append failed for ${implRow.repo}: ${toErrorMessage(err)}`);
-      }
-    }
 
     const changedCount = updatedRows.filter((r, i) => prior.rows[i] && (r.status !== prior.rows[i].status || r.implPrUrl !== prior.rows[i].implPrUrl)).length;
     const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated)\n\nStage 5 auto-poll detected impl PR state changes.`;

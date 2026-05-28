@@ -65,6 +65,9 @@ export function writeDesignFanOut(meshPath: string, doc: DesignFanOutDoc): void 
     if (row.implementation_run_id) lines.push(`    implementation_run_id: ${quoteYaml(row.implementation_run_id)}`);
     if (row.openedAt) lines.push(`    openedAt: ${quoteYaml(row.openedAt)}`);
     if (row.updatedAt) lines.push(`    updatedAt: ${quoteYaml(row.updatedAt)}`);
+    // Codex-r3 Bug 3 — surface chain-ladder append failures so the next
+    // poll re-attempts the write and the rollup can show a degraded chip.
+    if (row.chainLadderAppendError) lines.push(`    chainLadderAppendError: ${quoteYaml(row.chainLadderAppendError)}`);
   }
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
 }
@@ -110,6 +113,8 @@ export function readDesignFanOut(meshPath: string, okrId: string): DesignFanOutD
       implementation_run_id: typeof r.implementation_run_id === 'string' ? r.implementation_run_id : undefined,
       openedAt: typeof r.openedAt === 'string' ? r.openedAt : undefined,
       updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : undefined,
+      // Codex-r3 Bug 3 — round-trip the chain-ladder retry marker.
+      chainLadderAppendError: typeof r.chainLadderAppendError === 'string' ? r.chainLadderAppendError : undefined,
     });
   }
   return { schema: 1, okrId, rows };

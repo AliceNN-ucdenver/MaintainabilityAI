@@ -190,4 +190,80 @@ rows:
     expect(read!.rows[0].status).toBe('pr-merged');
     expect(read!.rows[0].updatedAt).toBe('T1');
   });
+
+  it('Codex-r3 Bug 3: round-trips chainLadderAppendError marker for retry signaling', () => {
+    // Pre-fix, a chain-ladder append failure after MeshBranchGuard left
+    // the row at pr-merged with no marker — the next poll would skip it
+    // (status === newStatus, no transition) and the ledger row was
+    // permanently lost. Post-fix, the marker survives the round trip,
+    // pollFanOutPRs.candidates includes pr-merged rows carrying it, and
+    // a successful retry clears the marker on the next write.
+    //
+    // Reasons containing `: ` (colon-space) are force-quoted by
+    // quoteYaml's special-char regex; the round-trip test below verifies
+    // both bare AND quoted shapes preserve the value verbatim through
+    // the standard yaml parser.
+    const bareReason = 'chain-ladder write failed - permission denied';
+    const quotedReason = 'ENOENT: chain-ladder.yaml dir missing (retry next poll)';
+    const doc: DesignFanOutDoc = {
+      schema: 1,
+      okrId: 'OKR-RETRY',
+      rows: [
+        {
+          repo: 'acme/celeb-api',
+          status: 'pr-merged',
+          landingIssueUrl: 'https://github.com/acme/celeb-api/issues/42',
+          implPrUrl: 'https://github.com/acme/celeb-api/pull/43',
+          implementation_run_id: 'IMPL-2026-05-27-celeb-api-abc123',
+          updatedAt: '2026-05-27T19:30:00.000Z',
+          chainLadderAppendError: bareReason,
+        },
+        {
+          repo: 'acme/imdb-frontend',
+          status: 'pr-merged',
+          implPrUrl: 'https://github.com/acme/imdb-frontend/pull/77',
+          implementation_run_id: 'IMPL-2026-05-27-imdb-frontend-def456',
+          chainLadderAppendError: quotedReason,
+        },
+      ],
+    };
+    writeDesignFanOut(tmpDir, doc);
+    const read = readDesignFanOut(tmpDir, 'OKR-RETRY');
+    expect(read!.rows).toHaveLength(2);
+    // Sort by repo to match the writer's order-stable assumption
+    // (read() preserves on-disk order, which matches input order here).
+    const byRepo = Object.fromEntries(read!.rows.map(r => [r.repo, r]));
+    expect(byRepo['acme/celeb-api'].chainLadderAppendError).toBe(bareReason);
+    expect(byRepo['acme/imdb-frontend'].chainLadderAppendError).toBe(quotedReason);
+    // pr-merged + marker: this row is now a retry candidate for the next
+    // poll cycle (LookingGlassPanel.onPollFanOutPRs candidate filter
+    // matches `status === 'pr-merged' && chainLadderAppendError`).
+    expect(byRepo['acme/celeb-api'].status).toBe('pr-merged');
+    expect(byRepo['acme/imdb-frontend'].status).toBe('pr-merged');
+  });
+
+  it('Codex-r3 Bug 3: pr-merged row WITHOUT the marker stays clean (no retry signal)', () => {
+    // Negative test for the retry contract — only rows with the marker
+    // are candidates. A normally-completed pr-merged row must NOT carry
+    // chainLadderAppendError, or the next poll would re-fetch the PR
+    // body and re-append for nothing (idempotent but wasteful).
+    const doc: DesignFanOutDoc = {
+      schema: 1,
+      okrId: 'OKR-CLEAN',
+      rows: [
+        {
+          repo: 'acme/celeb-api',
+          status: 'pr-merged',
+          implPrUrl: 'https://github.com/acme/celeb-api/pull/43',
+          implementation_run_id: 'IMPL-clean',
+          updatedAt: '2026-05-27T19:30:00.000Z',
+        },
+      ],
+    };
+    writeDesignFanOut(tmpDir, doc);
+    const onDisk = fs.readFileSync(path.join(tmpDir, 'okrs', 'OKR-CLEAN', 'what', 'design-fan-out.yaml'), 'utf8');
+    expect(onDisk).not.toContain('chainLadderAppendError');
+    const read = readDesignFanOut(tmpDir, 'OKR-CLEAN');
+    expect(read!.rows[0].chainLadderAppendError).toBeUndefined();
+  });
 });

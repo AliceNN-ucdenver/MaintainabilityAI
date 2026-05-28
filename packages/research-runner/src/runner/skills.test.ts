@@ -33,7 +33,7 @@ function writeYaml(p: string, body: string): void {
   fs.writeFileSync(p, body, 'utf8');
 }
 
-async function emitRuntimeKnowledgeOkrForTest(vars: { okrId: string; runId: string; intentThreadUuid: string; phase: 'why' | 'how' | 'what' }): Promise<void> {
+async function emitRuntimeKnowledgeOkrForTest(vars: { okrId: string; runId: string; intentThreadUuid: string; phase: 'why' | 'how' | 'what' | 'implementation' }): Promise<void> {
   const mesh = process.env.MESH_PATH;
   assert.ok(mesh, 'emitRuntimeKnowledgeOkrForTest requires withMeshPath()');
   writeYaml(
@@ -1405,7 +1405,7 @@ for (const allowedKind of ['artifact_written', 'state_transition', 'human_gate']
  * deterministic-emission counterpart to `withMeshPath()`.
  */
 function withSession<T>(
-  vars: { okrId: string; runId: string; intentThreadUuid: string; phase: 'why' | 'how' | 'what' },
+  vars: { okrId: string; runId: string; intentThreadUuid: string; phase: 'why' | 'how' | 'what' | 'implementation' },
   fn: () => Promise<T>,
 ): Promise<T> {
   const prev = {
@@ -2328,4 +2328,186 @@ test('Bug-P / P10 — emitted event top-level fields match the audit-event-shape
       }
     });
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
+// ─── Codex-r3 Bug 1 — implementation-phase audit routing ─────────────
+//
+// The Tier 2 hand-off promises that the implementation-agent writes its
+// audit chain into the TARGET REPO's `.maintainability/audit/...`
+// (D-PR7 storage contract). Pre-fix, audit-emit-event always wrote to
+// `$MESH_PATH/okrs/<id>/audit/...`, so the impl PR's chain_root_hash
+// was a prompt-side fiction. These tests pin the new routing:
+//   - `runId` startsWith `IMPL-` → target repo path
+//   - everything else → mesh path
+//   - verifier resolves the same way the emitter did
+
+function withRepoPath<T>(repo: string, fn: () => Promise<T>): Promise<T> {
+  const prev = process.env.REPO_PATH;
+  process.env.REPO_PATH = repo;
+  return fn().finally(() => {
+    if (prev === undefined) { delete process.env.REPO_PATH; } else { process.env.REPO_PATH = prev; }
+  });
+}
+
+test('Codex-r3 Bug 1: phase enum accepts implementation', async () => {
+  // Smoke — the CLI Zod schema accepts `phase: 'implementation'`. Pre-fix
+  // it would have failed with a bad-input error because the enum was
+  // ['why', 'how', 'what'].
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withRepoPath(repo, async () => {
+      const result = await runSkill('audit-emit-event', {
+        okrId: 'OKR-IMPL-1',
+        runId: 'IMPL-2026-05-27-celeb-api-abc123',
+        eventKind: 'self_review',
+        payload: { round: 1, persona: 'impl-reviewer', score: 0.9 },
+        phase: 'implementation',
+        intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      });
+      assert.equal(result.ok, true, `audit-emit-event should accept implementation phase: ${JSON.stringify(result)}`);
+    });
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Codex-r3 Bug 1: IMPL-* runId writes to TARGET repo .maintainability/audit/, NOT to mesh', async () => {
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        const okrId = 'OKR-IMPL-2';
+        const runId = 'IMPL-2026-05-27-celeb-api-xyz789';
+        const result = await runSkill('audit-emit-event', {
+          okrId, runId,
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'impl-reviewer', score: 0.9 },
+          phase: 'implementation',
+          intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        });
+        assert.equal(result.ok, true);
+        // Event MUST be in the target repo, not the mesh.
+        const targetEvents = path.join(repo, '.maintainability', 'audit', 'events', `${runId}.jsonl`);
+        const meshEvents = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+        assert.ok(fs.existsSync(targetEvents), `IMPL event must land in target repo: ${targetEvents}`);
+        assert.ok(!fs.existsSync(meshEvents), `IMPL event must NOT land in mesh: ${meshEvents}`);
+        // Same for the key.
+        const targetKeys = path.join(repo, '.maintainability', 'audit', 'keys', `${runId}.epoch-1.pub.pem`);
+        const meshKeys = path.join(mesh, 'okrs', okrId, 'audit', 'keys', `${runId}.epoch-1.pub.pem`);
+        assert.ok(fs.existsSync(targetKeys), `IMPL pub key must land in target repo: ${targetKeys}`);
+        assert.ok(!fs.existsSync(meshKeys), `IMPL pub key must NOT land in mesh: ${meshKeys}`);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r3 Bug 1: WHAT-* runId continues to write to MESH (non-IMPL routing preserved)', async () => {
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        const okrId = 'OKR-IMPL-3';
+        const runId = 'WHAT-2026-05-27-design-abc';
+        const result = await runSkill('audit-emit-event', {
+          okrId, runId,
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'Architect', score: 0.95 },
+          phase: 'what',
+          intentThreadUuid: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        });
+        assert.equal(result.ok, true);
+        // Event MUST be in the mesh, NOT the target repo.
+        const meshEvents = path.join(mesh, 'okrs', okrId, 'audit', 'events', `${runId}.jsonl`);
+        const targetEvents = path.join(repo, '.maintainability', 'audit', 'events', `${runId}.jsonl`);
+        assert.ok(fs.existsSync(meshEvents), `WHAT event must land in mesh: ${meshEvents}`);
+        assert.ok(!fs.existsSync(targetEvents), `WHAT event must NOT land in target repo: ${targetEvents}`);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r3 Bug 1: audit-verify-chain reads from TARGET repo for IMPL-* runId', async () => {
+  // End-to-end: emit 2 chained events into the target repo, then verify
+  // the chain — the verifier MUST resolve to the target repo path or it
+  // returns audit-jsonl-missing even though the file is there.
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        const okrId = 'OKR-IMPL-4';
+        const runId = 'IMPL-2026-05-27-celeb-api-verify';
+        // Event 1 — auto-emitted by runSkill via session-context.
+        await withSession({ okrId, runId, intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc', phase: 'implementation' }, async () => {
+          // Seed the mesh's OKR yaml so knowledge-okr resolves (the skill
+          // itself doesn't matter — we just need any successful skill_call
+          // to land event 1 via the runtime auto-emit path).
+          writeYaml(
+            path.join(mesh, 'okrs', okrId, 'okr.yaml'),
+            `meta:\n  id: ${okrId}\n  intentThreadUuid: cccccccc-cccc-cccc-cccc-cccccccccccc\n`,
+          );
+          await runSkill('knowledge-okr', { okrId });
+        });
+        // Event 2 — agent-emitted self_review (the kind the impl agent
+        // would actually call from inside its persona-prompt).
+        await runSkill('audit-emit-event', {
+          okrId, runId,
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'impl-reviewer', score: 0.92 },
+          phase: 'implementation',
+          intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        });
+        // Verify the chain resolves to the target repo.
+        const verify = await runSkill('audit-verify-chain', { okrId, runId });
+        assert.equal(verify.ok, true, `verify should succeed: ${JSON.stringify(verify)}`);
+        const v = verify as { ok: true; sealed?: boolean; sealVerified?: boolean; eventCount?: number };
+        assert.equal(v.eventCount, 2, 'should see both events');
+        assert.equal(v.sealed, true, 'agent events must be sealed');
+        assert.equal(v.sealVerified, true, 'sealed signatures must verify against the epoch pub key');
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r3 Bug 1: REPO_PATH unset falls back to process.cwd (the workflow cd-into-repo pattern)', async () => {
+  // The implementation-agent's GitHub Actions step does `cd $REPO_PATH`
+  // before invoking the runner. In that environment the runner's cwd IS
+  // the target repo root. This test pins that fallback so a workflow that
+  // forgets to export REPO_PATH still writes to the right place.
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  const prevCwd = process.cwd();
+  const prevRepoPath = process.env.REPO_PATH;
+  try {
+    delete process.env.REPO_PATH;
+    process.chdir(repo);
+    await withMeshPath(mesh, async () => {
+      const okrId = 'OKR-IMPL-5';
+      const runId = 'IMPL-2026-05-27-cwd-fallback';
+      const result = await runSkill('audit-emit-event', {
+        okrId, runId,
+        eventKind: 'self_review',
+        payload: { round: 1, persona: 'impl-reviewer', score: 0.9 },
+        phase: 'implementation',
+        intentThreadUuid: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      });
+      assert.equal(result.ok, true);
+      const targetEvents = path.join(repo, '.maintainability', 'audit', 'events', `${runId}.jsonl`);
+      assert.ok(fs.existsSync(targetEvents), `cwd-fallback IMPL event must land in cwd-as-repo: ${targetEvents}`);
+    });
+  } finally {
+    process.chdir(prevCwd);
+    if (prevRepoPath === undefined) { delete process.env.REPO_PATH; } else { process.env.REPO_PATH = prevRepoPath; }
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });

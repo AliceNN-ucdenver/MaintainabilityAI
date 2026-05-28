@@ -100,7 +100,7 @@ All field values are required. Missing any field → PR check `chain-integrity-f
 
 **`chain_root_hash` vs `parent_chain_root`:** these are TWO DIFFERENT hashes.
 - `parent_chain_root` is the WHAT phase's chain root from the mesh — you copy it verbatim from the landing issue.
-- `chain_root_hash` is YOUR chain's root — the SHA-256 hash of event 1 in `.maintainability/audit/events/<run-id>.jsonl` (the `self_review` event you emitted in round 1 from the Architect persona). Compute it AFTER the persona-switch loop completes, BEFORE writing the PR body. Stage 5 records this value in the mesh's `chain-ladder.yaml` so the rollup + T3-2 runner verifier can cross-check the file at the merge SHA. **Do not reuse `parent_chain_root` as `chain_root_hash` — that breaks the impl-side provenance story.**
+- `chain_root_hash` is YOUR chain's root — the `event_hash` of `event_id: 1` in `.maintainability/audit/events/<run-id>.jsonl`, **regardless of that event's `event_kind`**. With runtime auto-emission (B28 + Codex-r3 Bug 1), event 1 is almost always a `skill_call` (the first skill you invoked — `knowledge-okr`, `knowledge-prd`, etc.) — NOT a `self_review`. Don't assume the kind; read `event_id: 1` and take its `event_hash` verbatim. Compute it AFTER the persona-switch loop completes, BEFORE writing the PR body. Stage 5 records this value in the mesh's `chain-ladder.yaml` so the rollup + T3-2 runner verifier can cross-check the file at the merge SHA. **Do not reuse `parent_chain_root` as `chain_root_hash` — that breaks the impl-side provenance story.**
 
 ### `implementation_run_id` format
 

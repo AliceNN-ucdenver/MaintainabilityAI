@@ -49,10 +49,10 @@ For `skill_call` / `llm_call` (runtime-owned) / `artifact_written` / `state_tran
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `okrId` | `string` | yes | — | Which OKR's audit log to append to. |
-| `runId` | `string` | yes | — | Stable per agent run (e.g. `RES-2026-05-19-abc123`). |
+| `runId` | `string` | yes | — | Stable per agent run (e.g. `RES-2026-05-19-abc123`). **Run IDs that start with `IMPL-` (e.g. `IMPL-2026-05-27-celeb-api-abc123`) route writes to the TARGET REPO's `.maintainability/audit/{events,keys}/...` instead of the mesh's `okrs/<id>/audit/...`** — see Codex-r3 Bug 1 routing notes below. The prefix check is string-based so the verifier resolves to the same place. |
 | `eventKind` | `"self_review" \| "self_review_exhausted" \| "gap_loop" \| "review_received" \| "review_emitted" \| "artifact_written" \| "state_transition" \| "human_gate"` | yes | — | Public CLI enum. **`skill_call` and `llm_call` are deliberately absent** (Bug Y) — they are runtime-owned and only the internal `runSkill()` auto-emit path can produce them. Passing either via the CLI returns `{ok: false, reason: 'bad-input'}`. See §7.5 for the full kind→origin map. |
 | `payload` | `Record<string, unknown>` | yes | — | Event-kind-specific data. Must not contain secrets. For `self_review`, include `{round, persona, score, severity, prompt_pack}` at minimum. |
-| `phase` | `"why" \| "how" \| "what"` | yes | — | OKR phase this event belongs to (v4 §11.1.6). |
+| `phase` | `"why" \| "how" \| "what" \| "implementation"` | yes | — | OKR phase this event belongs to (v4 §11.1.6). **`implementation` is the Tier 2 hand-off phase** for the per-repo `implementation-agent` (Codex-r3 Bug 1). Pair with an `IMPL-*` runId to land evidence in the target repo. |
 | `intentThreadUuid` | `string` | yes | — | The OKR's `meta.intentThreadUuid`. |
 
 ## Outputs (stdout JSON)
@@ -73,6 +73,21 @@ echo '{"okrId":"...", "runId":"...", "eventKind":"skill_call", "payload":{"skill
 ## Implementation
 
 Wraps `packages/research-runner/src/runner/audit-emitter.ts`. The on-disk envelope schema is defined by `packages/research-runner/src/schemas/audit-event.ts`. 3 retries with backoff on file-lock contention; on terminal failure, logs to stderr and exits non-zero — `verify-chain` (Phase E) recovers post-hoc. CLI subcommand backend lands in B-PR1a.
+
+### Codex-r3 Bug 1 — implementation-phase path routing
+
+`audit-emit-event` resolves its on-disk path from the `runId` prefix:
+
+| `runId` prefix | Events JSONL | Keys directory |
+|---|---|---|
+| `IMPL-*` (implementation phase — runs INSIDE the target repo) | `$REPO_PATH/.maintainability/audit/events/<runId>.jsonl` | `$REPO_PATH/.maintainability/audit/keys/` |
+| Everything else (`RES-*`, `PRD-*`, `WHAT-*`, etc.) | `$MESH_PATH/okrs/<okrId>/audit/events/<runId>.jsonl` | `$MESH_PATH/okrs/<okrId>/audit/keys/` |
+
+`$REPO_PATH` defaults to `process.cwd()` so a workflow that does `cd $REPO_PATH` before invoking the runner doesn't need to export the env var (the implementation-agent's GitHub Actions step does exactly that). `$MESH_PATH` defaults to `process.cwd()` too — different default, same fallback rule.
+
+`audit-verify-chain` uses the same prefix-based resolver so the writer and verifier always land in the same place. Symmetry is mandatory — a mismatch would either write evidence to one place and verify from another (false negative) or refuse to verify a legitimate chain (false positive).
+
+The private Ed25519 keys still go to tmpdir (mode 0600) regardless of phase — they never cross the on-disk boundary into either the mesh or the target repo. Only the public keys land beside the JSONL.
 
 ## Error contract
 

@@ -227,6 +227,19 @@ export interface DesignFanOutRow {
   updatedAt?: string;
   /** ISO 8601 timestamp of when the landing issue first opened. */
   openedAt?: string;
+  /**
+   * Codex-r3 Bug 3 — chain-ladder append failure marker. When Stage 5's
+   * onPollFanOutPRs transitions a row to `pr-merged` but the subsequent
+   * `appendChainLadderImplRow` write fails (FS error, contention,
+   * permissions), we keep the row at `pr-merged` (the UI must surface the
+   * real merge) but stamp this field with the error reason so:
+   *   - The next poll re-attempts the chain-ladder append (the retry
+   *     gate checks for this marker alongside the status filter).
+   *   - The OKR rollup surfaces a chain-ladder-degraded chip for the row.
+   *   - Operators can grep design-fan-out.yaml for stuck appends.
+   * Cleared (deleted from the row) on the next successful append.
+   */
+  chainLadderAppendError?: string;
 }
 
 /** Wire shape of the on-disk design-fan-out.yaml file. */
