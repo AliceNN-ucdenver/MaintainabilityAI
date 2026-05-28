@@ -40,7 +40,8 @@ You run inside a target repo that the Looking Glass fan-out engine assigned via 
 
 1. **The landing issue body.** Contains:
    - `<!-- okr_id: OKR-... -->` and `<!-- fanout_target: <owner/slug> -->` HTML comments at the top.
-   - **OKR context** section: OKR id, objective, source artifact link.
+   - **`<!-- governance_tier: <autonomous|supervised|restricted> -->`** HTML comment (Codex-r5 Bug 1). This is the OKR's authoritative tier, frozen at WHAT-phase dispatch — you MUST pass this exact value as the `tier` arg to every `self-review-impl-architect` / `self-review-impl-security` call. The runner derives `MAX_AUTO_ROUNDS` from it (autonomous=3, supervised=2, restricted=0). The landing-issue body ALSO surfaces it as a human-readable bullet under "OKR context"; the HTML comment is the parse target (markdown re-flows on GitHub but HTML comments survive verbatim).
+   - **OKR context** section: OKR id, objective, source artifact link, governance tier.
    - **Coordination** section (from §10 H3 of the source artifact): your `fanout_wave`, `coordination_role`, `depends_on`, `provides`, `consumes`, optional rationale.
    - **Provides** subsection: contracts you must expose for downstream repos.
    - **Consumes** subsection: contracts you import from upstream repos (which are already merged by the time you run — see "no mocks" below).
@@ -72,11 +73,11 @@ Same shape as Phase D's code-design-agent. After your first-pass implementation,
 
 For each round N (cap is tier-dependent — `self-review-impl-architect` returns the authoritative `maxAutoRounds` derived from the `tier` you passed; `autonomous=3`, `supervised=2`, `restricted=0`):
 
-1. **Switch to Architect persona.** Call `self-review-impl-architect` with `{ okrId, runId: <your IMPL-*>, round: N, tier: <from landing issue Hatter Tag> }`. The skill returns `{ shouldProceed, maxAutoRounds, promptPack }` — `promptPack` is read from `.cheshire/prompts/implementation/architect-review.md` in your repo (the Cheshire scaffold installs a starter pack on first fan-out; overwrite it locally to tune review criteria). Re-read your changes through that pack. Score the implementation against the design's contracts + the repo's existing architecture conventions.
-2. Emit `audit-emit-event` with `event_kind: self_review`, `phase: 'implementation'`, `payload: { persona: 'impl-architect', round: N, score: <0-100>, severity: <LOW|MEDIUM|HIGH>, summary: <one paragraph> }`.
-3. **Switch to Security persona.** Call `self-review-impl-security` with the same input shape. The skill returns the security pack from `.cheshire/prompts/implementation/security-review.md`. Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
-4. Emit `audit-emit-event` with `event_kind: self_review`, `phase: 'implementation'`, `payload: { persona: 'impl-security', round: N, score, severity, summary }`.
-5. **Decide.** If either persona scored `< 80` OR severity `>= HIGH` → revise the implementation + start round N+1.
+1. **Switch to Architect persona.** Call `self-review-impl-architect` with `{ okrId, runId: <your IMPL-*>, round: N, tier: <from the landing issue's `<!-- governance_tier: ... -->` HTML comment, e.g. 'supervised'> }`. The skill returns `{ shouldProceed, maxAutoRounds, promptPack }` — `promptPack` is read from `.cheshire/prompts/implementation/architect-review.md` in your repo (the Cheshire scaffold installs a starter pack on first fan-out; overwrite it locally to tune review criteria). Re-read your changes through that pack. Score the implementation against the design's contracts + the repo's existing architecture conventions.
+2. Emit `audit-emit-event` with `event_kind: self_review`, `phase: 'implementation'`, `payload: { persona: 'impl-architect', round: N, score: <float 0.00-1.00>, severity: <PASS|MINOR|MAJOR|BLOCKING>, summary: <one paragraph> }`. (Codex-r5 Bug 2 — score scale + severity ladder match the planning phases (WHY/HOW/WHAT) so the rollup + UI metric extractors read all four phases uniformly. Same rubric: 1.00=PASS, 0.85-0.99=MINOR, 0.65-0.84=MAJOR, <0.65=BLOCKING.)
+3. **Switch to Security persona.** Call `self-review-impl-security` with the same input shape (including the `tier` value from the landing issue). The skill returns the security pack from `.cheshire/prompts/implementation/security-review.md`. Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
+4. Emit `audit-emit-event` with `event_kind: self_review`, `phase: 'implementation'`, `payload: { persona: 'impl-security', round: N, score: <float 0.00-1.00>, severity: <PASS|MINOR|MAJOR|BLOCKING>, summary }`.
+5. **Decide.** If either persona scored `< 0.85` OR severity is `MAJOR`/`BLOCKING` → revise the implementation + start round N+1. (Mirrors the planning agents' convergence gate.)
 6. **On exhaustion** (round N === max_auto_rounds AND still not converged): emit ONE final `audit-emit-event` with `event_kind: self_review_exhausted`, `payload: { final_round: N }`. Leave the PR in draft + post a comment on the landing issue explaining the unresolved findings.
 
 The runner signs every `self_review` and `self_review_exhausted` event with the per-session ephemeral Ed25519 key (Knight's Seal v1). You don't sign — the runner does. Your job is to emit honest scores.

@@ -168,4 +168,33 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toContain('## 1. Project Structure');
     expect(body).not.toMatch(/per-repo extract.{0,30}§5/);
   });
+
+  it('Codex-r5 Bug 1: reads governance_tier from the landing issue HTML comment', () => {
+    // Pre-r5 the impl agent had no way to source the OKR's frozen tier
+    // for the self-review-impl-* skills' required `tier` argument
+    // (target-repo context, no mesh okr.yaml, IMPL-* runId not in
+    // actions[]). The fix is for the landing-issue composer to thread
+    // whatAction.governanceTier through as a `<!-- governance_tier: -->`
+    // HTML comment + visible bullet; the template tells the agent to
+    // read the comment and pass the exact value to every persona skill.
+    expect(body).toMatch(/governance_tier:/);
+    expect(body).toMatch(/autonomous\|supervised\|restricted/);
+    // Persona-switch loop instructions reference the comment by name.
+    expect(body).toMatch(/governance_tier.*HTML comment/i);
+    // And tell the agent to pass that exact value as `tier`.
+    expect(body).toMatch(/tier:.*from.*landing issue/i);
+  });
+
+  it('Codex-r5 Bug 2: self_review score/severity contract matches the planning phases', () => {
+    // Pre-r5 the impl persona-switch instructions used a different
+    // score scale (0-100) and severity ladder (LOW|MEDIUM|HIGH) than
+    // WHY/HOW/WHAT (0.0-1.0, PASS|MINOR|MAJOR|BLOCKING). UI/rollup
+    // extractors assume the planning shape; impl drift would have
+    // surfaced as malformed self_review events post-merge. Align now.
+    expect(body).toMatch(/score:\s*<float 0\.00-1\.00>/);
+    expect(body).toMatch(/severity:\s*<PASS\|MINOR\|MAJOR\|BLOCKING>/);
+    // Explicit anti-regression: no leftover 0-100 / LOW|MEDIUM|HIGH wording.
+    expect(body).not.toMatch(/score:\s*<0-100>/);
+    expect(body).not.toMatch(/<LOW\|MEDIUM\|HIGH>/);
+  });
 });

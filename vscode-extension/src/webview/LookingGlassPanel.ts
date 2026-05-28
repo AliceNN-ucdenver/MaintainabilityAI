@@ -1322,6 +1322,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           parentRunId,
           parentIntentThread,
           parentChainRoot,
+          // Codex-r5 Bug 1 — frozen tier from the same WHAT action that
+          // provides parent_run_id. Threaded through so the impl agent's
+          // self-review-impl-* calls source the authoritative tier from
+          // the landing issue (target-repo context has no mesh okr.yaml
+          // to read it from).
+          whatGovernanceTier: whatAction.governanceTier,
         });
 
         const issue = await this.githubService.createIssueRaw(
@@ -8868,6 +8874,18 @@ function composeFanOutLandingIssueBody(args: {
   parentRunId: string;
   parentIntentThread: string;
   parentChainRoot: string;
+  // Codex-r5 Bug 1 — authoritative governance tier the WHAT phase was
+  // dispatched at (whatAction.governanceTier; frozen at WHAT-phase run
+  // start per the dispatch contract). The impl agent passes this value
+  // verbatim into `self-review-impl-architect` + `self-review-impl-security`
+  // calls; the runner's makeImplReviewHandler derives MAX_AUTO_ROUNDS
+  // from it. Pre-r5 the agent had nowhere to source it (no MESH_PATH in
+  // the target repo, no actions[] entry for IMPL-* run ids), so it would
+  // either fail bad-input on the skill call or hallucinate the tier;
+  // either way the "authoritative frozen tier" contract was broken.
+  // Sourced from the same OKR action that provides parent_run_id so the
+  // pair is internally consistent.
+  whatGovernanceTier: 'autonomous' | 'supervised' | 'restricted';
 }): string {
   const lines: string[] = [];
   // HTML-comment metadata block — the impl agent parses these for the
@@ -8881,6 +8899,10 @@ function composeFanOutLandingIssueBody(args: {
   lines.push(`<!-- parent_run_id: ${args.parentRunId} -->`);
   lines.push(`<!-- parent_intent_thread: ${args.parentIntentThread} -->`);
   lines.push(`<!-- parent_chain_root: ${args.parentChainRoot} -->`);
+  // Codex-r5 Bug 1 — frozen-at-dispatch tier. Parsed by the impl agent
+  // for the `tier` arg on every `self-review-impl-*` skill call. Stable
+  // string per GovernanceTierSchema (autonomous|supervised|restricted).
+  lines.push(`<!-- governance_tier: ${args.whatGovernanceTier} -->`);
   lines.push('');
   lines.push(`## OKR context`);
   lines.push('');
@@ -8888,6 +8910,12 @@ function composeFanOutLandingIssueBody(args: {
   lines.push(`- **Objective:** ${args.okrObjective}`);
   lines.push(`- **Source artifact:** [\`${args.codeDesignArtifactPath}\`](https://github.com/${args.meshRepoSlug}/blob/main/${args.codeDesignArtifactPath}) (your per-repo extract lives under \`## 1. Project Structure\`)`);
   lines.push(`- **Target repo mode:** ${args.repoStatus === 'create' ? 'greenfield (scaffolded via Cheshire)' : 'brownfield (existing repo)'}`);
+  // Codex-r5 Bug 1 — also surfaced as a human-readable bullet so the
+  // reviewer can see the frozen tier without reading HTML comments.
+  // Matches the HTML comment above; the impl agent MUST use the
+  // comment as the authoritative source (HTML markers don't get
+  // re-flowed by GitHub's markdown renderer).
+  lines.push(`- **Governance tier (frozen at WHAT dispatch):** \`${args.whatGovernanceTier}\` — pass this verbatim as \`tier\` to every \`self-review-impl-*\` skill call.`);
   lines.push('');
   // Parent chain continuation summary — surfaces the values the impl
   // agent must echo into its PR body's implementation_chain YAML
