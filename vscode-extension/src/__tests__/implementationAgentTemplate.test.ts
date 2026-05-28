@@ -56,8 +56,17 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toMatch(/^\s*-\s*knowledge-code\s*$/m);
     expect(body).toMatch(/^\s*-\s*knowledge-code-read\s*$/m);
     expect(body).toMatch(/^\s*-\s*audit-emit-event\s*$/m);
-    expect(body).toMatch(/^\s*-\s*self-review-code-architect\s*$/m);
-    expect(body).toMatch(/^\s*-\s*self-review-code-security\s*$/m);
+    // Codex-r4 Bug 2 — impl phase calls the impl-* self-review skills,
+    // NOT the WHAT-phase code-* pair. The WHAT skills read mesh state
+    // (okr.yaml + actions[].runId) which doesn't exist in the target
+    // repo context. The impl skills read .cheshire/prompts/implementation/
+    // and accept tier inline.
+    expect(body).toMatch(/^\s*-\s*self-review-impl-architect\s*$/m);
+    expect(body).toMatch(/^\s*-\s*self-review-impl-security\s*$/m);
+    // Negative: the WHAT-phase skills must NOT appear in the tools list
+    // (they'd fail action-not-found if called with an IMPL-* run id).
+    expect(body).not.toMatch(/^\s*-\s*self-review-code-architect\s*$/m);
+    expect(body).not.toMatch(/^\s*-\s*self-review-code-security\s*$/m);
   });
 
   it('tools list includes github/* for issue + PR API access', () => {
@@ -79,8 +88,9 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toMatch(/Required skill_call manifest/);
     // Each required skill listed in the manifest table.
     expect(body).toContain('`knowledge-code`');
-    expect(body).toContain('`self-review-code-architect`');
-    expect(body).toContain('`self-review-code-security`');
+    // Codex-r4 Bug 2 — impl-phase skills in the manifest, NOT WHAT.
+    expect(body).toContain('`self-review-impl-architect`');
+    expect(body).toContain('`self-review-impl-security`');
     expect(body).toContain('`audit-emit-event`');
   });
 

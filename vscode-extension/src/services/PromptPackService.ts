@@ -16,6 +16,11 @@ const RABBIT_HOLE_CATEGORIES: Record<string, PackCategory> = {
   'owasp': 'owasp',
   'maintainability': 'maintainability',
   'threat-modeling': 'threat-modeling',
+  // Codex-r4 Bug 2 — impl-phase self-review packs installed into the
+  // target repo by getScaffoldFiles() at `.cheshire/prompts/implementation/`.
+  // Read by the runner's self-review-impl-architect / -security skills
+  // (see makeImplReviewHandler in research-runner/src/runner/skills.ts).
+  'implementation': 'implementation',
 };
 
 const BODY_SAFE_LIMIT = 60_000;       // GitHub's 65,536 limit minus headroom

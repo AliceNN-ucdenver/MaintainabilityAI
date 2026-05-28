@@ -1500,6 +1500,32 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
     }
 
+    // Codex-r4 Bug 1 — extract impl-row evidence provenance (merge_commit_sha)
+    // from chain-ladder.yaml. Stage 5 ONLY writes this field when both
+    // .maintainability/audit/events/<run-id>.jsonl AND
+    // .maintainability/audit/keys/<run-id>.epoch-1.pub.pem fetched OK
+    // from the target repo at the named SHA. Hydrating it onto the
+    // parsed PR-body chain is what lets verifyImplementationChainEntry
+    // FAIL the rollup when the evidence was never actually verified.
+    const ladderMergeShaByRunId = new Map<string, string>();
+    if (chainLadderText) {
+      try {
+        const ladderParsed = (YAML.parse(chainLadderText) as { chain?: Array<Record<string, unknown>> })?.chain ?? [];
+        for (const row of ladderParsed) {
+          if (String(row['phase'] ?? '').toLowerCase() !== 'implementation') continue;
+          const runId = row['implementation_run_id'];
+          const sha = row['merge_commit_sha'];
+          if (typeof runId === 'string' && typeof sha === 'string' && runId && sha) {
+            ladderMergeShaByRunId.set(runId, sha);
+          }
+        }
+      } catch {
+        // Best-effort — the ladder is the source of truth for
+        // merge_commit_sha, but a parse failure here just means we
+        // can't hydrate; the verifier will surface evidence-missing.
+      }
+    }
+
     const rows: ImplementationChainRow[] = [];
     for (const r of fanOut.rows) {
       // Only render rows that actually represent fan-out targets with
@@ -1519,6 +1545,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             const client = await this.githubService.getClient();
             const pr = await client.rest.pulls.get({ owner, repo, pull_number: parseInt(prNum, 10) });
             chain = parseImplementationChainBlock(pr.data.body ?? null);
+            // Codex-r4 Bug 1 — hydrate merge_commit_sha from chain-ladder.yaml
+            // (it's NOT in the PR-body frontmatter — Stage 5 writes it
+            // when evidence verification passes). Missing here means
+            // either (a) the PR merged but Stage 5 has not yet verified
+            // the target-repo audit files at the merge SHA, or (b) the
+            // verification failed (chainLadderAppendError set on the
+            // design-fan-out row). Either way the rollup's verifier
+            // will surface evidence-missing:merge_commit_sha.
+            if (chain && chain.implementation_run_id) {
+              const sha = ladderMergeShaByRunId.get(chain.implementation_run_id);
+              if (sha) { chain = { ...chain, merge_commit_sha: sha }; }
+            }
           } catch {
             // Best-effort: leave chain null → renders as evidence-missing.
           }
@@ -1591,6 +1629,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // mutate chain-ladder.yaml locally before the guard's
     // skip-and-log bailed.
     const pendingChainLadderRows: ChainLadderImplRow[] = [];
+    // Codex-r4 Bug 1 — pre-MeshBranchGuard evidence-fetch outcomes.
+    // Populated by the in-loop evidence check below; merged into the
+    // final appendOutcomes map after the guard runs so retry markers
+    // reflect BOTH evidence-fetch failures (the agent's PR claims
+    // didn't materialize on disk) and chain-ladder write failures (FS
+    // problem on the mesh side). Both surface through the same
+    // chainLadderAppendError field on the design-fan-out row, but the
+    // reason string distinguishes them so operators can diagnose.
+    const evidenceRowOutcomes = new Map<string, { outcome: 'ok' } | { outcome: 'fail'; reason: string }>();
 
     for (let i = 0; i < updatedRows.length; i++) {
       const row = updatedRows[i];
@@ -1654,17 +1701,55 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             const pr = await client.rest.pulls.get({ owner, repo, pull_number: observed.number });
             const implChain = parseImplementationChainBlock(pr.data.body ?? null);
             if (implChain && implChain.implementation_run_id && implChain.chain_root_hash && implChain.parent_chain_root) {
-              pendingChainLadderRows.push({
-                repo: row.repo,
-                pr_url: observed.url,
-                implementation_run_id: implChain.implementation_run_id,
-                chain_root_hash: implChain.chain_root_hash, // Codex-r2 Bug 2 — agent's own root, not parent
-                parent_intent_thread: implChain.parent_intent_thread,
-                parent_chain_root: implChain.parent_chain_root,
-                event_log_path: implChain.event_log_path,
-                key_path: implChain.key_path,
-                merged_at: pr.data.merged_at ?? nowIso,
-              });
+              // Codex-r4 Bug 1 — VERIFY EVIDENCE AT MERGE SHA before
+              // queuing the chain-ladder row. Pre-fix Stage 5 would
+              // queue + append based on PR-body claims alone, so a PR
+              // could declare event_log_path + key_path in frontmatter,
+              // commit no audit files, and still let the rollup PASS.
+              // Now: fetch BOTH files from the target repo at
+              // pr.data.merge_commit_sha; queue ONLY if both succeed.
+              // Failure paths flow through chainLadderAppendError → next
+              // poll retries (e.g. if a force-push or 503 was transient).
+              const mergeSha = pr.data.merge_commit_sha;
+              if (!mergeSha) {
+                // GitHub didn't surface a merge_commit_sha yet (rare;
+                // happens briefly on freshly-merged PRs before the API
+                // settles). Mark for retry rather than queueing without it.
+                evidenceRowOutcomes.set(row.repo, {
+                  outcome: 'fail',
+                  reason: 'evidence-pending: pr.merge_commit_sha not yet available from GitHub',
+                });
+              } else {
+                const [eventsRes, keysRes] = await Promise.all([
+                  this.githubService.getRepoFileStatus(owner, repo, implChain.event_log_path, mergeSha),
+                  this.githubService.getRepoFileStatus(owner, repo, implChain.key_path, mergeSha),
+                ]);
+                if (eventsRes.status === 'ok' && keysRes.status === 'ok') {
+                  pendingChainLadderRows.push({
+                    repo: row.repo,
+                    pr_url: observed.url,
+                    implementation_run_id: implChain.implementation_run_id,
+                    chain_root_hash: implChain.chain_root_hash, // Codex-r2 Bug 2 — agent's own root, not parent
+                    parent_intent_thread: implChain.parent_intent_thread,
+                    parent_chain_root: implChain.parent_chain_root,
+                    event_log_path: implChain.event_log_path,
+                    key_path: implChain.key_path,
+                    merge_commit_sha: mergeSha, // Codex-r4 Bug 1 — provenance of THIS verification
+                    merged_at: pr.data.merged_at ?? nowIso,
+                  });
+                  evidenceRowOutcomes.set(row.repo, { outcome: 'ok' });
+                } else {
+                  // At least one file absent or unreadable at the merge
+                  // SHA. Don't queue; surface as chainLadderAppendError
+                  // so next poll retries the fetch (transient 503) or
+                  // the rollup FAILs honestly (truly absent).
+                  const eventsLabel = eventsRes.status === 'ok' ? 'ok' : eventsRes.status === 'not-found' ? 'not-found' : `fetch-error(${eventsRes.reason})`;
+                  const keysLabel = keysRes.status === 'ok' ? 'ok' : keysRes.status === 'not-found' ? 'not-found' : `fetch-error(${keysRes.reason})`;
+                  const reason = `evidence-missing-at-${mergeSha.slice(0, 8)}: events=${eventsLabel} keys=${keysLabel}`;
+                  evidenceRowOutcomes.set(row.repo, { outcome: 'fail', reason });
+                  logger.warn(`pollFanOutPRs(${okrId}): ${row.repo} impl PR ${observed.url} declared evidence paths but verification failed: ${reason}`);
+                }
+              }
             } else if (implChain) {
               // PR body had a chain block but it's missing chain_root_hash
               // OR parent_chain_root. Log + skip the chain-ladder append.
@@ -1687,7 +1772,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // non-empty pendingChainLadderRows; we still need to fall through
     // to MeshBranchGuard + the append loop, which will either clear the
     // marker on success or leave it for the next poll.
-    if (!anyChanged && pendingChainLadderRows.length === 0) return;
+    //
+    // Codex-r4 Bug 1 — also fall through when we have evidence-fail
+    // outcomes to stamp on rows (this can happen on a retry pass where
+    // the row was already pr-merged but evidence is still missing —
+    // anyChanged stays false because the row wasn't restructured).
+    const haveEvidenceFails = Array.from(evidenceRowOutcomes.values()).some(o => o.outcome === 'fail');
+    if (!anyChanged && pendingChainLadderRows.length === 0 && !haveEvidenceFails) return;
 
     // Branch-guard before writing. Skip silently on dirty/wrong-branch --
     // poll is implicit (not user-initiated), so a recovery modal would
@@ -1714,6 +1805,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // (see candidate filter + isRetryAppend branch above). Success
     // clears any prior marker.
     const appendOutcomes = new Map<string, string | null>(); // repo → error reason | null=success
+    // Codex-r4 Bug 1 — evidence-fetch failures from the pre-guard loop
+    // are surfaced here too (rows the guard didn't filter were already
+    // marked via evidenceRowOutcomes; merge them in so the design-fan-out
+    // marker reflects the actual cause).
+    for (const [slug, outcome] of evidenceRowOutcomes) {
+      if (outcome.outcome === 'fail') {
+        appendOutcomes.set(slug, outcome.reason);
+      }
+      // 'ok' outcomes are tracked separately below — they correspond
+      // to rows that made it into pendingChainLadderRows and the write
+      // loop decides their final outcome.
+    }
     for (const implRow of pendingChainLadderRows) {
       try {
         this.meshService.appendChainLadderImplRow(meshPath, okrId, implRow);

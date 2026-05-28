@@ -13,9 +13,17 @@ tools:
   - knowledge-code
   - knowledge-code-read
   - audit-emit-event
-  # Tweedles persona-switch self-critique (same packs the code-design-agent uses)
-  - self-review-code-architect
-  - self-review-code-security
+  # Codex-r4 Bug 2 — implementation-phase persona-switch self-critique.
+  # These are NEW skills, distinct from the WHAT-phase code-design pair
+  # (self-review-code-architect / self-review-code-security). The WHAT
+  # skills read mesh state (okr.yaml + actions[].runId lookup); they
+  # would fail action-not-found if called with an IMPL-* run id, and
+  # okr-not-found if called from a target-repo context with no mesh
+  # checkout. The impl-phase skills read .cheshire/prompts/implementation/
+  # from your repo, accept the tier inline (from the landing issue's
+  # Hatter Tag continuation), and require an IMPL-* runId.
+  - self-review-impl-architect
+  - self-review-impl-security
 # No `model:` override — defer to Copilot Coding Agent's session default.
 max_tokens_per_run: 250000
 max_skill_calls_per_run: 80
@@ -54,20 +62,20 @@ Every run MUST produce successful `skill_call` events for these skills. The opti
 | Skill | Minimum successful calls | Notes |
 |---|---|---|
 | `knowledge-code` OR `knowledge-code-read` | ≥1 | Per-repo grounding. Brownfield uses both; greenfield runs after scaffold has populated the tree. |
-| `self-review-code-architect` | ≥1 per round | Tier echo + persona-switch entry into the Architect critique. |
-| `self-review-code-security` | ≥1 per round | Same shape, Security persona. |
-| `audit-emit-event` | ≥1 per round per persona | `self_review` event with `{ persona, round, score, severity, summary }`. |
+| `self-review-impl-architect` | ≥1 per round | Tier echo + persona-switch entry into the Architect critique. Pass `tier` from the landing issue's Hatter Tag (REQUIRED — see Codex-r4 Bug 2). |
+| `self-review-impl-security` | ≥1 per round | Same shape, Security persona. |
+| `audit-emit-event` | ≥1 per round per persona | `self_review` event with `{ persona, round, score, severity, summary }`. Must pair `phase: 'implementation'` with your `IMPL-*` `runId` — the runner enforces this pairing (Codex-r4 Bug 3). |
 
 ## Tweedles persona-switch self-critique loop
 
 Same shape as Phase D's code-design-agent. After your first-pass implementation, run rounds of Architect-then-Security self-review until convergence OR the cap.
 
-For each round N (cap `max_auto_rounds=3`):
+For each round N (cap is tier-dependent — `self-review-impl-architect` returns the authoritative `maxAutoRounds` derived from the `tier` you passed; `autonomous=3`, `supervised=2`, `restricted=0`):
 
-1. **Switch to Architect persona.** Re-read your changes through the architect prompt pack (`.cheshire/prompts/implementation/architecture-review.md` if present, else fall back to the default Architect pack). Score the implementation against the design's contracts + the repo's existing architecture conventions.
-2. Emit `audit-emit-event` with `event_kind: self_review`, `payload: { persona: 'architect', round: N, score: <0-100>, severity: <LOW|MEDIUM|HIGH>, summary: <one paragraph> }`.
-3. **Switch to Security persona.** Re-read through the security prompt pack (`.cheshire/prompts/implementation/security-review.md` if present, else fall back to default Security pack). Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
-4. Emit `audit-emit-event` with `event_kind: self_review`, `payload: { persona: 'security', round: N, score, severity, summary }`.
+1. **Switch to Architect persona.** Call `self-review-impl-architect` with `{ okrId, runId: <your IMPL-*>, round: N, tier: <from landing issue Hatter Tag> }`. The skill returns `{ shouldProceed, maxAutoRounds, promptPack }` — `promptPack` is read from `.cheshire/prompts/implementation/architect-review.md` in your repo (the Cheshire scaffold installs a starter pack on first fan-out; overwrite it locally to tune review criteria). Re-read your changes through that pack. Score the implementation against the design's contracts + the repo's existing architecture conventions.
+2. Emit `audit-emit-event` with `event_kind: self_review`, `phase: 'implementation'`, `payload: { persona: 'impl-architect', round: N, score: <0-100>, severity: <LOW|MEDIUM|HIGH>, summary: <one paragraph> }`.
+3. **Switch to Security persona.** Call `self-review-impl-security` with the same input shape. The skill returns the security pack from `.cheshire/prompts/implementation/security-review.md`. Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
+4. Emit `audit-emit-event` with `event_kind: self_review`, `phase: 'implementation'`, `payload: { persona: 'impl-security', round: N, score, severity, summary }`.
 5. **Decide.** If either persona scored `< 80` OR severity `>= HIGH` → revise the implementation + start round N+1.
 6. **On exhaustion** (round N === max_auto_rounds AND still not converged): emit ONE final `audit-emit-event` with `event_kind: self_review_exhausted`, `payload: { final_round: N }`. Leave the PR in draft + post a comment on the landing issue explaining the unresolved findings.
 

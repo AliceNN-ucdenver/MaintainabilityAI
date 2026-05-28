@@ -69,10 +69,15 @@ function meshPath(): string {
 
 /**
  * Codex-r3 Bug 1 (Tier 2 hand-off): target-repo working-copy root for the
- * implementation-agent. Honors `REPO_PATH` first, falls back to `process.cwd()`
- * (the implementation-agent's GitHub Actions step runs `cd $REPO_PATH` before
- * invoking the runner, so cwd is correct without the env var; the env var
- * exists so tests + alternate harnesses can override).
+ * implementation-agent. Honors `REPO_PATH` first, falls back to `process.cwd()`.
+ *
+ * Codex-r4 Bug 4 — the fallback exists because when the runner is invoked
+ * from the target repo's working directory (the implementation-agent is
+ * dispatched via custom-agent assignment — NOT a workflow `cd` — so its
+ * session cwd IS the target repo), `cwd()` is the right answer without
+ * any extra env-var wiring. The `REPO_PATH` env var is the explicit
+ * override for tests + alternate harnesses where the runner isn't already
+ * rooted at the target repo.
  *
  * Distinct from `meshPath()` — the mesh is governance-mesh state (OKR yaml,
  * audit chain ladder, design fan-out file). The repo is the TARGET code repo
@@ -879,6 +884,119 @@ function makeCodeReviewHandler(persona: 'code-architect' | 'code-security'): Ski
 
 const handleSelfReviewCodeArchitect = makeCodeReviewHandler('code-architect');
 const handleSelfReviewCodeSecurity = makeCodeReviewHandler('code-security');
+
+// ─────────────────────────────────────────────────────────────────────
+// Codex-r4 Bug 2 — implementation-phase self-review skills.
+//
+// The pre-existing self-review-code-* skills (WHAT phase) read
+// `okrs/<id>/okr.yaml` from MESH_PATH and look up the actions[] entry
+// by runId to authoritatively source `governanceTier`. That contract
+// breaks for the implementation-agent because:
+//
+//   - The impl agent runs INSIDE the TARGET REPO (no MESH_PATH).
+//   - The impl agent's runId is `IMPL-*` (not present in okr.yaml's
+//     actions[] — those are WHY/HOW/WHAT run ids).
+//
+// Pre-fix the impl agent template told the agent to call
+// self-review-code-architect / self-review-code-security; in the
+// target-repo context those calls return `okr-not-found` (no MESH_PATH)
+// or `action-not-found: no actions[] entry with runId=IMPL-…`. The
+// audit chain would either lack the self-review skill_call entirely
+// or carry a failed one with no signed self_review event behind it.
+//
+// Fix: ship two new skills that mirror the same data-only contract but
+// adapt to the impl context:
+//
+//   - read prompt pack from `$REPO_PATH/.cheshire/prompts/implementation/
+//     <persona>-review.md` (the Cheshire scaffold installs these on
+//     the first fan-out into a target repo);
+//   - accept `tier` inline (the landing issue's Hatter Tag carries the
+//     tier the OKR was frozen at, so the agent can pass it directly);
+//   - REQUIRE the runId to start with `IMPL-` (fail-loud on misuse —
+//     mirrors the Bug 3 phase/runId guard);
+//   - emit `phase: 'implementation'` in auditMetadata so the rollup +
+//     UI metric extractors see the right phase label.
+//
+// The handler shape (return fields) matches makeCodeReviewHandler so
+// the agent's persona-prompt block format is unchanged.
+// ─────────────────────────────────────────────────────────────────────
+
+const SelfReviewImplInput = z.object({
+  okrId: z.string().min(1),
+  runId: z.string().min(1),
+  round: z.number().int().positive(),
+  // Tier is authoritative-from-landing-issue in the impl context. The
+  // landing issue's Hatter Tag continuation block carries the OKR's
+  // frozen governance tier (so the agent can't drift it). Required —
+  // we don't infer it because there's no mesh state to read from.
+  tier: z.string().min(1),
+});
+
+/**
+ * Factory: build a self-review skill handler for the IMPLEMENTATION
+ * phase (one persona). Reads prompt pack from the target repo's
+ * Cheshire scaffold; emits implementation-phase audit metadata.
+ *
+ * Sibling of makeCodeReviewHandler (WHAT phase). Same return shape so
+ * UI metric extractors work unchanged.
+ */
+function makeImplReviewHandler(persona: 'impl-architect' | 'impl-security'): SkillHandler {
+  return async (input) => {
+    const parsed = SelfReviewImplInput.safeParse(input);
+    if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+    // Fail-loud on misuse: this skill is for IMPL-* run ids only. An
+    // accidental WHAT-* runId here would write impl-labeled audit
+    // metadata under a WHAT-phase chain — same class of bug Codex-r4
+    // Bug 3 closes on the audit-emit side. Defense in depth.
+    if (!parsed.data.runId.startsWith('IMPL-')) {
+      return {
+        ok: false,
+        reason: `runid-not-impl: ${persona} expects an IMPL-* run id (the implementation phase contract); got ${parsed.data.runId}. Pass parent_run_id (the WHAT run) to self-review-code-* instead.`,
+      };
+    }
+    const tier = parsed.data.tier.toLowerCase();
+    const maxAutoRounds = tierMaxRounds(tier);
+    const shouldProceed = tier !== 'restricted' && parsed.data.round <= maxAutoRounds;
+    // Prompt-pack filename note: persona is `impl-architect` /
+    // `impl-security`; pack file is `architect-review.md` /
+    // `security-review.md` (no "impl-" prefix in the filename —
+    // the directory `.cheshire/prompts/implementation/` IS the
+    // phase scoping).
+    const promptFilename = persona === 'impl-architect' ? 'architect-review.md' : 'security-review.md';
+    const promptPath = path.join(repoPath(), '.cheshire', 'prompts', 'implementation', promptFilename);
+    let promptPack = '';
+    let promptPackFound = false;
+    if (fs.existsSync(promptPath)) {
+      try { promptPack = fs.readFileSync(promptPath, 'utf8'); promptPackFound = true; } catch { /* leave empty */ }
+    }
+    const auditMetadata = {
+      persona,
+      phase: 'implementation',
+      tier,
+      max_auto_rounds: maxAutoRounds,
+      round: parsed.data.round,
+      should_proceed: shouldProceed,
+      prompt_pack_path: promptPath,
+      prompt_pack_found: promptPackFound,
+    };
+    return {
+      ok: true,
+      persona,
+      phase: 'implementation',
+      tier,
+      maxAutoRounds,
+      round: parsed.data.round,
+      shouldProceed,
+      promptPack,
+      promptPackPath: promptPath,
+      promptPackFound,
+      auditMetadata,
+    } as SkillResult;
+  };
+}
+
+const handleSelfReviewImplArchitect = makeImplReviewHandler('impl-architect');
+const handleSelfReviewImplSecurity = makeImplReviewHandler('impl-security');
 
 // ─────────────────────────────────────────────────────────────────────
 // knowledge-code — Phase D D6 backend. Per A12.v1.1, branches on per-repo
@@ -2304,6 +2422,27 @@ async function emitAuditEvent(input: unknown, opts: { internal: boolean } = { in
   const parsed = schema.safeParse(input);
   if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
   const { okrId, runId, eventKind, payload, phase, intentThreadUuid } = parsed.data;
+  // Codex-r4 Bug 3 — phase ↔ runId-prefix consistency guard.
+  //
+  // auditBaseDir routes purely by runId.startsWith('IMPL-'); the
+  // schemas accept `phase` independently. Pre-fix a bad env pair
+  // (PHASE=implementation + RUN_ID=WHAT-…) would write
+  // implementation-labeled events into the mesh's WHAT directory;
+  // the inverse (PHASE=what + RUN_ID=IMPL-…) would write WHAT-
+  // labeled events into the target repo's .maintainability/audit/
+  // directory. Either is silent corruption of the chain provenance.
+  //
+  // Enforce the invariant: the two MUST agree. Fail-loud on
+  // mismatch with a self-explanatory reason so the workflow logs
+  // make the misconfiguration obvious.
+  const runIdIsImpl = runId.startsWith('IMPL-');
+  const phaseIsImpl = phase === 'implementation';
+  if (runIdIsImpl !== phaseIsImpl) {
+    return {
+      ok: false,
+      reason: `phase-runid-mismatch: phase=${phase} runId=${runId} — IMPL-* run ids MUST be paired with phase='implementation' and vice versa (implementation-phase audit chains live in the target repo, all other phases live in the mesh; routing is driven by runId prefix). Fix the agent's session-context env vars OR the audit-emit-event CLI input.`,
+    };
+  }
   // Defense in depth: even when internal:true, only the runtime
   // path should produce runtime kinds. (`internal:true` from CLI is
   // unreachable today — readStdin → runSkill → handler with
@@ -2686,6 +2825,11 @@ export const SKILLS: Record<string, SkillHandler> = {
   // PRD-phase pair above; reads .caterpillar/prompts/code-design/* packs.
   'self-review-code-architect': handleSelfReviewCodeArchitect,
   'self-review-code-security': handleSelfReviewCodeSecurity,
+  // Codex-r4 Bug 2 — implementation-phase analogues. The WHAT skills
+  // above read mesh state; these read .cheshire/prompts in the target
+  // repo. See makeImplReviewHandler for the rationale.
+  'self-review-impl-architect': handleSelfReviewImplArchitect,
+  'self-review-impl-security': handleSelfReviewImplSecurity,
   // D-PR1 — knowledge-code (Phase D D6). 3-mode response per A12.v1.1
   // targetCodeRepoStatus: brownfield (clone + classify), greenfield
   // (scaffolding hints, no clone), refuse (not-connected / unreachable).

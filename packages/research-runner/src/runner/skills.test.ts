@@ -2478,10 +2478,183 @@ test('Codex-r3 Bug 1: audit-verify-chain reads from TARGET repo for IMPL-* runId
   }
 });
 
-test('Codex-r3 Bug 1: REPO_PATH unset falls back to process.cwd (the workflow cd-into-repo pattern)', async () => {
-  // The implementation-agent's GitHub Actions step does `cd $REPO_PATH`
-  // before invoking the runner. In that environment the runner's cwd IS
-  // the target repo root. This test pins that fallback so a workflow that
+test('Codex-r4 Bug 2: self-review-impl-architect reads .cheshire/prompts/implementation/architect-review.md from target repo', async () => {
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    // Plant the Cheshire scaffold's pack in the target repo (mimics what
+    // the scaffold installer drops during fan-out).
+    const packPath = path.join(repo, '.cheshire', 'prompts', 'implementation', 'architect-review.md');
+    fs.mkdirSync(path.dirname(packPath), { recursive: true });
+    fs.writeFileSync(packPath, '# Architect criteria — under test\n\nChecklist body.\n', 'utf8');
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        const result = await runSkill('self-review-impl-architect', {
+          okrId: 'OKR-IMPL-R4-1',
+          runId: 'IMPL-2026-05-28-celeb-api-arch01',
+          round: 1,
+          tier: 'supervised',
+        });
+        assert.equal(result.ok, true);
+        const r = result as { persona: string; phase: string; tier: string; maxAutoRounds: number; round: number; shouldProceed: boolean; promptPack: string; promptPackPath: string; promptPackFound: boolean };
+        assert.equal(r.persona, 'impl-architect');
+        assert.equal(r.phase, 'implementation');
+        assert.equal(r.tier, 'supervised');
+        assert.equal(r.maxAutoRounds, 2);
+        assert.equal(r.round, 1);
+        assert.equal(r.shouldProceed, true);
+        assert.equal(r.promptPackFound, true);
+        assert.match(r.promptPack, /Architect criteria — under test/);
+        // Path is rooted at the TARGET REPO, not the mesh.
+        assert.ok(r.promptPackPath.startsWith(repo), `prompt path must be in target repo, got: ${r.promptPackPath}`);
+        assert.ok(!r.promptPackPath.includes(mesh), `prompt path must NOT touch mesh, got: ${r.promptPackPath}`);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r4 Bug 2: self-review-impl-* rejects non-IMPL- run id with runid-not-impl', async () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withRepoPath(repo, async () => {
+      // Passing a WHAT-* run id → fail-loud (the impl skills are for
+      // the implementation phase only; the WHAT-phase skills handle
+      // WHAT-* run ids and require mesh okr.yaml access).
+      const archResult = await runSkill('self-review-impl-architect', {
+        okrId: 'OKR-X',
+        runId: 'WHAT-2026-05-28-mesh-design-001',
+        round: 1,
+        tier: 'autonomous',
+      });
+      assert.equal(archResult.ok, false);
+      assert.match((archResult as { reason: string }).reason, /runid-not-impl/);
+      const secResult = await runSkill('self-review-impl-security', {
+        okrId: 'OKR-X',
+        runId: 'HOW-2026-05-28-prd-001',
+        round: 1,
+        tier: 'autonomous',
+      });
+      assert.equal(secResult.ok, false);
+      assert.match((secResult as { reason: string }).reason, /runid-not-impl/);
+    });
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Codex-r4 Bug 2: self-review-impl-* tier=restricted gives shouldProceed=false (mandatory human gate)', async () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withRepoPath(repo, async () => {
+      const result = await runSkill('self-review-impl-architect', {
+        okrId: 'OKR-X',
+        runId: 'IMPL-2026-05-28-celeb-api-rstr01',
+        round: 1,
+        tier: 'restricted',
+      });
+      assert.equal(result.ok, true);
+      const r = result as { tier: string; maxAutoRounds: number; shouldProceed: boolean };
+      assert.equal(r.tier, 'restricted');
+      assert.equal(r.maxAutoRounds, 0);
+      assert.equal(r.shouldProceed, false);
+    });
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Codex-r4 Bug 3: audit-emit-event rejects phase=implementation with non-IMPL- runId', async () => {
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        // phase=implementation but runId is WHAT-* — bad env pair would
+        // pre-fix have written implementation-labeled events into the
+        // mesh's WHAT directory. Post-fix the runner refuses with a
+        // self-explanatory reason.
+        const result = await runSkill('audit-emit-event', {
+          okrId: 'OKR-MISMATCH',
+          runId: 'WHAT-2026-05-28-design-001',
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'impl-architect', score: 0.9 },
+          phase: 'implementation',
+          intentThreadUuid: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+        });
+        assert.equal(result.ok, false);
+        assert.match((result as { reason: string }).reason, /phase-runid-mismatch/);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r4 Bug 3: audit-emit-event rejects IMPL- runId with phase != implementation', async () => {
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        // Inverse: IMPL-* runId but phase='what' — would pre-fix have
+        // written WHAT-labeled events into the target repo's
+        // .maintainability/audit/ directory.
+        const result = await runSkill('audit-emit-event', {
+          okrId: 'OKR-MISMATCH-2',
+          runId: 'IMPL-2026-05-28-celeb-api-abc',
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'code-architect', score: 0.9 },
+          phase: 'what',
+          intentThreadUuid: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+        });
+        assert.equal(result.ok, false);
+        assert.match((result as { reason: string }).reason, /phase-runid-mismatch/);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r4 Bug 3: well-paired (phase=implementation + IMPL-*) and (phase=what + WHAT-*) both pass the guard', async () => {
+  const mesh = tmpMesh();
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));
+  try {
+    await withMeshPath(mesh, async () => {
+      await withRepoPath(repo, async () => {
+        // Positive: phase=implementation + IMPL-* → ok.
+        const r1 = await runSkill('audit-emit-event', {
+          okrId: 'OKR-OK', runId: 'IMPL-2026-05-28-x-abc',
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'impl-architect', score: 0.9 },
+          phase: 'implementation',
+          intentThreadUuid: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+        });
+        assert.equal(r1.ok, true);
+        // Positive: phase=what + WHAT-* → ok.
+        const r2 = await runSkill('audit-emit-event', {
+          okrId: 'OKR-OK', runId: 'WHAT-2026-05-28-design-002',
+          eventKind: 'self_review',
+          payload: { round: 1, persona: 'code-architect', score: 0.9 },
+          phase: 'what',
+          intentThreadUuid: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+        });
+        assert.equal(r2.ok, true);
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('Codex-r3 Bug 1: REPO_PATH unset falls back to process.cwd (the runner-invoked-from-target-repo pattern)', async () => {
+  // Codex-r4 Bug 4 — when the runner is invoked from the target repo
+  // working directory (the implementation-agent is dispatched via
+  // custom-agent assignment, so its session cwd already IS the target
+  // repo — no workflow `cd` is involved), cwd() is correct without the
+  // REPO_PATH env var. This test pins that fallback so a session that
   // forgets to export REPO_PATH still writes to the right place.
   const mesh = tmpMesh();
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'impl-repo-'));

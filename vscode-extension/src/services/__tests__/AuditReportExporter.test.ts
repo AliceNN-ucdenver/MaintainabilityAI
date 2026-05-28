@@ -1627,6 +1627,12 @@ const FULL_CHAIN: ImplementationChainEntry = {
   // impl chain's OWN first-event hash. Hex string different from
   // parent_chain_root above so tests catch any future confusion.
   chain_root_hash: 'aa11bb22cc33dd44ee55ff66112233445566778899aabbccddeeff0011223344',
+  // Codex-r4 Bug 1 — Stage 5 stamps this onto the chain-ladder row
+  // when both target-repo audit files fetch OK at this SHA. The
+  // rollup hydrates it from chain-ladder.yaml onto the parsed PR-body
+  // chain before calling verifyImplementationChainEntry. Distinct hex
+  // from the two chain hashes above so test failures surface confusion.
+  merge_commit_sha: 'dd99ee88ff77665544332211aabbccdd99887766554433221100ffeeddccbbaa',
 };
 
 function makeChainPrBody(chain: Partial<ImplementationChainEntry> = {}): string {
@@ -1752,6 +1758,35 @@ describe('verifyImplementationChainEntry', () => {
     expect(issues.length).toBeGreaterThanOrEqual(2);
     expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'mesh_repo')).toBe(true);
     expect(issues.some(i => i.kind === 'cross-repo-chain-root-mismatch')).toBe(true);
+  });
+
+  it('Codex-r4 Bug 1: merge_commit_sha is required (the evidence-fetched-at-this-sha provenance)', () => {
+    // Pre-fix, the rollup PASSed on a PR-body claim alone: the agent
+    // declared event_log_path + key_path in frontmatter, the rollup
+    // trusted the strings, and the rollup verdict was clean. Post-fix
+    // Stage 5 must actually fetch both files at pr.merge_commit_sha
+    // and stamp that SHA onto the chain-ladder row; the rollup hydrates
+    // it onto the parsed entry; the verifier requires it.
+    // Empty merge_commit_sha → evidence-missing FAIL.
+    const noSha: ImplementationChainEntry = { ...FULL_CHAIN, merge_commit_sha: '' };
+    const issues = verifyImplementationChainEntry(noSha, FULL_CHAIN.parent_intent_thread, FULL_CHAIN.parent_chain_root);
+    expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'merge_commit_sha')).toBe(true);
+    // PR-body parser DOES NOT carry merge_commit_sha (the agent can't
+    // know its own merge SHA at write time — makeChainPrBody doesn't
+    // emit the field for that reason). The rollup hydrates it from
+    // chain-ladder.yaml before calling verifyImplementationChainEntry.
+    // A parsed-from-PR-body entry without hydration would FAIL the
+    // verifier, which is the intended behavior: if Stage 5 never
+    // verified the evidence at the merge SHA, the rollup MUST NOT pass.
+    const parsedFromPrBody = parseImplementationChainBlock(makeChainPrBody());
+    expect(parsedFromPrBody).not.toBeNull();
+    expect(parsedFromPrBody!.merge_commit_sha).toBe(''); // parser yields empty when absent
+    const unhydratedIssues = verifyImplementationChainEntry(parsedFromPrBody, FULL_CHAIN.parent_intent_thread, FULL_CHAIN.parent_chain_root);
+    expect(unhydratedIssues.some(i => i.kind === 'evidence-missing' && i.field === 'merge_commit_sha')).toBe(true);
+    // After Stage 5 hydration (production flow), the verifier passes.
+    const hydrated: ImplementationChainEntry = { ...(parsedFromPrBody as ImplementationChainEntry), merge_commit_sha: FULL_CHAIN.merge_commit_sha };
+    const hydratedIssues = verifyImplementationChainEntry(hydrated, FULL_CHAIN.parent_intent_thread, FULL_CHAIN.parent_chain_root);
+    expect(hydratedIssues).toEqual([]);
   });
 
   it('Codex-r2 Bug 2: chain_root_hash is a required field distinct from parent_chain_root', () => {

@@ -157,6 +157,21 @@ export interface ChainLadderImplRow {
   event_log_path: string;
   key_path: string;
   merged_at: string;
+  /**
+   * Codex-r4 Bug 1 — the exact commit SHA at which Stage 5 verified
+   * the target-repo evidence files (`event_log_path` + `key_path`)
+   * existed. Stored as provenance so the rollup verifier can re-check
+   * the files at the SAME SHA (rather than the moving HEAD) — a force-
+   * push to the impl branch's merge commit would invalidate the
+   * rollup if we trusted "latest HEAD".
+   *
+   * Stage 5 ONLY writes this row when both files fetched OK at this
+   * SHA. A null/missing merge_commit_sha at rollup-read time means
+   * the chain row was hand-written or the writer's evidence-fetch step
+   * was bypassed — verifyImplementationChainEntry flags it as
+   * `evidence-missing:merge_commit_sha`.
+   */
+  merge_commit_sha: string;
 }
 
 export function appendChainLadderImplRow(meshPath: string, okrId: string, row: ChainLadderImplRow): void {
@@ -196,6 +211,11 @@ export function appendChainLadderImplRow(meshPath: string, okrId: string, row: C
     parent_chain_root: row.parent_chain_root,
     event_log_path: row.event_log_path,
     key_path: row.key_path,
+    // Codex-r4 Bug 1 — provenance the rollup uses to re-verify the
+    // target-repo evidence at the EXACT sha Stage 5 verified. Without
+    // this the rollup would have to trust HEAD, which a force-push
+    // could mutate after-the-fact.
+    merge_commit_sha: row.merge_commit_sha,
     merged_at: row.merged_at,
   };
   if (existingIdx >= 0) {

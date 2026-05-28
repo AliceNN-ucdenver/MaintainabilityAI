@@ -23,7 +23,11 @@ export interface RctroPrompt {
 
 export type PackDomain = 'rabbit-hole' | 'looking-glass';
 
-export type PackCategory = 'owasp' | 'maintainability' | 'threat-modeling' | 'governance';
+// Codex-r4 Bug 2 — `implementation` is the Cheshire-side category for
+// the impl-phase self-review packs (architect-review.md + security-review.md
+// read by the new self-review-impl-* runner skills). Installed into the
+// target repo at `.cheshire/prompts/implementation/` on first fan-out.
+export type PackCategory = 'owasp' | 'maintainability' | 'threat-modeling' | 'governance' | 'implementation';
 
 export interface PromptPackSelection {
   owasp: string[];           // e.g., ["A03_injection", "A04_insecure_design"]

@@ -83,7 +83,7 @@ Wraps `packages/research-runner/src/runner/audit-emitter.ts`. The on-disk envelo
 | `IMPL-*` (implementation phase — runs INSIDE the target repo) | `$REPO_PATH/.maintainability/audit/events/<runId>.jsonl` | `$REPO_PATH/.maintainability/audit/keys/` |
 | Everything else (`RES-*`, `PRD-*`, `WHAT-*`, etc.) | `$MESH_PATH/okrs/<okrId>/audit/events/<runId>.jsonl` | `$MESH_PATH/okrs/<okrId>/audit/keys/` |
 
-`$REPO_PATH` defaults to `process.cwd()` so a workflow that does `cd $REPO_PATH` before invoking the runner doesn't need to export the env var (the implementation-agent's GitHub Actions step does exactly that). `$MESH_PATH` defaults to `process.cwd()` too — different default, same fallback rule.
+`$REPO_PATH` defaults to `process.cwd()` so when the runner is invoked from the target repo's working directory the env var is optional (the implementation-agent is dispatched via custom-agent assignment, so its session cwd already IS the target repo — no workflow `cd` step is involved). The env var is the explicit override for tests + alternate harnesses where the runner isn't already rooted at the target repo. `$MESH_PATH` defaults to `process.cwd()` too — different default, same fallback rule.
 
 `audit-verify-chain` uses the same prefix-based resolver so the writer and verifier always land in the same place. Symmetry is mandatory — a mismatch would either write evidence to one place and verify from another (false negative) or refuse to verify a legitimate chain (false positive).
 

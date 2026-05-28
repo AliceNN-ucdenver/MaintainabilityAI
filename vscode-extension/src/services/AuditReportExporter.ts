@@ -1299,6 +1299,19 @@ export interface ImplementationChainEntry {
    * actual JSONL in the target repo at the merge SHA.
    */
   chain_root_hash: string;
+  /**
+   * Codex-r4 Bug 1 — provenance of the Stage 5 evidence verification.
+   * Stage 5 fetches `event_log_path` + `key_path` from the target repo
+   * AT THIS SHA via GitHub Contents API; the ladder row is ONLY
+   * written when both fetches succeed. Stored here as part of the row
+   * the rollup verifier reads. NOT present in the PR-body
+   * `implementation_chain:` frontmatter (the agent doesn't know its
+   * own merge SHA at write time) — Stage 5 stamps it from
+   * pr.data.merge_commit_sha. Missing/empty at rollup-read time
+   * means the row predates Codex-r4 OR was hand-written; the rollup
+   * surfaces this as `evidence-missing:merge_commit_sha`.
+   */
+  merge_commit_sha: string;
 }
 
 /**
@@ -1377,6 +1390,14 @@ export function parseImplementationChainBlock(prBody: string | null | undefined)
     parent_intent_thread: typeof rec.parent_intent_thread === 'string' ? rec.parent_intent_thread : '',
     parent_chain_root: typeof rec.parent_chain_root === 'string' ? rec.parent_chain_root : '',
     chain_root_hash: typeof rec.chain_root_hash === 'string' ? rec.chain_root_hash : '',
+    // Codex-r4 Bug 1 — merge_commit_sha is NOT in the PR-body frontmatter
+    // (the agent can't know its own merge SHA at write time). Stage 5
+    // stamps it onto the chain-ladder row; the rollup reads it from
+    // there. Parsing the PR body returns '' here, which
+    // verifyImplementationChainEntry would flag — but the rollup pipeline
+    // hydrates this value from the chain-ladder row before calling the
+    // verifier (see LookingGlassPanel.onExportOkrRollup).
+    merge_commit_sha: typeof rec.merge_commit_sha === 'string' ? rec.merge_commit_sha : '',
   };
 }
 
@@ -1405,10 +1426,15 @@ export function verifyImplementationChainEntry(
   // Codex-r2 Bug 2 — chain_root_hash (the impl chain's own first-event
   // hash) is required alongside parent_chain_root (the WHAT parent
   // root). Two distinct values, both must be present.
+  // Codex-r4 Bug 1 — merge_commit_sha is the proof Stage 5 actually
+  // fetched the target-repo audit files and confirmed they existed at
+  // that SHA. Without this the rollup would PASS on a PR-body claim
+  // with no on-disk evidence whatsoever.
   const required: Array<keyof ImplementationChainEntry> = [
     'okr_id', 'parent_phase', 'parent_run_id', 'implementation_run_id',
     'mesh_repo', 'target_repo', 'event_log_path', 'key_path',
     'parent_intent_thread', 'parent_chain_root', 'chain_root_hash',
+    'merge_commit_sha',
   ];
   for (const f of required) {
     if (!entry[f] || entry[f].trim() === '') {
