@@ -1352,6 +1352,54 @@ describe('Bug-VV: WHAT workflow hardening after second cert-run', () => {
     expect(workflowContent).toContain('Bug-WW-1');
   });
 
+  it('Bug-XX-1 (BLOCKING): brownfield path-citation gate heredoc imports yaml', () => {
+    // Codex r-after-WW caught this: the WW-2 fix calls yaml.safe_load
+    // inside the path-gate heredoc, but the heredoc imports only
+    // `json, os, re`. Because the call is wrapped in try/except, the
+    // NameError silently swallows; fm_parsed = None; cited_paths /
+    // new_paths never parse — the runtime behavior is exactly what
+    // WW-2 was supposed to fix.
+    //
+    // Pin the import. A future heredoc cleanup that prunes "unused"
+    // imports must NOT drop `yaml`.
+    const gateStart = workflowContent.indexOf('Brownfield path-citation gate');
+    expect(gateStart, 'Brownfield path-citation gate step missing').toBeGreaterThan(-1);
+    // Scope to the path-gate heredoc body. The opener is `<<'PYEOF'`
+    // and the closer is `PYEOF` on its own line; find the OPENER first,
+    // then slice from after it to the next standalone `PYEOF` (the
+    // closer). Naive indexOf('PYEOF') would match the opener.
+    const fromGate = workflowContent.slice(gateStart);
+    const opener = fromGate.indexOf("<<'PYEOF'");
+    expect(opener, 'path-gate heredoc opener not found').toBeGreaterThan(-1);
+    const bodyStart = opener + "<<'PYEOF'".length;
+    const closer = fromGate.indexOf('PYEOF', bodyStart);
+    const heredocBody = fromGate.slice(bodyStart, closer > 0 ? closer : fromGate.length);
+
+    // Must import yaml AND use it (sanity that the import isn't dead).
+    expect(heredocBody).toMatch(/import\s+[^\n]*\byaml\b/);
+    expect(heredocBody).toContain('yaml.safe_load(fm_text)');
+    expect(workflowContent).toContain('Bug-XX-1');
+  });
+
+  it('Bug-XX-2 (MINOR): audit-comment step CHAIN_REASON also passes through env: (mirrors WW-1)', () => {
+    // Same class as WW-1: REASON="...: ${{ steps.chain.outputs.reason }}"
+    // inside double quotes lets bash evaluate any backticks in the
+    // substituted text. Move into env: + read as $CHAIN_REASON.
+    const fromStep = workflowContent.split('Post / upsert audit comment')[1] ?? '';
+    const auditStep = fromStep.split(/\n {2,6}# ════/)[0] ?? fromStep;
+    // env: declares CHAIN_REASON alongside MODE_HONESTY_FINDINGS.
+    expect(auditStep).toContain('CHAIN_REASON:');
+    expect(auditStep).toMatch(/CHAIN_REASON:\s*\$\{\{\s*steps\.chain\.outputs\.reason\s*\}\}/);
+    // The REASON= assignment reads from $CHAIN_REASON, not the inlined
+    // GHA expression.
+    expect(auditStep).toContain('$CHAIN_REASON');
+    // Negative: the broken pattern must NOT come back.
+    expect(auditStep).not.toMatch(
+      /REASON="Audit chain verification failed:\s*\$\{\{\s*steps\.chain\.outputs\.reason\s*\}\}"/,
+    );
+    expect(workflowContent).toContain('Bug-XX-2');
+  });
+
   it('Bug-WW-2: path-list normalizer accepts both YAML list AND comma-string shapes (sanity on the parsing contract)', () => {
     // Sanity-check the normalize_paths helper handles the three
     // documented input shapes:

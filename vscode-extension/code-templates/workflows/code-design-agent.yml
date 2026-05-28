@@ -725,7 +725,15 @@ jobs:
           DOC: okrs/${{ steps.ctx.outputs.okr_id }}/what/code-design.md
         run: |
           JSONL="$JSONL" DOC="$DOC" python3 <<'PYEOF'
-          import json, os, re
+          # Bug-XX-1 — `yaml` MUST be in the imports because the
+          # Bug-WW-2 fix below calls yaml.safe_load(fm_text) inside a
+          # try/except. Without this import, the call NameErrors and
+          # gets silently swallowed, fm_parsed stays None, and cited_paths
+          # / new_paths never parse — re-introducing the exact runtime
+          # behavior Bug-WW-2 was supposed to fix. The test at
+          # phaseSpec.test.ts "Bug-XX-1: path-gate heredoc imports yaml"
+          # catches removal.
+          import json, os, re, yaml
           doc = open(os.environ['DOC'], 'r', encoding='utf-8').read()
           jsonl = os.environ['JSONL']
 
@@ -1783,18 +1791,20 @@ jobs:
       - name: Post / upsert audit comment
         if: steps.gate.outputs.skip != 'true'
         env:
-          # Bug-VV-3 — findings reach the shell via an env var, NOT via
-          # an inlined ${{ ... }} expression inside double quotes. The
-          # findings text routinely contains backticks (e.g. "repo
-          # `owner/name` has no per-repo subsection frontmatter"), and
-          # inlining via "${{ }}" lets bash evaluate the backticks as
-          # command substitution — the cert-run failure showed up as
+          # Bug-VV-3 + Bug-XX-2 — findings AND chain reason reach the
+          # shell via env vars, NOT via inlined ${{ ... }} expressions
+          # inside double quotes. The findings text routinely contains
+          # backticks (e.g. "repo `owner/name` has no per-repo subsection
+          # frontmatter"), and chain reasons can carry backticked event
+          # ids; inlining via "${{ }}" lets bash evaluate the backticks
+          # as command substitution — the cert-run failure showed up as
           # `line 187: AliceNN-ucdenver/imdb-react-frontend: No such
           # file or directory`. An env-var pass-through expands `$VAR`
           # at execution time; bash does NOT re-evaluate the expanded
           # content for command substitution. Mirror this pattern for
           # any future output that might contain backticks.
           MODE_HONESTY_FINDINGS: ${{ steps.mode_honesty.outputs.findings }}
+          CHAIN_REASON: ${{ steps.chain.outputs.reason }}
         run: |
           # P1 (Bug-P): consume the SAME verdict the label step consumed.
           # Previously this step re-derived STRUCT_OK + MANIFEST_OK inline,
@@ -1832,8 +1842,14 @@ jobs:
             VERDICT="degraded"
             REASON="Structural correctness: $STRUCT_REASON"
           else
+            # Bug-XX-2 — read from env: CHAIN_REASON (declared on this
+            # step's env: block alongside MODE_HONESTY_FINDINGS, mirrors
+            # the WW-1 fix to the label step). Chain reasons routinely
+            # carry backticks around event ids and run ids; an inlined
+            # ${{ ... }} expression inside double quotes lets bash
+            # evaluate them as command substitution.
             VERDICT="degraded"
-            REASON="Audit chain verification failed: ${{ steps.chain.outputs.reason }}"
+            REASON="Audit chain verification failed: $CHAIN_REASON"
           fi
 
           BODY=/tmp/audit-body.md
