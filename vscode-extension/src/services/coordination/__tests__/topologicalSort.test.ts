@@ -85,6 +85,46 @@ describe('verifyCoordination — failure mode 1: coordination-missing-repo', () 
   });
 });
 
+describe('verifyCoordination — Codex-r2 Bug 5: coordination-extra-repo', () => {
+  it('fails when a coordination row references a non-target slug', () => {
+    // Pre-fix: extras were silently allowed + a target could depend on
+    // them, leaving Stage 5 polls perpetually pending-on-upstream
+    // because the engine never polls non-target repos.
+    const doc: CoordinationDoc = {
+      coordination: [
+        row({ repo: 'a', fanout_wave: 1 }),
+        row({ repo: 'extra-ghost', fanout_wave: 1 }), // not in targetCodeRepos[]
+      ],
+    };
+    const result = verifyCoordination(doc, ['a']);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('coordination-extra-repo:extra-ghost');
+  });
+
+  it('passes when every coordination row matches a target (no extras)', () => {
+    const doc: CoordinationDoc = {
+      coordination: [
+        row({ repo: 'a', fanout_wave: 1 }),
+        row({ repo: 'b', fanout_wave: 1 }),
+      ],
+    };
+    const result = verifyCoordination(doc, ['a', 'b']);
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when targetRepos is empty (single-repo OKR fallback)', () => {
+    // Empty targetRepos = caller hasn't declared any targets, so the
+    // extra-repo check is skipped (matches the workflow's behavior
+    // for single-repo OKRs / pre-Tier-2 samples).
+    const doc: CoordinationDoc = {
+      coordination: [row({ repo: 'any-slug', fanout_wave: 1 })],
+    };
+    const result = verifyCoordination(doc, []);
+    expect(result.ok).toBe(true);
+  });
+});
+
 describe('verifyCoordination — failure mode 2: coordination-unknown-dep', () => {
   it('fails when depends_on references a non-coordination slug', () => {
     const doc: CoordinationDoc = {

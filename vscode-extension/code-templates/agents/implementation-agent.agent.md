@@ -92,10 +92,15 @@ implementation_chain:
   key_path: .maintainability/audit/keys/IMPL-<...>.epoch-1.pub.pem
   parent_intent_thread: <OKR's master intent_thread_uuid from the landing issue context>
   parent_chain_root: <WHAT phase's chain_root_hash from the landing issue context>
+  chain_root_hash: <YOUR implementation chain's first-event hash (event_id=1 in your <run-id>.jsonl)>
 ---
 ```
 
 All field values are required. Missing any field → PR check `chain-integrity-failed` (when the opt-in provenance workflow is installed).
+
+**`chain_root_hash` vs `parent_chain_root`:** these are TWO DIFFERENT hashes.
+- `parent_chain_root` is the WHAT phase's chain root from the mesh — you copy it verbatim from the landing issue.
+- `chain_root_hash` is YOUR chain's root — the SHA-256 hash of event 1 in `.maintainability/audit/events/<run-id>.jsonl` (the `self_review` event you emitted in round 1 from the Architect persona). Compute it AFTER the persona-switch loop completes, BEFORE writing the PR body. Stage 5 records this value in the mesh's `chain-ladder.yaml` so the rollup + T3-2 runner verifier can cross-check the file at the merge SHA. **Do not reuse `parent_chain_root` as `chain_root_hash` — that breaks the impl-side provenance story.**
 
 ### `implementation_run_id` format
 

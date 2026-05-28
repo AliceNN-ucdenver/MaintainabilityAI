@@ -23,6 +23,7 @@ import type {
 import { SECRETS, RESEARCH_SECRET_IDS, detectGovernanceRepo } from '../services/SecretsService';
 import { testResearchKey } from '../services/ResearchKeyTester';
 import { MeshService } from '../services/MeshService';
+import type { ChainLadderImplRow } from '../services/coordination/designFanOutFile';
 import { BarService } from '../services/BarService';
 import { GovernanceScorer } from '../services/GovernanceScorer';
 import { GitHubService, githubService } from '../services/GitHubService';
@@ -1573,6 +1574,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const nowIso = new Date().toISOString();
     let anyChanged = false;
     const updatedRows = [...prior.rows];
+    // Codex-r2 Bug 3 — buffer chain-ladder impl rows during the poll's
+    // GitHub-side discovery phase; apply only AFTER MeshBranchGuard
+    // passes. Pre-fix, appendChainLadderImplRow wrote inside the loop,
+    // which meant a poll on a dirty/wrong-branch mesh would still
+    // mutate chain-ladder.yaml locally before the guard's
+    // skip-and-log bailed.
+    const pendingChainLadderRows: ChainLadderImplRow[] = [];
 
     for (let i = 0; i < updatedRows.length; i++) {
       const row = updatedRows[i];
@@ -1605,46 +1613,39 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         };
         anyChanged = true;
 
-        // Codex-r1 Bug F — on pr-merged transition, append a row to
-        // chain-ladder.yaml so the rollup exporter has the impl-side
-        // ground truth (implementation_run_id + chain_root_hash +
-        // parent_intent_thread + parent_chain_root + paths). Best
-        // effort: fetch the impl PR body, parse the
-        // implementation_chain YAML frontmatter block, write the row.
-        // Failures here don't block the poll's design-fan-out update --
-        // they just leave the chain-ladder impl row missing for the
-        // next poll to populate.
-        // row.status was already filtered to opened/pr-opened by the
-        // candidates loop above, so newStatus === 'pr-merged' here is
-        // by definition a transition into merged.
+        // Codex-r1 Bug F + Codex-r2 Bug 1 + 2 — on pr-merged transition,
+        // queue a chain-ladder impl row. Fetch the IMPL PR (not the
+        // landing issue) via observed.number; read its body's
+        // implementation_chain block; queue an append using the agent's
+        // own chain_root_hash (NOT parent_chain_root -- those are
+        // different hashes per D-PR7 storage contract). Actual write
+        // happens after MeshBranchGuard passes.
         if (newStatus === 'pr-merged') {
           try {
             const client = await this.githubService.getClient();
-            const pr = await client.rest.pulls.get({ owner, repo, pull_number: parseInt(issueNum, 10) });
+            const pr = await client.rest.pulls.get({ owner, repo, pull_number: observed.number });
             const implChain = parseImplementationChainBlock(pr.data.body ?? null);
-            if (implChain && implChain.implementation_run_id && implChain.parent_chain_root) {
-              // chain_root_hash on the impl row = the impl-side chain's
-              // first-event hash. Per D-PR7 storage contract this lives
-              // in the .maintainability/audit/events/<run-id>.jsonl file
-              // INSIDE the target repo at the merge commit. We don't
-              // fetch + verify that here (T3-2 runner extension does);
-              // we record the value the impl agent claimed via the
-              // PR body's continuation block. The chain-ladder row
-              // documents the claim; verification is a separate axis.
-              this.meshService.appendChainLadderImplRow(meshPath, okrId, {
+            if (implChain && implChain.implementation_run_id && implChain.chain_root_hash && implChain.parent_chain_root) {
+              pendingChainLadderRows.push({
                 repo: row.repo,
                 pr_url: observed.url,
                 implementation_run_id: implChain.implementation_run_id,
-                chain_root_hash: implChain.parent_chain_root, // claim per PR body; T3-2 verifies
+                chain_root_hash: implChain.chain_root_hash, // Codex-r2 Bug 2 — agent's own root, not parent
                 parent_intent_thread: implChain.parent_intent_thread,
                 parent_chain_root: implChain.parent_chain_root,
                 event_log_path: implChain.event_log_path,
                 key_path: implChain.key_path,
                 merged_at: pr.data.merged_at ?? nowIso,
               });
+            } else if (implChain) {
+              // PR body had a chain block but it's missing chain_root_hash
+              // OR parent_chain_root. Log + skip the chain-ladder append.
+              // The design-fan-out row still updates to pr-merged so the
+              // rollup surfaces evidence-missing for this slug.
+              logger.warn(`pollFanOutPRs(${okrId}): impl PR for ${row.repo} has implementation_chain block but missing required fields (chain_root_hash=${implChain.chain_root_hash ? 'ok' : 'MISSING'}, parent_chain_root=${implChain.parent_chain_root ? 'ok' : 'MISSING'}). Skipping chain-ladder row.`);
             }
           } catch (err) {
-            logger.warn(`pollFanOutPRs(${okrId}): chain-ladder impl-row append failed for ${row.repo}: ${toErrorMessage(err)}`);
+            logger.warn(`pollFanOutPRs(${okrId}): chain-ladder impl-row queue failed for ${row.repo}: ${toErrorMessage(err)}`);
           }
         }
       } catch {
@@ -1664,7 +1665,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const guard = await checkMeshBranchGuard(gitRoot);
       if (!guard.ok) {
         // Don't write -- log + bail. Pane shows stale-but-honest state.
-        logger.warn(`pollFanOutPRs(${okrId}): MeshBranchGuard refused (${guard.kind === 'git-error' ? guard.error : guard.kind}). Skipping write.`);
+        // pendingChainLadderRows are discarded; next poll re-queues them.
+        logger.warn(`pollFanOutPRs(${okrId}): MeshBranchGuard refused (${guard.kind === 'git-error' ? guard.error : guard.kind}). Skipping write (${pendingChainLadderRows.length} chain-ladder rows discarded; next poll will re-queue).`);
         return;
       }
     }
@@ -1674,6 +1676,16 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       okrId,
       rows: updatedRows.sort((a, b) => a.repo.localeCompare(b.repo)),
     });
+    // Codex-r2 Bug 3 — apply buffered chain-ladder rows only AFTER
+    // guard passes + design-fan-out.yaml writes. Each row is upsert by
+    // implementation_run_id (idempotent on re-call).
+    for (const implRow of pendingChainLadderRows) {
+      try {
+        this.meshService.appendChainLadderImplRow(meshPath, okrId, implRow);
+      } catch (err) {
+        logger.warn(`pollFanOutPRs(${okrId}): chain-ladder append failed for ${implRow.repo}: ${toErrorMessage(err)}`);
+      }
+    }
 
     const changedCount = updatedRows.filter((r, i) => prior.rows[i] && (r.status !== prior.rows[i].status || r.implPrUrl !== prior.rows[i].implPrUrl)).length;
     const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated)\n\nStage 5 auto-poll detected impl PR state changes.`;
@@ -8769,7 +8781,7 @@ function composeFanOutLandingIssueBody(args: {
 
   lines.push(`## What you should do`);
   lines.push('');
-  lines.push(`1. Read the per-repo extract for \`${args.repoSlug}\` in the source artifact linked above (§5 in code-design.md).`);
+  lines.push(`1. Read the per-repo extract for \`${args.repoSlug}\` in the source artifact linked above (\`## 1. Project Structure\` in code-design.md).`);
   lines.push(`2. Plan the implementation slice that satisfies your provided contracts.`);
   lines.push(`3. Run Tweedles persona-switch self-critique (Architect + Security) per the implementation-agent prompt pack.`);
   lines.push(`4. Open a PR with a Hatter Tag continuation block linking back to OKR \`${args.okrId}\`'s WHAT chain root.`);

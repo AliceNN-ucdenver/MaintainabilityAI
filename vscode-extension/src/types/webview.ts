@@ -519,8 +519,10 @@ export type LookingGlassWebviewMessage =
    * cross-cutting `oraculum-design` issue in the mesh repo per §10.2
    * step 14. The code-design-agent writes a single design.md doc
    * grounded on the merged PRD + indexed target_code_repos. After
-   * THAT PR merges, `design-bus.yml` fans out per-repo issues to each
-   * target code repo.
+   * THAT PR merges, the Looking Glass app-orchestrated FanOutEngine
+   * (D-PR4 sub-PRs 3a/3b) fans out per-repo issues to each target
+   * code repo. (The original design-bus.yml workflow was replaced by
+   * the in-extension orchestrator — see `services/coordination/`.)
    */
   | { type: 'startOkrWhat'; okrId: string }
   /**

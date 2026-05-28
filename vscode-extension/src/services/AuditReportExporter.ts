@@ -1289,6 +1289,16 @@ export interface ImplementationChainEntry {
   key_path: string;
   parent_intent_thread: string;
   parent_chain_root: string;
+  /**
+   * Codex-r2 Bug 2 — the impl chain's OWN first-event hash (event_id=1
+   * in `.maintainability/audit/events/<run-id>.jsonl`). Distinct from
+   * `parent_chain_root` (which is the WHAT phase's chain root from
+   * chain-ladder.yaml). Required: stage 5 records this as the impl
+   * row's `chain_root_hash` in chain-ladder so the rollup + the T3-2
+   * runner verifier can cross-check the agent's claim against the
+   * actual JSONL in the target repo at the merge SHA.
+   */
+  chain_root_hash: string;
 }
 
 /**
@@ -1366,6 +1376,7 @@ export function parseImplementationChainBlock(prBody: string | null | undefined)
     target_repo: typeof rec.target_repo === 'string' ? rec.target_repo : '',
     parent_intent_thread: typeof rec.parent_intent_thread === 'string' ? rec.parent_intent_thread : '',
     parent_chain_root: typeof rec.parent_chain_root === 'string' ? rec.parent_chain_root : '',
+    chain_root_hash: typeof rec.chain_root_hash === 'string' ? rec.chain_root_hash : '',
   };
 }
 
@@ -1391,10 +1402,13 @@ export function verifyImplementationChainEntry(
     return issues;
   }
   // Required fields: every field on the entry must be non-empty.
+  // Codex-r2 Bug 2 — chain_root_hash (the impl chain's own first-event
+  // hash) is required alongside parent_chain_root (the WHAT parent
+  // root). Two distinct values, both must be present.
   const required: Array<keyof ImplementationChainEntry> = [
     'okr_id', 'parent_phase', 'parent_run_id', 'implementation_run_id',
     'mesh_repo', 'target_repo', 'event_log_path', 'key_path',
-    'parent_intent_thread', 'parent_chain_root',
+    'parent_intent_thread', 'parent_chain_root', 'chain_root_hash',
   ];
   for (const f of required) {
     if (!entry[f] || entry[f].trim() === '') {

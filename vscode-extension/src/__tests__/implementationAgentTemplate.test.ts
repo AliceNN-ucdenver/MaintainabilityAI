@@ -100,6 +100,12 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toContain('key_path:');
     expect(body).toContain('parent_intent_thread:');
     expect(body).toContain('parent_chain_root:');
+    // Codex-r2 Bug 2 — chain_root_hash is REQUIRED and distinct from
+    // parent_chain_root. Template must explicitly call out the
+    // distinction so future agents don't conflate them.
+    expect(body).toContain('chain_root_hash:');
+    expect(body).toMatch(/chain_root_hash.{0,50}vs.{0,50}parent_chain_root|TWO DIFFERENT hashes/);
+    expect(body).toMatch(/Do not reuse `parent_chain_root`/i);
   });
 
   it('declares the implementation chain storage paths', () => {

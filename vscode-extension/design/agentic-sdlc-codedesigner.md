@@ -2,6 +2,8 @@
 
 **Companion to [`agentic-sdlc.md`](agentic-sdlc.md)** · last reviewed 2026-05-21
 
+> **Doc-level supersession (Codex-r2 Bug 6 — Tier 2 cleanup).** Every mention of `design-bus.yml` below describes the *original* planned workflow shape for per-repo fan-out. **D-PR4 shipped a different model**: the Looking Glass panel itself orchestrates fan-out via `src/services/coordination/fanOutEngine.ts` + `LookingGlassPanel.onFanOutPreflight` / `onFanOut` (user clicks "Fan out N of M ready" after pre-flight; the engine opens landing issues via the GitHub API and dispatches the per-repo `implementation-agent` via `assignCustomCopilotAgent`). There is no `design-bus.yml` workflow on disk. The full supersession note lives at §D9 (line ~212); the canonical Tier 2 spec lives in [`next-acts-tier-2-and-3.md`](next-acts-tier-2-and-3.md) D-PR4. The data shapes (landing-issue body template, `design-fan-out.yaml` row shape, cross-repo Hatter Tag continuation contract) remain canonical — they're now produced by the app engine instead of a workflow.
+
 This document is the deep-dive on the **third and last Looking-Glass-side agent** — `code-design-agent`. It owns the WHAT phase: turning an approved PRD into a single cross-cutting code design grounded on the **actual code** in every impacted repo, then handing off to the per-repo coding agents (Red Queen territory).
 
 For cross-cutting concerns (audit chain, OKR card, orchestration), read [`agentic-sdlc.md`](agentic-sdlc.md). For the other two agents, see [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) (WHY) and [`agentic-sdlc-prd.md`](agentic-sdlc-prd.md) (HOW). Future capabilities live in [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md).

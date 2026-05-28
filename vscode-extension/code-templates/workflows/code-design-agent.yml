@@ -575,6 +575,17 @@ jobs:
               if target not in slugs_in_coord:
                   emit(False, f"coordination-missing-repo:{target}")
 
+          # Codex-r2 Bug 5 — reject extra coordination rows whose
+          # repo: is not a target. Matches the TS verifier in
+          # services/coordination/topologicalSort.ts so workflow +
+          # panel agree bit-for-bit. Without this, a target could
+          # depend_on a non-target row that Stage 5 never polls,
+          # leaving the dependent permanently pending-on-upstream.
+          if target_repos:
+              for slug in slugs_in_coord:
+                  if slug not in target_repos:
+                      emit(False, f"coordination-extra-repo:{slug}")
+
           # Detect duplicates (also a missing-repo class violation).
           seen = set()
           for slug in slugs_in_coord:

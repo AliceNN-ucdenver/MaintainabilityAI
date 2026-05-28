@@ -64,10 +64,24 @@ export function verifyCoordination(
     }
   }
 
+  // Codex-r2 Bug 5 — extra non-target rows are rejected. Pre-fix the
+  // verifier allowed coordination rows whose `repo:` wasn't in
+  // targetCodeRepos[], and a target could legally depend_on one of
+  // those extras. Stage 5 only polls target repos, so the dependent
+  // would stay permanently pending-on-upstream waiting for a row
+  // the engine never advances. Tightened: every coordination row's
+  // `repo:` must match a target.
+  if (targetSet.size > 0) {
+    for (const slug of slugToRow.keys()) {
+      if (!targetSet.has(slug)) {
+        return { ok: false, reason: `coordination-extra-repo:${slug}` };
+      }
+    }
+  }
+
   // Rule 2 — depends_on can only reference another target repo.
-  // (The coordination block is allowed to include repos that aren't
-  // in targetCodeRepos[] — though that's unusual. depends_on however
-  // can only reference other slugs in the coordination block.)
+  // (After the Rule-1.5 tightening above, slugToRow only contains
+  // target slugs, so an unknown dep is by definition not a target.)
   for (const [slug, row] of slugToRow) {
     for (const dep of row.depends_on) {
       if (!slugToRow.has(dep)) {

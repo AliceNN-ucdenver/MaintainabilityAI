@@ -1623,6 +1623,10 @@ const FULL_CHAIN: ImplementationChainEntry = {
   key_path: '.maintainability/audit/keys/IMPL-2026-06-15-celeb-api-x7n2qk.epoch-1.pub.pem',
   parent_intent_thread: '2e28b567-ab8a-4ad0-a29d-632673f412a9',
   parent_chain_root: '87edfc98924d2956abcdef0123456789012345678901234567890abcdef012345',
+  // Codex-r2 Bug 2 — distinct from parent_chain_root: this is the
+  // impl chain's OWN first-event hash. Hex string different from
+  // parent_chain_root above so tests catch any future confusion.
+  chain_root_hash: 'aa11bb22cc33dd44ee55ff66112233445566778899aabbccddeeff0011223344',
 };
 
 function makeChainPrBody(chain: Partial<ImplementationChainEntry> = {}): string {
@@ -1640,6 +1644,7 @@ function makeChainPrBody(chain: Partial<ImplementationChainEntry> = {}): string 
     `  key_path: ${merged.key_path}`,
     `  parent_intent_thread: ${merged.parent_intent_thread}`,
     `  parent_chain_root: ${merged.parent_chain_root}`,
+    `  chain_root_hash: ${merged.chain_root_hash}`,
     '---',
     '',
     'Implements the celeb-api slice for OKR-2026Q3-IMDB-002.',
@@ -1747,6 +1752,25 @@ describe('verifyImplementationChainEntry', () => {
     expect(issues.length).toBeGreaterThanOrEqual(2);
     expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'mesh_repo')).toBe(true);
     expect(issues.some(i => i.kind === 'cross-repo-chain-root-mismatch')).toBe(true);
+  });
+
+  it('Codex-r2 Bug 2: chain_root_hash is a required field distinct from parent_chain_root', () => {
+    // FULL_CHAIN explicitly sets chain_root_hash to a DIFFERENT hex
+    // string than parent_chain_root -- this test pins that they aren't
+    // accidentally aliased in the type or parser.
+    expect(FULL_CHAIN.chain_root_hash).not.toBe(FULL_CHAIN.parent_chain_root);
+
+    // Missing chain_root_hash → evidence-missing.
+    const missingRoot: ImplementationChainEntry = { ...FULL_CHAIN, chain_root_hash: '' };
+    const issues = verifyImplementationChainEntry(missingRoot, FULL_CHAIN.parent_intent_thread, FULL_CHAIN.parent_chain_root);
+    expect(issues.some(i => i.kind === 'evidence-missing' && i.field === 'chain_root_hash')).toBe(true);
+
+    // Parser also round-trips both distinct values.
+    const body = makeChainPrBody();
+    const parsed = parseImplementationChainBlock(body);
+    expect(parsed?.chain_root_hash).toBe(FULL_CHAIN.chain_root_hash);
+    expect(parsed?.parent_chain_root).toBe(FULL_CHAIN.parent_chain_root);
+    expect(parsed?.chain_root_hash).not.toBe(parsed?.parent_chain_root);
   });
 });
 

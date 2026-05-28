@@ -86,6 +86,13 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
+  // Codex-r2 Bug 5 — verifyCoordination ratcheted to 42 (was 40) when
+  // the extra-row check (Rule 1.5) was added. The function is a
+  // straight-line "check each of the 9 named rules then return ok",
+  // so each new rule adds 1-2 complexity. Splitting would either
+  // shuffle complexity into a router OR fragment the rule order that
+  // matters for which `reason` string fires first. Re-ratchet wins.
+  'services/coordination/topologicalSort.ts': 42,
 };
 
 const INTENTIONAL_STANDALONE_MODULES = new Set([
