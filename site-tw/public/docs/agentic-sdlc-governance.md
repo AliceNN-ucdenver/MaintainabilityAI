@@ -1739,8 +1739,8 @@ We publish this list because honest design beats marketing claims. Every status 
   <div class="docs-gap-row">
     <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
     <div>
-      <p class="docs-gap-title">Shipped: Internal Audit Report Export, auditor closeout per OKR action</p>
-      <p class="docs-gap-body">One-click markdown export from Looking Glass produces a closeout report per merged action containing the cryptographic pass/fail verdict, shape-level seal verdict, per-skill evidence table, per-persona self-review trail with <code>event_id</code> citations, workflow facts (<code>artifact_written</code> + <code>state_transition</code>), collapsible event timeline, a requirement traceability table tying security requirements to STRIDE, OWASP, the PRD, and the design, and the cross-phase WHY→HOW→WHAT ladder. Saved to <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code> for durable record.</p>
+      <p class="docs-gap-title">Shipped: Internal Audit Report Export — per-action reports plus whole-OKR rollup</p>
+      <p class="docs-gap-body">One-click markdown export from Looking Glass produces a per-action closeout per merged phase containing the cryptographic pass/fail verdict, shape-level seal verdict, per-skill evidence table, per-persona self-review trail with <code>event_id</code> citations, workflow facts (<code>artifact_written</code> + <code>state_transition</code>), collapsible event timeline, a requirement traceability table tying security requirements to STRIDE, OWASP, the PRD, and the design, and the cross-phase WHY→HOW→WHAT ladder. Saved to <code>okrs/&lt;id&gt;/audit/exports/&lt;runId&gt;-report.md</code> for durable record. A whole-OKR rollup folds the per-action reports plus every implementation row into one auditor-readable document, re-verifying the chain ladder at export time.</p>
     </div>
   </div>
   <div class="docs-gap-row">
