@@ -32,9 +32,9 @@ By 2026, the market question is not whether agents can write code. It is whether
 
 The mesh you are about to see does not work that way.
 
-**One signed audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. **Trust earned, not granted. Per agent, per session, per event.**
+**A stitched audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.** Planning events live in the governance mesh; implementation events live in each target repo; the two halves stitch at the merge commit SHA. The agent that produced an output is the one that signed it, with an ephemeral key only it ever held. **Trust earned, not granted. Per agent, per session, per event.**
 
-<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="One signed chain from OKR to code. The Hatter signs each artifact in the top half, the Red Queen checks agent actions in the bottom half, the Cheshire Cat watches per-repo health, and a chain seam runs between them with epoch-signed handoffs and zero credential reissuance.">
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="A stitched evidence chain from OKR to merged code. The Hatter signs each planning artifact in the top half, the Red Queen checks agent actions in the bottom half, the Cheshire Cat watches per-repo health, and a chain seam runs between them — planning events in the mesh, implementation events in each target repo, joined at the merge commit SHA, with zero credential reissuance between agents.">
   <defs>
     <linearGradient id="heroTopBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#1a1138"/>
@@ -166,7 +166,7 @@ The mesh you are about to see does not work that way.
   </g>
   <text x="640" y="498" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">Hatter signs · Red Queen blocks actions · CI hard gate next</text>
   <rect x="0" y="504" width="800" height="16" fill="rgba(165,180,252,0.10)"/>
-  <text x="400" y="516" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700" letter-spacing="4" font-family="system-ui, sans-serif">ONE SIGNED CHAIN · OKR TO CODE</text>
+  <text x="400" y="516" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700" letter-spacing="4" font-family="system-ui, sans-serif">STITCHED EVIDENCE CHAIN · OKR TO MERGED CODE</text>
 </svg>
 
 ### Three promises, plainly stated
@@ -257,9 +257,11 @@ Tuesday morning, the mesh writes the product spec. It asks clarifying questions 
 
 Tuesday afternoon, the mesh writes the code design. It reads the actual repositories the work will touch. It checks the design against your architecture rules. It flags drift before it ships. Signed by a third agent, with a third key. You read it. You approve.
 
-The coding agents take over. Each tool call they make is checked against the architecture in milliseconds. The wrong action is blocked before it happens, not flagged at code review. Every hook decision writes a local audit line with the verdict and the rule ID. Approved overrides do not slip through as ordinary allows; they record which rule was bypassed and which approval source allowed it. The pull request opens carrying provenance, not surprises.
+**Tuesday evening, the design hand-off.** Looking Glass runs a pre-flight pane: each target repo gets classified (brownfield, greenfield, blocked on an upstream), the coordination contract gets verified twice, and you click `Fan out N of M ready`. The FanOutEngine — code that lives inside the extension, not a workflow — opens one landing issue per ready repo, carries the OKR's governance tier through verbatim, and dispatches an implementation agent into each target repo via custom-agent assignment.
 
-By Wednesday morning, the work is in main. Behind it: one chain, three signatures, three human approvals, and a drift check that stayed inside the approved objective.[^cert5] If anyone asks where any of it came from, you don't have to guess.
+The implementation agents take over. Each one runs inside its target repo with its own per-session signing key, writes a per-event Ed25519-signed audit chain to that repo's `.maintainability/audit/`, and self-critiques as Architect and Security personas just like the planning agents did. Each tool call gets checked against the architecture in milliseconds by the Red Queen — wrong actions blocked before they happen, every hook decision writing a local audit line with verdict and rule ID. Approved overrides record which rule was bypassed and which approval source allowed it. The pull request opens carrying a continuation block that points back to the planning chain in the mesh.
+
+By Wednesday morning, the work is in main. As each implementation PR merges, Looking Glass fetches that repo's audit events at the merge commit SHA, verifies they exist there, and stamps a row on the mesh's chain ladder with that SHA on it. Behind the merged code: a stitched evidence chain — three planning signatures in the mesh, one implementation signature per repo, every rung joined by a commit hash, and one human approval per planning phase plus one per fan-out dispatch.[^cert5] If anyone asks where any of it came from, you don't have to guess.
 
 **The work happened. You read the receipts.**
 
@@ -1130,11 +1132,11 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
 </svg>
 
 
-**The chain is stitched, not single.** Planning events (WHY, HOW, WHAT) write to the governance mesh at `<mesh>/okrs/<id>/audit/events/<runId>.jsonl`. Implementation events write to each target repo at `<repo>/.maintainability/audit/events/IMPL-*.jsonl`. The runner routes by run-id prefix: `IMPL-*` goes to the target repo, `RES-* / PRD-* / WHAT-*` goes to the mesh. Same per-event Ed25519 signing, same evidence-honesty rules, same uniform score scale (0.00–1.00 + PASS / MINOR / MAJOR / BLOCKING) across all four phases.
+**The chain is stitched, not single.** Planning events (WHY, HOW, WHAT) write to the governance mesh at `<mesh>/okrs/<id>/audit/events/<runId>.jsonl`. Implementation events write to each target repo at `<repo>/.maintainability/audit/events/IMPL-*.jsonl`. The runner routes by run-id prefix: `IMPL-*` goes to the target repo, `WHY-* / HOW-* / WHAT-*` goes to the mesh. Same per-event Ed25519 signing, same evidence-honesty rules, same uniform score scale (0.00–1.00 + PASS / MINOR / MAJOR / BLOCKING) across all four phases.
 
 **The seam is the merge SHA.** When an implementation PR opens, it carries a continuation YAML block in its body that points to the impl chain in the target repo. When the PR merges, Looking Glass fetches the events file and the per-session public key from the target repo at the PR's `merge_commit_sha`, verifies they exist at that exact SHA, then appends a row to the mesh's `chain-ladder.yaml` with the merge SHA stamped on it. If the fetch fails, the row gets marked retry-pending instead of sealed. The auditor reads one stitched ladder; the cryptographic anchor that joins the two halves is the commit hash itself.
 
-**The whole-OKR rollup is the buyer's story.** One click in Looking Glass produces a single closeout that folds WHY + HOW + WHAT + every implementation row into one signed evidence document. The rollup re-verifies the chain ladder at export time, so the report reflects the chain as it stands today — not as it stood when each phase sealed. The verdict comes first, then the evidence, traceability, event timeline, and cross-phase ladder.
+**The whole-OKR rollup is the buyer's story.** One click in Looking Glass produces a single closeout report **over** the signed evidence — folding WHY + HOW + WHAT + every implementation row into one auditor-readable document. The rollup is not itself a signed artifact; it is a report that re-verifies the underlying chain ladder at export time, so what it says reflects the chain as it stands today — not as it stood when each phase sealed. The verdict comes first, then the evidence, traceability, event timeline, and cross-phase ladder.
 
 <svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="The stitched evidence chain. Planning events write to the mesh, implementation events write to each target repo, and the two halves stitch at the pull request's merge commit SHA. Looking Glass fetches the target-repo events and public key at the merge SHA before appending a row to the mesh chain ladder.">
   <defs>
@@ -1167,10 +1169,10 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
   <!-- Mesh chain rungs -->
   <circle cx="170" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
   <text x="170" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">WHY</text>
-  <text x="170" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">RES-*</text>
+  <text x="170" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHY-*</text>
   <circle cx="310" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
   <text x="310" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">HOW</text>
-  <text x="310" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">PRD-*</text>
+  <text x="310" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">HOW-*</text>
   <circle cx="450" cy="120" r="9" fill="rgba(134,239,172,0.30)" stroke="#86efac" stroke-width="1.4"/>
   <text x="450" y="124" text-anchor="middle" fill="#dcfce7" font-size="9" font-weight="700" font-family="system-ui, sans-serif">WHAT</text>
   <text x="450" y="142" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="ui-monospace, Menlo, monospace">WHAT-*</text>
