@@ -32,6 +32,7 @@ export interface ComponentScaffoldContext {
   barName: string;
   repoUrl: string;
   repoName: string;               // Just the repo name portion (e.g. "my-service")
+  repoFullName?: string;           // owner/repo when repoUrl is a GitHub URL
   description: string;            // Pre-built markdown with all BAR context
   packs: PromptPackSelection;     // Pre-selected prompt packs for Rabbit Hole
   governanceTier?: string;        // Phase 6 — governance tier from Red Queen orchestration

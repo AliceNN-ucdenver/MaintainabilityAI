@@ -3991,13 +3991,10 @@ function attachEventHandlers() {
     render();
   });
 
-  // D-PR4 sub-PR 4 + 5 — Fan-out pre-flight delegated click handlers:
-  //   * fanout-refresh         → re-dispatch fanOutPreflight
-  //   * fanout-start-scaffold  → kick off greenfield Cheshire scaffold
-  //                              (creates the repo via createOrgRepo +
-  //                              opens Cheshire with the OKR context)
-  // The "Fan out N of M ready" execute button stays disabled until
-  // sub-PR 6 wires the actual landing-issue + agent-dispatch flow.
+  // D-PR4 fan-out delegated click handlers:
+  //   * fanout-refresh      → re-dispatch fanOutPreflight
+  //   * fanout-prepare-repo → route repo prep through BAR + Cheshire
+  //   * fanout-execute      → open landing issues for ready rows
   document.body.addEventListener('click', (ev) => {
     const target = ev.target as HTMLElement | null;
     if (!target) { return; }
@@ -4012,17 +4009,17 @@ function attachEventHandlers() {
       return;
     }
 
-    const startScaffold = target.closest('[data-action="fanout-start-scaffold"]') as HTMLElement | null;
-    if (startScaffold) {
-      const okrId = startScaffold.dataset.okrId;
-      const repoSlug = startScaffold.dataset.repoSlug;
-      if (!okrId || !repoSlug || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
-      // Optimistic: don't flip the row immediately — the extension
-      // surfaces progress via info/error toasts + the loading banner.
-      // Cheshire panel opens in a new tab; user returns to the OKR
-      // detail and clicks Re-check when scaffold completes (harness
-      // probe will then infer scaffold-complete).
-      vscode.postMessage({ type: 'startGreenfieldScaffold', okrId, repoSlug });
+    const prepareRepo = target.closest('[data-action="fanout-prepare-repo"]') as HTMLElement | null;
+    if (prepareRepo) {
+      const okrId = prepareRepo.dataset.okrId;
+      const repoSlug = prepareRepo.dataset.repoSlug;
+      const repoUrl = prepareRepo.dataset.repoUrl;
+      const barPath = prepareRepo.dataset.barPath;
+      if (!okrId || !repoSlug || !repoUrl || !barPath || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+      // Cheshire opens in a separate panel/window path. The row flips
+      // only after the user returns here and clicks Re-check, because
+      // the harness probe is the ground truth for prep completion.
+      vscode.postMessage({ type: 'prepareFanOutRepo', okrId, repoSlug, repoUrl, barPath });
       return;
     }
 

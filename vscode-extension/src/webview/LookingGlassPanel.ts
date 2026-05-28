@@ -577,10 +577,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // | coordination-verify-failed). Subsequent sub-PRs add the "Fan out
     // N of M ready" action message that actually opens landing issues.
     'fanOutPreflight':             (m) => this.onFanOutPreflight(m.okrId),
-    // D-PR4 sub-PR 5 — greenfield scaffold launcher. Click on a
-    // pending-scaffold row's "Start Scaffold" button calls this;
-    // handler creates the repo + opens Cheshire with OKR context.
-    'startGreenfieldScaffold':     (m) => this.onStartGreenfieldScaffold(m.okrId, m.repoSlug),
+    // D-PR4 fan-out prep — route greenfield create / brownfield retrofit
+    // through the BAR + Cheshire flow. The OKR page remains orchestration;
+    // BAR/Cheshire owns repository creation and harness installation.
+    'prepareFanOutRepo':           (m) => this.onPrepareFanOutRepo(m.okrId, m.repoSlug, m.repoUrl, m.barPath),
     // D-PR4 sub-PR 6 — execute fan-out. Opens landing issues for
     // every ready row + dispatches the impl agent via custom-agent
     // assignment + writes design-fan-out.yaml + commits + pushes.
@@ -963,37 +963,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   }
 
   /**
-   * D-PR4 sub-PR 5 — greenfield scaffold launcher.
-   *
-   * Triggered when the user clicks "Start Scaffold" on a pending-scaffold
-   * row in the OKR detail's fan-out pre-flight pane. The handler:
-   *
-   *   1. Confirms the OKR's targetCodeRepos[] includes this slug with
-   *      status === 'create' (refuses on mismatch -- prevents accidentally
-   *      creating a repo for a brownfield row).
-   *   2. Parses owner/name from the slug.
-   *   3. Calls createOrgRepo on the org. Discriminated outcomes:
-   *        - created          -> proceed to open Cheshire
-   *        - already-exists   -> proceed (user may be retrying after a
-   *                              prior partial scaffold; harness probe
-   *                              still drives correctness)
-   *        - forbidden        -> surface "fix org permissions" error
-   *        - fetch-error      -> surface transient error
-   *   4. Opens ScaffoldPanel with okrContext = { okrId, repoSlug } so
-   *      Cheshire knows which OKR's WHAT artifact to seed. Sub-PR 6
-   *      adds the actual code-design-spec.md seeding step inside
-   *      Cheshire; sub-PR 5 just plumbs the parameter.
-   *
-   * Post-scaffold, the user clicks Re-check on the OKR fan-out pane.
-   * The engine's harness probe sees the implementation-agent template
-   * file Cheshire wrote and infers greenfieldScaffoldStatus='complete'
-   * (no cross-panel breadcrumb required), so the row flips
-   * pending-scaffold -> ready.
+   * D-PR4 fan-out prep — route repo preparation through the BAR + Cheshire
+   * path. The OKR page decides which repo needs work; the BAR owns whether
+   * that repo is linked, created, cloned, and scaffolded.
    */
-  private async onStartGreenfieldScaffold(okrId: string, repoSlug: string): Promise<void> {
+  private async onPrepareFanOutRepo(okrId: string, repoSlug: string, repoUrl: string, clientBarPath: string): Promise<void> {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) {
-      this.postMessage({ type: 'error', message: 'Mesh not initialized. Initialize from Settings before scaffolding a greenfield target.' });
+      this.postMessage({ type: 'error', message: 'Mesh not initialized. Initialize from Settings before preparing a fan-out repo.' });
       return;
     }
 
@@ -1004,76 +981,85 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
-    // Verify the slug is actually a greenfield ('create') target on
-    // this OKR. Guards against drift between the pane render + click,
-    // and against malicious panel messages.
+    // Verify the slug is actually a target on this OKR. Guards against
+    // drift between the pane render + click, and against malicious panel
+    // messages.
     const statusMap = okr.objectiveAlignment.targetCodeRepoStatus ?? {};
     const matchingUrl = okr.objectiveAlignment.targetCodeRepos.find(url => {
-      const parsed = parseGitHubUrl(url);
-      const slug = parsed ? `${parsed.owner}/${parsed.repo}` : url.trim();
-      return slug === repoSlug;
+      return this.normalizeGitHubSlug(url) === repoSlug;
     });
     if (!matchingUrl) {
       this.postMessage({ type: 'error', message: `${repoSlug} is not in this OKR's target code repos.` });
       return;
     }
     const status = statusMap[matchingUrl];
-    if (status !== 'create') {
+    if (status !== 'create' && status !== 'connected') {
       this.postMessage({
         type: 'error',
-        message: `${repoSlug} is not a greenfield target (status: ${status ?? 'not-connected'}). Set status to Create in the Target Code Repos section before scaffolding.`,
+        message: `${repoSlug} is not ready for prep (status: ${status ?? 'not-connected'}). Set status to Connected or Create in the Target Code Repos section first.`,
       });
       return;
     }
 
-    const parts = repoSlug.split('/');
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      this.postMessage({ type: 'error', message: `Invalid repo slug ${repoSlug} (expected owner/name).` });
+    const barContext = this.findAffectedBarForRepo(meshPath, okr, repoSlug);
+    if (!barContext) {
+      this.postMessage({
+        type: 'error',
+        message: `${repoSlug} is not linked to an affected BAR. Open the affected BAR, add the repo URL to app.yaml, then re-check fan-out.`,
+      });
       return;
     }
-    const [org, name] = parts;
+    if (clientBarPath && path.normalize(clientBarPath) !== path.normalize(barContext.barPath)) {
+      this.postMessage({
+        type: 'error',
+        message: `Fan-out BAR context drifted for ${repoSlug}. Click Re-check and try again.`,
+      });
+      return;
+    }
 
-    // Create the repo on GitHub. Surface each discriminated outcome
-    // with the right fix-path message.
-    this.postMessage({ type: 'loading', active: true, message: `Creating repo ${repoSlug}...` });
-    const createResult = await this.githubService.createOrgRepo(org, name, {
-      description: `Greenfield target for OKR ${okrId}`,
-      autoInit: false,
+    const canonicalRepoUrl = barContext.repoUrl || repoUrl || matchingUrl;
+    if (status === 'create') {
+      this.postMessage({
+        type: 'info',
+        message: `Opening Cheshire from ${path.basename(barContext.barPath)} to prepare ${repoSlug}. Create/scaffold happens there; return here and Re-check when it finishes.`,
+      });
+      await this.onScaffoldComponent(canonicalRepoUrl, barContext.barPath, undefined, { okrId, repoSlug });
+      return;
+    }
+
+    this.postMessage({
+      type: 'info',
+      message: `Opening ${repoSlug} in BAR context. Run Cheshire scaffold to add the missing harness, merge that PR, then Re-check here.`,
     });
-    this.postMessage({ type: 'loading', active: false });
+    await this.onOpenRepoInContext(canonicalRepoUrl, barContext.barPath);
+  }
 
-    if (createResult.status === 'forbidden') {
-      this.postMessage({
-        type: 'error',
-        message: `Cannot create ${repoSlug}: GitHub PAT lacks org admin:write OR org policy blocks repo creation. Detail: ${createResult.reason}`,
-      });
-      return;
+  private normalizeGitHubSlug(urlOrSlug: string): string {
+    const parsed = parseGitHubUrl(urlOrSlug);
+    if (parsed) {
+      return `${parsed.owner}/${parsed.repo}`;
     }
-    if (createResult.status === 'fetch-error') {
-      this.postMessage({
-        type: 'error',
-        message: `Failed to create ${repoSlug}: ${createResult.reason}`,
-      });
-      return;
-    }
-    if (createResult.status === 'created') {
-      this.postMessage({
-        type: 'info',
-        message: `Created repo ${repoSlug}. Opening Cheshire to scaffold the agentic harness.`,
-      });
-    } else {
-      // already-exists -- proceed (user may be retrying; harness probe
-      // is the ground truth for scaffold completion regardless).
-      this.postMessage({
-        type: 'info',
-        message: `Repo ${repoSlug} already exists. Opening Cheshire to scaffold or re-scaffold the agentic harness.`,
-      });
-    }
+    return urlOrSlug
+      .replace(/\.git$/, '')
+      .replace(/^https?:\/\/github\.com\//, '')
+      .trim();
+  }
 
-    // Open Cheshire with the OKR context so the scaffold knows which
-    // OKR is the source-of-truth. Cheshire's existing pickFolder UX
-    // lets the user choose where to clone the new repo locally.
-    ScaffoldPanel.createOrShow(this.context, undefined, undefined, { okrId, repoSlug });
+  private findAffectedBarForRepo(meshPath: string, okr: OkrCard, repoSlug: string): { barPath: string; repoUrl: string } | null {
+    const affectedBarIds = new Set(okr.objectiveAlignment.affectedBarIds);
+    const summary = this.meshService.buildPortfolioSummary(meshPath);
+    const targetUrl = okr.objectiveAlignment.targetCodeRepos.find(url => this.normalizeGitHubSlug(url) === repoSlug) ?? '';
+
+    for (const bar of summary?.allBars ?? []) {
+      if (!affectedBarIds.has(bar.id) || !bar.path) {
+        continue;
+      }
+      const linkedRepoUrl = (bar.repos ?? []).find(url => this.normalizeGitHubSlug(url) === repoSlug);
+      if (linkedRepoUrl) {
+        return { barPath: bar.path, repoUrl: parseGitHubUrl(targetUrl) ? targetUrl : linkedRepoUrl || targetUrl };
+      }
+    }
+    return null;
   }
 
   /**
@@ -5006,6 +4992,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const availableBars: OkrAvailableBar[] = (summary?.allBars ?? []).map(b => ({
       id: b.id,
       name: b.name,
+      path: b.path,
       platformId: b.platformId,
       platformName: b.platformName,
       compositeScore: b.compositeScore,
@@ -6812,10 +6799,15 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     }
   }
 
-  private async onScaffoldComponent(repoUrl: string, barPath: string, component?: { name: string; type: string; description: string }) {
+  private async onScaffoldComponent(
+    repoUrl: string,
+    barPath: string,
+    component?: { name: string; type: string; description: string },
+    okrContext?: { okrId: string; repoSlug: string },
+  ) {
     try {
       const context = await this.buildScaffoldDescription(repoUrl, barPath, component);
-      ScaffoldPanel.createOrShow(this.context, context);
+      ScaffoldPanel.createOrShow(this.context, context, undefined, okrContext);
     } catch (err) {
       this.postMessage({
         type: 'error',
@@ -6870,6 +6862,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     // 2. Repo name from URL
     const parsed = GitHubService.parseRepoUrl(repoUrl);
     const repoName = parsed?.repo || repoUrl.replace(/\.git$/, '').split('/').pop() || repoUrl;
+    const repoFullName = parsed ? `${parsed.owner}/${parsed.repo}` : undefined;
 
     // 3. Architecture context — compressed to component scope when available
     let calmSection = '';
@@ -6956,7 +6949,7 @@ ${calmSection}${adrSection}${threatSection}${reposSection}${scaffoldGuidelines}`
       }
     } catch { /* governance tier is best-effort */ }
 
-    return { barPath, barName, repoUrl, repoName, description, packs, governanceTier };
+    return { barPath, barName, repoUrl, repoName, repoFullName, description, packs, governanceTier };
   }
 
   // --------------------------------------------------------------------------

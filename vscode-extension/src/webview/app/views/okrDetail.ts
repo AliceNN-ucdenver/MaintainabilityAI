@@ -215,8 +215,8 @@ export type FanOutPreflightReportUi =
 /**
  * Per-OKR webview state for the fan-out pre-flight pane. The pane
  * appears in view mode only AND only after WHAT completes; it shows a
- * pre-flight verdict per target repo and a "Fan out N of M ready"
- * button (DISABLED in sub-PR 4 — execution lands in sub-PR 6).
+ * pre-flight verdict per target repo, BAR/Cheshire prep affordances for
+ * setup rows, and a "Fan out N of M ready" button for ready rows.
  *
  * Three states:
  *
@@ -381,7 +381,7 @@ export function renderOkrDetailView(state: OkrDetailRenderState): string {
       ${renderActionCard(okr, 'how', state)}
       ${renderActionCard(okr, 'what', state)}
 
-      ${mode === 'view' ? renderFanOutPreflightPane(okr, state.fanOutPreflight) : ''}
+      ${mode === 'view' ? renderFanOutPreflightPane(okr, state.fanOutPreflight, state.availableBars ?? []) : ''}
 
       ${renderFooter(okr, mode)}
     </div>
@@ -1614,12 +1614,15 @@ function verifyReasonExplanation(verifyReason: string): string {
  *   - SetupError → renders the friendly setup-error message and skips
  *     the per-row table.
  *   - Report success → renders the per-row table + skippedRepos chips
- *     + "Fan out N of M ready" button (DISABLED in sub-PR 4 — execution
- *     lands in sub-PR 6).
+ *     + "Fan out N of M ready" button.
  *   - Report failure (verify-failed etc.) → renders the verify-reason
  *     explanation with the raw verdict for cross-reference.
  */
-function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiState | undefined): string {
+function renderFanOutPreflightPane(
+  okr: OkrCard,
+  fanOutState: FanOutPreflightUiState | undefined,
+  availableBars: OkrAvailableBar[] = [],
+): string {
   const whatComplete = okr.actions.some(a => a.phase === 'what' && a.status === 'complete');
   if (!whatComplete) {
     return '';
@@ -1627,7 +1630,7 @@ function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiS
 
   const heading = `
     <h2 class="okr-section-heading">Fan-out Pre-flight</h2>
-    <p class="okr-section-help">After the WHAT phase merges, pre-flight checks each target repo for harness + permissions + repo state, then groups them by dependency wave. The Fan out button below opens landing issues in topological order (execution arrives in a follow-up release).</p>
+    <p class="okr-section-help">After the WHAT phase merges, pre-flight checks each target repo for harness, permissions, repo state, and dependency wave. Rows that need setup route through the owning BAR and Cheshire; ready rows can fan out into landing issues.</p>
   `;
 
   if (!fanOutState || fanOutState.loading) {
@@ -1685,7 +1688,7 @@ function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiS
   // Happy path: report.ok === true
   const entriesHtml = report.entries.length === 0
     ? `<div class="okr-fanout-empty">No target repos to evaluate.</div>`
-    : report.entries.map(entry => renderFanOutEntryRow(entry, okr.meta.id)).join('\n');
+    : report.entries.map(entry => renderFanOutEntryRow(entry, okr, availableBars)).join('\n');
 
   const skipped = fanOutState.skippedRepos ?? [];
   const skippedHtml = skipped.length === 0 ? '' : `
@@ -1740,7 +1743,7 @@ function renderFanOutPreflightPane(okr: OkrCard, fanOutState: FanOutPreflightUiS
   `;
 }
 
-function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okrId: string): string {
+function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableBars: OkrAvailableBar[]): string {
   const presentation = FANOUT_STATUS_PRESENT[entry.decision.status];
   const reason = entry.decision.reason
     ? `<div class="okr-fanout-entry-reason">${escapeHtml(entry.decision.reason)}</div>`
@@ -1752,19 +1755,15 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okrId: string): string {
     ? `<span class="okr-fanout-chip okr-fanout-chip-greenfield">greenfield</span>`
     : `<span class="okr-fanout-chip okr-fanout-chip-brownfield">brownfield</span>`;
 
-  // D-PR4 sub-PR 5 — per-row affordances keyed off the decision status.
-  // pending-scaffold (greenfield only) -> Start Scaffold button that
-  // triggers createOrgRepo + ScaffoldPanel via startGreenfieldScaffold.
-  // Other affordances (Open repo in workspace for harness-missing,
-  // Fix permissions for permission-blocked) land in later polish PRs.
-  const affordance = entry.decision.status === 'pending-scaffold' && entry.status === 'create'
-    ? `
-      <div class="okr-fanout-entry-actions">
-        <button class="okr-button-small okr-button-primary" data-action="fanout-start-scaffold" data-okr-id="${escapeAttr(okrId)}" data-repo-slug="${escapeAttr(entry.slug)}" title="Create the GitHub repo + open Cheshire to scaffold the agentic harness. After scaffold completes, click Re-check above to flip this row to ready.">
-          🏗 Start Scaffold
-        </button>
-      </div>
-    `
+  const prepContext = findFanOutRepoBar(entry, okr, availableBars);
+  const needsRepoPrep =
+    (entry.decision.status === 'pending-scaffold' && entry.status === 'create') ||
+    (entry.decision.status === 'harness-missing' && entry.status === 'connected');
+  const linkHint = !prepContext && needsRepoPrep
+    ? findFirstAffectedBar(okr, availableBars)
+    : null;
+  const affordance = needsRepoPrep
+    ? renderFanOutPrepAffordance(entry, okr, prepContext, linkHint)
     : '';
 
   return `
@@ -1779,6 +1778,90 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okrId: string): string {
       ${affordance}
     </div>
   `;
+}
+
+function renderFanOutPrepAffordance(
+  entry: FanOutRepoEntryUi,
+  okr: OkrCard,
+  prepContext: { barPath: string; repoUrl: string } | null,
+  linkHint: OkrAvailableBar | null,
+): string {
+  if (prepContext) {
+    const label = entry.status === 'create' ? '🏗 Prepare in BAR' : '🐇 Open BAR repo';
+    const title = entry.status === 'create'
+      ? 'Open Cheshire with this repo selected from its owning BAR. Create/scaffold happens there; return here and Re-check when it finishes.'
+      : 'Open or clone this repo in BAR context, then run Cheshire scaffold to add the missing harness.';
+    return `
+      <div class="okr-fanout-entry-actions">
+        <button class="okr-button-small okr-button-primary"
+          data-action="fanout-prepare-repo"
+          data-okr-id="${escapeAttr(okr.meta.id)}"
+          data-repo-slug="${escapeAttr(entry.slug)}"
+          data-repo-url="${escapeAttr(prepContext.repoUrl)}"
+          data-bar-path="${escapeAttr(prepContext.barPath)}"
+          title="${escapeAttr(title)}">
+          ${escapeHtml(label)}
+        </button>
+      </div>
+    `;
+  }
+
+  if (linkHint?.path) {
+    return `
+      <div class="okr-fanout-entry-actions">
+        <button class="okr-button-small okr-button-secondary" data-action="open-bar" data-bar-path="${escapeAttr(linkHint.path)}" title="Open the affected BAR and link this repo in app.yaml before preparing it.">
+          Open affected BAR
+        </button>
+        <span class="okr-fanout-entry-reason">Link this repo to an affected BAR first.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="okr-fanout-entry-actions">
+      <span class="okr-fanout-entry-reason">Link this repo to an affected BAR first.</span>
+    </div>
+  `;
+}
+
+function findFanOutRepoBar(
+  entry: FanOutRepoEntryUi,
+  okr: OkrCard,
+  availableBars: OkrAvailableBar[],
+): { barPath: string; repoUrl: string } | null {
+  const affectedBarIds = new Set(okr.objectiveAlignment.affectedBarIds);
+  const targetRepoUrl = okr.objectiveAlignment.targetCodeRepos
+    .find(url => normalizeRepoSlugForFanOut(url) === entry.slug) ?? '';
+
+  for (const bar of availableBars) {
+    if (!affectedBarIds.has(bar.id) || !bar.path) {
+      continue;
+    }
+    const linkedRepo = bar.repos.find(url => normalizeRepoSlugForFanOut(url) === entry.slug);
+    if (linkedRepo) {
+      return {
+        barPath: bar.path,
+        repoUrl: targetRepoUrl.includes('github.com') ? targetRepoUrl : linkedRepo || targetRepoUrl,
+      };
+    }
+  }
+  return null;
+}
+
+function findFirstAffectedBar(okr: OkrCard, availableBars: OkrAvailableBar[]): OkrAvailableBar | null {
+  const affectedBarIds = new Set(okr.objectiveAlignment.affectedBarIds);
+  return availableBars.find(bar => affectedBarIds.has(bar.id) && !!bar.path) ?? null;
+}
+
+function normalizeRepoSlugForFanOut(urlOrSlug: string): string {
+  const match = urlOrSlug.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+  if (match) {
+    return `${match[1]}/${match[2]}`;
+  }
+  return urlOrSlug
+    .replace(/\.git$/, '')
+    .replace(/^https?:\/\/github\.com\//, '')
+    .trim();
 }
 
 function renderFooter(okr: OkrCard, mode: OkrDetailMode): string {

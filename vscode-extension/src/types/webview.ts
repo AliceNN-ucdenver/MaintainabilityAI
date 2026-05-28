@@ -287,6 +287,8 @@ export interface OkrAffectedBar {
 export interface OkrAvailableBar {
   id: string;
   name: string;
+  /** Filesystem path to the BAR root, used by fan-out prep to route into Cheshire. */
+  path?: string;
   platformId: string;
   platformName: string;
   compositeScore: number;
@@ -598,20 +600,13 @@ export type LookingGlassWebviewMessage =
    */
   | { type: 'fanOutPreflight'; okrId: string }
   /**
-   * D-PR4 sub-PR 5 — kick off greenfield Cheshire scaffold for one
-   * target repo of an OKR. Extension:
-   *   1. Confirms the OKR action's targetCodeRepos[] entry has status
-   *      'create'.
-   *   2. Creates the repo on the org via `createOrgRepo`.
-   *   3. Opens ScaffoldPanel with okrContext = { okrId, repoSlug } so
-   *      Cheshire knows which OKR's WHAT artifact to seed (sub-PR 6
-   *      lands the actual seeding).
-   * After scaffold completes, the user clicks Re-check on the OKR
-   * detail's fan-out pane and the engine's harness probe flips the
-   * row from pending-scaffold to ready (engine infers
-   * scaffold-complete from harness-present + repo-exists).
+   * D-PR4 fan-out preparation — route repo prep through the owning BAR +
+   * Cheshire scaffold flow instead of creating repositories directly from
+   * the OKR page. Greenfield rows open Cheshire with BAR context; brownfield
+   * harness-missing rows open/clone the repo so the user can run the existing
+   * Cheshire retrofit scaffold.
    */
-  | { type: 'startGreenfieldScaffold'; okrId: string; repoSlug: string }
+  | { type: 'prepareFanOutRepo'; okrId: string; repoSlug: string; repoUrl: string; barPath: string }
   /**
    * D-PR4 sub-PR 6 — execute fan-out for an OKR.
    *

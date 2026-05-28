@@ -90,7 +90,7 @@ describe('derivePreflightStatus — greenfield scaffold flow', () => {
       greenfieldScaffoldStatus: 'idle',
     }));
     expect(decision.status).toBe('pending-scaffold');
-    expect(decision.reason).toContain('Start Scaffold');
+    expect(decision.reason).toContain('Prepare in BAR');
   });
 
   it('returns pending-scaffold with failure hint when scaffold failed', () => {

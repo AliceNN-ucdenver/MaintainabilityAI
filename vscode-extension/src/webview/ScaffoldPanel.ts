@@ -74,6 +74,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
           barName: componentContext.barName,
           repoUrl: componentContext.repoUrl,
           repoName: componentContext.repoName,
+          repoFullName: componentContext.repoFullName,
           homeDir: process.env.HOME || process.env.USERPROFILE || '',
         });
       }
@@ -134,6 +135,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         barName: this.componentContext.barName,
         repoUrl: this.componentContext.repoUrl,
         repoName: this.componentContext.repoName,
+        repoFullName: this.componentContext.repoFullName,
         homeDir: process.env.HOME || process.env.USERPROFILE || '',
       });
     }
@@ -528,9 +530,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         if (errMsg.includes('already exists')) {
           this.postMessage({ type: 'step', id: 'github', status: 'running', message: 'Repo exists — connecting and pushing...' });
           try {
-            // Get the authenticated user's login for the full repo path
-            const { stdout: owner } = await execFileAsync('gh', ['api', 'user', '-q', '.login'], { cwd: workspaceRoot });
-            const fullRepo = `${owner.trim()}/${config.repoName}`;
+            const fullRepo = await this.resolveRepoFullName(config.repoName, workspaceRoot);
 
             // Check if origin remote already exists
             try {
@@ -564,11 +564,9 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
       if (config.configureSecrets) {
         this.postMessage({ type: 'step', id: 'secrets', status: 'running', message: 'Waiting for API key input...' });
 
-        // Determine the repo owner
-        let repoOwner: string;
+        let fullRepoName: string;
         try {
-          const { stdout } = await execFileAsync('gh', ['api', 'user', '-q', '.login'], { cwd: workspaceRoot });
-          repoOwner = stdout.trim();
+          fullRepoName = await this.resolveRepoFullName(config.repoName, workspaceRoot);
         } catch {
           this.postMessage({ type: 'step', id: 'secrets', status: 'error', message: 'Could not determine GitHub user' });
           // Continue to completion — secrets are optional
@@ -576,8 +574,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
           this.postMessage({ type: 'complete', folder: workspaceRoot, folderInWorkspace: alreadyInWs });
           return;
         }
-
-        const fullRepoName = `${repoOwner}/${config.repoName}`;
 
         // Prompt for Anthropic API key
         const apiKey = await vscode.window.showInputBox({
@@ -636,6 +632,14 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
 
     const folderInWs = (vscode.workspace.workspaceFolders || []).some(f => f.uri.fsPath === workspaceRoot);
     this.postMessage({ type: 'complete', folder: workspaceRoot, folderInWorkspace: folderInWs });
+  }
+
+  private async resolveRepoFullName(repoName: string, cwd: string): Promise<string> {
+    if (repoName.includes('/')) {
+      return repoName;
+    }
+    const { stdout } = await execFileAsync('gh', ['api', 'user', '-q', '.login'], { cwd });
+    return `${stdout.trim()}/${repoName}`;
   }
 
   private async enableWorkflowPermissions(repoFullName: string, cwd: string) {
@@ -1347,9 +1351,10 @@ window.addEventListener('message', (event) => {
             folderDisplay.classList.remove('empty');
           }
         }
-        // Pre-fill repo name
+        // Pre-fill GitHub repo target. Keep the local folder as HOME/repoName,
+        // but use owner/repo when BAR context gives us a full GitHub slug.
         const repoNameInput = document.getElementById('repoName');
-        if (repoNameInput) { repoNameInput.value = msg.repoName; }
+        if (repoNameInput) { repoNameInput.value = msg.repoFullName || msg.repoName; }
         // Auto-check "Create a GitHub repository" and show options
         const repoToggle = document.getElementById('createRepoToggle');
         if (repoToggle && !repoToggle.checked) {

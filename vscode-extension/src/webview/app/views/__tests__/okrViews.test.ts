@@ -527,6 +527,181 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('data-okr-repo-row="0"');
   });
 
+  it('routes greenfield fan-out prep through the owning BAR instead of direct repo create', () => {
+    const okr = sampleCard({
+      actions: [{
+        id: 'ACT-3',
+        phase: 'what',
+        description: 'Code design',
+        agent: 'code-design-agent',
+        runId: 'WHAT-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 95, security: 92 },
+        rounds: 1,
+        governanceTier: 'supervised',
+        status: 'complete',
+        createdAt: '2026-05-19T14:00:00Z',
+      }],
+      objectiveAlignment: {
+        ...sampleCard().objectiveAlignment,
+        affectedBarIds: ['APP-IMDB-002'],
+        targetCodeRepos: ['https://github.com/acme/celeb-api'],
+        targetCodeRepoStatus: { 'https://github.com/acme/celeb-api': 'create' },
+      },
+    });
+    const html = renderOkrDetailView({
+      okr,
+      affectedBars: [],
+      availableBars: [{
+        id: 'APP-IMDB-002',
+        name: 'IMDB Celebs',
+        path: '/mesh/platforms/imdb/bars/celebs',
+        platformId: 'PLT-IMDB',
+        platformName: 'IMDB Lite',
+        compositeScore: 64,
+        tier: 'supervised',
+        repos: ['https://github.com/acme/celeb-api'],
+      }],
+      fanOutPreflight: {
+        report: {
+          ok: true,
+          okrId: okr.meta.id,
+          readyRepos: [],
+          waves: [['acme/celeb-api']],
+          entries: [{
+            slug: 'acme/celeb-api',
+            status: 'create',
+            decision: { status: 'pending-scaffold', reason: 'Greenfield ready to scaffold.' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'provider', depends_on: [] },
+          }],
+        },
+      },
+    });
+
+    expect(html).toContain('data-action="fanout-prepare-repo"');
+    expect(html).toContain('data-repo-slug="acme/celeb-api"');
+    expect(html).toContain('data-repo-url="https://github.com/acme/celeb-api"');
+    expect(html).toContain('data-bar-path="/mesh/platforms/imdb/bars/celebs"');
+    expect(html).toContain('Prepare in BAR');
+    expect(html).not.toContain('fanout-start-scaffold');
+  });
+
+  it('routes brownfield harness-missing fan-out prep through BAR workspace opening', () => {
+    const okr = sampleCard({
+      actions: [{
+        id: 'ACT-3',
+        phase: 'what',
+        description: 'Code design',
+        agent: 'code-design-agent',
+        runId: 'WHAT-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 95, security: 92 },
+        rounds: 1,
+        governanceTier: 'supervised',
+        status: 'complete',
+        createdAt: '2026-05-19T14:00:00Z',
+      }],
+      objectiveAlignment: {
+        ...sampleCard().objectiveAlignment,
+        affectedBarIds: ['APP-IMDB-001'],
+        targetCodeRepos: ['https://github.com/acme/imdb-react-frontend'],
+        targetCodeRepoStatus: { 'https://github.com/acme/imdb-react-frontend': 'connected' },
+      },
+    });
+    const html = renderOkrDetailView({
+      okr,
+      affectedBars: [],
+      availableBars: [{
+        id: 'APP-IMDB-001',
+        name: 'IMDB Frontend',
+        path: '/mesh/platforms/imdb/bars/frontend',
+        platformId: 'PLT-IMDB',
+        platformName: 'IMDB Lite',
+        compositeScore: 64,
+        tier: 'supervised',
+        repos: ['https://github.com/acme/imdb-react-frontend'],
+      }],
+      fanOutPreflight: {
+        report: {
+          ok: true,
+          okrId: okr.meta.id,
+          readyRepos: [],
+          waves: [['acme/imdb-react-frontend']],
+          entries: [{
+            slug: 'acme/imdb-react-frontend',
+            status: 'connected',
+            decision: { status: 'harness-missing', reason: 'Implementation agent missing.' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'consumer', depends_on: [] },
+          }],
+        },
+      },
+    });
+
+    expect(html).toContain('data-action="fanout-prepare-repo"');
+    expect(html).toContain('Open BAR repo');
+    expect(html).toContain('data-repo-url="https://github.com/acme/imdb-react-frontend"');
+    expect(html).toContain('data-bar-path="/mesh/platforms/imdb/bars/frontend"');
+  });
+
+  it('asks the user to link a fan-out repo to an affected BAR before prep', () => {
+    const okr = sampleCard({
+      actions: [{
+        id: 'ACT-3',
+        phase: 'what',
+        description: 'Code design',
+        agent: 'code-design-agent',
+        runId: 'WHAT-test',
+        intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+        parentIntentThread: null,
+        reviewerScores: { architect: 95, security: 92 },
+        rounds: 1,
+        governanceTier: 'supervised',
+        status: 'complete',
+        createdAt: '2026-05-19T14:00:00Z',
+      }],
+      objectiveAlignment: {
+        ...sampleCard().objectiveAlignment,
+        affectedBarIds: ['APP-IMDB-002'],
+        targetCodeRepos: ['https://github.com/acme/celeb-api'],
+        targetCodeRepoStatus: { 'https://github.com/acme/celeb-api': 'create' },
+      },
+    });
+    const html = renderOkrDetailView({
+      okr,
+      affectedBars: [],
+      availableBars: [{
+        id: 'APP-IMDB-002',
+        name: 'IMDB Celebs',
+        path: '/mesh/platforms/imdb/bars/celebs',
+        platformId: 'PLT-IMDB',
+        platformName: 'IMDB Lite',
+        compositeScore: 64,
+        tier: 'supervised',
+        repos: ['https://github.com/acme/other-repo'],
+      }],
+      fanOutPreflight: {
+        report: {
+          ok: true,
+          okrId: okr.meta.id,
+          readyRepos: [],
+          waves: [['acme/celeb-api']],
+          entries: [{
+            slug: 'acme/celeb-api',
+            status: 'create',
+            decision: { status: 'pending-scaffold', reason: 'Greenfield ready to scaffold.' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'provider', depends_on: [] },
+          }],
+        },
+      },
+    });
+
+    expect(html).toContain('Link this repo to an affected BAR first.');
+    expect(html).toContain('data-action="open-bar"');
+    expect(html).not.toContain('data-action="fanout-prepare-repo"');
+  });
+
   /**
    * Task #54 — flicker fix: polling indicator + refresh-preserves-data
    * contract. The previous behavior wiped state.okrPhaseSignals to

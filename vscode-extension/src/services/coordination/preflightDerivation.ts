@@ -167,7 +167,7 @@ export function derivePreflightStatus(inputs: PreflightInputs): PreflightDecisio
 
 function greenfieldScaffoldHint(status: PreflightInputs['greenfieldScaffoldStatus']): string {
   if (status === 'scaffolding') return 'Greenfield Cheshire scaffold in progress; row will flip to ready when scaffold completes.';
-  if (status === 'idle') return 'Greenfield ready to scaffold; click Start Scaffold in the OKR card to launch Cheshire.';
+  if (status === 'idle') return 'Greenfield ready to scaffold; click Prepare in BAR on this row to open the affected BAR and launch Cheshire.';
   return 'Greenfield repo not yet scaffolded.';
 }
 
