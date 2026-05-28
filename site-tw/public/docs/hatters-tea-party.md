@@ -519,22 +519,52 @@ When the code design merges, the Looking Glass-side planning artifacts are done.
 
 ## Stage 5 · The hand-off: one design becomes repo work
 
-When the code design merges, the Hatter's Tea Party's planning artifacts are done. The **FanOutEngine** — code that lives inside the Looking Glass VS Code extension, not a workflow — takes over. It is deterministic (no LLM), but it is also app-orchestrated, which means the user is in the loop at the critical moment.
+When the code design merges, the planning work is done. The design has answered the hard question: which repos change, in what order, and what contract each repo owes the others.
 
-The engine runs four things, in order, and surfaces them on a single pre-flight pane:
+Stage 5 turns that approved design into repo work. It does not ask another agent to reinterpret the plan. Looking Glass shows a pre-flight pane, checks that each target repo is ready, asks the user to confirm the hand-off, and then opens the right landing issue in the right repo.
 
-1. **Coordination verify.** Each per-repo block inside `code-design.md` carries a `fanout_wave`, a `coordination_role`, and explicit `depends_on` / `provides` / `consumes` contracts. The engine verifies the same 7+1 conditions the mesh's design-audit workflow already verified at code-design merge time — no missing repos, no extras, no cycles, no contract drift. Symmetry is mandatory: the in-extension TypeScript checker and the Python verifier in the mesh workflow must agree on every named failure, or the design-audit gate would have flagged a problem the engine misses.
-2. **Repo probe.** Each target repo is classified by status: `connected` (brownfield), `create` (greenfield), `not-connected`, or `unreachable`. Greenfield repos get scaffolded via Cheshire — idempotent org-create, plus seed README / LICENSE / CODEOWNERS / starter prompt packs — before the landing issue opens.
-3. **User confirms.** The pre-flight pane shows per-repo decisions. The user clicks `Fan out N of M ready`. That click is itself a governance moment: nothing dispatches without it.
-4. **Dispatch.** For each ready repo, the engine opens a landing issue carrying the OKR context, the per-repo slice of the design, the parent-chain continuation markers, and a `<!-- governance_tier: ... -->` HTML comment frozen at WHAT dispatch. Then it dispatches an implementation agent via custom-agent assignment. The implementation agent's session cwd IS the target repo — no `cd` workflow step is involved.
+<div class="docs-proof-list docs-proof-list-compact">
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">The design already says who goes first</div>
+      <p class="docs-proof-body">Each repo slice names what it provides, what it consumes, and whether another repo must land first. The API work can wait for a foundation contract; the frontend can wait for the API. No one has to infer the order from a prose paragraph.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> the coordination block from <code>code-design.md</code> and the same verifier result the merge gate used.</div>
+  </div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">The repos are checked before work is assigned</div>
+      <p class="docs-proof-body">Brownfield repos must exist and be reachable. Greenfield repos go through Cheshire scaffolding first, so the implementation agent lands in a repo that already has CI, prompts, ownership, and provenance hooks.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> ready, blocked, scaffold-needed, and unreachable states for each target repo.</div>
+  </div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">A human confirms the hand-off</div>
+      <p class="docs-proof-body">The user sees the repo list, the blocked items, and the ready items before anything dispatches. The button says how much work is actually ready, so "fan out" is a deliberate governance act.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> the fan-out state file in the mesh and the landing issue created for each ready repo.</div>
+  </div>
+  <div class="docs-proof-row">
+    <div class="docs-proof-status docs-proof-status-shipped">✓ Shipped</div>
+    <div>
+      <div class="docs-proof-title">Each repo gets its own implementation agent</div>
+      <p class="docs-proof-body">The landing issue carries the OKR context, the repo's slice of the design, the parent-chain markers, and the governance tier. The implementation agent starts inside that repo, with the local code and local scaffold in front of it.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>What the audit records:</strong> the assigned agent, the parent run, the parent chain root, and the repo-specific implementation run.</div>
+  </div>
+</div>
 
-The `celeb-api` landing issue gets the API work. The `imdb-react-frontend` landing issue gets the consumer work. The inherited auth contract gets honored without pretending there is a third repo PR.
+In the IMDB example, `celeb-api` gets the API slice, `imdb-react-frontend` gets the consumer slice, and the inherited auth contract stays a contract instead of becoming a fake third repo PR.
 
 ### The chain continues in the target repo
 
-The implementation agent, running inside the target repo, writes a second hash-chained audit log — this one to `<repo>/.maintainability/audit/events/IMPL-*.jsonl` instead of the mesh. Same per-event Ed25519 signing as the planning side; same evidence honesty rules; uniform score scale (0.00–1.00 + PASS / MINOR / MAJOR / BLOCKING) so the rollup reads all four phases the same way. The runner routes the writes by run-id prefix: `IMPL-*` goes to the target repo, `WHY-* / HOW-* / WHAT-*` goes to the mesh. Writer and verifier resolve via the same function, so what gets written gets verified.
+The implementation agent writes its evidence where the code lives: `<repo>/.maintainability/audit/events/IMPL-*.jsonl`. Planning evidence stays in the mesh under `WHY-*`, `HOW-*`, and `WHAT-*`. Implementation evidence stays in the target repo under `IMPL-*`.
 
-When the implementation PR opens, it carries a continuation `implementation_chain:` block in its body's YAML frontmatter — the IMPL run id, the parent run id, the parent intent thread, the parent chain root, the path to the in-repo events JSONL, the path to the in-repo Ed25519 public key, and **this** chain's own root hash (the IMPL chain's event_id=1 hash, not the parent's). When the PR merges, Stage 5 polling in Looking Glass fetches the events file and public key from the target repo **at `pr.merge_commit_sha`**, verifies they exist at that exact SHA, and only then appends a row to the mesh's `chain-ladder.yaml` — with the merge SHA stamped on it as evidence provenance. If the fetch fails, the row is marked retry-pending; no false-green seal lands. The work changes rooms, but the provenance does not get lost — it gets stitched.
+When the implementation PR opens, its body includes a continuation block: the IMPL run id, the parent run id, the parent intent thread, the parent chain root, the in-repo event log path, the public-key path, and the implementation chain's own root hash. When the PR merges, Looking Glass checks those files in GitHub at the merge commit SHA before it appends the implementation row to the mesh chain ladder. If the files are missing or cannot be fetched, the row waits for retry. No false-green seal lands.
 
 > 🔐 **The hand-off is the signature.** Each agent session signs its own events with a session-only key. No credential is reissued between agents. The research agent signs research judgments, the PRD agent signs product judgments, the code-design agent signs design judgments, and the implementation agent signs implementation judgments inside the target repo. The mesh's chain ladder names every rung; the merge commit SHA proves the impl rung existed in the repo at the moment of merge.
 
@@ -549,7 +579,7 @@ When the implementation PR opens, it carries a continuation `implementation_chai
     </marker>
   </defs>
   <rect width="800" height="360" rx="12" fill="url(#handoffBg)"/>
-  <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">HAND-OFF · DESIGN BECOMES REPO WORK</text>
+  <text x="400" y="28" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="600" letter-spacing="2" font-family="system-ui, sans-serif">REPO HAND-OFF · DESIGN BECOMES WORK</text>
   <!-- Source: code-design.md merged in the mesh -->
   <rect x="30" y="80" width="170" height="80" rx="10" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
   <text x="115" y="103" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700" font-family="system-ui, sans-serif">code-design.md</text>
@@ -563,14 +593,14 @@ When the implementation PR opens, it carries a continuation `implementation_chai
   <text x="335" y="93" text-anchor="middle" fill="#94a3b8" font-size="8" font-style="italic" font-family="system-ui, sans-serif">in-extension · deterministic</text>
   <!-- Engine steps -->
   <rect x="246" y="103" width="178" height="22" rx="4" fill="rgba(15,23,42,0.55)"/>
-  <text x="335" y="118" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">1 · coordination verify (7+1)</text>
+  <text x="335" y="118" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">1 · check repo order</text>
   <rect x="246" y="128" width="178" height="22" rx="4" fill="rgba(15,23,42,0.55)"/>
-  <text x="335" y="143" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">2 · repo probe (brown · green)</text>
+  <text x="335" y="143" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">2 · check repo readiness</text>
   <rect x="246" y="153" width="178" height="34" rx="4" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
   <text x="335" y="167" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="700" font-family="system-ui, sans-serif">3 · pre-flight pane</text>
   <text x="335" y="179" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="system-ui, sans-serif">user clicks "Fan out N of M"</text>
   <rect x="246" y="191" width="178" height="22" rx="4" fill="rgba(15,23,42,0.55)"/>
-  <text x="335" y="206" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">4 · custom-agent dispatch</text>
+  <text x="335" y="206" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">4 · open issue + assign agent</text>
   <!-- Per-repo lanes -->
   <line x1="435" y1="90" x2="475" y2="80" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
   <line x1="435" y1="145" x2="475" y2="155" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
@@ -592,7 +622,7 @@ When the implementation PR opens, it carries a continuation `implementation_chai
   <text x="620" y="271" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">↳ ladder back at merge SHA</text>
   <!-- Bottom: stitch + Red Queen takes over -->
   <rect x="60" y="298" width="680" height="22" rx="11" fill="rgba(252,211,77,0.10)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="400" y="313" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">chain-ladder.yaml ← Stage 5 verifies events + key at pr.merge_commit_sha · stamps row</text>
+  <text x="400" y="313" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">mesh records repo evidence after checking it at the PR merge SHA</text>
   <rect x="160" y="328" width="480" height="22" rx="11" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.4)"/>
   <text x="400" y="343" text-anchor="middle" fill="#f9a8d4" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">↳ Red Queen governs the impl agent's tool calls inside each repo</text>
 </svg>
