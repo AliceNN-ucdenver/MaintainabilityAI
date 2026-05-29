@@ -758,61 +758,6 @@ describe('Red Queen MCP Server Integration', () => {
       expect(result.isError).toBeTruthy();
     });
 
-    // Phase 7: Review workflow + subagent definitions
-    it('scaffold_agent_config includes review workflow when agentType is set', async () => {
-      const result = await client.callTool({
-        name: 'scaffold_agent_config',
-        arguments: { barName: 'Test Bar Good' },
-      });
-      expect(result.isError).toBeFalsy();
-      const data = JSON.parse((result.content as Array<{ text: string }>)[0].text);
-      const paths = data.files.map((f: { path: string }) => f.path);
-
-      // Review workflow generated because mesh.yaml has agent_type: claude
-      expect(paths).toContain('.github/workflows/redqueen-review.yml');
-      expect(paths).toContain('.redqueen/consensus.js');
-      expect(paths).toContain('.claude/agents/security-reviewer.md');
-      expect(paths).toContain('.claude/agents/architecture-reviewer.md');
-    });
-
-    it('review workflow contains agent-specific steps', async () => {
-      const result = await client.callTool({
-        name: 'scaffold_agent_config',
-        arguments: { barName: 'Test Bar Good' },
-      });
-      const data = JSON.parse((result.content as Array<{ text: string }>)[0].text);
-      const workflow = data.files.find((f: { path: string }) => f.path === '.github/workflows/redqueen-review.yml');
-      expect(workflow).toBeDefined();
-      // Should contain Claude-specific action
-      expect(workflow.content).toContain('anthropics/claude-code-action@v1');
-      expect(workflow.content).toContain('Red Queen Review');
-      expect(workflow.content).toContain('review-depth');
-    });
-
-    it('consensus.js is a self-contained Node.js script', async () => {
-      const result = await client.callTool({
-        name: 'scaffold_agent_config',
-        arguments: { barName: 'Test Bar Good' },
-      });
-      const data = JSON.parse((result.content as Array<{ text: string }>)[0].text);
-      const consensus = data.files.find((f: { path: string }) => f.path === '.redqueen/consensus.js');
-      expect(consensus).toBeDefined();
-      expect(consensus.content).toContain('resolveConsensus');
-      expect(consensus.content).toContain('consensus-result.json');
-    });
-
-    it('subagent definitions contain correct agent type', async () => {
-      const result = await client.callTool({
-        name: 'scaffold_agent_config',
-        arguments: { barName: 'Test Bar Good' },
-      });
-      const data = JSON.parse((result.content as Array<{ text: string }>)[0].text);
-      const secReviewer = data.files.find((f: { path: string }) => f.path === '.claude/agents/security-reviewer.md');
-      expect(secReviewer).toBeDefined();
-      expect(secReviewer.content).toContain('claude');
-      expect(secReviewer.content).toContain('Security Reviewer');
-    });
-
     // Phase 8: Copilot hooks, shell wrapper, implementation workflow
     it('scaffold includes Copilot hooks JSON', async () => {
       const result = await client.callTool({
@@ -849,20 +794,23 @@ describe('Red Queen MCP Server Integration', () => {
       expect(wrapper.content).toContain('validate-tool.js');
     });
 
-    it('scaffold includes implementation workflow', async () => {
+    it('scaffold includes the unconditional impl-provenance gate', async () => {
       const result = await client.callTool({
         name: 'scaffold_agent_config',
         arguments: { barName: 'Test Bar Good' },
       });
       const data = JSON.parse((result.content as Array<{ text: string }>)[0].text);
       const paths = data.files.map((f: { path: string }) => f.path);
-      expect(paths).toContain('.github/workflows/redqueen-implement.yml');
+      expect(paths).toContain('.github/workflows/impl-provenance.yml');
+      // Retired Governance Court artifacts must NOT be scaffolded.
+      expect(paths).not.toContain('.github/workflows/redqueen-review.yml');
+      expect(paths).not.toContain('.github/workflows/redqueen-implement.yml');
+      expect(paths).not.toContain('.redqueen/consensus.js');
 
-      const workflow = data.files.find((f: { path: string }) => f.path === '.github/workflows/redqueen-implement.yml');
+      const workflow = data.files.find((f: { path: string }) => f.path === '.github/workflows/impl-provenance.yml');
       expect(workflow).toBeDefined();
-      expect(workflow.content).toContain('Red Queen Implement');
-      expect(workflow.content).toContain('anthropics/claude-code-action@v1');
-      expect(workflow.content).toContain('implement');
+      expect(workflow.content).toContain('Implementation Provenance');
+      expect(workflow.content).toContain('skill-audit-verify-chain');
     });
 
     it('claude settings hook references validate-tool.sh', async () => {

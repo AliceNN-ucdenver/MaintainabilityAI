@@ -774,13 +774,6 @@ export function parsePortfolioConfig(content: string): PortfolioConfig {
 
   const repo = get('repo') || undefined;
 
-  const agentTypeVal = get('agent_type');
-  const agentType: 'claude' | 'copilot' | 'both' | undefined =
-    agentTypeVal === 'claude' ? 'claude'
-    : agentTypeVal === 'copilot' ? 'copilot'
-    : agentTypeVal === 'both' ? 'both'
-    : undefined;
-
   return {
     id: get('id'),
     name: get('name'),
@@ -788,7 +781,6 @@ export function parsePortfolioConfig(content: string): PortfolioConfig {
     owner: get('owner'),
     description: get('description'),
     repo,
-    agentType,
     architectureDsl,
     capabilityModel,
   };

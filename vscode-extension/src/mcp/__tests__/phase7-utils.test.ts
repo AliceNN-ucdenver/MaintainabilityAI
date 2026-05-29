@@ -1,32 +1,17 @@
 /**
- * Phase 7 utility tests — consensus, score decay, audit logger.
+ * Phase 7 utility tests — score decay, audit logger.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { resolveConsensus } from '../utils/consensus';
 import { computeDecayedScore, computeDecayedPillarScores } from '../utils/score-decay';
 import { createAuditEntry, appendAuditLog, readAuditLog, computeScoreDelta, generateCorrelationId } from '../utils/audit-logger';
-import type { ReviewVerdict, GovernanceTimestamps } from '../../types/redqueen';
+import type { GovernanceTimestamps } from '../../types/redqueen';
 
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function makeVerdict(overrides: Partial<ReviewVerdict> = {}): ReviewVerdict {
-  return {
-    reviewer: 'claude-security',
-    agent: 'claude',
-    scope: 'security',
-    verdict: 'approve',
-    confidence: 90,
-    findings: [],
-    caveats: [],
-    summary: 'All clear.',
-    ...overrides,
-  };
-}
 
 // Reference date shared by all decay tests — must match the `now` in the describe block
 const DECAY_REF = new Date('2026-03-08T00:00:00Z');
@@ -40,141 +25,6 @@ function makeTimestamps(daysAgo: number): GovernanceTimestamps {
     lastScaffold: null,
   };
 }
-
-// ============================================================================
-// Consensus Resolution
-// ============================================================================
-
-describe('resolveConsensus', () => {
-  it('fails closed for empty verdicts', () => {
-    const result = resolveConsensus([]);
-    expect(result.finalVerdict).toBe('deny');
-    expect(result.requiresHumanReview).toBe(true);
-    expect(result.mergedFindings[0].id).toBe('RQ-REVIEW-001');
-  });
-
-  it('returns approve when all verdicts approve', () => {
-    const verdicts = [
-      makeVerdict({ reviewer: 'claude-security' }),
-      makeVerdict({ reviewer: 'claude-architecture', scope: 'architecture' }),
-    ];
-    const result = resolveConsensus(verdicts);
-    expect(result.finalVerdict).toBe('approve');
-    expect(result.reasoning).toContain('All reviewers approved');
-  });
-
-  it('returns deny when any verdict denies (any-flag-escalates)', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'approve' }),
-      makeVerdict({ reviewer: 'copilot-security', agent: 'copilot', verdict: 'deny' }),
-    ];
-    const result = resolveConsensus(verdicts, 'any-flag-escalates');
-    expect(result.finalVerdict).toBe('deny');
-    expect(result.requiresHumanReview).toBe(true);
-  });
-
-  it('returns request-changes when any verdict requests changes', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'approve' }),
-      makeVerdict({ reviewer: 'claude-architecture', verdict: 'request-changes' }),
-    ];
-    const result = resolveConsensus(verdicts);
-    expect(result.finalVerdict).toBe('request-changes');
-  });
-
-  it('deny overrides request-changes in any-flag-escalates', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'request-changes' }),
-      makeVerdict({ reviewer: 'copilot-security', verdict: 'deny' }),
-    ];
-    const result = resolveConsensus(verdicts);
-    expect(result.finalVerdict).toBe('deny');
-  });
-
-  it('unanimous rule requires all approve', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'approve' }),
-      makeVerdict({ reviewer: 'copilot-security', verdict: 'request-changes' }),
-    ];
-    const result = resolveConsensus(verdicts, 'unanimous');
-    expect(result.finalVerdict).toBe('request-changes');
-    expect(result.reasoning[0]).toMatch(/Not unanimous/);
-  });
-
-  it('unanimous rule approves when all approve', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'approve' }),
-      makeVerdict({ reviewer: 'copilot-security', verdict: 'approve' }),
-    ];
-    const result = resolveConsensus(verdicts, 'unanimous');
-    expect(result.finalVerdict).toBe('approve');
-  });
-
-  it('majority rule approves with >50%', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'approve' }),
-      makeVerdict({ reviewer: 'b', verdict: 'approve' }),
-      makeVerdict({ reviewer: 'c', verdict: 'deny' }),
-    ];
-    const result = resolveConsensus(verdicts, 'majority');
-    expect(result.finalVerdict).toBe('approve');
-    expect(result.reasoning[0]).toMatch(/Majority approved.*2\/3/);
-  });
-
-  it('majority rule denies without majority', () => {
-    const verdicts = [
-      makeVerdict({ verdict: 'approve' }),
-      makeVerdict({ reviewer: 'b', verdict: 'deny' }),
-      makeVerdict({ reviewer: 'c', verdict: 'deny' }),
-    ];
-    const result = resolveConsensus(verdicts, 'majority');
-    expect(result.finalVerdict).toBe('deny');
-  });
-
-  it('merges findings by id with highest severity', () => {
-    const verdicts = [
-      makeVerdict({
-        findings: [
-          { id: 'F1', category: 'security', severity: 'medium', title: 'T', description: 'D', recommendation: 'R' },
-        ],
-      }),
-      makeVerdict({
-        reviewer: 'copilot-security',
-        findings: [
-          { id: 'F1', category: 'security', severity: 'high', title: 'T2', description: 'D2', recommendation: 'R2' },
-          { id: 'F2', category: 'architecture', severity: 'low', title: 'T3', description: 'D3', recommendation: 'R3' },
-        ],
-      }),
-    ];
-    const result = resolveConsensus(verdicts);
-    expect(result.mergedFindings).toHaveLength(2);
-    expect(result.mergedFindings[0].id).toBe('F1');
-    expect(result.mergedFindings[0].severity).toBe('high'); // promoted from medium
-    expect(result.highestSeverity).toBe('high');
-  });
-
-  it('deduplicates caveats', () => {
-    const verdicts = [
-      makeVerdict({ caveats: ['caveat-a', 'caveat-b'] }),
-      makeVerdict({ reviewer: 'b', caveats: ['caveat-b', 'caveat-c'] }),
-    ];
-    const result = resolveConsensus(verdicts);
-    expect(result.mergedCaveats).toEqual(['caveat-a', 'caveat-b', 'caveat-c']);
-  });
-
-  it('requires human review for critical findings', () => {
-    const verdicts = [
-      makeVerdict({
-        findings: [
-          { id: 'F1', category: 'security', severity: 'critical', title: 'CVE', description: 'D', recommendation: 'R' },
-        ],
-      }),
-    ];
-    const result = resolveConsensus(verdicts);
-    expect(result.requiresHumanReview).toBe(true);
-    expect(result.highestSeverity).toBe('critical');
-  });
-});
 
 // ============================================================================
 // Score Decay

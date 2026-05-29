@@ -95,9 +95,7 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   'services/coordination/topologicalSort.ts': 42,
 };
 
-const INTENTIONAL_STANDALONE_MODULES = new Set([
-  // Source-of-truth implementation mirrored into generated .redqueen/consensus.js.
-  'mcp/utils/consensus.ts',
+const INTENTIONAL_STANDALONE_MODULES = new Set<string>([
   // D-PR4 fan-out engine — the panel imports `runFanOutPreflight` from
   // `services/coordination/fanOutEngine` in `onFanOutPreflight` (sub-PR
   // 3b), which transitively reaches every other coordination module

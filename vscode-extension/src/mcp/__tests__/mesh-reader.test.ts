@@ -339,60 +339,6 @@ describe('Config Scaffold', () => {
       expect(copilotSteps).toContain('node .redqueen/mcp-runner.js');
     });
 
-    it('separates Claude and Copilot reviewer instructions when agent_type is both', () => {
-      const tmpMesh = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-mesh-both-'));
-      try {
-        fs.cpSync(FIXTURES, tmpMesh, { recursive: true });
-        const meshYamlPath = path.join(tmpMesh, 'mesh.yaml');
-        fs.writeFileSync(
-          meshYamlPath,
-          fs.readFileSync(meshYamlPath, 'utf8').replace('agent_type: claude', 'agent_type: both'),
-          'utf8',
-        );
-        const bothReader = new MeshReader(tmpMesh);
-        const result = scaffoldAgentConfig(bothReader, 'Test Bar Good');
-        if ('error' in result) { throw new Error(result.error); }
-
-        expect(result.files['.claude/agents/security-reviewer.md']).toContain('.redqueen/verdicts/claude-security.json');
-        expect(result.files['.github/copilot-agents/security-reviewer.md']).toContain('.redqueen/verdicts/copilot-security.json');
-        expect(result.files['.github/copilot-agents/security-reviewer.md']).not.toContain('.redqueen/verdicts/claude-security.json');
-        expect(result.files['.github/workflows/redqueen-review.yml']).toContain('.github/copilot-agents/security-reviewer.md');
-      } finally {
-        fs.rmSync(tmpMesh, { recursive: true, force: true });
-      }
-    });
-
-    it('includes implementation workflow for Copilot-only scaffolds', () => {
-      const tmpMesh = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-mesh-copilot-'));
-      try {
-        fs.cpSync(FIXTURES, tmpMesh, { recursive: true });
-        const meshYamlPath = path.join(tmpMesh, 'mesh.yaml');
-        fs.writeFileSync(
-          meshYamlPath,
-          fs.readFileSync(meshYamlPath, 'utf8').replace('agent_type: claude', 'agent_type: copilot'),
-          'utf8',
-        );
-        const copilotReader = new MeshReader(tmpMesh);
-        const result = scaffoldAgentConfig(copilotReader, 'Test Bar Good');
-        if ('error' in result) { throw new Error(result.error); }
-
-        // Copilot Coding Agent is invoked by assigning the Copilot bot to the issue,
-        // not via a `uses:` action. See
-        // https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent
-        const implementYml = result.files['.github/workflows/redqueen-implement.yml'];
-        expect(implementYml).toContain('Assign issue to Copilot Coding Agent');
-        expect(implementYml).toContain('uses: actions/github-script@v7');
-        expect(implementYml).toContain('addAssignees');
-        expect(implementYml).toContain('"Copilot"');
-        expect(implementYml).not.toContain('github/copilot-coding-agent@v1');
-        expect(implementYml).not.toContain('anthropics/claude-code-action@v1');
-        expect(result.files['.github/copilot-agents/security-reviewer.md']).toContain('"agent": "copilot"');
-        expect(result.files['.claude/agents/security-reviewer.md']).toBeUndefined();
-      } finally {
-        fs.rmSync(tmpMesh, { recursive: true, force: true });
-      }
-    });
-
     it('generates policy.json with static rules', () => {
       const result = scaffoldAgentConfig(reader, 'Test Bar Good');
       if ('error' in result) { return; }
@@ -410,14 +356,13 @@ describe('Config Scaffold', () => {
       });
     });
 
-    it('Bug-AAE: scaffolds impl-provenance.yml (decoupled from agent_type review workflow)', () => {
+    it('scaffolds impl-provenance.yml unconditionally (Governance Court retired)', () => {
       // The implementation provenance gate is its OWN workflow, emitted
-      // outside the agent_type-gated block — so impl PRs are verified
-      // even on meshes that never configured a review framework. (This
-      // fixture sets agent_type=claude, so redqueen-review.yml is ALSO
-      // present; the decoupling is that impl-provenance no longer LIVES
-      // inside that file. The "present without agent_type" guarantee is
-      // the unconditional emission line in config-scaffold.ts.)
+      // unconditionally — so impl PRs are verified on every scaffolded
+      // repo. The Governance Court review workflow (redqueen-review.yml)
+      // has been retired: agent self-review (the Tweedles) is embedded in
+      // the implementation agent's loop, and this gate verifies the signed
+      // chain server-side.
       const result = scaffoldAgentConfig(reader, 'Test Bar Good');
       if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
       const gate = result.files['.github/workflows/impl-provenance.yml'];
@@ -425,9 +370,11 @@ describe('Config Scaffold', () => {
       expect(gate).toContain('impl-provenance:');
       expect(gate).toContain('skill-audit-verify-chain');
       expect(gate).toContain('Implementation Provenance');
-      // The standalone gate must NOT live inside the review workflow.
-      const review = result.files['.github/workflows/redqueen-review.yml'] || '';
-      expect(review).not.toContain('impl-provenance:');
+      // The retired review court must NOT be scaffolded anymore.
+      expect(result.files['.github/workflows/redqueen-review.yml']).toBeUndefined();
+      expect(result.files['.redqueen/consensus.js']).toBeUndefined();
+      expect(result.files['.claude/agents/security-reviewer.md']).toBeUndefined();
+      expect(result.files['.github/workflows/redqueen-implement.yml']).toBeUndefined();
     });
 
     it('restricted BAR policy.json denies Bash and Write', () => {

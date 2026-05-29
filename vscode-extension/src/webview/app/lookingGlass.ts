@@ -232,8 +232,6 @@ const state = {
   settingsReinitConfirmStep: 0,  // 0=default, 1=warning shown
   // Orchestration policy editor (mesh-level)
   orchPolicy: null as { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } | null,
-  // Agent framework for governance review workflows
-  agentType: 'claude' as 'claude' | 'copilot' | 'both',
   // Research Settings (Tavily + Anthropic/OpenAI/USPTO/GOVERNANCE_MESH_TOKEN + non-secret prefs)
   researchSettings: null as {
     secrets: {
@@ -2115,7 +2113,6 @@ function renderSettings(): string {
       ${renderSettingsResearch()}
       ${renderSettingsDriftWeights()}
       ${renderSettingsOrchestration()}
-      ${renderSettingsGovernanceCourt()}
       ${renderSettingsDangerZone()}
     </div>
   `;
@@ -2678,29 +2675,6 @@ function renderSettingsOrchestration(): string {
   `;
 }
 
-function renderSettingsGovernanceCourt(): string {
-  const claude = state.agentType === 'claude' ? ' selected' : '';
-  const copilot = state.agentType === 'copilot' ? ' selected' : '';
-  const both = state.agentType === 'both' ? ' selected' : '';
-  return `
-    <div class="settings-section">
-      <h3>Governance Court</h3>
-      <p class="text-muted">Agent framework used for PR review workflows. This determines which action runs security and architecture review steps. <strong>Both</strong> runs one step per agent — consensus is computed across all reviews. Saved to <code>mesh.yaml</code>.</p>
-      <div class="settings-row">
-        <div class="settings-label">Agent Framework</div>
-        <select id="select-agent-type" class="settings-select" style="padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
-          <option value="claude"${claude}>Claude Code Action</option>
-          <option value="copilot"${copilot}>Copilot Coding Agent</option>
-          <option value="both"${both}>Both (Claude + Copilot)</option>
-        </select>
-      </div>
-      <div class="settings-row" style="justify-content: flex-start; margin-top: 8px;">
-        <button id="btn-save-agent-type" class="btn-primary">Save</button>
-      </div>
-    </div>
-  `;
-}
-
 function renderSettingsDangerZone(): string {
   let reinitContent = '';
   if (state.settingsReinitConfirmStep === 0) {
@@ -3169,7 +3143,6 @@ function attachEventHandlers() {
     vscode.postMessage({ type: 'checkAgenticStatus' });
     vscode.postMessage({ type: 'listModels' });
     vscode.postMessage({ type: 'loadDriftWeights' });
-    vscode.postMessage({ type: 'loadAgentType' });
     vscode.postMessage({ type: 'loadResearchSettings' });
     render();
   });
@@ -3337,14 +3310,6 @@ function attachEventHandlers() {
     };
     state.orchPolicy = policy;
     vscode.postMessage({ type: 'saveOrchestrationPolicy', policy });
-  });
-
-  // Settings: save agent type (Governance Court)
-  document.getElementById('btn-save-agent-type')?.addEventListener('click', () => {
-    const select = document.getElementById('select-agent-type') as HTMLSelectElement;
-    const agentType = (select?.value || 'claude') as 'claude' | 'copilot' | 'both';
-    state.agentType = agentType;
-    vscode.postMessage({ type: 'saveAgentType', agentType });
   });
 
   // Settings: reset orchestration policy to defaults
@@ -4989,13 +4954,6 @@ const inboundHandlers: Record<string, InboundHandler> = {
       if (state.view === 'settings') { render(); }
     },
     'orchestrationPolicySaved': (_message: WebviewInboundMessage) => {
-      if (state.view === 'settings') { render(); }
-    },
-    'agentTypeLoaded': (message: WebviewInboundMessage) => {
-      state.agentType = (message as unknown as { agentType: 'claude' | 'copilot' | 'both' }).agentType;
-      if (state.view === 'settings') { render(); }
-    },
-    'agentTypeSaved': (_message: WebviewInboundMessage) => {
       if (state.view === 'settings') { render(); }
     },
     'researchSettings': (message: WebviewInboundMessage) => {

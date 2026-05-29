@@ -724,44 +724,6 @@ export class RedQueenService {
     return lines.join('\n');
   }
 
-  // ── Review Board Assembly ────────────────────────────────────────────
-
-  /** Assemble review board steps based on tier and agent type. */
-  assembleReviewBoard(
-    decision: OrchestrationDecision,
-    agentType: 'claude' | 'copilot' | 'both',
-  ): { steps: Array<{ agent: 'claude' | 'copilot'; scope: 'security' | 'architecture' }>; consensusRule: 'any-flag-escalates' | 'unanimous' | 'majority' } {
-    // Autonomous tier skips review
-    if (decision.effectiveTier === 'autonomous') {
-      return { steps: [], consensusRule: 'any-flag-escalates' };
-    }
-
-    const scopes: Array<'security' | 'architecture'> =
-      decision.effectiveTier === 'restricted'
-        ? ['security', 'architecture']
-        : ['security'];  // supervised: security only (unless agents >= 2)
-
-    // If supervised but review requires >= 2 agents, add architecture scope
-    if (decision.effectiveTier === 'supervised' && decision.review.agents >= 2) {
-      scopes.push('architecture');
-    }
-
-    const steps: Array<{ agent: 'claude' | 'copilot'; scope: 'security' | 'architecture' }> = [];
-    const agents: Array<'claude' | 'copilot'> =
-      agentType === 'both' ? ['claude', 'copilot'] : [agentType];
-
-    for (const scope of scopes) {
-      for (const agent of agents) {
-        steps.push({ agent, scope });
-      }
-    }
-
-    // Consensus rule: restricted uses unanimous, supervised uses any-flag-escalates
-    const consensusRule = decision.effectiveTier === 'restricted' ? 'unanimous' : 'any-flag-escalates';
-
-    return { steps, consensusRule };
-  }
-
   // ── Private parsing helpers ───────────────────────────────────────────
 
   private parseOrchestrationBlock(block: string): OrchestrationPolicy {

@@ -526,8 +526,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'saveResearchPrefs':           (m) => this.onSaveResearchPrefs(m.prefs),
     'loadOrchestrationPolicy':     () => this.onLoadOrchestrationPolicy(),
     'saveOrchestrationPolicy':     (m) => this.onSaveOrchestrationPolicy(m.policy),
-    'loadAgentType':               () => this.onLoadAgentType(),
-    'saveAgentType':               (m) => this.onSaveAgentType(m.agentType),
     'loadPlatformGovernance':      (m) => this.onLoadPlatformGovernance(m.platformId),
     'savePlatformGovernance':      (m) => this.onSavePlatformGovernance(m.platformId, m.governance),
     'absolemStart':                (m) => { this.onAbsolemStart(m.barPath, m.command).catch(() => {}); },
@@ -8013,73 +8011,6 @@ Policy file: ${filename}
       this.postMessage({ type: 'info', message: 'Orchestration policy saved to mesh.yaml.' });
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to save policy: ${toErrorMessage(err)}` });
-    }
-  }
-
-  private onLoadAgentType() {
-    const meshPath = MeshService.getMeshPath();
-    if (!meshPath) {
-      this.postMessage({ type: 'agentTypeLoaded', agentType: 'claude' });
-      return;
-    }
-    try {
-      const content = fs.readFileSync(path.join(meshPath, 'mesh.yaml'), 'utf8');
-      const m = content.match(/agent_type:\s*(claude|copilot|both)/m);
-      this.postMessage({ type: 'agentTypeLoaded', agentType: (m?.[1] as 'claude' | 'copilot' | 'both') || 'claude' });
-    } catch {
-      this.postMessage({ type: 'agentTypeLoaded', agentType: 'claude' });
-    }
-  }
-
-  private onSaveAgentType(agentType: 'claude' | 'copilot' | 'both') {
-    const meshPath = MeshService.getMeshPath();
-    if (!meshPath) {
-      this.postMessage({ type: 'error', message: 'No mesh configured' });
-      return;
-    }
-    const meshYaml = path.join(meshPath, 'mesh.yaml');
-    try {
-      let content = fs.readFileSync(meshYaml, 'utf8');
-      if (/agent_type:\s*(claude|copilot|both)/m.test(content)) {
-        content = content.replace(/agent_type:\s*(claude|copilot|both)/m, `agent_type: ${agentType}`);
-      } else {
-        // Insert agent_type inside the portfolio: block (after description: line or last portfolio field)
-        const portfolioInsertPoint = content.match(/^(\s+description:.*$)/m);
-        if (portfolioInsertPoint) {
-          content = content.replace(portfolioInsertPoint[0], `${portfolioInsertPoint[0]}\n  agent_type: ${agentType}`);
-        } else {
-          // Fallback: insert after portfolio: line
-          const portfolioLine = content.match(/^portfolio:\s*$/m);
-          if (portfolioLine) {
-            content = content.replace(portfolioLine[0], `${portfolioLine[0]}\n  agent_type: ${agentType}`);
-          } else {
-            content = content.trimEnd() + `\nagent_type: ${agentType}\n`;
-          }
-        }
-      }
-
-      // Also ensure repo: field exists in mesh.yaml (needed for GitHub Actions workflows)
-      if (!/^\s*repo:\s/m.test(content)) {
-        try {
-          const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
-          const parsed = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
-          if (parsed) {
-            const repoName = parsed[2];
-            // Insert repo: inside portfolio block (after org: line)
-            const orgLine = content.match(/^(\s+org:.*$)/m);
-            if (orgLine) {
-              content = content.replace(orgLine[0], `${orgLine[0]}\n  repo: "${repoName}"`);
-            }
-          }
-        } catch { /* git not available — user will add repo manually */ }
-      }
-
-      fs.writeFileSync(meshYaml, content, 'utf8');
-      this.postMessage({ type: 'agentTypeSaved' });
-      const label = agentType === 'claude' ? 'Claude Code Action' : agentType === 'copilot' ? 'Copilot Coding Agent' : 'Both (Claude + Copilot)';
-      this.postMessage({ type: 'info', message: `Agent framework set to ${label}.` });
-    } catch (err) {
-      this.postMessage({ type: 'error', message: `Failed to save agent type: ${toErrorMessage(err)}` });
     }
   }
 

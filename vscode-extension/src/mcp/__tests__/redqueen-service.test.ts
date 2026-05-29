@@ -490,61 +490,6 @@ describe('RedQueenService', () => {
   });
 
   // ==========================================================================
-  // Review Board Assembly — Phase 7
-  // ==========================================================================
-
-  describe('assembleReviewBoard', () => {
-    it('returns empty steps for autonomous tier', () => {
-      const decision = service.evaluatePolicy(goodBar, policy);
-      // Force autonomous for this test
-      const autoDecision = { ...decision, effectiveTier: 'autonomous' as PermissionTier };
-      const board = service.assembleReviewBoard(autoDecision, 'claude');
-      expect(board.steps).toHaveLength(0);
-    });
-
-    it('returns security-only step for supervised tier with claude', () => {
-      const decision = service.evaluatePolicy(goodBar, policy);
-      const supDecision = { ...decision, effectiveTier: 'supervised' as PermissionTier, review: { agents: 1, human_approval: true } };
-      const board = service.assembleReviewBoard(supDecision, 'claude');
-      expect(board.steps).toHaveLength(1);
-      expect(board.steps[0]).toEqual({ agent: 'claude', scope: 'security' });
-      expect(board.consensusRule).toBe('any-flag-escalates');
-    });
-
-    it('returns security + architecture for restricted tier with claude', () => {
-      const decision = service.evaluatePolicy(emptyBar, policy);
-      const board = service.assembleReviewBoard(decision, 'claude');
-      expect(board.steps.length).toBeGreaterThanOrEqual(2);
-      expect(board.steps.some(s => s.scope === 'security')).toBe(true);
-      expect(board.steps.some(s => s.scope === 'architecture')).toBe(true);
-      expect(board.consensusRule).toBe('unanimous');
-    });
-
-    it('doubles steps for "both" agent type', () => {
-      const decision = service.evaluatePolicy(emptyBar, policy);
-      const boardClaude = service.assembleReviewBoard(decision, 'claude');
-      const boardBoth = service.assembleReviewBoard(decision, 'both');
-      // Both should have 2x the steps of a single agent
-      expect(boardBoth.steps.length).toBe(boardClaude.steps.length * 2);
-      expect(boardBoth.steps.some(s => s.agent === 'claude')).toBe(true);
-      expect(boardBoth.steps.some(s => s.agent === 'copilot')).toBe(true);
-    });
-
-    it('returns copilot steps for copilot agent type', () => {
-      const decision = service.evaluatePolicy(emptyBar, policy);
-      const board = service.assembleReviewBoard(decision, 'copilot');
-      expect(board.steps.every(s => s.agent === 'copilot')).toBe(true);
-    });
-
-    it('adds architecture for supervised with agents >= 2', () => {
-      const decision = service.evaluatePolicy(goodBar, policy);
-      const supDecision = { ...decision, effectiveTier: 'supervised' as PermissionTier, review: { agents: 2, human_approval: true } };
-      const board = service.assembleReviewBoard(supDecision, 'claude');
-      expect(board.steps.some(s => s.scope === 'architecture')).toBe(true);
-    });
-  });
-
-  // ==========================================================================
   // Decay Integration in evaluatePolicy — Phase 7
   // ==========================================================================
 

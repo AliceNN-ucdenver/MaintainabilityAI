@@ -418,9 +418,6 @@ export type LookingGlassWebviewMessage =
   | { type: 'saveOrchestrationPolicy'; policy: { autoMinScore: number; supMinScore: number; securityThreshold: number; archThreshold: number; escScoreDrop: number; escConsecutive: number; escTarget: string } }
   | { type: 'loadPlatformGovernance'; platformId: string }
   | { type: 'savePlatformGovernance'; platformId: string; governance: { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } }
-  // Red Queen — Governance Court agent type
-  | { type: 'loadAgentType' }
-  | { type: 'saveAgentType'; agentType: 'claude' | 'copilot' | 'both' }
   // Phase B — Mesh Provisioning status check (the deploy itself is via
   // provisionAll below; the agentic-status query stays separate because
   // the UI badge polls it independently of redeploy clicks).
@@ -733,9 +730,6 @@ export type LookingGlassExtensionMessage =
   | { type: 'orchestrationPolicySaved' }
   | { type: 'platformGovernanceLoaded'; platformId: string; governance: { minimumScores: Record<string, number>; minTier: string; enforcementMode: string } | null }
   | { type: 'platformGovernanceSaved'; platformId: string }
-  // Red Queen — Governance Court agent type
-  | { type: 'agentTypeLoaded'; agentType: 'claude' | 'copilot' | 'both' }
-  | { type: 'agentTypeSaved' }
   // Research Settings
   | { type: 'researchSettings'; payload: ResearchSettingsPayload }
   | { type: 'researchSecretSaved'; id: ResearchSecretId; hasValue: boolean }
