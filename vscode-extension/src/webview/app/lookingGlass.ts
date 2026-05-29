@@ -3995,7 +3995,21 @@ function attachEventHandlers() {
   //   * fanout-refresh      → re-dispatch fanOutPreflight
   //   * fanout-prepare-repo → route repo prep through BAR + Cheshire
   //   * fanout-execute      → open landing issues for ready rows
-  document.body.addEventListener('click', (ev) => {
+  //
+  // Bug-AAB: this is a DELEGATED listener on document.body, which —
+  // unlike the getElementById/querySelectorAll handlers elsewhere in
+  // attachEventHandlers() — survives render() (render only swaps
+  // rootEl.innerHTML; document.body is never destroyed). Since
+  // attachEventHandlers() runs on EVERY render, an unguarded
+  // addEventListener here stacks one more permanent listener per
+  // render. After ~N renders, a single click on the fan-out button
+  // bubbles to document.body and fires all N listeners → N copies of
+  // postMessage({type:'fanOut'}) → N duplicate landing issues at the
+  // same instant. Guard so the delegated listener binds exactly once
+  // for the lifetime of the webview.
+  if (!document.body.dataset.fanoutDelegationBound) {
+    document.body.dataset.fanoutDelegationBound = '1';
+    document.body.addEventListener('click', (ev) => {
     const target = ev.target as HTMLElement | null;
     if (!target) { return; }
 
@@ -4037,7 +4051,8 @@ function attachEventHandlers() {
       vscode.postMessage({ type: 'fanOut', okrId });
       return;
     }
-  });
+    });
+  }
 
   // Phase B-PR3+ Start-phase modal — Cancel (✕ + footer) + click-outside
   // close, plus Create that gathers the textarea and posts the confirm.

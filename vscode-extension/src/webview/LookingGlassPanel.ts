@@ -330,6 +330,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   /** Active poll timers — one per OKR. Cleared when a terminal state
    *  is reached or when a new audit action overrides. */
   private auditPollTimers: Map<string, ReturnType<typeof setTimeout>[]> = new Map();
+  /** Bug-AAB defense-in-depth: OKR ids with an in-flight onFanOut.
+   *  Even if the webview somehow posts `fanOut` more than once for the
+   *  same OKR (the listener-leak root cause is fixed separately in
+   *  lookingGlass.ts), concurrent invocations for the same id collapse
+   *  to one — the second one returns immediately rather than opening a
+   *  second set of landing issues. */
+  private fanOutInFlight: Set<string> = new Set();
   /** When the user clicked Revise with Agent on a given OKR. Drives a
    *  "🤖 Revision dispatched at HH:MM" status line on the phase card
    *  so the user gets feedback while waiting for the agent's new commits.
@@ -1096,6 +1103,23 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    * skips successfully-opened rows.
    */
   private async onFanOut(okrId: string): Promise<void> {
+    // Bug-AAB defense-in-depth: collapse concurrent fan-outs for the
+    // same OKR. The root-cause listener leak is fixed in the webview,
+    // but a re-entrancy guard here makes duplicate landing-issue
+    // creation impossible regardless of how many `fanOut` messages
+    // arrive. Released in a finally below.
+    if (this.fanOutInFlight.has(okrId)) {
+      return;
+    }
+    this.fanOutInFlight.add(okrId);
+    try {
+      await this.onFanOutInner(okrId);
+    } finally {
+      this.fanOutInFlight.delete(okrId);
+    }
+  }
+
+  private async onFanOutInner(okrId: string): Promise<void> {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) {
       this.postMessage({ type: 'error', message: 'Mesh not initialized.' });
