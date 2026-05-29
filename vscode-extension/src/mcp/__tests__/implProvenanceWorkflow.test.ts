@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as YAML from 'yaml';
-import { generateRedQueenReviewWorkflow } from '../config-scaffold';
+import { generateImplProvenanceWorkflow } from '../config-scaffold';
 
 /**
  * Bug-AAE Phase 2 — the server-side implementation provenance gate.
@@ -17,9 +17,17 @@ import { generateRedQueenReviewWorkflow } from '../config-scaffold';
  * it uses (Bug-XX/MM).
  */
 
-const wf = generateRedQueenReviewWorkflow('copilot', 'acme/governance-mesh', 'autonomous');
+const wf = generateImplProvenanceWorkflow();
 
-describe('Bug-AAE Phase 2: impl-provenance gate in redqueen-review.yml', () => {
+describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
+  it('is a standalone workflow named "Implementation Provenance" on pull_request', () => {
+    const doc = YAML.parse(wf);
+    expect(doc.name).toBe('Implementation Provenance');
+    // Decoupled from agent_type: generateImplProvenanceWorkflow takes NO
+    // agentType arg and is scaffolded unconditionally.
+    expect(doc.on.pull_request).toBeTruthy();
+  });
+
   it('generates VALID YAML (no literal ${{ ... }} that breaks the GHA parser)', () => {
     // The decisive structural pin: GitHub rejects a workflow whose
     // source contains `${{ ... }}` (three literal dots) even in comments.

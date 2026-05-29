@@ -410,6 +410,26 @@ describe('Config Scaffold', () => {
       });
     });
 
+    it('Bug-AAE: scaffolds impl-provenance.yml (decoupled from agent_type review workflow)', () => {
+      // The implementation provenance gate is its OWN workflow, emitted
+      // outside the agent_type-gated block — so impl PRs are verified
+      // even on meshes that never configured a review framework. (This
+      // fixture sets agent_type=claude, so redqueen-review.yml is ALSO
+      // present; the decoupling is that impl-provenance no longer LIVES
+      // inside that file. The "present without agent_type" guarantee is
+      // the unconditional emission line in config-scaffold.ts.)
+      const result = scaffoldAgentConfig(reader, 'Test Bar Good');
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+      const gate = result.files['.github/workflows/impl-provenance.yml'];
+      expect(gate).toBeTruthy();
+      expect(gate).toContain('impl-provenance:');
+      expect(gate).toContain('skill-audit-verify-chain');
+      expect(gate).toContain('Implementation Provenance');
+      // The standalone gate must NOT live inside the review workflow.
+      const review = result.files['.github/workflows/redqueen-review.yml'] || '';
+      expect(review).not.toContain('impl-provenance:');
+    });
+
     it('restricted BAR policy.json denies Bash and Write', () => {
       const result = scaffoldAgentConfig(reader, 'Test Bar Empty');
       if ('error' in result) { return; }
