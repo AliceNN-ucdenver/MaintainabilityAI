@@ -197,4 +197,48 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).not.toMatch(/score:\s*<0-100>/);
     expect(body).not.toMatch(/<LOW\|MEDIUM\|HIGH>/);
   });
+
+  // ---- Agent-awareness improvements (celeb-api run findings) ----
+
+  it('AA-1: instructs the agent to read .github/repo-metadata.yml for the declared stack', () => {
+    // The celeb-api run discovered repo-metadata.yml by exploring, not
+    // because the template said to — fragile. Make it a first-class
+    // MUST-read input so stack-matching (language/module-system/testing/
+    // package-manager) is reliable run-to-run instead of guessed.
+    expect(body).toContain('.github/repo-metadata.yml');
+    expect(body).toMatch(/module_system/);
+    expect(body).toMatch(/package_manager/);
+    expect(body).toMatch(/[Dd]o not guess the stack/);
+  });
+
+  it('AA-2: names .cheshire/prompts/default.md as the always-applied security baseline', () => {
+    // default.md is the OWASP A01-A10 + CALM-control floor every impl
+    // must satisfy, layered UNDER the per-persona reviewer packs. The
+    // agent read it by exploring; pin it as an explicit input.
+    expect(body).toContain('.cheshire/prompts/default.md');
+    expect(body).toMatch(/always-applied|baseline/i);
+  });
+
+  it('AA-3: defines an honest plan-only PR contract for the Red Queen-blocked case', () => {
+    // The celeb-api PR over-claimed ("all source in body" — it wasn't)
+    // because the template had no guidance for the Write-denied case.
+    // Pin the blocked-mode section + its honesty requirements.
+    expect(body).toMatch(/plan-only mode|plan-only PR/i);
+    expect(body).toMatch(/TIER-001/);
+    expect(body).toMatch(/Inline the ACTUAL planned file contents/i);
+    expect(body).toMatch(/file-tree sketch is NOT a plan/i);
+    // Must tell the agent not to fabricate the denial root cause.
+    expect(body).toMatch(/[Dd]o NOT invent a root cause|do not claim "security pillar 0%"/);
+    expect(body).toContain('PENDING_WRITE_APPROVAL');
+  });
+
+  it('AA-4: self-review honesty rule forbids scoring controls in unwritten code', () => {
+    // The blocked run scored 0.72/0.85 "OWASP controls all present" for
+    // code that did not exist. Pin the rule that reviews score what was
+    // PRODUCED, and plan-only reviews must say so + not assert controls.
+    expect(body).toMatch(/Self-review honesty rule/i);
+    // Tolerate markdown emphasis around "plan" (e.g. **plan**).
+    expect(body).toMatch(/scores? the \*{0,2}plan\*{0,2}/i);
+    expect(body).toMatch(/MUST NOT assert that runtime controls/i);
+  });
 });
