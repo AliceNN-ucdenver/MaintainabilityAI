@@ -101,7 +101,7 @@ This is the ONLY invocation that signs the chain. **Do NOT use Copilot's `skill_
 
 ## Required skill_call manifest
 
-Every run MUST produce successful `skill_call` events for these skills, invoked via the runner CLI in §2 (NOT Copilot's `skill_use`). The `impl-pr-provenance.yml` workflow (installed by the Cheshire scaffold) verifies this manifest in PR audit and refuses to merge when missing.
+Every run MUST produce successful `skill_call` events for these skills, invoked via the runner CLI in §2 (NOT Copilot's `skill_use`). The **Red Queen Review** workflow's `impl-provenance` job (`.github/workflows/redqueen-review.yml`, installed by the Cheshire scaffold) verifies this manifest + the signed chain + the Hatter Tag on every impl PR, and **fails the PR** when any is missing.
 
 | Skill | Minimum successful calls | Notes |
 |---|---|---|
@@ -218,6 +218,6 @@ The Architect/Security persona scores describe **what you actually produced**, n
 4. Run the Tweedles persona-switch loop (Architect + Security, until convergence or `max_auto_rounds=3`).
 5. Stage `.maintainability/audit/events/<run-id>.jsonl` + `.maintainability/audit/keys/<run-id>.epoch-1.pub.pem` into the impl PR.
 6. Write the PR body with the `implementation_chain` YAML frontmatter block above. Mark PR ready for review.
-7. (Optional, when impl-pr-provenance.yml is installed) The workflow verifies your chain on PR open + each push.
+7. The Red Queen Review workflow's `impl-provenance` job verifies your signed chain + skill manifest + Hatter Tag on PR open + each push, and fails the PR if any is missing.
 
 If at any step you encounter an error you can't recover from (missing inputs, broken upstream contract, repo-state mismatch with the design), post a comment on the landing issue explaining the blocker, leave the PR in draft, and stop. Do NOT open a half-implemented PR to "show progress."

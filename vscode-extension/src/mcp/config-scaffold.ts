@@ -1427,7 +1427,7 @@ function generateReviewStep(
   }
 }
 
-function generateRedQueenReviewWorkflow(
+export function generateRedQueenReviewWorkflow(
   agentType: 'claude' | 'copilot' | 'both',
   meshRepo: string,
   _tier: GovernanceTier,
@@ -1554,6 +1554,122 @@ function generateRedQueenReviewWorkflow(
   lines.push(`              issue_number: context.issue.number,`);
   lines.push(`              body,`);
   lines.push(`            });`);
+  lines.push(``);
+
+  // Bug-AAE Phase 2 — implementation provenance gate. Runs on impl PRs
+  // (head branch copilot/okr-*) and verifies the signed audit chain +
+  // required skill_call manifest + Hatter Tag continuation. Mirrors the
+  // planning code-design-agent.yml audit job and REUSES the runner's
+  // skill-audit-verify-chain (one verifier, the same code path the
+  // runner uses to sign — no hand-rolled Ed25519). Other PRs to this
+  // repo skip the job entirely via the head-ref guard.
+  lines.push(`  impl-provenance:`);
+  lines.push(`    runs-on: ubuntu-latest`);
+  lines.push(`    if: startsWith(github.head_ref, 'copilot/okr')`);
+  lines.push(`    steps:`);
+  lines.push(`      - name: Checkout PR head`);
+  lines.push(`        uses: actions/checkout@v4`);
+  lines.push(``);
+  lines.push(`      - name: Setup Node`);
+  lines.push(`        uses: actions/setup-node@v4`);
+  lines.push(`        with:`);
+  lines.push(`          node-version: '20'`);
+  lines.push(``);
+  lines.push(`      - name: Verify implementation audit chain (Knight's Seal)`);
+  lines.push(`        id: chain`);
+  lines.push(`        run: |`);
+  lines.push(`          set -uo pipefail`);
+  lines.push(`          EVENTS=$(ls .maintainability/audit/events/IMPL-*.jsonl 2>/dev/null | head -1 || true)`);
+  lines.push(`          if [ -z "$EVENTS" ]; then`);
+  lines.push(`            echo "chain_ok=false" >> "$GITHUB_OUTPUT"`);
+  lines.push(`            echo "events_file=" >> "$GITHUB_OUTPUT"`);
+  lines.push(`            echo "chain_reason=No .maintainability/audit/events/IMPL-*.jsonl committed — the impl agent never shelled the signed runner, so no governed skill ran." >> "$GITHUB_OUTPUT"`);
+  lines.push(`            exit 0`);
+  lines.push(`          fi`);
+  lines.push(`          echo "events_file=$EVENTS" >> "$GITHUB_OUTPUT"`);
+  lines.push(`          RESULT=$(cat "$EVENTS" | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain 2>&1 || true)`);
+  lines.push(`          printf '%s' "$RESULT" > /tmp/impl-chain-verify.json`);
+  lines.push(`          OK=$(node -e "try{const r=JSON.parse(require('fs').readFileSync('/tmp/impl-chain-verify.json','utf8'));process.stdout.write(String(r.ok===true))}catch(e){process.stdout.write('false')}")`);
+  lines.push(`          echo "chain_ok=$OK" >> "$GITHUB_OUTPUT"`);
+  lines.push(`          if [ "$OK" != "true" ]; then`);
+  lines.push(`            REASON=$(node -e "try{const r=JSON.parse(require('fs').readFileSync('/tmp/impl-chain-verify.json','utf8'));process.stdout.write(String(r.reason||'chain verification failed'))}catch(e){process.stdout.write('chain-verify output unparseable')}")`);
+  lines.push(`            echo "chain_reason=$REASON" >> "$GITHUB_OUTPUT"`);
+  lines.push(`          else`);
+  lines.push(`            echo "chain_reason=verified" >> "$GITHUB_OUTPUT"`);
+  lines.push(`          fi`);
+  lines.push(``);
+  lines.push(`      - name: Verify required skill_call manifest`);
+  lines.push(`        id: manifest`);
+  lines.push(`        if: steps.chain.outputs.chain_ok == 'true'`);
+  lines.push(`        env:`);
+  // Bug-MM-safe: pass the events path via env, not inlined into the
+  // python args. Bug-XX-safe: the heredoc imports everything it uses.
+  lines.push(`          JSONL: \${{ steps.chain.outputs.events_file }}`);
+  lines.push(`        run: |`);
+  lines.push(`          python3 <<'PYEOF'`);
+  lines.push(`          import json, os`);
+  lines.push(`          jsonl = os.environ['JSONL']`);
+  lines.push(`          counts = {}`);
+  lines.push(`          with open(jsonl, 'r', encoding='utf-8') as f:`);
+  lines.push(`              for line in f:`);
+  lines.push(`                  line = line.strip()`);
+  lines.push(`                  if not line: continue`);
+  lines.push(`                  try:`);
+  lines.push(`                      e = json.loads(line)`);
+  lines.push(`                  except Exception:`);
+  lines.push(`                      continue`);
+  lines.push(`                  if e.get('event_kind') != 'skill_call': continue`);
+  lines.push(`                  payload = e.get('payload') or {}`);
+  lines.push(`                  if payload.get('ok') is False: continue`);
+  lines.push(`                  skill = payload.get('skill')`);
+  lines.push(`                  if not skill: continue`);
+  lines.push(`                  counts[skill] = counts.get(skill, 0) + 1`);
+  lines.push(`          required = ['knowledge-code', 'self-review-impl-architect', 'self-review-impl-security']`);
+  lines.push(`          missing = [r for r in required if counts.get(r, 0) < 1]`);
+  lines.push(`          out = os.environ['GITHUB_OUTPUT']`);
+  lines.push(`          with open(out, 'a', encoding='utf-8') as gh:`);
+  lines.push(`              gh.write('manifest_ok=' + ('true' if not missing else 'false') + '\\n')`);
+  lines.push(`              gh.write('manifest_missing=' + (','.join(missing) if missing else 'none') + '\\n')`);
+  lines.push(`          print('skill_call counts:', counts)`);
+  lines.push(`          print('missing required:', missing)`);
+  lines.push(`          PYEOF`);
+  lines.push(``);
+  lines.push(`      - name: Verify Hatter Tag continuation`);
+  lines.push(`        id: hatter`);
+  lines.push(`        uses: actions/github-script@v7`);
+  lines.push(`        with:`);
+  lines.push(`          script: |`);
+  // PR body read via the API object (not interpolated into shell) — no
+  // backtick-injection surface (Bug-VV/WW class).
+  lines.push(`            const body = context.payload.pull_request.body || '';`);
+  lines.push(`            const hasBlock = body.includes('implementation_chain:');`);
+  lines.push(`            const m = body.match(/chain_root_hash:\\s*([^\\s]+)/);`);
+  lines.push(`            const root = m ? m[1] : '';`);
+  lines.push(`            const ok = hasBlock && root && root !== 'PENDING_WRITE_APPROVAL';`);
+  lines.push(`            core.setOutput('hatter_ok', ok ? 'true' : 'false');`);
+  lines.push(`            core.setOutput('hatter_reason', ok ? 'present' : (hasBlock ? 'chain_root_hash missing or PENDING_WRITE_APPROVAL' : 'no implementation_chain block in PR body'));`);
+  lines.push(``);
+  lines.push(`      - name: Post provenance verdict + gate`);
+  lines.push(`        if: always()`);
+  lines.push(`        uses: actions/github-script@v7`);
+  lines.push(`        with:`);
+  lines.push(`          script: |`);
+  lines.push(`            const chainOk = '\${{ steps.chain.outputs.chain_ok }}' === 'true';`);
+  lines.push(`            const manifestOk = '\${{ steps.manifest.outputs.manifest_ok }}' === 'true';`);
+  lines.push(`            const hatterOk = '\${{ steps.hatter.outputs.hatter_ok }}' === 'true';`);
+  lines.push(`            const chainReason = \`\${{ steps.chain.outputs.chain_reason }}\`;`);
+  lines.push(`            const missing = \`\${{ steps.manifest.outputs.manifest_missing }}\`;`);
+  lines.push(`            const hatterReason = \`\${{ steps.hatter.outputs.hatter_reason }}\`;`);
+  lines.push(`            const pass = chainOk && manifestOk && hatterOk;`);
+  lines.push(`            const row = (label, ok, detail) => \`| \${ok ? '✅' : '❌'} | \${label} | \${detail} |\`;`);
+  lines.push(`            let bodyMd = \`## \${pass ? '✅' : '❌'} Implementation provenance\\n\\n\`;`);
+  lines.push(`            bodyMd += '| | Check | Detail |\\n|---|---|---|\\n';`);
+  lines.push(`            bodyMd += row('Signed audit chain', chainOk, chainReason) + '\\n';`);
+  lines.push(`            bodyMd += row('Skill manifest (knowledge-code + self-review-impl)', manifestOk, manifestOk ? 'all present' : ('missing: ' + missing)) + '\\n';`);
+  lines.push(`            bodyMd += row('Hatter Tag continuation', hatterOk, hatterReason) + '\\n';`);
+  lines.push(`            bodyMd += '\\n---\\n🔴 Generated by [The Red Queen](https://maintainability.ai) — implementation provenance gate';`);
+  lines.push(`            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: bodyMd });`);
+  lines.push(`            if (!pass) { core.setFailed('Implementation provenance failed — see the PR comment. The impl run was not governed (signed chain / skill manifest / Hatter Tag incomplete).'); }`);
 
   return lines.join('\n') + '\n';
 }
