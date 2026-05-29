@@ -181,8 +181,9 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toMatch(/autonomous\|supervised\|restricted/);
     // Persona-switch loop instructions reference the comment by name.
     expect(body).toMatch(/governance_tier.*HTML comment/i);
-    // And tell the agent to pass that exact value as `tier`.
-    expect(body).toMatch(/tier:.*from.*landing issue/i);
+    // And tell the agent to pass that exact value as `tier` (prose OR
+    // the JSON `"tier":"<governance_tier from the landing issue…>"` form).
+    expect(body).toMatch(/governance_tier from the landing issue/i);
   });
 
   it('Codex-r5 Bug 2: self_review score/severity contract matches the planning phases', () => {
@@ -191,10 +192,13 @@ describe('implementation-agent.agent.md template', () => {
     // WHY/HOW/WHAT (0.0-1.0, PASS|MINOR|MAJOR|BLOCKING). UI/rollup
     // extractors assume the planning shape; impl drift would have
     // surfaced as malformed self_review events post-merge. Align now.
-    expect(body).toMatch(/score:\s*<float 0\.00-1\.00>/);
-    expect(body).toMatch(/severity:\s*<PASS\|MINOR\|MAJOR\|BLOCKING>/);
+    // Tolerate prose (`score: <float…>`) OR the JSON runner-CLI form
+    // (`"score":<float…>`) — Bug-AAE rewrote the loop to the signed
+    // npx invocation, which uses JSON payloads.
+    expect(body).toMatch(/score"?:\s*<float 0\.00-1\.00>/);
+    expect(body).toMatch(/severity"?:\s*"?<PASS\|MINOR\|MAJOR\|BLOCKING>/);
     // Explicit anti-regression: no leftover 0-100 / LOW|MEDIUM|HIGH wording.
-    expect(body).not.toMatch(/score:\s*<0-100>/);
+    expect(body).not.toMatch(/score"?:\s*"?<0-100>/);
     expect(body).not.toMatch(/<LOW\|MEDIUM\|HIGH>/);
   });
 
@@ -230,6 +234,32 @@ describe('implementation-agent.agent.md template', () => {
     // Must tell the agent not to fabricate the denial root cause.
     expect(body).toMatch(/[Dd]o NOT invent a root cause|do not claim "security pillar 0%"/);
     expect(body).toContain('PENDING_WRITE_APPROVAL');
+  });
+
+  it('AAE-1: declares the signed runner invocation contract (env export + npx CLI)', () => {
+    // The celeb-api run produced ungoverned code because the template
+    // told the agent to "Call self-review-impl-architect" in prose but
+    // never showed the deterministic `npx research-runner skill-<name>`
+    // invocation + the session-context env export that triggers signed
+    // auto-emission. Pin the contract so the chain is deterministic,
+    // mirroring code-design-agent.agent.md.
+    expect(body).toMatch(/export OKR_ID=/);
+    expect(body).toMatch(/RUN_ID=/);
+    expect(body).toMatch(/INTENT_THREAD_UUID=/);
+    expect(body).toMatch(/PHASE="implementation"/);
+    // The runner CLI invocation + version pin (matches planning agents).
+    expect(body).toMatch(/npx -y @maintainabilityai\/research-runner@~0\.1\.\d+ skill-/);
+    // The decisive warning: skill_use leaves the chain empty.
+    expect(body).toMatch(/do NOT use Copilot's `skill_use`/i);
+  });
+
+  it('AAE-1: design contract is acceptance criteria, not a suggestion (drift guard)', () => {
+    // celeb-api shipped /v1/celebs/:celebId returning displayName when the
+    // design specified /api/celebrities/:id returning display_name. Pin
+    // the language that makes the design contract binding + names the
+    // provenance gate as the enforcer.
+    expect(body).toMatch(/acceptance criteria, not suggestions/i);
+    expect(body).toMatch(/provenance gate diffs your exposed contract against the design/i);
   });
 
   it('AA-4: self-review honesty rule forbids scoring controls in unwritten code', () => {
