@@ -526,7 +526,13 @@ export class ThreatModelService {
 
   private writeThreatModelYaml(barPath: string, threats: ThreatEntry[]): void {
     const securityDir = path.join(barPath, 'security');
-    if (!fs.existsSync(securityDir)) { return; }
+    // Bug-AAD: a BAR may not have a security/ dir yet (newly created, or
+    // never scaffolded). Previously this silently `return`ed — the LLM
+    // generation succeeded, the UI reported success, but nothing was
+    // written to disk and no error surfaced. Create the dir instead so
+    // the threat model actually persists (and the security pillar can
+    // re-score off it).
+    fs.mkdirSync(securityDir, { recursive: true });
 
     const threatModelPath = path.join(securityDir, 'threat-model.yaml');
 
@@ -603,7 +609,9 @@ export class ThreatModelService {
 
   private writeThreatDiagramMd(barPath: string, mermaidDiagram: string): void {
     const securityDir = path.join(barPath, 'security');
-    if (!fs.existsSync(securityDir)) { return; }
+    // Bug-AAD — see writeThreatModelYaml: create the dir rather than
+    // silently skipping when security/ is absent.
+    fs.mkdirSync(securityDir, { recursive: true });
 
     const mdPath = path.join(securityDir, 'threat-model.md');
     const content = [
