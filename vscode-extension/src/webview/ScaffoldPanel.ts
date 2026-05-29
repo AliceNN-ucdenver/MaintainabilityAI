@@ -1091,8 +1091,15 @@ const FILES = [
   { id: 'security', label: 'Security Policy', desc: '.github/SECURITY.md', checked: true },
   { id: 'prompt-packs', label: 'Prompt Packs', desc: '.cheshire/prompts/ — OWASP, maintainability, and STRIDE packs', checked: true },
   { id: 'copilot-setup', label: 'Copilot Agent Setup', desc: '.github/copilot-setup-steps.yml — Pre-install deps before agent firewall', checked: true },
-  { id: 'governance', label: 'Governance (Red Queen)', desc: '.redqueen/ — Agent config, decision.json, and orchestration policy from mesh', checked: true },
+  { id: 'governance', label: 'Governance (Red Queen)', desc: '.redqueen/ — Agent config, decision.json, policy, and PreToolUse hooks from mesh', checked: true },
+  { id: 'impl-agent', label: 'Implementation Agent', desc: '.github/agents/implementation-agent.agent.md — Custom Copilot persona pack the Fan-Out engine assigns; bundled with Governance', checked: true },
 ];
+
+// Implementation-agent template is written by the SAME governance code path
+// (scaffoldAgentConfig in config-scaffold.ts), so the two checkboxes must
+// toggle together — otherwise the user would see "impl-agent unchecked"
+// while the file still landed on disk via the governance step.
+const COUPLED_FILE_TOGGLES = { 'impl-agent': 'governance', 'governance': 'impl-agent' };
 
 const STEPS = [
   { id: 'detect', label: 'Detect tech stack' },
@@ -1121,16 +1128,31 @@ FILES.forEach(f => {
     const cb = div.querySelector('input');
     cb.checked = !cb.checked;
     div.classList.toggle('checked', cb.checked);
+    mirrorCoupledToggle(f.id, cb.checked);
     updateRunBtn();
     updateStepVisibility();
   });
   div.querySelector('input').addEventListener('change', () => {
-    div.classList.toggle('checked', div.querySelector('input').checked);
+    const checked = div.querySelector('input').checked;
+    div.classList.toggle('checked', checked);
+    mirrorCoupledToggle(f.id, checked);
     updateRunBtn();
     updateStepVisibility();
   });
   fileGrid.appendChild(div);
 });
+
+// Keeps coupled checkboxes (impl-agent ↔ governance) in lockstep so the
+// UI never lies about what's actually going to land on disk.
+function mirrorCoupledToggle(id, checked) {
+  const partnerId = COUPLED_FILE_TOGGLES[id];
+  if (!partnerId) return;
+  const partnerCb = document.querySelector('input[data-id="' + partnerId + '"]');
+  if (!partnerCb || partnerCb.checked === checked) return;
+  partnerCb.checked = checked;
+  const partnerDiv = partnerCb.closest('.file-item');
+  if (partnerDiv) partnerDiv.classList.toggle('checked', checked);
+}
 
 // Render step list
 const stepList = document.getElementById('stepList');
