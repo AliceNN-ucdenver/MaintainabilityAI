@@ -1733,7 +1733,7 @@ function renderFanOutPreflightPane(
   ]);
   const hasFannedOut = report.entries.some(e => POST_FANOUT_STATUSES.has(e.decision.status));
   const resetBtnHtml = hasFannedOut ? `
-        <button class="okr-button-secondary okr-button-danger" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="Delete this OKR's design-fan-out.yaml so the card returns to its pre-fan-out state and a clean fan-out can re-run. Does NOT close landing issues or revert PRs — clean those up separately.">
+        <button class="okr-button-secondary okr-button-danger" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="Delete this OKR's design-fan-out.yaml so the card returns to its pre-fan-out state. Then optionally close the landing issues + impl PRs this fan-out opened (you'll be asked, and shown the list first). Does not revert merged code.">
           ↺ Reset fan-out
         </button>` : '';
 

@@ -1455,12 +1455,19 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         modal: true,
         detail:
           'Deletes this OKR\'s design-fan-out.yaml so the card returns to its pre-fan-out state and you can run a clean fan-out.\n\n' +
-          'This does NOT close any landing issues or revert/close impl PRs on the target repos — clean those up on GitHub separately. ' +
+          'After the reset, you\'ll be asked separately whether to also close the landing issues + impl PRs this fan-out opened on the target repos. ' +
           'The file\'s git history stays as the record of what was attempted.',
       },
       'Reset fan-out',
     );
     if (confirm !== 'Reset fan-out') return;
+
+    // Capture the target-repo list from the OKR BEFORE deleting the
+    // file — the cleanup query runs against these. We use the OKR's
+    // targetCodeRepos (authoritative) rather than design-fan-out rows
+    // (which a buggy fan-out may have under-recorded).
+    const okr = this.meshService.getOkrService().read(meshPath, okrId);
+    const targetRepoUrls = okr?.objectiveAlignment.targetCodeRepos ?? [];
 
     // Branch-guard: deletion + commit go direct to main, same pattern
     // as onFanOut's write.
@@ -1476,11 +1483,93 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     this.postMessage({
       type: 'info',
-      message: `Fan-out reset for ${okrId}. ${commitMsg} The card is back to pre-fan-out — re-check, then fan out again when ready. (Landing issues / PRs on target repos are untouched.)`,
+      message: `Fan-out reset for ${okrId}. ${commitMsg} The card is back to pre-fan-out — re-check, then fan out again when ready.`,
     });
+
+    // GitHub-query cleanup: find every landing issue + impl PR this OKR's
+    // fan-out opened (by stamped markers, not the local file — so buggy
+    // duplicate issues are found too), then offer to close them.
+    await this.offerFanOutArtifactCleanup(okrId, targetRepoUrls);
 
     // Re-fire pre-flight so the pane re-renders from a clean slate.
     await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * Reset fan-out cleanup pass: query each target repo for this OKR's
+   * landing issues + impl PRs (by the markers the fan-out engine stamps,
+   * NOT design-fan-out.yaml — so duplicate issues a buggy fan-out
+   * created are found too), show the user what was found, and close them
+   * on a second explicit confirm. Closing is a destructive GitHub write,
+   * so it is opt-in and never silent.
+   */
+  private async offerFanOutArtifactCleanup(okrId: string, targetRepoUrls: readonly string[]): Promise<void> {
+    if (targetRepoUrls.length === 0) return;
+
+    this.postMessage({ type: 'loading', active: true, message: 'Scanning target repos for fan-out issues + PRs…' });
+    const found: Array<{ owner: string; repo: string; kind: 'issue' | 'pr'; number: number; url: string; title: string }> = [];
+    for (const url of targetRepoUrls) {
+      const parsed = GitHubService.parseRepoUrl(url) ?? parseGitHubUrl(url);
+      if (!parsed) continue;
+      try {
+        const { issues, prs } = await this.githubService.findFanOutArtifacts(parsed.owner, parsed.repo, okrId);
+        for (const it of issues) found.push({ owner: parsed.owner, repo: parsed.repo, kind: 'issue', ...it });
+        for (const pr of prs) found.push({ owner: parsed.owner, repo: parsed.repo, kind: 'pr', ...pr });
+      } catch {
+        // Soft-fail per repo — keep scanning the rest.
+      }
+    }
+    this.postMessage({ type: 'loading', active: false });
+
+    if (found.length === 0) return;
+
+    const issueCount = found.filter(f => f.kind === 'issue').length;
+    const prCount = found.filter(f => f.kind === 'pr').length;
+    const summary = [
+      issueCount > 0 ? `${issueCount} landing issue${issueCount === 1 ? '' : 's'}` : null,
+      prCount > 0 ? `${prCount} impl PR${prCount === 1 ? '' : 's'}` : null,
+    ].filter(Boolean).join(' + ');
+    // Show up to 12 in the modal detail so the list stays readable.
+    const preview = found.slice(0, 12).map(f => `  • ${f.kind === 'pr' ? 'PR' : 'issue'} ${f.owner}/${f.repo}#${f.number}`).join('\n');
+    const more = found.length > 12 ? `\n  …and ${found.length - 12} more` : '';
+
+    const choice = await vscode.window.showWarningMessage(
+      `Close ${summary} from this fan-out?`,
+      {
+        modal: true,
+        detail:
+          `Found across the OKR's target repos (matched by fan-out markers, so duplicates are included):\n${preview}${more}\n\n` +
+          'Closing does NOT delete branches or revert merged code — it closes open issues + open PRs so the repos are clean for a re-run.',
+      },
+      'Close all',
+    );
+    if (choice !== 'Close all') return;
+
+    this.postMessage({ type: 'loading', active: true, message: `Closing ${found.length} fan-out artifact${found.length === 1 ? '' : 's'}…` });
+    let closed = 0;
+    const failures: string[] = [];
+    for (const f of found) {
+      try {
+        if (f.kind === 'pr') {
+          await this.githubService.closePullRequest(f.owner, f.repo, f.number);
+        } else {
+          await this.githubService.closeIssue(f.owner, f.repo, f.number);
+        }
+        closed++;
+      } catch (err) {
+        failures.push(`${f.owner}/${f.repo}#${f.number}: ${toErrorMessage(err)}`);
+      }
+    }
+    this.postMessage({ type: 'loading', active: false });
+
+    if (failures.length > 0) {
+      this.postMessage({
+        type: 'error',
+        message: `Closed ${closed} of ${found.length}. ${failures.length} failed:\n` + failures.map(x => `  - ${x}`).join('\n'),
+      });
+    } else {
+      this.postMessage({ type: 'info', message: `Closed ${closed} fan-out artifact${closed === 1 ? '' : 's'} across the target repos.` });
+    }
   }
 
   /**

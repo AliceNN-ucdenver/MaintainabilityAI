@@ -4,6 +4,14 @@ import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment,
 import { promptPackService } from './PromptPackService';
 import { toErrorMessage } from '../utils/errors';
 import { parseGitHubUrl, getRemoteOriginUrl, getCurrentBranch } from '../utils/git';
+import { FANOUT_LANDING_LABEL, isFanOutLandingIssue, isFanOutImplPr } from './coordination/fanOutArtifacts';
+
+/** A fan-out artifact (landing issue or impl PR) found on GitHub. */
+export interface FanOutArtifactRef {
+  number: number;
+  url: string;
+  title: string;
+}
 
 /**
  * Octokit's default request layer prints a `[@octokit/request] "GET ..." is
@@ -742,6 +750,52 @@ export class GitHubService {
       pull_number: pullNumber,
       state: 'closed',
     });
+  }
+
+  /**
+   * Find an OKR's fan-out artifacts (open landing issues + impl PRs) in
+   * a target repo, by the markers the fan-out engine stamps — NOT from
+   * design-fan-out.yaml (which records one row per repo, last-writer-
+   * wins, so a buggy fan-out's duplicate issues are invisible to it).
+   * GitHub is the source of truth. Used by Reset fan-out cleanup.
+   *
+   * Soft-fails to empty arrays on a missing repo / no access so the
+   * cleanup can proceed across the other target repos.
+   */
+  async findFanOutArtifacts(
+    owner: string,
+    repo: string,
+    okrId: string,
+  ): Promise<{ issues: FanOutArtifactRef[]; prs: FanOutArtifactRef[] }> {
+    const client = await this.getClient();
+    const issues: FanOutArtifactRef[] = [];
+    const prs: FanOutArtifactRef[] = [];
+
+    try {
+      // Landing issues: labeled + body marker. listForRepo returns PRs
+      // too (GitHub models PRs as issues) — skip anything with a
+      // `pull_request` field; PRs are handled by the pulls.list pass.
+      const { data } = await client.rest.issues.listForRepo({
+        owner, repo, labels: FANOUT_LANDING_LABEL, state: 'open', per_page: 100,
+      });
+      for (const it of data) {
+        if (it.pull_request) { continue; }
+        if (isFanOutLandingIssue(it.body, okrId)) {
+          issues.push({ number: it.number, url: it.html_url, title: it.title });
+        }
+      }
+    } catch { /* repo missing / no access — soft-fail */ }
+
+    try {
+      const { data } = await client.rest.pulls.list({ owner, repo, state: 'open', per_page: 100 });
+      for (const pr of data) {
+        if (isFanOutImplPr(pr.title, pr.body, okrId)) {
+          prs.push({ number: pr.number, url: pr.html_url, title: pr.title });
+        }
+      }
+    } catch { /* soft-fail */ }
+
+    return { issues, prs };
   }
 
   async getIssueBody(
