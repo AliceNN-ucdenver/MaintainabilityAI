@@ -105,6 +105,7 @@ import {
   type FanOutPreflightInputs,
   type FanOutTargetRepo,
 } from '../services/coordination/fanOutEngine';
+import { deriveFanOutGovernance } from '../services/coordination/governanceWarning';
 import * as YAML from 'yaml';
 
 // Knight's Seal v1 (B27) detector + WORKFLOW_EMITTABLE_KINDS
@@ -952,6 +953,28 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     try {
       const report = await runFanOutPreflight(this.githubService, inputs);
+      // Bug-AAC — enrich each ready-able row with its owning BAR's
+      // governance tier so the pane warns BEFORE dispatch when the Red
+      // Queen will constrain the impl agent (restricted → plan-only).
+      // The engine has no mesh-reader; do it here where we do.
+      if (report.ok) {
+        const bars = this.meshService.createReader(meshPath).listBars();
+        for (const entry of report.entries) {
+          const bar = bars.find(b => (b.repos ?? []).some(u => this.normalizeGitHubSlug(u) === entry.slug));
+          if (!bar) { continue; }
+          const tier = computeTier(bar);
+          const weakest = ([
+            { name: 'architecture', score: bar.architecture.score },
+            { name: 'security', score: bar.security.score },
+            { name: 'infoRisk', score: bar.infoRisk.score },
+            { name: 'operations', score: bar.operations.score },
+          ] as const)
+            .filter(p => p.score < 50)
+            .sort((a, b) => a.score - b.score)[0] ?? null;
+          const gov = deriveFanOutGovernance(tier, weakest ? { name: weakest.name, score: weakest.score } : null);
+          if (gov) { entry.governance = gov; }
+        }
+      }
       this.postMessage({
         type: 'fanOutPreflightResult',
         okrId,

@@ -189,6 +189,18 @@ export interface FanOutRepoEntryUi {
     coordination_role: 'foundation' | 'provider' | 'consumer' | 'independent';
     depends_on: string[];
   };
+  /**
+   * Bug-AAC — governance-tier warning from the owning BAR, attached by
+   * the panel. `block` (restricted) = impl will be plan-only; `caution`
+   * (supervised) = Edit needs approval. Absent for autonomous / when the
+   * BAR can't be resolved.
+   */
+  governance?: {
+    tier: 'autonomous' | 'supervised' | 'restricted';
+    severity: 'block' | 'caution';
+    planOnly: boolean;
+    reason: string;
+  };
 }
 
 export type FanOutPreflightReportUi =
@@ -1770,6 +1782,18 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
     ? `<span class="okr-fanout-chip okr-fanout-chip-greenfield">greenfield</span>`
     : `<span class="okr-fanout-chip okr-fanout-chip-brownfield">brownfield</span>`;
 
+  // Bug-AAC — governance-tier warning. A row can be `ready` (repo +
+  // harness + perms + upstream all clear) yet the owning BAR's tier
+  // will still constrain the impl agent at runtime. Surface it now so a
+  // plan-only outcome isn't a surprise after dispatch.
+  const gov = entry.governance;
+  const govChip = gov
+    ? `<span class="okr-fanout-chip okr-fanout-chip-gov-${gov.severity}" title="${escapeAttr(gov.reason)}">${gov.severity === 'block' ? '⚠' : 'ℹ'} ${escapeHtml(gov.tier)}${gov.planOnly ? ' · plan-only' : ''}</span>`
+    : '';
+  const govNote = gov
+    ? `<div class="okr-fanout-entry-gov okr-fanout-entry-gov-${gov.severity}">${gov.severity === 'block' ? '⚠' : 'ℹ'} ${escapeHtml(gov.reason)}</div>`
+    : '';
+
   const prepContext = findFanOutRepoBar(entry, okr, availableBars);
   const needsRepoPrep =
     (entry.decision.status === 'pending-scaffold' && entry.status === 'create') ||
@@ -1786,10 +1810,12 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
       <div class="okr-fanout-entry-head">
         <span class="okr-fanout-entry-slug"><code>${escapeHtml(entry.slug)}</code></span>
         ${greenfieldChip}
+        ${govChip}
         <span class="okr-fanout-entry-status">${presentation.icon} ${escapeHtml(presentation.label)}</span>
       </div>
       ${coordHint}
       ${reason}
+      ${govNote}
       ${affordance}
     </div>
   `;
@@ -2052,6 +2078,11 @@ export function getOkrDetailStyles(): string {
     .okr-fanout-chip { font-size: 0.65rem; padding: 0.0625rem 0.375rem; border-radius: 0.25rem; letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600; }
     .okr-fanout-chip-brownfield { background: rgba(74, 222, 128, 0.12); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
     .okr-fanout-chip-greenfield { background: rgba(168, 85, 247, 0.14); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .okr-fanout-chip-gov-block { background: rgba(248, 113, 113, 0.14); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.35); text-transform: none; }
+    .okr-fanout-chip-gov-caution { background: rgba(250, 204, 21, 0.12); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); text-transform: none; }
+    .okr-fanout-entry-gov { font-size: 0.72rem; margin-top: 0.25rem; line-height: 1.4; }
+    .okr-fanout-entry-gov-block { color: #f87171; }
+    .okr-fanout-entry-gov-caution { color: #facc15; }
     .okr-fanout-waves { margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px dashed rgba(148, 163, 184, 0.25); font-size: 0.75rem; color: var(--vscode-descriptionForeground); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     .okr-fanout-waves code { font-family: var(--vscode-editor-font-family, monospace); font-size: 0.7rem; padding: 0.0625rem 0.25rem; background: rgba(148, 163, 184, 0.1); border-radius: 0.1875rem; }
     .okr-fanout-wave { padding: 0.125rem 0.375rem; background: rgba(148, 163, 184, 0.08); border-radius: 0.25rem; }

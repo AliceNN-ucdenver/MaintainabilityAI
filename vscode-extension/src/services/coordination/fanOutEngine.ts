@@ -130,6 +130,15 @@ export interface FanOutRepoEntry {
    * happy path).
    */
   coordinationRow?: CoordinationRow;
+  /**
+   * Bug-AAC — governance-tier warning for this repo's owning BAR,
+   * populated by the panel AFTER the engine returns (the engine has no
+   * mesh-reader access). Surfaces "restricted BAR → impl plan-only"
+   * BEFORE dispatch so a plan-only PR isn't a surprise. Undefined when
+   * the BAR can't be resolved or the tier imposes no constraint
+   * (autonomous).
+   */
+  governance?: import('./governanceWarning').FanOutGovernanceWarning;
 }
 
 /**
