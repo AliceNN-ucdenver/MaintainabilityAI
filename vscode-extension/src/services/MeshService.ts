@@ -824,9 +824,22 @@ export class MeshService {
     owner: string
   ): void {
     const meshYaml = path.join(meshPath, 'mesh.yaml');
-    if (!fs.existsSync(meshYaml)) { return; }
+    // Bug-AAD-class: fail loud, don't silently skip. A missing mesh.yaml
+    // means the platform's files were just written to disk but it would
+    // never be indexed — addPlatform would report success while the
+    // platform is invisible to every reader. mesh.yaml is created at
+    // mesh-init, so its absence is a broken-mesh state the user must
+    // fix, NOT something to auto-create here. The caller (onAddPlatform)
+    // wraps this in try/catch and surfaces the message.
+    if (!fs.existsSync(meshYaml)) {
+      throw new Error(
+        `Cannot register platform ${id}: mesh.yaml not found at ${meshPath}. ` +
+        `The mesh appears uninitialized — initialize it before adding platforms.`,
+      );
+    }
 
     let content = fs.readFileSync(meshYaml, 'utf8');
+    let inserted = false;
 
     // Replace "platforms: []" with actual entry
     if (content.includes('platforms: []')) {
@@ -834,6 +847,7 @@ export class MeshService {
         'platforms: []',
         `platforms:\n  - id: ${id}\n    name: "${name}"\n    path: ${platformPath}\n    owner: "${owner}"`
       );
+      inserted = true;
     } else {
       // Append to existing platforms list — find last platform entry
       const lines = content.split('\n');
@@ -851,7 +865,18 @@ export class MeshService {
         const entry = `  - id: ${id}\n    name: "${name}"\n    path: ${platformPath}\n    owner: "${owner}"`;
         lines.splice(lastPlatformLine + 1, 0, entry);
         content = lines.join('\n');
+        inserted = true;
       }
+    }
+
+    // Bug-AAD-class: if neither branch matched, we'd otherwise write
+    // mesh.yaml back UNCHANGED — the platform silently dropped from the
+    // index while addPlatform reports success. Fail loud instead.
+    if (!inserted) {
+      throw new Error(
+        `Cannot register platform ${id} in mesh.yaml: no 'platforms:' insertion point found ` +
+        `(expected 'platforms: []' or an existing PLT- entry). mesh.yaml may be malformed.`,
+      );
     }
 
     fs.writeFileSync(meshYaml, content, 'utf8');
