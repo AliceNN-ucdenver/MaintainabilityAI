@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { readDesignFanOut, writeDesignFanOut } from '../designFanOutFile';
+import { deleteDesignFanOut, readDesignFanOut, writeDesignFanOut } from '../designFanOutFile';
 import type { DesignFanOutDoc } from '../types';
 
 /**
@@ -265,5 +265,29 @@ rows:
     expect(onDisk).not.toContain('chainLadderAppendError');
     const read = readDesignFanOut(tmpDir, 'OKR-CLEAN');
     expect(read!.rows[0].chainLadderAppendError).toBeUndefined();
+  });
+});
+
+describe('deleteDesignFanOut (Reset fan-out)', () => {
+  it('removes an existing design-fan-out.yaml and returns true', () => {
+    const okrId = 'OKR-RESET-001';
+    writeDesignFanOut(tmpDir, {
+      schema: 1,
+      okrId,
+      rows: [{ repo: 'acme/celeb-api', status: 'opened', landingIssueUrl: 'https://github.com/acme/celeb-api/issues/11' }],
+    });
+    const filePath = path.join(tmpDir, 'okrs', okrId, 'what', 'design-fan-out.yaml');
+    expect(fs.existsSync(filePath)).toBe(true);
+
+    const removed = deleteDesignFanOut(tmpDir, okrId);
+    expect(removed).toBe(true);
+    expect(fs.existsSync(filePath)).toBe(false);
+    // Post-delete, the reader reports "no prior fan-out state" — which
+    // is exactly what flips the card back to pre-fan-out.
+    expect(readDesignFanOut(tmpDir, okrId)).toBeNull();
+  });
+
+  it('returns false when there is nothing to delete (no empty commit)', () => {
+    expect(deleteDesignFanOut(tmpDir, 'OKR-NEVER-FANNED-OUT')).toBe(false);
   });
 });

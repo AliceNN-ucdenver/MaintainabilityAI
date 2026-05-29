@@ -55,6 +55,7 @@ export { MeshReader } from '../core/mesh-reader';
 // Codex-r1 Bug F adds the chain-ladder impl-row appender alongside.
 import {
   appendChainLadderImplRow as appendChainLadderImplRowFile,
+  deleteDesignFanOut as deleteDesignFanOutFile,
   readDesignFanOut as readDesignFanOutFile,
   writeDesignFanOut as writeDesignFanOutFile,
   type ChainLadderImplRow,
@@ -126,6 +127,16 @@ export class MeshService {
 
   readDesignFanOut(meshPath: string, okrId: string): import('./coordination/types').DesignFanOutDoc | null {
     return readDesignFanOutFile(meshPath, okrId);
+  }
+
+  /**
+   * Reset fan-out: delete the OKR's design-fan-out.yaml so the card
+   * returns to its pre-fan-out state. Returns true when a file was
+   * removed, false when there was nothing to reset. The commit + push
+   * (under MeshBranchGuard) lives in LookingGlassPanel.onResetFanOut.
+   */
+  deleteDesignFanOut(meshPath: string, okrId: string): boolean {
+    return deleteDesignFanOutFile(meshPath, okrId);
   }
 
   /**

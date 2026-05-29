@@ -4051,6 +4051,19 @@ function attachEventHandlers() {
       vscode.postMessage({ type: 'fanOut', okrId });
       return;
     }
+
+    const reset = target.closest('[data-action="fanout-reset"]') as HTMLElement | null;
+    if (reset) {
+      // Reset fan-out: delete design-fan-out.yaml so the card returns
+      // to pre-fan-out state. The extension shows a native confirmation
+      // modal and re-fires pre-flight on completion — so we do NOT set
+      // a loading spinner here (a cancelled modal would otherwise leave
+      // it stuck).
+      const okrId = reset.dataset.okrId;
+      if (!okrId || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+      vscode.postMessage({ type: 'resetFanOut', okrId });
+      return;
+    }
     });
   }
 

@@ -632,6 +632,12 @@ export type LookingGlassWebviewMessage =
    */
   | { type: 'fanOut'; okrId: string }
   /**
+   * Reset fan-out — delete the OKR's design-fan-out.yaml so the card
+   * returns to its pre-fan-out state and a clean fan-out can re-run.
+   * Does NOT close landing issues or revert PRs.
+   */
+  | { type: 'resetFanOut'; okrId: string }
+  /**
    * D-PR5 Stage 5 — poll impl PRs for an OKR.
    *
    * For each row in design-fan-out.yaml at status `opened` or

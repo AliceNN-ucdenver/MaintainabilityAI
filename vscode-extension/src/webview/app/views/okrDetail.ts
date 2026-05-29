@@ -1723,6 +1723,20 @@ function renderFanOutPreflightPane(
     </div>
   ` : '';
 
+  // Reset fan-out is offered only once a fan-out has actually run —
+  // i.e. at least one row is in a post-fan-out status (landing issue
+  // opened, blocked on upstream, or PR in flight/terminal). For a
+  // fresh pre-flight (all rows ready / pending-scaffold / harness-
+  // missing) there's nothing to reset, so the button stays hidden.
+  const POST_FANOUT_STATUSES: ReadonlySet<FanOutPreflightStatusUi> = new Set([
+    'opened', 'pending-on-upstream', 'pr-opened', 'pr-merged', 'pr-rejected',
+  ]);
+  const hasFannedOut = report.entries.some(e => POST_FANOUT_STATUSES.has(e.decision.status));
+  const resetBtnHtml = hasFannedOut ? `
+        <button class="okr-button-secondary okr-button-danger" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="Delete this OKR's design-fan-out.yaml so the card returns to its pre-fan-out state and a clean fan-out can re-run. Does NOT close landing issues or revert PRs — clean those up separately.">
+          ↺ Reset fan-out
+        </button>` : '';
+
   return `
     ${heading}
     <div class="okr-fanout-pane okr-fanout-ok">
@@ -1738,6 +1752,7 @@ function renderFanOutPreflightPane(
         <button class="okr-button-secondary" data-action="fanout-refresh" data-okr-id="${escapeAttr(okr.meta.id)}" title="Re-run pre-flight (re-fetches code-design.md + re-probes every target repo).">
           🔄 Re-check
         </button>
+        ${resetBtnHtml}
       </div>
     </div>
   `;

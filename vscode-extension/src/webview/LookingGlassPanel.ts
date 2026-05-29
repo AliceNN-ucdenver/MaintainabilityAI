@@ -592,6 +592,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // every ready row + dispatches the impl agent via custom-agent
     // assignment + writes design-fan-out.yaml + commits + pushes.
     'fanOut':                      (m) => this.onFanOut(m.okrId),
+    // Reset fan-out — delete design-fan-out.yaml so the card returns
+    // to its pre-fan-out state and a clean fan-out can re-run.
+    'resetFanOut':                 (m) => this.onResetFanOut(m.okrId),
     // D-PR5 Stage 5 — periodic poll. Webview fires every 60s when
     // OKR detail is visible + WHAT is complete + design-fan-out.yaml
     // has at least one opened row.
@@ -1421,6 +1424,97 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     // Re-fire pre-flight so the pane re-renders with `opened` rows.
     await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * Reset fan-out — delete the OKR's design-fan-out.yaml so the card
+   * returns to its pre-fan-out state and a clean fan-out can re-run.
+   *
+   * Scope (made explicit in the confirmation modal): this removes ONLY
+   * the local fan-out tracking file. It does NOT close landing issues
+   * or revert/close impl PRs on the target repos — those are external
+   * GitHub state the user cleans up separately. Git history of the
+   * deleted file remains the audit trail of what was attempted.
+   */
+  private async onResetFanOut(okrId: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'Mesh not initialized.' });
+      return;
+    }
+
+    // Nothing to reset → tell the user, don't write an empty commit.
+    if (!this.meshService.readDesignFanOut(meshPath, okrId)) {
+      this.postMessage({ type: 'info', message: `No fan-out to reset for ${okrId} (design-fan-out.yaml not present).` });
+      return;
+    }
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Reset fan-out for ${okrId}?`,
+      {
+        modal: true,
+        detail:
+          'Deletes this OKR\'s design-fan-out.yaml so the card returns to its pre-fan-out state and you can run a clean fan-out.\n\n' +
+          'This does NOT close any landing issues or revert/close impl PRs on the target repos — clean those up on GitHub separately. ' +
+          'The file\'s git history stays as the record of what was attempted.',
+      },
+      'Reset fan-out',
+    );
+    if (confirm !== 'Reset fan-out') return;
+
+    // Branch-guard: deletion + commit go direct to main, same pattern
+    // as onFanOut's write.
+    const guardOk = await this.withMainBranchGuard(meshPath, `Reset fan-out ${okrId}`);
+    if (!guardOk) return;
+
+    this.postMessage({ type: 'loading', active: true });
+    const removed = this.meshService.deleteDesignFanOut(meshPath, okrId);
+    const commitMsg = removed
+      ? await this.commitAndPushFanOutReset(meshPath, okrId)
+      : '(nothing to delete)';
+    this.postMessage({ type: 'loading', active: false });
+
+    this.postMessage({
+      type: 'info',
+      message: `Fan-out reset for ${okrId}. ${commitMsg} The card is back to pre-fan-out — re-check, then fan out again when ready. (Landing issues / PRs on target repos are untouched.)`,
+    });
+
+    // Re-fire pre-flight so the pane re-renders from a clean slate.
+    await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * Commit + push the deletion of an OKR's design-fan-out.yaml (the
+   * Reset fan-out action). `git add <path>` stages the removal when the
+   * working-tree file is gone. Mirrors commitAndPushDesignFanOut's git
+   * pattern + upstream-detection fallback.
+   */
+  private async commitAndPushFanOutReset(meshPath: string, okrId: string): Promise<string> {
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (!gitRoot) return '(no git root -- skipped commit)';
+    const filePath = path.join('okrs', okrId, 'what', 'design-fan-out.yaml');
+    try {
+      await execFileAsync('git', ['add', filePath], { cwd: gitRoot });
+      const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+      if (!staged.trim()) return '(no diff -- already in sync)';
+      const commitMsg = `chore(okr): ${okrId} reset fan-out\n\nRemoved design-fan-out.yaml so the OKR can re-run a clean fan-out.\nLanding issues / impl PRs on target repos are untouched. Git history\nof this file is the audit trail of the prior fan-out attempt.`;
+      await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
+      try {
+        const { stdout: upstreamCheck } = await execFileAsync(
+          'git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+          { cwd: gitRoot },
+        );
+        if (upstreamCheck.trim()) {
+          await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          return 'Committed + pushed.';
+        }
+        return 'Committed locally (no upstream -- push manually).';
+      } catch (pushErr) {
+        return `Committed locally -- push failed (${toErrorMessage(pushErr)}).`;
+      }
+    } catch (err) {
+      return `Deleted file but git commit failed: ${toErrorMessage(err)}.`;
+    }
   }
 
   /**

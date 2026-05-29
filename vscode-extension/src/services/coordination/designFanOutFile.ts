@@ -121,6 +121,25 @@ export function readDesignFanOut(meshPath: string, okrId: string): DesignFanOutD
 }
 
 /**
+ * Delete the design-fan-out.yaml for an OKR (the "Reset fan-out"
+ * action). Returns true when a file was present and removed, false
+ * when there was nothing to delete. Removing the file returns the OKR
+ * card to its pre-fan-out state: pre-flight re-derives from live repo
+ * probes, the Stage-5 "in progress" view disappears, and the Fan-out
+ * button becomes available again.
+ *
+ * Scope note: this removes ONLY the local fan-out tracking file. It
+ * does NOT close landing issues, revert PRs, or touch okr.yaml — those
+ * are external/ separate concerns the caller surfaces to the user.
+ */
+export function deleteDesignFanOut(meshPath: string, okrId: string): boolean {
+  const filePath = path.join(meshPath, 'okrs', okrId, 'what', 'design-fan-out.yaml');
+  if (!fs.existsSync(filePath)) return false;
+  fs.rmSync(filePath);
+  return true;
+}
+
+/**
  * Codex-r1 Bug F — append (or upsert) an implementation row into the
  * OKR's `chain-ladder.yaml`. Stage 5 calls this when poll detects an
  * impl PR has merged + the PR body's `implementation_chain` block has
