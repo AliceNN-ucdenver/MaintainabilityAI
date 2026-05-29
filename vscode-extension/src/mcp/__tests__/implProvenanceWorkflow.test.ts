@@ -63,4 +63,18 @@ describe('Bug-AAE Phase 2: impl-provenance gate in redqueen-review.yml', () => {
     expect(wf).toMatch(/core\.setFailed\(/);
     expect(wf).toMatch(/was not governed/);
   });
+
+  it('Phase 3: surfaces the Red Queen decision log allow/deny count (advisory, not gated)', () => {
+    // Reads .redqueen/audit-log.jsonl committed by the agent and reports
+    // N allowed / M denied. Advisory: the `pass` gate is chain+manifest+
+    // hatter only, so the all-allow autonomous trail never blocks.
+    expect(wf).toContain('.redqueen/audit-log.jsonl');
+    expect(wf).toMatch(/rq_allowed=/);
+    expect(wf).toMatch(/rq_denied=/);
+    expect(wf).toMatch(/Red Queen decisions \(advisory\)/);
+    // The gate's pass condition must NOT include the red-queen log.
+    expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);
+    // Heredoc imports what it uses (Bug-XX-safe).
+    expect(wf).toMatch(/import json, os/);
+  });
 });

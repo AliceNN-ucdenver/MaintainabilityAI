@@ -262,6 +262,14 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toMatch(/provenance gate diffs your exposed contract against the design/i);
   });
 
+  it('AAE-3: instructs the agent to commit the Red Queen decision log', () => {
+    // Phase 3 — the hook's allow/deny trail (.redqueen/audit-log.jsonl)
+    // is not auto-staged; the agent must git add it so it lands in the
+    // PR and the provenance gate can surface it.
+    expect(body).toContain('.redqueen/audit-log.jsonl');
+    expect(body).toMatch(/git add `?\.redqueen\/audit-log\.jsonl/i);
+  });
+
   it('AA-4: self-review honesty rule forbids scoring controls in unwritten code', () => {
     // The blocked run scored 0.72/0.85 "OWASP controls all present" for
     // code that did not exist. Pin the rule that reviews score what was
