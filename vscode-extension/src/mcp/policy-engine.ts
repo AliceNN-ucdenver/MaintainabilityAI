@@ -586,11 +586,30 @@ export function evaluate(ctx: EvaluationContext): PolicyDecision {
 /**
  * Generate a static policy JSON from a BAR's governance data.
  * This is written to .redqueen/policy.json in the code repo during scaffold.
+ *
+ * `linkedBarRepos` (optional) lets the caller fold cross-BAR connections
+ * from the platform CALM into `rules.allowedConnections`. Each entry is
+ * one repo URL belonging to a BAR this one is connected to in the
+ * platform's `platform.arch.json`. Pass an empty array (or omit) to skip
+ * cross-BAR resolution — the BAR-level intra-relationships above are
+ * always emitted regardless.
+ *
+ * The two row shapes co-exist in `allowedConnections`:
+ *   - intra-BAR: `source` and `target` are node IDs from `bar.arch.json`
+ *     (`relationshipId` is the CALM unique-id within that BAR).
+ *   - cross-BAR: `source` is this BAR's display name, `target` is a repo
+ *     URL belonging to a linked BAR, `relationshipId` is
+ *     `platform-calm:<linkedBarName>` for traceability.
+ *
+ * The hook walker in `validate-tool.js` keys on (source, target) being
+ * BOTH node IDs, so cross-BAR rows are inert to the intra-BAR matcher —
+ * they document the boundary without affecting existing checks.
  */
 export function generateStaticPolicy(
   bar: BarSummary,
   calmModel?: EvaluationContext['calmModel'],
   tierOverride?: GovernanceTier,
+  linkedBarRepos?: Array<{ linkedBarName: string; repoUrl: string }>,
 ): StaticPolicy {
   const tier = tierOverride || computeTier(bar);
 
@@ -611,6 +630,19 @@ export function generateStaticPolicy(
         relationshipId: rel['unique-id'],
       });
     }
+  }
+
+  // Cross-BAR: fold in repos from BARs this one is linked to via the
+  // platform CALM. Without this, the policy says nothing about
+  // legitimate cross-repo dependencies the platform-level architecture
+  // already declares.
+  for (const linked of linkedBarRepos || []) {
+    if (!linked.repoUrl) { continue; }
+    allowedConnections.push({
+      source: bar.name,
+      target: linked.repoUrl,
+      relationshipId: `platform-calm:${linked.linkedBarName}`,
+    });
   }
 
   return {

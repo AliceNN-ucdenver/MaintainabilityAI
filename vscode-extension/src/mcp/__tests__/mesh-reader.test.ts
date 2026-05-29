@@ -420,6 +420,41 @@ describe('Config Scaffold', () => {
       expect(policy.rules.toolRestrictions.restricted.deny).toContain('Write');
     });
 
+    it('Bug-ZZ-1: scaffold folds platform-CALM linked-BAR repos into allowedConnections', () => {
+      // End-to-end wire-up: scaffold for test-bar-empty. The fixture
+      // platform.arch.json declares `good-to-poor` (test-bar-good ↔
+      // test-bar-empty), and test-bar-good's app.yaml ships a repo
+      // (https://github.com/test-org/test-repo). The scaffolded policy
+      // must therefore include a cross-BAR row pointing back at that
+      // repo from test-bar-empty's perspective.
+      const result = scaffoldAgentConfig(reader, 'Test Bar Empty');
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+
+      const policy = JSON.parse(result.files['.redqueen/policy.json']);
+      expect(policy.rules.allowedConnections).toContainEqual({
+        source: 'Test Bar Empty',
+        target: 'https://github.com/test-org/test-repo',
+        relationshipId: 'platform-calm:Test Bar Good',
+      });
+    });
+
+    it('Bug-ZZ-1: scaffold skips bar-to-infrastructure links (shared infra has no repos)', () => {
+      // test-bar-good is linked to BOTH test-bar-empty (bar-to-bar) AND
+      // shared-mq (bar-to-infrastructure). The scaffold must not emit
+      // a cross-BAR row for shared-mq — it has no repos. The earlier
+      // 'generates policy.json with static rules' test would already
+      // fail if cross-BAR emission tried to call .repos on infra; this
+      // test pins the intent so a future refactor doesn't regress it.
+      const result = scaffoldAgentConfig(reader, 'Test Bar Good');
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+
+      const policy = JSON.parse(result.files['.redqueen/policy.json']);
+      const infraRows = policy.rules.allowedConnections.filter(
+        (c: { relationshipId: string }) => c.relationshipId.includes('Message Queue'),
+      );
+      expect(infraRows).toHaveLength(0);
+    });
+
     it('hook script is Node.js (not bash)', () => {
       const result = scaffoldAgentConfig(reader, 'Test Bar Good');
       if ('error' in result) { return; }
@@ -951,6 +986,33 @@ describe("Red Queen's Court — Policy Engine", () => {
       expect(policy.auditLog).toBeDefined();
       expect(policy.auditLog.enabled).toBe(true);
       expect(policy.auditLog.path).toBe('.redqueen/audit-log.jsonl');
+    });
+
+    it('Bug-ZZ-1: linkedBarRepos param folds cross-BAR repos into allowedConnections', () => {
+      // Direct unit test: passing a linked-BAR repo URL should emit a
+      // cross-BAR row keyed on (bar.name, repoUrl, platform-calm:<name>).
+      const bar = reader.getBar('test-bar-good')!;
+      const policy = generateStaticPolicy(bar, undefined, undefined, [
+        { linkedBarName: 'Greenfield Sibling', repoUrl: 'https://github.com/acme/greenfield-sibling' },
+      ]);
+      expect(policy.rules.allowedConnections).toContainEqual({
+        source: 'Test Bar Good',
+        target: 'https://github.com/acme/greenfield-sibling',
+        relationshipId: 'platform-calm:Greenfield Sibling',
+      });
+    });
+
+    it('Bug-ZZ-1: linkedBarRepos with empty/missing repoUrl entries are skipped', () => {
+      // Defensive: a stale platform CALM that points at a BAR with a
+      // malformed app.yaml should not crash and should not emit garbage.
+      const bar = reader.getBar('test-bar-good')!;
+      const policy = generateStaticPolicy(bar, undefined, undefined, [
+        { linkedBarName: 'Empty', repoUrl: '' },
+      ]);
+      const crossBarRows = policy.rules.allowedConnections.filter(
+        c => c.relationshipId.startsWith('platform-calm:'),
+      );
+      expect(crossBarRows).toHaveLength(0);
     });
   });
 

@@ -720,6 +720,24 @@ function matchGlob(filePath, pattern) {
 
 function generatePolicyJson(reader: MeshReader, bar: BarSummary, tier?: GovernanceTier): string {
   const calmModel = reader.readFlows(bar.path);
+
+  // Cross-BAR resolution: walk platform CALM relationships for this BAR,
+  // collect repo URLs declared on each linked BAR's app.yaml. We skip
+  // `bar-to-infrastructure` rows because shared infrastructure has no
+  // repos to allowlist. Soft-fails per linked BAR (`getBar` returning
+  // null) — a stale platform CALM should not break scaffold.
+  const linkedBarRepos: Array<{ linkedBarName: string; repoUrl: string }> = [];
+  for (const linked of reader.findLinkedBars(bar.name)) {
+    if (linked.relationship !== 'bar-to-bar') { continue; }
+    const linkedBar = reader.getBar(linked.barName);
+    if (!linkedBar || !Array.isArray(linkedBar.repos)) { continue; }
+    for (const repoUrl of linkedBar.repos) {
+      if (typeof repoUrl === 'string' && repoUrl.length > 0) {
+        linkedBarRepos.push({ linkedBarName: linked.barName, repoUrl });
+      }
+    }
+  }
+
   const policy = generateStaticPolicy(bar, calmModel ? {
     nodes: calmModel.nodes as Array<{ 'unique-id': string; name: string; 'node-type'?: string }>,
     relationships: calmModel.relationships as Array<{
@@ -732,7 +750,7 @@ function generatePolicyJson(reader: MeshReader, bar: BarSummary, tier?: Governan
       };
     }>,
     flows: calmModel.flows,
-  } : undefined, tier);
+  } : undefined, tier, linkedBarRepos);
   return JSON.stringify(policy, null, 2) + '\n';
 }
 
