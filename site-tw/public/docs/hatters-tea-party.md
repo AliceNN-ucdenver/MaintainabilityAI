@@ -797,16 +797,11 @@ Three claims, each falsifiable.
 
 
 
-## Where this lives, and where to read next
+## Where to read next
 
-Everything here is **design**. Implementation is phased; you can track progress inline in the design doc itself (Phase A → E, with checkboxes for every deliverable).
+This page is the Hatter's story: how one OKR becomes grounded research, an expert-reviewed PRD, a code-ready design, and an auditor-readable evidence chain. The next click depends on what you want to understand next: the enforcement layer, the full governance story, or the hands-on workshop path.
 
 <div class="docs-grid docs-grid-wide">
-  <div class="docs-card docs-card-indigo">
-    <div class="docs-heading">Read the full design (v4)</div>
-    <div class="docs-copy">The complete agentic SDLC design: OKR schema, agent personas, Hatter's Tag full schema, audit-report bundle structure, deliverables map with status.</div>
-    <div class="docs-copy"><a href="https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md" class="docs-button-secondary">Open on GitHub →</a></div>
-  </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-heading">Meet the Red Queen's Court</div>
     <div class="docs-copy">The downstream half of the pipeline. How coding agents are governed at the moment they propose a structural change: three layers, six rails, cross-repo semantic governance.</div>
