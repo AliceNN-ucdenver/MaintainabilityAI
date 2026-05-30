@@ -226,7 +226,7 @@ Three permission tiers, driven by governance scores:
 <div class="docs-card docs-card-muted">
 <div class="docs-card-kicker">Restricted</div>
 <div class="docs-heading">0-49%</div>
-<div class="docs-muted">Maximum oversight. Plan-first mode. Multi-agent review board. Hooks block Bash and Write, and Edit requires recorded approval. Every decision is auditable.</div>
+<div class="docs-muted">Maximum oversight. Plan-first mode. Embedded Architect + Security self-review inside the implementation agent, with the impl-provenance gate verifying the signed chain on every PR. Hooks block Bash and Write, and Edit requires recorded approval. Every decision is auditable.</div>
 </div>
 </div>
 </div>
@@ -323,7 +323,7 @@ For the full landscape (what Microsoft, GitHub, Snyk, and the EU AI Act are pull
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-rose">
     <div class="docs-heading">Quickstart on a real repo</div>
-    <div class="docs-copy">Hands-on walkthrough: install hooks, repo-local MCP runner, review workflow, and first-run doctor against the IMDB-Celebs BAR (low score, Restricted tier, so the strictest enforcement path fires).</div>
+    <div class="docs-copy">Hands-on walkthrough: install hooks, repo-local MCP runner, the impl-provenance gate, and first-run doctor against the IMDB-Celebs BAR (low score, Restricted tier, so the strictest enforcement path fires).</div>
     <div class="docs-copy"><a href="/docs/quickstart-redqueen" class="docs-button-secondary">Quickstart →</a></div>
   </div>
   <div class="docs-card docs-card-indigo">

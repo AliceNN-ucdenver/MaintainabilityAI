@@ -131,7 +131,7 @@ Pick the lens you bring to AI engineering. Each persona has a focused two-page o
     <a href="./agents/claude-code-action" class="docs-card docs-card-cyan">
       <div class="docs-card-subtitle">Claude Code Action</div>
       <h3 class="docs-card-title">Autonomous in GitHub Actions</h3>
-      <p class="docs-card-body">Full MCP access — resources, tools, prompts. Pre-tool hooks + fail-closed review consensus. Best for autonomous issue remediation.</p>
+      <p class="docs-card-body">Full MCP access — resources, tools, prompts. Pre-tool hooks + embedded self-review and an always-on impl-provenance gate over the signed audit chain. Best for autonomous issue remediation.</p>
     </a>
     <a href="./agents/copilot-coding-agent" class="docs-card docs-card-emerald">
       <div class="docs-card-subtitle">Copilot Coding Agent</div>

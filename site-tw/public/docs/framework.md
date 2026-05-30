@@ -264,7 +264,7 @@ Everything above lives in documentation until you bring it into the developer wo
   <div>
     <div class="docs-heading">Available Now: The Red Queen</div>
     <p class="docs-copy">
-      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong class="docs-strong">deterministic governance control points</strong>: MCP architecture awareness, pre-tool hooks, scaffold doctor checks, fail-closed review consensus, and a TypeScript policy engine that ties agent autonomy to governance scores.
+      Prompts are advisory. Agents can ignore them. The Red Queen adds <strong class="docs-strong">deterministic governance control points</strong>: MCP architecture awareness, pre-tool hooks, scaffold doctor checks, an always-on impl-provenance gate that verifies the signed audit chain on every implementation PR, and a TypeScript policy engine that ties agent autonomy to governance scores.
     </p>
     <a href="/docs/red-queens-court" class="markdown-link">Read the Red Queen architecture →</a>
   </div>

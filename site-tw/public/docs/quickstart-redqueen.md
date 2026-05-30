@@ -4,7 +4,7 @@
     <div class="docs-hero-crumb"><a href="/docs/">Docs</a><span class="sep">/</span><span>Quickstart</span><span class="sep">/</span><span>Red Queen</span></div>
     <div class="docs-eyebrow">Quickstart · IMDB Celebs end-to-end <span class="docs-hero-meta">~8 min read</span></div>
     <h1 class="docs-hero-title">Install the Red Queen against a real repository</h1>
-    <p class="docs-hero-copy">A hands-on walkthrough that puts pre-tool hooks, MCP validation, and a fail-closed review workflow into a real GitHub repo. We use the low-scoring <strong>IMDB Celebs</strong> BAR (5/100, restricted tier) so the strictest enforcement path actually fires &mdash; the Queen has no patience for tea-parties.</p>
+    <p class="docs-hero-copy">A hands-on walkthrough that puts pre-tool hooks, MCP validation, and the always-on impl-provenance gate into a real GitHub repo. We use the low-scoring <strong>IMDB Celebs</strong> BAR (5/100, restricted tier) so the strictest enforcement path actually fires &mdash; the Queen has no patience for tea-parties.</p>
     <span class="docs-hero-flourish">&ldquo;Speak when you&rsquo;re spoken to &mdash; the override needs a reason.&rdquo;</span>
   </div>
 </div>
@@ -25,12 +25,12 @@
   <div class="docs-card docs-card-emerald">
     <div class="docs-card-kicker">Phase 3 &middot; Steps 7&ndash;10</div>
     <h3 class="docs-card-title">Verify enforcement fires end-to-end</h3>
-    <p class="docs-card-body">Trip a pre-tool hook on purpose. Watch the review workflow fail closed. Test the CALM flow validator on a real diff. Confirm the merge gate behaves like an enterprise audit team expects.</p>
+    <p class="docs-card-body">Trip a pre-tool hook on purpose. Watch the impl-provenance gate verify the signed chain. Test the CALM flow validator on a real diff. Confirm the merge gate behaves like an enterprise audit team expects.</p>
   </div>
 </div>
 
 <div class="docs-panel">
-  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). The generated review workflow fails closed when reviewers do not produce verdicts; hard merge blocking requires you to mark the workflow as a required status check (manual GitHub branch-protection setup, not auto-configured by scaffold). The standalone <code>redqueen-action</code> hard gate and the Hatter-grade signed evidence chain for Red Queen decisions are planned for <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>.</p>
+  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). Implementation PRs are guarded server-side by the always-on <code>impl-provenance.yml</code> gate, which verifies the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log &mdash; and the implementation agent runs its own embedded Architect + Security self-review (the "Tweedles") inside its loop. The standalone <code>redqueen-action</code> hard gate and the Hatter-grade signed evidence chain for Red Queen decisions are planned for <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>.</p>
 </div>
 
 ---
@@ -60,20 +60,18 @@
 
 Pre-Red Queen meshes are missing fields that the scaffold needs. Here's what to add:
 
-### 0a. Add `agent_type` and `repo` to mesh.yaml
+### 0a. Add `repo` to mesh.yaml
 
-Red Queen needs to know which AI agent framework you use and where the mesh repo lives on GitHub.
+Red Queen needs to know where the mesh repo lives on GitHub so generated workflows can check it out.
 
 #### Option A: Use Looking Glass Settings UI (recommended)
 
 1. Open the **Looking Glass** panel in VS Code
 2. Go to **Settings** (gear icon)
-3. Under **Agent Framework**, select `claude`, `copilot`, or `both` from the dropdown
+3. Confirm the mesh **repo** is detected from your git remote URL
 4. Click **Save**
 
-This automatically:
-- Places `agent_type` inside the `portfolio:` block (correct location)
-- Auto-detects and saves the `repo` field from your git remote URL
+This automatically auto-detects and saves the `repo` field from your git remote URL, placed inside the `portfolio:` block.
 
 #### Option B: Edit mesh.yaml manually
 
@@ -81,7 +79,7 @@ This automatically:
 cd $MESH_PATH
 ```
 
-Edit `mesh.yaml` — add `agent_type` and `repo` **inside** the `portfolio:` block:
+Edit `mesh.yaml` — add `repo` **inside** the `portfolio:` block:
 
 ```yaml
 portfolio:
@@ -91,15 +89,13 @@ portfolio:
   repo: "alicenn-ucdenver-governance-mesh"   # <-- ADD: GitHub repo name
   owner: "AliceNN-ucdenver"
   description: "Governance mesh for AliceNN-ucdenver"
-  agent_type: claude                          # <-- ADD: claude | copilot | both
 ```
 
 | Field | Required | Values | What it controls |
 |-------|----------|--------|-----------------|
-| `agent_type` | Yes | `claude`, `copilot`, `both` | Which review/implementation workflows are generated |
 | `repo` | Yes | GitHub repo name or `org/repo` | Mesh checkout path in GitHub Actions workflows |
 
-> **Important:** Both `agent_type` and `repo` must be inside the `portfolio:` block (indented under it), not at the root level. The Looking Glass Settings UI handles this automatically. If editing manually, ensure they are indented under `portfolio:`.
+> **Important:** `repo` must be inside the `portfolio:` block (indented under it), not at the root level. The Looking Glass Settings UI handles this automatically. If editing manually, ensure it is indented under `portfolio:`.
 
 ### 0b. Add orchestration policy (optional)
 
@@ -196,7 +192,7 @@ If you created BARs through Looking Glass with the "IMDB Lite" template, these a
 ```bash
 cd $MESH_PATH
 git add -A
-git commit -m "Add Red Queen orchestration fields (agent_type, repo, governance)"
+git commit -m "Add Red Queen orchestration fields (repo, governance)"
 git push
 ```
 
@@ -204,7 +200,6 @@ git push
 
 | Item | Check | How to verify |
 |------|-------|--------------|
-| `agent_type` in mesh.yaml | Required | `grep agent_type mesh.yaml` |
 | `repo` in mesh.yaml | Required | `grep repo mesh.yaml` |
 | `orchestration:` in mesh.yaml | Optional (defaults used) | `grep orchestration mesh.yaml` |
 | `governance:` in platform.yaml | Optional | `grep governance platforms/*/platform.yaml` |
@@ -219,9 +214,6 @@ After the upgrades from Step 0, verify everything the scaffold needs:
 
 ```bash
 cd $MESH_PATH
-
-# Verify agent_type is set
-grep agent_type mesh.yaml
 
 # Verify repo is set
 grep repo mesh.yaml
@@ -246,7 +238,7 @@ Expected:
 BAR: IMDB Celebs | Tier: restricted | Files: 17
 ```
 
-If you get fewer than 17 files, the MCP runner, review workflow, or implementation workflow is missing — check that `agent_type` is set correctly. If `agent_type: both`, expect additional Copilot reviewer instruction files.
+If you get fewer than the expected file count, the MCP runner, hooks, or the `impl-provenance.yml` gate may be missing — re-run the scaffold and the `--doctor` check (Step 3).
 
 ---
 
@@ -333,12 +325,12 @@ The restricted tier hooks match more tools (including `Read`):
 cat .claude/settings.json | python3 -m json.tool
 ```
 
-### Check the review workflow
+### Check the impl-provenance gate
 ```bash
-head -30 .github/workflows/redqueen-review.yml
+head -30 .github/workflows/impl-provenance.yml
 ```
 
-The review workflow will run **both** security AND architecture reviews because the tier is `restricted`.
+This always-on gate verifies the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log on every implementation PR. The implementation agent runs its own embedded Architect + Security self-review (the "Tweedles") inside its loop; the gate verifies the resulting evidence rather than dispatching separate reviewer bots.
 
 ### Check the AGENTS.md
 ```bash
@@ -351,10 +343,10 @@ Should show restricted-tier instructions: "Plan first, implement after approval.
 
 ## Step 5: Set Up GitHub Secrets
 
-The review and implementation workflows need these secrets on `celeb-api`:
+The implementation agent and the impl-provenance gate need these secrets on `celeb-api`:
 
 ```bash
-# Required for Claude Code Action review steps
+# Required for the implementation agent (Claude Code Action) runs
 gh secret set ANTHROPIC_API_KEY --repo AliceNN-ucdenver/celeb-api
 
 # Required to checkout the private governance mesh repo
@@ -376,9 +368,9 @@ git add .
 git commit -m "Add Red Queen governance scaffolding
 
 Scaffolded from governance mesh (IMDB Celebs BAR).
-Score: 5/100 — restricted tier — fail-closed review consensus.
-Includes: MCP config + runner, PreToolUse hooks, review workflow,
-implementation workflow, subagent definitions, governance context.
+Score: 5/100 — restricted tier — strictest enforcement path.
+Includes: MCP config + runner, PreToolUse hooks, impl-provenance gate,
+governance context.
 
 🤖 AI-assisted with Claude Code using Red Queen scaffold"
 
@@ -393,10 +385,9 @@ gh pr create \
   --body "## Summary
 - Scaffolded Red Queen governance files from the governance mesh
 - **BAR: IMDB Celebs** — Composite Score: 5/100 — **Restricted Tier**
-- Restricted-tier review: security + architecture reviewers with consensus
+- Restricted-tier enforcement: hooks block Bash/Write, Edit needs recorded approval
 - PreToolUse hook enforcement for both Claude Code and Copilot
-- Automated PR review workflow (redqueen-review.yml)
-- Issue implementation workflow (redqueen-implement.yml)
+- Always-on impl-provenance gate (impl-provenance.yml) over the signed chain
 
 ## Governance Context
 - Architecture: 20/100
@@ -404,29 +395,28 @@ gh pr create \
 - Information Risk: 0/100
 - Operations: 0/100
 
-## What happens on future PRs
-1. Red Queen Review workflow triggers automatically
-2. Claude security reviewer analyzes the diff
-3. Claude architecture reviewer checks CALM compliance
-4. Consensus script aggregates verdicts
-5. Review summary posted as PR comment
+## What happens on implementation PRs
+1. The implementation agent runs embedded Architect + Security self-review (the Tweedles) inside its loop
+2. Each persona's verdict is signed into the agent's own audit chain
+3. The impl-provenance.yml gate verifies the signed chain, skill manifest, Hatter Tag, and Red Queen decision log
+4. The gate fails closed if the evidence is missing or the chain does not verify
 
 ## Test Plan
 - [ ] Verify governance files are present
-- [ ] Merge this PR to enable the review workflow
-- [ ] Create a follow-up PR to trigger the full review pipeline
+- [ ] Trip a PreToolUse hook locally (Step 9)
+- [ ] Confirm the impl-provenance gate runs on an implementation PR
 
 🤖 Generated with Red Queen governance scaffold"
 ```
 
 ---
 
-## Step 7: Merge and Test the Review Pipeline
+## Step 7: Merge and Test the impl-provenance Gate
 
-**Important:** The review workflow must be on the default branch (main) before it can trigger. So:
+**Important:** The `impl-provenance.yml` gate must be on the default branch (main) before it can trigger. So:
 
 1. **Merge the governance PR** from Step 6
-2. **Create a test change** to trigger the review:
+2. **Create a test change** to exercise the gate:
 
 ```bash
 cd $REPO_PATH
@@ -448,26 +438,26 @@ git add src/health.js
 git commit -m "Add health check endpoint"
 git push origin feature/add-health-check
 
-# Create PR — this should trigger the Red Queen Review workflow
+# Create PR — the impl-provenance gate runs on implementation PRs
 gh pr create \
   --repo AliceNN-ucdenver/celeb-api \
   --title "Add health check endpoint" \
   --body "Simple health check endpoint for monitoring.
 
-Should trigger Red Queen restricted-tier review (security + architecture)."
+Restricted tier — the impl-provenance gate verifies the signed audit chain."
 ```
 
-3. **Watch the Actions tab** — you should see:
-   - "Red Queen Review" workflow starts
-   - "Determine review depth" step outputs `tier=restricted`
-   - "Claude Security Review" step runs (if ANTHROPIC_API_KEY is set)
-   - "Claude Architecture Review" step runs
-   - "Red Queen Consensus" step aggregates verdicts
-   - "Post review summary" step comments on the PR
+3. **Watch the Actions tab** — on an implementation PR you should see:
+   - The `impl-provenance` workflow starts
+   - It verifies the signed audit chain (Knight's Seal signatures + hash replay)
+   - It checks the skill manifest, the Hatter Tag continuation block, and the Red Queen decision log
+   - It fails closed if the evidence is missing or the chain does not verify
 
-### 7a. Make the workflow a required status check (close the merge loop)
+> A plain hand-edited PR like the one above has no implementation-agent chain to verify, so the gate reports the missing evidence rather than a passing review. The full signed chain is produced when the **implementation agent** runs against a fan-out landing issue (Step 8).
 
-The review workflow can fail closed today, but it does not block merges until you mark it as a **required status check** in branch protection. This is the step that turns the workflow from advisory into a hard merge gate.
+### 7a. Make the gate a required status check (close the merge loop)
+
+The `impl-provenance` gate runs on every implementation PR today, but it does not block merges until you mark it as a **required status check** in branch protection. This is the step that turns the gate into a hard merge gate.
 
 Run this once per protected branch:
 
@@ -475,52 +465,32 @@ Run this once per protected branch:
 gh api repos/AliceNN-ucdenver/celeb-api/branches/main/protection \
   --method PUT \
   --field 'required_status_checks[strict]=true' \
-  --field 'required_status_checks[contexts][]=Red Queen Review / redqueen-review' \
+  --field 'required_status_checks[contexts][]=impl-provenance' \
   --field 'enforce_admins=true' \
   --field 'required_pull_request_reviews[required_approving_review_count]=1' \
   --field 'restrictions=null'
 ```
 
-Or via the UI: **Settings &rarr; Branches &rarr; Branch protection rules &rarr; main &rarr; Require status checks to pass before merging &rarr; add "Red Queen Review / redqueen-review"**.
+Or via the UI: **Settings &rarr; Branches &rarr; Branch protection rules &rarr; main &rarr; Require status checks to pass before merging &rarr; add "impl-provenance"**.
 
-After this, any PR where the Red Queen Review workflow fails closed (missing verdicts, consensus rejection, governance violation) cannot be merged, even by admins. This is the boundary between "advisory" and "deterministic" enforcement.
+After this, any implementation PR whose signed chain does not verify (missing evidence, broken chain, governance violation) cannot be merged, even by admins. This is the boundary between "advisory" and "deterministic" enforcement.
 
 > **Reminder:** the hard `redqueen-action` standalone CI gate is still planned for [Queen's Next Act](/docs/red-queens-court#queens-next-act). What you just configured is the strongest enforcement boundary available today.
 
 ---
 
-## Step 8: Test the Implementation Workflow
+## Step 8: Run the Implementation Agent
 
-The implementation workflow triggers when an issue is labeled `implement`, `claude-code`, or `copilot`:
+Implementation work reaches `celeb-api` as a **fan-out landing issue** opened by Looking Glass after a code design merges (see the [Hatter's Tea Party](/docs/hatters-tea-party) hand-off). Each landing issue carries the approved design slice, the OKR's governance tier, and the parent audit thread. An implementation agent is assigned to the issue and runs inside the repo:
 
-```bash
-# Create a test issue
-gh issue create \
-  --repo AliceNN-ucdenver/celeb-api \
-  --title "Add celebrity profile endpoint" \
-  --body "Add a GET /api/celebs/:id endpoint that returns a celebrity profile.
+1. Reads the landing issue: design slice, governance context (restricted tier), parent chain markers
+2. Runs embedded **Architect + Security self-review** (the "Tweedles") inside its own loop, signing each persona's verdict into its audit chain
+3. Writes its per-event Ed25519-signed **implementation chain** to `<repo>/.maintainability/audit/`
+4. Opens a PR whose body carries the continuation block (parent run, parent chain root, in-repo event log path)
+5. From the first tool call, the **Red Queen governs** every Edit / Write / Bash via the PreToolUse hooks
+6. The `impl-provenance.yml` gate then verifies that signed chain before merge
 
-Fields: id, name, bio, filmography (array of movie titles).
-
-For now, use hardcoded sample data (no database needed yet).
-
-Acceptance criteria:
-- Returns 200 with JSON body
-- Returns 404 for unknown IDs
-- Follows Express routing patterns"
-
-# Note the issue number from the output, then label it:
-gh issue edit <ISSUE_NUMBER> \
-  --repo AliceNN-ucdenver/celeb-api \
-  --add-label "implement"
-```
-
-The workflow will:
-1. Check out code + governance mesh
-2. Read governance context (restricted tier)
-3. Launch Claude Code Action to implement the feature
-4. Create a branch, commit, and open a PR
-5. That PR then triggers the review workflow!
+The agent does not need a separate reviewer-bot court: the embedded self-review plus the server-side provenance gate provide the coverage a separate review workflow used to.
 
 ---
 
@@ -699,9 +669,9 @@ The same CALM rule applies at every tier — autonomous, supervised, and restric
 | decision.json | `effectiveTier: "restricted"`, score 5 |
 | AGENTS.md | Restricted instructions: "Plan first, implement after approval" |
 | settings.json | Hooks on Edit, Write, Bash, **and Read** (restricted matches more) |
-| redqueen-review.yml | Both security + architecture reviews enabled |
-| PR review | Claude reviews diff, consensus posted as PR comment; workflow fails closed on missing verdicts |
-| Implementation | Claude creates branch + PR from labeled issue |
+| impl-provenance.yml | Always-on gate verifying the signed audit chain on implementation PRs |
+| Implementation PR | Embedded Architect + Security self-review signed into the chain; impl-provenance gate fails closed on missing/invalid evidence |
+| Implementation | Implementation agent runs against a fan-out landing issue, opens a PR |
 | CALM valid flow | `celeb-frontend → celeb-api` = approved |
 | CALM invalid flow | `celeb-frontend → celeb-db` = **denied** (CALM-004) |
 
@@ -709,21 +679,19 @@ The same CALM rule applies at every tier — autonomous, supervised, and restric
 
 ## Troubleshooting
 
-### Review workflow doesn't trigger
+### impl-provenance gate doesn't trigger
 - The workflow file must be on the **default branch** (main) first
 - Merge the governance PR, then create a new PR to trigger it
-- Check Actions tab → "Red Queen Review" workflow
+- Check Actions tab → "impl-provenance" workflow
 
 ### "GOVERNANCE_MESH_TOKEN" error
 - Create a fine-grained PAT with read access to `alicenn-ucdenver-governance-mesh`
 - Set it: `gh secret set GOVERNANCE_MESH_TOKEN --repo AliceNN-ucdenver/celeb-api`
 
-### Claude review step fails
-- Verify `ANTHROPIC_API_KEY` is set: `gh secret list --repo AliceNN-ucdenver/celeb-api`
-- Check the workflow logs in Actions for the specific error
-
-### "implement" label doesn't exist
-- Create it first: `gh label create implement --repo AliceNN-ucdenver/celeb-api`
+### impl-provenance gate fails closed
+- Expected on a hand-edited PR: there is no implementation-agent chain to verify
+- The full signed chain is produced when the implementation agent runs against a fan-out landing issue (Step 8)
+- Check the workflow logs in Actions for which evidence the gate reported missing
 
 ### Score too low — everything is restricted
 - That's the point! Score 5 = restricted tier = maximum governance enforcement
@@ -737,8 +705,8 @@ The same CALM rule applies at every tier — autonomous, supervised, and restric
 |---|---|---|
 | Score | 90/100 | 5/100 |
 | Tier | Autonomous | **Restricted** |
-| Security Review | Skipped | **Enabled** |
-| Architecture Review | Skipped | **Enabled** |
+| Self-review rounds | Minimal (high trust) | **Maximum (Architect + Security, every round)** |
+| impl-provenance gate | Verifies signed chain | Verifies signed chain (strictest path) |
 | Hook Scope | Edit, Write, Bash | Edit, Write, Bash, **Read** |
 | Agent Freedom | Implement freely | Plan first, implement after approval |
 

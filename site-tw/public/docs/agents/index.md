@@ -48,7 +48,7 @@ MaintainabilityAI works with two categories of AI: **in-editor assistants** you 
 <a href="/docs/agents/claude-code-action" class="docs-card docs-card-cyan">
   <div class="docs-card-kicker">Claude Code Action</div>
   <h3 class="docs-card-title">Autonomous in GitHub Actions</h3>
-  <p class="docs-card-body">Full MCP access &mdash; resources, tools, prompts. Governed by Red Queen MCP validation, pre-tool hooks, and fail-closed review consensus.</p>
+  <p class="docs-card-body">Full MCP access &mdash; resources, tools, prompts. Governed by Red Queen MCP validation, pre-tool hooks, and an always-on impl-provenance gate that verifies the signed audit chain on every implementation PR.</p>
   <p class="docs-card-body"><strong>Best for:</strong> autonomous issue remediation · governed PRs · cross-repo enforcement · CI/CD governance.</p>
   <p class="docs-card-body"><strong>View guide &rarr;</strong></p>
 </a>
@@ -179,7 +179,7 @@ Not every agent gets the same keys to the keyboard. The Red Queen issues a permi
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Score 0&ndash;49</div>
     <h3 class="docs-card-title">Restricted</h3>
-    <p class="docs-card-body">Plan-first mode. Bash and Write are hook-blocked. Edit requires recorded approval. Multi-agent review board on every structural change.</p>
+    <p class="docs-card-body">Plan-first mode. Bash and Write are hook-blocked. Edit requires recorded approval. Embedded Architect + Security self-review plus the impl-provenance gate on every implementation PR.</p>
   </div>
 </div>
 

@@ -24,7 +24,7 @@
 1. The Red Queen scaffold added to the celeb-api: `.redqueen/` directory with `policy.json` (static rules), `mcp-runner.js` (live mesh resolution), and `hooks/validate-tool.js` + `.sh` (the fast-path PreToolUse hook).
 2. `.claude/settings.json` updated with the PreToolUse hook registration so Claude Code calls into the validator on every tool use.
 3. `.mcp.json` configured so Claude Code can call `validate_action` over MCP for richer, mesh-aware structural checks.
-4. The `redqueen-review.yml` workflow generated and configured as a **required status check** on the celeb-api's main branch. Fail-closed review consensus is now non-bypassable.
+4. The `impl-provenance.yml` gate generated and configured as a **required status check** on the celeb-api's main branch. Implementation PRs cannot merge unless the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log all verify.
 5. **A live demo of the hook firing.** You try to write a Mongo selector built directly from `req.body` in a route handler. The hook blocks it before the file changes. The deny reason cites the exact policy rule and lands as a JSONL line in the audit log.
 6. **The Part 4 CALM-layer fitness function promoted to deterministic.** The advisory check that ran in CI in Part 4 now runs as a hook BEFORE the agent's edit lands. Same rule, two enforcement points, one fail-closed gate.
 7. A custom team policy rule added: *"route handlers must validate Mongo input through a Zod schema; no `$where` / `$accumulator` / `$function`; no selector built from raw `req.body` / `req.query` / `req.params`."* Written once, enforced forever, audited every fire.
@@ -87,7 +87,7 @@ Same code, different position in time. The fitness function from Part 4 still ru
 |---|---|---|---|
 | **PreToolUse hook** | Before `Bash`, `Write`, `Edit` ever runs | <10 ms | `REDQUEEN_TOOL_APPROVED` (per tool call) or `REDQUEEN_PLAN_APPROVED` (per Edit on restricted-tier) — both logged |
 | **MCP `validate_action`** | When the agent asks before acting (richer CALM/security checks) | <500 ms | The agent receives a structured verdict; ignoring it is itself an audited violation |
-| **Required CI status check** | After PR opens, before merge | 1-5 minutes (workflow run) | No, when configured as a branch-protection required check (the branch-protection setup is a manual step) |
+| **impl-provenance gate (required CI status check)** | After an implementation PR opens, before merge | 1-5 minutes (workflow run) | No, when configured as a branch-protection required check (the branch-protection setup is a manual step) |
 | **`redqueen-action` standalone hard gate** *(<a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>)* | At the PR merge boundary, non-bypassable | AST semantic diff + contract diffs | No |
 
 Today we ship the first three. Queen&rsquo;s Next Act adds the standalone `redqueen-action` hard gate plus AST semantic diff and contract diffs.
@@ -112,7 +112,6 @@ Open the celeb-api in VS Code. Click the **Cheshire Cat** icon → **Scaffold SD
 
 The panel asks you to confirm:
 - Mesh path (auto-detected if `RED_QUEEN_MESH_PATH` is set in your env)
-- Agent type: `claude` (set during workshop prep)
 - BAR: `APP-IMDB-002`
 
 Click **Scaffold**. Cheshire writes:
@@ -127,16 +126,14 @@ Click **Scaffold**. Cheshire writes:
   hooks/
     validate-tool.js       ← the fast-path policy evaluator (pure JavaScript)
     validate-tool.sh       ← shell wrapper that PreToolUse calls
-  consensus.js             ← fail-closed review-board aggregator (for the review workflow)
 .claude/
   settings.json            ← updated with the PreToolUse hook registration
 .mcp.json                  ← Claude Code MCP server config pointing at .redqueen/mcp-runner.js
 .github/
-  hooks/redqueen.json      ← Copilot Coding Agent governance config (when agent_type = `both`)
+  hooks/redqueen.json      ← Copilot Coding Agent governance config (Copilot hook adapter)
   copilot-governance-steps.yml  ← Copilot pre-run governance steps
   workflows/
-    redqueen-review.yml    ← multi-agent review consensus workflow
-    redqueen-implement.yml ← issue-to-PR implementation workflow (triggers on `implement` / `claude-code` / `copilot` label)
+    impl-provenance.yml    ← always-on gate verifying the signed audit chain on implementation PRs
 AGENTS.md                  ← updated to declare Red Queen is the governance authority
 ```
 
@@ -308,21 +305,21 @@ Test by asking the agent to write code with `await Celebrities.find(req.body)`. 
 
 **Write the rule once. It fires at machine speed forever. Every fire is logged to `.redqueen/audit-log.jsonl`** with `ruleId: SEC-101`, the file path, and the session ID. That is the deal.
 
-### Step 9. Make the review workflow a required status check
+### Step 9. Make the impl-provenance gate a required status check
 
-Generated workflow `redqueen-review.yml` runs reviewers (Claude + optionally Copilot) on every PR. Today it produces verdicts but does not block merges until you mark it as a required check. In your celeb-api repo settings:
+Generated workflow `impl-provenance.yml` runs on every implementation PR. It verifies the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log, but it does not block merges until you mark it as a required check. In your celeb-api repo settings:
 
 ```bash
 gh api repos/$OWNER/celeb-api/branches/main/protection \
   --method PUT \
   --field 'required_status_checks[strict]=true' \
-  --field 'required_status_checks[contexts][]=Red Queen Review / redqueen-review' \
+  --field 'required_status_checks[contexts][]=impl-provenance' \
   --field 'enforce_admins=true' \
   --field 'required_pull_request_reviews[required_approving_review_count]=1' \
   --field 'restrictions=null'
 ```
 
-Now `redqueen-review.yml` is a hard merge gate. Any PR where the reviewers fail-closed (missing verdicts, consensus rejection, policy violation) cannot be merged, even by admins.
+Now `impl-provenance.yml` is a hard merge gate. Any implementation PR whose signed chain does not verify (missing evidence, broken chain, policy violation) cannot be merged, even by admins. The implementation agent's embedded Architect + Security self-review supplies the review judgment the gate then verifies — no separate reviewer-bot court is dispatched.
 
 ### Step 10. Re-read the scorecard
 
@@ -380,9 +377,9 @@ Both, via different mechanisms.
 
 **Claude Code** honors the PreToolUse hook protocol (`.claude/settings.json` registration calls into `.redqueen/hooks/validate-tool.sh`). The hook denies; the tool does not run. This is the cleanest integration today.
 
-**Copilot Coding Agent** runs in its own ephemeral GitHub Actions container. The Red Queen's enforcement for Copilot happens via the `.github/hooks/redqueen.json` config (Copilot Coding Agent reads this on session start) plus the `redqueen-review.yml` required status check (which prevents any agent-generated PR from merging if reviewers fail-closed). The Copilot path is more workflow-driven than hook-driven, but the policy.json is shared. Both agents are governed by the same rules.
+**Copilot Coding Agent** runs in its own ephemeral GitHub Actions container. The Red Queen's enforcement for Copilot happens via the `.github/hooks/redqueen.json` config (Copilot Coding Agent reads this on session start) plus the `impl-provenance.yml` required status check (which prevents any implementation PR from merging unless its signed audit chain verifies). The Copilot path is more workflow-driven than hook-driven, but the policy.json is shared. Both agents are governed by the same rules.
 
-Cheshire's scaffold generates both mechanisms when your BAR's `agent_type` is `both`. If your team is Copilot-only, you still get all of Part 7's value; the latency profile is different (CI-time vs hook-time) but the rules and the audit are the same.
+Cheshire's scaffold generates both hook mechanisms. If your team is Copilot-only, you still get all of Part 7's value; the latency profile is different (CI-time vs hook-time) but the rules and the audit are the same.
 
 </details>
 
@@ -426,7 +423,7 @@ The chief-trainer test for any custom rule: *if I am on call at 2 AM and the rul
 ## What you learned
 
 - **Advisory vs deterministic enforcement** is a position in time. Advisory rules catch violations after they happen; deterministic rules prevent them from happening. Both have their place; combining them is defense in depth.
-- **The Red Queen ships three control points today:** PreToolUse hook (fast, binary, <10ms), MCP `validate_action` (richer, structured, <500ms), and `redqueen-review.yml` as a required status check (CI-time, multi-agent consensus). A dedicated standalone hard gate (`redqueen-action`) is Queen's Next Act.
+- **The Red Queen ships three control points today:** PreToolUse hook (fast, binary, <10ms), MCP `validate_action` (richer, structured, <500ms), and `impl-provenance.yml` as a required status check (CI-time, verifies the signed audit chain produced by the implementation agent's embedded self-review). A dedicated standalone hard gate (`redqueen-action`) is Queen's Next Act.
 - **The same CALM rule can run at multiple enforcement points.** The Part 4 fitness function and the Part 7 hook are the same rule expressed at different positions in the lifecycle. One policy.json is the source of truth.
 - **Break-glass is scoped, time-limited, and attributable.** `REDQUEEN_TOOL_APPROVED=true` lets one tool call through; `REDQUEEN_PLAN_APPROVED=true` permits one Edit on a restricted-tier BAR after a written plan. Both are logged to `.redqueen/audit-log.jsonl` with `override: true`, `bypassedRuleId` (the rule the approval bypassed, e.g. `TIER-002` or `TIER-003`), `approvalSource` (which env var or call flag granted it), and the session ID. Signed override events with **engineer identity** and **written reason captured at override time** are Queen's Next Act.
 - **The governance is itself governed.** `.redqueen/` files are in `readOnlyPaths`. Agents cannot edit the policy that governs them.

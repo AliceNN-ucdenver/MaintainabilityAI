@@ -21,7 +21,7 @@ However, our research surfaced **13 concrete capability gaps** that enterprise a
 The proposed work is grouped into **three waves**:
 
 - **Wave 1 (next 6 weeks):** Audit chain + agent roster + provenance manifest — the evidence basics
-- **Wave 2 (next 3 months):** Twin Reviewer + Architecture Conformance Tests + Phase 9 CI hard gate
+- **Wave 2 (next 3 months):** Embedded persona self-critique (the retired Twin Reviewer's contrarian logic, now inside the author agent) + Architecture Conformance Tests + Phase 9 CI hard gate
 - **Wave 3 (next 6 months):** Compliance crosswalks (EU AI Act, ISO 42001), goal-drift detector, replay debugging
 
 ---
@@ -103,13 +103,15 @@ Each gap below names: the **standard or competitor** driving the expectation, th
 ### Gap 4 — Independent test evidence (separation of agent-as-author from agent-as-tester)
 
 > **RETIRED 2026-05-23 (Bug V):** Separate reviewer agents ("The Tweedles") were retired. PRD-time review was collapsed into the author agent in B24; the user confirmed on 2026-05-23 (Bug V) that persona-switch self-critique will remain the model for **all phases** (WHY, HOW, WHAT). See [`vscode-extension/design/agentic-sdlc-prd.md`](../../vscode-extension/design/agentic-sdlc-prd.md) §3 for the B24 pivot rationale. The row below is preserved for historical context.
+>
+> **The implementation-side review court is now retired too.** The separate `redqueen-review.yml` PR-review workflow — independent Claude/Copilot reviewer bots whose verdicts were merged by `.redqueen/consensus.js`, configured by the `agent_type` (claude | copilot | both) setting — has been removed. Implementation-phase review now follows the same model: the "Tweedles" (Architect + Security review personas) run as embedded self-review skills inside the implementation agent's own loop, and an always-on server-side gate (`.github/workflows/impl-provenance.yml`) verifies the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log on every implementation PR. A separate reviewer-bot court adds no coverage the embedded self-review plus the provenance gate do not already provide.
 
 | | |
 |---|---|
 | **Standard / source** | NIST 800-53 SA-11 (independent developer testing) · SOC 2 segregation of duties · OWASP T7 (misaligned/deceptive behaviour — agent reporting false success) |
 | **Competitor parity** | None — most competitors let the same agent test its own code |
 | **Our gap** | Workshop teaches RCTRO + tests, but no enforcement that tests come from an independent source |
-| **Extends** | Red Queen (review consensus) + Cheshire (test scaffolding) |
+| **Extends** | Red Queen (runtime action enforcement) + Cheshire (test scaffolding) |
 | **Proposed name (retired)** | ~~**The Tweedles** — Tweedledum & Tweedledee: two independent reviewer-agents must sign off, one cannot be the agent that authored the change.~~ Replaced by persona-switch self-critique inside the author agent — Architect + Security personas in bounded rounds, each emitting a signed `self_review` event per persona per round on the audit chain. The chain itself is the segregation evidence. |
 | **Artifact for auditor** | Per-persona, per-round signed `self_review` events on the hash-chained JSONL audit log; convergence to PASS gates merge |
 
@@ -388,7 +390,7 @@ Highest leverage / lowest implementation cost. Establish the audit chain and per
 ### Wave 2 — Process strengthening (3 months)
 Make the existing review process safer, deterministic, architecture-aware.
 
-- ~~**The Tweedles** — twin-reviewer enforcement~~ **RETIRED 2026-05-23 (Bug V).** PRD-time review uses persona-switch self-critique inside the author agent (B24 pivot — see [`vscode-extension/design/agentic-sdlc-prd.md`](../../vscode-extension/design/agentic-sdlc-prd.md) §3). Separate code-grounded reviewers were considered for WHAT phase but the user confirmed (2026-05-23, Bug V) that persona-switch will remain the model for all phases.
+- ~~**The Tweedles** — twin-reviewer enforcement~~ **RETIRED 2026-05-23 (Bug V).** PRD-time review uses persona-switch self-critique inside the author agent (B24 pivot — see [`vscode-extension/design/agentic-sdlc-prd.md`](../../vscode-extension/design/agentic-sdlc-prd.md) §3). The implementation-side `redqueen-review.yml` PR-review court (`.redqueen/consensus.js`, the `agent_type` reviewer-bot selection) was retired on the same basis: the Tweedle personas run as embedded self-review skills inside the implementation agent, and `impl-provenance.yml` verifies the signed chain + skill manifest + Hatter Tag + Red Queen decision log on every implementation PR. Persona-switch self-critique remains the model for all phases.
 - **The Caterpillar's Challenge** — CALM conformance tests
 - **The Knight's Seal** — signed commits + agent DID
 - **Phase 9 CI hard gate** (already on roadmap) — `redqueen-action`
