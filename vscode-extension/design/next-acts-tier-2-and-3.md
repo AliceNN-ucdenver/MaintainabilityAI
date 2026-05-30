@@ -6,12 +6,13 @@
 >
 > **Codex review absorbed (this pass).** A second-pass review of the WHY/HOW/WHAT prompt family surfaced four findings that change D-PR4-prep's scope: (a) [`code-design-agent.agent.md:38`](../code-templates/agents-v4/code-design-agent.agent.md) and line 268 still frame fan-out as `design-bus.yml`-driven and need rewriting to the app-orchestrated model (greenfield through Cheshire, brownfield requiring harness pre-flight); (b) [`synthesis.md:423`](../prompt-packs/looking-glass/code-design/synthesis.md) has the Hatter Tag's `chain_root_hash` at top-level but the agent prompt requires nested `audit.chain_root_hash` (3-layer drift in the making, same shape as Bug M / Bug AA); (c) the existing sample WHAT artifact carries `<!-- Rev 2... -->` process residue and models `202 manual-review_required` as an `ApiError` (today's prompt forbids this), so the sample needs a fresh WHAT run after the prompt updates; (d) the existing sample PRD cites an undefined `C3` in FR-05 and has `/tmp/prd-run/...` references (the current PRD prompt now forbids temp paths). D-PR4-prep now ships fixes (a)+(b) and includes a sample-OKR WHAT regeneration as its validation step. A pre-D-PR4-prep HOW regeneration is recommended-but-optional for cleanest baseline. WHY is healthy and can stay.
 >
-> From here, two tracks:
+> From here, the tracks:
 >
-> - **Tier 2 -- BUILD fan-out next-act.** Finish the cross-repo hand-off from WHAT (mesh-side code-design merge) to implementation PRs in target code repos. Seven work items now: D-PR3 (reference-repos Skill), D-PR4-prep (coordination contract in code-design), D-PR4 (app-side fan-out engine), D-PR5 (Stage 5 card), D-PR6 (E2E smoke), D-PR7 (implementation-agent template), D-PR8 (implementation chain in rollup).
-> - **Tier 3 -- chief-auditor hardening.** The trust-posture work that came out of seven Codex chief-auditor rounds during Phase E. Cosign-anchored signing, Red Queen signed enforcement chain folded into the same evidence stream, redacted external bundles, org-separation on dual signature, prompt-pack signature verification.
+> - **Tier 2 -- BUILD fan-out -- ✅ SHIPPED.** The cross-repo hand-off from WHAT (mesh-side code-design merge) to implementation PRs in target code repos is complete. All seven work items landed: D-PR3 (reference-repos Skill), D-PR4-prep (coordination contract in code-design), D-PR4 (app-side fan-out engine), D-PR5 (Stage 5 card), D-PR6 (E2E smoke), D-PR7 (implementation-agent template), D-PR8 (implementation chain in rollup). Post-cert hardening (six fixes found during cert testing 2026-05-30) is captured at the end of the Tier 2 section.
+> - **Tier 2.5 -- Sign the Red Queen enforcement chain -- 🚧 NEXT (immediate next act).** The bridge between Tier 2 and Tier 3. The impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present`/`rq_allowed`/`rq_denied`) but that log is unsigned plain JSONL. Tier 2.5 folds those action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies. (Promoted from the old T3-2 -- see the Tier 2.5 section below.)
+> - **Tier 3 -- chief-auditor hardening.** The trust-posture work that came out of seven Codex chief-auditor rounds during Phase E. Cosign-anchored signing (Knight's Seal v2), redacted external bundles, org-separation on dual signature, prompt-pack signature verification. The heavier `redqueen-action` standalone hard gate + cross-chain inclusion proofs / SIEM export stay here (Queen's Next Act).
 >
-> Tier 1 is closed: live cert-run + onboarding pack. This doc enumerates Tier 2 + Tier 3.
+> Tier 1 is closed: live cert-run + onboarding pack. Tier 2 is shipped. This doc enumerates the Tier 2 record, the Tier 2.5 next act, and Tier 3.
 
 ---
 
@@ -20,10 +21,26 @@
 | Tier | Status | Done-done definition |
 |---|---|---|
 | **Tier 1** | ✅ shipped | Live whole-OKR cert run on `OKR-2026Q2-IMDB-001-celeb-api` returns `VERDICT: ✅ PASS`; onboarding pack live at [`/docs/onboarding/`](../site-tw/public/docs/onboarding/index.md); marketing page strengthened with the actual PASS rollup specifics. |
-| **Tier 2** | 🚧 queued (this doc) | IMDB-Celebs sample OKR walks the whole way: WHY → HOW → WHAT → fan-out (with `depends_on` topological ordering) → 3 implementation PRs landing in dependency waves → whole-OKR rollup `VERDICT: ✅ PASS` with the implementation chain rollup section populated. Three target repos cover the matrix: one brownfield-with-harness, one brownfield-needing-retrofit (manual prompt), one greenfield (auto-scaffold via Cheshire). |
-| **Tier 3** | 🚧 queued (this doc) | (a) Knight's Seal v2 third-party verifiable via cosign; (b) Red Queen action-time evidence in the same signed chain a Hatter rollup verifies; (c) one-button redacted export bundle for regulators; (d) prompt-pack signature verification on load; (e) org-separation enforced on dual-signature override. |
+| **Tier 2** | ✅ shipped | The fan-out pipeline D-PR3..D-PR8 all landed; the cert run exists. IMDB-Celebs sample OKR walks the whole way: WHY → HOW → WHAT → fan-out (with `depends_on` topological ordering) → implementation PRs landing in dependency waves → whole-OKR rollup `VERDICT: ✅ PASS` with the implementation chain rollup section populated. Three target repos cover the matrix: one brownfield-with-harness, one brownfield-needing-retrofit (manual prompt), one greenfield (auto-scaffold via Cheshire). Post-cert hardening (2026-05-30) captured at the end of the Tier 2 section. |
+| **Tier 2.5** | 🚧 next | Sign the Red Queen enforcement chain -- fold action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies. The bridge between Tier 2 (impl chain shipped) and Tier 3 (deeper hardening). |
+| **Tier 3** | 🚧 queued (this doc) | (a) Knight's Seal v2 third-party verifiable via cosign; (b) one-button redacted export bundle for regulators; (c) prompt-pack signature verification on load; (d) org-separation enforced on dual-signature override. |
 
 The single canonical reference is [`agentic-sdlc.md`](agentic-sdlc.md). Everything below should be read alongside it.
+
+---
+
+## Index -- where each open item is tracked
+
+Single source of truth for what's open. When an item ships, flip it here AND in the threat model + roadmap + CLAUDE.md (nothing auto-syncs).
+
+| Item | This doc | Threat model (`agentic-sdlc-governance.md`) | Roadmap (`agentic-governance-roadmap-2026.md`) | CLAUDE.md / Marketing |
+|---|---|---|---|---|
+| **Signed Red Queen enforcement chain** | Tier 2.5 (below) | STRIDE row `🛠` line ~1595 + card line ~1543 | Gap 1 (SIEM) + Gap 13 (`redqueen-action`) | CLAUDE.md "Planned 🚧"; marketing `red-queens-court.md` "Queen's Next Act" |
+| **`redqueen-action` standalone hard gate (AST diff / contract diffs)** | Tier 3 (Queen's Next Act) | — | Gap 13 / "Phase 9" | CLAUDE.md "Planned 🚧" |
+| **Cross-chain inclusion proofs + SIEM/CloudEvents export** | Tier 3 | — | Gap 1 | CLAUDE.md "Planned 🚧" |
+| **Knight's Seal v2 (cosign/sigstore)** | Tier 3 · T3-1 | "Repudiate" row (persistent verifiability "next act") line ~1505 | Gap 8 | — |
+| **Redacted external bundle** | Tier 3 · T3-3 | Info-disclosure `⚠` line ~1508 + proof card ~1457 | Gap 11 | — |
+| **Prompt injection / sanitization** | (not in this doc) | EoP `⚠` line ~1513; ASTRIDE | Gap (harness) | — |
 
 ---
 
@@ -69,7 +86,7 @@ Read these before any work item. They are the decisions that drove the seven-ite
 
 **Why.** I previously wrote "signed `state_transition` event per landing." That is wrong. `state_transition` is workflow-owned and unsigned by contract ([`audit-emit-event/SKILL.md:26`](../code-templates/skills/audit-emit-event/SKILL.md), [`skills.ts:1875`](../../packages/research-runner/src/runner/skills.ts) `EVENT_KIND_ORIGIN`). The app cannot legitimately emit it. Inventing a new app-emitted event kind for the MVP is too much surface area to design correctly under deadline pressure.
 
-**Future option.** When the trust posture for app-side events needs a real chain entry (likely alongside T3-2 Red Queen integration), add a new event kind `fan_out_recorded` with `origin: app` and a real emitter contract in `EVENT_KIND_ORIGIN`. Reserved here; not built.
+**Future option.** When the trust posture for app-side events needs a real chain entry (likely alongside T2.5 Red Queen integration), add a new event kind `fan_out_recorded` with `origin: app` and a real emitter contract in `EVENT_KIND_ORIGIN`. Reserved here; not built.
 
 ---
 
@@ -77,7 +94,7 @@ Read these before any work item. They are the decisions that drove the seven-ite
 
 Seven work items. Sequencing recommendation at the bottom of the doc.
 
-### D-PR3 · `knowledge-reference-repos` Skill (greenfield exemplar grounding)
+### ✅ D-PR3 · `knowledge-reference-repos` Skill (greenfield exemplar grounding)
 
 - **Goal.** Add an optional PURE-data Skill that clones + indexes a per-mesh-configured list of "patterns we want the agent to honor" from `mesh/.caterpillar/reference-repos/`. Tree-sitter polyglot extraction; same data model as D6 `knowledge-code` but with `reference: true` so the agent treats them as exemplars, not edit targets.
 - **Why.** Greenfield WHAT runs have no in-repo grounding. Either the agent invents from prompt-pack alone (low quality, no architectural anchor), or the team configures a curated list of "build this like that auth service" exemplars. D-PR3 is the second option.
@@ -99,7 +116,7 @@ Seven work items. Sequencing recommendation at the bottom of the doc.
   - **Suppress-non-canonical** -- if a reference-repo's clone partially fails, the per-repo entry gets `status: 'fetch-error', reason: '<git stderr>'` rather than being omitted.
 - **First-commit suggestion.** Skill scaffold + 5 unit tests against an in-memory fixture (mock the clone). One acceptance test against a fixture reference-repo committed to `__fixtures__/`. NO live network in CI.
 
-### D-PR4-prep · WHAT prompt-family fixes + Cross-repo coordination contract (extends shipped Phase D agent)
+### ✅ D-PR4-prep · WHAT prompt-family fixes + Cross-repo coordination contract (extends shipped Phase D agent)
 
 - **Goal.** Extend the already-shipped `code-design-agent` so the merged `code-design.md` carries machine-readable cross-repo coordination data, AND ship two pre-existing prompt-family bugs Codex surfaced in the same commit. Without the coordination contract, fan-out has nothing to read for topological ordering. Without the prompt-family fixes, the next sample WHAT run drifts the same way the cert-run-5 series did.
 - **Why.** Topological gating (Tier 2 key call #4) requires `depends_on` per target repo. The design phase is where the agent has the full cross-repo picture. The two prompt bugs (a) frame fan-out as workflow-driven (`design-bus.yml`) which contradicts the app-orchestrated architecture this whole Tier 2 sits on, and (b) demonstrate a top-level `chain_root_hash` in the synthesis-pack Hatter Tag block while the agent prompt requires nested `audit.chain_root_hash` -- exactly the 3-layer drift class Bug M / Bug AA closed last cycle.
@@ -273,7 +290,7 @@ Sub-tasks should ship in this order within the single D-PR4-prep commit (or spli
 4. **4-prep.5 sample regeneration** -- live run on the sample mesh; produces the new baseline artifact; gates the merge.
 5. **Optional 4-prep.6 HOW regeneration** -- if "gold" baseline matters.
 
-### D-PR4 · Looking Glass fan-out engine (app-side orchestrator)
+### ✅ D-PR4 · Looking Glass fan-out engine (app-side orchestrator)
 
 - **Goal.** Implement the app-side fan-out engine in Looking Glass. After the code-design PR merges, the OKR detail surfaces a per-repo pre-flight + a "Fan out" button. The engine runs pre-flight checks per target repo, reads coordination from D-PR4-prep's output, opens landing issues in topological order, and dispatches the implementation agent via `assignCustomCopilotAgent`. Writes `design-fan-out.yaml` to the mesh repo via direct commit to `main` guarded by `MeshBranchGuard`.
 - **Why.** This is the cross-repo hand-off proper. Without it, `targetCodeRepos[]` is just decoration.
@@ -310,7 +327,7 @@ Sub-tasks should ship in this order within the single D-PR4-prep commit (or spli
   - **No claim of signed events.** The fan-out engine writes `design-fan-out.yaml`. It does NOT emit `state_transition` (workflow-owned) or any new event kind. Audit trail = git history. Future option: `fan_out_recorded` event kind (see key call #5).
 - **First-commit suggestion.** Pure-function pieces first (topological sort, pre-flight state derivation, coordination parse) with 15+ tests. Then GitHub-API helpers (`getRepoFileStatus`, `checkIssueWritePermission`, `createOrgRepo`) with mocked Octokit. Then the panel wiring + the okrDetail render. Last: live integration against the IMDB-Celebs sample.
 
-### D-PR5 · Stage 5 Per-Repo Fan-Out card in Looking Glass
+### ✅ D-PR5 · Stage 5 Per-Repo Fan-Out card in Looking Glass
 
 - **Goal.** OKR detail card that shows per-target-repo status from `design-fan-out.yaml`, updates live by polling target-repo PRs, and auto-advances the next dependency wave when an upstream PR merges.
 - **Why.** Without the live card, fan-out is fire-and-forget. The orchestrator role (Stage 5) is what keeps the topological gate honest after the initial fan-out wave.
@@ -338,7 +355,7 @@ Sub-tasks should ship in this order within the single D-PR4-prep commit (or spli
   - **No mocks in main carries through.** Stage 5 never opens dependent landing issues until upstream PR is `pr-merged`. There is no shortcut.
 - **First-commit suggestion.** Render-only against a fixture `design-fan-out.yaml` first (5-8 status rendering tests). Then poll wiring with mocked Octokit. Last: auto-advance state transitions with property tests for the topological gate.
 
-### D-PR6 · End-to-end smoke (WHAT through implementation merge)
+### ✅ D-PR6 · End-to-end smoke (WHAT through implementation merge)
 
 - **Goal.** Documented live smoke run of the full Tier 2 pipeline on the **new Tier 2 smoke OKR (`OKR-2026Q3-IMDB-002-<feature-name>`) created in D-PR4-prep.5** -- NOT on the historical `OKR-2026Q2-IMDB-001-celeb-api` (which stays preserved as the Phase E clean-planning proof). Three target repos covering the matrix: one brownfield-with-harness, one brownfield-needing-retrofit, one greenfield. Linear `depends_on` chain produced by the regenerated WHAT. All three slices land in waves, whole-OKR rollup verdict ✅ PASS, implementation chain section populated.
 - **Why.** D-PR4 + D-PR5 + D-PR7 + D-PR8 do not count as shipped until a real end-to-end run produces a clean rollup. The smoke catches integration seams that unit tests miss (custom-agent dispatch latency, greenfield scaffold timing, MeshBranchGuard wrong-branch refuse, cross-repo PR polling). The new OKR isolates Tier 2 from Phase E history so the smoke can fail or be re-run without touching the historical record.
@@ -366,7 +383,7 @@ Sub-tasks should ship in this order within the single D-PR4-prep commit (or spli
   - **Capture the rollup.** Smoke run commits the actual rollup markdown to the repo so the verdict is auditable from CI logs.
   - **Pre-flight checklist.** Before the smoke: GitHub App installed on org with `administration: write`; target greenfield name does NOT exist; brownfield-needs-retrofit target repo exists + App installed; mesh has ≥1 `.caterpillar/reference-repos/` if testing D-PR3.
 
-### D-PR7 · Implementation-agent template (Cheshire-installed; no workflow YAML for agent dispatch)
+### ✅ D-PR7 · Implementation-agent template (Cheshire-installed; no workflow YAML for agent dispatch)
 
 - **Goal.** Ship `.github/agents/implementation-agent.agent.md` as part of Cheshire's scaffold output. The agent self-dispatches when the landing issue arrives (via `assignCustomCopilotAgent` from D-PR4), reads its per-repo extract + landing-issue sibling table, plans an implementation, runs Tweedles persona-switch self-critique (Architect + Security), opens PR with Hatter Tag continuation. **No workflow YAML for agent dispatch** (the GitHub custom-agent API IS the dispatch mechanism). Scaffolded CI may still include a separate workflow that VERIFIES Hatter Tag continuation on incoming implementation PRs -- that's PR-provenance enforcement, not agent invocation.
 - **Why.** This is the agent that actually does the implementation work. Without it, fan-out creates a landing issue and nothing happens. The Cheshire-install pattern means every repo with the harness has the agent locally, owns it locally, can customize it locally. The dispatch-via-API + verify-via-CI split keeps each surface single-purpose: GitHub owns the agent runtime; Cheshire-scaffolded CI owns provenance enforcement on the resulting PR.
@@ -443,7 +460,7 @@ implementation_chain:
 
 All field values are required. Missing fields → PR check `chain-integrity-failed`.
 
-**Verifier walk** (extends `skill-audit-verify-chain` per D-PR8 / T3-2):
+**Verifier walk** (extends `skill-audit-verify-chain` per D-PR8 / T2.5):
 
 The runner-side `audit-verify-chain` Skill receives `{ okrId, runId: <IMPL-...> }`. It:
 
@@ -481,12 +498,12 @@ The runner-side `audit-verify-chain` Skill receives `{ okrId, runId: <IMPL-...> 
   - **No mocks.** Agent prompt explicitly says: "Dependencies have merged before you run. Call real code. Do not mock."
 - **First-commit suggestion.** Template + persona prompts in isolation, with structural tests. Then ScaffoldPanel integration. Last: a manual dispatch test against a fixture landing issue in a sandbox repo to confirm the dispatch + Tweedles loop run end-to-end.
 
-### D-PR8 · Implementation chain in whole-OKR rollup
+### ✅ D-PR8 · Implementation chain in whole-OKR rollup
 
 - **Goal.** Extend the existing whole-OKR rollup exporter (Phase E E4 / E6) to include an "Implementation chain" section per target repo. The section threads cross-repo impl PRs into the OKR's audit ladder.
 - **Why.** Today the rollup says "the design is provably-this" and stops at WHAT merge. With Tier 2 shipping implementation, the rollup needs to say "the implementation matches the design and here are the cross-repo PRs that delivered it, all linked via Hatter Tag continuation." Without D-PR8, the rollup understates what shipped.
 - **Acceptance.**
-  - Rollup `## Implementation chain` section per target repo: PR URL, PR state (open/merged/closed), `implementation_run_id`, Hatter Tag chain root, parent_intent_thread match (✓/✗), parent_chain_root match (✓/✗), event log + key paths (in target repo, per D-PR7 storage contract), runner-verify status (when T3-2 lands -- not blocking for D-PR8 MVP, shown as `not-yet-verified`).
+  - Rollup `## Implementation chain` section per target repo: PR URL, PR state (open/merged/closed), `implementation_run_id`, Hatter Tag chain root, parent_intent_thread match (✓/✗), parent_chain_root match (✓/✗), event log + key paths (in target repo, per D-PR7 storage contract), runner-verify status (when T2.5 lands -- not blocking for D-PR8 MVP, shown as `not-yet-verified`).
   - `chain-ladder.yaml` extended to include implementation rows that mirror the D-PR7 storage contract:
     ```yaml
     - phase: implementation
@@ -510,12 +527,12 @@ The runner-side `audit-verify-chain` Skill receives `{ okrId, runId: <IMPL-...> 
   - `vscode-extension/src/services/__tests__/AuditReportExporter.test.ts` -- add tests for implementation chain rendering + verdict precedence
 - **Design docs to read first.**
   - [`agentic-sdlc.md`](agentic-sdlc.md) §11.6 (chain-ladder writer pattern) + §11.7 (rollup spec).
-  - This doc's T3-2 spec (cross-repo Red Queen chain) -- D-PR8 is the MVP placeholder for cross-repo threading; T3-2 hardens it to runner-verified.
+  - This doc's T2.5 spec (cross-repo Red Queen chain) -- D-PR8 is the MVP placeholder for cross-repo threading; T2.5 hardens it to runner-verified.
 - **Dependencies.** D-PR5 + D-PR7 must be functional (we need impl PRs to thread). D-PR8 is the closing rollup integration.
 - **Hardening lessons to apply.**
   - **Per-input source tracking.** Cross-repo PR reads are GitHub canonical (live API). Sources tag includes `cross-repo:<slug>` per target repo.
   - **Verdict precedence carries through.** Any implementation-chain integrity failure (broken thread, rejected PR) participates in the rollup verdict via the same `computeOkrRollupVerdict` predicate. Don't fork.
-  - **Reserve the T3-2 seam.** When T3-2 ships, "PR merged" gains "runner-verified" status. D-PR8's structure should already carry the runner-verify field (initially `not-yet-implemented`) so T3-2 is a fill-in, not a rewrite.
+  - **Reserve the T2.5 seam.** When T2.5 ships, "PR merged" gains "runner-verified" status. D-PR8's structure should already carry the runner-verify field (initially `not-yet-implemented`) so T2.5 is a fill-in, not a rewrite.
 - **First-commit suggestion.** Test fixtures showing rollup with implementation chain section (5-8 verdict-permutation tests). Then exporter wiring. Last: hook Stage 5's PR-merged handler to write the chain-ladder row.
 
 ---
@@ -538,6 +555,44 @@ These are not separate PRs; the D-PR4 ones ship as part of D-PR4's commit; the D
 
 ---
 
+## Tier 2 hardening -- found during cert testing (2026-05-30)
+
+Six fixes that landed after the Tier 2 cert run while exercising the fan-out matrix end-to-end. All shipped:
+
+- **Governance Court retired** -- `agent_type` review layer removed; impl-provenance gate is the sole server-side check (v0.1.223).
+- **Greenfield grounding** -- scaffold now INLINES the full canonical code-design into `docs/code-design-spec.md` (was a pointer the sandbox couldn't fetch) (v0.1.224).
+- **Live-BAR tier** -- fan-out re-derives the governance tier from the live BAR at dispatch (not the WHAT-frozen value); matches the runtime hook (v0.1.225).
+- **"Mark PR ready"** on fan-out rows + impl-provenance `ready_for_review` trigger (v0.1.226).
+- **Fan-out concurrency cap (5)** -- closes the DoS "fan-out blast radius" threat-model row; chains self-serialize, independents queue as `pending-on-cap` (v0.1.227).
+- **knip:** removed court-orphaned Review Board types (v0.1.228).
+
+---
+
+## Tier 2.5 · Sign the Red Queen enforcement chain (the Tier 2 → Tier 3 bridge)
+
+This act rides the seam Tier 2 already built. The impl-provenance gate Tier 2 shipped READS the Red Queen decision log (`rq_present` / `rq_allowed` / `rq_denied`) but that log is **unsigned plain JSONL** -- confirmed by the celeb-api PR #8 audit. Tier 2.5 SIGNS what the gate already reads, so the rollup story extends from "the implementation matches the design" to "and here's the proof the implementation agent's tool-calls were governed."
+
+**SCOPE NOTE.** Tier 2.5 = sign the decision log (hash-chain + per-epoch Ed25519 via the same `audit-emit-event` / `audit-verify-chain` contract the planning side uses) + the gate/rollup VERIFIES it (not just counts). The heavier **`redqueen-action` standalone status check** and the **cross-chain inclusion proofs / SIEM export** remain **Tier 3 / Queen's Next Act** (see the index table near the top of this doc).
+
+### T2.5 · Red Queen signed enforcement chain (fold action-time evidence into the same chain)
+
+- **Goal.** Today the Hatter side (planning: WHY/HOW/WHAT) signs every event in a hash-chain. The Red Queen side (action-time `validate_action` decisions, per-tool-call hooks, override events) writes its own JSONL but does NOT thread into the same chain a Hatter rollup verifies. T2.5 unifies them: a single `chain-ladder.yaml` entry per OKR carries phases `why | how | what | implementation-repoX | implementation-repoY` with per-repo Red Queen chain roots threaded by `parent_intent_thread`. **Builds on D-PR8's MVP cross-repo threading.**
+- **Why.** A whole-OKR rollup today says "the design is provably-this." It does NOT say "the resulting code's tool-calls were governed." For an auditor to walk OKR → design → implementation → "and here's the proof the implementation agent didn't violate Golden Rules," the Red Queen evidence has to be in the same signed chain. Otherwise the rollup story stops at the WHAT merge.
+- **Acceptance.** Whole-OKR rollup export's `## Implementation chain (Red Queen)` section grows from D-PR8's MVP shape to include per-repo: chain root, signer epoch, number of `validate_action` decisions, number of allow / deny / override events, runner-verified status. The runner's `audit-verify-chain` Skill walks the cross-repo links and verifies the receiving-side chain too. FAIL verdict if any implementation chain is missing for a target repo whose implementation PR has merged.
+- **Design docs to read first.**
+  - [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen architecture (Sections 2, 3, 4, especially §4.5 + §4.5.1).
+  - [`agentic-sdlc.md`](agentic-sdlc.md) §11.6 (`chain-ladder.yaml` writer; this is the integration point).
+  - [`audit-event-shape.md`](audit-event-shape.md) -- Red Queen-side event shape contract.
+  - D-PR8 above (the MVP threading that T2.5 hardens to runner-verified).
+- **Dependencies.** D-PR4 + D-PR5 + D-PR6 + D-PR7 + D-PR8 all shipped.
+- **Hardening lessons to apply.**
+  - **One verifier, one shell command.** Extend the same `audit-verify-chain` Skill; don't fork.
+  - **Per-input source tracking.** `AuditReportInputSources` extends with `cross-repo:<slug>` discrimination per implementation chain.
+  - **Suppress-non-canonical.** Implementation-chain canonicity gaps → PARTIAL with named reason.
+  - **Verdict precedence carries through.** FAIL > PARTIAL > PASS across mesh + per-repo chains in the same predicate.
+
+---
+
 ## Tier 3 · chief-auditor hardening
 
 The trust-posture work that fell out of the seven Codex chief-auditor rounds during Phase E. Some have full specs in [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md); others are sketched and need design before code.
@@ -556,22 +611,7 @@ The trust-posture work that fell out of the seven Codex chief-auditor rounds dur
   - **Both modes coexist.** Don't break v1 verification -- v2 is additive. Old chains with `signer_epoch` ≥ 1 still verify under v1; new chains carry a `seal_version: 2` marker and verify under cosign.
   - **The runner is the single source of truth.** v2 verification logic lives in the runner's `audit-verify-chain` Skill, not in the extension. The extension shells out to the runner exactly as it does today.
 
-### T3-2 · Red Queen signed enforcement chain (fold action-time evidence into the same chain)
-
-- **Goal.** Today the Hatter side (planning: WHY/HOW/WHAT) signs every event in a hash-chain. The Red Queen side (action-time `validate_action` decisions, per-tool-call hooks, override events) writes its own JSONL but does NOT thread into the same chain a Hatter rollup verifies. T3-2 unifies them: a single `chain-ladder.yaml` entry per OKR carries phases `why | how | what | implementation-repoX | implementation-repoY` with per-repo Red Queen chain roots threaded by `parent_intent_thread`. **Builds on D-PR8's MVP cross-repo threading.**
-- **Why.** A whole-OKR rollup today says "the design is provably-this." It does NOT say "the resulting code's tool-calls were governed." For an auditor to walk OKR → design → implementation → "and here's the proof the implementation agent didn't violate Golden Rules," the Red Queen evidence has to be in the same signed chain. Otherwise the rollup story stops at the WHAT merge.
-- **Acceptance.** Whole-OKR rollup export's `## Implementation chain (Red Queen)` section grows from D-PR8's MVP shape to include per-repo: chain root, signer epoch, number of `validate_action` decisions, number of allow / deny / override events, runner-verified status. The runner's `audit-verify-chain` Skill walks the cross-repo links and verifies the receiving-side chain too. FAIL verdict if any implementation chain is missing for a target repo whose implementation PR has merged.
-- **Design docs to read first.**
-  - [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen architecture (Sections 2, 3, 4, especially §4.5 + §4.5.1).
-  - [`agentic-sdlc.md`](agentic-sdlc.md) §11.6 (`chain-ladder.yaml` writer; this is the integration point).
-  - [`audit-event-shape.md`](audit-event-shape.md) -- Red Queen-side event shape contract.
-  - D-PR8 above (the MVP threading that T3-2 hardens to runner-verified).
-- **Dependencies.** D-PR4 + D-PR5 + D-PR6 + D-PR7 + D-PR8 all shipped.
-- **Hardening lessons to apply.**
-  - **One verifier, one shell command.** Extend the same `audit-verify-chain` Skill; don't fork.
-  - **Per-input source tracking.** `AuditReportInputSources` extends with `cross-repo:<slug>` discrimination per implementation chain.
-  - **Suppress-non-canonical.** Implementation-chain canonicity gaps → PARTIAL with named reason.
-  - **Verdict precedence carries through.** FAIL > PARTIAL > PASS across mesh + per-repo chains in the same predicate.
+### T3-2 → promoted to Tier 2.5 (see above)
 
 ### T3-3 · Redacted external bundle (zip for regulators)
 
@@ -634,16 +674,16 @@ Every Tier 2 + Tier 3 work-item should apply these.
 
 | Lesson | What it is | Where to apply |
 |---|---|---|
-| **Per-input source tracking** | `AuditReportInputSources` pattern: track provenance per input, not as a single bundled string | D-PR8 implementation-chain rollup, T3-2 cross-repo extension, T3-3 redacted bundle manifest |
-| **Discriminated unions for fetch results** | `getRepoFileStatus` returns `ok | not-found | fetch-error` -- never collapse to `null` | D-PR4 pre-flight (harness detection, permissions, repo existence), D-PR5 per-row PR polling, T3-2 cross-repo chain reads |
-| **No parallel verifier logic** | Always reuse the per-action paths -- don't write a second verifier | T3-1 cosign mode is a flag on the same Skill, T3-2 extends for cross-repo, T3-3 bundles a pinned version |
-| **Suppress-non-canonical** | If an input can't be vouched for as canonical, don't silently fall back to local -- name the gap | D-PR4 coordination read (refuse if absent), T3-2 implementation-chain canonicity, T3-5 prompt-pack signature missing-key |
-| **Bottom-up walker for parsing** | When parsing stdout / event streams, walk bottom-up and emit per-line discriminated results | T3-5 pack-set verification output, T3-2 per-repo chain verify aggregation |
-| **Verdict precedence FAIL > PARTIAL > PASS** | Use the same predicate shape across new verdict surfaces | D-PR8 implementation-chain rollup verdict, T3-2 extension, T3-3 bundle integrity |
+| **Per-input source tracking** | `AuditReportInputSources` pattern: track provenance per input, not as a single bundled string | D-PR8 implementation-chain rollup, T2.5 cross-repo extension, T3-3 redacted bundle manifest |
+| **Discriminated unions for fetch results** | `getRepoFileStatus` returns `ok | not-found | fetch-error` -- never collapse to `null` | D-PR4 pre-flight (harness detection, permissions, repo existence), D-PR5 per-row PR polling, T2.5 cross-repo chain reads |
+| **No parallel verifier logic** | Always reuse the per-action paths -- don't write a second verifier | T3-1 cosign mode is a flag on the same Skill, T2.5 extends for cross-repo, T3-3 bundles a pinned version |
+| **Suppress-non-canonical** | If an input can't be vouched for as canonical, don't silently fall back to local -- name the gap | D-PR4 coordination read (refuse if absent), T2.5 implementation-chain canonicity, T3-5 prompt-pack signature missing-key |
+| **Bottom-up walker for parsing** | When parsing stdout / event streams, walk bottom-up and emit per-line discriminated results | T3-5 pack-set verification output, T2.5 per-repo chain verify aggregation |
+| **Verdict precedence FAIL > PARTIAL > PASS** | Use the same predicate shape across new verdict surfaces | D-PR8 implementation-chain rollup verdict, T2.5 extension, T3-3 bundle integrity |
 | **Compose helpers tested in isolation** | Pure functions over input shapes; integration only at the seams | D-PR3 render Skill, D-PR4 topological sort + pre-flight derivation, D-PR4-prep coordination verifier, D-PR8 verdict computer |
 | **Honest gap surfacing** | Every new failure class names what went wrong, why, and what to do | D-PR4 pre-flight reasons, D-PR4-prep coordination rejection reasons, D-PR5 status rendering, T3-3 bundle-refuse cases, T3-4 org-separation reasons |
-| **Per-event signing on every new event kind** | Every new event kind carries `signer_epoch` + Ed25519 signature; CI verify-chain verifies them | T3-2 cross-repo, T3-3 redaction, T3-5 pack-verification, future `fan_out_recorded` |
-| **Atomicity break is its own verdict class** | When inputs claim canonical but local doesn't match, that's FAIL not PARTIAL | T3-2 cross-repo: mesh canonical but implementation-chain local-fallback → FAIL |
+| **Per-event signing on every new event kind** | Every new event kind carries `signer_epoch` + Ed25519 signature; CI verify-chain verifies them | T2.5 cross-repo, T3-3 redaction, T3-5 pack-verification, future `fan_out_recorded` |
+| **Atomicity break is its own verdict class** | When inputs claim canonical but local doesn't match, that's FAIL not PARTIAL | T2.5 cross-repo: mesh canonical but implementation-chain local-fallback → FAIL |
 | **Do not invent app-emitted event kinds** | Adding a new event kind is a real design exercise (origin contract, CLI enum, verifier rules) | D-PR4 uses `design-fan-out.yaml` git history as MVP audit record; `fan_out_recorded` reserved for later |
 | **Do not change the canonical 10 H2s in WHAT** | New content goes in frontmatter + H3 subsection inside section 10 | D-PR4-prep adds `depends_on`/`provides`/`consumes` to per-repo frontmatter + `### Cross-Repo Coordination` H3 |
 
@@ -659,9 +699,9 @@ Every Tier 2 + Tier 3 work-item should apply these.
 | **D-PR5** Stage 5 fan-out card | **This doc's Tier 2 architecture key call #4** + [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) D10 | [`agentic-sdlc.md`](agentic-sdlc.md) §13 D10/D11 |
 | **D-PR6** E2E smoke | **This doc end-to-end** + [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) D12 | [`demo-script-sdlc-walkthrough.md`](demo-script-sdlc-walkthrough.md), [`agentic-sdlc.md`](agentic-sdlc.md) §13 E section (live cert-run pattern) |
 | **D-PR7** implementation-agent template | **This doc's Tier 2 architecture key call #2** + [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) D8 (persona-switch self-critique) | [`audit-event-shape.md`](audit-event-shape.md), [`audit-emit-event/SKILL.md`](../code-templates/skills/audit-emit-event/SKILL.md), [`GitHubService.ts:601`](../src/services/GitHubService.ts) |
-| **D-PR8** implementation chain in rollup | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.6 + §11.7** | T3-2 spec (downstream hardening) |
+| **D-PR8** implementation chain in rollup | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.6 + §11.7** | T2.5 spec (downstream hardening) |
 | **T3-1** Knight's Seal v2 | **[`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §2** | [`agentic-sdlc.md`](agentic-sdlc.md) §11.5; cosign docs |
-| **T3-2** Red Queen signed enforcement chain | **[`governance-redqueen.md`](governance-redqueen.md) §2 + §4.5 + §4.5.1** | D-PR8 (builds on); [`agentic-sdlc.md`](agentic-sdlc.md) §11.6, [`audit-event-shape.md`](audit-event-shape.md) |
+| **T2.5** Red Queen signed enforcement chain | **[`governance-redqueen.md`](governance-redqueen.md) §2 + §4.5 + §4.5.1** | D-PR8 (builds on); [`agentic-sdlc.md`](agentic-sdlc.md) §11.6, [`audit-event-shape.md`](audit-event-shape.md) |
 | **T3-3** Redacted external bundle | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.7** | [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §4, [`governance-prompt-packs.md`](governance-prompt-packs.md) |
 | **T3-4** Org-separation override | **[`agentic-sdlc.md`](agentic-sdlc.md) §10.9** | [`governance-redqueen.md`](governance-redqueen.md) §4.5, [`agentic-sdlc.md`](agentic-sdlc.md) §13 line 1779 |
 | **T3-5** Prompt-pack signature | **[`governance-prompt-packs.md`](governance-prompt-packs.md) + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §2** | [`agentic-sdlc.md`](agentic-sdlc.md) §6 |
@@ -691,9 +731,9 @@ Every Tier 2 + Tier 3 work-item should apply these.
 **Track B -- Tier 3 (parallel-able after Tier 2; T3-1 first):**
 
 1. **T3-1** (Knight's Seal v2) -- prerequisites for T3-5; valuable on its own. ~1 week with sigstore integration testing.
-2. **T3-2** (Red Queen signed chain) -- depends on Tier 2's D-PR8 cross-repo threading. ~1-2 weeks.
+2. **T2.5** (Red Queen signed chain) -- depends on Tier 2's D-PR8 cross-repo threading. ~1-2 weeks.
 3. **T3-5** (prompt-pack signing) -- after T3-1 ships. ~3-5 days.
-4. **T3-3** (redacted bundle) -- depends on T3-2. ~1 week.
+4. **T3-3** (redacted bundle) -- depends on T2.5. ~1 week.
 5. **T3-4** (org-separation override) -- independent; ~3-5 days.
 6. **T3-6** + **T3-7** -- research/non-goal capture.
 
@@ -718,7 +758,7 @@ Every Tier 2 + Tier 3 work-item should apply these.
 ### Tier 3 done-done
 
 - [ ] T3-1 shipped: At least one OKR's WHAT phase signed with cosign-anchored Knight's Seal v2; rollup verifier-notes carries both v1 + v2 commands.
-- [ ] T3-2 shipped: Whole-OKR rollup includes runner-verified per-target-repo `## Implementation chain (Red Queen)` section (extends D-PR8); cross-repo verify-chain walks across repos.
+- [ ] T2.5 shipped: Whole-OKR rollup includes runner-verified per-target-repo `## Implementation chain (Red Queen)` section (extends D-PR8); cross-repo verify-chain walks across repos.
 - [ ] T3-3 shipped: `Export Redacted Bundle` produces a regulator-ready zip with documented redaction policy + verify.sh + audit event.
 - [ ] T3-4 shipped: Dual-signature override enforces org-separation with discriminated rejection reasons.
 - [ ] T3-5 shipped: Mesh refuses unsigned packs; dispatch emits `pack_signature_verified`.
@@ -733,7 +773,7 @@ Every Tier 2 + Tier 3 work-item should apply these.
 - **Order within D-PR4-prep:** verifier first (4-prep.4 in isolation, YAML fixtures, 10-12 test cases), then prompt fixes (4-prep.1 + 4-prep.2), then coordination contract (4-prep.3), then live regeneration (4-prep.5), optionally HOW regeneration (4-prep.6).
 - **Second move: D-PR3 in parallel.** Independent; no shared files. Two devs (or two sessions) can land both before D-PR4 begins.
 - **D-PR4 is the heaviest piece** but its scope is now scoped correctly: orchestrate, don't execute. Cheshire owns scaffold, custom-agent API owns dispatch, GitHub owns the repos, the engine orchestrates and records.
-- **Don't claim signed app-side events for Tier 2.** `design-fan-out.yaml` git history is the audit trail. Reserve `fan_out_recorded` as a real event kind when its trust posture matters enough to design properly (probably with T3-2).
+- **Don't claim signed app-side events for Tier 2.** `design-fan-out.yaml` git history is the audit trail. Reserve `fan_out_recorded` as a real event kind when its trust posture matters enough to design properly (probably with T2.5).
 - **Don't change the canonical 10 H2s in code-design.** New machine-readable fields go in per-repo frontmatter + a new H3 subsection inside section 10. The `phaseSpec.test.ts:402` REQUIRED_H2 contract is a load-bearing test surface -- touching it reopens 50+ tests.
 - **Topological gating is non-negotiable for MVP.** Pure-parallel + mock-and-revise (my earlier draft) ships mocks to main. The course correction is in this doc: dependencies land first, dependents wait.
 - **Keep the source-atomicity discipline.** Every new input to the rollup verdict gets per-input source tracking (`AuditReportInputSources` pattern). Don't bundle. Don't fall back silently.
@@ -747,6 +787,6 @@ Every Tier 2 + Tier 3 work-item should apply these.
 - [`agentic-sdlc.md`](agentic-sdlc.md) -- the index. Section 13 has the running PR / Bug log.
 - [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) -- Phase D detail; D-PR3-D-PR6 specs live here (Hand-off section needs the D-PR4 rewrite spill).
 - [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) -- Tier 3 specs (§2 cosign, §4 bundle, §7 non-goal).
-- [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen architecture for T3-2 integration.
+- [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen architecture for T2.5 integration.
 - [`audit-event-shape.md`](audit-event-shape.md) -- canonical event contract; every new event kind extends this.
 - [`audit-emit-event/SKILL.md`](../code-templates/skills/audit-emit-event/SKILL.md) -- origin contract per event kind; informs key call #5.
