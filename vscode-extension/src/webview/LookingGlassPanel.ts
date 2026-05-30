@@ -1794,7 +1794,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // Only render rows that actually represent fan-out targets with
       // PR-state-ish status (skip never-opened rows like
       // pending-on-upstream when there's no useful info yet).
-      const renderableStatuses = new Set(['opened', 'pr-opened', 'pr-merged', 'pr-rejected', 'pending-on-upstream']);
+      const renderableStatuses = new Set(['opened', 'pr-opened', 'pr-merged', 'pr-rejected', 'pending-on-upstream', 'pending-on-cap']);
       if (!renderableStatuses.has(r.status)) continue;
 
       let chain: ImplementationChainEntry | null = null;

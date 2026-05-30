@@ -171,6 +171,7 @@ export type FanOutPreflightStatusUi =
   | 'ready'
   | 'opened'
   | 'pending-on-upstream'
+  | 'pending-on-cap'
   | 'pending-scaffold'
   | 'harness-missing'
   | 'permission-blocked'
@@ -1557,6 +1558,7 @@ const FANOUT_STATUS_PRESENT: Record<FanOutPreflightStatusUi, { label: string; to
   'ready':                { label: 'Ready',                 tone: 'ready',   icon: '✓' },
   'opened':               { label: 'Landing issue opened',  tone: 'flight',  icon: '📬' },
   'pending-on-upstream':  { label: 'Waiting on upstream',   tone: 'wait',    icon: '⏳' },
+  'pending-on-cap':       { label: 'Queued (cap)',          tone: 'wait',    icon: '🚦' },
   'pending-scaffold':     { label: 'Awaiting scaffold',     tone: 'wait',    icon: '🏗' },
   'harness-missing':      { label: 'Harness missing',       tone: 'block',   icon: '⚠' },
   'permission-blocked':   { label: 'Permission blocked',    tone: 'block',   icon: '🔒' },

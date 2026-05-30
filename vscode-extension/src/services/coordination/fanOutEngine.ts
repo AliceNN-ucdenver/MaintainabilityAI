@@ -40,6 +40,7 @@
  */
 import type { GitHubService } from '../GitHubService';
 
+import { applyConcurrencyCap, FANOUT_CONCURRENCY_CAP } from './concurrencyCap';
 import { parseCoordination } from './parser';
 import {
   derivePreflightStatus,
@@ -201,6 +202,22 @@ export type FanOutPreflightReport =
        * re-parsing the artifact.
        */
       coordinationDoc: CoordinationDoc;
+      /**
+       * Hard concurrency cap applied to this fan-out (FANOUT_CONCURRENCY_CAP).
+       * Total in-flight impl runs are bounded to this value; excess ready
+       * rows are demoted to `pending-on-cap` and drain via Re-check → Fan out.
+       */
+      cap: number;
+      /**
+       * Rows already in-flight (`opened` or `pr-opened`) when the cap was
+       * applied. A chain head counts as 1 (its tail is `pending-on-upstream`).
+       */
+      inFlightCount: number;
+      /**
+       * Ready rows demoted to `pending-on-cap` this pass because the cap
+       * was reached. They re-evaluate on the next Re-check.
+       */
+      queuedCount: number;
     };
 
 /**
@@ -263,7 +280,18 @@ export async function runFanOutPreflight(
     ),
   );
 
-  // 5. Compose the ready set + waves.
+  // 5. Compose the waves (computed ONCE; reused for the cap pass below
+  //    AND the returned `waves` field so admission order matches what
+  //    the panel renders).
+  const waves = topologicalWaves(doc);
+
+  // 6. Apply the hard global concurrency cap. This MUTATES the
+  //    `entry.decision` objects of any ready rows demoted to
+  //    `pending-on-cap` — and `entries` is exactly what the panel
+  //    renders, so the demotions are visible there. We compute the
+  //    ready set AFTER the cap so `readyRepos` excludes capped rows.
+  const cap = applyConcurrencyCap(entries, waves, FANOUT_CONCURRENCY_CAP);
+
   const decisionMap = new Map<string, PreflightDecision>();
   for (const e of entries) decisionMap.set(e.slug, e.decision);
 
@@ -272,8 +300,11 @@ export async function runFanOutPreflight(
     okrId: inputs.okrId,
     entries,
     readyRepos: readySlugs(decisionMap),
-    waves: topologicalWaves(doc),
+    waves,
     coordinationDoc: doc,
+    cap: FANOUT_CONCURRENCY_CAP,
+    inFlightCount: cap.inFlight,
+    queuedCount: cap.queued,
   };
 }
 

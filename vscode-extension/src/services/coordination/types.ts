@@ -104,6 +104,7 @@ export type CoordinationVerifyResult =
  *   - `ready`                — pre-flight passed; landing issue NOT yet opened
  *   - `opened`               — landing issue created, impl agent dispatched
  *   - `pending-on-upstream`  — coordination dep PR has not merged yet
+ *   - `pending-on-cap`       — ready, but the concurrency cap is reached; queued.
  *   - `pending-scaffold`     — greenfield Cheshire scaffold in flight
  *   - `harness-missing`      — brownfield repo lacks .github/agents/implementation-agent.agent.md
  *   - `permission-blocked`   — PAT can't create issue (brownfield) or repo (greenfield)
@@ -117,6 +118,7 @@ export type PreflightStatus =
   | 'ready'
   | 'opened'
   | 'pending-on-upstream'
+  | 'pending-on-cap'
   | 'pending-scaffold'
   | 'harness-missing'
   | 'permission-blocked'
