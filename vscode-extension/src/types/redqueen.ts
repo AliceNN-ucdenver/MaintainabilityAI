@@ -120,44 +120,6 @@ export interface OrchestrationDecision {
 }
 
 // ============================================================================
-// Phase 7: Review Board Types
-// ============================================================================
-
-export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
-
-export interface Finding {
-  id: string;
-  category: 'security' | 'architecture' | 'risk' | 'operations';
-  severity: Severity;
-  title: string;
-  description: string;
-  location?: string;
-  recommendation: string;
-  references?: string[];
-}
-
-export interface ReviewVerdict {
-  reviewer: string;
-  agent: 'claude' | 'copilot';
-  scope: 'security' | 'architecture';
-  verdict: 'approve' | 'request-changes' | 'deny';
-  confidence: number;
-  findings: Finding[];
-  caveats: string[];
-  summary: string;
-}
-
-export interface ConsensusResult {
-  finalVerdict: 'approve' | 'request-changes' | 'deny';
-  verdicts: ReviewVerdict[];
-  mergedFindings: Finding[];
-  mergedCaveats: string[];
-  reasoning: string[];
-  requiresHumanReview: boolean;
-  highestSeverity: Severity | null;
-}
-
-// ============================================================================
 // Phase 7: Feedback Loop Types
 // ============================================================================
 
