@@ -1,4 +1,4 @@
-<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The governed SDLC rail map. Five lifecycle stages — OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped — each carry three parallel rails: agent judgment, deterministic proof, and human governance. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two are stitched at the merge commit SHA.">
+<svg viewBox="0 0 800 650" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped. Each carries four parallel rails: agent judgment, evidence capture, deterministic audit, and human governance. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two are stitched at the merge commit SHA.">
   <defs>
     <linearGradient id="railBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#0c1426"/>
@@ -8,9 +8,13 @@
       <stop offset="0%" stop-color="rgba(167,139,250,0.22)"/>
       <stop offset="100%" stop-color="rgba(167,139,250,0.06)"/>
     </linearGradient>
-    <linearGradient id="railProof" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="railEvidence" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="rgba(125,211,252,0.22)"/>
       <stop offset="100%" stop-color="rgba(125,211,252,0.06)"/>
+    </linearGradient>
+    <linearGradient id="railAudit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(134,239,172,0.20)"/>
+      <stop offset="100%" stop-color="rgba(134,239,172,0.06)"/>
     </linearGradient>
     <linearGradient id="railGovernance" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="rgba(253,186,116,0.22)"/>
@@ -21,20 +25,17 @@
       <stop offset="50%" stop-color="rgba(134,239,172,0.30)"/>
       <stop offset="100%" stop-color="rgba(134,239,172,0.10)"/>
     </linearGradient>
-    <linearGradient id="railNextAct" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgba(148,163,184,0.16)"/>
-      <stop offset="100%" stop-color="rgba(148,163,184,0.04)"/>
-    </linearGradient>
     <filter id="railGlow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-  <rect x="0" y="0" width="800" height="540" rx="12" fill="url(#railBg)"/>
-  <!-- Title strip -->
-  <text x="400" y="28" text-anchor="middle" fill="#cbd5e1" font-size="10.5" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">FIVE STAGES · THREE RAILS · STITCHED EVIDENCE CHAIN</text>
-  <text x="400" y="46" text-anchor="middle" fill="#64748b" font-size="9.5" letter-spacing="1.5" font-family="system-ui, sans-serif">Judgment is the agent's. Proof is deterministic. Governance is the human's.</text>
-  <!-- Phase column headers -->
+
+  <rect x="0" y="0" width="800" height="650" rx="12" fill="url(#railBg)"/>
+
+  <text x="400" y="28" text-anchor="middle" fill="#cbd5e1" font-size="10.5" font-weight="700" letter-spacing="3" font-family="system-ui, sans-serif">FIVE STAGES · FOUR RAILS · STITCHED EVIDENCE CHAIN</text>
+  <text x="400" y="46" text-anchor="middle" fill="#64748b" font-size="9.5" letter-spacing="1.3" font-family="system-ui, sans-serif">Judgment is the agent's. Evidence is captured. Audit checks pass/fail. Governance decides.</text>
+
   <g transform="translate(0,72)">
     <rect x="100" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
     <text x="165" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">OKR</text>
@@ -44,15 +45,15 @@
     <text x="303" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">research synthesis</text>
     <rect x="376" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
     <text x="441" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">HOW</text>
-    <text x="441" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">PRD + persona-switch</text>
+    <text x="441" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">PRD + critique</text>
     <rect x="514" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
     <text x="579" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="system-ui, sans-serif">WHAT</text>
     <text x="579" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">code-grounded design</text>
     <rect x="652" y="0" width="130" height="28" rx="6" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.45)" stroke-width="1.1"/>
-    <text x="717" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">BUILD fan-out</text>
-    <text x="717" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">FanOutEngine · impl chain</text>
+    <text x="717" y="13" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1.1" font-family="system-ui, sans-serif">BUILD fan-out</text>
+    <text x="717" y="23" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">impl chain</text>
   </g>
-  <!-- JUDGMENT rail -->
+
   <g transform="translate(0,118)">
     <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railJudgment)" stroke="rgba(167,139,250,0.55)" stroke-width="1.3"/>
     <g transform="translate(28,18)">
@@ -61,84 +62,119 @@
       <rect x="22" y="9" width="6" height="11" rx="1" fill="#a78bfa"/>
       <path d="M -1 26 L 30 26" stroke="#a78bfa" stroke-width="1.3"/>
     </g>
-    <text x="53" y="62" text-anchor="middle" fill="#ede9fe" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">JUDGMENT</text>
-    <text x="53" y="74" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">agent · signed</text>
+    <text x="53" y="62" text-anchor="middle" fill="#ede9fe" font-size="10" font-weight="700" letter-spacing="0.8" font-family="system-ui, sans-serif">JUDGMENT</text>
+    <text x="53" y="74" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="system-ui, sans-serif">agent signs</text>
     <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
     <text x="110" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">intent hypothesis</text>
     <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">objective + KRs</text>
     <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">tier proposal</text>
-    <text x="110" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">+ Hatter Tag</text>
+    <text x="110" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">Hatter Tag</text>
     <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
     <text x="248" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">research synthesis</text>
     <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">conclusions ranked</text>
-    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">gap-loop refinement</text>
-    <text x="248" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">self_review × N</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">gap-loop refine</text>
+    <text x="248" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">gap_loop</text>
     <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
     <text x="386" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">PRD self-critique</text>
     <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">architect persona</text>
     <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">security persona</text>
-    <text x="386" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">2 rounds → PASS</text>
+    <text x="386" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">score + severity</text>
     <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
-    <text x="524" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">code-design critique</text>
-    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-architect persona</text>
-    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-security persona</text>
-    <text x="524" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">2 rounds → PASS</text>
+    <text x="524" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">design self-critique</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-architect</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-security</text>
+    <text x="524" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">score + severity</text>
     <rect x="652" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(167,139,250,0.30)" stroke-width="1"/>
     <text x="662" y="18" fill="#ddd6fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">impl self-critique</text>
-    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-architect persona</text>
-    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">code-security persona</text>
-    <text x="662" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">in target repo</text>
+    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">same personas</text>
+    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">inside target repo</text>
+    <text x="662" y="74" fill="#a78bfa" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">IMPL self_review</text>
   </g>
-  <!-- PROOF rail -->
+
   <g transform="translate(0,212)">
-    <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railProof)" stroke="rgba(125,211,252,0.55)" stroke-width="1.3"/>
+    <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railEvidence)" stroke="rgba(125,211,252,0.55)" stroke-width="1.3"/>
     <g transform="translate(34,16)">
       <circle cx="0" cy="6" r="9" fill="none" stroke="#7dd3fc" stroke-width="1.4"/>
       <path d="M -4 6 L -1 10 L 5 2" stroke="#7dd3fc" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
-    <text x="53" y="62" text-anchor="middle" fill="#e0f2fe" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">PROOF</text>
-    <text x="53" y="74" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="system-ui, sans-serif">runtime · signed</text>
+    <text x="53" y="62" text-anchor="middle" fill="#e0f2fe" font-size="9.5" font-weight="700" letter-spacing="0.7" font-family="system-ui, sans-serif">EVIDENCE</text>
+    <text x="53" y="74" text-anchor="middle" fill="#7dd3fc" font-size="8" font-family="system-ui, sans-serif">runtime logs</text>
     <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
-    <text x="110" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">BAR + mesh anchors</text>
-    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">CALM nodes referenced</text>
-    <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">ADR / threat IDs</text>
-    <text x="110" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">knowledge-mesh-bar</text>
+    <text x="110" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">mesh anchors</text>
+    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">BAR, CALM</text>
+    <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">ADRs + threats</text>
+    <text x="110" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">knowledge-mesh</text>
     <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
-    <text x="248" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">external evidence</text>
-    <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">Tavily · arXiv · USPTO</text>
-    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">HN · community signals</text>
-    <text x="248" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">skill_call × N</text>
+    <text x="248" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">provider results</text>
+    <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">Tavily · arXiv</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">USPTO · HN</text>
+    <text x="248" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">source registry</text>
     <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
-    <text x="386" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">mesh + decisions</text>
-    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">ADRs read in-place</text>
-    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">STRIDE threats indexed</text>
-    <text x="386" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">context-* skills</text>
+    <text x="386" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">mesh context</text>
+    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">research + BAR</text>
+    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">threats + ADRs</text>
+    <text x="386" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">context skills</text>
     <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
-    <text x="524" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">real code reads</text>
-    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">brownfield clone + read</text>
-    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">cited paths verified</text>
-    <text x="524" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">knowledge-code · -read</text>
+    <text x="524" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">code inventory</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">brownfield reads</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">new vs cited paths</text>
+    <text x="524" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">knowledge-code</text>
     <rect x="652" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
-    <text x="662" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">impl chain (target repo)</text>
-    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">events at merge SHA</text>
-    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">Red Queen MCP alongside</text>
-    <text x="662" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">.maintainability/audit/</text>
+    <text x="662" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">target repo chain</text>
+    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">events + keys</text>
+    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">Red Queen log</text>
+    <text x="662" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">.maintainability</text>
   </g>
-  <!-- GOVERNANCE rail -->
+
   <g transform="translate(0,306)">
+    <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railAudit)" stroke="rgba(134,239,172,0.58)" stroke-width="1.3"/>
+    <g transform="translate(34,16)">
+      <path d="M -10 12 L -2 20 L 12 2" stroke="#86efac" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="1" cy="10" r="13" fill="none" stroke="#86efac" stroke-width="1.2" opacity="0.7"/>
+    </g>
+    <text x="53" y="62" text-anchor="middle" fill="#dcfce7" font-size="10" font-weight="700" letter-spacing="1.0" font-family="system-ui, sans-serif">AUDIT</text>
+    <text x="53" y="74" text-anchor="middle" fill="#86efac" font-size="8" font-family="system-ui, sans-serif">pass / fail</text>
+    <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
+    <text x="110" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">intent locked</text>
+    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">tier frozen</text>
+    <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">state owner checked</text>
+    <text x="110" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">OKR schema</text>
+    <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
+    <text x="248" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">source grounding</text>
+    <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">S tags matched</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">claims cite evidence</text>
+    <text x="248" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">research audit</text>
+    <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
+    <text x="386" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">requirements check</text>
+    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">FR/NFR/SR present</text>
+    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">SRs anchored</text>
+    <text x="386" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">PRD audit</text>
+    <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
+    <text x="524" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">design check</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">coverage + paths</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">coordination YAML</text>
+    <text x="524" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">design audit</text>
+    <rect x="652" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
+    <text x="662" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">merge-SHA check</text>
+    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">impl files exist</text>
+    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">tag links back</text>
+    <text x="662" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">Stage 5 poll</text>
+  </g>
+
+  <g transform="translate(0,400)">
     <rect x="14" y="0" width="78" height="84" rx="8" fill="url(#railGovernance)" stroke="rgba(253,186,116,0.55)" stroke-width="1.3"/>
     <g transform="translate(34,16)">
       <rect x="-9" y="2" width="18" height="14" rx="2" fill="none" stroke="#fdba74" stroke-width="1.4"/>
       <path d="M -6 0 L -6 2 M 6 0 L 6 2" stroke="#fdba74" stroke-width="1.4" stroke-linecap="round"/>
       <circle cx="0" cy="9" r="2.5" fill="#fdba74"/>
     </g>
-    <text x="53" y="62" text-anchor="middle" fill="#fef3c7" font-size="10" font-weight="700" letter-spacing="1.2" font-family="system-ui, sans-serif">GOVERNANCE</text>
-    <text x="53" y="74" text-anchor="middle" fill="#fdba74" font-size="8" font-family="system-ui, sans-serif">human + workflow</text>
+    <text x="53" y="62" text-anchor="middle" fill="#fef3c7" font-size="8.4" font-weight="700" letter-spacing="0.35" font-family="system-ui, sans-serif">GOVERNANCE</text>
+    <text x="53" y="74" text-anchor="middle" fill="#fdba74" font-size="8" font-family="system-ui, sans-serif">human gate</text>
     <rect x="100" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
-    <text x="110" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">tier set</text>
-    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">autonomous / supervised /</text>
-    <text x="110" y="44" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">restricted by BAR score</text>
-    <text x="110" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">okr.yaml.actions[]</text>
+    <text x="110" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">human sets tier</text>
+    <text x="110" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">BAR gates scope</text>
+    <text x="110" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">owner approves</text>
+    <text x="110" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">okr.yaml</text>
     <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
     <text x="248" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">research-pass</text>
     <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">PR label applied</text>
@@ -146,29 +182,29 @@
     <text x="248" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">state_transition</text>
     <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
     <text x="386" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">prd-pass</text>
-    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">label + finalize roll</text>
-    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">meta.status → design</text>
+    <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">label + finalize</text>
+    <text x="386" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">status advances</text>
     <text x="386" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">artifact_written</text>
     <rect x="514" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
     <text x="524" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">design-pass</text>
-    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">label + finalize roll</text>
-    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">meta.status → building</text>
+    <text x="524" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">label + finalize</text>
+    <text x="524" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">fan-out ready</text>
     <text x="524" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">artifact_written</text>
     <rect x="652" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(253,186,116,0.30)" stroke-width="1"/>
     <text x="662" y="18" fill="#fef3c7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">pre-flight + dispatch</text>
-    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">user confirms N of M</text>
-    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">chain-ladder + merge SHA</text>
+    <text x="662" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">user confirms N/M</text>
+    <text x="662" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">ladder append</text>
     <text x="662" y="74" fill="#fdba74" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">FanOutEngine</text>
   </g>
-  <!-- Signed audit chain band -->
-  <g transform="translate(0,408)">
-    <rect x="14" y="6" width="768" height="56" rx="10" fill="url(#railChain)" stroke="rgba(134,239,172,0.65)" stroke-width="1.6" filter="url(#railGlow)"/>
+
+  <g transform="translate(0,502)">
+    <rect x="14" y="6" width="768" height="58" rx="10" fill="url(#railChain)" stroke="rgba(134,239,172,0.65)" stroke-width="1.6" filter="url(#railGlow)"/>
     <g transform="translate(30,20)">
       <path d="M 16 4 L 28 8 L 28 18 Q 28 24 16 28 Q 4 24 4 18 L 4 8 Z" fill="rgba(134,239,172,0.25)" stroke="#86efac" stroke-width="1.3"/>
       <path d="M 10 15 L 14 19 L 21 12" stroke="#86efac" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
-    <text x="74" y="28" fill="#dcfce7" font-size="12.5" font-weight="700" font-family="system-ui, sans-serif">🛡  Signed audit chain · every event tied to its emitting session</text>
-    <text x="74" y="46" fill="#86efac" font-size="9.5" font-family="system-ui, sans-serif">Knight's Seal v1 (per-session Ed25519) · chain-ladder.yaml stitches WHY → HOW → WHAT → impl rows at merge SHA</text>
+    <text x="74" y="28" fill="#dcfce7" font-size="12.5" font-weight="700" font-family="system-ui, sans-serif">Signed evidence chain · every event tied to its emitting session</text>
+    <text x="74" y="46" fill="#86efac" font-size="9.5" font-family="system-ui, sans-serif">Knight's Seal v1 · chain-ladder.yaml stitches WHY → HOW → WHAT → impl rows at merge SHA</text>
     <circle cx="165" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
     <circle cx="303" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
     <circle cx="441" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
@@ -176,19 +212,19 @@
     <circle cx="717" cy="34" r="4" fill="#86efac" filter="url(#railGlow)"/>
     <path d="M 165 34 L 303 34 M 303 34 L 441 34 M 441 34 L 579 34 M 579 34 L 717 34" stroke="rgba(134,239,172,0.55)" stroke-width="1.4"/>
   </g>
-  <!-- Legend -->
-  <g transform="translate(0,484)">
-    <rect x="14" y="0" width="768" height="42" rx="8" fill="rgba(15,23,42,0.55)" stroke="rgba(148,163,184,0.25)" stroke-width="1"/>
-    <g transform="translate(30,11)">
+
+  <g transform="translate(0,584)">
+    <rect x="14" y="0" width="768" height="44" rx="8" fill="rgba(15,23,42,0.55)" stroke="rgba(148,163,184,0.25)" stroke-width="1"/>
+    <g transform="translate(30,12)">
       <rect x="0" y="0" width="14" height="20" rx="2" fill="rgba(196,181,253,0.18)" stroke="rgba(196,181,253,0.55)" stroke-width="1"/>
       <text x="22" y="14" fill="#e2e8f0" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">solid border · shipped today</text>
     </g>
-    <g transform="translate(238,11)">
+    <g transform="translate(238,12)">
       <circle cx="7" cy="10" r="4" fill="#86efac"/>
       <text x="20" y="14" fill="#86efac" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">chain rung · sealed event</text>
     </g>
-    <g transform="translate(440,11)">
-      <text x="0" y="14" fill="#cbd5e1" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">↳ planning rungs in mesh · impl rung in target repo · stitched at merge SHA</text>
+    <g transform="translate(440,12)">
+      <text x="0" y="14" fill="#cbd5e1" font-size="9.5" font-weight="600" font-family="system-ui, sans-serif">planning rungs in mesh · impl rung in target repo · stitched at merge SHA</text>
     </g>
   </g>
 </svg>

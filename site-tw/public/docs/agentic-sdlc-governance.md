@@ -244,7 +244,7 @@ That is the difference between a pile of coding assistants and a governed hybrid
 
 <div class="docs-center-block">
 <div class="docs-heading">This is the way: a governed evidence pipeline, not a loop</div>
-<div class="docs-copy">Five lifecycle stages × three parallel rails (judgment · proof · governance) × a stitched evidence chain underneath. <strong>OKR → WHY → HOW → WHAT ships today, and BUILD fan-out shipped via the in-extension FanOutEngine.</strong> Planning lives in the mesh, implementation lives in each target repo, and the two are stitched at the merge commit. The full rail map sits in <a href="#how-we-keep-the-promises">How we keep the promises</a> below.</div>
+<div class="docs-copy">Five lifecycle stages × four parallel rails (judgment · evidence · audit · governance) × a stitched evidence chain underneath. <strong>OKR → WHY → HOW → WHAT ships today, and BUILD fan-out shipped via the in-extension FanOutEngine.</strong> Planning lives in the mesh, implementation lives in each target repo, and the two are stitched at the merge commit. The full rail map sits in <a href="#how-we-keep-the-promises">How we keep the promises</a> below.</div>
 </div>
 
 ## A Monday morning
@@ -1227,13 +1227,13 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
 
 ## How we keep the promises
 
-Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, three plain-English receipts. Every one is enforced by code that runs on every PR, not by a slide.
+Earlier we said most agentic systems break the chain of trust. Here is how we do not. Three promises, with four rails underneath: judgment, evidence, audit, and governance. Every one is enforced by code that runs on every PR, not by a slide.
 
 <div class="docs-center-block">
 <div class="docs-heading">The new SDLC is not a loop. It is a governed evidence pipeline.</div>
 </div>
 
-<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped. Each carries three parallel rails: agent judgment, deterministic proof, and human governance. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two stitch at the merge commit." class="docs-svg" />
+<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped. Each carries four parallel rails: agent judgment, evidence capture, deterministic audit, and human governance. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two stitch at the merge commit." class="docs-svg" />
 
 
 <div class="docs-grid docs-grid-wide">
@@ -1257,7 +1257,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   </div>
 </div>
 
-<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Runtime tests, dashboard tests, and field-bug regressions all gate every push to main. Payload contract is regression-locked.">
+<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" class="docs-svg" role="img" aria-label="Receipts at a glance. Runtime tests, dashboard tests, field-bug regressions, and deterministic audit contracts all gate every push to main.">
   <defs>
     <linearGradient id="receiptsBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0b1424"/>
@@ -1286,13 +1286,13 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   </g>
   <g transform="translate(586,56)">
     <rect x="0" y="0" width="186" height="84" rx="10" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.4)"/>
-    <text x="93" y="38" text-anchor="middle" fill="#c4b5fd" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ pinned</text>
-    <text x="93" y="56" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">PAYLOAD CONTRACT</text>
-    <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">regression-locked</text>
+    <text x="93" y="38" text-anchor="middle" fill="#c4b5fd" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ checked</text>
+    <text x="93" y="56" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">AUDIT CONTRACTS</text>
+    <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">sources, reqs, paths, SHA</text>
   </g>
   <rect x="28" y="160" width="744" height="44" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
-  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">THREE WAYS EVENTS LAND · DETERMINISTIC RUNTIME, REVIEWING AGENT, OR WORKFLOW</text>
-  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Each kind of event has exactly one legitimate source. Anything else is forgery — and the verifier catches it.</text>
+  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AUDIT GATES · WHY SOURCES · HOW REQUIREMENTS · WHAT PATHS · BUILD MERGE SHA</text>
+  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Evidence is captured as the work happens. Audit checks decide whether a pass label is allowed.</text>
   <text x="400" y="232" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">Trust earned, not granted. Per agent, per session, per event.</text>
 </svg>
 
