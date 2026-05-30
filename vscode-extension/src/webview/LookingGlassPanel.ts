@@ -1178,6 +1178,30 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'WHAT phase not complete -- nothing to fan out.' });
       return;
     }
+
+    // Re-derive the governance tier from the LIVE BAR at fan-out time
+    // instead of carrying the WHAT-phase frozen value. The BAR may have
+    // been remediated (or regressed) since WHAT dispatch; the impl
+    // self-review must reflect the CURRENT posture AND match the runtime
+    // hook, which enforces the live tier from the scaffolded policy.json.
+    // We use the SAME derivation the scaffold uses for policy.json
+    // (getOrchestrationDecision -> effectiveTier, incl. platform
+    // overrides), so the self-review tier and the hook tier agree. Falls
+    // back to the frozen WHAT tier if the BAR can't be resolved.
+    const frozenWhatTier = whatAction.governanceTier;
+    let dispatchTier = frozenWhatTier;
+    try {
+      const primaryBarId = okr.objectiveAlignment.affectedBarIds?.[0];
+      if (primaryBarId) {
+        const tierReader = new MeshReader(meshPath);
+        const liveBar = tierReader.listBars().find(b => b.id === primaryBarId);
+        if (liveBar) {
+          const decision = new RedQueenService().getOrchestrationDecision(tierReader, liveBar.name);
+          if (!('error' in decision)) { dispatchTier = decision.effectiveTier; }
+        }
+      }
+    } catch { /* live tier is best-effort; keep the frozen WHAT tier */ }
+
     const artifactPath = `okrs/${okrId}/what/code-design.md`;
     let designMarkdown: string | null;
     try {
@@ -1356,12 +1380,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           parentRunId,
           parentIntentThread,
           parentChainRoot,
-          // Codex-r5 Bug 1 — frozen tier from the same WHAT action that
-          // provides parent_run_id. Threaded through so the impl agent's
-          // self-review-impl-* calls source the authoritative tier from
-          // the landing issue (target-repo context has no mesh okr.yaml
-          // to read it from).
-          whatGovernanceTier: whatAction.governanceTier,
+          // Governance tier the impl self-review runs at — re-derived
+          // from the LIVE BAR above (not frozen at WHAT), so a remediated
+          // BAR is honoured and it matches the runtime hook's policy.json.
+          // The frozen WHAT tier rides along for the provenance note.
+          governanceTier: dispatchTier,
+          frozenWhatTier,
         });
 
         const issue = await this.githubService.createIssueRaw(
@@ -1439,7 +1463,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } else if (dispatched.length > 0) {
       this.postMessage({
         type: 'info',
-        message: `Fan-out opened ${dispatched.length} landing issue${dispatched.length === 1 ? '' : 's'}: ${dispatched.join(', ')}. ${commitMsg}`,
+        message: `Fan-out opened ${dispatched.length} landing issue${dispatched.length === 1 ? '' : 's'}: ${dispatched.join(', ')}. ${commitMsg}\n` +
+          `Heads-up: the Copilot agent opens its impl PRs as a bot, so GitHub holds their workflows at "action_required" — open each PR's Actions tab and click "Approve and run" to let the Implementation Provenance gate verify the signed chain (or enable auto-run for the Copilot coding agent in repo Settings → Actions).`,
       });
     }
 
@@ -9044,18 +9069,17 @@ function composeFanOutLandingIssueBody(args: {
   parentRunId: string;
   parentIntentThread: string;
   parentChainRoot: string;
-  // Codex-r5 Bug 1 — authoritative governance tier the WHAT phase was
-  // dispatched at (whatAction.governanceTier; frozen at WHAT-phase run
-  // start per the dispatch contract). The impl agent passes this value
-  // verbatim into `self-review-impl-architect` + `self-review-impl-security`
-  // calls; the runner's makeImplReviewHandler derives MAX_AUTO_ROUNDS
-  // from it. Pre-r5 the agent had nowhere to source it (no MESH_PATH in
-  // the target repo, no actions[] entry for IMPL-* run ids), so it would
-  // either fail bad-input on the skill call or hallucinate the tier;
-  // either way the "authoritative frozen tier" contract was broken.
-  // Sourced from the same OKR action that provides parent_run_id so the
-  // pair is internally consistent.
-  whatGovernanceTier: 'autonomous' | 'supervised' | 'restricted';
+  // Governance tier the impl self-review runs at. RE-DERIVED from the
+  // LIVE BAR at fan-out time (getOrchestrationDecision -> effectiveTier,
+  // incl. platform overrides) — NOT frozen at WHAT — so a remediated or
+  // regressed BAR is reflected and this matches the runtime hook's
+  // policy.json tier. The impl agent passes it verbatim into
+  // `self-review-impl-architect` + `self-review-impl-security`; the
+  // runner's makeImplReviewHandler derives MAX_AUTO_ROUNDS from it.
+  governanceTier: 'autonomous' | 'supervised' | 'restricted';
+  // The WHAT-dispatch tier, surfaced in the provenance note only when it
+  // differs from the live tier (so reviewers see the BAR moved).
+  frozenWhatTier?: 'autonomous' | 'supervised' | 'restricted';
 }): string {
   const lines: string[] = [];
   // HTML-comment metadata block — the impl agent parses these for the
@@ -9069,10 +9093,10 @@ function composeFanOutLandingIssueBody(args: {
   lines.push(`<!-- parent_run_id: ${args.parentRunId} -->`);
   lines.push(`<!-- parent_intent_thread: ${args.parentIntentThread} -->`);
   lines.push(`<!-- parent_chain_root: ${args.parentChainRoot} -->`);
-  // Codex-r5 Bug 1 — frozen-at-dispatch tier. Parsed by the impl agent
-  // for the `tier` arg on every `self-review-impl-*` skill call. Stable
-  // string per GovernanceTierSchema (autonomous|supervised|restricted).
-  lines.push(`<!-- governance_tier: ${args.whatGovernanceTier} -->`);
+  // Live-at-fan-out tier. Parsed by the impl agent for the `tier` arg on
+  // every `self-review-impl-*` skill call. Stable string per
+  // GovernanceTierSchema (autonomous|supervised|restricted).
+  lines.push(`<!-- governance_tier: ${args.governanceTier} -->`);
   lines.push('');
   lines.push(`## OKR context`);
   lines.push('');
@@ -9080,12 +9104,14 @@ function composeFanOutLandingIssueBody(args: {
   lines.push(`- **Objective:** ${args.okrObjective}`);
   lines.push(`- **Source artifact:** [\`${args.codeDesignArtifactPath}\`](https://github.com/${args.meshRepoSlug}/blob/main/${args.codeDesignArtifactPath}) (your per-repo extract lives under \`## 1. Project Structure\`)`);
   lines.push(`- **Target repo mode:** ${args.repoStatus === 'create' ? 'greenfield (scaffolded via Cheshire)' : 'brownfield (existing repo)'}`);
-  // Codex-r5 Bug 1 — also surfaced as a human-readable bullet so the
-  // reviewer can see the frozen tier without reading HTML comments.
-  // Matches the HTML comment above; the impl agent MUST use the
-  // comment as the authoritative source (HTML markers don't get
-  // re-flowed by GitHub's markdown renderer).
-  lines.push(`- **Governance tier (frozen at WHAT dispatch):** \`${args.whatGovernanceTier}\` — pass this verbatim as \`tier\` to every \`self-review-impl-*\` skill call.`);
+  // Also surfaced as a human-readable bullet so the reviewer can see the
+  // tier without reading HTML comments. Matches the HTML comment above;
+  // the impl agent MUST use the comment as the authoritative source (HTML
+  // markers don't get re-flowed by GitHub's markdown renderer).
+  const tierNote = args.frozenWhatTier && args.frozenWhatTier !== args.governanceTier
+    ? ` (re-derived at fan-out from the live BAR; was \`${args.frozenWhatTier}\` at WHAT dispatch)`
+    : ' (re-derived at fan-out from the live BAR)';
+  lines.push(`- **Governance tier:** \`${args.governanceTier}\`${tierNote} — pass this verbatim as \`tier\` to every \`self-review-impl-*\` skill call.`);
   lines.push('');
   // Parent chain continuation summary — surfaces the values the impl
   // agent must echo into its PR body's implementation_chain YAML
